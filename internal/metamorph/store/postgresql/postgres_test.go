@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -16,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/go-testfixtures/testfixtures/v3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -66,24 +64,6 @@ func testmain(m *testing.M) int {
 
 	dbInfo = connStr
 	return m.Run()
-}
-
-func loadFixtures(db *sql.DB, path string) error {
-	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
-		testfixtures.Dialect("postgresql"),
-		testfixtures.Directory(path), // The directory containing the YAML files
-	)
-	if err != nil {
-		log.Fatalf("failed to create fixtures: %v", err)
-	}
-
-	err = fixtures.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load fixtures: %v", err)
-	}
-
-	return nil
 }
 
 func pruneTables(db *sql.DB) error {
@@ -175,7 +155,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get raw txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_rawtxs"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_rawtxs")
 
 		hash1 := "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
 		hash2 := "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"
@@ -209,7 +189,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get many", func(t *testing.T) {
 		// when
 		defer require.NoError(t, pruneTables(postgresDB.db))
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		keys := [][]byte{
 			revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
@@ -226,8 +206,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set bulk", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/set_bulk"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_bulk")
 
 		hash2 := revChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
 
@@ -286,7 +265,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get unmined", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		// locked by metamorph-1
 		expectedHash0 := revChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
@@ -306,7 +285,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("set locked by", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
 		require.NoError(t, err)
@@ -339,7 +318,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("set unlocked by name", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/set_unlocked_by_name"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
@@ -369,7 +348,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("update status", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_status"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_status")
 
 		updates := []store.UpdateStatus{
 			{
@@ -434,7 +413,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("update double spend status", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/update_double_spend"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_double_spend")
 
 		updates := []store.UpdateStatus{
 			{
@@ -504,8 +483,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update mined", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
-
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)
@@ -616,7 +594,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("clear data", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
@@ -631,7 +609,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get seen on network txs", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures")
 
 		txHash := revChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
 		require.NoError(t, err)
@@ -647,7 +625,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get stats", func(t *testing.T) {
 		defer require.NoError(t, pruneTables(postgresDB.db))
 
-		require.NoError(t, loadFixtures(postgresDB.db, "fixtures/get_stats"))
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_stats")
 
 		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 10*time.Minute, 20*time.Minute)
 		require.NoError(t, err)

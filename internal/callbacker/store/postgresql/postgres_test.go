@@ -12,7 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
@@ -158,7 +157,7 @@ func TestPostgresDBt(t *testing.T) {
 	t.Run("pop many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		loadFixtures(t, postgresDB.db, "fixtures/pop_many")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_many")
 
 		const concurentCalls = 5
 		const popLimit = 10
@@ -210,23 +209,5 @@ func pruneTables(t *testing.T, db *sql.DB) {
 	_, err := db.Exec("TRUNCATE TABLE callbacker.callbacks;")
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-func loadFixtures(t *testing.T, db *sql.DB, path string) {
-	t.Helper()
-
-	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
-		testfixtures.Dialect("postgresql"),
-		testfixtures.Directory(path), // The directory containing the YAML files
-	)
-	if err != nil {
-		t.Fatalf("failed to create fixtures: %v", err)
-	}
-
-	err = fixtures.Load()
-	if err != nil {
-		t.Fatalf("failed to load fixtures: %v", err)
 	}
 }

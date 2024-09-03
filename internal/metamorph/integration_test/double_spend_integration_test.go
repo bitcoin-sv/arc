@@ -95,7 +95,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	}
 
 	defer require.NoError(t, pruneTables(dbConn))
-	require.NoError(t, loadFixtures(dbConn, "fixtures"))
+	testutils.LoadFixtures(t, dbConn, "fixtures")
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 

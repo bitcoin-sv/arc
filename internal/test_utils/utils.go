@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/go-testfixtures/testfixtures/v3"
 
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -62,4 +64,22 @@ func Retry(op func() error) error {
 	}
 
 	return nil
+}
+
+func LoadFixtures(t *testing.T, db *sql.DB, path string) {
+	t.Helper()
+
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgresql"),
+		testfixtures.Directory(path), // The directory containing the YAML files
+	)
+	if err != nil {
+		t.Fatalf("failed to create fixtures: %v", err)
+	}
+
+	err = fixtures.Load()
+	if err != nil {
+		t.Fatalf("failed to load fixtures: %v", err)
+	}
 }

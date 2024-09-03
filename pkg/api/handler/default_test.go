@@ -16,6 +16,12 @@ import (
 	"testing"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -24,11 +30,6 @@ import (
 	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -1301,7 +1302,7 @@ func Test_handleError(t *testing.T) {
 
 			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{
-				Detail:    "Transaction is not in extended format, missing input scripts",
+				Detail:    "Missing input scripts: Transaction could not be transformed to extended format",
 				ExtraInfo: PtrTo("arc error 460: parent transaction not found"),
 				Title:     "Not extended format",
 				Type:      "https://bitcoin-sv.github.io/arc/#/errors?id=_460",

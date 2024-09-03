@@ -1142,7 +1142,7 @@
                 "example": 460
               },
               "detail": {
-                "example": "Transaction is not in extended format, missing input scripts"
+                "example": "Missing input scripts: Transaction could not be transformed to extended format"
               },
               "instance": {
                 "example": "https://arc.taal.com/errors/1234556"

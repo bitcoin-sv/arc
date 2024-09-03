@@ -1731,7 +1731,7 @@ and
   "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_460",
   "title": "Not extended format",
   "status": 460,
-  "detail": "Transaction is not in extended format, missing input scripts",
+  "detail": "Missing input scripts: Transaction could not be transformed to extended format",
   "instance": "https://arc.taal.com/errors/1234556",
   "txid": "string",
   "extraInfo": "string"

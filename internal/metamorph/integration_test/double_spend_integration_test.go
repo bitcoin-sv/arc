@@ -159,7 +159,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	require.NoError(t, err)
 
 	minedTxChannel <- &blocktx_api.TransactionBlock{
-		BlockHash:       revChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
+		BlockHash:       testutils.RevChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
 		BlockHeight:     888888,
 		TransactionHash: minedTxHash[:],
 		MerklePath:      "merkle-path-1",

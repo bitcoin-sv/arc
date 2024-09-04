@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,30 @@ func TestExtractHeightForRegtest(t *testing.T) {
 	height := extractHeightFromCoinbaseTx(tx)
 
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
+}
+
+func TestGetLowestHeight(t *testing.T) {
+	blocks := []*blocktx_api.Block{
+		{
+			Height: 123,
+		},
+		{
+			Height: 250,
+		},
+		{
+			Height: 83340,
+		},
+		{
+			Height: 4,
+		},
+		{
+			Height: 40,
+		},
+	}
+
+	lowestHeight := getLowestHeight(blocks)
+
+	require.Equal(t, uint64(4), lowestHeight)
 }
 
 func TestChainWork(t *testing.T) {

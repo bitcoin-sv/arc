@@ -204,10 +204,9 @@ func TestProcessTransaction(t *testing.T) {
 					}
 					return []*store.StoreData{
 						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX1Hash,
-							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+							StoredAt: time.Now(),
+							Hash:     testdata.TX1Hash,
+							Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 						},
 					}, nil
 				},
@@ -724,18 +723,16 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					}
 					unminedData := []*store.StoreData{
 						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX4Hash,
-							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-							Retries:     retries,
+							StoredAt: time.Now(),
+							Hash:     testdata.TX4Hash,
+							Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+							Retries:  retries,
 						},
 						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX5Hash,
-							Status:      metamorph_api.Status_STORED,
-							Retries:     retries,
+							StoredAt: time.Now(),
+							Hash:     testdata.TX5Hash,
+							Status:   metamorph_api.Status_STORED,
+							Retries:  retries,
 						},
 					}
 
@@ -896,16 +893,14 @@ func TestProcessorHealth(t *testing.T) {
 					}
 					return []*store.StoreData{
 						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX1Hash,
-							Status:      metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+							StoredAt: time.Now(),
+							Hash:     testdata.TX1Hash,
+							Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 						},
 						{
-							StoredAt:    time.Now(),
-							AnnouncedAt: time.Now(),
-							Hash:        testdata.TX2Hash,
-							Status:      metamorph_api.Status_STORED,
+							StoredAt: time.Now(),
+							Hash:     testdata.TX2Hash,
+							Status:   metamorph_api.Status_STORED,
 						},
 					}, nil
 				},

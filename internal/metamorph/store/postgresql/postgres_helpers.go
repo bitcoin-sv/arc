@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"strings"
-
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"strings"
 )
 
 type competingTxsData struct {
@@ -43,8 +42,6 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 	for rows.Next() {
 		data := &store.StoreData{}
 
-		var announcedAt sql.NullTime
-		var minedAt sql.NullTime
 		var status sql.NullInt32
 
 		var txHash []byte
@@ -52,15 +49,15 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		var blockHash []byte
 
 		var callbacksData []byte
+		var statusHistory []byte
 		var rejectReason sql.NullString
 		var competingTxs sql.NullString
 		var merklePath sql.NullString
 		var retries sql.NullInt32
+		var lastModified sql.NullTime
 
 		err := rows.Scan(
 			&data.StoredAt,
-			&announcedAt,
-			&minedAt,
 			&txHash,
 			&status,
 			&blockHeight,
@@ -73,6 +70,8 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			&data.LockedBy,
 			&merklePath,
 			&retries,
+			&statusHistory,
+			&lastModified,
 		)
 		if err != nil {
 			return nil, err
@@ -90,14 +89,6 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 			if err != nil {
 				return nil, err
 			}
-		}
-
-		if announcedAt.Valid {
-			data.AnnouncedAt = announcedAt.Time.UTC()
-		}
-
-		if minedAt.Valid {
-			data.MinedAt = minedAt.Time.UTC()
 		}
 
 		if status.Valid {
@@ -122,6 +113,10 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 
 		if competingTxs.String != "" {
 			data.CompetingTxs = strings.Split(competingTxs.String, ",")
+		}
+
+		if lastModified.Valid {
+			data.LastModified = &lastModified.Time
 		}
 
 		data.RejectReason = rejectReason.String
@@ -171,8 +166,6 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
 			AND t.status < $1::INT
 		RETURNING t.stored_at
-		,t.announced_at
-		,t.mined_at
 		,t.hash
 		,t.status
 		,t.block_height
@@ -185,6 +178,8 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		,t.locked_by
 		,t.merkle_path
 		,t.retries
+		,t.status_history
+		,t.last_modified
 		;
 	`
 	rejectReason := "double spend attempted"
@@ -212,6 +207,8 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		return nil
 	}
 
+	defer rows.Close()
+
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		return nil
@@ -220,12 +217,12 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 	return res
 }
 
-func prepareCallbacksForSaving(callbacks []store.StoreCallback) ([]byte, error) {
-	callbacksBytes, err := json.Marshal(callbacks)
+func prepareStructForSaving(data interface{}) ([]byte, error) {
+	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
-	return callbacksBytes, nil
+	return dataBytes, nil
 }
 
 func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
@@ -235,4 +232,13 @@ func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
 		return nil, err
 	}
 	return callbacksData, nil
+}
+
+func readStatusHistoryFromDB(statusHistory []byte) ([]store.StoreStatus, error) {
+	var statusHistoryData []store.StoreStatus
+	err := json.Unmarshal(statusHistory, &statusHistoryData)
+	if err != nil {
+		return nil, err
+	}
+	return statusHistoryData, nil
 }

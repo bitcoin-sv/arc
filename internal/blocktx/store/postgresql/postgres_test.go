@@ -222,8 +222,8 @@ func TestPostgresDB(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/get_longest_chain")
 
 		starting_height := uint64(822014)
-		hash0_longest := revChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
-		hash1_longest := revChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
+		hash0_longest := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+		hash1_longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 
 		expectedStaleHashes := []*chainhash.Hash{
 			hash0_longest,
@@ -242,9 +242,9 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get stale chain back from hash", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/get_stale_chain")
 
-		hash2_stale := revChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
-		hash3_stale := revChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
-		hash4_stale := revChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
+		hash2_stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash3_stale := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+		hash4_stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
 		expectedStaleHashes := [][]byte{
 			hash4_stale[:],
@@ -264,9 +264,9 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("update blocks statuses", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
 
-		hash2_stale := revChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
-		hash3_stale := revChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
-		hash4_stale := revChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
+		hash2_stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash3_stale := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+		hash4_stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
 		hashes := [][]byte{
 			hash2_stale[:],

@@ -202,19 +202,17 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		return nil
 	}
 
-	//rows.Close()
-
 	rows, err := tx.QueryContext(ctx, qRejectDoubleSpends, metamorph_api.Status_REJECTED, rejectReason, pq.Array(rejectedCompetingTxs))
 	if err != nil {
 		return nil
 	}
 
+	defer rows.Close()
+
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		return nil
 	}
-
-	//defer rows.Close()
 
 	return res
 }

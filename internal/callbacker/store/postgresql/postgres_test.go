@@ -3,8 +3,6 @@ package postgresql
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -12,108 +10,48 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 
-	"github.com/golang-migrate/migrate/v4"
-	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	tutils "github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql/internal/tests"
 )
 
 const (
-	postgresPort   = "5432"
 	migrationsPath = "file://migrations"
-	dbName         = "main_test"
-	dbUsername     = "arcuser"
-	dbPassword     = "arcpass"
 )
 
 var dbInfo string
 
 func TestMain(m *testing.M) {
+	os.Exit(testmain(m))
+}
+
+func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %v", err)
+		return 1
 	}
 
-	port := "5433"
-	opts := dockertest.RunOptions{
-		Repository: "postgres",
-		Tag:        "15.4",
-		Env: []string{
-			fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
-			fmt.Sprintf("POSTGRES_USER=%s", dbUsername),
-			fmt.Sprintf("POSTGRES_DB=%s", dbName),
-			"listen_addresses = '*'",
-		},
-		ExposedPorts: []string{"5432"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			postgresPort: {
-				{HostIP: "0.0.0.0", HostPort: port},
-			},
-		},
+	port := "5436"
+	resource, connStr, err := testutils.RunAndMigratePostgresql(pool, port, "callbacker", migrationsPath)
+	if err != nil {
+		log.Print(err)
+		return 1
 	}
-
-	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
-		// set AutoRemove to true so that stopped container goes away by itself
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{
-			Name: "no",
+	defer func() {
+		err = pool.Purge(resource)
+		if err != nil {
+			log.Fatalf("failed to purge pool: %v", err)
 		}
-		config.Tmpfs = map[string]string{
-			"/var/lib/postgresql/data": "",
-		}
-	})
-	if err != nil {
-		log.Fatalf("failed to create resource: %v", err)
-	}
+	}()
 
-	hostPort := resource.GetPort("5432/tcp")
-
-	dbInfo = fmt.Sprintf("host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable", hostPort, dbUsername, dbPassword, dbName)
-	dbConn, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		log.Fatalf("failed to create db connection: %v", err)
-	}
-	err = pool.Retry(func() error {
-		return dbConn.Ping()
-	})
-
-	if err != nil {
-		log.Fatalf("failed to connect to docker: %s", err)
-	}
-
-	driver, err := migratepostgres.WithInstance(dbConn, &migratepostgres.Config{
-		MigrationsTable: "callbacker",
-	})
-	if err != nil {
-		log.Fatalf("failed to create driver: %v", err)
-	}
-
-	migrations, err := migrate.NewWithDatabaseInstance(
-		migrationsPath,
-		"postgres", driver)
-	if err != nil {
-		log.Fatalf("failed to initialize migrate instance: %v", err)
-	}
-	err = migrations.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatalf("failed to initialize migrate instance: %v", err)
-	}
-
-	code := m.Run()
-
-	err = pool.Purge(resource)
-	if err != nil {
-		log.Fatalf("failed to purge pool: %v", err)
-	}
-
-	os.Exit(code)
+	dbInfo = connStr
+	return m.Run()
 }
 
 func TestPostgresDBt(t *testing.T) {
@@ -219,7 +157,7 @@ func TestPostgresDBt(t *testing.T) {
 	t.Run("pop many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		loadFixtures(t, postgresDB.db, "fixtures/pop_many")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_many")
 
 		const concurentCalls = 5
 		const popLimit = 10
@@ -266,28 +204,5 @@ func TestPostgresDBt(t *testing.T) {
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	t.Helper()
-
-	_, err := db.Exec("TRUNCATE TABLE callbacker.callbacks;")
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func loadFixtures(t *testing.T, db *sql.DB, path string) {
-	t.Helper()
-
-	fixtures, err := testfixtures.New(
-		testfixtures.Database(db),
-		testfixtures.Dialect("postgresql"),
-		testfixtures.Directory(path), // The directory containing the YAML files
-	)
-	if err != nil {
-		t.Fatalf("failed to create fixtures: %v", err)
-	}
-
-	err = fixtures.Load()
-	if err != nil {
-		t.Fatalf("failed to load fixtures: %v", err)
-	}
+	testutils.PruneTables(t, db, "callbacker.callbacks")
 }

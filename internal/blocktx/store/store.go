@@ -26,8 +26,8 @@ type BlocktxStore interface {
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 	GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]GetMinedTransactionResult, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
-	GetStaleChainBackFromHash(ctx context.Context, hash *chainhash.Hash) ([]*blocktx_api.Block, error)
-	UpdateBlocksStatuses(ctx context.Context, hashes []*chainhash.Hash, status blocktx_api.Status) error
+	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	UpdateBlocksStatuses(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
 	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)

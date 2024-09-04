@@ -5,10 +5,9 @@ import (
 	"database/sql"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash *chainhash.Hash) ([]*blocktx_api.Block, error) {
+func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 	q := `
 		WITH RECURSIVE prevBlocks AS (
 			SELECT
@@ -46,7 +45,7 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash *chainh
 	`
 	staleBlocks := make([]*blocktx_api.Block, 0)
 
-	rows, err := p.db.QueryContext(ctx, q, hash[:], blocktx_api.Status_STALE)
+	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_STALE)
 	if err != nil {
 		return nil, err
 	}

@@ -447,11 +447,13 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
-			// TODO: perform reorg - next ticket
+			p.logger.Info("reorg detected - updating blocks", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+
 			incomingBlock.Status = blocktx_api.Status_LONGEST
-			err := p.performReorg(ctx, incomingBlock, &previousBlockHash)
+
+			err := p.performReorg(ctx, incomingBlock)
 			if err != nil {
-				// TODO: error log
+				p.logger.Error("unable to perform reorg", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 				return err
 			}
 		}
@@ -561,23 +563,31 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
-func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block, prevBlockHash *chainhash.Hash) error {
-	// get all blocks until the common ancestor of competing chains
-	// 		get entire STALE chain by performing a recursive query
-	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, prevBlockHash)
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) error {
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
 	if err != nil {
 		return err
 	}
-	// 		get lowest height of that chain
+
 	lowestHeight := incomingBlock.Height
 	if len(staleBlocks) > 0 {
 		lowestHeight = getLowestHeight(staleBlocks)
 	}
-	// 		get all headers from the longest chain from that height
+
 	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
-	// 		replace statuses of these blocks
-	// 		update statuses in DB
-	return nil
+	if err != nil {
+		return err
+	}
+
+	longestBlocksHashes := prepareHashes(longestBlocks)
+	err = p.store.UpdateBlocksStatuses(ctx, longestBlocksHashes, blocktx_api.Status_STALE)
+	if err != nil {
+		return err
+	}
+
+	staleBlockHashes := prepareHashes(staleBlocks)
+	err = p.store.UpdateBlocksStatuses(ctx, staleBlockHashes, blocktx_api.Status_LONGEST)
+	return err
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {

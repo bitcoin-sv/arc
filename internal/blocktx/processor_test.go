@@ -330,6 +330,15 @@ func TestHandleBlockReorg(t *testing.T) {
 						Chainwork: "62209952899966",
 					}, nil
 				},
+				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+					return nil, nil
+				},
+				GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
+					return nil, nil
+				},
+				UpdateBlocksStatusesFunc: func(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error {
+					return nil
+				},
 				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 					mtx.Lock()
 					insertedBlock = block

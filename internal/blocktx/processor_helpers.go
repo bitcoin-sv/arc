@@ -73,6 +73,14 @@ func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
 	return lowest
 }
 
+func prepareHashes(blocks []*blocktx_api.Block) [][]byte {
+	blockHashes := make([][]byte, len(blocks))
+	for i, b := range blocks {
+		blockHashes[i] = b.Hash
+	}
+	return blockHashes
+}
+
 // calculateChainwork calculates chainwork from the given difficulty bits
 //
 // This function comes from block-header-service:

@@ -246,19 +246,48 @@ func TestPostgresDB(t *testing.T) {
 		hash3_stale := revChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
 		hash4_stale := revChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
-		expectedStaleHashes := []*chainhash.Hash{
-			hash4_stale,
-			hash3_stale,
-			hash2_stale,
+		expectedStaleHashes := [][]byte{
+			hash4_stale[:],
+			hash3_stale[:],
+			hash2_stale[:],
 		}
 
-		staleBlocks, err := postgresDB.GetStaleChainBackFromHash(ctx, hash4_stale)
+		staleBlocks, err := postgresDB.GetStaleChainBackFromHash(ctx, hash4_stale[:])
 		require.NoError(t, err)
 
 		require.Equal(t, len(expectedStaleHashes), len(staleBlocks))
 		for i, b := range staleBlocks {
-			require.Equal(t, expectedStaleHashes[i][:], b.Hash)
+			require.Equal(t, expectedStaleHashes[i], b.Hash)
 		}
+	})
+
+	t.Run("update blocks statuses", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
+
+		hash2_stale := revChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash3_stale := revChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+		hash4_stale := revChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
+
+		hashes := [][]byte{
+			hash2_stale[:],
+			hash3_stale[:],
+			hash4_stale[:],
+		}
+
+		err := postgresDB.UpdateBlocksStatuses(ctx, hashes, blocktx_api.Status_LONGEST)
+		require.NoError(t, err)
+
+		stale2, err := postgresDB.GetBlock(ctx, hash2_stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale2.Status)
+
+		stale3, err := postgresDB.GetBlock(ctx, hash3_stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale3.Status)
+
+		stale4, err := postgresDB.GetBlock(ctx, hash4_stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale4.Status)
 	})
 
 	t.Run("test getting mined txs", func(t *testing.T) {

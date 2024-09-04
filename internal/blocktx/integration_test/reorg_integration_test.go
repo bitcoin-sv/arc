@@ -177,9 +177,9 @@ func TestBlockStatus(t *testing.T) {
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
-	blockHash := blockMessage.Header.BlockHash()
+	blockHashZero := blockMessage.Header.BlockHash()
 
-	block, err := blocktxStore.GetBlock(context.Background(), &blockHash)
+	block, err := blocktxStore.GetBlock(context.Background(), &blockHashZero)
 	require.NoError(t, err)
 	require.Equal(t, uint64(822011), block.Height)
 	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
@@ -210,18 +210,19 @@ func TestBlockStatus(t *testing.T) {
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
-	blockHash = blockMessage.Header.BlockHash()
+	blockHashStale := blockMessage.Header.BlockHash()
 
-	block, err = blocktxStore.GetBlock(context.Background(), &blockHash)
+	block, err = blocktxStore.GetBlock(context.Background(), &blockHashStale)
 	require.NoError(t, err)
 	require.Equal(t, uint64(822015), block.Height)
 	require.Equal(t, blocktx_api.Status_STALE, block.Status)
 
 	// should become LONGEST
+	// reorg should happen
 	blockMessage = &p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
-			PrevBlock:  blockHash, // block with status STALE at height 822015
+			PrevBlock:  blockHashStale, // block with status STALE at height 822015
 			MerkleRoot: *merkleRoot,
 			Bits:       0x1a05db8b, // chainwork: "12301577519373468" higher than the competing block
 		},
@@ -231,13 +232,43 @@ func TestBlockStatus(t *testing.T) {
 
 	err = peerHandler.HandleBlock(blockMessage, nil)
 	require.NoError(t, err)
-	// Allow DB to process the block
-	time.Sleep(200 * time.Millisecond)
+	// Allow DB to process the block and perform reorg
+	time.Sleep(1 * time.Second)
 
-	blockHash = blockMessage.Header.BlockHash()
+	// verify that reorg happened
+	blockHashLongest := blockMessage.Header.BlockHash()
 
-	block, err = blocktxStore.GetBlock(context.Background(), &blockHash)
+	block, err = blocktxStore.GetBlock(context.Background(), &blockHashLongest)
 	require.NoError(t, err)
 	require.Equal(t, uint64(822016), block.Height)
+	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+
+	block, err = blocktxStore.GetBlock(context.Background(), &blockHashStale)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822015), block.Height)
+	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+
+	previouslyLongestBlockHash := revChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
+	block, err = blocktxStore.GetBlock(context.Background(), previouslyLongestBlockHash)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822015), block.Height)
+	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+
+	previouslyLongestBlockHash = revChainhash(t, "e1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000")
+	block, err = blocktxStore.GetBlock(context.Background(), previouslyLongestBlockHash)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822016), block.Height)
+	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+
+	previouslyLongestBlockHash = revChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+	block, err = blocktxStore.GetBlock(context.Background(), previouslyLongestBlockHash)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822017), block.Height)
+	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+
+	beginningOfChain := revChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+	block, err = blocktxStore.GetBlock(context.Background(), beginningOfChain)
+	require.NoError(t, err)
+	require.Equal(t, uint64(822014), block.Height)
 	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
 }

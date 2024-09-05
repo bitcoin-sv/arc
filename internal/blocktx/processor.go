@@ -373,7 +373,7 @@ func (p *Processor) fillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
+		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
 
 		pair := BlockRequest{
 			Hash: gaps.Hash,
@@ -687,7 +687,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		}
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 		}
 	}
 

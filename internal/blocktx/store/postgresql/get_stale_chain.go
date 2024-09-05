@@ -17,8 +17,8 @@ import (
 // A 		In this scenario, the block A, B and D are marked as LONGEST
 // |\ 		while blocks C and E are marked as STALE.
 // B C
-// | | 	Function GetStaleChainBackFromHash(ctx, E), given the hash E
-// D E 	will return blocks C and E, which is the entire STALE chain.
+// | | 		Function GetStaleChainBackFromHash(ctx, E), given the hash E
+// D E 		will return blocks C and E, which is the entire STALE chain.
 func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 	q := `
 		WITH RECURSIVE prevBlocks AS (

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
@@ -19,4 +20,9 @@ type GetMinedTransactionResult struct {
 	BlockHash   []byte
 	BlockHeight uint64
 	MerklePath  string
+}
+
+type BlockStatusUpdate struct {
+	Hash   []byte
+	Status blocktx_api.Status
 }

@@ -264,18 +264,24 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("update blocks statuses", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
 
+		hash1Longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 		hash2Stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 		hash3Stale := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
 		hash4Stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
-		hashes := [][]byte{
-			hash2Stale[:],
-			hash3Stale[:],
-			hash4Stale[:],
+		blockStatusUpdates := []store.BlockStatusUpdate{
+			{Hash: hash1Longest[:], Status: blocktx_api.Status_STALE},
+			{Hash: hash2Stale[:], Status: blocktx_api.Status_LONGEST},
+			{Hash: hash3Stale[:], Status: blocktx_api.Status_LONGEST},
+			{Hash: hash4Stale[:], Status: blocktx_api.Status_LONGEST},
 		}
 
-		err := postgresDB.UpdateBlocksStatuses(ctx, hashes, blocktx_api.Status_LONGEST)
+		err := postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 		require.NoError(t, err)
+
+		longest1, err := postgresDB.GetBlock(ctx, hash1Longest)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_STALE, longest1.Status)
 
 		stale2, err := postgresDB.GetBlock(ctx, hash2Stale)
 		require.NoError(t, err)

@@ -69,7 +69,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
-//			UpdateBlocksStatusesFunc: func(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error {
+//			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
 //			UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
@@ -134,7 +134,7 @@ type BlocktxStoreMock struct {
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
 
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
-	UpdateBlocksStatusesFunc func(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error
+	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
 
 	// UpsertBlockTransactionsFunc mocks the UpsertBlockTransactions method.
 	UpsertBlockTransactionsFunc func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error)
@@ -264,10 +264,8 @@ type BlocktxStoreMock struct {
 		UpdateBlocksStatuses []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Hashes is the hashes argument value.
-			Hashes [][]byte
-			// Status is the status argument value.
-			Status blocktx_api.Status
+			// BlockStatusUpdates is the blockStatusUpdates argument value.
+			BlockStatusUpdates []store.BlockStatusUpdate
 		}
 		// UpsertBlockTransactions holds details about calls to the UpsertBlockTransactions method.
 		UpsertBlockTransactions []struct {
@@ -895,23 +893,21 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 }
 
 // UpdateBlocksStatuses calls UpdateBlocksStatusesFunc.
-func (mock *BlocktxStoreMock) UpdateBlocksStatuses(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error {
+func (mock *BlocktxStoreMock) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 	if mock.UpdateBlocksStatusesFunc == nil {
 		panic("BlocktxStoreMock.UpdateBlocksStatusesFunc: method is nil but BlocktxStore.UpdateBlocksStatuses was just called")
 	}
 	callInfo := struct {
-		Ctx    context.Context
-		Hashes [][]byte
-		Status blocktx_api.Status
+		Ctx                context.Context
+		BlockStatusUpdates []store.BlockStatusUpdate
 	}{
-		Ctx:    ctx,
-		Hashes: hashes,
-		Status: status,
+		Ctx:                ctx,
+		BlockStatusUpdates: blockStatusUpdates,
 	}
 	mock.lockUpdateBlocksStatuses.Lock()
 	mock.calls.UpdateBlocksStatuses = append(mock.calls.UpdateBlocksStatuses, callInfo)
 	mock.lockUpdateBlocksStatuses.Unlock()
-	return mock.UpdateBlocksStatusesFunc(ctx, hashes, status)
+	return mock.UpdateBlocksStatusesFunc(ctx, blockStatusUpdates)
 }
 
 // UpdateBlocksStatusesCalls gets all the calls that were made to UpdateBlocksStatuses.
@@ -919,14 +915,12 @@ func (mock *BlocktxStoreMock) UpdateBlocksStatuses(ctx context.Context, hashes [
 //
 //	len(mockedBlocktxStore.UpdateBlocksStatusesCalls())
 func (mock *BlocktxStoreMock) UpdateBlocksStatusesCalls() []struct {
-	Ctx    context.Context
-	Hashes [][]byte
-	Status blocktx_api.Status
+	Ctx                context.Context
+	BlockStatusUpdates []store.BlockStatusUpdate
 } {
 	var calls []struct {
-		Ctx    context.Context
-		Hashes [][]byte
-		Status blocktx_api.Status
+		Ctx                context.Context
+		BlockStatusUpdates []store.BlockStatusUpdate
 	}
 	mock.lockUpdateBlocksStatuses.RLock()
 	calls = mock.calls.UpdateBlocksStatuses

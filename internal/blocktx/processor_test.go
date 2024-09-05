@@ -336,7 +336,7 @@ func TestHandleBlockReorg(t *testing.T) {
 				GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 					return nil, nil
 				},
-				UpdateBlocksStatusesFunc: func(ctx context.Context, hashes [][]byte, status blocktx_api.Status) error {
+				UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 					return nil
 				},
 				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {

@@ -447,13 +447,13 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
-			p.logger.Info("reorg detected - updating blocks", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+			p.logger.Info("reorg detected - updating blocks", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
 
 			incomingBlock.Status = blocktx_api.Status_LONGEST
 
 			err := p.performReorg(ctx, incomingBlock)
 			if err != nil {
-				p.logger.Error("unable to perform reorg", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+				p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 				return err
 			}
 		}
@@ -579,14 +579,19 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 		return err
 	}
 
-	longestBlocksHashes := prepareHashes(longestBlocks)
-	err = p.store.UpdateBlocksStatuses(ctx, longestBlocksHashes, blocktx_api.Status_STALE)
-	if err != nil {
-		return err
+	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
+
+	for _, b := range staleBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
+		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	staleBlockHashes := prepareHashes(staleBlocks)
-	err = p.store.UpdateBlocksStatuses(ctx, staleBlockHashes, blocktx_api.Status_LONGEST)
+	for _, b := range longestBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
+
+	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	return err
 }
 

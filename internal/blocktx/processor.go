@@ -373,7 +373,7 @@ func (p *Processor) fillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Int64("height", int64(gaps.Height)), slog.String("peer", peer.String()))
+		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
 
 		pair := BlockRequest{
 			Hash: gaps.Hash,
@@ -447,8 +447,15 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
-			// TODO: perform reorg - next ticket
+			p.logger.Info("reorg detected - updating blocks", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+
 			incomingBlock.Status = blocktx_api.Status_LONGEST
+
+			err := p.performReorg(ctx, incomingBlock)
+			if err != nil {
+				p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+				return err
+			}
 		}
 	}
 
@@ -556,6 +563,38 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) error {
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
+	if err != nil {
+		return err
+	}
+
+	lowestHeight := incomingBlock.Height
+	if len(staleBlocks) > 0 {
+		lowestHeight = getLowestHeight(staleBlocks)
+	}
+
+	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
+	if err != nil {
+		return err
+	}
+
+	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
+
+	for _, b := range staleBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
+
+	for _, b := range longestBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
+
+	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	return err
+}
+
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	if tracer != nil {
 		var span trace.Span
@@ -653,7 +692,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		}
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Int64("height", int64(blockHeight)), slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 		}
 	}
 

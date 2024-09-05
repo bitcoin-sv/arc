@@ -58,6 +58,21 @@ func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTip
 	}
 }
 
+func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
+	if len(blocks) == 0 {
+		return 0
+	}
+
+	lowest := blocks[0].Height
+	for _, b := range blocks {
+		if b.Height < lowest {
+			lowest = b.Height
+		}
+	}
+
+	return lowest
+}
+
 // calculateChainwork calculates chainwork from the given difficulty bits
 //
 // This function comes from block-header-service:

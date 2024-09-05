@@ -46,14 +46,14 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 
 	var block blocktx_api.Block
 
-	var processed_at sql.NullString
+	var processedAt sql.NullString
 
 	if err := p.db.QueryRowContext(ctx, q, predicateParams...).Scan(
 		&block.Hash,
 		&block.PreviousHash,
 		&block.MerkleRoot,
 		&block.Height,
-		&processed_at,
+		&processedAt,
 		&block.Orphaned,
 		&block.Status,
 		&block.Chainwork,
@@ -64,7 +64,7 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		return nil, err
 	}
 
-	block.Processed = processed_at.Valid
+	block.Processed = processedAt.Valid
 
 	return &block, nil
 }

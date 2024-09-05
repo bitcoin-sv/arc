@@ -218,6 +218,84 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedBlockGaps, blockGaps)
 	})
 
+	t.Run("get longest chain from height", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/get_longest_chain")
+
+		starting_height := uint64(822014)
+		hash0Longest := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+		hash1Longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
+
+		expectedStaleHashes := []*chainhash.Hash{
+			hash0Longest,
+			hash1Longest,
+		}
+
+		longestBlocks, err := postgresDB.GetLongestChainFromHeight(ctx, starting_height)
+		require.NoError(t, err)
+
+		require.Equal(t, len(expectedStaleHashes), len(longestBlocks))
+		for i, b := range longestBlocks {
+			require.Equal(t, expectedStaleHashes[i][:], b.Hash)
+		}
+	})
+
+	t.Run("get stale chain back from hash", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/get_stale_chain")
+
+		hash2Stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash3Stale := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+		hash4Stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
+
+		expectedStaleHashes := [][]byte{
+			hash4Stale[:],
+			hash3Stale[:],
+			hash2Stale[:],
+		}
+
+		staleBlocks, err := postgresDB.GetStaleChainBackFromHash(ctx, hash4Stale[:])
+		require.NoError(t, err)
+
+		require.Equal(t, len(expectedStaleHashes), len(staleBlocks))
+		for i, b := range staleBlocks {
+			require.Equal(t, expectedStaleHashes[i], b.Hash)
+		}
+	})
+
+	t.Run("update blocks statuses", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
+
+		hash1Longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
+		hash2Stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash3Stale := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+		hash4Stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
+
+		blockStatusUpdates := []store.BlockStatusUpdate{
+			{Hash: hash1Longest[:], Status: blocktx_api.Status_STALE},
+			{Hash: hash2Stale[:], Status: blocktx_api.Status_LONGEST},
+			{Hash: hash3Stale[:], Status: blocktx_api.Status_LONGEST},
+			{Hash: hash4Stale[:], Status: blocktx_api.Status_LONGEST},
+		}
+
+		err := postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+		require.NoError(t, err)
+
+		longest1, err := postgresDB.GetBlock(ctx, hash1Longest)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_STALE, longest1.Status)
+
+		stale2, err := postgresDB.GetBlock(ctx, hash2Stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale2.Status)
+
+		stale3, err := postgresDB.GetBlock(ctx, hash3Stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale3.Status)
+
+		stale4, err := postgresDB.GetBlock(ctx, hash4Stale)
+		require.NoError(t, err)
+		require.Equal(t, blocktx_api.Status_LONGEST, stale4.Status)
+	})
+
 	t.Run("test getting mined txs", func(t *testing.T) {
 		prepareDb(t, postgresDB.db, "fixtures/get_mined_transactions")
 

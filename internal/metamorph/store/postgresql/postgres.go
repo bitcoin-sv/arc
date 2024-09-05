@@ -412,7 +412,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 			UNNEST($8::TIMESTAMPTZ[]),
 			UNNEST($9::TEXT[])::JSONB,
 			$10
-		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10, callbacks=$4;
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10, callbacks=EXCLUDED.callbacks;
 		`
 
 	_, err := p.db.ExecContext(ctx, q,

@@ -1,1 +1,1 @@
-CREATE INDEX idx_block_height ON blocktx.blocks(height);
+CREATE INDEX ix_block_height ON blocktx.blocks(height);

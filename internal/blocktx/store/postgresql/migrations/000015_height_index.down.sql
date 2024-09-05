@@ -1,1 +1,1 @@
-DROP INDEX idx_block_height;
+DROP INDEX ix_block_height;

@@ -363,9 +363,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	rawTxs := make([][]byte, len(data))
 	lockedBy := make([]string, len(data))
 	lastSubmittedAt := make([]time.Time, len(data))
-	lastModified := make([]*time.Time, len(data))
 
-	lastModifiedDate := p.now()
 	for i, txData := range data {
 		storedAt[i] = txData.StoredAt
 		hashes[i] = txData.Hash[:]
@@ -374,7 +372,6 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		rawTxs[i] = txData.RawTx
 		lockedBy[i] = p.hostname
 		lastSubmittedAt[i] = txData.LastSubmittedAt
-		lastModified[i] = &lastModifiedDate
 
 		callbacksData, err := prepareStructForSaving(txData.Callbacks)
 		if err != nil {
@@ -382,6 +379,9 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		}
 		callbacks[i] = string(callbacksData)
 
+		if txData.StatusHistory == nil {
+			txData.StatusHistory = make([]*store.StoreStatus, 0)
+		}
 		statusHistoryData, err := prepareStructForSaving(txData.StatusHistory)
 		if err != nil {
 			return err
@@ -412,7 +412,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 			UNNEST($8::TIMESTAMPTZ[]),
 			UNNEST($9::TEXT[])::JSONB,
 			$10
-		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10, callbacks=$4;
 		`
 
 	_, err := p.db.ExecContext(ctx, q,

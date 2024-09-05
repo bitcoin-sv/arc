@@ -68,15 +68,16 @@ func TestPostgresDB(t *testing.T) {
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1Hash
 	minedData := &store.StoreData{
-		RawTx:        make([]byte, 0),
-		StoredAt:     now,
-		Hash:         minedHash,
-		Status:       metamorph_api.Status_MINED,
-		BlockHeight:  100,
-		BlockHash:    testdata.Block1Hash,
-		Callbacks:    []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
-		RejectReason: "not rejected",
-		LockedBy:     "metamorph-1",
+		RawTx:         make([]byte, 0),
+		StoredAt:      now,
+		Hash:          minedHash,
+		Status:        metamorph_api.Status_MINED,
+		BlockHeight:   100,
+		BlockHash:     testdata.Block1Hash,
+		Callbacks:     []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
+		RejectReason:  "not rejected",
+		LockedBy:      "metamorph-1",
+		StatusHistory: make([]*store.StoreStatus, 0),
 	}
 
 	unminedHash := testdata.TX1Hash

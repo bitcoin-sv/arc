@@ -242,7 +242,9 @@ func readStatusHistoryFromDB(statusHistory []byte) ([]*store.StoreStatus, error)
 	}
 
 	for _, status := range statusHistoryData {
-		status.Timestamp = status.Timestamp.UTC()
+		if status != nil {
+			status.Timestamp = status.Timestamp.UTC()
+		}
 	}
 
 	return statusHistoryData, nil

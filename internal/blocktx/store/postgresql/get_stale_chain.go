@@ -7,6 +7,18 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
+// GetStaleChainBackFromHash is a function that recursively searches for blocks
+// marked as STALE from the given hash - back to the block marked as LONGEST,
+// which is the common ancestor for the STALE and LONGEST chains.
+//
+// It searches for the block by given hash and finds parent blocks recursively
+// using the prevhash field from that found block.
+//
+// A 		In this scenario, the block A, B and D are marked as LONGEST
+// |\ 		while blocks C and E are marked as STALE.
+// B C
+// | | 	Function GetStaleChainBackFromHash(ctx, E), given the hash E
+// D E 	will return blocks C and E, which is the entire STALE chain.
 func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 	q := `
 		WITH RECURSIVE prevBlocks AS (

@@ -578,7 +578,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("update mined - all possible updates", func(t *testing.T) {
-		defer require.NoError(t, pruneTables(postgresDB.db))
+		defer pruneTables(t, postgresDB.db)
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)

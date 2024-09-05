@@ -20,6 +20,14 @@ import (
 // | | 		Function GetStaleChainBackFromHash(ctx, E), given the hash E
 // D E 		will return blocks C and E, which is the entire STALE chain.
 func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	// The way this query works, is that the result from the first SELECT
+	// will be stored in the prevBlocks variable, which is later used
+	// for recursion in the second SELECT.
+	//
+	// Then entire recursion happens in the second SELECT, after UNION ALL,
+	// and the first SELECT is just to set up the prevBlocks variable with
+	// the first, initial value. Then, the prevBlocks variable is recursively
+	// updated with values returned from the second SELECT.
 	q := `
 		WITH RECURSIVE prevBlocks AS (
 			SELECT

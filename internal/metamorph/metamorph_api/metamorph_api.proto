@@ -84,13 +84,13 @@ message Transaction {
 message TransactionStatus {
   bool timed_out = 1;
   google.protobuf.Timestamp stored_at = 2;
-  string txid = 5;
-  Status status = 6;
-  string reject_reason = 7;
-	repeated string competingTxs = 8;
-  uint64 block_height = 9;
-  string block_hash = 10;
-  string merkle_path = 11;
+  string txid = 3;
+  Status status = 4;
+  string reject_reason = 5;
+	repeated string competingTxs = 6;
+  uint64 block_height = 7;
+  string block_hash = 8;
+  string merkle_path = 9;
 }
 
 // swagger:model TransactionStatuses

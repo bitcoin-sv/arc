@@ -68,16 +68,16 @@ func TestPostgresDB(t *testing.T) {
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1Hash
 	minedData := &store.StoreData{
-		RawTx:        make([]byte, 0),
-		StoredAt:     now,
-		Hash:         minedHash,
-		Status:       metamorph_api.Status_MINED,
-		BlockHeight:  100,
-		BlockHash:    testdata.Block1Hash,
-		Callbacks:    []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
-		RejectReason: "not rejected",
-		LockedBy:     "metamorph-1",
-		LastModified: nil,
+		RawTx:         make([]byte, 0),
+		StoredAt:      now,
+		Hash:          minedHash,
+		Status:        metamorph_api.Status_MINED,
+		BlockHeight:   100,
+		BlockHash:     testdata.Block1Hash,
+		Callbacks:     []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
+		RejectReason:  "not rejected",
+		LockedBy:      "metamorph-1",
+		StatusHistory: make([]*store.StoreStatus, 0),
 	}
 
 	unminedHash := testdata.TX1Hash
@@ -107,6 +107,7 @@ func TestPostgresDB(t *testing.T) {
 
 		dataReturned, err := postgresDB.Get(ctx, minedHash[:])
 		require.NoError(t, err)
+		mined.LastModified = dataReturned.LastModified
 		require.Equal(t, dataReturned, &mined)
 
 		mined.LastSubmittedAt = time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC)
@@ -230,10 +231,12 @@ func TestPostgresDB(t *testing.T) {
 
 		data0, err := postgresDB.Get(ctx, testdata.TX1Hash[:])
 		require.NoError(t, err)
+		data[0].LastModified = data0.LastModified
 		require.Equal(t, data[0], data0)
 
 		data1, err := postgresDB.Get(ctx, testdata.TX6Hash[:])
 		require.NoError(t, err)
+		data[1].LastModified = data1.LastModified
 		require.Equal(t, data[1], data1)
 
 		data2, err := postgresDB.Get(ctx, hash2[:])
@@ -555,15 +558,114 @@ func TestPostgresDB(t *testing.T) {
 			MerklePath:      "",
 		}}
 
-		_, err := postgresDB.UpdateMined(ctx, txBlocks)
+		dataBeforeUpdate, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		_, err = postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
 
 		dataReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
-		unmined.Status = metamorph_api.Status_MINED
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		require.Equal(t, dataReturned, &unmined)
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+			Status:    dataBeforeUpdate.Status,
+			Timestamp: dataBeforeUpdate.LastModified,
+		})
+		unmined.Status = metamorph_api.Status_MINED
+		unmined.LastModified = postgresDB.now()
+
+		require.Equal(t, &unmined, dataReturned)
+	})
+
+	t.Run("update mined - all possible updates", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+
+		unmined := *unminedData
+		err = postgresDB.Set(ctx, &unmined)
+		require.NoError(t, err)
+
+		// First update - UpdateStatusBulk
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			},
+		}
+
+		dataBeforeUpdate, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.BlockHeight = 0
+		unmined.BlockHash = nil
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+			Status:    dataBeforeUpdate.Status,
+			Timestamp: dataBeforeUpdate.LastModified,
+		})
+		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
+		unmined.LastModified = postgresDB.now()
+
+		require.Equal(t, &unmined, updatedTx)
+
+		// Second update - UpdateDoubleSpend
+		updates = []store.UpdateStatus{
+			{
+				Hash:         *unminedHash,
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"5678"},
+			},
+		}
+
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.CompetingTxs = []string{"5678"}
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+			Status:    unmined.Status,
+			Timestamp: unmined.LastModified,
+		})
+		unmined.LastModified = postgresDB.now()
+		unmined.Status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
+		require.Equal(t, &unmined, updatedTx)
+
+		// Third update - UpdateMined
+		txBlocks := []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: unminedHash[:],
+				MerklePath:      "merkle-path-1",
+			},
+		}
+
+		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
+		require.NoError(t, err)
+		require.Len(t, updated, 1)
+
+		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.BlockHeight = 100
+		unmined.BlockHash = testdata.Block1Hash
+		unmined.MerklePath = "merkle-path-1"
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+			Status:    unmined.Status,
+			Timestamp: unmined.LastModified,
+		})
+		unmined.LastModified = postgresDB.now()
+		unmined.Status = metamorph_api.Status_MINED
+		require.Equal(t, &unmined, updatedTx)
 	})
 
 	t.Run("clear data", func(t *testing.T) {

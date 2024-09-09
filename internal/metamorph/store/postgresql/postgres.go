@@ -150,8 +150,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 	data.LastSubmittedAt = lastSubmittedAt.UTC()
 
 	if lastModified.Valid {
-		lastModifiedUTC := lastModified.Time.UTC()
-		data.LastModified = &lastModifiedUTC
+		data.LastModified = lastModified.Time.UTC()
 	}
 
 	if status.Valid {
@@ -322,6 +321,9 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		return err
 	}
 
+	if value.StatusHistory == nil {
+		value.StatusHistory = make([]*store.StoreStatus, 0)
+	}
 	statusHistoryData, err := prepareStructForSaving(value.StatusHistory)
 	if err != nil {
 		return err
@@ -341,7 +343,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		p.hostname,
 		value.LastSubmittedAt,
 		statusHistoryData,
-		value.LastModified,
+		p.now(),
 	)
 	if err != nil {
 		return err
@@ -361,7 +363,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 	rawTxs := make([][]byte, len(data))
 	lockedBy := make([]string, len(data))
 	lastSubmittedAt := make([]time.Time, len(data))
-	lastModified := make([]*time.Time, len(data))
+
 	for i, txData := range data {
 		storedAt[i] = txData.StoredAt
 		hashes[i] = txData.Hash[:]
@@ -370,7 +372,6 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		rawTxs[i] = txData.RawTx
 		lockedBy[i] = p.hostname
 		lastSubmittedAt[i] = txData.LastSubmittedAt
-		lastModified[i] = txData.LastModified
 
 		callbacksData, err := prepareStructForSaving(txData.Callbacks)
 		if err != nil {
@@ -378,6 +379,9 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		}
 		callbacks[i] = string(callbacksData)
 
+		if txData.StatusHistory == nil {
+			txData.StatusHistory = make([]*store.StoreStatus, 0)
+		}
 		statusHistoryData, err := prepareStructForSaving(txData.StatusHistory)
 		if err != nil {
 			return err
@@ -407,8 +411,8 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 			UNNEST($7::TEXT[]),
 			UNNEST($8::TIMESTAMPTZ[]),
 			UNNEST($9::TEXT[])::JSONB,
-			UNNEST($10::TIMESTAMPTZ[])
-		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $11
+			$10
+		ON CONFLICT (hash) DO UPDATE SET last_submitted_at = $10, callbacks=EXCLUDED.callbacks;
 		`
 
 	_, err := p.db.ExecContext(ctx, q,
@@ -421,7 +425,6 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		pq.Array(lockedBy),
 		pq.Array(lastSubmittedAt),
 		pq.Array(statusHistory),
-		pq.Array(lastModified),
 		p.now(),
 	)
 	if err != nil {
@@ -580,12 +583,17 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		UPDATE metamorph.transactions
 			SET
 			status=bulk_query.status,
-			reject_reason=bulk_query.reject_reason
+			reject_reason=bulk_query.reject_reason,
+			last_modified=$1,
+			status_history=status_history || json_build_object(
+				'status', metamorph.transactions.status,
+				'timestamp', last_modified
+			)::JSONB
 			FROM
 			(
 				SELECT *
 						FROM
-						UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[])
+						UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[])
 				AS t(hash, status, reject_reason)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
@@ -621,7 +629,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
+	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -652,10 +660,15 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			SET
 			status=bulk_query.status,
 			reject_reason=bulk_query.reject_reason,
-			competing_txs=bulk_query.competing_txs
+			competing_txs=bulk_query.competing_txs,
+			last_modified=$1,
+			status_history=status_history || json_build_object(
+				'status', metamorph.transactions.status,
+				'timestamp', last_modified
+			)::JSONB
 			FROM
 			(
-				SELECT * FROM UNNEST($1::BYTEA[], $2::INT[], $3::TEXT[], $4::TEXT[])
+				SELECT * FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[])
 				AS t(hash, status, reject_reason, competing_txs)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
@@ -722,7 +735,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 	}
 
-	rows, err = tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
+	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
@@ -770,12 +783,17 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 			    status=$1,
 			    block_hash=bulk_query.block_hash,
 			    block_height=bulk_query.block_height,
-			  	merkle_path=bulk_query.merkle_path
+			  	merkle_path=bulk_query.merkle_path,
+			  	last_modified=$2,
+				status_history=status_history || json_build_object(
+					'status', status,
+					'timestamp', last_modified
+				)::JSONB
 			FROM
 			  (
 				SELECT *
 				FROM
-				  UNNEST($2::BYTEA[], $3::BYTEA[], $4::BIGINT[], $5::TEXT[])
+				  UNNEST($3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[])
 				  AS t(hash, block_hash, block_height, merkle_path)
 			  ) AS bulk_query
 			WHERE
@@ -813,7 +831,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	rejectedResponses := updateDoubleSpendRejected(ctx, rows, tx)
 
-	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

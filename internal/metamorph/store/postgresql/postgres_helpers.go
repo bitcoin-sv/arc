@@ -116,7 +116,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
 		}
 
 		if lastModified.Valid {
-			data.LastModified = &lastModified.Time
+			data.LastModified = lastModified.Time.UTC()
 		}
 
 		data.RejectReason = rejectReason.String
@@ -234,11 +234,18 @@ func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
 	return callbacksData, nil
 }
 
-func readStatusHistoryFromDB(statusHistory []byte) ([]store.StoreStatus, error) {
-	var statusHistoryData []store.StoreStatus
+func readStatusHistoryFromDB(statusHistory []byte) ([]*store.StoreStatus, error) {
+	var statusHistoryData []*store.StoreStatus
 	err := json.Unmarshal(statusHistory, &statusHistoryData)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, status := range statusHistoryData {
+		if status != nil {
+			status.Timestamp = status.Timestamp.UTC()
+		}
+	}
+
 	return statusHistoryData, nil
 }

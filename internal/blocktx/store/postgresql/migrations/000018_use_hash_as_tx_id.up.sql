@@ -5,7 +5,6 @@ ALTER TABLE blocktx.transactions
 DROP COLUMN id;
 
 -- we don't need that index because we're setting a primary key on that field
-ALTER TABLE blocktx.transactions
 DROP INDEX ux_transactions_hash;
 
 ALTER TABLE blocktx.transactions

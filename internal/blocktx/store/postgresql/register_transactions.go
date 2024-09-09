@@ -5,17 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
-	hashes := make([][]byte, len(transactions))
-	for i, transaction := range transactions {
-		hashes[i] = transaction.Hash
-	}
-
+func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte) ([]*chainhash.Hash, error) {
 	const q = `
 		INSERT INTO blocktx.transactions (hash, is_registered)
 			SELECT hash, TRUE
@@ -26,7 +20,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, transactions []*b
 	`
 
 	now := p.now()
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulk insert transactions: %v", err)
 	}

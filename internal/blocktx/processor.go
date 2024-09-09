@@ -224,7 +224,7 @@ func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
 
 func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
-	txHashes := make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
 
 	ticker := time.NewTicker(p.registerTxsInterval)
 	go func() {
@@ -234,16 +234,14 @@ func (p *Processor) StartProcessRegisterTxs() {
 			case <-p.ctx.Done():
 				return
 			case txHash := <-p.registerTxsChan:
-				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
-					Hash: txHash,
-				})
+				txHashes = append(txHashes, txHash)
 
 				if len(txHashes) < p.registerTxsBatchSize {
 					continue
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				txHashes = make([][]byte, 0, p.registerTxsBatchSize)
 				ticker.Reset(p.registerTxsInterval)
 
 			case <-ticker.C:
@@ -252,7 +250,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				txHashes = make([][]byte, 0, p.registerTxsBatchSize)
 				ticker.Reset(p.registerTxsInterval)
 			}
 		}
@@ -337,7 +335,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 	return nil
 }
 
-func (p *Processor) registerTransactions(txHashes []*blocktx_api.TransactionAndSource) {
+func (p *Processor) registerTransactions(txHashes [][]byte) {
 	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
@@ -595,7 +593,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
 		defer span.End()
 	}
-	txs := make([]store.UpsertBlockTransactionsResult, 0, p.transactionStorageBatchSize)
+	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
 	var totalSize int
@@ -630,8 +628,8 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 			return fmt.Errorf("failed to get string from bump for tx hash %s at block height %d: %v", hash.String(), blockHeight, err)
 		}
 
-		txs = append(txs, store.UpsertBlockTransactionsResult{
-			TxHash:     hash[:],
+		txs = append(txs, store.TxWithMerklePath{
+			Hash:       hash[:],
 			MerklePath: bumpHex,
 		})
 
@@ -641,11 +639,11 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = make([]store.UpsertBlockTransactionsResult, 0, p.transactionStorageBatchSize)
+			txs = make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 
 			for _, updResp := range updateResp {
 				txBlock := &blocktx_api.TransactionBlock{
-					TransactionHash: updResp.TxHash[:],
+					TransactionHash: updResp.Hash[:],
 					BlockHash:       blockhash[:],
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
@@ -676,7 +674,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 
 	for _, updResp := range updateResp {
 		txBlock := &blocktx_api.TransactionBlock{
-			TransactionHash: updResp.TxHash[:],
+			TransactionHash: updResp.Hash[:],
 			BlockHash:       blockhash[:],
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,

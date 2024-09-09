@@ -170,41 +170,35 @@ func TestHandleBlock(t *testing.T) {
 
 			processor.StartBlockProcessing()
 
-			var expectedInsertedTransactions []*blocktx_api.TransactionAndSource
+			var expectedInsertedTransactions [][]byte
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
 			for i, hash := range tc.txHashes {
 				txHash, err := chainhash.NewHashFromStr(hash)
 				require.NoError(t, err)
 				transactionHashes[i] = txHash
 
-				expectedInsertedTransactions = append(expectedInsertedTransactions, &blocktx_api.TransactionAndSource{Hash: txHash[:]})
+				expectedInsertedTransactions = append(expectedInsertedTransactions, txHash[:])
 			}
 
-			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
+			var insertedBlockTransactions [][]byte
 
-			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
-				require.True(t, len(merklePaths) <= batchSize)
-				require.True(t, len(transactions) <= batchSize)
+			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+				require.True(t, len(txsWithMerklePaths) <= batchSize)
 
-				for i, path := range merklePaths {
-					bump, err := bc.NewBUMPFromStr(path)
+				for _, tx := range txsWithMerklePaths {
+					bump, err := bc.NewBUMPFromStr(tx.MerklePath)
 					require.NoError(t, err)
-					tx, err := chainhash.NewHash(transactions[i].GetHash())
+					tx, err := chainhash.NewHash(tx.Hash)
 					require.NoError(t, err)
 					root, err := bump.CalculateRootGivenTxid(tx.String())
 					require.NoError(t, err)
 
 					require.Equal(t, root, tc.merkleRoot.String())
+
+					insertedBlockTransactions = append(insertedBlockTransactions, tx[:])
 				}
 
-				insertedBlockTransactions = append(insertedBlockTransactions, transactions...)
-
-				result := make([]store.UpsertBlockTransactionsResult, len(transactions))
-				for i, tx := range transactions {
-					result[i] = store.UpsertBlockTransactionsResult{TxHash: tx.Hash}
-				}
-
-				return result, nil
+				return txsWithMerklePaths, nil
 			}
 
 			peer := &mocks.PeerMock{
@@ -348,8 +342,8 @@ func TestHandleBlockReorg(t *testing.T) {
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 					return nil
 				},
-				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
-					return []store.UpsertBlockTransactionsResult{}, nil
+				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+					return []store.TxWithMerklePath{}, nil
 				},
 			}
 
@@ -510,7 +504,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
+				RegisterTransactionsFunc: func(ctx context.Context, transaction [][]byte) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
 			}

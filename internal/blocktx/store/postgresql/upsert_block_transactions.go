@@ -10,7 +10,7 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.UpsertBlockTransactionsResult) ([]store.UpsertBlockTransactionsResult, error) {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "UpdateBlockTransactions")
@@ -22,7 +22,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	merklePaths := make([]string, len(txsWithMerklePaths))
 	for i, tx := range txsWithMerklePaths {
 		blockIDs[i] = blockId
-		txHashesBytes[i] = tx.TxHash
+		txHashesBytes[i] = tx.Hash
 		merklePaths[i] = tx.MerklePath
 	}
 
@@ -45,7 +45,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 			,tx_hash
 			,merkle_path
 		)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[])
+		SELECT * FROM UNNEST($1::INT[], $2::BYTEA[], $3::TEXT[])
 		ON CONFLICT DO NOTHING
 	`
 	_, err = p.db.ExecContext(ctx, qUpsertBlockTxsMap, pq.Array(blockIDs), pq.Array(txHashesBytes), pq.Array(merklePaths))
@@ -58,7 +58,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 			t.hash,
 			m.merkle_path
 		FROM blocktx.transactions AS t
-	  JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+	  JOIN blocktx.block_transactions_map AS m ON t.hash = m.tx_hash
 		WHERE m.blockid = $1 AND t.is_registered = TRUE
 	`
 	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId)
@@ -66,7 +66,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
 	}
 
-	registeredRows := make([]store.UpsertBlockTransactionsResult, 0)
+	registeredRows := make([]store.TxWithMerklePath, 0)
 
 	for rows.Next() {
 		var txHash []byte
@@ -76,8 +76,8 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 			return nil, fmt.Errorf("failed to get rows: %v", err)
 		}
 
-		registeredRows = append(registeredRows, store.UpsertBlockTransactionsResult{
-			TxHash:     txHash,
+		registeredRows = append(registeredRows, store.TxWithMerklePath{
+			Hash:       txHash,
 			MerklePath: merklePath,
 		})
 	}
@@ -87,21 +87,4 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	}
 
 	return registeredRows, nil
-}
-
-func (p *PostgreSQL) insertTxsIntoBlockMap(ctx context.Context, blockId uint64, blockIDs, txIDs []uint64) error {
-	qMap := `
-		INSERT INTO blocktx.block_transactions_map (
-			blockid
-			,txid
-		)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[])
-		ON CONFLICT DO NOTHING
-		`
-	_, err := p.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs))
-	if err != nil {
-		return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
-	}
-
-	return nil
 }

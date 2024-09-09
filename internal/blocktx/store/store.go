@@ -15,12 +15,12 @@ var (
 )
 
 type BlocktxStore interface {
-	RegisterTransactions(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) (updatedTxs []*chainhash.Hash, err error)
+	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
 	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
-	UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []UpsertBlockTransactionsResult) (registeredTxs []UpsertBlockTransactionsResult, err error)
+	UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []TxWithMerklePath) (registeredTxs []TxWithMerklePath, err error)
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)

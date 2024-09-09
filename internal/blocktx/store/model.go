@@ -10,8 +10,8 @@ type BlockGap struct {
 	Hash   *chainhash.Hash
 }
 
-type UpsertBlockTransactionsResult struct {
-	TxHash     []byte
+type TxWithMerklePath struct {
+	Hash       []byte
 	MerklePath string
 }
 

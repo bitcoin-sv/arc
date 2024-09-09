@@ -1,9 +1,9 @@
 - blockid: 9736
-  txid: 115361489
+  tx_hash: 0x164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0
   inserted_at: 2024-01-10 12:00:00
 - blockid: 9736
-  txid: 115361490
+  tx_hash: 0xdbbd24251b9bb824566412395bb76a579bca3477c2d0b4cbc210a769d3bb4177
   inserted_at: 2024-01-10 12:00:00
 - blockid: 9736
-  txid: 115361491
+  tx_hash: 0x0d60dd6dc1f2649efb2847f801dfaa61361a438deb526da2de5b6875e0016514
   inserted_at: 2024-01-10 12:00:00

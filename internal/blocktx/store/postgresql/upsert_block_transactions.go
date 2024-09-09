@@ -32,13 +32,6 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		ON CONFLICT DO NOTHING
 	`
 
-	// TODO: start transaction
-
-	_, err := p.db.ExecContext(ctx, qUpsertTransactions, pq.Array(txHashesBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
-	}
-
 	qUpsertBlockTxsMap := `
 		INSERT INTO blocktx.block_transactions_map (
 			blockid
@@ -48,10 +41,6 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		SELECT * FROM UNNEST($1::INT[], $2::BYTEA[], $3::TEXT[])
 		ON CONFLICT DO NOTHING
 	`
-	_, err = p.db.ExecContext(ctx, qUpsertBlockTxsMap, pq.Array(blockIDs), pq.Array(txHashesBytes), pq.Array(merklePaths))
-	if err != nil {
-		return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
-	}
 
 	qRegisteredTransactions := `
 		SELECT
@@ -61,10 +50,27 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	  JOIN blocktx.block_transactions_map AS m ON t.hash = m.tx_hash
 		WHERE m.blockid = $1 AND t.is_registered = TRUE
 	`
-	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId)
+
+	dbTx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = dbTx.ExecContext(ctx, qUpsertTransactions, pq.Array(txHashesBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
+	}
+
+	_, err = dbTx.ExecContext(ctx, qUpsertBlockTxsMap, pq.Array(blockIDs), pq.Array(txHashesBytes), pq.Array(merklePaths))
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
+	}
+
+	rows, err := dbTx.QueryContext(ctx, qRegisteredTransactions, blockId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
 	}
+	defer rows.Close()
 
 	registeredRows := make([]store.TxWithMerklePath, 0)
 
@@ -84,6 +90,11 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockId, err)
+	}
+
+	err = dbTx.Commit()
+	if err != nil {
+		return nil, err
 	}
 
 	return registeredRows, nil

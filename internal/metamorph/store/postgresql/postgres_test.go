@@ -573,7 +573,7 @@ func TestPostgresDB(t *testing.T) {
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
 		unmined.Status = metamorph_api.Status_MINED
-		unmined.LastModified = dataReturned.LastModified
+		unmined.LastModified = postgresDB.now()
 
 		require.Equal(t, &unmined, dataReturned)
 	})
@@ -610,7 +610,7 @@ func TestPostgresDB(t *testing.T) {
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
-		unmined.LastModified = updatedTx.LastModified
+		unmined.LastModified = postgresDB.now()
 
 		require.Equal(t, &unmined, updatedTx)
 
@@ -635,7 +635,7 @@ func TestPostgresDB(t *testing.T) {
 			Status:    unmined.Status,
 			Timestamp: unmined.LastModified,
 		})
-		unmined.LastModified = statusUpdates[0].LastModified
+		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
 		require.Equal(t, &unmined, updatedTx)
 
@@ -663,7 +663,7 @@ func TestPostgresDB(t *testing.T) {
 			Status:    unmined.Status,
 			Timestamp: unmined.LastModified,
 		})
-		unmined.LastModified = statusUpdates[0].LastModified
+		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED
 		require.Equal(t, &unmined, updatedTx)
 	})

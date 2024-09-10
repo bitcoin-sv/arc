@@ -30,7 +30,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 	  	b.height,
 	  	m.merkle_path
 	  FROM blocktx.transactions AS t
-	  	JOIN blocktx.block_transactions_map AS m ON t.hash = m.tx_hash
+	  	JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
 	  	JOIN blocktx.blocks AS b ON m.blockid = b.id
 	  WHERE t.hash = ANY($1)
 	`

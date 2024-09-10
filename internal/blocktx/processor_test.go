@@ -36,16 +36,25 @@ func TestHandleBlock(t *testing.T) {
 	merkleRootHash1585018, _ := chainhash.NewHashFromStr("9c1fe95a7ac4502e281f4f2eaa2902e12b0f486cf610977c73afb3cd060bebde")
 
 	tt := []struct {
-		name                  string
-		prevBlockHash         chainhash.Hash
-		merkleRoot            chainhash.Hash
-		height                uint64
-		txHashes              []string
-		size                  uint64
-		nonce                 uint32
-		setBlockProcessingErr error
-		bhsProcInProg         []*chainhash.Hash
+		name               string
+		prevBlockHash      chainhash.Hash
+		merkleRoot         chainhash.Hash
+		height             uint64
+		txHashes           []string
+		size               uint64
+		nonce              uint32
+		blockAlreadyExists bool
 	}{
+		{
+			name:               "block height 1573650",
+			txHashes:           []string{}, // expect this block to not be processed
+			prevBlockHash:      *prevBlockHash1573650,
+			merkleRoot:         *merkleRootHash1573650,
+			height:             1573650,
+			nonce:              3694498168,
+			size:               216,
+			blockAlreadyExists: true,
+		},
 		{
 			name:          "block height 1573650",
 			txHashes:      []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
@@ -136,6 +145,9 @@ func TestHandleBlock(t *testing.T) {
 			batchSize := 4
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					if tc.blockAlreadyExists {
+						return &blocktx_api.Block{}, nil
+					}
 					return nil, store.ErrBlockNotFound
 				},
 				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
@@ -295,8 +307,15 @@ func TestHandleBlockReorg(t *testing.T) {
 			var mtx sync.Mutex
 			var insertedBlock *blocktx_api.Block
 
+			shouldReturnNoBlock := true
+
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					if shouldReturnNoBlock {
+						shouldReturnNoBlock = false
+						return nil, nil
+					}
+
 					return &blocktx_api.Block{
 						Status: tc.prevBlockStatus,
 					}, nil

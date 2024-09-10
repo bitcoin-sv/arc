@@ -17,37 +17,37 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		defer span.End()
 	}
 
-	blockIDs := make([]uint64, len(txsWithMerklePaths))
 	txHashesBytes := make([][]byte, len(txsWithMerklePaths))
 	merklePaths := make([]string, len(txsWithMerklePaths))
 	for i, tx := range txsWithMerklePaths {
-		blockIDs[i] = blockId
 		txHashesBytes[i] = tx.Hash
 		merklePaths[i] = tx.MerklePath
 	}
 
 	qUpsertTransactions := `
-		INSERT INTO blocktx.transactions (hash)
-		SELECT UNNEST($1::BYTEA[])
-		ON CONFLICT DO NOTHING
-	`
-
-	qUpsertBlockTxsMap := `
-		INSERT INTO blocktx.block_transactions_map (
-			blockid
-			,tx_hash
-			,merkle_path
+		WITH inserted_transactions AS (
+				INSERT INTO blocktx.transactions (hash)
+				SELECT UNNEST($2::BYTEA[])
+				ON CONFLICT (hash)
+				DO UPDATE SET hash = transactions.hash
+				RETURNING id, hash
 		)
-		SELECT * FROM UNNEST($1::INT[], $2::BYTEA[], $3::TEXT[])
-		ON CONFLICT DO NOTHING
+
+		INSERT INTO blocktx.block_transactions_map (blockid, txid, merkle_path)
+		SELECT
+				$1::BIGINT,
+				it.id,
+				t.merkle_path
+		FROM inserted_transactions it
+		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash;
 	`
 
 	qRegisteredTransactions := `
 		SELECT
 			t.hash,
 			m.merkle_path
-		FROM blocktx.transactions AS t
-	  JOIN blocktx.block_transactions_map AS m ON t.hash = m.tx_hash
+		FROM blocktx.transactions t
+	  JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
 		WHERE m.blockid = $1 AND t.is_registered = TRUE
 	`
 
@@ -56,14 +56,9 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		return nil, err
 	}
 
-	_, err = dbTx.ExecContext(ctx, qUpsertTransactions, pq.Array(txHashesBytes))
+	_, err = dbTx.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
-	}
-
-	_, err = dbTx.ExecContext(ctx, qUpsertBlockTxsMap, pq.Array(blockIDs), pq.Array(txHashesBytes), pq.Array(merklePaths))
-	if err != nil {
-		return nil, fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
+		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
 	}
 
 	rows, err := dbTx.QueryContext(ctx, qRegisteredTransactions, blockId)

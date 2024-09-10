@@ -42,15 +42,17 @@ type Block struct {
 }
 
 type Transaction struct {
+	ID           int64     `db:"id"`
 	Hash         []byte    `db:"hash"`
 	IsRegistered bool      `db:"is_registered"`
 	InsertedAt   time.Time `db:"inserted_at"`
 }
 
 type BlockTransactionMap struct {
-	BlockID         int64  `db:"blockid"`
-	TransactionHash []byte `db:"tx_hash"`
-	MerklePath      string `db:"merkle_path"`
+	BlockID       int64     `db:"blockid"`
+	TransactionID int64     `db:"txid"`
+	MerklePath    string    `db:"merkle_path"`
+	InsertedAt    time.Time `db:"inserted_at"`
 }
 
 const (
@@ -553,21 +555,80 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			for i, tx := range tc.txsWithMerklePaths {
 				var storedtx Transaction
 
-				err = d.Get(&storedtx, "SELECT hash, is_registered from blocktx.transactions WHERE hash=$1", tx.Hash[:])
+				err = d.Get(&storedtx, "SELECT id, hash, is_registered from blocktx.transactions WHERE hash=$1", tx.Hash[:])
 				require.NoError(t, err, "error during getting transaction")
 
 				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
 
 				var mp BlockTransactionMap
-				err = d.Get(&mp, "SELECT blockid, tx_hash, merkle_path from blocktx.block_transactions_map WHERE tx_hash=$1", storedtx.Hash)
+				err = d.Get(&mp, "SELECT blockid, txid, merkle_path from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
 				require.NoError(t, err, "error during getting block transactions map")
 
 				require.Equal(t, tx.MerklePath, mp.MerklePath)
 				require.Equal(t, testBlockID, uint64(mp.BlockID))
-				require.Equal(t, tx.Hash, mp.TransactionHash)
 			}
 		})
 	}
+}
+
+func TestPostgresStore_UpsertBlockTransactions_CompetingBlocks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	// given
+	ctx, _, sut := setupPostgresTest(t)
+	defer sut.Close()
+	sut.maxPostgresBulkInsertRows = 5
+
+	prepareDb(t, sut.db, "fixtures/upsert_block_transactions")
+
+	testBlockID := uint64(9736)
+	competingBlockID := uint64(9737)
+
+	txHash := testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
+
+	txsWithMerklePaths := []store.TxWithMerklePath{
+		{
+			Hash:       txHash[:],
+			MerklePath: "merkle-path-1",
+		},
+	}
+
+	competingTxsWithMerklePaths := []store.TxWithMerklePath{
+		{
+			Hash:       txHash[:],
+			MerklePath: "merkle-path-2",
+		},
+	}
+
+	expected := []store.GetMinedTransactionResult{
+		{
+			TxHash:      txHash[:],
+			BlockHash:   testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
+			BlockHeight: uint64(826481),
+			MerklePath:  "merkle-path-1",
+		},
+		{
+			TxHash:      txHash[:],
+			BlockHash:   testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
+			BlockHeight: uint64(826481),
+			MerklePath:  "merkle-path-2",
+		},
+	}
+
+	// when
+	_, err := sut.UpsertBlockTransactions(ctx, testBlockID, txsWithMerklePaths)
+	require.NoError(t, err)
+
+	_, err = sut.UpsertBlockTransactions(ctx, competingBlockID, competingTxsWithMerklePaths)
+	require.NoError(t, err)
+
+	// then
+	actual, err := sut.GetMinedTransactions(ctx, []*chainhash.Hash{txHash})
+	require.NoError(t, err)
+
+	require.ElementsMatch(t, expected, actual)
 }
 
 func TestPostgresStore_RegisterTransactions(t *testing.T) {

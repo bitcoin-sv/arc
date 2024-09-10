@@ -241,7 +241,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([][]byte, 0, p.registerTxsBatchSize)
+				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 
 			case <-ticker.C:
@@ -407,6 +407,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	blockHash := msg.Header.BlockHash()
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
+
+	// don't process block that was already processed
+	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
+	if existingBlock != nil {
+		return nil
+	}
 
 	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
 	if err != nil {
@@ -639,7 +645,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
+			txs = txs[:0]
 
 			for _, updResp := range updateResp {
 				txBlock := &blocktx_api.TransactionBlock{

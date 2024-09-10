@@ -113,7 +113,7 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 			},
 			expectedP2PUrl:   "",
 			expectedZMQUrl:   "",
-			expectedZmqIsNil: false,
+			expectedZmqIsNil: true,
 			expectedP2PError: ErrPortP2PNotSet,
 			expectedZMQError: errors.New("port_zmq not set for peer localhost"), // external error
 		},

@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-
-	"github.com/bitcoin-sv/arc/pkg/keyset"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"os"
+	"os/signal"
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var Cmd = &cobra.Command{
@@ -46,7 +45,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySetsMap, err := helper.GetSelectedKeySets()
+		keySets, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -80,30 +79,34 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
 
-		ks := make([]*keyset.KeySet, len(keySetsMap))
-		counter := 0
-		for _, keySet := range keySetsMap {
-			ks[counter] = keySet
-			counter++
-		}
-		rateBroadcaster, err := broadcaster.NewUTXOCreator(logger, client, ks, wocClient, isTestnet,
-			broadcaster.WithFees(miningFeeSat),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create broadcaster: %v", err)
+		creators := make([]*broadcaster.UTXOCreator, 0, len(keySets))
+		for _, ks := range keySets {
+			creator, err := broadcaster.NewUTXOCreator(logger.With(slog.String("address", ks.Address(!isTestnet))), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
+			if err != nil {
+				return err
+			}
+
+			creators = append(creators, creator)
 		}
 
-		err = rateBroadcaster.CreateUtxos(outputs, uint64(satoshisPerOutput))
-		if err != nil {
-			return fmt.Errorf("failed to create utxos: %v", err)
-		}
+		multiCreator := broadcaster.NewMultiKeyUTXOCreator(logger, creators)
+
+		go func() {
+			// Listen for interruption signal to gracefully shut down
+			signalChan := make(chan os.Signal, 1)
+			signal.Notify(signalChan, os.Interrupt)
+			<-signalChan
+			multiCreator.Shutdown()
+		}()
+
+		logger.Info("Starting UTXO creation")
+		multiCreator.Start(outputs, uint64(satoshisPerOutput))
 
 		return nil
 	},
 }
 
 func init() {
-
 	logger := helper.GetLogger()
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

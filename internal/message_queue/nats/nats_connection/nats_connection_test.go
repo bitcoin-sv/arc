@@ -45,10 +45,9 @@ func testmain(m *testing.M) int {
 
 func TestNewNatsConnection(t *testing.T) {
 	tt := []struct {
-		name string
-		url  string
-
-		expectedErrorStr string
+		name          string
+		url           string
+		expectedError error
 	}{
 		{
 			name: "success",
@@ -58,15 +57,15 @@ func TestNewNatsConnection(t *testing.T) {
 			name: "error",
 			url:  "wrong url",
 
-			expectedErrorStr: "failed to connect to NATS server",
+			expectedError: ErrNatsConnectionFailed,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := New(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 

@@ -106,19 +106,19 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 			require.Nil(t, err)
 
 			// when
-			decodedBEEF, _, err := DecodeBEEF(beefHex)
+			actualBeef, _, err := DecodeBEEF(beefHex)
 
 			// then
 			assert.Nil(t, err)
-			assert.Equal(t, len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions), "expected %v inputs, but got %v", len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions))
-			assert.Equal(t, len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs), "expected %v BUMPs, but got %v", len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs))
+			assert.Equal(t, len(tc.expectedDecodedBEEF.Transactions), len(actualBeef.Transactions), "expected %v inputs, but got %v", len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions))
+			assert.Equal(t, len(tc.expectedDecodedBEEF.BUMPs), len(actualBeef.BUMPs), "expected %v BUMPs, but got %v", len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs))
 
 			for i, expectedBump := range tc.expectedDecodedBEEF.BUMPs {
-				assert.Equal(t, len(expectedBump.Path), len(decodedBEEF.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(expectedBump.Path), i, len(decodedBEEF.BUMPs[i].Path))
-				assert.Equal(t, expectedBump.Path, decodedBEEF.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, expectedBump, len(decodedBEEF.BUMPs[i].Path))
+				assert.Equal(t, len(expectedBump.Path), len(actualBeef.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(expectedBump.Path), i, len(decodedBEEF.BUMPs[i].Path))
+				assert.Equal(t, expectedBump.Path, actualBeef.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, expectedBump, len(decodedBEEF.BUMPs[i].Path))
 			}
 
-			assert.Equal(t, tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex, "expected path index for the oldest input to be %v, but got %v", tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex)
+			assert.Equal(t, tc.expectedDecodedBEEF.Transactions[0].BumpIndex, actualBeef.Transactions[0].BumpIndex, "expected path index for the oldest input to be %v, but got %v", tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex)
 		})
 	}
 }
@@ -218,10 +218,10 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			beefHex, _ := hex.DecodeString(tc.hexStream)
 
 			// when
-			result, _, err := DecodeBEEF(beefHex)
+			actualBeef, _, err := DecodeBEEF(beefHex)
 
 			// then
-			assert.Nil(t, result, "expected nil result, but got %v", result)
+			assert.Nil(t, actualBeef, "expected nil result, but got %v", actualBeef)
 			if tc.expectedError != nil {
 				assert.ErrorIs(t, err, tc.expectedError)
 			} else {
@@ -278,11 +278,11 @@ func TestDecodeBEEF_InvalidBeef_ReturnError(t *testing.T) {
 			require.Nil(t, err)
 
 			// when
-			result, _, err := DecodeBEEF(beefHex)
+			actualBeef, _, err := DecodeBEEF(beefHex)
 
 			// then
 			assert.ErrorIs(t, err, tc.expectedError)
-			assert.Nil(t, result, "expected nil result, but got %v", result)
+			assert.Nil(t, actualBeef, "expected nil result, but got %v", actualBeef)
 		})
 	}
 }

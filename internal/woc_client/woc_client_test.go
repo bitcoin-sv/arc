@@ -30,13 +30,13 @@ func Test_New(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			//when
+			// given
 			sut := New(tc.useMainnet)
 
-			//then
+			// when
 			httpReq, err := sut.httpRequest(context.TODO(), "GET", "", nil)
 
-			// assert
+			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedRequestPath, httpReq.URL.Path)
 
@@ -60,13 +60,13 @@ func Test_WithAuth(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			sut := New(false, WithAuth(tc.apiKey))
 
-			// then
+			// when
 			httpReq, err := sut.httpRequest(context.TODO(), "GET", "", nil)
 
-			// assert
+			// then
 			require.NoError(t, err)
 
 			authHeader, found := httpReq.Header["Authorization"]
@@ -85,13 +85,13 @@ func Test_GetUTXOs(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	// when
+	// given
 	sut := New(false)
 
-	// then
+	// when
 	res, err := sut.GetUTXOs(context.TODO(), nil, testnet_addr)
 
-	// assert
+	// then
 	require.NoError(t, err)
 	require.NotNil(t, res)
 }
@@ -101,13 +101,13 @@ func Test_GetBalance(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	// when
+	// given
 	sut := New(false)
 
-	// then
+	// when
 	_, _, err := sut.GetBalance(context.TODO(), testnet_addr)
 
-	// assert
+	// then
 	require.NoError(t, err)
 }
 
@@ -117,27 +117,27 @@ func Test_TopUp(t *testing.T) {
 	}
 
 	t.Run("use on testnet", func(t *testing.T) {
-		// when
+		// given
 		sut := New(false)
 
-		// then
+		// when
 		err := sut.TopUp(context.TODO(), testnet_addr)
 
-		// assert
+		// then
 		require.NoError(t, err)
 	})
 
 	t.Run("try use on mainnet - should fail", func(t *testing.T) {
-		// when
+		// given
 		const useOnMainnet = true
 		sut := New(useOnMainnet)
 
-		// then
+		// when
 		err := sut.TopUp(context.TODO(), testnet_addr)
 
-		// assert
+		// then
 		require.Error(t, err)
-		require.ErrorContains(t, err, "top up can only be done on testnet")
+		require.ErrorIs(t, err, ErrWOCFailedToTopUp)
 	})
 }
 
@@ -146,7 +146,7 @@ func Test_GetRawTxs(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	// when
+	// given
 	sut := New(false)
 
 	const idsCount = 37
@@ -155,10 +155,10 @@ func Test_GetRawTxs(t *testing.T) {
 		ids[i] = fmt.Sprintf("id%d", i)
 	}
 
-	// then
+	// when
 	res, err := sut.GetRawTxs(context.TODO(), ids)
 
-	// assert
+	// then
 	require.NoError(t, err)
 	require.NotNil(t, res)
 

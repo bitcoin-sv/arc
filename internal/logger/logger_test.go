@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 
@@ -26,24 +25,25 @@ func Test_NewLogger(t *testing.T) {
 			name:          "invalid log format",
 			loglevel:      "INFO",
 			logformat:     "invalid format",
-			expectedError: errors.New("invalid log format: invalid format"),
+			expectedError: ErrLoggerInvalidLogFormat,
 		},
 		{
 			name:          "invalid log level",
 			loglevel:      "INVALID_LEVEL",
 			logformat:     "text",
-			expectedError: errors.New("invalid log level: INVALID_LEVEL"),
+			expectedError: ErrLoggerInvalidLogLevel,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logger, err := NewLogger(tc.loglevel, tc.logformat)
+			// when
+			sut, err := NewLogger(tc.loglevel, tc.logformat)
 
-			assert.Equal(t, tc.expectedError, err)
-
+			// then
+			assert.ErrorIs(t, err, tc.expectedError)
 			if tc.expectedError == nil {
-				assert.Equal(t, logger.Enabled(context.Background(), slog.LevelInfo), true)
+				assert.Equal(t, sut.Enabled(context.Background(), slog.LevelInfo), true)
 			}
 		})
 	}

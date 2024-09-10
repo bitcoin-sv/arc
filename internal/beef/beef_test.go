@@ -110,15 +110,15 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-			assert.Equal(t, len(tc.expectedDecodedBEEF.Transactions), len(actualBeef.Transactions), "expected %v inputs, but got %v", len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions))
-			assert.Equal(t, len(tc.expectedDecodedBEEF.BUMPs), len(actualBeef.BUMPs), "expected %v BUMPs, but got %v", len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs))
+			assert.Equal(t, len(tc.expectedDecodedBEEF.Transactions), len(actualBeef.Transactions), "expected %v inputs, but got %v", len(tc.expectedDecodedBEEF.Transactions), len(actualBeef.Transactions))
+			assert.Equal(t, len(tc.expectedDecodedBEEF.BUMPs), len(actualBeef.BUMPs), "expected %v BUMPs, but got %v", len(tc.expectedDecodedBEEF.BUMPs), len(actualBeef.BUMPs))
 
 			for i, expectedBump := range tc.expectedDecodedBEEF.BUMPs {
-				assert.Equal(t, len(expectedBump.Path), len(actualBeef.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(expectedBump.Path), i, len(decodedBEEF.BUMPs[i].Path))
-				assert.Equal(t, expectedBump.Path, actualBeef.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, expectedBump, len(decodedBEEF.BUMPs[i].Path))
+				assert.Equal(t, len(expectedBump.Path), len(actualBeef.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(expectedBump.Path), i, len(actualBeef.BUMPs[i].Path))
+				assert.Equal(t, expectedBump.Path, actualBeef.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, expectedBump, len(actualBeef.BUMPs[i].Path))
 			}
 
-			assert.Equal(t, tc.expectedDecodedBEEF.Transactions[0].BumpIndex, actualBeef.Transactions[0].BumpIndex, "expected path index for the oldest input to be %v, but got %v", tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex)
+			assert.Equal(t, tc.expectedDecodedBEEF.Transactions[0].BumpIndex, actualBeef.Transactions[0].BumpIndex, "expected path index for the oldest input to be %v, but got %v", tc.expectedDecodedBEEF.Transactions[0].BumpIndex, actualBeef.Transactions[0].BumpIndex)
 		})
 	}
 }

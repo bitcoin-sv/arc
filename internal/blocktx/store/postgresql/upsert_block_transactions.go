@@ -55,7 +55,9 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	if err != nil {
 		return nil, err
 	}
-	defer dbTx.Rollback()
+	defer func() {
+		_ = dbTx.Rollback()
+	}()
 
 	_, err = dbTx.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {

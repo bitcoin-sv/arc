@@ -36,17 +36,19 @@ func Test_GetNetwork(t *testing.T) {
 		{
 			name:            "invalid network",
 			networkStr:      "invalidnet",
-			expectedNetwork: 0, // invlid network
-			expectedError:   errors.New("unknown bitcoin_network: invalidnet"),
+			expectedNetwork: 0, // invalid network
+			expectedError:   ErrConfigUnknownNetwork,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			net, err := GetNetwork(tc.networkStr)
+			// when
+			actualNetwork, err := GetNetwork(tc.networkStr)
 
-			assert.Equal(t, tc.expectedNetwork, net)
-			assert.Equal(t, tc.expectedError, err)
+			// then
+			assert.Equal(t, tc.expectedNetwork, actualNetwork)
+			assert.ErrorIs(t, err, tc.expectedError)
 		})
 	}
 }
@@ -101,7 +103,7 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 			},
 			expectedP2PUrl:   "",
 			expectedZMQUrl:   "zmq://localhost:28332",
-			expectedP2PError: errors.New("port_p2p not set for peer localhost"),
+			expectedP2PError: ErrPortP2PNotSet,
 			expectedZMQError: nil,
 		},
 		{
@@ -111,28 +113,31 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 			},
 			expectedP2PUrl:   "",
 			expectedZMQUrl:   "",
-			expectedZmqIsNil: true,
-			expectedP2PError: errors.New("port_p2p not set for peer localhost"),
-			expectedZMQError: errors.New("port_zmq not set for peer localhost"),
+			expectedZmqIsNil: false,
+			expectedP2PError: ErrPortP2PNotSet,
+			expectedZMQError: errors.New("port_zmq not set for peer localhost"), // external error
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			p2pUrl, p2pErr := tc.peerConfig.GetP2PUrl()
-			assert.Equal(t, tc.expectedP2PError, p2pErr)
-			assert.Equal(t, tc.expectedP2PUrl, p2pUrl)
+			// when
+			actualP2PUrl, actualP2PErr := tc.peerConfig.GetP2PUrl()
+			actualZmqUrl, actualZmqErr := tc.peerConfig.GetZMQUrl()
 
-			zmqUrl, zmqErr := tc.peerConfig.GetZMQUrl()
+			// then
+			assert.ErrorIs(t, actualP2PErr, tc.expectedP2PError)
+			assert.Equal(t, tc.expectedP2PUrl, actualP2PUrl)
+
 			if tc.expectedZmqIsNil {
-				assert.Nil(t, zmqUrl)
+				assert.Nil(t, actualZmqUrl)
 				return
 			} else {
-				assert.NotNil(t, zmqUrl)
+				assert.NotNil(t, actualZmqUrl)
 			}
-			assert.Equal(t, tc.expectedZMQError, zmqErr)
+			assert.ErrorIs(t, actualZmqErr, tc.expectedZMQError)
 			if tc.expectedZMQError == nil {
-				assert.Equal(t, tc.expectedZMQUrl, zmqUrl.String())
+				assert.Equal(t, tc.expectedZMQUrl, actualZmqUrl.String())
 			}
 		})
 	}

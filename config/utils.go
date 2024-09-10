@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -8,10 +9,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	ErrConfigFailedToDump   = errors.New("error occurred while dumping config")
+	ErrConfigUnknownNetwork = errors.New("unknown bitcoin_network")
+	ErrPortP2PNotSet        = errors.New("port_p2p not set for peer")
+)
+
 func DumpConfig(configFile string) error {
 	err := viper.SafeWriteConfigAs(configFile)
 	if err != nil {
-		return fmt.Errorf("error while dumping config: %v", err.Error())
+		return errors.Join(ErrConfigFailedToDump, err)
 	}
 	return nil
 }
@@ -27,7 +34,7 @@ func GetNetwork(networkStr string) (wire.BitcoinNet, error) {
 	case "regtest":
 		network = wire.TestNet
 	default:
-		return 0, fmt.Errorf("unknown bitcoin_network: %s", networkStr)
+		return 0, errors.Join(ErrConfigUnknownNetwork, fmt.Errorf("network: %s", networkStr))
 	}
 
 	return network, nil
@@ -46,7 +53,7 @@ func (p *PeerConfig) GetZMQUrl() (*url.URL, error) {
 
 func (p *PeerConfig) GetP2PUrl() (string, error) {
 	if p.Port == nil || p.Port.P2P == 0 {
-		return "", fmt.Errorf("port_p2p not set for peer %s", p.Host)
+		return "", errors.Join(ErrPortP2PNotSet, fmt.Errorf("peer host %s", p.Host))
 	}
 
 	return fmt.Sprintf("%s:%d", p.Host, p.Port.P2P), nil

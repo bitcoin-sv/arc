@@ -9,28 +9,34 @@ import (
 
 func Test_Load(t *testing.T) {
 	t.Run("default load", func(t *testing.T) {
-		defaultConfig := getDefaultArcConfig()
+		// given
+		expectedConfig := getDefaultArcConfig()
 
-		config, err := Load()
+		// when
+		actualConfig, err := Load()
 		require.NoError(t, err, "error loading config")
 
-		assert.Equal(t, defaultConfig, config)
+		// then
+		assert.Equal(t, expectedConfig, actualConfig)
 	})
 
 	t.Run("partial file override", func(t *testing.T) {
-		defaultConfig := getDefaultArcConfig()
+		// given
+		expectedConfig := getDefaultArcConfig()
 
-		config, err := Load("./test_files/")
+		// when
+		actualConfig, err := Load("./test_files/")
 		require.NoError(t, err, "error loading config")
 
+		// then
 		// verify not overriden default example value
-		assert.Equal(t, defaultConfig.GrpcMessageSize, config.GrpcMessageSize)
+		assert.Equal(t, expectedConfig.GrpcMessageSize, actualConfig.GrpcMessageSize)
 
 		// verify correct override
-		assert.Equal(t, "INFO", config.LogLevel)
-		assert.Equal(t, "text", config.LogFormat)
-		assert.Equal(t, "mainnet", config.Network)
-		assert.NotNil(t, config.Tracing)
-		assert.Equal(t, "http://tracing:1234", config.Tracing.DialAddr)
+		assert.Equal(t, "INFO", actualConfig.LogLevel)
+		assert.Equal(t, "text", actualConfig.LogFormat)
+		assert.Equal(t, "mainnet", actualConfig.Network)
+		assert.NotNil(t, actualConfig.Tracing)
+		assert.Equal(t, "http://tracing:1234", actualConfig.Tracing.DialAddr)
 	})
 }

@@ -13,29 +13,32 @@ import (
 
 func TestCheckBeefFormat(t *testing.T) {
 	testCases := []struct {
-		name           string
-		beefStr        string
-		expectedReturn bool
+		name               string
+		beefStr            string
+		expectedBeefFormat bool
 	}{
 		{
-			name:           "expect true",
-			beefStr:        "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000",
-			expectedReturn: true,
+			name:               "expect true",
+			beefStr:            "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000",
+			expectedBeefFormat: true,
 		},
 		{
-			name:           "expect false",
-			beefStr:        "0100ceef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000",
-			expectedReturn: false,
+			name:               "expect false",
+			beefStr:            "0100ceef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000",
+			expectedBeefFormat: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			beefHex, _ := hex.DecodeString(tc.beefStr)
 
-			beefFormat := CheckBeefFormat(beefHex)
+			// when
+			actualBeefFormat := CheckBeefFormat(beefHex)
 
-			assert.Equal(t, tc.expectedReturn, beefFormat)
+			// then
+			assert.Equal(t, tc.expectedBeefFormat, actualBeefFormat)
 		})
 	}
 }
@@ -107,14 +110,12 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-
 			assert.Equal(t, len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions), "expected %v inputs, but got %v", len(tc.expectedDecodedBEEF.Transactions), len(decodedBEEF.Transactions))
-
 			assert.Equal(t, len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs), "expected %v BUMPs, but got %v", len(tc.expectedDecodedBEEF.BUMPs), len(decodedBEEF.BUMPs))
 
-			for i, bump := range tc.expectedDecodedBEEF.BUMPs {
-				assert.Equal(t, len(bump.Path), len(decodedBEEF.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(bump.Path), i, len(decodedBEEF.BUMPs[i].Path))
-				assert.Equal(t, bump.Path, decodedBEEF.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, bump, len(decodedBEEF.BUMPs[i].Path))
+			for i, expectedBump := range tc.expectedDecodedBEEF.BUMPs {
+				assert.Equal(t, len(expectedBump.Path), len(decodedBEEF.BUMPs[i].Path), "expected %v BUMPPaths for %v BUMP, but got %v", len(expectedBump.Path), i, len(decodedBEEF.BUMPs[i].Path))
+				assert.Equal(t, expectedBump.Path, decodedBEEF.BUMPs[i].Path, "expected equal BUMPPaths for %v BUMP, expected: %v but got %v", i, expectedBump, len(decodedBEEF.BUMPs[i].Path))
 			}
 
 			assert.Equal(t, tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex, "expected path index for the oldest input to be %v, but got %v", tc.expectedDecodedBEEF.Transactions[0].BumpIndex, decodedBEEF.Transactions[0].BumpIndex)
@@ -123,89 +124,92 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 }
 
 func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
+	// external errors
 	bumpError := errors.New("BUMP bytes do not contain enough data to be valid")
 	varIntError := errors.New("could not read varint type: EOF")
+
 	testCases := []struct {
 		name                         string
 		hexStream                    string
 		expectedDecodedBEEF          *BEEF
 		expectedCMPForTheOldestInput bool
 		expectedError                error
+		expectedExternalError        error
 	}{
 		{
 			name:                         "too short hex stream",
 			hexStream:                    "001",
 			expectedDecodedBEEF:          nil,
-			expectedError:                errors.New("invalid format of transaction, BEEF marker not found"),
+			expectedError:                ErrBEEFNoMarker,
 			expectedCMPForTheOldestInput: false,
 		},
 		{
 			name:                         "unable to decode BEEF - only marker and version has been provided",
 			hexStream:                    "0100beef",
 			expectedDecodedBEEF:          nil,
-			expectedError:                errors.New("cannot decode BUMP - no bytes provided"),
+			expectedError:                ErrBEEFNoBytesProvided,
 			expectedCMPForTheOldestInput: false,
 		},
 		{
 			name:                         "unable to decode BEEF - wrong marker",
 			hexStream:                    "0100efbe",
 			expectedDecodedBEEF:          nil,
-			expectedError:                errors.New("invalid format of transaction, BEEF marker not found"),
+			expectedError:                ErrBEEFNoMarker,
 			expectedCMPForTheOldestInput: false,
 		},
 		{
-			name:                "unable to decode BUMP block height - proper BEEF marker and number of bumps",
-			hexStream:           "0100beef01",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP block height - proper BEEF marker and number of bumps",
+			hexStream:             "0100beef01",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP number of leaves - proper BEEF marker, number of bumps, block height and tree height but end of stream at this point",
-			hexStream:           "0100beef01fe8a6a0c000c",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP number of leaves - proper BEEF marker, number of bumps, block height and tree height but end of stream at this point",
+			hexStream:             "0100beef01fe8a6a0c000c",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - no offset - proper BEEF marker, number of bumps, block height and tree height and nLeaves but end of stream at this point",
-			hexStream:           "0100beef01fe8a6a0c000c04",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - no offset - proper BEEF marker, number of bumps, block height and tree height and nLeaves but end of stream at this point",
+			hexStream:             "0100beef01fe8a6a0c000c04",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - no flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset but end of stream at this point",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - no flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset but end of stream at this point",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - wrong flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b03",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - wrong flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b03",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - no hash with flag 0 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b00",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - no hash with flag 0 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b00",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - no hash with flag 2 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b00",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - no hash with flag 2 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b00",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - flag 1 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but end of stream at this point - flag 1 means that there is no hash",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b01",
-			expectedDecodedBEEF: nil,
-			expectedError:       bumpError,
+			name:                  "unable to decode BUMP leaf - flag 1 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but end of stream at this point - flag 1 means that there is no hash",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b01",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: bumpError,
 		},
 		{
-			name:                "unable to decode BUMP leaf - not enough bytes for hash - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but with not enough bytes for hash",
-			hexStream:           "0100beef01fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a01cbdf7f734e",
-			expectedDecodedBEEF: nil,
-			expectedError:       varIntError,
+			name:                  "unable to decode BUMP leaf - not enough bytes for hash - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but with not enough bytes for hash",
+			hexStream:             "0100beef01fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a01cbdf7f734e",
+			expectedDecodedBEEF:   nil,
+			expectedExternalError: varIntError,
 		},
 	}
 	for _, tc := range testCases {
@@ -217,8 +221,12 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			result, _, err := DecodeBEEF(beefHex)
 
 			// then
-			assert.Equal(t, tc.expectedError.Error(), err.Error(), "expected error %v, but got %v", tc.expectedError, err)
 			assert.Nil(t, result, "expected nil result, but got %v", result)
+			if tc.expectedError != nil {
+				assert.ErrorIs(t, err, tc.expectedError)
+			} else {
+				assert.Equal(t, tc.expectedExternalError.Error(), err.Error(), "expected error %v, but got %v", tc.expectedExternalError, err)
+			}
 		})
 	}
 }
@@ -238,27 +246,27 @@ func TestDecodeBEEF_InvalidBeef_ReturnError(t *testing.T) {
 		{
 			name:          "DecodeBEEF - rawTx",
 			beef:          rawTx,
-			expectedError: errors.New("invalid format of transaction, BEEF marker not found"),
+			expectedError: ErrBEEFNoMarker,
 		},
 		{
 			name:          "DecodeBEEF - empty BUMPs",
 			beef:          emptyBumps,
-			expectedError: errors.New("invalid BEEF - lack of BUMPs"),
+			expectedError: ErrBEEFLackOfBUMPs,
 		},
 		{
 			name:          "DecodeBEEF - without  BUMPs",
 			beef:          withoutBumps,
-			expectedError: errors.New("invalid BEEF - lack of BUMPs"),
+			expectedError: ErrBEEFLackOfBUMPs,
 		},
 		{
 			name:          "DecodeBEEF - without  input parent transactions",
 			beef:          withoutParents,
-			expectedError: errors.New("invalid BEEF- not enough transactions provided to decode BEEF"),
+			expectedError: ErrBEEFNotEnoughTx,
 		},
 		{
 			name:          "DecodeBEEF - with a bump marker bo no bump index",
 			beef:          withBumpMarkerButNoIndex,
-			expectedError: errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index"),
+			expectedError: ErrBEEFNoBUMPIndex,
 		},
 	}
 
@@ -273,7 +281,7 @@ func TestDecodeBEEF_InvalidBeef_ReturnError(t *testing.T) {
 			result, _, err := DecodeBEEF(beefHex)
 
 			// then
-			assert.Equal(t, tc.expectedError, err, "expected error %v, but got %v", tc.expectedError, err)
+			assert.ErrorIs(t, err, tc.expectedError)
 			assert.Nil(t, result, "expected nil result, but got %v", result)
 		})
 	}

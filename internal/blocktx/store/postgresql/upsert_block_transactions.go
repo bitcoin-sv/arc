@@ -51,20 +51,12 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		WHERE m.blockid = $1 AND t.is_registered = TRUE
 	`
 
-	dbTx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = dbTx.Rollback()
-	}()
-
-	_, err = dbTx.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
+	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
 	}
 
-	rows, err := dbTx.QueryContext(ctx, qRegisteredTransactions, blockId)
+	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
 	}
@@ -88,11 +80,6 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockId, err)
-	}
-
-	err = dbTx.Commit()
-	if err != nil {
-		return nil, err
 	}
 
 	return registeredRows, nil

@@ -47,7 +47,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 			t.hash,
 			m.merkle_path
 		FROM blocktx.transactions t
-	  JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+		JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
 		WHERE m.blockid = $1 AND t.is_registered = TRUE
 	`
 

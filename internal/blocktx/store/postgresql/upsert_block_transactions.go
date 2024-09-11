@@ -29,7 +29,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 				INSERT INTO blocktx.transactions (hash)
 				SELECT UNNEST($2::BYTEA[])
 				ON CONFLICT (hash)
-				DO UPDATE SET hash = transactions.hash
+				DO UPDATE SET hash = EXCLUDED.hash
 				RETURNING id, hash
 		)
 
@@ -48,7 +48,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 			m.merkle_path
 		FROM blocktx.transactions t
 		JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
-		WHERE m.blockid = $1 AND t.is_registered = TRUE
+		WHERE m.blockid = $1 AND t.is_registered = TRUE AND t.hash = ANY($2)
 	`
 
 	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
@@ -56,7 +56,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
 	}
 
-	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId)
+	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId, pq.Array(txHashesBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
 	}

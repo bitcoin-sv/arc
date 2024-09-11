@@ -250,7 +250,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([][]byte, 0, p.registerTxsBatchSize)
+				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 			}
 		}

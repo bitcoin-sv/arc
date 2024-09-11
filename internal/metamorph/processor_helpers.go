@@ -40,7 +40,10 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
 		currentStatusUpdate.Status = statusUpdate.Status
-		// TODO: combine status history
+		statusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
+			Status:    statusUpdate.Status,
+			Timestamp: p.now(),
+		})
 	}
 
 	return p.setTransactionStatus(*currentStatusUpdate)

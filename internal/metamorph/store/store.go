@@ -86,10 +86,11 @@ type MetamorphStore interface {
 }
 
 type UpdateStatus struct {
-	Hash         chainhash.Hash       `json:"-"`
-	Status       metamorph_api.Status `json:"status"`
-	Error        error                `json:"-"`
-	CompetingTxs []string             `json:"competing_txs"`
+	Hash          chainhash.Hash        `json:"-"`
+	Status        metamorph_api.Status  `json:"status"`
+	Error         error                 `json:"-"`
+	CompetingTxs  []string              `json:"competing_txs"`
+	StatusHistory []StatusWithTimestamp `json:"status_history"`
 	// Fields for marshalling
 	HashStr  string `json:"hash"`
 	ErrorStr string `json:"error"`
@@ -134,4 +135,9 @@ func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
+}
+
+type StatusWithTimestamp struct {
+	Status    metamorph_api.Status `json:"status"`
+	Timestamp time.Time            `json:"timestamp"`
 }

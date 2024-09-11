@@ -605,6 +605,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
 
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
@@ -620,6 +621,8 @@ func TestPostgresDB(t *testing.T) {
 		)
 		unmined.Status = metamorph_api.Status_RECEIVED
 		unmined.LastModified = postgresDB.now()
+
+		require.Equal(t, &unmined, updatedTx)
 
 		// Update tx with status RECEIVED to ACCEPTED_BY_NETWORK without additional history
 		updates = []store.UpdateStatus{

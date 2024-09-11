@@ -1103,6 +1103,67 @@ BearerAuth, None, None
 
 # Schemas
 
+<h2 id="tocS_Callback">Callback</h2>
+<!-- backwards compatibility -->
+<a id="schemacallback"></a>
+<a id="schema_Callback"></a>
+<a id="tocScallback"></a>
+<a id="tocscallback"></a>
+
+```json
+[
+  {
+    "mined": null,
+    "summary": "Transaction mined",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+      "txStatus": "MINED",
+      "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+      "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+      "blockHeight": 837394
+    }
+  },
+  {
+    "seen on network": null,
+    "summary": "Transaction seen on network",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
+      "txStatus": "SEEN_ON_NETWORK"
+    }
+  },
+  {
+    "double spend attempted": null,
+    "summary": "Transaction with one or more competing transactions",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "competingTxs": [
+        "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+      ],
+      "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+      "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+    }
+  }
+]
+
+```
+
+callback object
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|timestamp|string|true|none|none|
+|txid|string|true|none|none|
+|txStatus|string|true|none|none|
+|extraInfo|string¦null|false|none|none|
+|competingTxs|[string]|false|none|none|
+|merklePath|string¦null|false|none|none|
+|blockHash|string¦null|false|none|none|
+|blockHeight|integer¦null|false|none|none|
+
 <h2 id="tocS_CommonResponse">CommonResponse</h2>
 <!-- backwards compatibility -->
 <a id="schemacommonresponse"></a>

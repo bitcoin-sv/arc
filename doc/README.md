@@ -99,19 +99,7 @@ Metamorph is a microservice that is responsible for processing transactions sent
 
 The Callbacker is a microservice responsible for handling all registered callbacks. It sends a `POST` request to the specified URL, including a `Bearer token` in the `Authorization` header when required.
 
-Below is an example of a callback request body:
-
-```json
-{
-  "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
-  "blockHeight": 837394,
-  "extraInfo": null,
-  "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
-  "timestamp": "2024-03-26T16:02:29.655390092Z",
-  "txStatus": "MINED",
-  "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13"
-}
-```
+The specification of the callback object with different examples can be found [here](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#callback)
 
 To prevent DDoS attacks on callback receivers, the Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring only one request is sent at a time.
 
@@ -541,7 +529,7 @@ The "Cumulative Fee Validation" feature is designed to check if the chain of unm
 
 ### Usage
 
-To use the "Cumulative Fee Validation" feature, you need to send the `X-CumulativeFeeValidation` header with the value set to `true`. 
+To use the "Cumulative Fee Validation" feature, you need to send the `X-CumulativeFeeValidation` header with the value set to `true`.
 
 Example usage:
 ```

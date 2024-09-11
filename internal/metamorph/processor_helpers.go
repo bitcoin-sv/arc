@@ -22,7 +22,7 @@ func (p *Processor) updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.Up
 		}
 
 		statusUpdate.StatusHistory = append(foundStatusUpdate.StatusHistory, store.StatusWithTimestamp{
-			Status:    statusUpdate.Status,
+			Status:    foundStatusUpdate.Status,
 			Timestamp: p.now(),
 		})
 

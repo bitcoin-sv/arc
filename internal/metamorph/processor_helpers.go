@@ -17,10 +17,6 @@ func (p *Processor) updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.Up
 			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
 		}
 
-		if foundStatusUpdate.StatusHistory == nil {
-			foundStatusUpdate.StatusHistory = make([]store.StatusWithTimestamp, 0)
-		}
-
 		statusUpdate.StatusHistory = append(foundStatusUpdate.StatusHistory, store.StatusWithTimestamp{
 			Status:    foundStatusUpdate.Status,
 			Timestamp: p.now(),

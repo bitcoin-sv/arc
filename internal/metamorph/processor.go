@@ -394,7 +394,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				updateStatusMap(statusUpdatesMap, statusUpdate)
+				p.updateStatusMap(statusUpdatesMap, statusUpdate)
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(statusUpdatesMap)

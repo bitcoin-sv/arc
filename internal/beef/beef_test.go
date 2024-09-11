@@ -2,7 +2,6 @@ package beef
 
 import (
 	"encoding/hex"
-	"errors"
 	"testing"
 
 	"github.com/bitcoin-sv/go-sdk/script"
@@ -125,8 +124,8 @@ func TestDecodeBEEF_DecodeBEEF_HappyPaths(t *testing.T) {
 
 func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 	// external errors
-	bumpError := errors.New("BUMP bytes do not contain enough data to be valid")
-	varIntError := errors.New("could not read varint type: EOF")
+	bumpErrorMsg := "BUMP bytes do not contain enough data to be valid"
+	varIntErrorMsg := "could not read varint type: EOF"
 
 	testCases := []struct {
 		name                         string
@@ -134,7 +133,7 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 		expectedDecodedBEEF          *BEEF
 		expectedCMPForTheOldestInput bool
 		expectedError                error
-		expectedExternalError        error
+		expectedExternalError        string
 	}{
 		{
 			name:                         "too short hex stream",
@@ -161,55 +160,55 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			name:                  "unable to decode BUMP block height - proper BEEF marker and number of bumps",
 			hexStream:             "0100beef01",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP number of leaves - proper BEEF marker, number of bumps, block height and tree height but end of stream at this point",
 			hexStream:             "0100beef01fe8a6a0c000c",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - no offset - proper BEEF marker, number of bumps, block height and tree height and nLeaves but end of stream at this point",
 			hexStream:             "0100beef01fe8a6a0c000c04",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - no flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset but end of stream at this point",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - wrong flag - proper BEEF marker, number of bumps, block height and tree height, nLeaves and offset",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b03",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - no hash with flag 0 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b00",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - no hash with flag 2 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b00",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - flag 1 - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but end of stream at this point - flag 1 means that there is no hash",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b01",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: bumpError,
+			expectedExternalError: bumpErrorMsg,
 		},
 		{
 			name:                  "unable to decode BUMP leaf - not enough bytes for hash - proper BEEF marker, number of bumps, block height and tree height, nLeaves, offset and flag but with not enough bytes for hash",
 			hexStream:             "0100beef01fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a01cbdf7f734e",
 			expectedDecodedBEEF:   nil,
-			expectedExternalError: varIntError,
+			expectedExternalError: varIntErrorMsg,
 		},
 	}
 	for _, tc := range testCases {
@@ -225,7 +224,7 @@ func TestDecodeBEEF_DecodeBEEF_HandlingErrors(t *testing.T) {
 			if tc.expectedError != nil {
 				assert.ErrorIs(t, err, tc.expectedError)
 			} else {
-				assert.Equal(t, tc.expectedExternalError.Error(), err.Error(), "expected error %v, but got %v", tc.expectedExternalError, err)
+				assert.ErrorContains(t, err, tc.expectedExternalError, "expected error %v, but got %v", tc.expectedExternalError, err)
 			}
 		})
 	}

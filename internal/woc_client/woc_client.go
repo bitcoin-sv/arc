@@ -94,7 +94,7 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	operation := func() (sdkTx.UTXOs, error) {
 		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
-			return nil, errors.Join(ErrWOCFailedToGetUTXOs, fmt.Errorf("error: %v", err))
+			return nil, errors.Join(ErrWOCFailedToGetUTXOs, err)
 		}
 		return wocUtxos, nil
 	}
@@ -127,14 +127,14 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 	var wocUnspent []*wocUtxo
 	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
 	if err != nil {
-		return nil, errors.Join(ErrWOCFailedToDecodeResponse, fmt.Errorf("error: %v", err))
+		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
 	unspent := make(sdkTx.UTXOs, len(wocUnspent))
 	for i, utxo := range wocUnspent {
 		txIDBytes, err := hex.DecodeString(utxo.Txid)
 		if err != nil {
-			return nil, errors.Join(ErrWOCFailedToDecodeHexString, fmt.Errorf("error: %v", err))
+			return nil, errors.Join(ErrWOCFailedToDecodeHexString, err)
 		}
 
 		unspent[i] = &sdkTx.UTXO{
@@ -163,7 +163,7 @@ func (w *WocClient) GetBalance(ctx context.Context, address string) (int64, int6
 	var balance wocBalance
 	err = json.NewDecoder(resp.Body).Decode(&balance)
 	if err != nil {
-		return 0, 0, errors.Join(ErrWOCFailedToDecodeResponse, fmt.Errorf("error: %v", err))
+		return 0, 0, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
 	return balance.Confirmed, balance.Unconfirmed, nil
@@ -272,7 +272,7 @@ func (w WocClient) httpRequest(ctx context.Context, method string, endpoint stri
 
 	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s/%s", apiUrl, w.net, endpoint), body)
 	if err != nil {
-		return nil, errors.Join(ErrWOCFailedToCreateRequest, fmt.Errorf("error: %v", err))
+		return nil, errors.Join(ErrWOCFailedToCreateRequest, err)
 	}
 
 	if w.authorization != "" {
@@ -285,7 +285,7 @@ func (w WocClient) httpRequest(ctx context.Context, method string, endpoint stri
 func (w *WocClient) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := w.client.Do(req)
 	if err != nil {
-		return nil, errors.Join(ErrWOCRequestFailed, fmt.Errorf("error: %v", err))
+		return nil, errors.Join(ErrWOCRequestFailed, err)
 	}
 
 	if resp.StatusCode != 200 {

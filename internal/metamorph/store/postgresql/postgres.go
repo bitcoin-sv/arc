@@ -613,6 +613,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
+	statusHistories := make([]*string, len(updates))
 
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
@@ -621,26 +622,43 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
 		}
+
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := prepareStructForSaving(update.StatusHistory)
+			if err != nil {
+				return nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
 	}
 
 	qBulk := `
 		UPDATE metamorph.transactions
 			SET
-			status=bulk_query.status,
-			reject_reason=bulk_query.reject_reason,
-			last_modified=$1,
-			status_history=status_history || json_build_object(
-				'status', metamorph.transactions.status,
-				'timestamp', last_modified
-			)::JSONB
+				status = bulk_query.status,
+				reject_reason = bulk_query.reject_reason,
+				last_modified = $1,
+				status_history = status_history 
+					|| COALESCE(
+						json_build_object(
+							'status', metamorph.transactions.status,
+							'timestamp', last_modified
+						)::JSONB || bulk_query.history_update,
+						json_build_object(
+							'status', metamorph.transactions.status,
+							'timestamp', last_modified
+						)::JSONB
+					)
 			FROM
 			(
-				SELECT *
-						FROM
-						UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[])
-				AS t(hash, status, reject_reason)
+				SELECT t.hash, t.status, t.reject_reason, h.history_update
+				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[]) AS t(hash, status, reject_reason)
+				LEFT JOIN UNNEST($5::JSONB[]) AS h(history_update) ON TRUE
 			) AS bulk_query
-			WHERE metamorph.transactions.hash=bulk_query.hash
+			WHERE metamorph.transactions.hash = bulk_query.hash
 				AND metamorph.transactions.status < bulk_query.status
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.hash
@@ -673,7 +691,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons))
+	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

@@ -654,9 +654,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 					)
 			FROM
 			(
-				SELECT t.hash, t.status, t.reject_reason, h.history_update
-				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[]) AS t(hash, status, reject_reason)
-				LEFT JOIN UNNEST($5::JSONB[]) AS h(history_update) ON TRUE
+				SELECT t.hash, t.status, t.reject_reason, t.history_update
+				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::JSONB[]) AS t(hash, status, reject_reason, history_update)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash = bulk_query.hash
 				AND metamorph.transactions.status < bulk_query.status

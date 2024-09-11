@@ -1,32 +1,29 @@
 package broadcaster
 
 import (
-	"context"
 	"log/slog"
-	"sync"
-	"time"
 )
 
 type MultiKeyUTXOCreator struct {
-	creators    []*UTXOCreator
-	logger      *slog.Logger
-	cancelAll   context.CancelFunc
-	ctx         context.Context
-	wg          sync.WaitGroup
-	logInterval time.Duration
+	creators []*UTXOCreator // Slice of UTXOCreator instances
+	logger   *slog.Logger   // Logger instance
+}
+
+type Creator interface {
+	Start(outputs int, satoshisPerOutput uint64) error
+	Wait()
+	Shutdown()
 }
 
 // NewMultiKeyUTXOCreator initializes the MultiKeyUTXOCreator.
 func NewMultiKeyUTXOCreator(logger *slog.Logger, creators []*UTXOCreator, opts ...func(p *MultiKeyUTXOCreator)) *MultiKeyUTXOCreator {
-	ctx, cancelAll := context.WithCancel(context.Background())
+	// Create a new instance of MultiKeyUTXOCreator
 	mkuc := &MultiKeyUTXOCreator{
-		creators:    creators,
-		logger:      logger,
-		ctx:         ctx,
-		cancelAll:   cancelAll,
-		logInterval: 2 * time.Second,
+		creators: creators,
+		logger:   logger,
 	}
 
+	// Apply optional configurations
 	for _, opt := range opts {
 		opt(mkuc)
 	}
@@ -35,25 +32,23 @@ func NewMultiKeyUTXOCreator(logger *slog.Logger, creators []*UTXOCreator, opts .
 }
 
 func (mkuc *MultiKeyUTXOCreator) Start(outputs int, satoshisPerOutput uint64) {
-
+	// Start each creator
 	for _, creator := range mkuc.creators {
-		creator := creator
-		mkuc.wg.Add(1)
-		go func() {
-			defer mkuc.wg.Done()
-			if err := creator.CreateUtxos(outputs, satoshisPerOutput); err != nil {
-				mkuc.logger.Error("failed to create UTXOs", slog.String("error", err.Error()))
-			}
-		}()
+		err := creator.Start(outputs, satoshisPerOutput)
+		if err != nil {
+			mkuc.logger.Error("failed to start UTXO creator", slog.String("err", err.Error()))
+		}
 	}
 
-	mkuc.wg.Wait()
+	// Wait for all creators to finish
+	for _, creator := range mkuc.creators {
+		creator.Wait()
+	}
 }
 
 func (mkuc *MultiKeyUTXOCreator) Shutdown() {
-	mkuc.cancelAll()
+	// Loop through each UTXOCreator and call its Shutdown method
 	for _, creator := range mkuc.creators {
 		creator.Shutdown()
 	}
-	mkuc.wg.Wait()
 }

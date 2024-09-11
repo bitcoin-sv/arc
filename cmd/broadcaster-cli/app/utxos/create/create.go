@@ -45,7 +45,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		keySets, err := helper.GetSelectedKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
@@ -77,11 +77,16 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		names := helper.GetOrderedKeys(keySetsMap)
 
-		creators := make([]*broadcaster.UTXOCreator, 0, len(keySets))
-		for _, ks := range keySets {
-			creator, err := broadcaster.NewUTXOCreator(logger.With(slog.String("address", ks.Address(!isTestnet))), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		creators := make([]*broadcaster.UTXOCreator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
+		for _, keyName := range names {
+			ks := keySetsMap[keyName]
+			creator, err := broadcaster.NewUTXOCreator(
+				logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)),
+				client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat),
+			)
 			if err != nil {
 				return err
 			}
@@ -91,10 +96,11 @@ var Cmd = &cobra.Command{
 
 		multiCreator := broadcaster.NewMultiKeyUTXOCreator(logger, creators)
 
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
+
+		// Graceful shutdown on interrupt signal
 		go func() {
-			// Listen for interruption signal to gracefully shut down
-			signalChan := make(chan os.Signal, 1)
-			signal.Notify(signalChan, os.Interrupt)
 			<-signalChan
 			multiCreator.Shutdown()
 		}()

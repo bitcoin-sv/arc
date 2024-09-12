@@ -54,18 +54,18 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 
 	confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get balance", slog.String("err", err.Error()))
+		return fmt.Errorf("failed to get balance: %s", err.Error())
 	}
 
 	balance := confirmed + unconfirmed
 
 	if requestedOutputsSatoshis > balance {
-		return fmt.Errorf("requested total exceeds balance", slog.Int64("requested", requestedOutputsSatoshis), slog.Int64("balance", balance))
+		return fmt.Errorf("requested total exceeds balance: requested=%d, balance=%d", requestedOutputsSatoshis, balance)
 	}
 
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get utxos", slog.String("err", err.Error()))
+		return fmt.Errorf("failed to get utxos: %v", err)
 	}
 
 	utxoSet := list.New()

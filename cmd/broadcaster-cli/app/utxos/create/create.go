@@ -80,7 +80,7 @@ var Cmd = &cobra.Command{
 		names := helper.GetOrderedKeys(keySetsMap)
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
-		creators := make([]*broadcaster.UTXOCreator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
+		creators := make([]broadcaster.Creator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
 		for _, keyName := range names {
 			ks := keySetsMap[keyName]
 			creator, err := broadcaster.NewUTXOCreator(

@@ -47,6 +47,28 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 	b.wg.Add(1)
 
 	// Use a goroutine for concurrent execution
+
+	b.logger.Info("creating utxos", slog.String("address", b.keySet.Address(!b.isTestnet)))
+
+	requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
+
+	confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
+	if err != nil {
+		return fmt.Errorf("failed to get balance", slog.String("err", err.Error()))
+	}
+
+	balance := confirmed + unconfirmed
+
+	if requestedOutputsSatoshis > balance {
+		return fmt.Errorf("requested total exceeds balance", slog.Int64("requested", requestedOutputsSatoshis), slog.Int64("balance", balance))
+	}
+
+	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
+	if err != nil {
+		return fmt.Errorf("failed to get utxos", slog.String("err", err.Error()))
+	}
+
+	utxoSet := list.New()
 	go func() {
 		defer func() {
 			// Log the shutdown message
@@ -54,31 +76,6 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 			// Mark this goroutine as done
 			b.wg.Done()
 		}()
-
-		b.logger.Info("creating utxos", slog.String("address", b.keySet.Address(!b.isTestnet)))
-
-		requestedOutputsSatoshis := int64(requestedOutputs) * int64(requestedSatoshisPerOutput)
-
-		confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
-		if err != nil {
-			b.logger.Error("failed to get balance", slog.String("err", err.Error()))
-			return
-		}
-
-		balance := confirmed + unconfirmed
-
-		if requestedOutputsSatoshis > balance {
-			b.logger.Error("requested total exceeds balance", slog.Int64("requested", requestedOutputsSatoshis), slog.Int64("balance", balance))
-			return
-		}
-
-		utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
-		if err != nil {
-			b.logger.Error("failed to get utxos", slog.String("err", err.Error()))
-			return
-		}
-
-		utxoSet := list.New()
 		for _, utxo := range utxos {
 			if utxo.Satoshis >= requestedSatoshisPerOutput {
 				utxoSet.PushBack(utxo)

@@ -381,7 +381,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		hashesBytes[i] = h[:]
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, blocktx_api.Status_LONGEST)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}

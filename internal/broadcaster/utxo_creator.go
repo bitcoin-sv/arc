@@ -77,11 +77,12 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 			b.wg.Done()
 		}()
 		for _, utxo := range utxos {
+			// collect right sized utxos
 			if utxo.Satoshis >= requestedSatoshisPerOutput {
 				utxoSet.PushBack(utxo)
 			}
 		}
-
+		// if requested outputs satisfied, return
 		if utxoSet.Len() >= requestedOutputs {
 			b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 			return
@@ -89,6 +90,7 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 
 		satoshiMap := map[string][]splittingOutput{}
 		lastUtxoSetLen := 0
+		// if requested outputs not satisfied, create them
 
 		for {
 			if lastUtxoSetLen >= utxoSet.Len() {
@@ -96,12 +98,14 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 				break
 			}
 			lastUtxoSetLen = utxoSet.Len()
+			// if requested outputs satisfied, return
 
 			if utxoSet.Len() >= requestedOutputs {
 				break
 			}
 
 			b.logger.Info("splitting outputs", slog.Int("ready", utxoSet.Len()), slog.Int("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
+			// create splitting txs
 
 			txsSplitBatches, err := b.splitOutputs(requestedOutputs, requestedSatoshisPerOutput, utxoSet, satoshiMap, b.keySet)
 			if err != nil {
@@ -159,8 +163,9 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 						utxoSet.PushBack(newUtxo)
 					}
 					delete(satoshiMap, res.Txid)
-				}
 
+				}
+				// do not performance test ARC when creating the utxos
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
@@ -195,7 +200,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 		if err != nil {
 			return nil, err
 		}
-
+		// only split if splitting increases nr of outputs
 		const feeMargin = 50
 		if utxo.Satoshis < 2*requestedSatoshisPerOutput+feeMargin {
 			continue

@@ -20,7 +20,7 @@ var _ CallbackerI = &CallbackerIMock{}
 //			HealthFunc: func() error {
 //				panic("mock out the Health method")
 //			},
-//			SendFunc: func(url string, token string, callback *Callback)  {
+//			SendFunc: func(url string, token string, callback *Callback) bool {
 //				panic("mock out the Send method")
 //			},
 //		}
@@ -34,7 +34,7 @@ type CallbackerIMock struct {
 	HealthFunc func() error
 
 	// SendFunc mocks the Send method.
-	SendFunc func(url string, token string, callback *Callback)
+	SendFunc func(url string, token string, callback *Callback) bool
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -83,7 +83,7 @@ func (mock *CallbackerIMock) HealthCalls() []struct {
 }
 
 // Send calls SendFunc.
-func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) {
+func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) bool {
 	if mock.SendFunc == nil {
 		panic("CallbackerIMock.SendFunc: method is nil but CallbackerI.Send was just called")
 	}
@@ -99,7 +99,7 @@ func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) 
 	mock.lockSend.Lock()
 	mock.calls.Send = append(mock.calls.Send, callInfo)
 	mock.lockSend.Unlock()
-	mock.SendFunc(url, token, callback)
+	return mock.SendFunc(url, token, callback)
 }
 
 // SendCalls gets all the calls that were made to Send.

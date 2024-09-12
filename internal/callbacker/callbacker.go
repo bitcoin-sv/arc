@@ -5,7 +5,7 @@ import (
 )
 
 type CallbackerI interface {
-	Send(url, token string, callback *Callback)
+	Send(url, token string, callback *Callback) bool
 	Health() error
 }
 

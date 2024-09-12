@@ -15,7 +15,7 @@ type stats struct {
 	callbackFailedCount               prometheus.Gauge
 }
 
-func NewCallbackerStats() *stats {
+func newCallbackerStats() *stats {
 	return &stats{
 		callbackSeenOnNetworkCount: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_callback_seen_on_network_count",

@@ -45,7 +45,7 @@ func TestBeef(t *testing.T) {
 		// then
 		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
 
-		generate(t, 10)
+		generate(t, 1)
 
 		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
 		statusResp := getRequest[TransactionResponse](t, statusUrl)

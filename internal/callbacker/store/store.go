@@ -6,8 +6,11 @@ import (
 )
 
 type CallbackerStore interface {
+	Set(ctx context.Context, dto *CallbackData) error
 	SetMany(ctx context.Context, data []*CallbackData) error
 	PopMany(ctx context.Context, limit int) ([]*CallbackData, error)
+	PopFailedMany(ctx context.Context, t time.Time, limit int) ([]*CallbackData, error) // TODO: lepsza nazwa dla t
+	DeleteFailedOlderThan(ctx context.Context, t time.Time) error
 	Close() error
 }
 
@@ -26,4 +29,6 @@ type CallbackData struct {
 
 	BlockHash   *string
 	BlockHeight *uint64
+
+	QuarantineUntil *time.Time
 }

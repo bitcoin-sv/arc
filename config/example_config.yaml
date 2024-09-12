@@ -137,4 +137,10 @@ callbacker:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
+  pruneInterval: 24h # interval at which old or failed callbacks are pruned from the store
+  pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)
+  quarantineCheckInterval: 1m # interval at which the store is checked for quarantined callbacks to be re-sent
+  quarantinePolicy:
+    baseDuration: 5m # initial duration a callback and its receiver is quarantined after failure
+    abandonAfter: 24h # maximum time a callback can remain unsent before it's abandoned
       

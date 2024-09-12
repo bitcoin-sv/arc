@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -24,10 +25,10 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	config := appConfig.Callbacker
 
 	var (
-		store      store.CallbackerStore
-		sender     *callbacker.CallbackSender
-		dispatcher *callbacker.CallbackDispatcher
-
+		store        store.CallbackerStore
+		sender       *callbacker.CallbackSender
+		dispatcher   *callbacker.CallbackDispatcher
+		workers      *callbacker.BackgroundWorkers
 		server       *callbacker.Server
 		healthServer *grpc.Server
 
@@ -36,38 +37,11 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-
-		// dispose of dependencies in the correct order:
-		// 1. server - ensure no new callbacks will be received
-		// 2. dispatcher - ensure all already accepted callbacks are proccessed
-		// 3. sender - finally, stop the sender as there are no callbacks left to send.
-		// 4. store
-
-		if server != nil {
-			server.GracefulStop()
-		}
-		if dispatcher != nil {
-			dispatcher.GracefulStop()
-		}
-		if sender != nil {
-			sender.GracefulStop()
-		}
-
-		if store != nil {
-			err := store.Close()
-			if err != nil {
-				logger.Error("Could not close the store", slog.String("err", err.Error()))
-			}
-		}
-
-		if healthServer != nil {
-			healthServer.Stop()
-		}
-
+		dispose(logger, server, workers, dispatcher, sender, store, healthServer)
 		logger.Info("Shutted down")
 	}
 
-	store, err = NewStore(config.Db)
+	store, err = newStore(config.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
@@ -78,13 +52,16 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	dispatcher = callbacker.NewCallbackDispatcher(sender, store, config.Pause)
-	logger.Info("Init callback dispatcher, add to processing abandoned callbacks")
-	err = dispatcher.Init()
+	dispatcher = callbacker.NewCallbackDispatcher(sender, store, logger, config.Pause, config.QuarantinePolicy.BaseDuration, config.QuarantinePolicy.AbandonAfter)
+	err = dispatchPersistedCallbacks(store, dispatcher, logger)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to init callback dispatcher, couldn't process all abandoned callbacks: %v", err)
+		return nil, fmt.Errorf("failed to dispatch previously persisted callbacks: %v", err)
 	}
+
+	workers = callbacker.NewBackgroundWorkers(store, dispatcher, logger)
+	workers.StartCallbackStoreCleanup(config.PruneInterval, config.PruneOlderThan)
+	workers.StartQuarantineCallbacksDispatch(config.QuarantineCheckInterval)
 
 	server = callbacker.NewServer(dispatcher, callbacker.WithLogger(logger.With(slog.String("module", "server"))))
 	err = server.Serve(config.ListenAddr, appConfig.GrpcMessageSize, appConfig.PrometheusEndpoint)
@@ -93,7 +70,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("GRPCServer failed: %v", err)
 	}
 
-	healthServer, err = StartHealthServerCallbacker(server, config.Health, logger)
+	healthServer, err = startHealthServerCallbacker(server, config.Health, logger)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -103,16 +80,16 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	return stopFn, nil
 }
 
-func NewStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
+func newStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
-		postgres := dbConfig.Postgres
+		config := dbConfig.Postgres
 
 		dbInfo := fmt.Sprintf(
 			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
-			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
+			config.User, config.Password, config.Name, config.Host, config.Port, config.SslMode,
 		)
-		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns)
+		s, err = postgresql.New(dbInfo, config.MaxIdleConns, config.MaxOpenConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}
@@ -123,7 +100,25 @@ func NewStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
 	return s, err
 }
 
-func StartHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
+func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackDispatcher, l *slog.Logger) error {
+	l.Info("Dispatch persited callbacks")
+
+	const batchSize = 100
+	ctx := context.Background()
+
+	for {
+		callbacks, err := s.PopMany(ctx, batchSize)
+		if err != nil || len(callbacks) == 0 {
+			return err
+		}
+
+		for _, c := range callbacks {
+			d.Dispatch(c.Url, toCallbackEntry(c))
+		}
+	}
+}
+
+func startHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
 	gs := grpc.NewServer()
 
 	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
@@ -144,4 +139,61 @@ func StartHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.H
 	}()
 
 	return gs, nil
+}
+
+func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
+	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
+	store store.CallbackerStore, healthServer *grpc.Server) {
+
+	// dispose of dependencies in the correct order:
+	// 1. server - ensure no new callbacks will be received
+	// 2. background workers - ensure no callbacks from background will be accepted
+	// 3. dispatcher - ensure all already accepted callbacks are proccessed
+	// 4. sender - finally, stop the sender as there are no callbacks left to send.
+	// 5. store
+
+	if server != nil {
+		server.GracefulStop()
+	}
+	if workers != nil {
+		workers.GracefulStop()
+	}
+	if dispatcher != nil {
+		dispatcher.GracefulStop()
+	}
+	if sender != nil {
+		sender.GracefulStop()
+	}
+
+	if store != nil {
+		err := store.Close()
+		if err != nil {
+			l.Error("Could not close the store", slog.String("err", err.Error()))
+		}
+	}
+
+	if healthServer != nil {
+		healthServer.Stop()
+	}
+
+}
+
+func toCallbackEntry(dto *store.CallbackData) *callbacker.CallbackEntry {
+	d := &callbacker.Callback{
+		Timestamp: dto.Timestamp,
+
+		CompetingTxs: dto.CompetingTxs,
+		TxID:         dto.TxID,
+		TxStatus:     dto.TxStatus,
+		ExtraInfo:    dto.ExtraInfo,
+		MerklePath:   dto.MerklePath,
+
+		BlockHash:   dto.BlockHash,
+		BlockHeight: dto.BlockHeight,
+	}
+
+	return &callbacker.CallbackEntry{
+		Token: dto.Token,
+		Data:  d,
+	}
 }

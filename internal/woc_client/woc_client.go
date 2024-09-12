@@ -17,6 +17,16 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+var (
+	ErrWOCFailedToCreateRequest   = errors.New("failed to create request")
+	ErrWOCFailedToGetUTXOs        = errors.New("failed to get utxos from WoC")
+	ErrWOCRequestFailed           = errors.New("request to WoC failed")
+	ErrWOCResponseNotOK           = errors.New("response status not OK")
+	ErrWOCFailedToDecodeResponse  = errors.New("failed to decode response")
+	ErrWOCFailedToDecodeHexString = errors.New("failed to decode response")
+	ErrWOCFailedToTopUp           = errors.New("top up can only be done on testnet")
+)
+
 type WocClient struct {
 	client        http.Client
 	authorization string
@@ -84,7 +94,7 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	operation := func() (sdkTx.UTXOs, error) {
 		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get utxos from WoC: %v", err)
+			return nil, errors.Join(ErrWOCFailedToGetUTXOs, err)
 		}
 		return wocUtxos, nil
 	}
@@ -108,27 +118,23 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 		return nil, err
 	}
 
-	resp, err := w.client.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("request to get utxos failed: %v", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("response status not OK: %s", resp.Status)
-	}
 
 	var wocUnspent []*wocUtxo
 	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode response: %v", err)
+		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
 	unspent := make(sdkTx.UTXOs, len(wocUnspent))
 	for i, utxo := range wocUnspent {
 		txIDBytes, err := hex.DecodeString(utxo.Txid)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode hex string: %v", err)
+			return nil, errors.Join(ErrWOCFailedToDecodeHexString, err)
 		}
 
 		unspent[i] = &sdkTx.UTXO{
@@ -148,20 +154,16 @@ func (w *WocClient) GetBalance(ctx context.Context, address string) (int64, int6
 		return 0, 0, err
 	}
 
-	resp, err := w.client.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
-		return 0, 0, fmt.Errorf("request to get balance failed: %v", err)
+		return 0, 0, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return 0, 0, fmt.Errorf("response status not OK: %s", resp.Status)
-	}
 
 	var balance wocBalance
 	err = json.NewDecoder(resp.Body).Decode(&balance)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to decode response: %v", err)
+		return 0, 0, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
 	return balance.Confirmed, balance.Unconfirmed, nil
@@ -180,7 +182,7 @@ func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, c
 	operation := func() (balanceResult, error) {
 		confirmed, unconfirmed, err := w.GetBalance(ctx, address)
 		if err != nil {
-			return balanceResult{}, fmt.Errorf("failed to get utxos from WoC: %v", err)
+			return balanceResult{}, err
 		}
 		return balanceResult{confirmed: confirmed, unconfirmed: unconfirmed}, nil
 	}
@@ -199,7 +201,7 @@ func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, c
 
 func (w *WocClient) TopUp(ctx context.Context, address string) error {
 	if w.net != "test" {
-		return errors.New("top up can only be done on testnet")
+		return ErrWOCFailedToTopUp
 	}
 
 	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("faucet/send/%s", address), nil)
@@ -207,14 +209,9 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 		return err
 	}
 
-	resp, err := w.client.Do(req)
+	_, err = w.doRequest(req)
 	if err != nil {
-		return fmt.Errorf("request to top up failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("response status not OK: %s", resp.Status)
+		return err
 	}
 
 	return nil
@@ -250,15 +247,11 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*wocRawTx,
 		return nil, err
 	}
 
-	resp, err := w.client.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("request to get balance failed: %v", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("response status not OK: %s", resp.Status)
-	}
 
 	var res []*wocRawTx
 	err = json.NewDecoder(resp.Body).Decode(&res)
@@ -279,7 +272,7 @@ func (w WocClient) httpRequest(ctx context.Context, method string, endpoint stri
 
 	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s/%s", apiUrl, w.net, endpoint), body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to crreate request: %v", err)
+		return nil, errors.Join(ErrWOCFailedToCreateRequest, err)
 	}
 
 	if w.authorization != "" {
@@ -287,4 +280,17 @@ func (w WocClient) httpRequest(ctx context.Context, method string, endpoint stri
 	}
 
 	return req, nil
+}
+
+func (w *WocClient) doRequest(req *http.Request) (*http.Response, error) {
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return nil, errors.Join(ErrWOCRequestFailed, err)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, errors.Join(ErrWOCResponseNotOK, fmt.Errorf("status: %s", resp.Status))
+	}
+
+	return resp, nil
 }

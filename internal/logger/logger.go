@@ -1,11 +1,17 @@
 package logger
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/lmittmann/tint"
+)
+
+var (
+	ErrLoggerInvalidLogLevel  = fmt.Errorf("invalid log level")
+	ErrLoggerInvalidLogFormat = fmt.Errorf("invalid log format")
 )
 
 func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
@@ -23,7 +29,7 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 		return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel})), nil
 	}
 
-	return nil, fmt.Errorf("invalid log format: %s", logFormat)
+	return nil, errors.Join(ErrLoggerInvalidLogFormat, fmt.Errorf("log format: %s", logFormat))
 }
 
 func getSlogLevel(logLevel string) (slog.Level, error) {
@@ -38,5 +44,5 @@ func getSlogLevel(logLevel string) (slog.Level, error) {
 		return slog.LevelDebug, nil
 	}
 
-	return slog.LevelInfo, fmt.Errorf("invalid log level: %s", logLevel)
+	return slog.LevelInfo, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))
 }

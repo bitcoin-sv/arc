@@ -24,6 +24,18 @@ const (
 	hasBump   = 0x01
 )
 
+var (
+	ErrBEEFNoBytesProvided = errors.New("cannot decode BEEF - no bytes provided")
+	ErrBEEFLackOfBUMPs     = errors.New("cannot decode BEEF - lack of BUMPs")
+	ErrBEEFBytesNotEqual   = errors.New("cannot decode BEEF - bytes not equal")
+	ErrBEEFNoTransactions  = errors.New("invalid BEEF - no transactions")
+	ErrBEEFNotEnoughTx     = errors.New("invalid BEEF - not enough transactions provided to decode BEEF")
+	ErrBEEFNoFlag          = errors.New("invalid BEEF - no HasBUMP flag")
+	ErrBEEFNoBUMPIndex     = errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
+	ErrBEEFInvalidFlag     = errors.New("invalid BEEF - invalid HasCMP flag")
+	ErrBEEFNoMarker        = errors.New("invalid format of transaction, BEEF marker not found")
+)
+
 type TxData struct {
 	Transaction *sdkTx.Transaction
 	BumpIndex   *sdkTx.VarInt
@@ -89,20 +101,19 @@ func (d *BEEF) GetLatestTx() *sdkTx.Transaction {
 
 func decodeBUMPs(beefBytes []byte) ([]*sdkTx.MerklePath, []byte, error) {
 	if len(beefBytes) == 0 {
-		return nil, nil, errors.New("cannot decode BUMP - no bytes provided")
+		return nil, nil, ErrBEEFNoBytesProvided
 	}
 
 	nBump, bytesUsed := sdkTx.NewVarIntFromBytes(beefBytes)
 
 	if nBump == 0 {
-		return nil, nil, errors.New("invalid BEEF - lack of BUMPs")
+		return nil, nil, ErrBEEFLackOfBUMPs
 	}
 
 	beefBytes = beefBytes[bytesUsed:]
 
 	bumps := make([]*sdkTx.MerklePath, 0, uint64(nBump))
 	for i := uint64(0); i < uint64(nBump); i++ {
-		fmt.Println(len(beefBytes))
 		bump, err := sdkTx.NewMerklePathFromBinary(beefBytes)
 		if err != nil {
 			return nil, nil, err
@@ -112,7 +123,7 @@ func decodeBUMPs(beefBytes []byte) ([]*sdkTx.MerklePath, []byte, error) {
 		bumpBytes := bump.Bytes()
 		usedBytes := beefBytes[:len(bumpBytes)]
 		if !bytes.Equal(bumpBytes, usedBytes) {
-			return nil, nil, errors.New("beef bytes not equal")
+			return nil, nil, ErrBEEFBytesNotEqual
 		}
 
 		beefBytes = beefBytes[len(bumpBytes):]
@@ -125,13 +136,13 @@ func decodeBUMPs(beefBytes []byte) ([]*sdkTx.MerklePath, []byte, error) {
 
 func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, error) {
 	if len(beefBytes) == 0 {
-		return nil, nil, errors.New("invalid BEEF - no transaction")
+		return nil, nil, ErrBEEFNoTransactions
 	}
 
 	nTransactions, bytesUsed := sdkTx.NewVarIntFromBytes(beefBytes)
 
 	if nTransactions < 2 {
-		return nil, nil, errors.New("invalid BEEF- not enough transactions provided to decode BEEF")
+		return nil, nil, ErrBEEFNotEnoughTx
 	}
 
 	beefBytes = beefBytes[bytesUsed:]
@@ -146,7 +157,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 		beefBytes = beefBytes[bytesUsed:]
 
 		if len(beefBytes) == 0 {
-			return nil, nil, errors.New("invalid BEEF - no HasBUMP flag")
+			return nil, nil, ErrBEEFNoFlag
 		}
 
 		var pathIndex *sdkTx.VarInt
@@ -155,7 +166,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 		case hasBump:
 			beefBytes = beefBytes[1:]
 			if len(beefBytes) == 0 {
-				return nil, nil, errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
+				return nil, nil, ErrBEEFNoBUMPIndex
 			}
 			value, bytesUsed := sdkTx.NewVarIntFromBytes(beefBytes)
 			pathIndex = &value
@@ -163,7 +174,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 		case hasNoBump:
 			beefBytes = beefBytes[1:]
 		default:
-			return nil, nil, fmt.Errorf("invalid HasCMP flag for transaction at index %d", i)
+			return nil, nil, errors.Join(ErrBEEFInvalidFlag, fmt.Errorf("transaction at index %d", i))
 		}
 
 		transactions = append(transactions, &TxData{
@@ -178,7 +189,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 
 func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {
 	if !CheckBeefFormat(beefBytes) {
-		return nil, errors.New("invalid format of transaction, BEEF marker not found")
+		return nil, ErrBEEFNoMarker
 	}
 
 	return beefBytes[beefVersionBytesCount:], nil

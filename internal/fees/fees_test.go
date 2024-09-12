@@ -49,27 +49,30 @@ func TestComputeFee(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
 			var fee1, fee2 uint64
 			var err error
-			feeModel := SatoshisPerKilobyte{Satoshis: tt.satsPerKB}
+			sut := SatoshisPerKilobyte{Satoshis: tt.satsPerKB}
 
+			//when
 			// test ComputeFee
 			if tt.tx != nil {
-				fee1, err = feeModel.ComputeFee(tt.tx)
+				fee1, err = sut.ComputeFee(tt.tx)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.estimatedFee, fee1)
 			}
 
 			// test ComputeFeeBasedOnSize
 			if tt.txSize != 0 {
-				fee2, err = feeModel.ComputeFeeBasedOnSize(tt.txSize)
+				fee2, err = sut.ComputeFeeBasedOnSize(tt.txSize)
 			} else {
-				fee2, err = feeModel.ComputeFeeBasedOnSize(uint64(tt.tx.Size()))
+				fee2, err = sut.ComputeFeeBasedOnSize(uint64(tt.tx.Size()))
 
 				// compare the results from both methods
 				assert.Equal(t, fee1, fee2)
 			}
 
+			// then
 			assert.NoError(t, err)
 			assert.Equal(t, tt.estimatedFee, fee2)
 		})

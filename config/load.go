@@ -1,12 +1,18 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+)
+
+var (
+	ErrConfigFailedToSetDefaults = errors.New("error occurred while setting defaults")
+	ErrConfigPath                = errors.New("config path error")
 )
 
 func Load(configFileDirs ...string) (*ArcConfig, error) {
@@ -36,8 +42,9 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 
 func setDefaults(defaultConfig *ArcConfig) error {
 	defaultsMap := make(map[string]interface{})
+
 	if err := mapstructure.Decode(defaultConfig, &defaultsMap); err != nil {
-		err = fmt.Errorf("error occurred while setting defaults: %w", err)
+		err = errors.Join(ErrConfigFailedToSetDefaults, err)
 		return err
 	}
 
@@ -57,12 +64,12 @@ func overrideWithFiles(configFileDirs ...string) error {
 		stat, err := os.Stat(path)
 		if err != nil {
 			if os.IsNotExist(err) {
-				return fmt.Errorf("config path: %s does not exist", path)
+				return errors.Join(ErrConfigPath, fmt.Errorf("path: %s does not exist", path))
 			}
 			return err
 		}
 		if !stat.IsDir() {
-			return fmt.Errorf("config path: %s should be a directory", path)
+			return errors.Join(ErrConfigPath, fmt.Errorf("path: %s should be a directory", path))
 		}
 
 		viper.AddConfigPath(path)

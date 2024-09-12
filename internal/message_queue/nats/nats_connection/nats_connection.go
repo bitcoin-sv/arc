@@ -1,6 +1,7 @@
 package nats_connection
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 )
+
+var ErrNatsConnectionFailed = fmt.Errorf("failed to connect to NATS server")
 
 func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	var nc *nats.Conn
@@ -49,7 +52,7 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 
 	nc, err = nats.Connect(natsURL, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to NATS server: %v", err)
+		return nil, errors.Join(ErrNatsConnectionFailed, fmt.Errorf("error: %v", err))
 	}
 
 	return nc, nil

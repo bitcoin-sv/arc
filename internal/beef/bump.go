@@ -6,6 +6,12 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
+var (
+	ErrBUMPNoMerkleRoots        = errors.New("no merkle roots found for validation")
+	ErrBUMPDifferentMerkleRoots = errors.New("different merkle roots for the same block")
+	ErrBUMPEmptyMerkleRoot      = errors.New("no transactions marked as expected to verify in bump")
+)
+
 type MerkleRootVerificationRequest struct {
 	MerkleRoot  string
 	BlockHeight uint64
@@ -27,7 +33,7 @@ func CalculateMerkleRootsFromBumps(bumps []*sdkTx.MerklePath) ([]MerkleRootVerif
 	}
 
 	if len(merkleRoots) == 0 {
-		return nil, errors.New("no merkle roots found for validation")
+		return nil, ErrBUMPNoMerkleRoots
 	}
 
 	return merkleRoots, nil
@@ -47,14 +53,14 @@ func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
 				if blockMerkleRoot == "" {
 					blockMerkleRoot = mr
 				} else if blockMerkleRoot != mr {
-					return "", errors.New("different merkle roots for the same block")
+					return "", ErrBUMPDifferentMerkleRoots
 				}
 			}
 		}
 	}
 
 	if blockMerkleRoot == "" {
-		return "", errors.New("no transactions marked as expected to verify in bump")
+		return "", ErrBUMPEmptyMerkleRoot
 	}
 	return blockMerkleRoot, nil
 }

@@ -498,7 +498,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
+			statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
 			require.NoError(t, err)
@@ -509,7 +509,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			assert.Equal(t, 0, sut.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
-				statusMessageChannel <- &metamorph.PeerTxMessage{
+				statusMessageChannel <- &metamorph.TxStatusMessage{
 					Hash:         testInput.hash,
 					Status:       testInput.newStatus,
 					Err:          testInput.statusErr,

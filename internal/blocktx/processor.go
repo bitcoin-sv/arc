@@ -378,7 +378,12 @@ func (p *Processor) StartProcessRequestTxs() {
 }
 
 func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
+	hashesBytes := make([][]byte, len(txHashes))
+	for i, h := range txHashes {
+		hashesBytes[i] = h[:]
+	}
+
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, blocktx_api.Status_LONGEST)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -479,9 +484,9 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 			return err
 		}
 
-		// find competing chains back to the common ancestor
-		// get all registered transactions
-		// prepare msg with competing blocks
+		// check for all registered transactions in the longest chain
+		// any registered transactions that are in this block but not
+		// in the longest chain - publish to metamorph as MINED_IN_STALE_CHAIN
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
@@ -512,7 +517,7 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 		return err
 	}
 
-	if err = p.markTransactionsAsMined(ctx, blockID, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = p.storeAndPublishTransactions(ctx, blockId, incomingBlock, calculatedMerkleTree); err != nil {
 		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
@@ -592,7 +597,7 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
-func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) error {
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block, transactionHashes []*chainhash.Hash) error {
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
 	if err != nil {
 		return err
@@ -608,23 +613,78 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 		return err
 	}
 
+	staleHashes := make([][]byte, 0)
+	longestHashes := make([][]byte, len(longestBlocks))
 	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
 
 	for _, b := range staleBlocks {
+		staleHashes = append(staleHashes, b.Hash)
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	for _, b := range longestBlocks {
+	for i, b := range longestBlocks {
+		longestHashes[i] = b.Hash
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
+	prevStaleTxs, err := p.store.GetRegisteredTxsByBlockHashes(staleHashes, blocktx_api.Status_STALE) // TODO: implement this query
+	if err != nil {
+		return err
+	}
+
+	prevStaleTxs2, err := p.store.GetRegisteredTxsByBlockHashes(transactionHashes, blocktx_api.Status_STALE) // TODO: implement this query
+	if err != nil {
+		return err
+	}
+
+	prevStaleTxs = append(prevStaleTxs, prevStaleTxs2)
+
+	prevLongestTxs, err := p.store.GetRegisteredTxsByBlockHashes(longestHashes, blocktx_api.Status_LONGEST) // TODO: implement this query
+	if err != nil {
+		return err
+	}
+
+	minedTxs, staleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
-	return err
+	if err != nil {
+		return err
+	}
+
+	for _, minedTx := range minedTxs {
+		minedTxBlock := &blocktx_api.TransactionBlock{
+			TransactionHash: minedTx.TxHash,
+			BlockHash:       minedTx.BlockHash,
+			BlockHeight:     minedTx.BlockHeight,
+			MerklePath:      minedTx.MerklePath,
+		}
+
+		err := p.mqClient.PublishMarshal(MinedTxsTopic, minedTxBlock)
+		if err != nil {
+			p.logger.Error("failed to publish mined tx after reorg", slog.Uint64("height", minedTx.BlockHeight), slog.String("err", err.Error()))
+		}
+	}
+
+	for _, staleTx := range staleTxs {
+		staleTxBlock := &blocktx_api.TransactionBlock{
+			TransactionHash: staleTx.TxHash,
+			BlockHash:       staleTx.BlockHash,
+			BlockHeight:     staleTx.BlockHeight,
+			MerklePath:      staleTx.MerklePath,
+		}
+
+		p.mqClient.PublishMarshal(StaleTxsTopic, staleTxBlock) // TODO: add this topic
+		if err != nil {
+			p.logger.Error("failed to publish stale tx after reorg", slog.Uint64("height", staleTx.BlockHeight), slog.String("err", err.Error()))
+		}
+	}
+
+	return nil
 }
 
-func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) (err error) {
+func (p *Processor) storeAndPublishTransactions(ctx context.Context, blockId uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -632,6 +692,11 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
+
+	blockhash, err := chainhash.NewHash(block.Hash)
+	if err != nil {
+		return fmt.Errorf("failed to create block hash for block at height %d", block.Height)
+	}
 
 	var totalSize int
 	for totalSize = 1; totalSize < len(leaves); totalSize++ {
@@ -653,9 +718,9 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex))
 		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, err)
+			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), block.Height, err)
 		}
 
 		bumpHex, err := bump.String()
@@ -676,23 +741,31 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 			// free up memory
 			txs = txs[:0]
 
+			// when the block is not from the longest chain, just store
+			// tranasctions in db and don't publish them to metamorph
+			// TODO: change this to != Status_LONGEST when handling
+			// ORPHANED blocks is implemented
+			if block.Status == blocktx_api.Status_STALE {
+				continue
+			}
+
 			for _, updResp := range updateResp {
 				txBlock := &blocktx_api.TransactionBlock{
 					TransactionHash: updResp.Hash[:],
-					BlockHash:       blockhash[:],
-					BlockHeight:     blockHeight,
+					BlockHash:       block.Hash,
+					BlockHeight:     block.Height,
 					MerklePath:      updResp.MerklePath,
 				}
 				err = p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
 				if err != nil {
-					p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
+					p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 				}
 			}
 		}
 
 		if percentage, found := progress[txIndex+1]; found {
 			if totalSize > 0 {
-				p.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("duration", time.Since(now).String()))
+				p.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
 			}
 		}
 	}
@@ -702,19 +775,27 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 	// update all remaining transactions
 	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 	if err != nil {
-		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", blockHeight), err)
+		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
+	}
+
+	// when the block is not from the longest chain, just store
+	// tranasctions in db and don't publish them to metamorph
+	// TODO: change this to != Status_LONGEST when handling
+	// ORPHANED blocks is implemented
+	if block.Status == blocktx_api.Status_STALE {
+		return nil
 	}
 
 	for _, updResp := range updateResp {
 		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: updResp.Hash[:],
-			BlockHash:       blockhash[:],
-			BlockHeight:     blockHeight,
+			BlockHash:       block.Hash,
+			BlockHeight:     block.Height,
 			MerklePath:      updResp.MerklePath,
 		}
 		err = p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
 		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		}
 	}
 

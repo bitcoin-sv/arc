@@ -6,6 +6,7 @@ import (
 
 	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func createBlock(msg *blockchain.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
@@ -48,6 +49,29 @@ func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
 	}
 
 	return lowest
+}
+
+func findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs []store.GetMinedTransactionResult) (nowMinedTxs, nowStaleTxs []store.GetMinedTransactionResult) {
+	prevStaleMap := make(map[string]store.GetMinedTransactionResult)
+
+	for _, tx := range prevStaleTxs {
+		prevStaleMap[string(tx.TxHash)] = tx
+		// every tx that was in previously stale blocks is to
+		// be mined regardless of whether it was also in the
+		// previously longest chain (update block info)
+		// or previously stale chain (new mined)
+		nowMinedTxs = append(nowMinedTxs, tx)
+	}
+
+	for _, longestTx := range prevLongestTxs {
+		if _, found := prevStaleMap[string(longestTx.TxHash)]; !found {
+			// if a transaction that was previously in a longest chain is
+			// not found in the previously stale blocks - it is now stale
+			nowStaleTxs = append(nowStaleTxs, longestTx)
+		}
+	}
+
+	return
 }
 
 // calculateChainwork calculates chainwork from the given difficulty bits

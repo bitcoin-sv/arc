@@ -4,22 +4,17 @@ import (
 	"context"
 
 	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, blockStatus blocktx_api.Status) ([]store.GetMinedTransactionResult, error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
-	var hashSlice [][]byte
-	for _, hash := range hashes {
-		hashSlice = append(hashSlice, hash[:])
-	}
-
-	result := make([]store.GetMinedTransactionResult, 0, len(hashSlice))
+	result := make([]store.GetMinedTransactionResult, 0, len(hashes))
 
 	q := `
 		SELECT
@@ -30,10 +25,10 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 	  FROM blocktx.transactions AS t
 	  	JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
 	  	JOIN blocktx.blocks AS b ON m.blockid = b.id
-	  WHERE t.hash = ANY($1)
+	  WHERE t.hash = ANY($1) AND b.status = $2
 	`
 
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice))
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes), blockStatus)
 	if err != nil {
 		return nil, err
 	}

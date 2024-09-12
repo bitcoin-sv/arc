@@ -179,7 +179,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
 		metamorphStore, processor, arcConfig.Tracing, optsServer...)
-
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -260,7 +259,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 	return s, err
 }
 
-func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (p2p.PeerManagerI, *metamorph.PeerHandler, chan *metamorph.PeerTxMessage, error) {
+func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (p2p.PeerManagerI, *metamorph.PeerHandler, chan *metamorph.TxStatusMessage, error) {
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get network: %v", err)
@@ -268,7 +267,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	logger.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph.PeerTxMessage, 10000)
+	messageCh := make(chan *metamorph.TxStatusMessage, 10000)
 	var pmOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())

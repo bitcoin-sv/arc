@@ -43,8 +43,6 @@ func (b *UTXOCreator) Wait() {
 	b.wg.Wait()
 }
 func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
-	// Increment the WaitGroup counter
-	b.wg.Add(1)
 
 	// Use a goroutine for concurrent execution
 
@@ -69,6 +67,8 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 	}
 
 	utxoSet := list.New()
+	// Increment the WaitGroup counter
+	b.wg.Add(1)
 	go func() {
 		defer func() {
 			// Log the shutdown message

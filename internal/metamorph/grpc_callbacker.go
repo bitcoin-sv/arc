@@ -28,7 +28,6 @@ func (c GrpcCallbacker) SendCallback(tx *store.StoreData) {
 
 	in := toGrpcInput(tx)
 	if in == nil {
-		c.l.Warn("no url to send callback", slog.Any("callbacks", tx.Callbacks))
 		return
 	}
 

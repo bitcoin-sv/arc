@@ -3,11 +3,12 @@ package validator
 import (
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/go-sdk/script"
 	"github.com/bitcoin-sv/go-sdk/script/interpreter"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 // maxBlockSize is set dynamically in a node, and should be gotten from the policy
@@ -32,7 +33,7 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 
 	// 2) The transaction size in bytes is less than maxtxsizepolicy.
 	if err := checkTxSize(txSize, policy); err != nil {
-		return NewError(err, api.ErrStatusTxFormat)
+		return NewError(err, api.ErrStatusTxSize)
 	}
 
 	// 3) check that each input value, as well as the sum, are in the allowed range of values (less than 21m coins)

@@ -1,5 +1,19 @@
 package callbacker
 
+/* CallbackDispatcher */
+/*
+
+The CallbackDispatcher is a decorator of the CallbackerI interface, responsible for routing and dispatching callbacks to appropriate sendManager based on the callback URL.
+
+Key components:
+- CallbackerI Interface: the CallbackDispatcher decorates this interface, enhancing its functionality by managing the actual dispatch logic
+- sendManager: each sendManager handles specific types of callbacks, determined by the URL
+
+Dispatch Logic: the CallbackDispatcher ensures that callbacks are sent to the correct sendManager, maintaining efficient processing and delivery.
+Graceful Shutdown: on service termination, the CallbackDispatcher ensures all active sendManagers are gracefully stopped, allowing in-progress callbacks to complete and safely shutting down the dispatch process.
+
+*/
+
 import (
 	"log/slog"
 	"sync"

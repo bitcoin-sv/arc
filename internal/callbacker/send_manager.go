@@ -1,5 +1,24 @@
 package callbacker
 
+/* sendManager */
+/*
+
+The SendManager is responsible for managing the sending of callbacks to a specific URL in a sequential (serial) manner.
+It ensures callbacks are sent efficiently while adhering to policies regarding failed deliveries.
+
+Key components:
+- CallbackerI : responsible for sending callbacks
+- quarantine policy: the duration for quarantining a URL are governed by a configurable policy, determining how long the URL remains inactive before retry attempts
+
+Sending logic: callbacks are sent to the designated URL one at a time, ensuring sequential and orderly processing.
+
+Quarantine handling: if a URL fails to respond with a success status, the URL is placed in quarantine (based on a defined policy).
+	During this period, all callbacks for the quarantined URL are stored with a quarantine timestamp, preventing further dispatch attempts until the quarantine expires.
+
+Graceful Shutdown: on service termination, the sendManager ensures that any unsent callbacks are safely persisted in the store, ensuring no loss of data during shutdown.
+
+*/
+
 import (
 	"context"
 	"log/slog"

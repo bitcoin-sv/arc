@@ -1,5 +1,27 @@
 package cmd
 
+/* Callbacker Service */
+/*
+
+This service manages the sending and storage of callbacks, with a persistent storage backend using PostgreSQL.
+It starts by checking the storage for any unsent callbacks and passing them to the callback dispatcher.
+
+Key components:
+- PostgreSQL DB: used for persistent storage of callbacks
+- callback dispatcher: responsible for dispatching callbacks to sender
+- callback sender: responsible for sending callbacks
+- background tasks:
+  - periodically cleans up old, unsent callbacks from storage
+  - periodically checks the storage for callbacks in quarantine (temporary ban) and re-attempts dispatch after the quarantine period
+- gRPC server with endpoints:
+  - Health: provides a health check endpoint for the service
+  - SendCallback: receives and processes new callback requests
+
+Startup routine: on service start, checks the storage for pending callbacks and dispatches them if needed
+Graceful Shutdown: on service termination, all components are stopped gracefully, ensuring that any unprocessed callbacks are persisted in the database for future processing.
+
+*/
+
 import (
 	"context"
 	"fmt"
@@ -149,7 +171,7 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 	// 1. server - ensure no new callbacks will be received
 	// 2. background workers - ensure no callbacks from background will be accepted
 	// 3. dispatcher - ensure all already accepted callbacks are proccessed
-	// 4. sender - finally, stop the sender as there are no callbacks left to send.
+	// 4. sender - finally, stop the sender as there are no callbacks left to send
 	// 5. store
 
 	if server != nil {

@@ -3,7 +3,8 @@ package postgresql
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -42,7 +43,7 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 
 	db, err = sql.Open(postgresDriverName, dbInfo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
+		return nil, errors.Join(store.ErrFailedToOpenDB, err)
 	}
 
 	db.SetMaxIdleConns(idleConns)

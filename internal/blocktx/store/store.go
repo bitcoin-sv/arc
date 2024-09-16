@@ -9,9 +9,18 @@ import (
 )
 
 var (
-	ErrNotFound                    = errors.New("not found")
-	ErrBlockProcessingDuplicateKey = errors.New("block hash already exists")
-	ErrBlockNotFound               = errors.New("block not found")
+	ErrNotFound                         = errors.New("not found")
+	ErrBlockProcessingDuplicateKey      = errors.New("block hash already exists")
+	ErrBlockNotFound                    = errors.New("block not found")
+	ErrUnableToPrepareStatement         = errors.New("unable to prepare statement")
+	ErrUnableToDeleteRows               = errors.New("unable to delete rows")
+	ErrFailedToInsertBlock              = errors.New("failed to insert block")
+	ErrFailedToOpenDB                   = errors.New("failed to open postgres database")
+	ErrFailedToInsertTransactions       = errors.New("failed to bulk insert transactions")
+	ErrFailedToGetRows                  = errors.New("failed to get rows")
+	ErrFailedToSetBlockProcessing       = errors.New("failed to set block processing")
+	ErrFailedToExecuteTxUpdateQuery     = errors.New("failed to execute transaction update query")
+	ErrMismatchedTxsAndMerklePathLength = errors.New("mismatched transactions and merkle path length")
 )
 
 type BlocktxStore interface {

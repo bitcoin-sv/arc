@@ -2,6 +2,7 @@ package grpc_opts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
@@ -15,6 +16,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
+
+var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
 func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
@@ -42,7 +45,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 
 	err := prometheusclient.Register(panicsTotal)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to register panics total metric: %w", err)
+		return nil, nil, nil, errors.Join(ErrGRPCFailedToRegisterPanics, err)
 	}
 
 	grpcPanicRecoveryHandler := func(p any) (err error) {

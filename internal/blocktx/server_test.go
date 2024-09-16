@@ -28,16 +28,20 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-			server := blocktx.NewServer(storeMock, logger, pm, 0)
+			sut := blocktx.NewServer(storeMock, logger, pm, 0)
 
-			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
+			// when
+			err := sut.StartGRPCServer("localhost:7000", 10000, "", logger)
+
+			// then
 			require.NoError(t, err)
 			time.Sleep(10 * time.Millisecond)
 
-			server.Shutdown()
+			sut.Shutdown()
 		})
 	}
 }
@@ -74,6 +78,7 @@ func TestDelUnfinishedBlock(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
@@ -85,12 +90,14 @@ func TestDelUnfinishedBlock(t *testing.T) {
 				},
 			}
 
-			server := blocktx.NewServer(storeMock, logger, nil, 0)
+			sut := blocktx.NewServer(storeMock, logger, nil, 0)
 
-			resp, err := server.DelUnfinishedBlockProcessing(context.Background(), &blocktx_api.DelUnfinishedBlockProcessingRequest{
+			// when
+			resp, err := sut.DelUnfinishedBlockProcessing(context.Background(), &blocktx_api.DelUnfinishedBlockProcessingRequest{
 				ProcessedBy: "host",
 			})
 
+			// then
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {

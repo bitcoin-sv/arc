@@ -142,6 +142,7 @@ func TestHandleBlock(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			batchSize := 4
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
@@ -176,7 +177,8 @@ func TestHandleBlock(t *testing.T) {
 			var blockRequestCh chan blocktx.BlockRequest = nil
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
-			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+			// when
+			sut := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
 			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
@@ -233,11 +235,12 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			// call tested function
-			err = peerHandler.HandleBlock(blockMessage, peer)
+			err = sut.HandleBlock(blockMessage, peer)
 			require.NoError(t, err)
 			time.Sleep(20 * time.Millisecond)
 			processor.Shutdown()
 
+			// then
 			require.ElementsMatch(t, expectedInsertedTransactions, insertedBlockTransactions)
 		})
 	}
@@ -373,7 +376,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
-			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
 			require.NoError(t, err)
 
 			txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
@@ -392,7 +395,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			}
 
 			// when
-			processor.StartBlockProcessing()
+			sut.StartBlockProcessing()
 
 			err = peerHandler.HandleBlock(blockMessage, nil)
 			require.NoError(t, err)
@@ -452,6 +455,7 @@ func TestStartFillGaps(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
@@ -471,8 +475,9 @@ func TestStartFillGaps(t *testing.T) {
 			blockRequestCh := make(chan blocktx.BlockRequest, 10)
 			var blockProcessCh chan *p2p.BlockMessage = nil
 
+			// when
 			_ = blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
-			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGapsInterval(time.Millisecond*20))
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGapsInterval(time.Millisecond*20))
 			require.NoError(t, err)
 
 			peerMock := &mocks.PeerMock{
@@ -482,19 +487,20 @@ func TestStartFillGaps(t *testing.T) {
 			}
 			peers := []p2p.PeerI{peerMock}
 
-			processor.StartFillGaps(peers)
+			sut.StartFillGaps(peers)
 
 			select {
-			case hashPeer := <-processor.GetBlockRequestCh():
+			case hashPeer := <-sut.GetBlockRequestCh():
 				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
 			case err = <-getBlockErrCh:
 				require.ErrorIs(t, err, tc.getBlockGapsErr)
 			case <-time.NewTimer(100 * time.Millisecond).C:
 			}
 
-			processor.Shutdown()
+			sut.Shutdown()
 
-			require.GreaterOrEqual(t, len(storeMock.GetBlockGapsCalls()), tc.minExpectedGetBlockCapsCalls)
+			// then
+			require.GreaterOrEqual(t, tc.minExpectedGetBlockCapsCalls, len(storeMock.GetBlockGapsCalls()))
 		})
 	}
 }
@@ -521,6 +527,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
 				RegisterTransactionsFunc: func(ctx context.Context, transaction [][]byte) ([]*chainhash.Hash, error) {
@@ -536,7 +543,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			txChan <- testdata.TX4Hash[:]
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			processor, err := blocktx.NewProcessor(
+
+			// when
+			sut, err := blocktx.NewProcessor(
 				logger,
 				storeMock,
 				nil,
@@ -547,11 +556,12 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			processor.StartProcessRegisterTxs()
+			sut.StartProcessRegisterTxs()
 
 			time.Sleep(120 * time.Millisecond)
-			processor.Shutdown()
+			sut.Shutdown()
 
+			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
 		})
 	}
@@ -616,6 +626,7 @@ func TestStartBlockRequesting(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			setBlockProcessingErrTest := tc.setBlockProcessingErr
 			bhsProcInProgErr := tc.bhsProcInProg
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -643,21 +654,23 @@ func TestStartBlockRequesting(t *testing.T) {
 			blockRequestCh := make(chan blocktx.BlockRequest, 10)
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
+			// when
 			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
-			processor, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
 			require.NoError(t, err)
 
 			// send msg Inv to blockRequest channel
 			err = peerHandler.HandleBlockAnnouncement(wire.NewInvVect(wire.InvTypeBlock, blockHash), peerMock)
 			require.NoError(t, err)
 
-			processor.StartBlockRequesting()
+			sut.StartBlockRequesting()
 
 			// call tested function
 			require.NoError(t, err)
 			time.Sleep(20 * time.Millisecond)
-			processor.Shutdown()
+			sut.Shutdown()
 
+			// then
 			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
 			require.Equal(t, tc.expectedSetBlockProcessingCalls, len(storeMock.SetBlockProcessingCalls()))
 			require.Equal(t, tc.expectedPeerWriteMessageCalls, len(peerMock.WriteMsgCalls()))
@@ -730,6 +743,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
@@ -753,7 +767,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			requestTxChannel := make(chan []byte, 5)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			processor, err := blocktx.NewProcessor(logger, storeMock,
+
+			// when
+			sut, err := blocktx.NewProcessor(logger, storeMock,
 				nil, nil,
 				blocktx.WithRegisterRequestTxsInterval(15*time.Millisecond),
 				blocktx.WithRegisterRequestTxsBatchSize(3),
@@ -766,10 +782,11 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			}
 
 			// call tested function
-			processor.StartProcessRequestTxs()
+			sut.StartProcessRequestTxs()
 			time.Sleep(20 * time.Millisecond)
-			processor.Shutdown()
+			sut.Shutdown()
 
+			// then
 			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
 			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
 		})
@@ -781,7 +798,7 @@ func TestStart(t *testing.T) {
 		name     string
 		topicErr map[string]error
 
-		expectedErrorStr string
+		expectedError error
 	}{
 		{
 			name: "success",
@@ -790,18 +807,19 @@ func TestStart(t *testing.T) {
 			name:     "error - subscribe mined txs",
 			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
 
-			expectedErrorStr: "failed to subscribe to register-tx topic: failed to subscribe",
+			expectedError: blocktx.ErrFailedToSubscribeToRegisterTopic,
 		},
 		{
 			name:     "error - subscribe submit txs",
 			topicErr: map[string]error{blocktx.RequestTxTopic: errors.New("failed to subscribe")},
 
-			expectedErrorStr: "failed to subscribe to request-tx topic: failed to subscribe",
+			expectedError: blocktx.ErrFailedToSubscribeToRequestTopic,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			storeMock := &storeMocks.BlocktxStoreMock{}
 
 			mqClient := &mocks.MessageQueueClientMock{
@@ -814,17 +832,22 @@ func TestStart(t *testing.T) {
 				},
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithMessageQueueClient(mqClient))
 			require.NoError(t, err)
-			err = processor.Start()
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+
+			// when
+			err = sut.Start()
+
+			// then
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			} else {
 				require.NoError(t, err)
 			}
 
-			processor.Shutdown()
+			// cleanup
+			sut.Shutdown()
 		})
 	}
 }

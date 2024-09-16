@@ -52,11 +52,11 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
+			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
 				},
@@ -79,14 +79,19 @@ func TestCheck(t *testing.T) {
 					},
 				}}
 			}}
-			server := blocktx.NewServer(storeMock, logger, pm, 0)
-			resp, err := server.Check(context.Background(), req)
-			require.NoError(t, err)
+			sut := blocktx.NewServer(storeMock, logger, pm, 0)
 
+			// when
+			resp, err := sut.Check(context.Background(), req)
+
+			// then
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedStatus, resp.Status)
 
+			// cleanup
 			processor.Shutdown()
 		})
+
 	}
 }
 
@@ -125,11 +130,11 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			const batchSize = 4
 
+			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
 				},
@@ -142,17 +147,19 @@ func TestWatch(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
-			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
-				return []p2p.PeerI{&mocks.PeerMock{
-					IsHealthyFunc: func() bool {
-						return false
-					},
-					ConnectedFunc: func() bool {
-						return false
-					},
-				}}
-			}}
-			server := blocktx.NewServer(storeMock, logger, pm, 0)
+
+			pm := &mocks.PeerManagerMock{
+				GetPeersFunc: func() []p2p.PeerI {
+					return []p2p.PeerI{
+						&mocks.PeerMock{
+							IsHealthyFunc: func() bool { return false },
+							ConnectedFunc: func() bool { return false },
+						},
+					}
+				},
+			}
+
+			sut := blocktx.NewServer(storeMock, logger, pm, 0)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -161,9 +168,15 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			err = server.Watch(req, watchServer)
+			// when
+			err = sut.Watch(req, watchServer)
+
+			// then
 			require.NoError(t, err)
+
+			// cleanup
 			processor.Shutdown()
 		})
+
 	}
 }

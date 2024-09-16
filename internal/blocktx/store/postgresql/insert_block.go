@@ -2,9 +2,9 @@ package postgresql
 
 import (
 	"context"
-	"fmt"
-
+	"errors"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -35,7 +35,7 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 
 	err := row.Scan(&blockId)
 	if err != nil {
-		return 0, fmt.Errorf("failed when inserting block: %v", err)
+		return 0, errors.Join(store.ErrFailedToInsertBlock, err)
 	}
 
 	return blockId, nil

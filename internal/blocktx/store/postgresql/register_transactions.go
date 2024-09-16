@@ -2,7 +2,8 @@ package postgresql
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"time"
 
 	"github.com/lib/pq"
@@ -22,7 +23,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte
 	now := p.now()
 	rows, err := p.db.QueryContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to bulk insert transactions: %v", err)
+		return nil, errors.Join(store.ErrFailedToInsertTransactions, err)
 	}
 
 	updatedTxs := make([]*chainhash.Hash, 0)
@@ -32,7 +33,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte
 
 		err = rows.Scan(&hash, &insertedAt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get rows: %v", err)
+			return nil, errors.Join(store.ErrFailedToGetRows, err)
 		}
 
 		if insertedAt.Before(now) {

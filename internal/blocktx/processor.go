@@ -22,6 +22,14 @@ import (
 
 var tracer trace.Tracer
 
+var (
+	ErrFailedToSubscribeToRegisterTopic = errors.New("failed to subscribe to register topic")
+	ErrFailedToSubscribeToRequestTopic  = errors.New("failed to subscribe to request topic")
+	ErrFailedToCreateBUMP               = errors.New("failed to create new bump for tx hash from merkle tree and index")
+	ErrFailedToGetStringFromBUMPHex     = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToInsertBlockTransactions  = errors.New("failed to insert block transactions")
+)
+
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 1
@@ -99,7 +107,7 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", RegisterTxTopic, err)
+		return errors.Join(ErrFailedToSubscribeToRegisterTopic, err)
 	}
 
 	err = p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
@@ -107,7 +115,7 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", RequestTxTopic, err)
+		return errors.Join(ErrFailedToSubscribeToRequestTopic, err)
 	}
 
 	p.StartBlockRequesting()
@@ -626,12 +634,12 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
-			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), blockHeight, err)
+			return errors.Join(ErrFailedToCreateBUMP, err)
 		}
 
 		bumpHex, err := bump.String()
 		if err != nil {
-			return fmt.Errorf("failed to get string from bump for tx hash %s at block height %d: %v", hash.String(), blockHeight, err)
+			return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
 		}
 
 		txs = append(txs, store.TxWithMerklePath{
@@ -642,7 +650,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
 			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 			if err != nil {
-				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
+				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
 			// free up memory
 			txs = txs[:0]
@@ -675,7 +683,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	// update all remaining transactions
 	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 	if err != nil {
-		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
+		return errors.Join(ErrFailedToInsertBlockTransactions, err)
 	}
 
 	for _, updResp := range updateResp {

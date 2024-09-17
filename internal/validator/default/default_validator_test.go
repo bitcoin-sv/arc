@@ -33,55 +33,66 @@ func TestValidator(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid tx", func(t *testing.T) {
+		// given
 		// extended tx
 		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
-
 		policy := getPolicy(500)
-		validator := New(policy, nil)
+		sut := New(policy, nil)
 
-		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-		require.NoError(t, err)
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+		// then
+		require.NoError(t, actualError)
 	})
 
 	t.Run("invalid tx", func(t *testing.T) {
+		// given
 		// extended tx
 		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
-
 		policy := getPolicy(500)
-		validator := New(policy, nil)
+		sut := New(policy, nil)
 
-		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-		require.Error(t, err, "Validation should have returned an error")
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 
-		if err != nil {
-			expected := "arc error 461: script execution failed: false stack entry at end of script execution"
-			if err.Error() != expected {
-				t.Errorf("Expected %s, got %s", expected, err.Error())
-			}
+		// then
+		require.Error(t, actualError, "Validation should have returned an error")
+		if actualError != nil {
+			require.ErrorContains(t, actualError, validation.ErrScriptExecutionFailed.Error())
 		}
 	})
 
 	t.Run("low fee error", func(t *testing.T) {
+		// given
 		// extended tx
 		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
-
 		policy := getPolicy(500)
-		validator := New(policy, nil)
-		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-		require.Error(t, err)
+		sut := New(policy, nil)
+
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+		// then
+		require.Error(t, actualError)
 	})
 
 	t.Run("valid tx 2", func(t *testing.T) {
+		// given
 		// extended tx
 		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
-
 		policy := getPolicy(5)
-		validator := New(policy, nil)
-		err := validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-		require.NoError(t, err)
+		sut := New(policy, nil)
+
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+		// then
+		require.NoError(t, actualError)
 	})
 
 	t.Run("valid tx multi", func(t *testing.T) {
+		// given
 		// All of these transactions should pass...
 		txs := []string{
 			"020000000000000000ef021c2bff8cb2e37f9018ee6e47512492ee65fa2012ce6c5998b6a2e9583974dabc010000008b473044022029d0a05f2601ee89d63e7a61a8f5877f20e7a48214d3aa6e8421bb938feec8a80220785478ad3019ec91c5545199539ccfd5704021f1c962becd48e0264f7e16de86c32102207d0891b88c096f1f8503a684c387b4f9440c80707118ec14227adadd15db7820c8925e7b008668089d3ae1fc1cf450f7f45f0b4af43cd7d30b84446ecb374d6dffffffff8408000000000000fd6103a914179b4c7a45646a509473df5a444b6e18b723bd148876a9142e0fa8744508c13de3fe065d7ed2016370cc433f88ac6a4d2d037b227469746c65223a2246726f672043617274656c202331373935222c226465736372697074696f6e223a2246726f6773206d75737420756e69746520746f2064657374726f7920746865206c697a617264732e20446f20796f75206861766520776861742069742074616b65733f222c22696d616765223a22623a2f2f61353333663036313134353665333438326536306136666433346337663165366265393365663134303261396639363139313539306334303534326230306335222c226e756d626572223a313739352c22736572696573223a333639302c2273636f7265223a2235392e3131222c2272616e6b223a333033382c22726172697479223a22436f6d6d6f6e222c2261747472696275746573223a5b7b2274726169745f74797065223a224261636b67726f756e64222c2276616c7565223a225465616c204a756d626c65222c22636f756e74223a3131352c22726172697479223a22556e636f6d6d6f6e227d2c7b2274726169745f74797065223a2246726f67222c2276616c7565223a22526574726f20426c7565222c22636f756e74223a3433322c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a22426f6479222c2276616c7565223a22507572706c6520466c616e6e656c222c22636f756e74223a36342c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a224d6f757468222c2276616c7565223a224e6f204d6f757468204974656d222c22636f756e74223a313335382c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a2245796573222c2276616c7565223a224f72616e676520457965205061746368222c22636f756e74223a3130332c22726172697479223a2252617265227d2c7b2274726169745f74797065223a2248656164222c2276616c7565223a2250657420436869636b222c22636f756e74223a36392c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a2248616e64222c2276616c7565223a224e6f2048616e64204974656d222c22636f756e74223a3939322c22726172697479223a22436f6d6d6f6e227d5d7d215b80a60dc756a488066fa95b90cceec4fd731ef489d51047b41e7aa5a95bf0040000006a47304402203951e4ebccaa652e360d8b2fab2ea9936a1eec19f27d6a1d9791c32b4e46540e02202529a8af4795bcf7dfe9dbb4826bb9f1467cc255de947e8c07a5961287aa713e41210253fe24fd82a07d02010d9ca82f99870c0e5e7402a9b26c9d25ae753e40754c4dffffffff96191d44000000001976a914b522239693bae79c76208eed6fbab62b0e1fba2e88ac0544ca0203000000001976a9142e0fa8744508c13de3fe065d7ed2016370cc433f88ac8408000000000000fd6103a914179b4c7a45646a509473df5a444b6e18b723bd148876a91497e5faf26e48d9015269c2592c6e4886ac2d161288ac6a4d2d037b227469746c65223a2246726f672043617274656c202331373935222c226465736372697074696f6e223a2246726f6773206d75737420756e69746520746f2064657374726f7920746865206c697a617264732e20446f20796f75206861766520776861742069742074616b65733f222c22696d616765223a22623a2f2f61353333663036313134353665333438326536306136666433346337663165366265393365663134303261396639363139313539306334303534326230306335222c226e756d626572223a313739352c22736572696573223a333639302c2273636f7265223a2235392e3131222c2272616e6b223a333033382c22726172697479223a22436f6d6d6f6e222c2261747472696275746573223a5b7b2274726169745f74797065223a224261636b67726f756e64222c2276616c7565223a225465616c204a756d626c65222c22636f756e74223a3131352c22726172697479223a22556e636f6d6d6f6e227d2c7b2274726169745f74797065223a2246726f67222c2276616c7565223a22526574726f20426c7565222c22636f756e74223a3433322c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a22426f6479222c2276616c7565223a22507572706c6520466c616e6e656c222c22636f756e74223a36342c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a224d6f757468222c2276616c7565223a224e6f204d6f757468204974656d222c22636f756e74223a313335382c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a2245796573222c2276616c7565223a224f72616e676520457965205061746368222c22636f756e74223a3130332c22726172697479223a2252617265227d2c7b2274726169745f74797065223a2248656164222c2276616c7565223a2250657420436869636b222c22636f756e74223a36392c22726172697479223a22436f6d6d6f6e227d2c7b2274726169745f74797065223a2248616e64222c2276616c7565223a224e6f2048616e64204974656d222c22636f756e74223a3939322c22726172697479223a22436f6d6d6f6e227d5d7de4d41e00000000001976a91497df51a1dea118bd689099125b42d75e48d2f5ec88ac30e51700000000001976a91484c9b30c0e3529a6d260b361f70902f962d4b77088acec93e340000000001976a914863f485dae59224cc5993b26bf50da2e7c368c8a88ac00000000",
@@ -92,15 +103,19 @@ func TestValidator(t *testing.T) {
 		for txIndex, txStr := range txs {
 			tx, err := sdkTx.NewTransactionFromHex(txStr)
 			require.NoError(t, err, "Could not parse tx hex")
-
 			policy := getPolicy(5)
-			validator := New(policy, nil)
-			err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-			require.NoError(t, err, "Failed to validate tx %d", txIndex)
+			sut := New(policy, nil)
+
+			// when
+			actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+			// then
+			require.NoError(t, actualError, "Failed to validate tx %d", txIndex)
 		}
 	})
 
 	t.Run("valid from file", func(t *testing.T) {
+		// given
 		f, err := os.Open("testdata/1.bin")
 		require.NoError(t, err, "Failed to open file")
 		defer f.Close()
@@ -123,13 +138,17 @@ func TestValidator(t *testing.T) {
 		}
 
 		policy := getPolicy(5)
-		validator := New(policy, nil)
-		err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
-		require.NoError(t, err, "Failed to validate tx")
+		sut := New(policy, nil)
+
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+		// then
+		require.NoError(t, actualError, "Failed to validate tx")
 	})
 
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
-		// when
+		// given
 		txFinder := mocks.TxFinderIMock{
 			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
 				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
@@ -141,11 +160,11 @@ func TestValidator(t *testing.T) {
 
 		sut := New(getPolicy(5), &txFinder)
 
-		// then
-		err := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		// when
+		actualError := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 
-		// assert
-		require.NoError(t, err)
+		// then
+		require.NoError(t, actualError)
 	})
 }
 
@@ -159,7 +178,7 @@ func getPolicy(satoshisPerKB uint64) *bitcoin.Settings {
 }
 
 // no need to extensively test this function, it's just calling isFeePaidEnough
-func Test_standardCheckFees(t *testing.T) {
+func TestStandardCheckFees(t *testing.T) {
 	type args struct {
 		tx       *sdkTx.Transaction
 		feeModel *fees.SatoshisPerKilobyte
@@ -220,59 +239,73 @@ func Test_standardCheckFees(t *testing.T) {
 	}
 }
 
-func Test_standardCheckFeesTxs(t *testing.T) {
+func TestStandardCheckFeesTxs(t *testing.T) {
 	t.Run("no fee being paid", func(t *testing.T) {
+		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
-		feeModel := &fees.SatoshisPerKilobyte{Satoshis: 50}
+		sut := &fees.SatoshisPerKilobyte{Satoshis: 50}
 
-		vErr := standardCheckFees(tx, feeModel)
-		require.Nil(t, vErr)
+		// when
+		actualError := standardCheckFees(tx, sut)
+
+		// then
+		require.Nil(t, actualError)
 	})
 }
 
-func Test_checkScripts(t *testing.T) {
+func TestCheckScripts(t *testing.T) {
 	t.Run("valid op_return tx", func(t *testing.T) {
+		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
 
-		err = checkScripts(tx)
-		require.NoError(t, err)
+		// when
+		actualError := checkScripts(tx)
+
+		// then
+		require.NoError(t, actualError)
 	})
 
 	t.Run("valid run tx", func(t *testing.T) {
+		// given
 		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)
 
-		err = checkScripts(tx)
-		require.NoError(t, err)
+		// when
+		actualError := checkScripts(tx)
+
+		// then
+		require.NoError(t, actualError)
 	})
 }
 
 func BenchmarkValidator(b *testing.B) {
 	// extended tx
 	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
-
 	policy := getPolicy(500)
-	validator := New(policy, nil)
+	sut := New(policy, nil)
 
 	for i := 0; i < b.N; i++ {
-		_ = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		_ = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 	}
 }
 
 func TestFeeCalculation(t *testing.T) {
+	// given
 	tx, err := sdkTx.NewTransactionFromHex("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
 	require.NoError(t, err)
-
 	policy := getPolicy(50)
-	validator := New(policy, nil)
+	sut := New(policy, nil)
 
-	err = validator.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+	// when
+	err = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+
+	// then
 	t.Log(err)
 }
 
-func Test_needExtension(t *testing.T) {
+func TestNeedExtension(t *testing.T) {
 	tcs := []struct {
 		name           string
 		txHex          string
@@ -305,20 +338,19 @@ func Test_needExtension(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
+			// when
+			actualResult := needsExtension(tx, tc.feeOpt, tc.scriptOpt)
+
 			// then
-			result := needsExtension(tx, tc.feeOpt, tc.scriptOpt)
-
-			// assert
-			require.Equal(t, tc.expectedResult, result)
-
+			require.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
 }
 
-func Test_cumulativeCheckFees(t *testing.T) {
+func TestCumulativeCheckFees(t *testing.T) {
 	tcs := []struct {
 		name          string
 		hex           string
@@ -354,7 +386,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 					},
 				}
 			},
-			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 16 sat is too low - minimum expected fee is 19 sat"), api.ErrStatusCumulativeFees),
+			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
 		},
 		{
 			name: "cumulative fees too low",
@@ -389,7 +421,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 					},
 				}
 			},
-			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 32 sat is too low - minimum expected fee is 37 sat"), api.ErrStatusCumulativeFees),
+			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
 		},
 		{
 			name: "cumulative fees sufficient",
@@ -439,7 +471,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 				}
 			},
 			expectedErr: validation.NewError(
-				errors.New("failed to get raw transactions for parent: [ec6d2b377a2ccb888a5272b89be49c5a4c57012ff3957b60e137e7115858f73d cc1affd62f6453e06e026cc4ea56bcf2c5aed5293d8b72414ba962b17fbd48eb]. Reason: test error"),
+				ErrFailedToGetRawTxs,
 				api.ErrStatusCumulativeFees),
 		},
 	}
@@ -448,19 +480,18 @@ func Test_cumulativeCheckFees(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			txFinder := tc.getTxFinderFn(t)
-
 			tx, _ := sdkTx.NewTransactionFromHex(tc.hex)
 
 			// when
-			vErr := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel)
+			actualError := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel)
 
 			// then
 			if tc.expectedErr == nil {
-				require.Nil(t, vErr)
+				require.Nil(t, actualError)
 			} else {
-				require.NotNil(t, vErr)
-				assert.Equal(t, tc.expectedErr.Err.Error(), vErr.Err.Error())
-				assert.Equal(t, tc.expectedErr.ArcErrorStatus, vErr.ArcErrorStatus)
+				require.NotNil(t, actualError)
+				assert.ErrorIs(t, actualError.Err, tc.expectedErr.Err)
+				assert.Equal(t, tc.expectedErr.ArcErrorStatus, actualError.ArcErrorStatus)
 			}
 		})
 	}

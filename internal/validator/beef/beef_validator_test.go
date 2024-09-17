@@ -55,7 +55,7 @@ func TestBeefValidator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
@@ -68,16 +68,16 @@ func TestBeefValidator(t *testing.T) {
 				},
 			}
 
-			validator := New(getPolicy(1), &mrVerifier)
+			sut := New(getPolicy(1), &mrVerifier)
 
-			//then
-			errTx, err := validator.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+			//when
+			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 
-			// assert
+			// then
 			assert.Equal(t, tc.expectedErr, err)
 			if tc.expectedErrTxID != "" {
-				assert.NotNil(t, errTx)
-				assert.Equal(t, tc.expectedErrTxID, errTx.TxID())
+				assert.NotNil(t, actualTx)
+				assert.Equal(t, tc.expectedErrTxID, actualTx.TxID())
 			}
 		})
 	}
@@ -112,16 +112,20 @@ func TestCalculateInputOutputsSatoshis(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
 			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			inputs, outputs, err := calculateInputsOutputsSatoshis(beefTx.GetLatestTx(), beefTx.Transactions)
+			// when
+			actualInputs, actualOutputs, err := calculateInputsOutputsSatoshis(beefTx.GetLatestTx(), beefTx.Transactions)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedInputs, inputs)
-			assert.Equal(t, tc.expectedOutputs, outputs)
+
+			// then
+			assert.Equal(t, tc.expectedInputs, actualInputs)
+			assert.Equal(t, tc.expectedOutputs, actualOutputs)
 		})
 	}
 }
@@ -151,14 +155,18 @@ func TestValidateScripts(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
 			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
-			vErr := validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
-			assert.Equal(t, tc.expectedError, vErr)
+			// when
+			actualError := validateScripts(beefTx.GetLatestTx(), beefTx.Transactions)
+
+			// then
+			assert.Equal(t, tc.expectedError, actualError)
 		})
 	}
 }
@@ -192,14 +200,18 @@ func TestEnsureAncestorsArePresentInBump(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		// given
 		beefHex, err := hex.DecodeString(tc.beefStr)
 		require.NoError(t, err)
 
 		beefTx, _, err := beef.DecodeBEEF(beefHex)
 		require.NoError(t, err)
 
-		err = ensureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx)
-		assert.Equal(t, tc.expectedError, err)
+		// when
+		actualError := ensureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx)
+
+		// then
+		assert.Equal(t, tc.expectedError, actualError)
 	}
 }
 
@@ -212,14 +224,14 @@ func getPolicy(satoshisPerKB uint64) *bitcoin.Settings {
 	return policy
 }
 
-func Test_cumulativeCheckFees(t *testing.T) {
+func TestCumulativeCheckFees(t *testing.T) {
 	tcs := []struct {
 		name           string
 		beefHex        string
 		feeModel       *fees.SatoshisPerKilobyte
 		ancestorsLimit int
 
-		expectedErr *validation.Error
+		expectedError *validation.Error
 	}{
 		{
 			name:    "mined parents only - valid fee",
@@ -234,7 +246,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 2}
 			}(),
-			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 1 sat is too low - minimum expected fee is 2 sat"), api.ErrStatusCumulativeFees),
+			expectedError: validation.NewError(errors.New("cumulative transaction fee of 1 sat is too low - minimum expected fee is 2 sat"), api.ErrStatusCumulativeFees),
 		},
 		{
 			name:    "cumulative (at least one unmined parent) fees too low",
@@ -242,7 +254,7 @@ func Test_cumulativeCheckFees(t *testing.T) {
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 5}
 			}(),
-			expectedErr: validation.NewError(errors.New("cumulative transaction fee of 5 sat is too low - minimum expected fee is 8 sat"), api.ErrStatusCumulativeFees),
+			expectedError: validation.NewError(errors.New("cumulative transaction fee of 5 sat is too low - minimum expected fee is 8 sat"), api.ErrStatusCumulativeFees),
 		},
 		{
 			name:    "cumulative (at least one unmined parent) fees sufficient",
@@ -260,15 +272,15 @@ func Test_cumulativeCheckFees(t *testing.T) {
 			beefTx, _, _ := beef.DecodeBEEF(bytes)
 
 			// when
-			vErr := cumulativeCheckFees(beefTx, tc.feeModel)
+			actualError := cumulativeCheckFees(beefTx, tc.feeModel)
 
 			// then
-			if tc.expectedErr == nil {
-				require.Nil(t, vErr)
+			if tc.expectedError == nil {
+				require.Nil(t, actualError)
 			} else {
-				require.NotNil(t, vErr)
-				assert.Equal(t, tc.expectedErr.Err.Error(), vErr.Err.Error())
-				assert.Equal(t, tc.expectedErr.ArcErrorStatus, vErr.ArcErrorStatus)
+				require.NotNil(t, actualError)
+				assert.Equal(t, tc.expectedError.Err.Error(), actualError.Err.Error())
+				assert.Equal(t, tc.expectedError.ArcErrorStatus, actualError.ArcErrorStatus)
 			}
 		})
 	}

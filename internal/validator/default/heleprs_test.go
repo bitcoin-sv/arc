@@ -22,19 +22,19 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 			name:              "cannot find parents",
 			txHex:             testdata.ValidTxRawHex,
 			foundTransactions: nil,
-			expectedErr:       errParentNotFound,
+			expectedErr:       ErrParentNotFound,
 		},
 		{
 			name:              "cannot find all parents",
 			txHex:             testdata.ValidTxRawHex,
 			foundTransactions: []validator.RawTx{testdata.ParentTx1},
-			expectedErr:       errParentNotFound,
+			expectedErr:       ErrParentNotFound,
 		},
 		{
 			name:              "tx finder returns rubbish",
 			txHex:             testdata.ValidTxRawHex,
 			foundTransactions: []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1},
-			expectedErr:       errParentNotFound,
+			expectedErr:       ErrParentNotFound,
 		},
 		{
 			name:              "success",
@@ -46,23 +46,21 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			txFinder := mocks.TxFinderIMock{
 				GetRawTxsFunc: func(ctx context.Context, sf validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
 					return tc.foundTransactions, nil
 				},
 			}
-
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
-			// then
+			// when
 			err := extendTx(context.TODO(), &txFinder, tx)
 
-			// assert
+			// then
 			require.Equal(t, tc.expectedErr, err)
 
 			if tc.expectedErr == nil {
-
 				// check if really is extended
 				isEF := true
 				for _, input := range tx.Inputs {
@@ -71,7 +69,6 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 						break
 					}
 				}
-
 				require.True(t, isEF, "")
 			}
 		})
@@ -91,7 +88,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			foundTransactionsFn: func(i int) []validator.RawTx {
 				return []validator.RawTx{testdata.ParentTx1}
 			},
-			expectedErr: errParentNotFound,
+			expectedErr: ErrParentNotFound,
 		},
 		{
 			name:  "tx finder returns rubbish",
@@ -99,7 +96,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			foundTransactionsFn: func(i int) []validator.RawTx {
 				return []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1}
 			},
-			expectedErr: errParentNotFound,
+			expectedErr: ErrParentNotFound,
 		},
 		{
 			name:  "with unmined parents",
@@ -141,8 +138,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
-
+			// given
 			var getTxsCounter int = 0
 			var counterPtr *int = &getTxsCounter
 
@@ -156,12 +152,11 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
-			// then
+			// when
 			res, err := getUnminedAncestors(context.TODO(), &txFinder, tx)
 
-			// assert
+			// then
 			require.Equal(t, tc.expectedErr, err)
-
 			if tc.expectedErr == nil {
 				expectedUnminedAncestors := make([]validator.RawTx, 0)
 
@@ -172,7 +167,6 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 						}
 					}
 				}
-
 				require.Len(t, res, len(expectedUnminedAncestors))
 			}
 

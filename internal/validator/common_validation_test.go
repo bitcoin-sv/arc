@@ -23,7 +23,7 @@ const (
 	runTx      = "010000000000000000ef0288e59c195e017a9606fcaa21ae75ae670b8d1042380db5eb1860dff6868d349d010000006a4730440220771f717cab9acf745b2448b057b720913c503989262a5291edfd00a7a151fa5e02200d5c5cdd0b9320a796ba7c4e196ff04d5d7be8e7ca069c9af59bb8a2da5dfb41412102028571938947eeceeefac38f0a59f460ea57dc2922047240c1a777cb02261936ffffffff11010000000000001976a91428566dfea52b366fa3f545f7e4ab4392d48ddaae88ac19cb57677947f90549a8b7a207563fe254edce80c042e3ddf06e84e78e6e0934010000006a473044022036bffed646b47f6becea192696b3bf4c4bbee80c29cbc79a9e598c6dce895d3502205e5bc389e805d05b23684469666d8cc81ad3635445df6e8a344d27962016ce94412102213568f72dc2aa813f0154b80d5492157e5c47e69ce0d0ec421d8e3fdb1cde6affffffff404b4c00000000001976a91428c115c42ec654230f1666637d2e72808b1ff46d88ac030000000000000000b1006a0372756e0105004ca67b22696e223a312c22726566223a5b5d2c226f7574223a5b5d2c2264656c223a5b2231376238623534616237363066306635363230393561316664336432306533353865623530653366383638626535393230346462386333343939363337323135225d2c22637265223a5b5d2c2265786563223a5b7b226f70223a2243414c4c222c2264617461223a5b7b22246a6967223a307d2c2264657374726f79222c5b5d5d7d5d7d404b4c00000000001976a91488c05fb97867cab4f4875e5cd4c96929c15f1ca988acf4000000000000001976a9149f4fa07a87b9169f2a66a0456c0c8d4f1209504f88ac00000000"
 )
 
-func Test_checkTxSize(t *testing.T) {
+func TestCheckTxSize(t *testing.T) {
 	type args struct {
 		txSize int
 		policy *bitcoin.Settings
@@ -66,7 +66,7 @@ func Test_checkTxSize(t *testing.T) {
 }
 
 //nolint:funlen - don't need to check length of test functions
-func Test_checkOutputs(t *testing.T) {
+func TestCheckOutputs(t *testing.T) {
 	type args struct {
 		tx *sdkTx.Transaction
 	}
@@ -143,7 +143,7 @@ func Test_checkOutputs(t *testing.T) {
 	}
 }
 
-func Test_checkInputs(t *testing.T) {
+func TestCheckInputs(t *testing.T) {
 	type args struct {
 		tx *sdkTx.Transaction
 	}
@@ -203,7 +203,7 @@ func Test_checkInputs(t *testing.T) {
 	}
 }
 
-func Test_sigOpsCheck(t *testing.T) {
+func TestSigOpsCheck(t *testing.T) {
 	type args struct {
 		tx     *sdkTx.Transaction
 		policy *bitcoin.Settings
@@ -273,7 +273,7 @@ func Test_sigOpsCheck(t *testing.T) {
 	}
 }
 
-func Test_pushDataCheck(t *testing.T) {
+func TestPushDataCheck(t *testing.T) {
 	type args struct {
 		tx *sdkTx.Transaction
 	}
@@ -318,8 +318,9 @@ func Test_pushDataCheck(t *testing.T) {
 	}
 }
 
-func Test_checkScripts(t *testing.T) {
+func TestCheckScripts(t *testing.T) {
 	t.Run("valid op_return tx", func(t *testing.T) {
+		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
 
@@ -329,11 +330,15 @@ func Test_checkScripts(t *testing.T) {
 			LockingScript: in.SourceTxScript(),
 		}
 
+		// when
 		err = CheckScript(tx, 0, prevOutput)
+
+		// then
 		require.NoError(t, err)
 	})
 
 	t.Run("valid run tx", func(t *testing.T) {
+		// given
 		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)
 
@@ -343,7 +348,10 @@ func Test_checkScripts(t *testing.T) {
 			LockingScript: in.SourceTxScript(),
 		}
 
+		// when
 		err = CheckScript(tx, 0, prevOutput)
+
+		// then
 		require.NoError(t, err)
 	})
 }

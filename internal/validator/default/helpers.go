@@ -9,7 +9,10 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
-var errParentNotFound = errors.New("parent transaction not found")
+var (
+	ErrParentNotFound    = errors.New("parent transaction not found")
+	ErrFailedToGetRawTxs = errors.New("failed to get raw transactions for parent")
+)
 
 func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *sdkTx.Transaction) error {
 	// potential improvement: implement version for the rawTx with only one input
@@ -42,14 +45,14 @@ func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *sdkTx.Transacti
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
-		return errParentNotFound
+		return ErrParentNotFound
 	}
 
 	// extend inputs with parents data
 	for _, p := range parentsTxs {
 		childInputs, found := parentInputMap[p.TxID]
 		if !found {
-			return errParentNotFound
+			return ErrParentNotFound
 		}
 
 		bTx, err := sdkTx.NewTransactionFromBytes(p.Bytes)
@@ -92,11 +95,11 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 	const finderSource = validator.SourceTransactionHandler | validator.SourceWoC
 	parentsTxs, err := w.GetRawTxs(ctx, finderSource, parentsIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err)
+		return nil, errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("parent: %v", parentsIDs), err)
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
-		return nil, errParentNotFound
+		return nil, ErrParentNotFound
 	}
 
 	for _, p := range parentsTxs {
@@ -106,7 +109,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 
 		childInputs, found := parentInputMap[p.TxID]
 		if !found {
-			return nil, errParentNotFound
+			return nil, ErrParentNotFound
 		}
 
 		// fulfill data about the parent for further validation

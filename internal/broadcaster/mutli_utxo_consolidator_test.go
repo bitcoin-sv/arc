@@ -29,10 +29,10 @@ func TestMultiKeyUtxoConsolidatorStart(t *testing.T) {
 			},
 		}
 
-		mcs := broadcaster.NewMultiKeyUtxoConsolidator(logger, cs)
-		mcs.Start()
-		time.Sleep(50 * time.Millisecond)
-		mcs.Shutdown()
+		sut := broadcaster.NewMultiKeyUtxoConsolidator(logger, cs)
 
+		sut.Start()
+		time.Sleep(50 * time.Millisecond)
+		sut.Shutdown()
 	})
 }

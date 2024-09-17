@@ -55,7 +55,7 @@ func TestStart(t *testing.T) {
 		responseStatus           metamorph_api.Status
 
 		expectedBroadcastTransactionsCalls int
-		expectedErrorStr                   string
+		expectedError                      error
 	}{
 		{
 			name:           "success",
@@ -75,7 +75,7 @@ func TestStart(t *testing.T) {
 			name:                   "error - failed to get balance",
 			getUTXOsWithRetriesErr: errors.New("utxo client error"),
 
-			expectedErrorStr:                   "failed to get utxos",
+			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
 			expectedBroadcastTransactionsCalls: 0,
 		},
 		{
@@ -96,7 +96,7 @@ func TestStart(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
+			// given
 			utxoClient := &mocks.UtxoClientMock{
 				GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 					return tc.getUTXOsResp, tc.getUTXOsWithRetriesErr
@@ -118,22 +118,26 @@ func TestStart(t *testing.T) {
 					return statuses, tc.broadcastTransactionsErr
 				},
 			}
-			c, err := broadcaster.NewUTXOConsolidator(logger, client, ks, utxoClient, false,
+			sut, err := broadcaster.NewUTXOConsolidator(logger, client, ks, utxoClient, false,
 				broadcaster.WithBatchSize(2),
 				broadcaster.WithMaxInputs(2),
 			)
-			defer c.Shutdown()
 			require.NoError(t, err)
-			err = c.Start(1200)
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+
+			defer sut.Shutdown()
+
+			// when
+			actualError := sut.Start(1200)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, actualError, tc.expectedError)
 				return
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, actualError)
 			}
 
 			time.Sleep(500 * time.Millisecond)
 
+			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
 		})
 	}

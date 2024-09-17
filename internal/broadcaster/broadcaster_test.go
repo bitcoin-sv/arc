@@ -18,7 +18,7 @@ import (
 )
 
 func TestBroadcaster(t *testing.T) {
-
+	// given
 	mockedUtxoClient := &mocks.UtxoClientMock{
 		GetBalanceFunc: func(ctx context.Context, address string) (int64, int64, error) {
 			return 1000, 0, nil
@@ -71,7 +71,7 @@ func TestBroadcaster(t *testing.T) {
 	ks, err := keyset.New()
 	require.NoError(t, err)
 
-	rb, err := broadcaster.NewRateBroadcaster(
+	sut, err := broadcaster.NewRateBroadcaster(
 		logger,
 		arcClient,
 		ks,
@@ -83,9 +83,11 @@ func TestBroadcaster(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = rb.Start()
-	require.NoError(t, err)
+	// when
+	actualError := sut.Start()
 
+	// then
+	require.NoError(t, actualError)
 	require.Equal(t, 0, len(mockedUtxoClient.GetBalanceCalls()))
 	require.Equal(t, 1, len(mockedUtxoClient.GetBalanceWithRetriesCalls()))
 	require.Equal(t, 1, len(mockedUtxoClient.GetUTXOsWithRetriesCalls()))

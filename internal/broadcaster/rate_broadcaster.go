@@ -17,6 +17,19 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
+var (
+	ErrFailedToGetBalance       = errors.New("failed to get balance")
+	ErrKeyHasUnconfirmedBalance = errors.New("key has unconfirmed balance")
+	ErrFailedToGetUTXOs         = errors.New("failed to get utxos")
+	ErrTooHighSubmissionRate    = errors.New("submission rate is too high")
+	ErrTooSmallUTXOSet          = errors.New("utxo set is too small")
+	ErrFailedToAddInput         = errors.New("failed to add input")
+	ErrFailedToAddOutput        = errors.New("failed to add output")
+	ErrNotEnoughUTXOs           = errors.New("not enough utxos with sufficient funds left")
+	ErrNotEnoughUTXOsForBatch   = errors.New("not enough utxos with sufficient funds left for another batch")
+	ErrFailedToFillInputs       = errors.New("failed to fill inputs")
+)
+
 type UTXORateBroadcaster struct {
 	Broadcaster
 	totalTxs         int64
@@ -67,26 +80,26 @@ func (b *UTXORateBroadcaster) Start() error {
 
 	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get balance: %w", err)
+		return errors.Join(ErrFailedToGetBalance, err)
 	}
 	if math.Abs(float64(unconfirmed)) > 0 {
-		return fmt.Errorf("key with address %s balance has unconfirmed amount %d sat", b.ks.Address(!b.isTestnet), unconfirmed)
+		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
 	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()))
 
 	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get utxos: %v", err)
+		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
 
 	submitBatchesPerSecond := float64(b.rateTxsPerSecond) / float64(b.batchSize)
 
 	if submitBatchesPerSecond > millisecondsPerSecond {
-		return fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", b.rateTxsPerSecond, b.batchSize, submitBatchesPerSecond)
+		return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", b.rateTxsPerSecond, b.batchSize, submitBatchesPerSecond))
 	}
 
 	if len(utxoSet) < b.batchSize {
-		return fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize)
+		return errors.Join(ErrTooSmallUTXOSet, fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize))
 	}
 
 	b.utxoCh = make(chan *sdkTx.UTXO, 100000)
@@ -148,7 +161,7 @@ utxoLoop:
 
 			err := tx.AddInputsFromUTXOs(utxo)
 			if err != nil {
-				return nil, fmt.Errorf("failed to add input: %v", err)
+				return nil, errors.Join(ErrFailedToAddInput, err)
 			}
 
 			fee, err := b.feeModel.ComputeFee(tx)
@@ -158,11 +171,11 @@ utxoLoop:
 
 			if utxo.Satoshis <= fee {
 				if len(b.utxoCh) == 0 {
-					return nil, errors.New("no utxos with sufficient funds left")
+					return nil, ErrNotEnoughUTXOs
 				}
 
 				if len(b.utxoCh) < b.batchSize {
-					return nil, errors.New("not enough utxos with sufficient funds left for another batch")
+					return nil, ErrNotEnoughUTXOsForBatch
 				}
 
 				continue
@@ -170,14 +183,14 @@ utxoLoop:
 			amount := utxo.Satoshis - fee
 			err = PayTo(tx, b.ks.Script, amount)
 			if err != nil {
-				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
+				return nil, errors.Join(ErrFailedToAddOutput, err)
 			}
 
 			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {
-				return nil, fmt.Errorf("failed to fill input transactions: %v", err)
+				return nil, errors.Join(ErrFailedToFillInputs, err)
 			}
 
 			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)

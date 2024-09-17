@@ -15,23 +15,21 @@ import (
 func TestMultiRateBroadcasterStart(t *testing.T) {
 
 	tt := []struct {
-		name          string
-		startErr      error
-		expectedError string
+		name     string
+		startErr error
 	}{
 		{
 			name: "start and shutdown successfully",
 		},
 		{
-			name:          "error - failed to start",
-			startErr:      errors.New("failed to start"),
-			expectedError: "failed to start",
+			name:     "error - failed to start",
+			startErr: errors.New("failed to start"),
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
+			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			rateBroadcaster1 := &mocks.RateBroadcasterMock{
@@ -54,16 +52,18 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 				GetUtxoSetLenFunc:      func() int { return 1000 },
 			}
 
-			mcs := broadcaster.NewMultiKeyRateBroadcaster(logger, []broadcaster.RateBroadcaster{rateBroadcaster1, rateBroadcaster2})
+			sut := broadcaster.NewMultiKeyRateBroadcaster(logger, []broadcaster.RateBroadcaster{rateBroadcaster1, rateBroadcaster2})
 
-			err := mcs.Start()
-			defer mcs.Shutdown()
+			// when
+			actualError := sut.Start()
+			defer sut.Shutdown()
 
-			if tc.expectedError != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedError)
+			// then
+			if actualError != nil {
+				require.ErrorIs(t, actualError, tc.startErr)
 				return
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, actualError)
 			}
 
 			time.Sleep(50 * time.Millisecond)

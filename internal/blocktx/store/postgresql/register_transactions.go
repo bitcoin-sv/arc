@@ -24,6 +24,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulk insert transactions: %v", err)
 	}
+	defer rows.Close()
 
 	updatedTxs := make([]*chainhash.Hash, 0)
 	for rows.Next() {

@@ -73,6 +73,7 @@ func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, pro
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	hashes := make([]*chainhash.Hash, 0)
 

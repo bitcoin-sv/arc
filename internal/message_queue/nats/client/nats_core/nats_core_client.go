@@ -1,12 +1,18 @@
 package nats_core
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
+)
+
+var (
+	ErrFailedToPublish   = fmt.Errorf("failed to publish")
+	ErrFailedToSubscribe = fmt.Errorf("failed to subscribe")
 )
 
 type NatsConnection interface {
@@ -50,7 +56,7 @@ func (c Client) Shutdown() {
 func (c Client) Publish(topic string, data []byte) error {
 	err := c.nc.Publish(topic, data)
 	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil
@@ -64,7 +70,7 @@ func (c Client) PublishMarshal(topic string, m proto.Message) error {
 
 	err = c.Publish(topic, data)
 	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil
@@ -79,7 +85,7 @@ func (c Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil

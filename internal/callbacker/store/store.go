@@ -30,5 +30,5 @@ type CallbackData struct {
 	BlockHash   *string
 	BlockHeight *uint64
 
-	QuarantineUntil *time.Time
+	PostponedUntil *time.Time
 }

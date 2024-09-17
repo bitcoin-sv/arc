@@ -71,8 +71,8 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 			competingTxs[i] = ptrTo(strings.Join(d.CompetingTxs, ","))
 		}
 
-		if d.QuarantineUntil != nil {
-			quarantineUntils[i] = sql.NullTime{Time: d.QuarantineUntil.UTC(), Valid: true}
+		if d.PostponedUntil != nil {
+			quarantineUntils[i] = sql.NullTime{Time: d.PostponedUntil.UTC(), Valid: true}
 		}
 	}
 
@@ -87,7 +87,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 				,block_height
 				,timestamp
 				,competing_txs
-				,quarantine_until
+				,postponed_until
 				)
 				SELECT	
 					UNNEST($1::TEXT[])
@@ -135,7 +135,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE quarantine_until IS NULL 
+				WHERE postponed_until IS NULL 
 				ORDER BY id
 				LIMIT $1
 				FOR UPDATE
@@ -151,7 +151,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 				,block_height
 				,competing_txs
 				,timestamp
-				,quarantine_until`
+				,postponed_until`
 
 	rows, err := tx.QueryContext(ctx, q, limit)
 	if err != nil {
@@ -188,7 +188,7 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE quarantine_until IS NOT NULL AND quarantine_until<= $1
+				WHERE postponed_until IS NOT NULL AND postponed_until<= $1
 				ORDER BY id
 				LIMIT $2
 				FOR UPDATE
@@ -204,7 +204,7 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 				,block_height
 				,competing_txs
 				,timestamp
-				,quarantine_until`
+				,postponed_until`
 
 	rows, err := tx.QueryContext(ctx, q, t, limit)
 	if err != nil {
@@ -227,7 +227,7 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 
 func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) error {
 	const q = `DELETE FROM callbacker.callbacks			
-			WHERE quarantine_until IS NOT NULL AND timestamp <= $1`
+			WHERE postponed_until IS NOT NULL AND timestamp <= $1`
 
 	_, err := p.db.ExecContext(ctx, q, t)
 	return err
@@ -240,13 +240,13 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		r := &store.CallbackData{}
 
 		var (
-			ts      time.Time
-			ei      sql.NullString
-			mp      sql.NullString
-			bh      sql.NullString
-			bHeight sql.NullInt64
-			ctxs    sql.NullString
-			quntil  sql.NullTime
+			ts             time.Time
+			ei             sql.NullString
+			mp             sql.NullString
+			bh             sql.NullString
+			bHeight        sql.NullInt64
+			ctxs           sql.NullString
+			postponedUntil sql.NullTime
 		)
 
 		err := rows.Scan(
@@ -260,7 +260,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			&bHeight,
 			&ctxs,
 			&ts,
-			&quntil,
+			&postponedUntil,
 		)
 
 		if err != nil {
@@ -284,8 +284,8 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		if ctxs.String != "" {
 			r.CompetingTxs = strings.Split(ctxs.String, ",")
 		}
-		if quntil.Valid {
-			r.QuarantineUntil = ptrTo(quntil.Time.UTC())
+		if postponedUntil.Valid {
+			r.PostponedUntil = ptrTo(postponedUntil.Time.UTC())
 		}
 
 		records = append(records, r)

@@ -127,23 +127,23 @@ func TestPostgresDBt(t *testing.T) {
 				BlockHeight: ptrTo(uint64(4524235)),
 			},
 			{
-				Url:             "https://test-callback-3/",
-				TxID:            testdata.TX2,
-				TxStatus:        "MINED",
-				Timestamp:       now,
-				BlockHash:       &testdata.Block1,
-				BlockHeight:     ptrTo(uint64(4524235)),
-				QuarantineUntil: ptrTo(now.Add(10 * time.Minute)),
+				Url:            "https://test-callback-3/",
+				TxID:           testdata.TX2,
+				TxStatus:       "MINED",
+				Timestamp:      now,
+				BlockHash:      &testdata.Block1,
+				BlockHeight:    ptrTo(uint64(4524235)),
+				PostponedUntil: ptrTo(now.Add(10 * time.Minute)),
 			},
 
 			{
-				Url:             "https://test-callback-3/",
-				TxID:            testdata.TX3,
-				TxStatus:        "MINED",
-				Timestamp:       now,
-				BlockHash:       &testdata.Block1,
-				BlockHeight:     ptrTo(uint64(4524235)),
-				QuarantineUntil: ptrTo(now.Add(10 * time.Minute)),
+				Url:            "https://test-callback-3/",
+				TxID:           testdata.TX3,
+				TxStatus:       "MINED",
+				Timestamp:      now,
+				BlockHash:      &testdata.Block1,
+				BlockHeight:    ptrTo(uint64(4524235)),
+				PostponedUntil: ptrTo(now.Add(10 * time.Minute)),
 			},
 		}
 
@@ -232,7 +232,7 @@ func TestPostgresDBt(t *testing.T) {
 		// count current records
 		countAll := tutils.CountCallbacks(t, postgresDB.db)
 		require.GreaterOrEqual(t, countAll, concurentCalls*popLimit)
-		countToPop := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("quarantine_until <= '%s'", now.Format(time.RFC3339)))
+		countToPop := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("postponed_until <= '%s'", now.Format(time.RFC3339)))
 		require.Greater(t, countToPop, popLimit)
 
 		ctx := context.Background()
@@ -279,7 +279,7 @@ func TestPostgresDBt(t *testing.T) {
 
 		// count current records
 		countAll := tutils.CountCallbacks(t, postgresDB.db)
-		countToDelete := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("timestamp <= '%s' AND quarantine_until IS NOT NULL", now.Format(time.RFC3339)))
+		countToDelete := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("timestamp <= '%s' AND postponed_until IS NOT NULL", now.Format(time.RFC3339)))
 
 		ctx := context.Background()
 		start := make(chan struct{})

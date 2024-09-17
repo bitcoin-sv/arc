@@ -21,9 +21,9 @@ type CallbackDispatcher struct {
 }
 
 type CallbackEntry struct {
-	Token           string
-	Data            *Callback
-	quarantineUntil *time.Time
+	Token          string
+	Data           *Callback
+	postponedUntil *time.Time
 }
 
 func NewCallbackDispatcher(callbacker CallbackerI, store store.CallbackerStore, logger *slog.Logger,

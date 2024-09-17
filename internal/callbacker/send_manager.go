@@ -156,7 +156,7 @@ func (m *sendManager) putInQuarantine() {
 	}()
 }
 
-func toStoreDto(url string, s *CallbackEntry, quntil *time.Time) *store.CallbackData {
+func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time) *store.CallbackData {
 	return &store.CallbackData{
 		Url:       url,
 		Token:     s.Token,
@@ -171,6 +171,6 @@ func toStoreDto(url string, s *CallbackEntry, quntil *time.Time) *store.Callback
 		BlockHash:   s.Data.BlockHash,
 		BlockHeight: s.Data.BlockHeight,
 
-		QuarantineUntil: quntil,
+		PostponedUntil: postponedUntil,
 	}
 }

@@ -28,7 +28,7 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,block_height
 			,timestamp
 			,competing_txs
-			,quarantine_until
+			,postponed_until
 		FROM callbacker.callbacks`,
 	)
 
@@ -46,9 +46,9 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		var bh sql.NullString
 		var bheight sql.NullInt64
 		var competingTxs sql.NullString
-		var qUntil sql.NullTime
+		var pUntil sql.NullTime
 
-		_ = r.Scan(&c.Url, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs, &qUntil)
+		_ = r.Scan(&c.Url, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs, &pUntil)
 
 		if ei.Valid {
 			c.ExtraInfo = &ei.String
@@ -65,8 +65,8 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		if competingTxs.Valid {
 			c.CompetingTxs = strings.Split(competingTxs.String, ",")
 		}
-		if qUntil.Valid {
-			c.QuarantineUntil = ptrTo(qUntil.Time.UTC())
+		if pUntil.Valid {
+			c.PostponedUntil = ptrTo(pUntil.Time.UTC())
 		}
 		c.Timestamp = c.Timestamp.UTC()
 

@@ -115,8 +115,8 @@ func toCallbackEntry(dto *store.CallbackData) *CallbackEntry {
 	}
 
 	return &CallbackEntry{
-		Token:           dto.Token,
-		Data:            d,
-		quarantineUntil: dto.QuarantineUntil,
+		Token:          dto.Token,
+		Data:           d,
+		postponedUntil: dto.PostponedUntil,
 	}
 }

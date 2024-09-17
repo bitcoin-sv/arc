@@ -36,16 +36,25 @@ func TestHandleBlock(t *testing.T) {
 	merkleRootHash1585018, _ := chainhash.NewHashFromStr("9c1fe95a7ac4502e281f4f2eaa2902e12b0f486cf610977c73afb3cd060bebde")
 
 	tt := []struct {
-		name                  string
-		prevBlockHash         chainhash.Hash
-		merkleRoot            chainhash.Hash
-		height                uint64
-		txHashes              []string
-		size                  uint64
-		nonce                 uint32
-		setBlockProcessingErr error
-		bhsProcInProg         []*chainhash.Hash
+		name               string
+		prevBlockHash      chainhash.Hash
+		merkleRoot         chainhash.Hash
+		height             uint64
+		txHashes           []string
+		size               uint64
+		nonce              uint32
+		blockAlreadyExists bool
 	}{
+		{
+			name:               "block height 1573650",
+			txHashes:           []string{}, // expect this block to not be processed
+			prevBlockHash:      *prevBlockHash1573650,
+			merkleRoot:         *merkleRootHash1573650,
+			height:             1573650,
+			nonce:              3694498168,
+			size:               216,
+			blockAlreadyExists: true,
+		},
 		{
 			name:          "block height 1573650",
 			txHashes:      []string{"3d64b2bb6bd4e85aacb6d1965a2407fa21846c08dd9a8616866ad2f5c80fda7f"},
@@ -136,6 +145,9 @@ func TestHandleBlock(t *testing.T) {
 			batchSize := 4
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					if tc.blockAlreadyExists {
+						return &blocktx_api.Block{}, nil
+					}
 					return nil, store.ErrBlockNotFound
 				},
 				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
@@ -170,41 +182,35 @@ func TestHandleBlock(t *testing.T) {
 
 			processor.StartBlockProcessing()
 
-			var expectedInsertedTransactions []*blocktx_api.TransactionAndSource
+			var expectedInsertedTransactions [][]byte
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
 			for i, hash := range tc.txHashes {
 				txHash, err := chainhash.NewHashFromStr(hash)
 				require.NoError(t, err)
 				transactionHashes[i] = txHash
 
-				expectedInsertedTransactions = append(expectedInsertedTransactions, &blocktx_api.TransactionAndSource{Hash: txHash[:]})
+				expectedInsertedTransactions = append(expectedInsertedTransactions, txHash[:])
 			}
 
-			var insertedBlockTransactions []*blocktx_api.TransactionAndSource
+			var insertedBlockTransactions [][]byte
 
-			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
-				require.True(t, len(merklePaths) <= batchSize)
-				require.True(t, len(transactions) <= batchSize)
+			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+				require.True(t, len(txsWithMerklePaths) <= batchSize)
 
-				for i, path := range merklePaths {
-					bump, err := bc.NewBUMPFromStr(path)
+				for _, tx := range txsWithMerklePaths {
+					bump, err := bc.NewBUMPFromStr(tx.MerklePath)
 					require.NoError(t, err)
-					tx, err := chainhash.NewHash(transactions[i].GetHash())
+					tx, err := chainhash.NewHash(tx.Hash)
 					require.NoError(t, err)
 					root, err := bump.CalculateRootGivenTxid(tx.String())
 					require.NoError(t, err)
 
 					require.Equal(t, root, tc.merkleRoot.String())
+
+					insertedBlockTransactions = append(insertedBlockTransactions, tx[:])
 				}
 
-				insertedBlockTransactions = append(insertedBlockTransactions, transactions...)
-
-				result := make([]store.UpsertBlockTransactionsResult, len(transactions))
-				for i, tx := range transactions {
-					result[i] = store.UpsertBlockTransactionsResult{TxHash: tx.Hash}
-				}
-
-				return result, nil
+				return txsWithMerklePaths, nil
 			}
 
 			peer := &mocks.PeerMock{
@@ -301,8 +307,15 @@ func TestHandleBlockReorg(t *testing.T) {
 			var mtx sync.Mutex
 			var insertedBlock *blocktx_api.Block
 
+			shouldReturnNoBlock := true
+
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					if shouldReturnNoBlock {
+						shouldReturnNoBlock = false
+						return nil, nil
+					}
+
 					return &blocktx_api.Block{
 						Status: tc.prevBlockStatus,
 					}, nil
@@ -348,8 +361,8 @@ func TestHandleBlockReorg(t *testing.T) {
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 					return nil
 				},
-				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
-					return []store.UpsertBlockTransactionsResult{}, nil
+				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+					return []store.TxWithMerklePath{}, nil
 				},
 			}
 
@@ -510,7 +523,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(ctx context.Context, transaction []*blocktx_api.TransactionAndSource) ([]*chainhash.Hash, error) {
+				RegisterTransactionsFunc: func(ctx context.Context, transaction [][]byte) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
 			}

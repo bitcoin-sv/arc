@@ -87,17 +87,9 @@ message RowsAffectedResponse {
   int64 rows = 1;
 }
 
-
-message TransactionAndSource {
-  bytes hash = 1;
-  string source = 2;
-}
-
-
 message DelUnfinishedBlockProcessingRequest {
   string processed_by = 1;
 }
-
 
 message MerkleRootVerificationRequest {
 	string merkle_root = 1;

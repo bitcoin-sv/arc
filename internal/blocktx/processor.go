@@ -224,7 +224,7 @@ func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
 
 func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
-	txHashes := make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
 
 	ticker := time.NewTicker(p.registerTxsInterval)
 	go func() {
@@ -234,16 +234,14 @@ func (p *Processor) StartProcessRegisterTxs() {
 			case <-p.ctx.Done():
 				return
 			case txHash := <-p.registerTxsChan:
-				txHashes = append(txHashes, &blocktx_api.TransactionAndSource{
-					Hash: txHash,
-				})
+				txHashes = append(txHashes, txHash)
 
 				if len(txHashes) < p.registerTxsBatchSize {
 					continue
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 
 			case <-ticker.C:
@@ -252,7 +250,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				}
 
 				p.registerTransactions(txHashes[:])
-				txHashes = make([]*blocktx_api.TransactionAndSource, 0, p.registerTxsBatchSize)
+				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 			}
 		}
@@ -337,7 +335,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 	return nil
 }
 
-func (p *Processor) registerTransactions(txHashes []*blocktx_api.TransactionAndSource) {
+func (p *Processor) registerTransactions(txHashes [][]byte) {
 	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
@@ -410,6 +408,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 
+	// don't process block that was already processed
+	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
+	if existingBlock != nil {
+		return nil
+	}
+
 	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
 	if err != nil {
 		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
@@ -444,6 +448,9 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 			return err
 		}
 
+		// find competing chains back to the common ancestor
+		// get all registered transactions
+		// prepare msg with competing blocks
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
@@ -479,16 +486,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
-	block := &p2p.Block{
-		Hash:         &blockHash,
-		MerkleRoot:   &merkleRoot,
-		PreviousHash: &previousBlockHash,
-		Height:       msg.Height,
-		Size:         msg.Size,
-		TxCount:      uint64(len(msg.TransactionHashes)),
-	}
-
-	if err = p.markBlockAsProcessed(ctx, block); err != nil {
+	if err = p.store.MarkBlockAsDone(ctx, &blockHash, msg.Size, uint64(len(msg.TransactionHashes))); err != nil {
 		p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
@@ -601,8 +599,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
 		defer span.End()
 	}
-	txs := make([]*blocktx_api.TransactionAndSource, 0, p.transactionStorageBatchSize)
-	merklePaths := make([]string, 0, p.transactionStorageBatchSize)
+	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
 	var totalSize int
@@ -627,11 +624,6 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 			break
 		}
 
-		// Otherwise they're txids, which should have merkle paths calculated.
-		txs = append(txs, &blocktx_api.TransactionAndSource{
-			Hash: hash[:],
-		})
-
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
 		if err != nil {
 			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), blockHeight, err)
@@ -642,19 +634,22 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 			return fmt.Errorf("failed to get string from bump for tx hash %s at block height %d: %v", hash.String(), blockHeight, err)
 		}
 
-		merklePaths = append(merklePaths, bumpHex)
+		txs = append(txs, store.TxWithMerklePath{
+			Hash:       hash[:],
+			MerklePath: bumpHex,
+		})
+
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
+			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 			if err != nil {
 				return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 			}
 			// free up memory
-			txs = make([]*blocktx_api.TransactionAndSource, 0, p.transactionStorageBatchSize)
-			merklePaths = make([]string, 0, p.transactionStorageBatchSize)
+			txs = txs[:0]
 
 			for _, updResp := range updateResp {
 				txBlock := &blocktx_api.TransactionBlock{
-					TransactionHash: updResp.TxHash[:],
+					TransactionHash: updResp.Hash[:],
 					BlockHash:       blockhash[:],
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
@@ -678,14 +673,14 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	}
 
 	// update all remaining transactions
-	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs, merklePaths)
+	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 	if err != nil {
 		return fmt.Errorf("failed to insert block transactions at block height %d: %v", blockHeight, err)
 	}
 
 	for _, updResp := range updateResp {
 		txBlock := &blocktx_api.TransactionBlock{
-			TransactionHash: updResp.TxHash[:],
+			TransactionHash: updResp.Hash[:],
 			BlockHash:       blockhash[:],
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
@@ -694,15 +689,6 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 		}
-	}
-
-	return nil
-}
-
-func (p *Processor) markBlockAsProcessed(ctx context.Context, block *p2p.Block) error {
-	err := p.store.MarkBlockAsDone(ctx, block.Hash, block.Size, block.TxCount)
-	if err != nil {
-		return err
 	}
 
 	return nil

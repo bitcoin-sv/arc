@@ -2,109 +2,85 @@ package postgresql
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, transactions []*blocktx_api.TransactionAndSource, merklePaths []string) ([]store.UpsertBlockTransactionsResult, error) {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "UpdateBlockTransactions")
 		defer span.End()
 	}
 
-	if len(transactions) != len(merklePaths) {
-		return nil, fmt.Errorf("transactions (len=%d) and Merkle paths (len=%d) have not the same lengths", len(transactions), len(merklePaths))
+	txHashesBytes := make([][]byte, len(txsWithMerklePaths))
+	merklePaths := make([]string, len(txsWithMerklePaths))
+	for i, tx := range txsWithMerklePaths {
+		txHashesBytes[i] = tx.Hash
+		merklePaths[i] = tx.MerklePath
 	}
 
-	txHashes := make([][]byte, len(transactions))
-	txHashesMap := map[string]int{}
-	for pos, tx := range transactions {
-		txHashes[pos] = tx.Hash
-		txHashesMap[hex.EncodeToString(tx.Hash)] = pos
-	}
+	qUpsertTransactions := `
+		WITH inserted_transactions AS (
+				INSERT INTO blocktx.transactions (hash)
+				SELECT UNNEST($2::BYTEA[])
+				ON CONFLICT (hash)
+				DO UPDATE SET hash = EXCLUDED.hash
+				RETURNING id, hash
+		)
 
-	qBulkUpsert := `
-		INSERT INTO blocktx.transactions (hash, merkle_path)
-			SELECT hash, merkle_path
-			FROM UNNEST($1::BYTEA[], $2::TEXT[]) AS t(hash, merkle_path)
-		ON CONFLICT (hash) DO UPDATE SET
-  			merkle_path = EXCLUDED.merkle_path
-		RETURNING id, hash, merkle_path, is_registered`
+		INSERT INTO blocktx.block_transactions_map (blockid, txid, merkle_path)
+		SELECT
+				$1::BIGINT,
+				it.id,
+				t.merkle_path
+		FROM inserted_transactions it
+		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash;
+	`
 
-	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes), pq.Array(merklePaths))
+	qRegisteredTransactions := `
+		SELECT
+			t.hash,
+			m.merkle_path
+		FROM blocktx.transactions t
+		JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+		WHERE m.blockid = $1 AND t.is_registered = TRUE AND t.hash = ANY($2)
+	`
+
+	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute transaction update query: %v", err)
+		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
 	}
 
-	txIDs := make([]uint64, 0)
-	blockIDs := make([]uint64, 0)
-	positions := make([]int, 0)
-	registeredRows := make([]store.UpsertBlockTransactionsResult, 0)
+	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId, pq.Array(txHashesBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
+	}
+	defer rows.Close()
+
+	registeredRows := make([]store.TxWithMerklePath, 0)
 
 	for rows.Next() {
-		var txID uint64
 		var txHash []byte
 		var merklePath string
-		var isRegistered bool
-		err = rows.Scan(&txID, &txHash, &merklePath, &isRegistered)
+		err = rows.Scan(&txHash, &merklePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get rows: %v", err)
 		}
 
-		if isRegistered {
-			registeredRows = append(registeredRows, store.UpsertBlockTransactionsResult{
-				TxHash:     txHash,
-				MerklePath: merklePath,
-			})
-		}
-
-		txIDs = append(txIDs, txID)
-		blockIDs = append(blockIDs, blockId)
-
-		positions = append(positions, txHashesMap[hex.EncodeToString(txHash)])
-
-		if len(txIDs) >= p.maxPostgresBulkInsertRows {
-			err = p.insertTxsIntoBlockMap(ctx, blockId, blockIDs, txIDs, positions)
-			if err != nil {
-				return nil, err
-			}
-			txIDs = make([]uint64, 0)
-			blockIDs = make([]uint64, 0)
-			positions = make([]int, 0)
-		}
+		registeredRows = append(registeredRows, store.TxWithMerklePath{
+			Hash:       txHash,
+			MerklePath: merklePath,
+		})
 	}
 
-	if len(txIDs) > 0 {
-		err = p.insertTxsIntoBlockMap(ctx, blockId, blockIDs, txIDs, positions)
-		if err != nil {
-			return nil, err
-		}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockId, err)
 	}
 
 	return registeredRows, nil
-}
-
-func (p *PostgreSQL) insertTxsIntoBlockMap(ctx context.Context, blockId uint64, blockIDs, txIDs []uint64, positions []int) error {
-	const qMap = `
-		INSERT INTO blocktx.block_transactions_map (
-			blockid
-			,txid
-			,pos
-			) 
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::INT[])
-		ON CONFLICT DO NOTHING
-		`
-	_, err := p.db.ExecContext(ctx, qMap, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(positions))
-	if err != nil {
-		return fmt.Errorf("failed to bulk insert transactions into block transactions map for block with id %d: %v", blockId, err)
-	}
-
-	return nil
 }

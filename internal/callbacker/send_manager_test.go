@@ -68,7 +68,7 @@ func TestSendManager(t *testing.T) {
 				sut.GracefulStop()
 			} else {
 				// give a chance to process
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 
 			// then

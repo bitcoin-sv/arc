@@ -105,9 +105,9 @@ func TestSendManager_Quarantine(t *testing.T) {
 	}
 
 	policy := quarantinePolicy{
-		baseDuration: 200 * time.Millisecond,
-		abandonAfter: time.Hour,
-		now:          time.Now,
+		baseDuration:        200 * time.Millisecond,
+		permQuarantineAfter: time.Hour,
+		now:                 time.Now,
 	}
 
 	var preQuarantineCallbacks []*CallbackEntry

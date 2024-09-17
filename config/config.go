@@ -135,6 +135,6 @@ type CallbackerConfig struct {
 }
 
 type CallbackerQuarantinePolicy struct {
-	BaseDuration time.Duration `mapstructure:"baseDuration"`
-	AbandonAfter time.Duration `mapstructure:"abandonAfter"`
+	BaseDuration        time.Duration `mapstructure:"baseDuration"`
+	PermQuarantineAfter time.Duration `mapstructure:"permQuarantineAfter"`
 }

@@ -176,8 +176,8 @@ func getCallbackerConfig() *CallbackerConfig {
 		PruneOlderThan:          14 * 24 * time.Hour,
 		QuarantineCheckInterval: time.Minute,
 		QuarantinePolicy: &CallbackerQuarantinePolicy{
-			BaseDuration: 10 * time.Minute,
-			AbandonAfter: 24 * time.Hour,
+			BaseDuration:        10 * time.Minute,
+			PermQuarantineAfter: 24 * time.Hour,
 		},
 	}
 }

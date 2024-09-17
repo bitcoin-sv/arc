@@ -27,7 +27,7 @@ type CallbackEntry struct {
 }
 
 func NewCallbackDispatcher(callbacker CallbackerI, store store.CallbackerStore, logger *slog.Logger,
-	sleepDuration, quarantineBaseDuration, quarantineAbandonAfterDuration time.Duration) *CallbackDispatcher {
+	sleepDuration, quarantineBaseDuration, permQuarantineAfterDuration time.Duration) *CallbackDispatcher {
 
 	return &CallbackDispatcher{
 		c:     callbacker,
@@ -35,9 +35,9 @@ func NewCallbackDispatcher(callbacker CallbackerI, store store.CallbackerStore, 
 		l:     logger.With(slog.String("module", "dispatcher")),
 		sleep: sleepDuration,
 		policy: &quarantinePolicy{
-			baseDuration: quarantineBaseDuration,
-			abandonAfter: quarantineAbandonAfterDuration,
-			now:          time.Now,
+			baseDuration:        quarantineBaseDuration,
+			permQuarantineAfter: permQuarantineAfterDuration,
+			now:                 time.Now,
 		},
 		managers: make(map[string]*sendManager),
 	}

@@ -142,5 +142,5 @@ callbacker:
   quarantineCheckInterval: 1m # interval at which the store is checked for quarantined callbacks to be re-sent
   quarantinePolicy:
     baseDuration: 5m # initial duration a callback and its receiver is quarantined after failure
-    abandonAfter: 24h # maximum time a callback can remain unsent before it's abandoned
+    permQuarantineAfter: 24h # maximum time a callback can remain unsent before it's put in permanent quarantine
       

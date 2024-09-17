@@ -38,9 +38,9 @@ func TestQuarantinePolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			sut := &quarantinePolicy{
-				baseDuration: 10 * time.Minute,
-				abandonAfter: 20 * time.Minute,
-				now:          tc.nowFn,
+				baseDuration:        10 * time.Minute,
+				permQuarantineAfter: 20 * time.Minute,
+				now:                 tc.nowFn,
 			}
 
 			// when

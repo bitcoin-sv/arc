@@ -713,9 +713,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	competingTxsData := getCompetingTxsFromRows(rows)
-	_ = rows.Close()
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
@@ -744,9 +744,10 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
 	res, err := getStoreDataFromRows(rows)
-	_ = rows.Close()
+
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
@@ -830,9 +831,10 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		}
 		return nil, err
 	}
+	defer rows.Close()
 
-	rejectedResponses := updateDoubleSpendRejected(ctx, rows, tx)
-	_ = rows.Close()
+	competingTxsData := getCompetingTxsFromRows(rows)
+	rejectedResponses := updateDoubleSpendRejected(ctx, competingTxsData, tx)
 
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
@@ -842,8 +844,8 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
+	defer rows.Close()
 	res, err := getStoreDataFromRows(rows)
-	_ = rows.Close()
 
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {

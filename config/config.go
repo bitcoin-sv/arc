@@ -123,9 +123,18 @@ type K8sWatcherConfig struct {
 }
 
 type CallbackerConfig struct {
-	ListenAddr string        `mapstructure:"listenAddr"`
-	DialAddr   string        `mapstructure:"dialAddr"`
-	Health     *HealthConfig `mapstructure:"health"`
-	Pause      time.Duration `mapstructure:"pause"`
-	Db         *DbConfig     `mapstructure:"db"`
+	ListenAddr              string                      `mapstructure:"listenAddr"`
+	DialAddr                string                      `mapstructure:"dialAddr"`
+	Health                  *HealthConfig               `mapstructure:"health"`
+	Pause                   time.Duration               `mapstructure:"pause"`
+	Db                      *DbConfig                   `mapstructure:"db"`
+	PruneInterval           time.Duration               `mapstructure:"pruneInterval"`
+	PruneOlderThan          time.Duration               `mapstructure:"pruneOlderThan"`
+	QuarantineCheckInterval time.Duration               `mapstructure:"quarantineCheckInterval"`
+	QuarantinePolicy        *CallbackerQuarantinePolicy `mapstructure:"quarantinePolicy"`
+}
+
+type CallbackerQuarantinePolicy struct {
+	BaseDuration        time.Duration `mapstructure:"baseDuration"`
+	PermQuarantineAfter time.Duration `mapstructure:"permQuarantineAfter"`
 }

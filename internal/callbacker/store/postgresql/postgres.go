@@ -36,17 +36,22 @@ func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
+func (p *PostgreSQL) Set(ctx context.Context, dto *store.CallbackData) error {
+	return p.SetMany(ctx, []*store.CallbackData{dto})
+}
+
 func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) error {
 	urls := make([]string, len(data))
 	tokens := make([]string, len(data))
 	timestamps := make([]time.Time, len(data))
 	txids := make([]string, len(data))
 	txStatuses := make([]string, len(data))
-	extraInfos := make([]sql.NullString, len(data))
-	merklePaths := make([]sql.NullString, len(data))
-	blockHashes := make([]sql.NullString, len(data))
+	extraInfos := make([]*string, len(data))
+	merklePaths := make([]*string, len(data))
+	blockHashes := make([]*string, len(data))
 	blockHeights := make([]sql.NullInt64, len(data))
-	competingTxs := make([]sql.NullString, len(data))
+	competingTxs := make([]*string, len(data))
+	quarantineUntils := make([]sql.NullTime, len(data))
 
 	for i, d := range data {
 		urls[i] = d.Url
@@ -54,25 +59,20 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		timestamps[i] = d.Timestamp
 		txids[i] = d.TxID
 		txStatuses[i] = d.TxStatus
-
-		if d.ExtraInfo != nil {
-			extraInfos[i] = sql.NullString{String: *d.ExtraInfo, Valid: true}
-		}
-
-		if d.MerklePath != nil {
-			merklePaths[i] = sql.NullString{String: *d.MerklePath, Valid: true}
-		}
-
-		if d.BlockHash != nil {
-			blockHashes[i] = sql.NullString{String: *d.BlockHash, Valid: true}
-		}
+		extraInfos[i] = d.ExtraInfo
+		merklePaths[i] = d.MerklePath
+		blockHashes[i] = d.BlockHash
 
 		if d.BlockHeight != nil {
 			blockHeights[i] = sql.NullInt64{Int64: int64(*d.BlockHeight), Valid: true}
 		}
 
 		if len(d.CompetingTxs) > 0 {
-			competingTxs[i] = sql.NullString{String: strings.Join(d.CompetingTxs, ","), Valid: true}
+			competingTxs[i] = ptrTo(strings.Join(d.CompetingTxs, ","))
+		}
+
+		if d.PostponedUntil != nil {
+			quarantineUntils[i] = sql.NullTime{Time: d.PostponedUntil.UTC(), Valid: true}
 		}
 	}
 
@@ -87,6 +87,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 				,block_height
 				,timestamp
 				,competing_txs
+				,postponed_until
 				)
 				SELECT	
 					UNNEST($1::TEXT[])
@@ -98,7 +99,8 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($7::TEXT[])
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])		
-					,UNNEST($10::TEXT[])`
+					,UNNEST($10::TEXT[])
+					,UNNEST($11::TIMESTAMPTZ[])`
 
 	_, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),
@@ -111,12 +113,13 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(blockHeights),
 		pq.Array(timestamps),
 		pq.Array(competingTxs),
+		pq.Array(quarantineUntils),
 	)
 
 	return err
 }
 
-func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.CallbackData, err error) {
+func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackData, error) {
 	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
@@ -132,6 +135,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
+				WHERE postponed_until IS NULL 
 				ORDER BY id
 				LIMIT $1
 				FOR UPDATE
@@ -146,7 +150,8 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 				,block_hash
 				,block_height
 				,competing_txs
-				,timestamp`
+				,timestamp
+				,postponed_until`
 
 	rows, err := tx.QueryContext(ctx, q, limit)
 	if err != nil {
@@ -154,21 +159,97 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 	}
 	defer rows.Close()
 
-	records := make([]*store.CallbackData, 0, limit)
+	var records []*store.CallbackData
+	records, err = scanCallbacks(rows, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) ([]*store.CallbackData, error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if rErr := tx.Rollback(); rErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to rollback: %v", rErr))
+			}
+		}
+	}()
+
+	const q = `DELETE FROM callbacker.callbacks
+			WHERE id IN (
+				SELECT id FROM callbacker.callbacks
+				WHERE postponed_until IS NOT NULL AND postponed_until<= $1
+				ORDER BY id
+				LIMIT $2
+				FOR UPDATE
+			)
+			RETURNING
+				url
+				,token
+				,tx_id
+				,tx_status
+				,extra_info
+				,merkle_path
+				,block_hash
+				,block_height
+				,competing_txs
+				,timestamp
+				,postponed_until`
+
+	rows, err := tx.QueryContext(ctx, q, t, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*store.CallbackData
+	records, err = scanCallbacks(rows, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) error {
+	const q = `DELETE FROM callbacker.callbacks			
+			WHERE postponed_until IS NOT NULL AND timestamp <= $1`
+
+	_, err := p.db.ExecContext(ctx, q, t)
+	return err
+}
+
+func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, error) {
+	records := make([]*store.CallbackData, 0, expectedNumber)
 
 	for rows.Next() {
 		r := &store.CallbackData{}
 
 		var (
-			ts      time.Time
-			ei      sql.NullString
-			mp      sql.NullString
-			bh      sql.NullString
-			bHeight sql.NullInt64
-			ctxs    sql.NullString
+			ts             time.Time
+			ei             sql.NullString
+			mp             sql.NullString
+			bh             sql.NullString
+			bHeight        sql.NullInt64
+			ctxs           sql.NullString
+			postponedUntil sql.NullTime
 		)
 
-		err = rows.Scan(
+		err := rows.Scan(
 			&r.Url,
 			&r.Token,
 			&r.TxID,
@@ -179,6 +260,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 			&bHeight,
 			&ctxs,
 			&ts,
+			&postponedUntil,
 		)
 
 		if err != nil {
@@ -202,12 +284,11 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) (res []*store.Callb
 		if ctxs.String != "" {
 			r.CompetingTxs = strings.Split(ctxs.String, ",")
 		}
+		if postponedUntil.Valid {
+			r.PostponedUntil = ptrTo(postponedUntil.Time.UTC())
+		}
 
 		records = append(records, r)
-	}
-
-	if err = tx.Commit(); err != nil {
-		return nil, err
 	}
 
 	return records, nil

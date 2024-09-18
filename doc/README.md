@@ -72,6 +72,8 @@ API is the REST API microservice for interacting with ARC. See the [API document
 
 The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round-robin load balancing.
 
+The `X-MaxTimeout` header determines the maximum number of seconds the system will wait for new transaction statuses before the response is returned. The default timeout is 5 seconds, with a maximum value of 30 seconds.
+
 #### Validation
 
 The API is the first component of ARC and therefore the one that by design derives a benefit for ARC performing a preliminar validation of transactions thanks to the use of the [extended transaction formats](#extended-format-ef-and-background-evaluation-extended-format-beef).
@@ -80,15 +82,24 @@ However, sending transactions in classic format is supported through the ARC API
 
 When possible, the API is responsible for rejecting transactions that would be unacceptable to the Bitcoin network.
 
+#### Callbacks
+
+The client can register to receive callbacks with information about the statuses of submitted transactions. To do this, the client must include the `X-CallbackUrl` header in their request. Once registered, the ARC will send a `POST` request to the URL specified in the header, with the transaction ID included in the request body.
+
+If the client wants to secure its callback endpoint, ARC supports Bearer token authorization. A callback token can be provided by adding the `X-CallbackToken: <your callback token>` header to the request.
+
+By default, callbacks are triggered when the submitted transaction reaches the status `REJECTED` or `MINED`. If the client wishes to receive additional intermediate status updates—such (e.g. `SEEN_IN_ORPHAN_MEMPOOL` or `SEEN_ON_NETWORK`) the `X-FullStatusUpdates` header must be set to true. For more details, refer to the [API documentation](https://bitcoin-sv.github.io/arc/api.html).
+For more details on how callbacks work, see the [Callbacker](#Callbacker) section.
+
 ### Metamorph
 
 Metamorph is a microservice that is responsible for processing transactions sent by the API to the Bitcoin network. It takes care of re-sending transactions if they are not acknowledged by the network within a certain time period (60 seconds by default).
 
 ### Callbacker
 
-Callbacker is a microservice that sends callbacks to a specified URL. To register a callback, the client must add the `X-CallbackUrl` header to the request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in the body.
+The Callbacker is a microservice responsible for handling all registered callbacks. It sends a `POST` request to the specified URL, including a `Bearer token` in the `Authorization` header when required.
 
-The following example shows the format of a callback body
+Below is an example of a callback request body:
 
 ```json
 {
@@ -102,10 +113,14 @@ The following example shows the format of a callback body
 }
 ```
 
-A callback token can be added to the request by adding the header `X-CallbackToken: <your callback token>`. The respective callback will then have a header `Authorization: Bearer <your callback token>`.
+To prevent DDoS attacks on callback receivers, the Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring only one request is sent at a time.
 
-By default, callbacks are sent to the specified URL in case the submitted transaction has status `REJECTED` or `MINED`. In case the client wants to receive the intermediate status updates (`SEEN_IN_ORPHAN_MEMPOOL` and `SEEN_ON_NETWORK`) about the transaction, additionally the `X-FullStatusUpdates` header needs to be set to `true`. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
-`X-MaxTimeout` header determines maximum number of seconds to wait for transaction new statuses before request expires (default 5sec, max value 30s).
+>NOTE: Typically, there are several instances of Callbacker, and each one works independently.
+
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in quarantine for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service to be retried later.
+
+>NOTE: Callbacks that weren't successfully sent for an extended period (e.g., 24 hours) are no longer sent.
+
 
 ### BlockTx
 

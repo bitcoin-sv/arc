@@ -30,7 +30,7 @@ type CallbackSender struct {
 }
 
 func NewSender(httpClient HttpClient, logger *slog.Logger) (*CallbackSender, error) {
-	stats := NewCallbackerStats()
+	stats := newCallbackerStats()
 
 	err := registerStats(
 		stats.callbackSeenOnNetworkCount,
@@ -88,8 +88,8 @@ func (p *CallbackSender) Health() error {
 	return nil
 }
 
-func (p *CallbackSender) Send(url, token string, dto *Callback) {
-	ok := p.sendCallbackWithRetries(url, token, dto)
+func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
+	ok = p.sendCallbackWithRetries(url, token, dto)
 
 	if ok {
 		p.updateSuccessStats(dto.TxStatus)
@@ -103,6 +103,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) {
 		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
+	return
 }
 
 func (p *CallbackSender) sendCallbackWithRetries(url, token string, dto *Callback) bool {

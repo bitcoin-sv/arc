@@ -3,7 +3,7 @@ package callbacker
 import (
 	"context"
 	"fmt"
-	"math"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_CallbackDispatcher(t *testing.T) {
+func TestCallbackDispatcher(t *testing.T) {
 	tcs := []struct {
 		name                 string
 		sendInterval         time.Duration
@@ -40,7 +40,7 @@ func Test_CallbackDispatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			cMq := &CallbackerIMock{
-				SendFunc: func(url, token string, callback *Callback) {},
+				SendFunc: func(url, token string, callback *Callback) bool { return true },
 			}
 
 			var savedCallbacks []*store.CallbackData
@@ -51,7 +51,7 @@ func Test_CallbackDispatcher(t *testing.T) {
 				},
 			}
 
-			sut := NewCallbackDispatcher(cMq, sMq, tc.sendInterval)
+			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), tc.sendInterval, 0, 0)
 
 			var receivers []string
 			for i := range tc.numOfReceivers {
@@ -76,7 +76,7 @@ func Test_CallbackDispatcher(t *testing.T) {
 				sut.GracefulStop()
 			} else {
 				// give a chance to process
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 
 			// then
@@ -87,128 +87,6 @@ func Test_CallbackDispatcher(t *testing.T) {
 			} else {
 				require.Empty(t, savedCallbacks)
 				require.Equal(t, tc.numOfReceivers*tc.numOfSendPerReceiver, len(cMq.SendCalls()))
-			}
-		})
-	}
-}
-
-func Test_CallbackDispatcher_Init(t *testing.T) {
-	tcs := []struct {
-		name                 string
-		danglingCallbacksNum int
-	}{
-		{
-			name:                 "no dangling callbacks",
-			danglingCallbacksNum: 0,
-		},
-		{
-			name:                 "callbacks to process on init",
-			danglingCallbacksNum: 259,
-		},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			var danglingCallbacks []*store.CallbackData
-			for range tc.danglingCallbacksNum {
-				danglingCallbacks = append(danglingCallbacks, &store.CallbackData{})
-			}
-
-			cMq := &CallbackerIMock{
-				SendFunc: func(url, token string, callback *Callback) {},
-			}
-
-			sMq := &mocks.CallbackerStoreMock{
-				PopManyFunc: func(ctx context.Context, limit int) ([]*store.CallbackData, error) {
-					limit = int(math.Min(float64(len(danglingCallbacks)), float64(limit)))
-
-					r := danglingCallbacks[:limit]
-					danglingCallbacks = danglingCallbacks[limit:]
-
-					return r, nil
-				},
-			}
-
-			sut := NewCallbackDispatcher(cMq, sMq, 0)
-
-			// when
-			err := sut.Init()
-			time.Sleep(50 * time.Millisecond)
-
-			// then
-			require.NoError(t, err)
-			require.Equal(t, tc.danglingCallbacksNum, len(cMq.SendCalls()))
-		})
-	}
-}
-
-func Test_sendManager(t *testing.T) {
-	tcs := []struct {
-		name         string
-		sendInterval time.Duration
-		numOfSends   int
-		stopManager  bool
-	}{
-		{
-			name:         "send callbacks when run",
-			sendInterval: 0,
-			numOfSends:   100,
-		},
-		{
-			name:         "send callbacks on stopping",
-			sendInterval: time.Millisecond, // set interval to give time to call stop function
-			numOfSends:   10,
-			stopManager:  true,
-		},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			cMq := &CallbackerIMock{
-				SendFunc: func(url, token string, callback *Callback) {},
-			}
-			var savedCallbacks []*store.CallbackData
-			sMq := &mocks.CallbackerStoreMock{
-				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
-					savedCallbacks = append(savedCallbacks, data...)
-					return nil
-				},
-			}
-
-			sut := &sendManager{
-				url:   "",
-				c:     cMq,
-				s:     sMq,
-				sleep: tc.sendInterval,
-
-				entries: make(chan *callbackEntry),
-				stop:    make(chan struct{}),
-			}
-
-			// add callbacks before starting the manager to queue them
-			for range tc.numOfSends {
-				sut.Add("", &Callback{})
-			}
-
-			// when
-			sut.run()
-
-			if tc.stopManager {
-				sut.GracefulStop()
-			} else {
-				// give a chance to process or save on quit
-				time.Sleep(50 * time.Millisecond)
-			}
-
-			// then
-			if tc.stopManager {
-				require.NotEmpty(t, savedCallbacks)
-				require.Equal(t, tc.numOfSends, len(cMq.SendCalls())+len(savedCallbacks))
-			} else {
-				require.Empty(t, savedCallbacks)
-				require.Equal(t, tc.numOfSends, len(cMq.SendCalls()))
 			}
 		})
 	}

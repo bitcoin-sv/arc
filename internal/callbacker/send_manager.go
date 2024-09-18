@@ -177,7 +177,7 @@ func (m *sendManager) putInQuarantine() {
 
 func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time) *store.CallbackData {
 	return &store.CallbackData{
-		Url:       url,
+		URL:       url,
 		Token:     s.Token,
 		Timestamp: s.Data.Timestamp,
 

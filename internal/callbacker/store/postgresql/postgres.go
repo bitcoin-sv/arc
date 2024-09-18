@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/lib/pq"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 const (
@@ -54,7 +55,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	quarantineUntils := make([]sql.NullTime, len(data))
 
 	for i, d := range data {
-		urls[i] = d.Url
+		urls[i] = d.URL
 		tokens[i] = d.Token
 		timestamps[i] = d.Timestamp
 		txids[i] = d.TxID
@@ -89,7 +90,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 				,competing_txs
 				,postponed_until
 				)
-				SELECT	
+				SELECT
 					UNNEST($1::TEXT[])
 					,UNNEST($2::TEXT[])
 					,UNNEST($3::TEXT[])
@@ -98,7 +99,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($6::TEXT[])
 					,UNNEST($7::TEXT[])
 					,UNNEST($8::BIGINT[])
-					,UNNEST($9::TIMESTAMPTZ[])		
+					,UNNEST($9::TIMESTAMPTZ[])
 					,UNNEST($10::TEXT[])
 					,UNNEST($11::TIMESTAMPTZ[])`
 
@@ -135,7 +136,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE postponed_until IS NULL 
+				WHERE postponed_until IS NULL
 				ORDER BY id
 				LIMIT $1
 				FOR UPDATE
@@ -226,7 +227,7 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 }
 
 func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) error {
-	const q = `DELETE FROM callbacker.callbacks			
+	const q = `DELETE FROM callbacker.callbacks
 			WHERE postponed_until IS NOT NULL AND timestamp <= $1`
 
 	_, err := p.db.ExecContext(ctx, q, t)
@@ -250,7 +251,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		)
 
 		err := rows.Scan(
-			&r.Url,
+			&r.URL,
 			&r.Token,
 			&r.TxID,
 			&r.TxStatus,

@@ -15,7 +15,7 @@ type CallbackerStore interface {
 }
 
 type CallbackData struct {
-	Url   string
+	URL   string
 	Token string
 
 	Timestamp time.Time

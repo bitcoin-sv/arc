@@ -52,7 +52,7 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 
 	nc, err = nats.Connect(natsURL, opts...)
 	if err != nil {
-		return nil, errors.Join(ErrNatsConnectionFailed, fmt.Errorf("error: %v", err))
+		return nil, errors.Join(ErrNatsConnectionFailed, err)
 	}
 
 	return nc, nil

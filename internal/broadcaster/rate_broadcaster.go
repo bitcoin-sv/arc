@@ -211,8 +211,6 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		atomic.AddInt64(&b.connectionCount, 1)
 
-		b.logger.Info("broadcastBatchAsync")
-
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
 

@@ -455,7 +455,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          1,
 			expectedStatusCode: 473,
-			expectedErrInfo:    "arc error 473: cumulative transaction fee of 1 sat is too low",
+			expectedErrInfo:    "arc error 473: transaction fee is too low\\nminimum expected cumulative fee: 84, actual fee: 1",
 		},
 		{
 			name: "post  txs chain with suficient fee with cumulative fees validation",

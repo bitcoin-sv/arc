@@ -72,6 +72,8 @@ API is the REST API microservice for interacting with ARC. See the [API document
 
 The API takes care of validation and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round-robin load balancing.
 
+The `X-MaxTimeout` header determines the maximum number of seconds the system will wait for new transaction statuses before the response is returned. The default timeout is 5 seconds, with a maximum value of 30 seconds.
+
 #### Validation
 
 The API is the first component of ARC and therefore the one that by design derives a benefit for ARC performing a preliminar validation of transactions thanks to the use of the [extended transaction formats](#extended-format-ef-and-background-evaluation-extended-format-beef).
@@ -87,9 +89,6 @@ The client can register to receive callbacks with information about the statuses
 If the client wants to secure its callback endpoint, ARC supports Bearer token authorization. A callback token can be provided by adding the `X-CallbackToken: <your callback token>` header to the request.
 
 By default, callbacks are triggered when the submitted transaction reaches the status `REJECTED` or `MINED`. If the client wishes to receive additional intermediate status updates—such (e.g. `SEEN_IN_ORPHAN_MEMPOOL` or `SEEN_ON_NETWORK`) the `X-FullStatusUpdates` header must be set to true. For more details, refer to the [API documentation](https://bitcoin-sv.github.io/arc/api.html).
-
-The `X-MaxTimeout` header determines the maximum number of seconds the system will wait for new transaction statuses before the request expires. The default timeout is 5 seconds, with a maximum value of 30 seconds.
-
 For more details on how callbacks work, see the [Callbacker](#Callbacker) section.
 
 ### Metamorph

@@ -428,7 +428,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 		expectedStatusCode int
 		expectedTxStatus   string
-		expectedErrInfo    string
+		expectedError      string
 	}{
 		{
 			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
@@ -455,7 +455,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          1,
 			expectedStatusCode: 473,
-			expectedErrInfo:    "arc error 473: transaction fee is too low\\nminimum expected cumulative fee: 84, actual fee: 1",
+			expectedError:      "arc error 473: transaction fee is too low\nminimum expected cumulative fee: 84, actual fee: 1",
 		},
 		{
 			name: "post  txs chain with suficient fee with cumulative fees validation",
@@ -600,7 +600,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			if tc.expectedStatusCode == http.StatusOK {
 				require.Equal(t, tc.expectedTxStatus, response.TxStatus)
 			} else {
-				require.Contains(t, *response.ExtraInfo, tc.expectedErrInfo)
+				require.Contains(t, *response.ExtraInfo, tc.expectedError)
 			}
 		})
 	}

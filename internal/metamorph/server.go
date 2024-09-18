@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -35,7 +34,10 @@ const (
 	minedDoubleSpendMsg = "previously double spend attempted"
 )
 
-var ErrNotFound = errors.New("key could not be found")
+var (
+	ErrNotFound                 = errors.New("key could not be found")
+	ErrGRPCServerFailedToListen = errors.New("GRPC server failed to listen")
+)
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
@@ -118,7 +120,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		return fmt.Errorf("GRPC server failed to listen [%w]", err)
+		return errors.Join(ErrGRPCServerFailedToListen, err)
 	}
 
 	metamorph_api.RegisterMetaMorphAPIServer(s.grpcServer, s)

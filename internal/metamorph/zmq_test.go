@@ -55,6 +55,7 @@ func TestZMQ(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	for _, tc := range testCases {
+		// given
 		mockedZMQ := &mocks.ZMQIMock{
 			SubscribeFunc: func(s string, stringsCh chan []string) error {
 				if s != tc.eventTopic {
@@ -74,10 +75,13 @@ func TestZMQ(t *testing.T) {
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
 
-		zmq := metamorph.NewZMQ(zmqURL, statuses, logger)
-		err = zmq.Start(mockedZMQ)
+		sut := metamorph.NewZMQ(zmqURL, statuses, logger)
+
+		// when
+		err = sut.Start(mockedZMQ)
 		require.NoError(t, err)
 
+		// then
 		var status *metamorph.PeerTxMessage
 		sCounter := 0
 		for i := 0; i < tc.expectedStatusesCount; i++ {
@@ -95,6 +99,7 @@ func TestZMQ(t *testing.T) {
 }
 
 func TestZMQDoubleSpend(t *testing.T) {
+	// given
 	mockedZMQ := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
 			if s != "invalidtx" {
@@ -118,10 +123,13 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	zmq := metamorph.NewZMQ(zmqURL, statuses, logger)
-	err = zmq.Start(mockedZMQ)
+	sut := metamorph.NewZMQ(zmqURL, statuses, logger)
+
+	// when
+	err = sut.Start(mockedZMQ)
 	require.NoError(t, err)
 
+	// then
 	var status *metamorph.PeerTxMessage
 	sCounter := 0
 	for i := 0; i < numberOfMsgs; i++ {

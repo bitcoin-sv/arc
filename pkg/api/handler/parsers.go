@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var errEmptyBody = errors.New("no transaction found - empty request body")
+var ErrEmptyBody = errors.New("no transaction found - empty request body")
 
 func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 	body, err := io.ReadAll(request.Body)
@@ -22,7 +22,7 @@ func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 	}
 
 	if len(body) == 0 {
-		return nil, errEmptyBody
+		return nil, ErrEmptyBody
 	}
 
 	var txHex []byte
@@ -52,7 +52,7 @@ func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 	}
 
 	if len(txHex) == 0 {
-		return nil, errEmptyBody
+		return nil, ErrEmptyBody
 	}
 
 	return txHex, nil
@@ -102,7 +102,7 @@ func parseTransactionsFromRequest(request *http.Request) ([]byte, error) {
 	}
 
 	if len(txHex) == 0 {
-		return nil, errEmptyBody
+		return nil, ErrEmptyBody
 	}
 
 	return txHex, nil

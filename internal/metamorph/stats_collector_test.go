@@ -31,6 +31,7 @@ func TestStartCollectStats(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			mtmStore := &storeMocks.MetamorphStoreMock{
 				GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 					return &store.Stats{
@@ -55,11 +56,12 @@ func TestStartCollectStats(t *testing.T) {
 			)
 			require.NoError(t, err)
 
+			// when
 			err = processor.StartCollectStats()
+
+			// then
 			require.NoError(t, err)
-
 			time.Sleep(25 * time.Millisecond)
-
 			processor.Shutdown()
 		})
 	}

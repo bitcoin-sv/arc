@@ -94,9 +94,11 @@ func TestShouldUpdateStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := shouldUpdateStatus(tc.newStatus, tc.existingStatus)
+			// when
+			actualResult := shouldUpdateStatus(tc.newStatus, tc.existingStatus)
 
-			assert.Equal(t, tc.expectedResult, result)
+			// then
+			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
 }

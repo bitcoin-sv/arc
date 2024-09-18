@@ -33,6 +33,15 @@ const (
 	maxTimeoutSecondsDefault = 5
 )
 
+var (
+	ErrInvalidCallbackURL       = errors.New("invalid callback URL")
+	ErrCallbackURLNotAcceptable = errors.New("callback URL not acceptable")
+	ErrStatusNotSupported       = errors.New("status not supported")
+	ErrDecodingBeef             = errors.New("error while decoding BEEF")
+
+	ErrMaxTimeoutExceeded = fmt.Errorf("max timeout can not be higher than %d", maxTimeout)
+)
+
 type ArcDefaultHandler struct {
 	TransactionHandler metamorph.TransactionHandler
 	NodePolicy         *bitcoin.Settings
@@ -254,12 +263,12 @@ func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrl
 func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []string) error {
 	_, err := url.ParseRequestURI(callbackURL)
 	if err != nil {
-		return fmt.Errorf("invalid callback URL [%w]", err)
+		return errors.Join(ErrInvalidCallbackURL, err)
 	}
 
 	for _, substring := range rejectedCallbackUrlSubstrings {
 		if strings.Contains(callbackURL, substring) {
-			return fmt.Errorf("callback url not acceptable %s", callbackURL)
+			return ErrCallbackURLNotAcceptable
 		}
 	}
 	return nil
@@ -299,11 +308,11 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 		}
 		statusString, ok := oldStatusesMap[*params.XWaitForStatus]
 		if !ok {
-			return nil, fmt.Errorf("status with code: %d not supported", *params.XWaitForStatus)
+			return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %d", *params.XWaitForStatus))
 		}
 		newStatusValue, ok := metamorph_api.Status_value[statusString]
 		if !ok {
-			return nil, fmt.Errorf("status: %s not supported", statusString)
+			return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %s", statusString))
 		}
 		transactionOptions.WaitForStatus = metamorph_api.Status(newStatusValue)
 	}
@@ -311,7 +320,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	if params.XWaitFor != nil {
 		value, ok := metamorph_api.Status_value[*params.XWaitFor]
 		if !ok {
-			return nil, fmt.Errorf("status: %s not supported", *params.XWaitFor)
+			return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %s", *params.XWaitFor))
 		}
 		transactionOptions.WaitForStatus = metamorph_api.Status(value)
 	}
@@ -331,7 +340,7 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 	if params.XMaxTimeout != nil {
 		if *params.XMaxTimeout > maxTimeout {
-			return nil, fmt.Errorf("max timeout %d can not be higher than %d", *params.XMaxTimeout, maxTimeout)
+			return nil, ErrMaxTimeoutExceeded
 		}
 
 		transactionOptions.MaxTimeout = *params.XMaxTimeout
@@ -357,7 +366,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		if hexFormat == validator.BeefHex {
 			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
 			if err != nil {
-				errStr := fmt.Sprintf("error decoding BEEF: %s", err.Error())
+				errStr := errors.Join(ErrDecodingBeef, err).Error()
 				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 

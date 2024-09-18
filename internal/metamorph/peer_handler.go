@@ -2,6 +2,7 @@ package metamorph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -9,6 +10,8 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/wire"
 )
+
+var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
 
 type PeerHandler struct {
 	store     store.MetamorphStore
@@ -63,7 +66,7 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 		Hash:   &rejMsg.Hash,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
-		Err:    fmt.Errorf("transaction rejected by peer %s: %s", peer.String(), rejMsg.Reason),
+		Err:    errors.Join(ErrTxRejectedByPeer, fmt.Errorf("peer: %s reason: %s", peer.String(), rejMsg.Reason)),
 	}
 
 	return nil

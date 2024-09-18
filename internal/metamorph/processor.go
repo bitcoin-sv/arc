@@ -44,6 +44,16 @@ const (
 	processMinedIntervalDefault  = 1 * time.Second
 )
 
+var (
+	ErrStoreNil                     = errors.New("store cannot be nil")
+	ErrPeerManagerNil               = errors.New("peer manager cannot be nil")
+	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
+	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
+	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
+
+	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
+)
+
 type Processor struct {
 	store                     store.MetamorphStore
 	hostname                  string
@@ -96,11 +106,11 @@ type CallbackSender interface {
 
 func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
-		return nil, errors.New("store cannot be nil")
+		return nil, ErrStoreNil
 	}
 
 	if pm == nil {
-		return nil, errors.New("peer manager cannot be nil")
+		return nil, ErrPeerManagerNil
 	}
 
 	hostname, err := os.Hostname()
@@ -166,28 +176,29 @@ func (p *Processor) Start() error {
 		serialized := &blocktx_api.TransactionBlock{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", MinedTxsTopic, err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", MinedTxsTopic), err)
 		}
 
 		p.minedTxsChan <- serialized
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", MinedTxsTopic, err)
+		errors.Join()
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", MinedTxsTopic), err)
 	}
 
 	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.TransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", SubmitTxTopic, err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", SubmitTxTopic), err)
 		}
 
 		p.submittedTxsChan <- serialized
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", SubmitTxTopic, err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", SubmitTxTopic), err)
 	}
 
 	p.StartLockTransactions()
@@ -199,7 +210,7 @@ func (p *Processor) Start() error {
 	p.StartProcessMinedCallbacks()
 	err = p.StartCollectStats()
 	if err != nil {
-		return fmt.Errorf("failed to start collecting stats: %v", err)
+		return errors.Join(ErrFailedToStartCollectingStats, err)
 	}
 	p.StartSendStatusUpdate()
 	p.StartProcessSubmittedTxs()
@@ -728,8 +739,6 @@ func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
 		}
 	}
 }
-
-var ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
 
 func (p *Processor) Health() error {
 	healthyConnections := 0

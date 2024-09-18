@@ -173,11 +173,13 @@ utxoLoop:
 				return nil, fmt.Errorf("failed to pay transaction %d: %v", amount, err)
 			}
 
-			err = tx.AddOpReturnOutput([]byte("ARC testing"))
-			if err != nil {
-				return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+			if b.opReturn != "" {
+				err = tx.AddOpReturnOutput([]byte(b.opReturn))
+				if err != nil {
+					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+				}
+				b.logger.Info("added OP_RETURN output")
 			}
-			b.logger.Info("added OP_RETURN output")
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {

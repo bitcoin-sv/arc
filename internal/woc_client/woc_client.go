@@ -17,6 +17,11 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+const (
+	apiUrl    = "https://api.whatsonchain.com/v1/bsv"
+	maxIDsNum = 20 // value from doc
+)
+
 var (
 	ErrWOCFailedToCreateRequest   = errors.New("failed to create request")
 	ErrWOCFailedToGetUTXOs        = errors.New("failed to get utxos from WoC")
@@ -24,6 +29,7 @@ var (
 	ErrWOCResponseNotOK           = errors.New("response status not OK")
 	ErrWOCFailedToDecodeResponse  = errors.New("failed to decode response")
 	ErrWOCFailedToDecodeHexString = errors.New("failed to decode response")
+	ErrWOCFailedToDecodeRawTxs    = errors.New("failed to decode raw txs")
 	ErrWOCFailedToTopUp           = errors.New("top up can only be done on testnet")
 )
 
@@ -32,11 +38,25 @@ type WocClient struct {
 	authorization string
 	net           string
 	logger        *slog.Logger
+	url           string
+	maxNumIDs     int
 }
 
 func WithLogger(logger *slog.Logger) func(*WocClient) {
 	return func(p *WocClient) {
 		p.logger = logger
+	}
+}
+
+func WithURL(url string) func(*WocClient) {
+	return func(p *WocClient) {
+		p.url = url
+	}
+}
+
+func WithMaxNumIDs(maxNumIDs int) func(*WocClient) {
+	return func(p *WocClient) {
+		p.maxNumIDs = maxNumIDs
 	}
 }
 
@@ -53,8 +73,10 @@ func New(mainnet bool, opts ...func(client *WocClient)) *WocClient {
 	}
 
 	w := &WocClient{
-		client: http.Client{Timeout: 10 * time.Second},
-		net:    net,
+		client:    http.Client{Timeout: 10 * time.Second},
+		net:       net,
+		url:       apiUrl,
+		maxNumIDs: maxIDsNum,
 	}
 
 	for _, opt := range opts {
@@ -218,12 +240,11 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 }
 
 func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*wocRawTx, error) {
-	const maxIDsNum = 20 // value from doc
 
 	var result []*wocRawTx
 
 	for len(ids) > 0 {
-		bsize := min(maxIDsNum, len(ids))
+		bsize := min(w.maxNumIDs, len(ids))
 		batch := ids[:bsize]
 
 		txs, err := w.getRawTxs(ctx, batch)
@@ -256,21 +277,20 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*wocRawTx,
 	var res []*wocRawTx
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode response: %v", err)
+		return nil, errors.Join(ErrWOCFailedToDecodeRawTxs, err)
 	}
 
 	return res, nil
 }
 
-func (w WocClient) httpRequest(ctx context.Context, method string, endpoint string, payload []byte) (*http.Request, error) {
-	const apiUrl = "https://api.whatsonchain.com/v1/bsv"
+func (w *WocClient) httpRequest(ctx context.Context, method string, endpoint string, payload []byte) (*http.Request, error) {
 
 	var body io.Reader
 	if len(payload) > 0 {
 		body = bytes.NewBuffer(payload)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s/%s", apiUrl, w.net, endpoint), body)
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s/%s", w.url, w.net, endpoint), body)
 	if err != nil {
 		return nil, errors.Join(ErrWOCFailedToCreateRequest, err)
 	}

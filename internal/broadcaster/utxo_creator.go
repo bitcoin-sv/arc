@@ -19,6 +19,8 @@ var (
 	ErrRequestedSatoshisTooHigh      = errors.New("requested total of satoshis exceeds balance")
 	ErrRequestedSatoshisExceedsSplit = errors.New("requested satoshis greater than satoshis to be split")
 	ErrFailedToDecodeTxID            = errors.New("failed to decode txid")
+	ErrFailedToGetBalance            = errors.New("failed to get balance")
+	ErrFailedToGetUTXOs              = errors.New("failed to get utxos")
 )
 
 type UTXOCreator struct {
@@ -58,7 +60,7 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 
 	confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get balance: %s", err.Error())
+		return errors.Join(ErrFailedToGetBalance, err)
 	}
 
 	balance := confirmed + unconfirmed
@@ -69,7 +71,7 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get utxos: %v", err)
+		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
 
 	utxoSet := list.New()

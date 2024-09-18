@@ -183,7 +183,6 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		errors.Join()
 		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", MinedTxsTopic), err)
 	}
 

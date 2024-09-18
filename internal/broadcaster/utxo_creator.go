@@ -19,8 +19,6 @@ var (
 	ErrRequestedSatoshisTooHigh      = errors.New("requested total of satoshis exceeds balance")
 	ErrRequestedSatoshisExceedsSplit = errors.New("requested satoshis greater than satoshis to be split")
 	ErrFailedToDecodeTxID            = errors.New("failed to decode txid")
-	ErrFailedToGetBalance            = errors.New("failed to get balance")
-	ErrFailedToGetUTXOs              = errors.New("failed to get utxos")
 )
 
 type UTXOCreator struct {

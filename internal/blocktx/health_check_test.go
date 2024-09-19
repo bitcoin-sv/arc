@@ -67,8 +67,6 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize))
-			require.NoError(t, err)
 			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
 				return []p2p.PeerI{&mocks.PeerMock{
 					IsHealthyFunc: func() bool {
@@ -87,9 +85,6 @@ func TestCheck(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedStatus, resp.Status)
-
-			// cleanup
-			processor.Shutdown()
 		})
 
 	}
@@ -145,8 +140,6 @@ func TestWatch(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			processor, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize))
-			require.NoError(t, err)
 
 			pm := &mocks.PeerManagerMock{
 				GetPeersFunc: func() []p2p.PeerI {
@@ -169,13 +162,10 @@ func TestWatch(t *testing.T) {
 			}
 
 			// when
-			err = sut.Watch(req, watchServer)
+			err := sut.Watch(req, watchServer)
 
 			// then
 			require.NoError(t, err)
-
-			// cleanup
-			processor.Shutdown()
 		})
 
 	}

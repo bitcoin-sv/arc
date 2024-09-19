@@ -807,13 +807,13 @@ func TestStart(t *testing.T) {
 			name:     "error - subscribe mined txs",
 			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
 
-			expectedError: blocktx.ErrFailedToSubscribeToRegisterTopic,
+			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},
 		{
 			name:     "error - subscribe submit txs",
 			topicErr: map[string]error{blocktx.RequestTxTopic: errors.New("failed to subscribe")},
 
-			expectedError: blocktx.ErrFailedToSubscribeToRequestTopic,
+			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},
 	}
 

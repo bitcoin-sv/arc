@@ -23,11 +23,10 @@ import (
 var tracer trace.Tracer
 
 var (
-	ErrFailedToSubscribeToRegisterTopic = errors.New("failed to subscribe to register topic")
-	ErrFailedToSubscribeToRequestTopic  = errors.New("failed to subscribe to request topic")
-	ErrFailedToCreateBUMP               = errors.New("failed to create new bump for tx hash from merkle tree and index")
-	ErrFailedToGetStringFromBUMPHex     = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToInsertBlockTransactions  = errors.New("failed to insert block transactions")
+	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
+	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
+	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
 )
 
 const (
@@ -107,7 +106,7 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToRegisterTopic, err)
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RegisterTxTopic), err)
 	}
 
 	err = p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
@@ -115,7 +114,7 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToRequestTopic, err)
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RequestTxTopic), err)
 	}
 
 	p.StartBlockRequesting()
@@ -683,7 +682,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	// update all remaining transactions
 	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 	if err != nil {
-		return errors.Join(ErrFailedToInsertBlockTransactions, err)
+		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", blockHeight), err)
 	}
 
 	for _, updResp := range updateResp {

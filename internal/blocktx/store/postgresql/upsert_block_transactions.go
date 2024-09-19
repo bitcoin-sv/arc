@@ -55,7 +55,6 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
 	}
-	defer rows.Close()
 
 	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId, pq.Array(txHashesBytes))
 	if err != nil {

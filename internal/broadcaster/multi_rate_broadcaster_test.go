@@ -15,15 +15,15 @@ import (
 func TestMultiRateBroadcasterStart(t *testing.T) {
 
 	tt := []struct {
-		name     string
-		startErr error
+		name          string
+		expectedError error
 	}{
 		{
 			name: "start and shutdown successfully",
 		},
 		{
-			name:     "error - failed to start",
-			startErr: errors.New("failed to start"),
+			name:          "error - failed to start",
+			expectedError: errors.New("failed to start"),
 		},
 	}
 
@@ -43,7 +43,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			}
 
 			rateBroadcaster2 := &mocks.RateBroadcasterMock{
-				StartFunc:              func() error { return tc.startErr },
+				StartFunc:              func() error { return tc.expectedError },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 10 },
@@ -60,7 +60,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			// then
 			if actualError != nil {
-				require.ErrorIs(t, actualError, tc.startErr)
+				require.ErrorIs(t, actualError, tc.expectedError)
 				return
 			} else {
 				require.NoError(t, actualError)

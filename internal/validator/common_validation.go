@@ -178,7 +178,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 	}
 
 	if numSigOps > maxSigOps {
-		return ErrUnlockingScriptHasTooManySigOps
+		return errors.Join(ErrUnlockingScriptHasTooManySigOps, fmt.Errorf("sigops: %d", numSigOps))
 	}
 
 	return nil

@@ -671,7 +671,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.expectedResponse, actualError)
-				fmt.Println("EXTRA INFO:   ", *actualError.ExtraInfo)
 				if tc.expectedError != nil {
 					assert.ErrorContains(t, errors.New(*actualError.ExtraInfo), tc.expectedError.Error())
 				}

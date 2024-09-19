@@ -50,8 +50,6 @@ func TestCheck(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			const batchSize = 4
-
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
@@ -123,8 +121,6 @@ func TestWatch(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			const batchSize = 4
-
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {

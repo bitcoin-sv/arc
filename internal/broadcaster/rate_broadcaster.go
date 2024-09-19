@@ -188,8 +188,6 @@ utxoLoop:
 
 			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
 
-			b.logger.Info("tx submitted", slog.String("tx id", tx.TxID()))
-
 			txs = append(txs, tx)
 
 			if len(txs) >= b.batchSize {

@@ -10,15 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/bitcoin-sv/arc/internal/testdata"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	tutils "github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql/internal/tests"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 const (
@@ -216,7 +215,8 @@ func TestPostgresDBt(t *testing.T) {
 			records, ok := rm.Load(i)
 			require.True(t, ok)
 
-			callbacks := records.([]*store.CallbackData)
+			callbacks, ok := records.([]*store.CallbackData)
+			require.True(t, ok)
 			require.Equal(t, popLimit, len(callbacks))
 		}
 	})

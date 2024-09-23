@@ -51,6 +51,7 @@ func TestCheck(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
@@ -67,11 +68,13 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor)
 
-			resp, err := server.Check(context.Background(), req)
+			// when
+			resp, err := sut.Check(context.Background(), req)
 			require.NoError(t, err)
 
+			// then
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
 	}
@@ -116,6 +119,7 @@ func TestWatch(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				PingFunc: func(ctx context.Context) error {
 					return tc.pingErr
@@ -132,7 +136,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -141,7 +145,10 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			err := server.Watch(req, watchServer)
+			// when
+			err := sut.Watch(req, watchServer)
+
+			// then
 			require.NoError(t, err)
 		})
 	}

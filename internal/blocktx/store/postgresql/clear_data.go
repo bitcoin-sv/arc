@@ -2,7 +2,9 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -15,12 +17,12 @@ func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32,
 
 	stmt, err := p.db.Prepare(fmt.Sprintf("DELETE FROM blocktx.%s WHERE inserted_at <= $1", table))
 	if err != nil {
-		return nil, fmt.Errorf("unable to prepare statement: %v", err)
+		return nil, errors.Join(store.ErrUnableToPrepareStatement, err)
 	}
 
 	res, err := stmt.ExecContext(ctx, deleteBeforeDate)
 	if err != nil {
-		return nil, fmt.Errorf("unable to delete rows: %v", err)
+		return nil, errors.Join(store.ErrUnableToDeleteRows, err)
 	}
 	rows, _ := res.RowsAffected()
 	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil

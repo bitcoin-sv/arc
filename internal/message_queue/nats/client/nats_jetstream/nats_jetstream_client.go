@@ -24,6 +24,13 @@ type Client struct {
 
 var (
 	ErrConsumerNotInitialized = errors.New("consumer for topic not initialized")
+	ErrFailedToGetStream      = errors.New("failed to get stream")
+	ErrFailedToGetConsumer    = errors.New("failed to get consumer")
+	ErrFailedToApplyOption    = errors.New("failed to apply option")
+	ErrFailedToCreateStream   = errors.New("failed to create stream")
+	ErrFailedToCreateConsumer = errors.New("failed to create consumer")
+	ErrFailedToPublish        = errors.New("failed to publish")
+	ErrFailedToSubscribe      = errors.New("failed to subscribe")
 )
 
 func WithSubscribedTopics(topics ...string) func(handler *Client) error {
@@ -31,12 +38,12 @@ func WithSubscribedTopics(topics ...string) func(handler *Client) error {
 		for _, topic := range topics {
 			streamMinedTxs, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic))
 			if err != nil {
-				return fmt.Errorf("failed to get stream: %v", err)
+				return errors.Join(ErrFailedToGetStream, err)
 			}
 
 			cons, err := c.getConsumer(streamMinedTxs, fmt.Sprintf("%s-cons", topic))
 			if err != nil {
-				return fmt.Errorf("failed to get consumer: %v", err)
+				return errors.Join(ErrFailedToGetConsumer, err)
 			}
 
 			c.consumers[topic] = cons
@@ -77,14 +84,14 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 	for _, topic := range topics {
 		_, err = p.getStream(topic, fmt.Sprintf("%s-stream", topic))
 		if err != nil {
-			return nil, fmt.Errorf("failed to get stream: %v", err)
+			return nil, errors.Join(ErrFailedToGetStream, err)
 		}
 	}
 
 	for _, opt := range opts {
 		err = opt(p)
 		if err != nil {
-			return nil, fmt.Errorf("failed to apply option: %v", err)
+			return nil, errors.Join(ErrFailedToApplyOption, err)
 		}
 	}
 	return p, nil
@@ -110,7 +117,7 @@ func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stre
 			NoAck:       false,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create stream: %v", err)
+			return nil, errors.Join(ErrFailedToCreateStream, err)
 		}
 
 		cl.logger.Info(fmt.Sprintf("stream %s created", streamName))
@@ -135,7 +142,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 			AckPolicy: jetstream.AckExplicitPolicy,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create consumer: %v", err)
+			return nil, errors.Join(ErrFailedToCreateConsumer, err)
 		}
 
 		cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
@@ -152,7 +159,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 func (cl *Client) Publish(topic string, hash []byte) error {
 	_, err := cl.js.Publish(cl.ctx, topic, hash)
 	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil
@@ -166,7 +173,7 @@ func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
 
 	err = cl.Publish(topic, data)
 	if err != nil {
-		return fmt.Errorf("failed to publish on %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil
@@ -192,7 +199,7 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", topic, err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
 	}
 
 	return nil

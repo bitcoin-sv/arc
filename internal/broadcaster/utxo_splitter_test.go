@@ -24,7 +24,7 @@ func TestSplitUtxo(t *testing.T) {
 		broadcastTransactionsErr error
 		dryRun                   bool
 
-		expectedErrorStr                  string
+		expectedError                     error
 		expectedBroadcastTransactionCalls int
 	}{
 		{
@@ -43,12 +43,13 @@ func TestSplitUtxo(t *testing.T) {
 			broadcastTransactionsErr: errors.New("error"),
 
 			expectedBroadcastTransactionCalls: 0,
-			expectedErrorStr:                  "failed to broadcast transaction",
+			expectedError:                     broadcaster.ErrFailedToBroadcastTx,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			fromKs, err := keyset.New()
 			require.NoError(t, err)
 
@@ -86,12 +87,15 @@ func TestSplitUtxo(t *testing.T) {
 
 			toKeySets := []*keyset.KeySet{toKs1, toKs2, toKs3}
 
-			splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, toKeySets, false)
+			sut, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, toKeySets, false)
 			require.NoError(t, err)
 
-			err = splitter.SplitUtxo("842f1acda7a169f388765af73733dd3188e8c1cc52baa78fdac4279d53d98911", 1500, 0, tc.dryRun)
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+			// when
+			err = sut.SplitUtxo("842f1acda7a169f388765af73733dd3188e8c1cc52baa78fdac4279d53d98911", 1500, 0, tc.dryRun)
+
+			// then
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			} else {
 				require.NoError(t, err)

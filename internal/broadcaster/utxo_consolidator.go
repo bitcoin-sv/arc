@@ -16,6 +16,10 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
+var (
+	ErrFailedToParseValueToUTXO = errors.New("failed to parse value to utxo")
+)
+
 type UTXOConsolidator struct {
 	Broadcaster
 	keySet *keyset.KeySet
@@ -47,7 +51,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get utxos: %v", err)
+		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
 
 	utxoSet := list.New()
@@ -165,7 +169,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 		utxoSet.Remove(front)
 		utxo, ok := front.Value.(*sdkTx.UTXO)
 		if !ok {
-			return nil, errors.New("failed to parse value to utxo")
+			return nil, ErrFailedToParseValueToUTXO
 		}
 
 		txSatoshis += utxo.Satoshis

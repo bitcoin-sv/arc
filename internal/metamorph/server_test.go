@@ -34,14 +34,19 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
+		// given
 		processor := &mocks.ProcessorIMock{}
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
 		processor.GetPeersFunc = func() []p2p.PeerI {
 			return []p2p.PeerI{}
 		}
 
-		server := metamorph.NewServer(nil, processor)
-		stats, err := server.Health(context.Background(), &emptypb.Empty{})
+		sut := metamorph.NewServer(nil, processor)
+
+		// when
+		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
+
+		// then
 		assert.NoError(t, err)
 		assert.Equal(t, int32(22), stats.GetMapSize())
 	})
@@ -110,6 +115,7 @@ func TestPutTransaction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			s := &storeMocks.MetamorphStoreMock{}
 
 			processor := &mocks.ProcessorIMock{
@@ -119,22 +125,24 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+			sut := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
 
 			txRequest := &metamorph_api.TransactionRequest{
 				RawTx:         testdata.TX1Raw.Bytes(),
 				WaitForStatus: tc.waitForStatus,
 			}
 
-			txStatus, err := server.PutTransaction(context.Background(), txRequest)
+			// when
+			actualStatus, err := sut.PutTransaction(context.Background(), txRequest)
 
+			// then
 			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedStatus, txStatus.GetStatus())
-			assert.Equal(t, tc.expectedRejectedReason, txStatus.GetRejectReason())
-			assert.Equal(t, tc.expectedCompetingTxs, txStatus.CompetingTxs)
+			assert.Equal(t, tc.expectedStatus, actualStatus.GetStatus())
+			assert.Equal(t, tc.expectedRejectedReason, actualStatus.GetRejectReason())
+			assert.Equal(t, tc.expectedCompetingTxs, actualStatus.CompetingTxs)
 
 			if tc.expectedTimeout {
-				assert.True(t, txStatus.GetTimedOut())
+				assert.True(t, actualStatus.GetTimedOut())
 			}
 		})
 	}
@@ -263,6 +271,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					data := &store.StoreData{
@@ -277,8 +286,12 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, nil)
-			got, err := server.GetTransactionStatus(context.Background(), tt.req)
+			sut := metamorph.NewServer(metamorphStore, nil)
+
+			// when
+			got, err := sut.GetTransactionStatus(context.Background(), tt.req)
+
+			// then
 			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
 			}
@@ -524,6 +537,7 @@ func TestPutTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			processor := &mocks.ProcessorIMock{
 				ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
@@ -534,9 +548,10 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			server := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
+			sut := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
 
-			statuses, err := server.PutTransactions(context.Background(), tc.requests)
+			// when
+			statuses, err := sut.PutTransactions(context.Background(), tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
@@ -544,6 +559,7 @@ func TestPutTransactions(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			// then
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
 
 			for i := 0; i < len(tc.expectedStatuses.GetStatuses()); i++ {
@@ -555,7 +571,7 @@ func TestPutTransactions(t *testing.T) {
 	}
 }
 
-func TestSetUnlockedbyName(t *testing.T) {
+func TestSetUnlockedByName(t *testing.T) {
 	tt := []struct {
 		name            string
 		recordsAffected int64
@@ -580,6 +596,7 @@ func TestSetUnlockedbyName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
@@ -589,11 +606,14 @@ func TestSetUnlockedbyName(t *testing.T) {
 				},
 			}
 
-			server := metamorph.NewServer(metamorphStore, nil)
-			response, err := server.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
+			sut := metamorph.NewServer(metamorphStore, nil)
+
+			// when
+			response, err := sut.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
 				Name: "test",
 			})
 
+			// then
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {
@@ -617,6 +637,7 @@ func TestStartGRPCServer(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
 					return &store.StoreData{}, nil
@@ -627,20 +648,21 @@ func TestStartGRPCServer(t *testing.T) {
 			processor := &mocks.ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
-			server := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor)
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			err := server.StartGRPCServer("localhost:7000", 10000, "", logger)
+			// when
+			err := sut.StartGRPCServer("localhost:7000", 10000, "", logger)
+
+			// then
 			require.NoError(t, err)
-
 			time.Sleep(50 * time.Millisecond)
-
-			server.Shutdown()
+			sut.Shutdown()
 		})
 	}
 }
 
-func Test_GetTransactions(t *testing.T) {
+func TestGetTransactions(t *testing.T) {
 	tcs := []struct {
 		name    string
 		request *metamorph_api.TransactionsStatusRequest
@@ -681,7 +703,7 @@ func Test_GetTransactions(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			store := storeMocks.MetamorphStoreMock{
 				GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
 					if tc.getFromStoreErr != nil {
@@ -705,10 +727,10 @@ func Test_GetTransactions(t *testing.T) {
 
 			sut := metamorph.NewServer(&store, nil)
 
-			// then
+			// when
 			res, err := sut.GetTransactions(context.TODO(), tc.request)
 
-			// assert
+			// then
 			if tc.getFromStoreErr != nil {
 				require.Equal(t, tc.getFromStoreErr, err)
 			} else {

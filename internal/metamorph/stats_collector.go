@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
@@ -15,6 +16,8 @@ const (
 	notSeenLimitDefault           = 10 * time.Minute
 	notMinedLimitDefault          = 20 * time.Minute
 )
+
+var ErrFailedToRegisterStats = fmt.Errorf("failed to register stats collector")
 
 type processorStats struct {
 	notSeenLimit  time.Duration
@@ -206,7 +209,7 @@ func registerStats(cs ...prometheus.Collector) error {
 	for _, c := range cs {
 		err := prometheus.Register(c)
 		if err != nil {
-			return fmt.Errorf("failed to register stats collector: %w", err)
+			return errors.Join(ErrFailedToRegisterStats, err)
 		}
 	}
 

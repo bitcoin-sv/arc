@@ -2,6 +2,7 @@ package defaultvalidator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/fees"
@@ -9,6 +10,10 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
+)
+
+var (
+	ErrTxFeeTooLow = fmt.Errorf("transaction fee is too low")
 )
 
 type DefaultValidator struct {
@@ -96,7 +101,7 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	}
 
 	if !feesOK {
-		err = fmt.Errorf("transaction fee of %d sat is too low - minimum expected fee is %d sat", actualFeePaid, expFeesPaid)
+		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected fee: %d, actual fee: %d", expFeesPaid, actualFeePaid))
 		return validator.NewError(err, api.ErrStatusFees)
 	}
 
@@ -124,7 +129,7 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	}
 
 	if expectedFee > cumulativePaidFee {
-		err = fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFee)
+		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFee))
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

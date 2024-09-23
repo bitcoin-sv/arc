@@ -16,6 +16,11 @@ const (
 	postgresDriverName = "postgres"
 )
 
+var (
+	ErrFailedToOpenDB   = errors.New("failed to open postgres DB")
+	ErrFailedToRollback = errors.New("failed to rollback")
+)
+
 type PostgreSQL struct {
 	db *sql.DB
 }
@@ -23,7 +28,7 @@ type PostgreSQL struct {
 func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
 	db, err := sql.Open(postgresDriverName, dbInfo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
+		return nil, errors.Join(ErrFailedToOpenDB, err)
 	}
 
 	db.SetMaxIdleConns(idleConns)
@@ -127,7 +132,7 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 	defer func() {
 		if err != nil {
 			if rErr := tx.Rollback(); rErr != nil {
-				err = errors.Join(err, fmt.Errorf("failed to rollback: %v", rErr))
+				err = errors.Join(ErrFailedToRollback, err, rErr)
 			}
 		}
 	}()

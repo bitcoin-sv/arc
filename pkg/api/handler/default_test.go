@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"io"
 	"log/slog"
 	"net/http"
@@ -98,7 +99,8 @@ func TestNewDefault(t *testing.T) {
 
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		// given
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -106,7 +108,8 @@ func TestGETPolicy(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GETPolicy(ctx)
+		// when
+		err = sut.GETPolicy(ctx)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -114,6 +117,7 @@ func TestGETPolicy(t *testing.T) {
 		var policyResponse api.PolicyResponse
 		_ = json.Unmarshal(bPolicy, &policyResponse)
 
+		// then
 		require.NotNil(t, policyResponse)
 		assert.Equal(t, uint64(1), policyResponse.Policy.MiningFee.Satoshis)
 		assert.Equal(t, uint64(1000), policyResponse.Policy.MiningFee.Bytes)
@@ -126,13 +130,14 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check", func(t *testing.T) {
+		// given
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(ctx context.Context) error {
 				return nil
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -140,7 +145,10 @@ func TestGETHealth(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.GETHealth(ctx)
+		// when
+		err = sut.GETHealth(ctx)
+
+		// then
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
@@ -151,21 +159,21 @@ func TestValidateCallbackURL(t *testing.T) {
 		name        string
 		callbackURL string
 
-		expectedErrorStr string
+		expectedError error
 	}{
 		{
-			name:             "empty callback URL",
-			callbackURL:      "",
-			expectedErrorStr: "invalid callback URL",
+			name:          "empty callback URL",
+			callbackURL:   "",
+			expectedError: ErrInvalidCallbackURL,
 		},
 		{
 			name:        "valid callback URL",
 			callbackURL: "http://api.callback.com",
 		},
 		{
-			name:             "blocked url",
-			callbackURL:      "http://localhost",
-			expectedErrorStr: "callback url not acceptable",
+			name:          "blocked url",
+			callbackURL:   "http://localhost",
+			expectedError: ErrCallbackURLNotAcceptable,
 		},
 	}
 
@@ -174,7 +182,7 @@ func TestValidateCallbackURL(t *testing.T) {
 			err := ValidateCallbackURL(tc.callbackURL, []string{"http://localhost"})
 
 			if err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			} else {
 				require.NoError(t, err)
@@ -305,10 +313,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
 	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 12 sat is too low - minimum expected fee is 22500000000 sat")
+	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee is too low\nminimum expected fee: 22500000000, actual fee: 12")
 	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
+	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
 	errBEEFLowFees := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
 	errBEEFLowFees.Txid = PtrTo("8184849de6af441c7de088428073c2a9131b08f7d878d9f49c3faf6d941eb168")
 	errBEEFInvalidScripts := *api.NewErrorFields(api.ErrStatusUnlockingScripts, "arc error 461: invalid script")
@@ -326,6 +334,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
+		expectedError    error
 
 		expectedFee uint64
 	}{
@@ -335,6 +344,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedError:    ErrEmptyBody,
 		},
 		{
 			name:        "invalid tx - empty payload, application/json",
@@ -342,6 +352,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedError:    ErrEmptyBody,
 		},
 		{
 			name:        "empty tx - application/octet-stream",
@@ -349,6 +360,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedError:    ErrEmptyBody,
 		},
 		{
 			name:        "invalid mime type",
@@ -381,6 +393,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedError:    ErrEmptyBody,
 		},
 		{
 			name:        "invalid tx - invalid hex, application/octet-stream",
@@ -397,6 +410,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   460,
 			expectedResponse: errFieldMissingInputs,
+			expectedError:    defaultvalidator.ErrParentNotFound,
 		},
 		{
 			name:        "valid tx - fees too low",
@@ -407,6 +421,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   465,
 			expectedResponse: errFieldValidation,
+			expectedError:    defaultvalidator.ErrTxFeeTooLow,
 		},
 		{
 			name:             "valid tx - submit error",
@@ -482,6 +497,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   463,
 			expectedResponse: errBEEFDecode,
+			expectedError:    ErrDecodingBeef,
 		},
 		{
 			name:        "invalid BEEF - text/plain - low fees",
@@ -581,7 +597,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
+			// given
 			policy := *defaultPolicy
 			if tc.expectedFee > 0 {
 				policy.MinMiningTxFee = float64(tc.expectedFee)
@@ -632,10 +648,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			inputTx := strings.NewReader(tc.txHexString)
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
-			// then
+			// when
 			err = sut.POSTTransaction(ctx, api.POSTTransactionParams{})
 
-			// assert
+			// then
 			require.NoError(t, err)
 
 			assert.Equal(t, int(tc.expectedStatus), rec.Code)
@@ -650,11 +666,14 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 				assert.Equal(t, tc.expectedResponse, txResponse)
 			case api.ErrorFields:
-				var txErr api.ErrorFields
-				err = json.Unmarshal(b, &txErr)
+				var actualError api.ErrorFields
+				err = json.Unmarshal(b, &actualError)
 				require.NoError(t, err)
 
-				assert.Equal(t, tc.expectedResponse, txErr)
+				assert.Equal(t, tc.expectedResponse, actualError)
+				if tc.expectedError != nil {
+					assert.ErrorContains(t, errors.New(*actualError.ExtraInfo), tc.expectedError.Error())
+				}
 			default:
 				require.Fail(t, fmt.Sprintf("response type %T does not match any valid types", v))
 			}
@@ -664,7 +683,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		// when
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -674,17 +694,21 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
-			require.NoError(t, err)
+			// when
+			actualError := sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
+			require.NoError(t, actualError)
 			// multiple txs post always returns 200, the error code is given per tx
 			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
 		}
 	})
 
 	t.Run("invalid parameters", func(t *testing.T) {
+		// given
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -696,7 +720,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			XWaitFor:       PtrTo(metamorph_api.Status_name[int32(metamorph_api.Status_ANNOUNCED_TO_NETWORK)]),
 		}
 
-		err = defaultHandler.POSTTransactions(ctx, options)
+		// when
+		err = sut.POSTTransactions(ctx, options)
+
+		// then
 		require.NoError(t, err)
 		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
@@ -704,11 +731,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		var bErr api.ErrorMalformed
 		_ = json.Unmarshal(b, &bErr)
 
-		assert.Equal(t, "invalid callback URL [parse \"callback.example.com\": invalid URI for request]", *bErr.ExtraInfo)
+		assert.Equal(t, "invalid callback URL\nparse \"callback.example.com\": invalid URI for request", *bErr.ExtraInfo)
+		assert.ErrorContains(t, errors.New(*bErr.ExtraInfo), ErrInvalidCallbackURL.Error())
 	})
 
 	t.Run("invalid mime type", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		// given
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -717,13 +746,17 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 
-		err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
-		require.NoError(t, err)
+		// when
+		actualError := sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+		// then
+		require.NoError(t, actualError)
 		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		// given
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -733,8 +766,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, expectedError := range expectedErrors {
+			// when
 			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
 			require.NoError(t, err)
 			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
@@ -755,6 +791,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
+		// given
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var txStatuses []*metamorph.TransactionStatus
@@ -776,7 +813,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		arcConfig, err := config.Load()
 		require.NoError(t, err, "could not load default config")
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRpc, arcConfig.Api)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRpc, arcConfig.Api)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -787,8 +824,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
+			// when
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
 			require.NoError(t, err)
 			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
 
@@ -798,10 +838,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
 			assert.Equal(t, "arc error 460: parent transaction not found", *bErr[0].ExtraInfo)
+			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrParentNotFound.Error())
 		}
 	})
 
 	t.Run("valid tx", func(t *testing.T) {
+		// given
 		txResult := &metamorph.TransactionStatus{
 			TxID:        validTxID,
 			BlockHash:   "",
@@ -824,7 +866,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -835,8 +877,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
+			// when
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -849,7 +894,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("invalid tx - beef", func(t *testing.T) {
-		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error decoding BEEF: invalid BEEF - HasBUMP flag set, but no BUMP index")
+		// given
+		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(ctx context.Context) error {
@@ -857,7 +903,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -868,8 +914,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
+			// when
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
 			require.NoError(t, err)
 			assert.Equal(t, int(api.ErrStatusMalformed), rec.Code)
 
@@ -878,10 +927,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bResponse)
 
 			require.Equal(t, errBEEFDecode, bResponse)
+			require.ErrorContains(t, errors.New(*bResponse.ExtraInfo), ErrDecodingBeef.Error())
 		}
 	})
 
 	t.Run("valid tx - beef", func(t *testing.T) {
+		// given
 		txResult := &metamorph.TransactionStatus{
 			TxID:        validBeefTxID,
 			BlockHash:   "",
@@ -910,7 +961,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -920,8 +971,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
+			// when
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -929,11 +981,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
+			// then
 			require.Equal(t, validBeefTxID, bResponse[0].Txid)
 		}
 	})
 
 	t.Run("multiple formats - success", func(t *testing.T) {
+		// given
 		txResults := []*metamorph.TransactionStatus{
 			{
 				TxID:        validBeefTxID,
@@ -989,7 +1043,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		defaultHandler, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -999,8 +1053,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		for contentType, inputTx := range inputTxs {
+			// when
 			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = defaultHandler.POSTTransactions(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -1033,7 +1090,7 @@ func createEchoGetRequest(target string) (*httptest.ResponseRecorder, echo.Conte
 	return rec, ctx
 }
 
-func Test_calcFeesFromBSVPerKB(t *testing.T) {
+func TestCalcFeesFromBSVPerKB(t *testing.T) {
 	tests := []struct {
 		name     string
 		feePerKB float64
@@ -1085,8 +1142,8 @@ func TestGetTransactionOptions(t *testing.T) {
 		name   string
 		params api.POSTTransactionParams
 
-		expectedErrorStr string
-		expectedOptions  *metamorph.TransactionOptions
+		expectedError   error
+		expectedOptions *metamorph.TransactionOptions
 	}{
 		{
 			name:   "no options",
@@ -1125,7 +1182,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XCallbackUrl: PtrTo("api.callme.com"),
 			},
 
-			expectedErrorStr: "invalid callback URL",
+			expectedError: ErrInvalidCallbackURL,
 		},
 		{
 			// NOTE: deprecated, to be removed soon
@@ -1234,13 +1291,13 @@ func TestGetTransactionOptions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			options, err := getTransactionOptions(tc.params, make([]string, 0))
+			options, actualErr := getTransactionOptions(tc.params, make([]string, 0))
 
-			if tc.expectedErrorStr != "" || err != nil {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, actualErr, tc.expectedError)
 				return
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, actualErr)
 			}
 
 			require.Equal(t, tc.expectedOptions, options)

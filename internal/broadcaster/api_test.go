@@ -40,7 +40,7 @@ func TestBroadcastTransactions(t *testing.T) {
 				Detail: "Transaction is malformed and cannot be processed",
 			},
 			expectedTxStatuses: nil,
-			expectedError:      errors.New("failed to broadcast transactions: {\"detail\":\"Transaction is malformed and cannot be processed\",\"extraInfo\":null,\"instance\":null,\"status\":0,\"title\":\"\",\"txid\":null,\"type\":\"\"}"),
+			expectedError:      ErrFailedToBroadcastTxs,
 		},
 		{
 			name:           "valid tx",
@@ -69,6 +69,7 @@ func TestBroadcastTransactions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			var body interface{}
 
 			if tc.postTxError == nil {
@@ -91,7 +92,7 @@ func TestBroadcastTransactions(t *testing.T) {
 				},
 			}
 
-			broadcaster := &APIBroadcaster{
+			sut := &APIBroadcaster{
 				arcClient: arcClientMock,
 			}
 
@@ -99,10 +100,13 @@ func TestBroadcastTransactions(t *testing.T) {
 			tx, err := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 			require.NoError(t, err)
 
-			status, err := broadcaster.BroadcastTransactions(context.Background(), sdkTx.Transactions{tx}, metamorph_api.Status_SEEN_ON_NETWORK, "", "", false, false)
+			// when
+			actualStatus, actualError := sut.BroadcastTransactions(context.Background(), sdkTx.Transactions{tx}, metamorph_api.Status_SEEN_ON_NETWORK, "", "", false, false)
 
-			assert.Equal(t, tc.expectedTxStatuses, status)
-			assert.Equal(t, tc.expectedError, err)
+			assert.Equal(t, tc.expectedTxStatuses, actualStatus)
+			if tc.expectedError != nil {
+				assert.ErrorIs(t, actualError, tc.expectedError)
+			}
 		})
 	}
 }
@@ -124,7 +128,7 @@ func TestBroadcastTransaction(t *testing.T) {
 				Detail: "Transaction is malformed and cannot be processed",
 			},
 			expectedTxStatus: nil,
-			expectedError:    errors.New("Transaction is malformed and cannot be processed"),
+			expectedError:    ErrFailedToBroadcastTx,
 		},
 		{
 			name:           "valid tx",
@@ -149,6 +153,7 @@ func TestBroadcastTransaction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			var body interface{}
 
 			if tc.postTxError == nil {
@@ -171,7 +176,7 @@ func TestBroadcastTransaction(t *testing.T) {
 				},
 			}
 
-			broadcaster := &APIBroadcaster{
+			sut := &APIBroadcaster{
 				arcClient: arcClientMock,
 			}
 
@@ -179,10 +184,14 @@ func TestBroadcastTransaction(t *testing.T) {
 			tx, err := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 			require.NoError(t, err)
 
-			status, err := broadcaster.BroadcastTransaction(context.Background(), tx, metamorph_api.Status_SEEN_ON_NETWORK, "")
+			// when
+			actualStatus, actualError := sut.BroadcastTransaction(context.Background(), tx, metamorph_api.Status_SEEN_ON_NETWORK, "")
 
-			assert.Equal(t, tc.expectedTxStatus, status)
-			assert.Equal(t, tc.expectedError, err)
+			// then
+			assert.Equal(t, tc.expectedTxStatus, actualStatus)
+			if tc.expectedError != nil {
+				assert.ErrorIs(t, actualError, tc.expectedError)
+			}
 		})
 	}
 }
@@ -212,11 +221,13 @@ func TestGetArcClient(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			arcClient, err := getArcClient(tc.url, nil)
+			// when
+			actualArcClient, actualError := getArcClient(tc.url, nil)
 
-			assert.Equal(t, tc.expectedError, err)
+			// then
+			assert.Equal(t, tc.expectedError, actualError)
 			if tc.expectedError == nil {
-				assert.NotNil(t, arcClient)
+				assert.NotNil(t, actualArcClient)
 			}
 		})
 	}

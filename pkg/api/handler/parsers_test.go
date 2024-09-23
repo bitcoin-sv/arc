@@ -126,14 +126,15 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 
 		for _, req := range requests {
 			t.Run(tc.name+"-"+req.Header.Get(echo.HeaderContentType), func(t *testing.T) {
-				hexTx, err := parseTransactionsFromRequest(req)
+				// when
+				actualHexTx, actualErr := parseTransactionsFromRequest(req)
 
 				if tc.expectedHex != nil {
-					assert.Nil(t, err, "should not return an error")
-					assert.Equal(t, tc.expectedHex, hexTx)
+					assert.Nil(t, actualErr, "should not return an error")
+					assert.Equal(t, tc.expectedHex, actualHexTx)
 				} else {
-					assert.Nil(t, hexTx)
-					assert.Error(t, err)
+					assert.Nil(t, actualHexTx)
+					assert.Error(t, actualErr)
 				}
 			})
 		}

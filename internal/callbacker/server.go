@@ -2,7 +2,7 @@ package callbacker
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net"
 	"os"
@@ -15,6 +15,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var ErrServerFailedToListen = errors.New("GRPC server failed to listen")
 
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
@@ -63,7 +65,7 @@ func (s *Server) Serve(address string, grpcMessageSize int, prometheusEndpoint s
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		return fmt.Errorf("GRPC server failed to listen [%w]", err)
+		return ErrServerFailedToListen
 	}
 
 	callbacker_api.RegisterCallbackerAPIServer(grpcSrv, s)

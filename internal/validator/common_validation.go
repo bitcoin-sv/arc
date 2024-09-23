@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/bitcoin-sv/go-sdk/script"
@@ -20,6 +21,19 @@ const (
 	minTxSizeBytes                     = 61
 )
 
+var (
+	ErrNoInputsOrOutputs               = errors.New("transaction has no inputs or outputs")
+	ErrTxOutputInvalid                 = errors.New("transaction output is invalid")
+	ErrTxInputInvalid                  = errors.New("transaction input is invalid")
+	ErrUnlockingScriptHasTooManySigOps = errors.New("transaction unlocking scripts have too many sigops")
+	ErrEmptyUnlockingScript            = errors.New("transaction input unlocking script is empty")
+	ErrUnlockingScriptNotPushOnly      = errors.New("transaction input unlocking script is not push only")
+	ErrScriptExecutionFailed           = errors.New("script execution failed")
+
+	ErrTxSizeLessThanMinSize = fmt.Errorf("transaction size in bytes is less than %d bytes", minTxSizeBytes)
+	ErrTxSizeGreaterThanMax  = fmt.Errorf("transaction size in bytes is greater than %d bytes", maxBlockSize)
+)
+
 func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) *Error {
 	//
 	// Each node will verify every transaction against a long checklist of criteria:
@@ -28,7 +42,7 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 
 	// 1) Neither lists of inputs or outputs are empty
 	if len(tx.Inputs) == 0 || len(tx.Outputs) == 0 {
-		return NewError(fmt.Errorf("transaction has no inputs or outputs"), api.ErrStatusInputs)
+		return NewError(ErrNoInputsOrOutputs, api.ErrStatusInputs)
 	}
 
 	// 2) The transaction size in bytes is less than maxtxsizepolicy.
@@ -53,7 +67,7 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 
 	// 7) The transaction size in bytes is greater than or equal to 100
 	if txSize < minTxSizeBytes {
-		return NewError(fmt.Errorf("transaction size in bytes is less than %d bytes", minTxSizeBytes), api.ErrStatusMalformed)
+		return NewError(ErrTxSizeLessThanMinSize, api.ErrStatusMalformed)
 	}
 
 	// 8) The number of signature operations (SIGOPS) contained in the transaction is less than the signature operation limit
@@ -77,7 +91,7 @@ func checkTxSize(txSize int, policy *bitcoin.Settings) error {
 		maxTxSizePolicy = maxBlockSize
 	}
 	if txSize > maxTxSizePolicy {
-		return fmt.Errorf("transaction size in bytes is greater than max tx size policy %d", maxTxSizePolicy)
+		return ErrTxSizeGreaterThanMax
 	}
 
 	return nil
@@ -89,15 +103,15 @@ func checkOutputs(tx *sdkTx.Transaction) *Error {
 		isData := output.LockingScript.IsData()
 		switch {
 		case !isData && (output.Satoshis > maxSatoshis || output.Satoshis < DustLimit):
-			return NewError(fmt.Errorf("transaction output %d satoshis is invalid", index), api.ErrStatusOutputs)
+			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d satoshis is invalid", index)), api.ErrStatusOutputs)
 		case isData && output.Satoshis != 0:
-			return NewError(fmt.Errorf("transaction output %d has non 0 value op return", index), api.ErrStatusOutputs)
+			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d has non 0 value op return", index)), api.ErrStatusOutputs)
 		}
 		total += output.Satoshis
 	}
 
 	if total > maxSatoshis {
-		return NewError(fmt.Errorf("transaction output total satoshis is too high"), api.ErrStatusOutputs)
+		return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output total satoshis is too high")), api.ErrStatusOutputs)
 	}
 
 	return nil
@@ -107,7 +121,7 @@ func checkInputs(tx *sdkTx.Transaction) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
 		if input.PreviousTxIDStr() == coinbaseTxID {
-			return NewError(fmt.Errorf("transaction input %d is a coinbase input", index), api.ErrStatusInputs)
+			return NewError(errors.Join(ErrTxInputInvalid, fmt.Errorf("input %d is a coinbase input", index)), api.ErrStatusInputs)
 		}
 
 		inputSatoshis := uint64(0)
@@ -116,12 +130,12 @@ func checkInputs(tx *sdkTx.Transaction) *Error {
 		}
 
 		if inputSatoshis > maxSatoshis {
-			return NewError(fmt.Errorf("transaction input %d satoshis is too high", index), api.ErrStatusInputs)
+			return NewError(errors.Join(ErrTxInputInvalid, fmt.Errorf("input %d satoshis is too high", index)), api.ErrStatusInputs)
 		}
 		total += inputSatoshis
 	}
 	if total > maxSatoshis {
-		return NewError(fmt.Errorf("transaction input total satoshis is too high"), api.ErrStatusInputs)
+		return NewError(errors.Join(ErrTxInputInvalid, fmt.Errorf("input total satoshis is too high")), api.ErrStatusInputs)
 	}
 
 	return nil
@@ -164,7 +178,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 	}
 
 	if numSigOps > maxSigOps {
-		return fmt.Errorf("transaction unlocking scripts have too many sigops (%d)", numSigOps)
+		return errors.Join(ErrUnlockingScriptHasTooManySigOps, fmt.Errorf("sigops: %d", numSigOps))
 	}
 
 	return nil
@@ -173,7 +187,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 func pushDataCheck(tx *sdkTx.Transaction) error {
 	for index, input := range tx.Inputs {
 		if input.UnlockingScript == nil {
-			return fmt.Errorf("transaction input %d unlocking script is empty", index)
+			return errors.Join(ErrEmptyUnlockingScript, fmt.Errorf("input: %d", index))
 		}
 		parser := interpreter.DefaultOpcodeParser{}
 		parsedUnlockingScript, err := parser.Parse(input.UnlockingScript)
@@ -181,7 +195,7 @@ func pushDataCheck(tx *sdkTx.Transaction) error {
 			return err
 		}
 		if !parsedUnlockingScript.IsPushOnly() {
-			return fmt.Errorf("transaction input %d unlocking script is not push only", index)
+			return errors.Join(ErrUnlockingScriptNotPushOnly, fmt.Errorf("input: %d", index))
 		}
 	}
 
@@ -196,7 +210,7 @@ func CheckScript(tx *sdkTx.Transaction, inputIdx int, prevTxOutput *sdkTx.Transa
 	)
 
 	if err != nil {
-		return fmt.Errorf("script execution failed: %w", err)
+		return errors.Join(ErrScriptExecutionFailed, err)
 	}
 
 	return nil

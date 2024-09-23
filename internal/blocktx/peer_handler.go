@@ -12,6 +12,8 @@ import (
 	"github.com/libsv/go-p2p/wire"
 )
 
+var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to p2p.BlockMessage")
+
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, length uint64, bytesRead int) (int, wire.Message, []byte, error) {
@@ -112,9 +114,8 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 	msg, ok := wireMsg.(*p2p.BlockMessage)
 	if !ok {
-		errMsg := "unable to cast wire.Message to p2p.BlockMessage"
-		ph.logger.Debug(errMsg)
-		return errors.New(errMsg)
+		ph.logger.Debug(ErrUnableToCastWireMessage.Error())
+		return ErrUnableToCastWireMessage
 	}
 
 	ph.blockProcessCh <- msg

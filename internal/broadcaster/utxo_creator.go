@@ -15,6 +15,12 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
+var (
+	ErrRequestedSatoshisTooHigh      = errors.New("requested total of satoshis exceeds balance")
+	ErrRequestedSatoshisExceedsSplit = errors.New("requested satoshis greater than satoshis to be split")
+	ErrFailedToDecodeTxID            = errors.New("failed to decode txid")
+)
+
 type UTXOCreator struct {
 	Broadcaster
 	keySet *keyset.KeySet
@@ -52,18 +58,18 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 
 	confirmed, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get balance: %s", err.Error())
+		return errors.Join(ErrFailedToGetBalance, err)
 	}
 
 	balance := confirmed + unconfirmed
 
 	if requestedOutputsSatoshis > balance {
-		return fmt.Errorf("requested total exceeds balance: requested=%d, balance=%d", requestedOutputsSatoshis, balance)
+		return errors.Join(ErrRequestedSatoshisTooHigh, fmt.Errorf("equested: %d, balance: %d", requestedOutputsSatoshis, balance))
 	}
 
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
-		return fmt.Errorf("failed to get utxos: %v", err)
+		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
 
 	utxoSet := list.New()
@@ -192,7 +198,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 
 		utxo, ok := front.Value.(*sdkTx.UTXO)
 		if !ok {
-			return nil, errors.New("failed to parse value to utxo")
+			return nil, ErrFailedToParseValueToUTXO
 		}
 
 		tx := sdkTx.NewTransaction()
@@ -236,7 +242,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 
 func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis, requestedSatoshis uint64, requestedOutputs int, fundingKeySet *keyset.KeySet) (int, error) {
 	if requestedSatoshis > splitSatoshis {
-		return 0, fmt.Errorf("requested satoshis %d greater than satoshis to be split %d", requestedSatoshis, splitSatoshis)
+		return 0, errors.Join(ErrRequestedSatoshisExceedsSplit, fmt.Errorf("requested: %d, split: %d", requestedSatoshis, splitSatoshis))
 	}
 
 	counter := 0
@@ -256,7 +262,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 
 		err = PayTo(tx, fundingKeySet.Script, requestedSatoshis)
 		if err != nil {
-			return 0, err
+			return 0, errors.Join(ErrFailedToAddOutput, err)
 		}
 
 		remaining -= int64(requestedSatoshis)
@@ -270,7 +276,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 
 	err = PayTo(tx, fundingKeySet.Script, uint64(remaining)-fee)
 	if err != nil {
-		return 0, err
+		return 0, errors.Join(ErrFailedToAddOutput, err)
 	}
 
 	err = SignAllInputs(tx, fundingKeySet.PrivateKey)

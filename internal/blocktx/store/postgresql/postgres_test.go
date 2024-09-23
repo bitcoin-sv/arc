@@ -132,63 +132,64 @@ func TestPostgresDB(t *testing.T) {
 	var err error
 
 	t.Run("insert block / get block", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "")
 
 		blockHash1 := testutils.RevChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
 		blockHash2 := testutils.RevChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
 		merkleRoot := testutils.RevChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
-		block := &blocktx_api.Block{
+		expectedBlock := &blocktx_api.Block{
 			Hash:         blockHash2[:],
 			PreviousHash: blockHash1[:],
 			MerkleRoot:   merkleRoot[:],
 			Height:       100,
 		}
 
-		id, err := postgresDB.InsertBlock(ctx, block)
+		// when -> then
+		id, err := postgresDB.InsertBlock(ctx, expectedBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1), id)
 
-		blockResp, err := postgresDB.GetBlock(ctx, blockHash2)
+		actualBlockResp, err := postgresDB.GetBlock(ctx, blockHash2)
 		require.NoError(t, err)
-		require.Equal(t, block, blockResp)
+		require.Equal(t, expectedBlock, actualBlockResp)
 	})
 
 	t.Run("get block by height / get chain tip", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_block_by_height")
 
 		height := uint64(822015)
-		hash_at_height_longest := testutils.RevChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
-		hash_at_height_stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		expectedHashAtHeightLongest := testutils.RevChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
+		expectedHashAtHeightStale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 
-		height_not_found := uint64(812222)
+		heightNotFound := uint64(812222)
 
-		tipHeight := uint64(822020)
-		hash_at_tip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+		expectedTipHeight := uint64(822020)
+		hashAtTip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 
-		block, err := postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_LONGEST)
+		// when -> then
+		actualBlock, err := postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_LONGEST)
 		require.NoError(t, err)
-		require.Equal(t, hash_at_height_longest[:], block.Hash)
+		require.Equal(t, expectedHashAtHeightLongest[:], actualBlock.Hash)
 
-		block, err = postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_STALE)
+		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_STALE)
 		require.NoError(t, err)
-		require.Equal(t, hash_at_height_stale[:], block.Hash)
+		require.Equal(t, expectedHashAtHeightStale[:], actualBlock.Hash)
 
-		block, err = postgresDB.GetBlockByHeight(context.Background(), height_not_found, blocktx_api.Status_LONGEST)
-		require.Nil(t, block)
+		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), heightNotFound, blocktx_api.Status_LONGEST)
+		require.Nil(t, actualBlock)
 		require.Equal(t, store.ErrBlockNotFound, err)
 
-		block, err = postgresDB.GetChainTip(context.Background())
+		actualBlock, err = postgresDB.GetChainTip(context.Background())
 		require.NoError(t, err)
-		require.Equal(t, hash_at_tip[:], block.Hash)
-		require.Equal(t, tipHeight, block.Height)
+		require.Equal(t, hashAtTip[:], actualBlock.Hash)
+		require.Equal(t, expectedTipHeight, actualBlock.Height)
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_block_gaps")
-
-		blockGaps, err := postgresDB.GetBlockGaps(ctx, 12)
-		require.NoError(t, err)
-		require.Equal(t, 4, len(blockGaps))
 
 		hash822014 := testutils.RevChainhash(t, "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000")
 		hash822019 := testutils.RevChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
@@ -214,13 +215,20 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		require.ElementsMatch(t, expectedBlockGaps, blockGaps)
+		// when
+		actualBlockGaps, err := postgresDB.GetBlockGaps(ctx, 12)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 4, len(actualBlockGaps))
+		require.ElementsMatch(t, expectedBlockGaps, actualBlockGaps)
 	})
 
 	t.Run("get longest chain from height", func(t *testing.T) {
+		//given
 		prepareDb(t, postgresDB.db, "fixtures/get_longest_chain")
 
-		starting_height := uint64(822014)
+		startingHeight := uint64(822014)
 		hash0Longest := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
 		hash1Longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 
@@ -229,9 +237,11 @@ func TestPostgresDB(t *testing.T) {
 			hash1Longest,
 		}
 
-		longestBlocks, err := postgresDB.GetLongestChainFromHeight(ctx, starting_height)
+		// when
+		longestBlocks, err := postgresDB.GetLongestChainFromHeight(ctx, startingHeight)
 		require.NoError(t, err)
 
+		// then
 		require.Equal(t, len(expectedStaleHashes), len(longestBlocks))
 		for i, b := range longestBlocks {
 			require.Equal(t, expectedStaleHashes[i][:], b.Hash)
@@ -239,6 +249,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get stale chain back from hash", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_stale_chain")
 
 		hash2Stale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
@@ -251,16 +262,19 @@ func TestPostgresDB(t *testing.T) {
 			hash2Stale[:],
 		}
 
-		staleBlocks, err := postgresDB.GetStaleChainBackFromHash(ctx, hash4Stale[:])
+		// when
+		actualStaleBlocks, err := postgresDB.GetStaleChainBackFromHash(ctx, hash4Stale[:])
 		require.NoError(t, err)
 
-		require.Equal(t, len(expectedStaleHashes), len(staleBlocks))
-		for i, b := range staleBlocks {
+		// then
+		require.Equal(t, len(expectedStaleHashes), len(actualStaleBlocks))
+		for i, b := range actualStaleBlocks {
 			require.Equal(t, expectedStaleHashes[i], b.Hash)
 		}
 	})
 
 	t.Run("update blocks statuses", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
 
 		hash1Longest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
@@ -275,9 +289,11 @@ func TestPostgresDB(t *testing.T) {
 			{Hash: hash4Stale[:], Status: blocktx_api.Status_LONGEST},
 		}
 
+		// when
 		err := postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 		require.NoError(t, err)
 
+		// then
 		longest1, err := postgresDB.GetBlock(ctx, hash1Longest)
 		require.NoError(t, err)
 		require.Equal(t, blocktx_api.Status_STALE, longest1.Status)
@@ -296,6 +312,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("test getting mined txs", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_mined_transactions")
 
 		txHash1 := testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
@@ -305,10 +322,12 @@ func TestPostgresDB(t *testing.T) {
 
 		blockHash := testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
 
+		// when
 		// get mined transaction and corresponding block
 		minedTxs, err := postgresDB.GetMinedTransactions(ctx, []*chainhash.Hash{txHash1, txHash2, txHash3, txHash4})
 		require.NoError(t, err)
 
+		// then
 		require.Len(t, minedTxs, 3)
 
 		for _, tx := range minedTxs {
@@ -385,10 +404,12 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("mark block as done", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/mark_block_as_done")
 
 		bh1 := testutils.RevChainhash(t, "b71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000")
 
+		// when
 		err = postgresDB.MarkBlockAsDone(ctx, bh1, 500, 75)
 		require.NoError(t, err)
 
@@ -398,6 +419,7 @@ func TestPostgresDB(t *testing.T) {
 
 		require.NoError(t, d.Get(&block, "SELECT * FROM blocktx.blocks WHERE hash=$1", bh1[:]))
 
+		// then
 		require.NotNil(t, block.Size)
 		require.Equal(t, int64(500), *block.Size)
 
@@ -407,6 +429,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("verify merkle roots", func(t *testing.T) {
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/verify_merkle_roots")
 
 		merkleRequests := []*blocktx_api.MerkleRootVerificationRequest{
@@ -444,9 +467,11 @@ func TestPostgresDB(t *testing.T) {
 		maxAllowedBlockHeightMismatch := 10
 		expectedUnverifiedBlockHeights := []uint64{812011, 822010, 822032}
 
+		// when
 		res, err := postgresDB.VerifyMerkleRoots(ctx, merkleRequests, maxAllowedBlockHeightMismatch)
 		require.NoError(t, err)
 
+		// then
 		assert.Equal(t, expectedUnverifiedBlockHeights, res.UnverifiedBlockHeights)
 	})
 }
@@ -526,14 +551,17 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			prepareDb(t, sut.db, "fixtures/upsert_block_transactions")
 
 			testBlockID := uint64(9736)
 
+			// when
 			res, err := sut.UpsertBlockTransactions(ctx, testBlockID, tc.txsWithMerklePaths)
 
+			// then
 			if tc.expectedErr != nil {
-				require.ErrorContains(t, err, tc.expectedErr.Error())
+				require.ErrorIs(t, err, tc.expectedErr)
 				return
 			} else {
 				require.NoError(t, err)
@@ -675,8 +703,10 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			prepareDb(t, sut.db, "fixtures/register_transactions")
 
+			// when
 			result, err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -686,6 +716,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 				resultmap[*h] = false
 			}
 
+			// then
 			// assert data are correctly saved in the store
 			d, err := sqlx.Open("postgres", dbInfo)
 			require.NoError(t, err)

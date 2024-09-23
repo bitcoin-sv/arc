@@ -32,7 +32,7 @@ func TestPublishMarshal(t *testing.T) {
 		txsBlock   *blocktx_api.TransactionBlock
 		publishErr error
 
-		expectedErrorStr     string
+		expectedError        error
 		expectedPublishCalls int
 	}{
 		{
@@ -44,29 +44,32 @@ func TestPublishMarshal(t *testing.T) {
 		{
 			name:       "publish err",
 			txsBlock:   txBlock,
-			publishErr: errors.New("failed to publish"),
+			publishErr: nats_core.ErrFailedToPublish,
 
-			expectedErrorStr:     "failed to publish",
+			expectedError:        nats_core.ErrFailedToPublish,
 			expectedPublishCalls: 2,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			//given
 			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
 			logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			mqClient := nats_core.New(natsMock, nats_core.WithLogger(logger))
+			sut := nats_core.New(natsMock, nats_core.WithLogger(logger))
 
-			err := mqClient.PublishMarshal(MinedTxsTopic, tc.txsBlock)
+			// when
+			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
-			if tc.expectedErrorStr == "" {
+			// then
+			if tc.expectedError == nil {
 				require.NoError(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 
@@ -81,7 +84,7 @@ func TestPublish(t *testing.T) {
 		name       string
 		publishErr error
 
-		expectedErrorStr     string
+		expectedError        error
 		expectedPublishCalls int
 	}{
 		{
@@ -91,31 +94,34 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:       "error - publish",
-			publishErr: errors.New("failed to publish"),
+			publishErr: nats_core.ErrFailedToPublish,
 
-			expectedErrorStr:     "failed to publish on register-tx topic",
+			expectedError:        nats_core.ErrFailedToPublish,
 			expectedPublishCalls: 1,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(subj string, data []byte) error {
 					return tc.publishErr
 				},
 			}
 
-			mqClient := nats_core.New(
+			sut := nats_core.New(
 				natsMock,
 			)
 
-			err := mqClient.Publish(RegisterTxTopic, []byte("tx"))
+			// when
+			err := sut.Publish(RegisterTxTopic, []byte("tx"))
 
-			if tc.expectedErrorStr == "" {
+			// then
+			if tc.expectedError == nil {
 				require.NoError(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 
@@ -132,7 +138,7 @@ func TestSubscribe(t *testing.T) {
 		msgFuncErr   error
 		runFunc      bool
 
-		expectedErrorStr            string
+		expectedError               error
 		expectedQueueSubscribeCalls int
 	}{
 		{
@@ -142,9 +148,9 @@ func TestSubscribe(t *testing.T) {
 		},
 		{
 			name:         "error - publish",
-			subscribeErr: errors.New("failed to subscribe"),
+			subscribeErr: nats_core.ErrFailedToSubscribe,
 
-			expectedErrorStr:            "failed to subscribe to register-tx topic",
+			expectedError:               nats_core.ErrFailedToSubscribe,
 			expectedQueueSubscribeCalls: 1,
 		},
 		{
@@ -158,6 +164,7 @@ func TestSubscribe(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			var msgHandler nats.MsgHandler
 
 			natsMock := &mocks.NatsConnectionMock{
@@ -169,16 +176,18 @@ func TestSubscribe(t *testing.T) {
 				},
 			}
 
-			mqClient := nats_core.New(
+			sut := nats_core.New(
 				natsMock,
 			)
 
-			err := mqClient.Subscribe(RegisterTxTopic, func(bytes []byte) error { return tc.msgFuncErr })
+			// when
+			err := sut.Subscribe(RegisterTxTopic, func(bytes []byte) error { return tc.msgFuncErr })
 
-			if tc.expectedErrorStr == "" {
+			// then
+			if tc.expectedError == nil {
 				require.NoError(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 
@@ -208,17 +217,20 @@ func TestShutdown(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// given
 			natsMock := &mocks.NatsConnectionMock{
 				DrainFunc: func() error {
 					return tc.drainErr
 				},
 			}
 
-			mqClient := nats_core.New(
+			// when
+			sut := nats_core.New(
 				natsMock,
 			)
 
-			mqClient.Shutdown()
+			// then
+			sut.Shutdown()
 		})
 	}
 }

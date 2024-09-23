@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -53,7 +54,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 
 	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute transactions upsert query: %v", err)
+		return nil, errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
 	}
 
 	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId, pq.Array(txHashesBytes))
@@ -69,7 +70,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		var merklePath string
 		err = rows.Scan(&txHash, &merklePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get rows: %v", err)
+			return nil, errors.Join(store.ErrFailedToGetRows, err)
 		}
 
 		registeredRows = append(registeredRows, store.TxWithMerklePath{

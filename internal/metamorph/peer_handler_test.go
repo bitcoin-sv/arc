@@ -32,6 +32,7 @@ func TestPeerHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("HandleTransactionSent", func(t *testing.T) {
+		// given
 		msgTx := wire.NewMsgTx(70001)
 		hash := msgTx.TxHash()
 
@@ -41,10 +42,12 @@ func TestPeerHandler(t *testing.T) {
 			Peer:   "mock_peer",
 		}
 
+		// when
 		go func() {
 			_ = peerHandler.HandleTransactionSent(msgTx, peer)
 		}()
 
+		// then
 		select {
 		case msg := <-messageCh:
 			assert.Equal(t, expectedMsg, msg)
@@ -54,6 +57,7 @@ func TestPeerHandler(t *testing.T) {
 	})
 
 	t.Run("HandleTransactionAnnouncement", func(t *testing.T) {
+		// given
 		hash, err := chainhash.NewHashFromStr("1234")
 		require.NoError(t, err)
 
@@ -66,10 +70,12 @@ func TestPeerHandler(t *testing.T) {
 			Peer:   "mock_peer",
 		}
 
+		// when
 		go func() {
 			_ = peerHandler.HandleTransactionAnnouncement(msgInv, peer)
 		}()
 
+		// then
 		select {
 		case msg := <-messageCh:
 			assert.Equal(t, expectedMsg, msg)
@@ -79,19 +85,22 @@ func TestPeerHandler(t *testing.T) {
 	})
 
 	t.Run("HandleTransactionRejection", func(t *testing.T) {
+		// given
 		msgReject := wire.NewMsgReject("command", wire.RejectMalformed, "malformed")
 
 		expectedMsg := &metamorph.PeerTxMessage{
 			Hash:   &msgReject.Hash,
 			Status: metamorph_api.Status_REJECTED,
 			Peer:   "mock_peer",
-			Err:    errors.New("transaction rejected by peer mock_peer: malformed"),
+			Err:    errors.Join(metamorph.ErrTxRejectedByPeer, errors.New("peer: mock_peer reason: malformed")),
 		}
 
+		// when
 		go func() {
 			_ = peerHandler.HandleTransactionRejection(msgReject, peer)
 		}()
 
+		// then
 		select {
 		case msg := <-messageCh:
 			assert.Equal(t, expectedMsg, msg)
@@ -101,6 +110,7 @@ func TestPeerHandler(t *testing.T) {
 	})
 
 	t.Run("HandleTransactionsGet", func(t *testing.T) {
+		// given
 		txsCount := 2
 		invMsgs := make([]*wire.InvVect, txsCount)
 		expectedMsgs := make([]*metamorph.PeerTxMessage, txsCount)
@@ -121,10 +131,12 @@ func TestPeerHandler(t *testing.T) {
 			}
 		}
 
+		// when
 		go func() {
 			_, _ = peerHandler.HandleTransactionsGet(invMsgs, peer)
 		}()
 
+		// then
 		counter := 0
 		for i := 0; i < txsCount; i++ {
 			select {
@@ -138,6 +150,7 @@ func TestPeerHandler(t *testing.T) {
 	})
 
 	t.Run("HandleTransaction", func(t *testing.T) {
+		// given
 		msgTx := wire.NewMsgTx(70001)
 		hash := msgTx.TxHash()
 
@@ -147,10 +160,12 @@ func TestPeerHandler(t *testing.T) {
 			Peer:   "mock_peer",
 		}
 
+		// when
 		go func() {
 			_ = peerHandler.HandleTransaction(msgTx, peer)
 		}()
 
+		// then
 		select {
 		case msg := <-messageCh:
 			assert.Equal(t, expectedMsg, msg)

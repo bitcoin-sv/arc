@@ -14,6 +14,13 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
+var (
+	ErrStatusNotSupported   = errors.New("status code not supported")
+	ErrFailedToBroadcastTxs = errors.New("failed to broadcast transactions")
+	ErrFailedToBroadcastTx  = errors.New("failed to broadcast transaction")
+	ErrInvalidARCUrl        = errors.New("arcUrl is not a valid url")
+)
+
 type APIBroadcaster struct {
 	arcClient api.ClientInterface
 }
@@ -43,7 +50,7 @@ func NewHTTPBroadcaster(arcServer string, auth *Auth) (*APIBroadcaster, error) {
 func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
-		return nil, fmt.Errorf("status code %d not supported", waitForStatus)
+		return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %d", waitForStatus))
 	}
 	params := &api.POSTTransactionsParams{
 		XWaitFor: &waitFor,
@@ -89,7 +96,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("failed to broadcast transactions: %s", string(bodyBytes))
+		return nil, ErrFailedToBroadcastTxs
 	}
 
 	var bodyResponse []Response
@@ -123,7 +130,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Transaction, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
 	waitFor, ok := metamorph_api.Status_name[int32(waitForStatus)]
 	if !ok {
-		return nil, fmt.Errorf("status code %d not supported", waitForStatus)
+		return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %d", waitForStatus))
 	}
 	params := &api.POSTTransactionParams{
 		XWaitFor: &waitFor,
@@ -160,12 +167,12 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Tra
 			if err == nil {
 				responseBody, ok := body["detail"].(string)
 				if ok {
-					return nil, errors.New(responseBody)
+					return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(responseBody))
 				}
-				return nil, fmt.Errorf("error: %s", string(bodyBytes))
+				return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(string(bodyBytes)))
 			}
 		}
-		return nil, errors.New("error: " + response.Status)
+		return nil, errors.Join(ErrFailedToBroadcastTx, fmt.Errorf("status: %s", response.Status))
 	}
 
 	var bodyResponse Response
@@ -188,7 +195,7 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Tra
 func getArcClient(arcServer string, auth *Auth) (*api.Client, error) {
 	_, err := url.Parse(arcServer)
 	if arcServer == "" || err != nil {
-		return nil, errors.New("arcUrl is not a valid url")
+		return nil, ErrInvalidARCUrl
 	}
 
 	opts := make([]api.ClientOption, 0)

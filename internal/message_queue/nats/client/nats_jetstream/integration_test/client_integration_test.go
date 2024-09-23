@@ -98,9 +98,18 @@ func TestNatsClient(t *testing.T) {
 	}
 
 	t.Run("publish", func(t *testing.T) {
+		// given
 		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
 		require.NoError(t, err)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
+		txRequest := &metamorph_api.TransactionRequest{
+			CallbackUrl:   "callback.example.com",
+			CallbackToken: "test-token",
+			RawTx:         testdata.TX1Raw.Bytes(),
+			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		}
+
+		// when
 		t.Log("subscribe to topic")
 		_, err = natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
@@ -109,14 +118,6 @@ func TestNatsClient(t *testing.T) {
 			submittedTxsChan <- serialized
 		})
 		require.NoError(t, err)
-
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl:   "callback.example.com",
-			CallbackToken: "test-token",
-			RawTx:         testdata.TX1Raw.Bytes(),
-			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-		}
-
 		t.Log("publish")
 		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
 		require.NoError(t, err)
@@ -130,6 +131,7 @@ func TestNatsClient(t *testing.T) {
 		counter := 0
 		t.Log("wait for submitted txs")
 
+		// then
 	loop:
 		for {
 			select {
@@ -149,6 +151,7 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("subscribe", func(t *testing.T) {
+		// given
 		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
 		require.NoError(t, err)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
@@ -174,6 +177,7 @@ func TestNatsClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		// when
 		data, err := proto.Marshal(txBlock)
 		require.NoError(t, err)
 		err = natsConn.Publish(MinedTxsTopic, data)
@@ -187,6 +191,7 @@ func TestNatsClient(t *testing.T) {
 
 		counter := 0
 
+		// then
 	loop:
 		for {
 			select {

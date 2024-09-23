@@ -2,7 +2,7 @@ package blocktx
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net"
 	"time"
@@ -16,6 +16,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var ErrServerFailedToListen = errors.New("GRPC server failed to listen")
 
 // Server type carries the logger within it.
 type Server struct {
@@ -55,7 +57,7 @@ func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheus
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		return fmt.Errorf("GRPC server failed to listen [%w]", err)
+		return errors.Join(ErrServerFailedToListen, err)
 	}
 
 	blocktx_api.RegisterBlockTxAPIServer(s.grpcServer, s)

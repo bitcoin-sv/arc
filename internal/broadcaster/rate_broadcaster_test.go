@@ -29,7 +29,7 @@ func TestRateBroadcaster(t *testing.T) {
 		broadcastTransactionsErr           error
 		limit                              int64
 		expectedBroadcastTransactionsCalls int
-		expectedErrorStr                   string
+		expectedError                      error
 	}{
 		{
 			name:                               "success",
@@ -38,13 +38,13 @@ func TestRateBroadcaster(t *testing.T) {
 		{
 			name:                               "error - failed to get balance",
 			getBalanceWithRetriesErr:           errors.New("utxo client error"),
-			expectedErrorStr:                   "failed to get balance",
+			expectedError:                      broadcaster.ErrFailedToGetBalance,
 			expectedBroadcastTransactionsCalls: 0,
 		},
 		{
 			name:                               "error - failed to get utxos",
 			getUTXOsWithRetriesErr:             errors.New("failed to get utxos"),
-			expectedErrorStr:                   "failed to get utxos",
+			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
 			expectedBroadcastTransactionsCalls: 0,
 		},
 		{
@@ -60,7 +60,7 @@ func TestRateBroadcaster(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
+			// given
 			utxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
@@ -105,12 +105,13 @@ func TestRateBroadcaster(t *testing.T) {
 				},
 			}
 
-			rb, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, 2, tc.limit, broadcaster.WithBatchSize(2))
+			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, 2, tc.limit, broadcaster.WithBatchSize(2))
 			require.NoError(t, err)
 
-			err = rb.Start()
-			if tc.expectedErrorStr != "" {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
+			// when
+			err = sut.Start()
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			} else {
 				require.NoError(t, err)
@@ -118,8 +119,9 @@ func TestRateBroadcaster(t *testing.T) {
 
 			time.Sleep(500 * time.Millisecond)
 
-			rb.Shutdown()
+			sut.Shutdown()
 
+			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
 		})
 	}

@@ -3,8 +3,6 @@ package postgresql
 import (
 	"context"
 	"errors"
-	"fmt"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -28,7 +26,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 		if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
 			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
 			if err != nil {
-				return "", fmt.Errorf("failed to set block processing: %v", err)
+				return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
 			}
 
 			return processedBy, store.ErrBlockProcessingDuplicateKey

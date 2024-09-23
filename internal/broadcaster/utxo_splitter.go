@@ -2,7 +2,7 @@ package broadcaster
 
 import (
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"log/slog"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
@@ -44,7 +44,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 	var err error
 	txIDBytes, err := hex.DecodeString(txid)
 	if err != nil {
-		return fmt.Errorf("failed to decode txid: %w", err)
+		return errors.Join(ErrFailedToDecodeTxID, err)
 	}
 
 	utxo := &sdkTx.UTXO{
@@ -81,7 +81,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 
 		err = PayTo(tx, toKs.Script, payPerKeyset)
 		if err != nil {
-			return fmt.Errorf("failed to pay keyset address %s: %w", toKs.Address(!b.isTestnet), err)
+			return errors.Join(ErrFailedToAddOutput, err)
 		}
 	}
 
@@ -99,7 +99,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 
 	resp, err := b.client.BroadcastTransaction(b.ctx, tx, metamorph_api.Status_SEEN_ON_NETWORK, "")
 	if err != nil {
-		return fmt.Errorf("failed to broadcast transaction: %w", err)
+		return errors.Join(ErrFailedToBroadcastTx, err)
 	}
 
 	b.logger.Info("Splitting tx submitted", slog.String("txid", tx.TxID()), slog.String("status", resp.Status.String()))

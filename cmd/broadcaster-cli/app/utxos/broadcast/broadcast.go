@@ -100,6 +100,11 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
+		opReturn, err := helper.GetString("opReturn")
+		if err != nil {
+			return err
+		}
+
 		logger := helper.GetLogger()
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
@@ -116,6 +121,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithCallback(callbackURL, callbackToken),
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			broadcaster.WithBatchSize(batchSize),
+			broadcaster.WithOpReturn(opReturn),
 		}
 
 		if waitForStatus > 0 {
@@ -196,6 +202,12 @@ func init() {
 
 	Cmd.Flags().Int("waitForStatus", 0, "Transaction status for which broadcaster should wait")
 	err = viper.BindPFlag("waitForStatus", Cmd.Flags().Lookup("waitForStatus"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Cmd.Flags().String("opReturn", "", "Text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added")
+	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
 	if err != nil {
 		log.Fatal(err)
 	}

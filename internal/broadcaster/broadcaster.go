@@ -40,6 +40,7 @@ type Broadcaster struct {
 	maxInputs         int
 	batchSize         int
 	waitForStatus     metamorph_api.Status
+	opReturn          string
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
@@ -76,6 +77,12 @@ func WithFullstatusUpdates(fullStatusUpdates bool) func(broadcaster *Broadcaster
 func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
 		broadcaster.feeModel = fees.SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
+	}
+}
+
+func WithOpReturn(opReturn string) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.opReturn = opReturn
 	}
 }
 

@@ -85,7 +85,7 @@ func (b *UTXORateBroadcaster) Start() error {
 	if math.Abs(float64(unconfirmed)) > 0 {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
-	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()))
+	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()), slog.String("op return", b.opReturn))
 
 	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
@@ -186,7 +186,12 @@ utxoLoop:
 				return nil, errors.Join(ErrFailedToAddOutput, err)
 			}
 
-			// Todo: Add OP_RETURN with text "ARC testing" so that WoC can tag it
+			if b.opReturn != "" {
+				err = tx.AddOpReturnOutput([]byte(b.opReturn))
+				if err != nil {
+					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+				}
+			}
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
 			if err != nil {

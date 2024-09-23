@@ -206,7 +206,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("opReturn", 0, "Text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added")
+	Cmd.Flags().String("opReturn", "", "Text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added")
 	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
 	if err != nil {
 		log.Fatal(err)

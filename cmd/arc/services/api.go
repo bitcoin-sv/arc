@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
@@ -61,6 +62,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			return nil
 		},
 	}))
+
+	// add prometheus metrics
+	e.Use(echoprometheus.NewMiddleware("api"))
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir

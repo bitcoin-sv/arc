@@ -221,8 +221,10 @@ services:
       - "8011:8011"
       - "9090:9090"
       - "9999:9999"
+      - "2112:2112"
     expose:
       - "9090"
+      - "2112"
     command: [ "./arc", "-api=true", "-config=." ]
     volumes:
       - ./config/config.yaml:/service/config.yaml

@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
 const (
@@ -540,7 +541,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
 						if err = p.mqClient.Publish(RequestTxTopic, tx.Hash[:]); err != nil {
-							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()))
+							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
 				}

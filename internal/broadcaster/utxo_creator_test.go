@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUTXOCreator_Start_WithMock(t *testing.T) {
+func TestUTXOCreator(t *testing.T) {
 	tt := []struct {
 		name               string
 		outputs            int

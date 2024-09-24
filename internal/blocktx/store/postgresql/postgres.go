@@ -67,10 +67,10 @@ func (p *PostgreSQL) Close() error {
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	_, err := p.db.QueryContext(ctx, "SELECT 1;")
+	r, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return r.Close()
 }

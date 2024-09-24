@@ -39,6 +39,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var txHash []byte

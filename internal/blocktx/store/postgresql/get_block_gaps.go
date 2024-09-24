@@ -33,6 +33,8 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	blockGaps := make([]*store.BlockGap, 0)
 	for rows.Next() {
 		var height uint64

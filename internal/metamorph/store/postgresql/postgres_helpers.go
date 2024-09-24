@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"strings"
 )
 
 type competingTxsData struct {
@@ -157,7 +158,7 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 	return dbData
 }
 
-func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) []*store.StoreData {
+func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData, tx *sql.Tx) []*store.StoreData {
 	qRejectDoubleSpends := `
 		UPDATE metamorph.transactions t
 		SET
@@ -183,8 +184,6 @@ func updateDoubleSpendRejected(ctx context.Context, rows *sql.Rows, tx *sql.Tx) 
 		;
 	`
 	rejectReason := "double spend attempted"
-
-	competingTxsData := getCompetingTxsFromRows(rows)
 
 	rejectedCompetingTxs := make([][]byte, 0)
 	for _, tx := range competingTxsData {

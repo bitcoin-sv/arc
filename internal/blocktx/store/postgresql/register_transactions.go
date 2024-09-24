@@ -25,6 +25,7 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte
 	if err != nil {
 		return nil, errors.Join(store.ErrFailedToInsertTransactions, err)
 	}
+	defer rows.Close()
 
 	updatedTxs := make([]*chainhash.Hash, 0)
 	for rows.Next() {

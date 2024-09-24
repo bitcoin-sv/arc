@@ -72,16 +72,17 @@ func getPeersConfig() []*PeerConfig {
 
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
-		ListenAddr:                  "localhost:8001",
-		DialAddr:                    "localhost:8001",
-		Db:                          getDbConfig("metamorph"),
-		ProcessorCacheExpiryTime:    24 * time.Hour,
-		MaxRetries:                  1000,
-		ProcessStatusUpdateInterval: 5 * time.Second,
-		CheckSeenOnNetworkOlderThan: 3 * time.Hour,
-		CheckSeenOnNetworkPeriod:    4 * time.Hour,
-		MonitorPeers:                false,
-		CheckUtxos:                  false,
+		ListenAddr:                              "localhost:8001",
+		DialAddr:                                "localhost:8001",
+		Db:                                      getDbConfig("metamorph"),
+		ProcessorCacheExpiryTime:                24 * time.Hour,
+		UnseenTransactionRebroadcastingInterval: 60 * time.Second,
+		MaxRetries:                              1000,
+		ProcessStatusUpdateInterval:             5 * time.Second,
+		CheckSeenOnNetworkOlderThan:             3 * time.Hour,
+		CheckSeenOnNetworkPeriod:                4 * time.Hour,
+		MonitorPeers:                            false,
+		CheckUtxos:                              false,
 		Health: &HealthConfig{
 			SeverDialAddr:             "localhost:8005",
 			MinimumHealthyConnections: 2,

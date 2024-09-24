@@ -3,6 +3,7 @@ package metamorph_test
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestCheck(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+
 	tt := []struct {
 		name               string
 		service            string
@@ -68,7 +71,7 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -81,6 +84,8 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+
 	tt := []struct {
 		name               string
 		service            string
@@ -136,7 +141,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"log"
 	"log/slog"
 	"net/http"
@@ -55,6 +56,11 @@ func run() error {
 	}
 
 	logger = logger.With(slog.String("host", hostname))
+
+	cacheStore, err := cache.NewCacheStore(arcConfig.Cache)
+	if err != nil {
+		return fmt.Errorf("failed to create cache store: %v", err)
+	}
 
 	logger.Info("Starting ARC", slog.String("version", version.Version), slog.String("commit", version.Commit))
 
@@ -111,7 +117,7 @@ func run() error {
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}

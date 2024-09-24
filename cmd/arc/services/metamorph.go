@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"log/slog"
 	"net"
 	"net/url"
@@ -36,7 +37,7 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	mtmConfig := arcConfig.Metamorph
 
@@ -134,7 +135,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server := metamorph.NewServer(metamorphStore, processor, optsServer...)
+	server := metamorph.NewServer(metamorphStore, processor, cacheStore, optsServer...)
 
 	err = server.StartGRPCServer(mtmConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {

@@ -24,6 +24,7 @@ func getDefaultArcConfig() *ArcConfig {
 		Api:                getApiConfig(),
 		K8sWatcher:         nil, // optional
 		Callbacker:         getCallbackerConfig(),
+		Cache:              getCacheConfig(),
 	}
 }
 
@@ -178,6 +179,20 @@ func getCallbackerConfig() *CallbackerConfig {
 		QuarantinePolicy: &CallbackerQuarantinePolicy{
 			BaseDuration:        10 * time.Minute,
 			PermQuarantineAfter: 24 * time.Hour,
+		},
+	}
+}
+
+func getCacheConfig() *CacheConfig {
+	return &CacheConfig{
+		Engine: FreeCache,
+		Freecache: &FreeCacheConfig{
+			Size: 100 * 1024 * 1024, // Default size 100MB.
+		},
+		Redis: &RedisConfig{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
 		},
 	}
 }

@@ -6,6 +6,11 @@ import (
 	"github.com/ordishs/go-bitcoin"
 )
 
+const (
+	FreeCache = "freecache"
+	Redis     = "redis"
+)
+
 type ArcConfig struct {
 	LogLevel           string              `mapstructure:"logLevel"`
 	LogFormat          string              `mapstructure:"logFormat"`
@@ -23,6 +28,7 @@ type ArcConfig struct {
 	Api                *ApiConfig          `mapstructure:"api"`
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
 	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
+	Cache              *CacheConfig        `mapstructure:"cache"`
 }
 
 type MessageQueueConfig struct {
@@ -99,6 +105,22 @@ type PostgresConfig struct {
 	MaxIdleConns int    `mapstructure:"maxIdleConns"`
 	MaxOpenConns int    `mapstructure:"maxOpenConns"`
 	SslMode      string `mapstructure:"sslMode"`
+}
+
+type CacheConfig struct {
+	Engine    string           `mapstructure:"engine"`
+	Freecache *FreeCacheConfig `mapstructure:"freecache"`
+	Redis     *RedisConfig     `mapstructure:"redis"`
+}
+
+type FreeCacheConfig struct {
+	Size int `mapstructure:"size"`
+}
+
+type RedisConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
 }
 
 type HealthConfig struct {

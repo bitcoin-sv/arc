@@ -57,19 +57,20 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                  string        `mapstructure:"listenAddr"`
-	DialAddr                    string        `mapstructure:"dialAddr"`
-	Db                          *DbConfig     `mapstructure:"db"`
-	ProcessorCacheExpiryTime    time.Duration `mapstructure:"processorCacheExpiryTime"`
-	MaxRetries                  int           `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval time.Duration `mapstructure:"processStatusUpdateInterval"`
-	CheckSeenOnNetworkOlderThan time.Duration `mapstructure:"checkSeenOnNetworkOlderThan"`
-	CheckSeenOnNetworkPeriod    time.Duration `mapstructure:"checkSeenOnNetworkPeriod"`
-	MonitorPeers                bool          `mapstructure:"monitorPeers"`
-	CheckUtxos                  bool          `mapstructure:"checkUtxos"`
-	Health                      *HealthConfig `mapstructure:"health"`
-	RejectCallbackContaining    []string      `mapstructure:"rejectCallbackContaining"`
-	Stats                       *StatsConfig  `mapstructure:"stats"`
+	ListenAddr                              string        `mapstructure:"listenAddr"`
+	DialAddr                                string        `mapstructure:"dialAddr"`
+	Db                                      *DbConfig     `mapstructure:"db"`
+	ProcessorCacheExpiryTime                time.Duration `mapstructure:"processorCacheExpiryTime"`
+	UnseenTransactionRebroadcastingInterval time.Duration `mapstructure:"unseenTransactionRebroadcastingInterval"`
+	MaxRetries                              int           `mapstructure:"maxRetries"`
+	ProcessStatusUpdateInterval             time.Duration `mapstructure:"processStatusUpdateInterval"`
+	CheckSeenOnNetworkOlderThan             time.Duration `mapstructure:"checkSeenOnNetworkOlderThan"`
+	CheckSeenOnNetworkPeriod                time.Duration `mapstructure:"checkSeenOnNetworkPeriod"`
+	MonitorPeers                            bool          `mapstructure:"monitorPeers"`
+	CheckUtxos                              bool          `mapstructure:"checkUtxos"`
+	Health                                  *HealthConfig `mapstructure:"health"`
+	RejectCallbackContaining                []string      `mapstructure:"rejectCallbackContaining"`
+	Stats                                   *StatsConfig  `mapstructure:"stats"`
 }
 
 type BlocktxConfig struct {

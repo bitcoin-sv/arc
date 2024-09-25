@@ -20,7 +20,7 @@ var ErrServerFailedToListen = errors.New("GRPC server failed to listen")
 
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
-	callbacker CallbackerI
+	dispatcher *CallbackDispatcher
 	grpcServer *grpc.Server
 	logger     *slog.Logger
 	cleanup    func()
@@ -35,9 +35,9 @@ func WithLogger(logger *slog.Logger) func(*Server) {
 }
 
 // NewServer will return a server instance
-func NewServer(callbacker CallbackerI, opts ...ServerOption) *Server {
+func NewServer(dispatcher *CallbackDispatcher, opts ...ServerOption) *Server {
 	server := &Server{
-		callbacker: callbacker,
+		dispatcher: dispatcher,
 		logger:     slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})).With(slog.String("module", "server")),
 	}
 
@@ -99,9 +99,9 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 
 func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCallbackRequest) (*emptypb.Empty, error) {
 	dto := toCallbackDto(request)
-	for _, callbackEndpoint := range request.CallbackEndpoints {
-		if callbackEndpoint.Url != "" {
-			s.callbacker.Send(callbackEndpoint.Url, callbackEndpoint.Token, dto)
+	for _, r := range request.CallbackRoutings {
+		if r.Url != "" {
+			s.dispatcher.Dispatch(r.Url, &CallbackEntry{Token: r.Token, Data: dto}, r.AllowBatch)
 		}
 	}
 

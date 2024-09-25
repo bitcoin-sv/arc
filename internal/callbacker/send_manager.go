@@ -22,6 +22,7 @@ Graceful Shutdown: on service termination, the sendManager ensures that any unse
 import (
 	"context"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 
@@ -35,15 +36,17 @@ type sendManager struct {
 	c CallbackerI
 	s store.CallbackerStore
 	l *slog.Logger
+	q *quarantinePolicy
 
 	// internal state
-	entriesWg sync.WaitGroup
-	entries   chan *CallbackEntry
+	entriesWg    sync.WaitGroup
+	entries      chan *CallbackEntry
+	batchEntries chan *CallbackEntry
 
 	stop chan struct{}
 
-	sleep      time.Duration
-	quarantine *quarantinePolicy
+	singleSendSleep   time.Duration
+	batchSendInterval time.Duration
 
 	modeMu sync.Mutex
 	mode   mode
@@ -58,35 +61,53 @@ const (
 	StoppingMode
 )
 
-func runNewSendManager(u string, c CallbackerI, s store.CallbackerStore, l *slog.Logger, sleep time.Duration, qPolicy *quarantinePolicy) *sendManager {
-	m := &sendManager{
-		url:        u,
-		c:          c,
-		s:          s,
-		l:          l,
-		sleep:      sleep,
-		quarantine: qPolicy,
+func runNewSendManager(u string, c CallbackerI, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
+	singleSendSleep, batchSendInterval time.Duration) *sendManager {
 
-		entries: make(chan *CallbackEntry),
-		stop:    make(chan struct{}),
+	const defaultBatchSendInterval = time.Duration(5 * time.Second)
+	if batchSendInterval == 0 {
+		batchSendInterval = defaultBatchSendInterval
+	}
+
+	m := &sendManager{
+		url: u,
+		c:   c,
+		s:   s,
+		l:   l,
+		q:   q,
+
+		singleSendSleep:   singleSendSleep,
+		batchSendInterval: batchSendInterval,
+
+		entries:      make(chan *CallbackEntry),
+		batchEntries: make(chan *CallbackEntry),
+		stop:         make(chan struct{}),
 	}
 
 	m.run()
 	return m
 }
 
-func (m *sendManager) Add(entry *CallbackEntry) {
+func (m *sendManager) Add(entry *CallbackEntry, batch bool) {
 	m.entriesWg.Add(1) // count the callbacks accepted for processing
 	go func() {
-		m.entries <- entry
+		defer m.entriesWg.Done()
+
+		if batch {
+			m.batchEntries <- entry
+		} else {
+			m.entries <- entry
+		}
 	}()
 }
 
 func (m *sendManager) GracefulStop() {
-	m.stop <- struct{}{} // signal the `run` goroutine to stop sending callbacks
-	m.entriesWg.Wait()   // wait for all accepted callbacks to be consumed
+	m.setMode(StoppingMode) // signal the `run` goroutine to stop sending callbacks
+	m.entriesWg.Wait()      // wait for all accepted callbacks to be consumed
 
-	close(m.entries) // signal the `run` goroutine to exit
+	// signal the `run` goroutine to exit
+	close(m.entries)
+	close(m.batchEntries)
 
 	<-m.stop // wait for the `run` goroutine to exit
 	close(m.stop)
@@ -97,34 +118,103 @@ func (m *sendManager) run() {
 
 	go func() {
 		var danglingCallbacks []*store.CallbackData
-	runLoop:
-		for {
-			select {
-			case callback, ok := <-m.entries:
-				if !ok {
-					break runLoop
-				}
+		var dalglingBatchedCallbacks []*store.CallbackData
 
-				switch m.getMode() {
-				case ActiveMode:
-					m.handleActive(callback)
-				case QuarantineMode:
-					m.handleQuarantine(callback)
-				case StoppingMode:
-					// add callback to save
-					danglingCallbacks = append(danglingCallbacks, toStoreDto(m.url, callback, nil))
-				}
+		var runWg sync.WaitGroup
+		runWg.Add(2)
 
-				m.entriesWg.Done() // decrease the number of callbacks that need to be processed (send or store on stop)
+		go func() {
+			defer runWg.Done()
+			danglingCallbacks = m.consumeSingleCallbacks()
+		}()
 
-			case <-m.stop:
-				m.setMode(StoppingMode)
-			}
-		}
+		go func() {
+			defer runWg.Done()
+			dalglingBatchedCallbacks = m.consumeBatchedCallbacks()
+		}()
+		runWg.Wait()
 
-		_ = m.s.SetMany(context.Background(), danglingCallbacks)
+		// store unsent callbacks
+		_ = m.s.SetMany(context.Background(), append(danglingCallbacks, dalglingBatchedCallbacks...))
 		m.stop <- struct{}{}
 	}()
+}
+
+func (m *sendManager) consumeSingleCallbacks() []*store.CallbackData {
+	var danglingCallbacks []*store.CallbackData
+
+	for {
+		callback, ok := <-m.entries
+		if !ok {
+			break
+		}
+
+		switch m.getMode() {
+		case ActiveMode:
+			m.send(callback)
+		case QuarantineMode:
+			m.handleQuarantine(callback)
+		case StoppingMode:
+			// add callback to save
+			danglingCallbacks = append(danglingCallbacks, toStoreDto(m.url, callback, nil, false))
+		}
+	}
+
+	return danglingCallbacks
+}
+
+func (m *sendManager) consumeBatchedCallbacks() []*store.CallbackData {
+	const batchSize = 50
+	var danglingCallbacks []*store.CallbackData
+
+	var callbacks []*CallbackEntry
+	sendInterval := time.NewTicker(m.batchSendInterval)
+
+runLoop:
+	for {
+		select {
+		// put callback to process
+		case callback, ok := <-m.batchEntries:
+			if !ok {
+				break runLoop
+			}
+			callbacks = append(callbacks, callback)
+
+		// process batch
+		case <-sendInterval.C:
+			if len(callbacks) == 0 {
+				continue
+			}
+
+			switch m.getMode() {
+			case ActiveMode:
+				// send batch
+				n := int(math.Min(float64(len(callbacks)), batchSize))
+				batch := callbacks[:n] // get n callbacks to send
+
+				m.sendBatch(batch)
+				callbacks = callbacks[n:] // shrink slice
+
+			case QuarantineMode:
+				m.handleQuarantineBatch(callbacks)
+				callbacks = nil
+
+			case StoppingMode:
+				// add callback to save
+				danglingCallbacks = append(danglingCallbacks, toStoreDtoCollection(m.url, nil, true, callbacks)...)
+				callbacks = nil
+			}
+
+			sendInterval.Reset(m.batchSendInterval)
+		}
+	}
+
+	if len(callbacks) > 0 {
+		// add callback to save
+		danglingCallbacks = append(danglingCallbacks, toStoreDtoCollection(m.url, nil, true, callbacks)...)
+	}
+
+	return danglingCallbacks
 }
 
 func (m *sendManager) getMode() mode {
@@ -140,9 +230,9 @@ func (m *sendManager) setMode(v mode) {
 	m.modeMu.Unlock()
 }
 
-func (m *sendManager) handleActive(callback *CallbackEntry) {
+func (m *sendManager) send(callback *CallbackEntry) {
 	if m.c.Send(m.url, callback.Token, callback.Data) {
-		time.Sleep(m.sleep)
+		time.Sleep(m.singleSendSleep)
 		return
 	}
 
@@ -151,19 +241,42 @@ func (m *sendManager) handleActive(callback *CallbackEntry) {
 }
 
 func (m *sendManager) handleQuarantine(ce *CallbackEntry) {
-	qUntil := m.quarantine.Until(ce.Data.Timestamp)
-	err := m.s.Set(context.Background(), toStoreDto(m.url, ce, &qUntil))
+	qUntil := m.q.Until(ce.Data.Timestamp)
+	err := m.s.Set(context.Background(), toStoreDto(m.url, ce, &qUntil, false))
 	if err != nil {
 		m.l.Error("failed to store callback in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
 	}
 }
 
+func (m *sendManager) sendBatch(batch []*CallbackEntry) {
+	token := batch[0].Token
+	callbacks := make([]*Callback, len(batch))
+	for i, e := range batch {
+		callbacks[i] = e.Data
+	}
+
+	if m.c.SendBatch(m.url, token, callbacks) {
+		return
+	}
+
+	m.putInQuarantine()
+	m.handleQuarantineBatch(batch)
+}
+
+func (m *sendManager) handleQuarantineBatch(batch []*CallbackEntry) {
+	qUntil := m.q.Until(batch[0].Data.Timestamp)
+	err := m.s.SetMany(context.Background(), toStoreDtoCollection(m.url, &qUntil, true, batch))
+	if err != nil {
+		m.l.Error("failed to store callbacks in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
+	}
+}
+
 func (m *sendManager) putInQuarantine() {
 	m.setMode(QuarantineMode)
-	m.l.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.quarantine.baseDuration))
+	m.l.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.q.baseDuration))
 
 	go func() {
-		time.Sleep(m.quarantine.baseDuration)
+		time.Sleep(m.q.baseDuration)
 		m.modeMu.Lock()
 
 		if m.mode != StoppingMode {
@@ -175,7 +288,7 @@ func (m *sendManager) putInQuarantine() {
 	}()
 }
 
-func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time) *store.CallbackData {
+func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time, allowBatch bool) *store.CallbackData {
 	return &store.CallbackData{
 		Url:       url,
 		Token:     s.Token,
@@ -191,5 +304,15 @@ func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time) *store.
 		BlockHeight: s.Data.BlockHeight,
 
 		PostponedUntil: postponedUntil,
+		AllowBatch:     allowBatch,
 	}
+}
+
+func toStoreDtoCollection(url string, postponedUntil *time.Time, allowBatch bool, entries []*CallbackEntry) []*store.CallbackData {
+	res := make([]*store.CallbackData, len(entries))
+	for i, e := range entries {
+		res[i] = toStoreDto(url, e, postponedUntil, allowBatch)
+	}
+
+	return res
 }

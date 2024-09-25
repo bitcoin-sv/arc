@@ -175,17 +175,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 	statusReceived := metamorph_api.Status_RECEIVED
 
 	// Convert gRPC req to store.StoreData struct...
-	sReq := &store.StoreData{
-		Hash:   hash,
-		Status: statusReceived,
-		Callbacks: []store.StoreCallback{{
-			CallbackURL:   req.GetCallbackUrl(),
-			CallbackToken: req.GetCallbackToken(),
-		}},
-		FullStatusUpdates: req.GetFullStatusUpdates(),
-		RawTx:             req.GetRawTx(),
-	}
-
+	sReq := toStoreData(hash, statusReceived, req)
 	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
 }
 
@@ -210,20 +200,8 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
 		timeout = txReq.GetMaxTimeout()
 
-		// Convert gRPC req to store.StoreData struct...
-		sReq := &store.StoreData{
-			Hash:   hash,
-			Status: statusReceived,
-			Callbacks: []store.StoreCallback{{
-				CallbackURL:   txReq.GetCallbackUrl(),
-				CallbackToken: txReq.GetCallbackToken(),
-			}},
-			FullStatusUpdates: txReq.GetFullStatusUpdates(),
-			RawTx:             txReq.GetRawTx(),
-		}
-
 		processTxsInputMap[*hash] = processTxInput{
-			data:          sReq,
+			data:          toStoreData(hash, statusReceived, txReq),
 			waitForStatus: txReq.GetWaitForStatus(),
 			responseIndex: ind,
 		}
@@ -248,6 +226,19 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
+func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.TransactionRequest) *store.StoreData {
+	return &store.StoreData{
+		Hash:   hash,
+		Status: statusReceived,
+		Callbacks: []store.StoreCallback{{
+			CallbackURL:   req.GetCallbackUrl(),
+			CallbackToken: req.GetCallbackToken(),
+			AllowBatch:    req.GetCallbackBatch(),
+		}},
+		FullStatusUpdates: req.GetFullStatusUpdates(),
+		RawTx:             req.GetRawTx(),
+	}
+}
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.StoreData, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
 	responseChannel := make(chan StatusAndError, 10)
 

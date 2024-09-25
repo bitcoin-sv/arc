@@ -127,6 +127,7 @@ type CallbackerConfig struct {
 	DialAddr                string                      `mapstructure:"dialAddr"`
 	Health                  *HealthConfig               `mapstructure:"health"`
 	Pause                   time.Duration               `mapstructure:"pause"`
+	BatchSendInterval       time.Duration               `mapstructure:"batchSendInterval"`
 	Db                      *DbConfig                   `mapstructure:"db"`
 	PruneInterval           time.Duration               `mapstructure:"pruneInterval"`
 	PruneOlderThan          time.Duration               `mapstructure:"pruneOlderThan"`

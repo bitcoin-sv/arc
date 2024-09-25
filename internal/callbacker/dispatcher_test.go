@@ -51,7 +51,7 @@ func TestCallbackDispatcher(t *testing.T) {
 				},
 			}
 
-			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), tc.sendInterval, 0, 0)
+			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), tc.sendInterval, 0, 0, 0)
 
 			var receivers []string
 			for i := range tc.numOfReceivers {
@@ -65,7 +65,7 @@ func TestCallbackDispatcher(t *testing.T) {
 			for range tc.numOfSendPerReceiver {
 				go func() {
 					for _, url := range receivers {
-						sut.Send(url, "", &Callback{})
+						sut.Dispatch(url, &CallbackEntry{Token: "", Data: &Callback{}}, false)
 					}
 					wg.Done()
 				}()

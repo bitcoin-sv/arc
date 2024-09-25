@@ -36,6 +36,10 @@ cache:
   engine: freecache # cache engine - freecache/redis
   freecache: # freecache configuration
     size: 1000000 # size of cache
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 1
 
 metamorph:
   listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses

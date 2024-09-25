@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
 	"log/slog"
 	"os"
 	"testing"
@@ -28,7 +29,7 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+		cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 		server := metamorph.NewServer(nil, nil, cacheStore)
 		assert.IsType(t, &metamorph.Server{}, server)
 	})
@@ -37,7 +38,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		// given
-		cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+		cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 		processor := &mocks.ProcessorIMock{}
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
 		processor.GetPeersFunc = func() []p2p.PeerI {
@@ -56,7 +57,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPutTransaction(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	testCases := []struct {
 		name              string
@@ -155,7 +156,7 @@ func TestPutTransaction(t *testing.T) {
 
 func TestServer_GetTransactionStatus(t *testing.T) {
 	errFailedToGetTxData := errors.New("failed to get transaction data")
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tests := []struct {
 		name               string
@@ -307,7 +308,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 }
 
 func TestPutTransactions(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
@@ -580,7 +581,7 @@ func TestPutTransactions(t *testing.T) {
 }
 
 func TestSetUnlockedByName(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name            string
@@ -637,7 +638,7 @@ func TestSetUnlockedByName(t *testing.T) {
 }
 
 func TestStartGRPCServer(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name string
@@ -675,7 +676,7 @@ func TestStartGRPCServer(t *testing.T) {
 }
 
 func TestGetTransactions(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tcs := []struct {
 		name    string

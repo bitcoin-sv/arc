@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -13,8 +14,10 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+const baseCacheSize = 100 * 1024 * 1024
+
 func TestCheck(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name               string
@@ -84,7 +87,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(100 * 1024 * 1024)
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name               string

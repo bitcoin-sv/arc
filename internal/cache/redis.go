@@ -15,16 +15,10 @@ type RedisStore struct {
 }
 
 // NewRedisStore initializes a RedisStore.
-func NewRedisStore(addr, password string, db int) *RedisStore {
-	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
-	})
-
+func NewRedisStore(c redis.UniversalClient, ctx context.Context) *RedisStore {
 	return &RedisStore{
-		client: client,
-		ctx:    context.Background(),
+		client: c,
+		ctx:    ctx,
 	}
 }
 
@@ -58,14 +52,4 @@ func (r *RedisStore) Del(key string) error {
 		return ErrCacheNotFound
 	}
 	return nil
-}
-
-// SetClient sets the Redis client for the store.
-func (r *RedisStore) SetClient(client redis.UniversalClient) {
-	r.client = client
-}
-
-// SetContext sets the context for the store.
-func (r *RedisStore) SetContext(ctx context.Context) {
-	r.ctx = ctx
 }

@@ -13,9 +13,9 @@ type FreecacheStore struct {
 }
 
 // NewFreecacheStore initializes a FreecacheStore.
-func NewFreecacheStore(size int) *FreecacheStore {
+func NewFreecacheStore(c *freecache.Cache) *FreecacheStore {
 	return &FreecacheStore{
-		cache: freecache.NewCache(size),
+		cache: c,
 	}
 }
 

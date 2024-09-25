@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"log"
 	"log/slog"
 	"net/http"
@@ -57,7 +56,7 @@ func run() error {
 
 	logger = logger.With(slog.String("host", hostname))
 
-	cacheStore, err := cache.NewCacheStore(arcConfig.Cache)
+	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
 	if err != nil {
 		return fmt.Errorf("failed to create cache store: %v", err)
 	}

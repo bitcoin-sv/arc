@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -62,6 +63,7 @@ type Server struct {
 	bitcoinNode       BitcoinNode
 	forceCheckUtxos   bool
 	cleanup           func()
+	cacheStore        cache.Store
 }
 
 func WithLogger(logger *slog.Logger) func(*Server) {
@@ -86,13 +88,14 @@ func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(s store.MetamorphStore, p ProcessorI, opts ...ServerOption) *Server {
+func NewServer(s store.MetamorphStore, p ProcessorI, cacheStore cache.Store, opts ...ServerOption) *Server {
 	server := &Server{
 		logger:            slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
 		processor:         p,
 		store:             s,
 		maxTimeoutDefault: maxTimeoutDefault,
 		forceCheckUtxos:   false,
+		cacheStore:        cacheStore,
 	}
 
 	for _, opt := range opts {

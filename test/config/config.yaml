@@ -31,6 +31,13 @@ peers:
       p2p: 18333
       zmq: 28332
 
+cache:
+  engine: redis
+  redis:
+    addr: arc-redis:6379
+    password: ""
+    db: 1
+
 metamorph:
   listenAddr: 0.0.0.0:8001
   dialAddr: arc-metamorph:8001

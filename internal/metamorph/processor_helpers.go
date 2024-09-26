@@ -9,7 +9,10 @@ import (
 
 const CacheStatusUpdateKey = "status-updates"
 
-var ErrFailedToSerialize = errors.New("failed to serialize value")
+var (
+	ErrFailedToSerialize   = errors.New("failed to serialize value")
+	ErrFailedToDeserialize = errors.New("failed to deserialize value")
+)
 
 func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
@@ -37,7 +40,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainh
 }
 
 func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error {
-	bytes, err := serialize(statusUpdatesMap)
+	bytes, err := serializeStatusMap(statusUpdatesMap)
 	if err != nil {
 		return err
 	}
@@ -51,19 +54,16 @@ func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store
 
 func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus {
 	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
-	var statusUpdatesMap map[chainhash.Hash]store.UpdateStatus
 
 	if err == nil {
-		err = json.Unmarshal(existingMap, &statusUpdatesMap)
+		statusUpdatesMap, err := deserializeStatusMap(existingMap)
 		if err == nil {
 			return statusUpdatesMap
 		}
 	}
 
 	// If the key doesn't exist or there was an error unmarshalling the value return new map
-	statusUpdatesMap = make(map[chainhash.Hash]store.UpdateStatus)
-
-	return statusUpdatesMap
+	return make(map[chainhash.Hash]store.UpdateStatus)
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
@@ -120,16 +120,35 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func serialize(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) {
-	serializableMap := make(map[string]store.UpdateStatus)
-
-	for key, value := range updateStatusMap {
-		serializableMap[key.String()] = value // Convert chainhash.Hash to string
+func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) {
+	serializeMap := make(map[string]store.UpdateStatus)
+	for k, v := range updateStatusMap {
+		serializeMap[k.String()] = v
 	}
 
-	bytes, err := json.Marshal(serializableMap)
+	bytes, err := json.Marshal(serializeMap)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToSerialize, err)
 	}
 	return bytes, nil
+}
+
+func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) {
+	serializeMap := make(map[string]store.UpdateStatus)
+	updateStatusMap := make(map[chainhash.Hash]store.UpdateStatus)
+
+	err := json.Unmarshal(data, &serializeMap)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToDeserialize, err)
+	}
+
+	for k, v := range serializeMap {
+		hash, err := chainhash.NewHashFromStr(k)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToDeserialize, err)
+		}
+		updateStatusMap[*hash] = v
+	}
+
+	return updateStatusMap, nil
 }

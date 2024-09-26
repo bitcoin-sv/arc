@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -83,8 +84,52 @@ type MetamorphStore interface {
 }
 
 type UpdateStatus struct {
-	Hash         chainhash.Hash
-	Status       metamorph_api.Status
-	Error        error
-	CompetingTxs []string
+	Hash         chainhash.Hash       `json:"-"`
+	Status       metamorph_api.Status `json:"status"`
+	Error        error                `json:"-"`
+	CompetingTxs []string             `json:"competing_txs"`
+	// Fields for marshalling
+	HashStr  string `json:"hash"`
+	ErrorStr string `json:"error"`
+}
+
+// UnmarshalJSON Custom method to unmarshall the UpdateStatus struct
+func (u *UpdateStatus) UnmarshalJSON(data []byte) error {
+	type Alias UpdateStatus
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(u),
+	}
+
+	// Unmarshal into the temporary struct
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Convert the error string back to an error if necessary
+	if u.ErrorStr != "" {
+		u.Error = errors.New(u.ErrorStr)
+	}
+
+	// Convert the hash string back to a chainhash.Hash
+	hash, err := chainhash.NewHashFromStr(u.HashStr)
+	if err != nil {
+		return err
+	}
+	u.Hash = *hash
+
+	return nil
+}
+
+// MarshalJSON Custom method to marshall the UpdateStatus struct
+func (u UpdateStatus) MarshalJSON() ([]byte, error) {
+	type Alias UpdateStatus
+	if u.Error != nil {
+		u.ErrorStr = u.Error.Error() // Convert error to string for marshaling
+	}
+
+	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
+
+	return json.Marshal((*Alias)(&u))
 }

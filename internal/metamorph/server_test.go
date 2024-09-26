@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
 	"log/slog"
 	"os"
 	"testing"
@@ -27,7 +29,8 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server := metamorph.NewServer(nil, nil)
+		cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+		server := metamorph.NewServer(nil, nil, cacheStore)
 		assert.IsType(t, &metamorph.Server{}, server)
 	})
 }
@@ -35,13 +38,14 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("Health", func(t *testing.T) {
 		// given
+		cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 		processor := &mocks.ProcessorIMock{}
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
 		processor.GetPeersFunc = func() []p2p.PeerI {
 			return []p2p.PeerI{}
 		}
 
-		sut := metamorph.NewServer(nil, processor)
+		sut := metamorph.NewServer(nil, processor, cacheStore)
 
 		// when
 		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
@@ -53,6 +57,8 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPutTransaction(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 	testCases := []struct {
 		name              string
 		processorResponse metamorph.StatusAndError
@@ -125,7 +131,7 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+			sut := metamorph.NewServer(s, processor, cacheStore, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
 
 			txRequest := &metamorph_api.TransactionRequest{
 				RawTx:         testdata.TX1Raw.Bytes(),
@@ -150,6 +156,7 @@ func TestPutTransaction(t *testing.T) {
 
 func TestServer_GetTransactionStatus(t *testing.T) {
 	errFailedToGetTxData := errors.New("failed to get transaction data")
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tests := []struct {
 		name               string
@@ -286,7 +293,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, nil)
+			sut := metamorph.NewServer(metamorphStore, nil, cacheStore)
 
 			// when
 			got, err := sut.GetTransactionStatus(context.Background(), tt.req)
@@ -301,6 +308,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 }
 
 func TestPutTransactions(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
 
@@ -548,7 +557,7 @@ func TestPutTransactions(t *testing.T) {
 			}
 
 			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := metamorph.NewServer(nil, processor, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
+			sut := metamorph.NewServer(nil, processor, cacheStore, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
 
 			// when
 			statuses, err := sut.PutTransactions(context.Background(), tc.requests)
@@ -572,6 +581,8 @@ func TestPutTransactions(t *testing.T) {
 }
 
 func TestSetUnlockedByName(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 	tt := []struct {
 		name            string
 		recordsAffected int64
@@ -606,7 +617,7 @@ func TestSetUnlockedByName(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, nil)
+			sut := metamorph.NewServer(metamorphStore, nil, cacheStore)
 
 			// when
 			response, err := sut.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
@@ -627,6 +638,8 @@ func TestSetUnlockedByName(t *testing.T) {
 }
 
 func TestStartGRPCServer(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 	tt := []struct {
 		name string
 	}{
@@ -648,7 +661,7 @@ func TestStartGRPCServer(t *testing.T) {
 			processor := &mocks.ProcessorIMock{
 				ShutdownFunc: func() {},
 			}
-			sut := metamorph.NewServer(metamorphStore, processor)
+			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			// when
@@ -663,6 +676,8 @@ func TestStartGRPCServer(t *testing.T) {
 }
 
 func TestGetTransactions(t *testing.T) {
+	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 	tcs := []struct {
 		name    string
 		request *metamorph_api.TransactionsStatusRequest
@@ -725,7 +740,7 @@ func TestGetTransactions(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(&store, nil)
+			sut := metamorph.NewServer(&store, nil, cacheStore)
 
 			// when
 			res, err := sut.GetTransactions(context.TODO(), tc.request)

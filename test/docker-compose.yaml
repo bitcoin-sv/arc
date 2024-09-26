@@ -152,6 +152,16 @@ services:
       timeout: 5s
       retries: 5
 
+  arc-redis:
+    image: redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - arc-redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+
   arc-blocktx:
     build: ../
     expose:
@@ -209,6 +219,8 @@ services:
         condition: service_healthy
       arc-callbacker:
         condition: service_healthy
+      arc-redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -247,4 +259,6 @@ volumes:
   nats1-data:
     external: false
   nats2-data:
+    external: false
+  arc-redis-data:
     external: false

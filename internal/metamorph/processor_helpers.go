@@ -120,8 +120,14 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func serialize(value interface{}) ([]byte, error) {
-	bytes, err := json.Marshal(value)
+func serialize(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) {
+	serializableMap := make(map[string]store.UpdateStatus)
+
+	for key, value := range updateStatusMap {
+		serializableMap[key.String()] = value // Convert chainhash.Hash to string
+	}
+
+	bytes, err := json.Marshal(serializableMap)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToSerialize, err)
 	}

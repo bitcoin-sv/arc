@@ -26,7 +26,7 @@ func (f *FreecacheStore) Get(key string) ([]byte, error) {
 		if errors.Is(err, freecache.ErrNotFound) {
 			return nil, ErrCacheNotFound
 		}
-		return nil, err
+		return nil, errors.Join(ErrCacheFailedToGet, err)
 	}
 	return value, nil
 }
@@ -35,7 +35,7 @@ func (f *FreecacheStore) Get(key string) ([]byte, error) {
 func (f *FreecacheStore) Set(key string, value []byte, ttl time.Duration) error {
 	err := f.cache.Set([]byte(key), value, int(ttl.Seconds()))
 	if err != nil {
-		return err
+		return errors.Join(ErrCacheFailedToSet, err)
 	}
 	return nil
 }

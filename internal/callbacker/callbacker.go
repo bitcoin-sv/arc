@@ -25,5 +25,5 @@ type Callback struct {
 
 type BatchCallback struct {
 	Count     int         `json:"count"`
-	Callbacks []*Callback `json:"callbacks"`
+	Callbacks []*Callback `json:"callbacks,omitempty"`
 }

@@ -73,7 +73,7 @@ func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch
 	m, ok := d.managers[url]
 
 	if !ok {
-		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sleep, 0)
+		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sleep, d.batchSendInterval)
 		d.managers[url] = m
 	}
 	d.managersMu.Unlock()

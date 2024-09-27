@@ -3,8 +3,15 @@ package callbacker
 /* sendManager */
 /*
 
-The SendManager is responsible for managing the sending of callbacks to a specific URL in a sequential (serial) manner.
-It ensures callbacks are sent efficiently while adhering to policies regarding failed deliveries.
+The SendManager is responsible for managing the sequential sending of callbacks to a specified URL.
+It supports single and batched callbacks, handles failures by placing the URL in quarantine, and ensures
+safe storage of unsent callbacks during graceful shutdowns.
+The manager operates in various modes:
+	- ActiveMode (normal sending)
+	- QuarantineMode (temporarily halting sends on failure)
+	- StoppingMode (for graceful shutdown).
+
+It processes callbacks from two channels, ensuring either single or batch dispatch, and manages retries based on a quarantine policy.
 
 Key components:
 - CallbackerI : responsible for sending callbacks
@@ -118,7 +125,7 @@ func (m *sendManager) run() {
 
 	go func() {
 		var danglingCallbacks []*store.CallbackData
-		var dalglingBatchedCallbacks []*store.CallbackData
+		var danglingBatchedCallbacks []*store.CallbackData
 
 		var runWg sync.WaitGroup
 		runWg.Add(2)
@@ -130,12 +137,12 @@ func (m *sendManager) run() {
 
 		go func() {
 			defer runWg.Done()
-			dalglingBatchedCallbacks = m.consumeBatchedCallbacks()
+			danglingBatchedCallbacks = m.consumeBatchedCallbacks()
 		}()
 		runWg.Wait()
 
 		// store unsent callbacks
-		_ = m.s.SetMany(context.Background(), append(danglingCallbacks, dalglingBatchedCallbacks...))
+		_ = m.s.SetMany(context.Background(), append(danglingCallbacks, danglingBatchedCallbacks...))
 		m.stop <- struct{}{}
 	}()
 }

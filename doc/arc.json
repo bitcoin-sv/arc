@@ -154,6 +154,9 @@
             "$ref": "#/components/parameters/callbackToken"
           },
           {
+            "$ref": "#/components/parameters/callbackBatch"
+          },
+          {
             "$ref": "#/components/parameters/waitForStatus"
           },
           {
@@ -404,6 +407,9 @@
           },
           {
             "$ref": "#/components/parameters/callbackToken"
+          },
+          {
+            "$ref": "#/components/parameters/callbackBatch"
           },
           {
             "$ref": "#/components/parameters/waitForStatus"
@@ -1691,6 +1697,14 @@
         "description": "Access token for notification callback endpoint. It will be used as a Authorization header for the http callback",
         "schema": {
           "type": "string"
+        }
+      },
+      "callbackBatch": {
+        "name": "X-CallbackBatch",
+        "in": "header",
+        "description": "Send callback in batches",
+        "schema": {
+          "type": "boolean"
         }
       },
       "waitForStatus": {

@@ -38,23 +38,24 @@ func (c GrpcCallbacker) SendCallback(tx *store.StoreData) {
 }
 
 func toGrpcInput(d *store.StoreData) *callbacker_api.SendCallbackRequest {
-	endpoints := make([]*callbacker_api.CallbackEndpoint, 0, len(d.Callbacks))
+	routings := make([]*callbacker_api.CallbackRouting, 0, len(d.Callbacks))
 
 	for _, c := range d.Callbacks {
 		if c.CallbackURL != "" {
-			endpoints = append(endpoints, &callbacker_api.CallbackEndpoint{
-				Url:   c.CallbackURL,
-				Token: c.CallbackToken,
+			routings = append(routings, &callbacker_api.CallbackRouting{
+				Url:        c.CallbackURL,
+				Token:      c.CallbackToken,
+				AllowBatch: c.AllowBatch,
 			})
 		}
 	}
 
-	if len(endpoints) == 0 {
+	if len(routings) == 0 {
 		return nil
 	}
 
 	in := callbacker_api.SendCallbackRequest{
-		CallbackEndpoints: endpoints,
+		CallbackRoutings: routings,
 
 		Txid:         d.Hash.String(),
 		Status:       callbacker_api.Status(d.Status),

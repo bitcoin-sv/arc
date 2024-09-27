@@ -90,7 +90,7 @@ func (w *BackgroundWorkers) dispatchQuarantineCallbacks(interval time.Duration) 
 			}
 
 			for _, c := range callbacks {
-				w.d.Dispatch(c.Url, toCallbackEntry(c))
+				w.d.Dispatch(c.Url, toCallbackEntry(c), c.AllowBatch)
 			}
 
 		case <-w.ctx.Done():

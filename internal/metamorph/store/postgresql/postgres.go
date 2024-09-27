@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -316,7 +317,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 		value.StoredAt = p.now()
 	}
 
-	callbacksData, err := prepareStructForSaving(value.Callbacks)
+	callbacksData, err := json.Marshal(value.Callbacks)
 	if err != nil {
 		return err
 	}
@@ -324,7 +325,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 	if value.StatusHistory == nil {
 		value.StatusHistory = make([]*store.StoreStatus, 0)
 	}
-	statusHistoryData, err := prepareStructForSaving(value.StatusHistory)
+	statusHistoryData, err := json.Marshal(value.StatusHistory)
 	if err != nil {
 		return err
 	}
@@ -373,7 +374,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		lockedBy[i] = p.hostname
 		lastSubmittedAt[i] = txData.LastSubmittedAt
 
-		callbacksData, err := prepareStructForSaving(txData.Callbacks)
+		callbacksData, err := json.Marshal(txData.Callbacks)
 		if err != nil {
 			return err
 		}
@@ -382,7 +383,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		if txData.StatusHistory == nil {
 			txData.StatusHistory = make([]*store.StoreStatus, 0)
 		}
-		statusHistoryData, err := prepareStructForSaving(txData.StatusHistory)
+		statusHistoryData, err := json.Marshal(txData.StatusHistory)
 		if err != nil {
 			return err
 		}

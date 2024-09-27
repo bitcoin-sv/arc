@@ -17,11 +17,11 @@ var _ CallbackerI = &CallbackerIMock{}
 //
 //		// make and configure a mocked CallbackerI
 //		mockedCallbackerI := &CallbackerIMock{
-//			HealthFunc: func() error {
-//				panic("mock out the Health method")
-//			},
 //			SendFunc: func(url string, token string, callback *Callback) bool {
 //				panic("mock out the Send method")
+//			},
+//			SendBatchFunc: func(url string, token string, callbacks []*Callback) bool {
+//				panic("mock out the SendBatch method")
 //			},
 //		}
 //
@@ -30,17 +30,14 @@ var _ CallbackerI = &CallbackerIMock{}
 //
 //	}
 type CallbackerIMock struct {
-	// HealthFunc mocks the Health method.
-	HealthFunc func() error
-
 	// SendFunc mocks the Send method.
 	SendFunc func(url string, token string, callback *Callback) bool
 
+	// SendBatchFunc mocks the SendBatch method.
+	SendBatchFunc func(url string, token string, callbacks []*Callback) bool
+
 	// calls tracks calls to the methods.
 	calls struct {
-		// Health holds details about calls to the Health method.
-		Health []struct {
-		}
 		// Send holds details about calls to the Send method.
 		Send []struct {
 			// URL is the url argument value.
@@ -50,36 +47,18 @@ type CallbackerIMock struct {
 			// Callback is the callback argument value.
 			Callback *Callback
 		}
+		// SendBatch holds details about calls to the SendBatch method.
+		SendBatch []struct {
+			// URL is the url argument value.
+			URL string
+			// Token is the token argument value.
+			Token string
+			// Callbacks is the callbacks argument value.
+			Callbacks []*Callback
+		}
 	}
-	lockHealth sync.RWMutex
-	lockSend   sync.RWMutex
-}
-
-// Health calls HealthFunc.
-func (mock *CallbackerIMock) Health() error {
-	if mock.HealthFunc == nil {
-		panic("CallbackerIMock.HealthFunc: method is nil but CallbackerI.Health was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockHealth.Lock()
-	mock.calls.Health = append(mock.calls.Health, callInfo)
-	mock.lockHealth.Unlock()
-	return mock.HealthFunc()
-}
-
-// HealthCalls gets all the calls that were made to Health.
-// Check the length with:
-//
-//	len(mockedCallbackerI.HealthCalls())
-func (mock *CallbackerIMock) HealthCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockHealth.RLock()
-	calls = mock.calls.Health
-	mock.lockHealth.RUnlock()
-	return calls
+	lockSend      sync.RWMutex
+	lockSendBatch sync.RWMutex
 }
 
 // Send calls SendFunc.
@@ -119,5 +98,45 @@ func (mock *CallbackerIMock) SendCalls() []struct {
 	mock.lockSend.RLock()
 	calls = mock.calls.Send
 	mock.lockSend.RUnlock()
+	return calls
+}
+
+// SendBatch calls SendBatchFunc.
+func (mock *CallbackerIMock) SendBatch(url string, token string, callbacks []*Callback) bool {
+	if mock.SendBatchFunc == nil {
+		panic("CallbackerIMock.SendBatchFunc: method is nil but CallbackerI.SendBatch was just called")
+	}
+	callInfo := struct {
+		URL       string
+		Token     string
+		Callbacks []*Callback
+	}{
+		URL:       url,
+		Token:     token,
+		Callbacks: callbacks,
+	}
+	mock.lockSendBatch.Lock()
+	mock.calls.SendBatch = append(mock.calls.SendBatch, callInfo)
+	mock.lockSendBatch.Unlock()
+	return mock.SendBatchFunc(url, token, callbacks)
+}
+
+// SendBatchCalls gets all the calls that were made to SendBatch.
+// Check the length with:
+//
+//	len(mockedCallbackerI.SendBatchCalls())
+func (mock *CallbackerIMock) SendBatchCalls() []struct {
+	URL       string
+	Token     string
+	Callbacks []*Callback
+} {
+	var calls []struct {
+		URL       string
+		Token     string
+		Callbacks []*Callback
+	}
+	mock.lockSendBatch.RLock()
+	calls = mock.calls.SendBatch
+	mock.lockSendBatch.RUnlock()
 	return calls
 }

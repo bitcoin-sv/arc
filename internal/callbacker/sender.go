@@ -17,19 +17,15 @@ const (
 	initRetrySleepDuration = 5 * time.Second
 )
 
-type HttpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 type CallbackSender struct {
-	httpClient HttpClient
+	httpClient *http.Client
 	mu         sync.Mutex
 	disposed   bool
 	stats      *stats
 	logger     *slog.Logger
 }
 
-func NewSender(httpClient HttpClient, logger *slog.Logger) (*CallbackSender, error) {
+func NewSender(httpClient *http.Client, logger *slog.Logger) (*CallbackSender, error) {
 	stats := newCallbackerStats()
 
 	err := registerStats(
@@ -39,6 +35,7 @@ func NewSender(httpClient HttpClient, logger *slog.Logger) (*CallbackSender, err
 		stats.callbackRejectedCount,
 		stats.callbackMinedCount,
 		stats.callbackFailedCount,
+		stats.callbackBatchCount,
 	)
 	if err != nil {
 		return nil, err
@@ -71,6 +68,7 @@ func (p *CallbackSender) GracefulStop() {
 		p.stats.callbackRejectedCount,
 		p.stats.callbackMinedCount,
 		p.stats.callbackFailedCount,
+		p.stats.callbackBatchCount,
 	)
 
 	p.disposed = true
@@ -89,7 +87,17 @@ func (p *CallbackSender) Health() error {
 }
 
 func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
-	ok = p.sendCallbackWithRetries(url, token, dto)
+	payload, err := json.Marshal(dto)
+	if err != nil {
+		p.logger.Error("Couldn't marshal callback",
+			slog.String("url", url),
+			slog.String("token", token),
+			slog.String("hash", dto.TxID),
+			slog.String("err", err.Error()))
+		return false
+	}
+
+	ok = p.sendCallbackWithRetries(url, token, payload)
 
 	if ok {
 		p.updateSuccessStats(dto.TxStatus)
@@ -106,11 +114,48 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 	return
 }
 
-func (p *CallbackSender) sendCallbackWithRetries(url, token string, dto *Callback) bool {
+func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool) {
+	batch := BatchCallback{
+		Count:     len(dtos),
+		Callbacks: dtos,
+	}
+
+	payload, err := json.Marshal(batch)
+	if err != nil {
+		p.logger.Error("Couldn't marshal callback",
+			slog.String("url", url),
+			slog.String("token", token),
+			slog.Bool("batch", true),
+			slog.String("err", err.Error()))
+
+		return false
+	}
+
+	ok = p.sendCallbackWithRetries(url, token, payload)
+	p.stats.callbackBatchCount.Inc()
+
+	if ok {
+		for _, c := range dtos {
+			p.updateSuccessStats(c.TxStatus)
+		}
+		return
+	}
+
+	p.logger.Warn("Couldn't send transaction callback after retries",
+		slog.String("url", url),
+		slog.String("token", token),
+		slog.Bool("batch", true),
+		slog.Int("retries", retries))
+
+	p.stats.callbackFailedCount.Inc()
+	return
+}
+
+func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) bool {
 	retrySleep := initRetrySleepDuration
 	ok, retry := false, false
 	for range retries {
-		ok, retry = p.sendCallback(url, token, dto)
+		ok, retry = p.sendCallback(url, token, jsonPayload)
 
 		// break on success or on non-retryable error (e.g., invalid URL)
 		if ok || !retry {
@@ -124,19 +169,12 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, dto *Callbac
 	return ok
 }
 
-func (p *CallbackSender) sendCallback(url, token string, dto *Callback) (ok, retry bool) {
-	statusBytes, err := json.Marshal(dto)
-	if err != nil {
-		p.logger.Error("Couldn't marshal status", slog.String("err", err.Error()))
-		return false, false
-	}
-
-	request, err := httpRequest(url, token, statusBytes)
+func (p *CallbackSender) sendCallback(url, token string, payload []byte) (ok, retry bool) {
+	request, err := httpRequest(url, token, payload)
 	if err != nil {
 		p.logger.Error("Couldn't create HTTP request",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("hash", dto.TxID),
 			slog.String("err", err.Error()))
 		return false, false
 	}
@@ -146,7 +184,6 @@ func (p *CallbackSender) sendCallback(url, token string, dto *Callback) (ok, ret
 		p.logger.Warn("Couldn't send transaction callback",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("hash", dto.TxID),
 			slog.String("err", err.Error()))
 		return false, true
 	}

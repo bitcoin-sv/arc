@@ -13,6 +13,7 @@ type stats struct {
 	callbackRejectedCount             prometheus.Gauge
 	callbackMinedCount                prometheus.Gauge
 	callbackFailedCount               prometheus.Gauge
+	callbackBatchCount                prometheus.Gauge
 }
 
 func newCallbackerStats() *stats {
@@ -40,6 +41,10 @@ func newCallbackerStats() *stats {
 		callbackFailedCount: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_callback_failed_count",
 			Help: "Number of arc_callback_failed_count transactions",
+		}),
+		callbackBatchCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_callback_batch_count",
+			Help: "Number of arc_callback_batch_count transactions",
 		}),
 	}
 }

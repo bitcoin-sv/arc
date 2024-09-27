@@ -74,7 +74,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	dispatcher = callbacker.NewCallbackDispatcher(sender, store, logger, config.Pause, config.QuarantinePolicy.BaseDuration, config.QuarantinePolicy.PermQuarantineAfter)
+	dispatcher = callbacker.NewCallbackDispatcher(sender, store, logger, config.Pause, config.BatchSendInterval, config.QuarantinePolicy.BaseDuration, config.QuarantinePolicy.PermQuarantineAfter)
 	err = dispatchPersistedCallbacks(store, dispatcher, logger)
 	if err != nil {
 		stopFn()
@@ -135,7 +135,7 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 		}
 
 		for _, c := range callbacks {
-			d.Dispatch(c.Url, toCallbackEntry(c))
+			d.Dispatch(c.Url, toCallbackEntry(c), c.AllowBatch)
 		}
 	}
 }

@@ -173,6 +173,7 @@ func getCallbackerConfig() *CallbackerConfig {
 			SeverDialAddr: "localhost:8025",
 		},
 		Pause:                   0,
+		BatchSendInterval:       time.Duration(5 * time.Second),
 		Db:                      getDbConfig("callbacker"),
 		PruneInterval:           24 * time.Hour,
 		PruneOlderThan:          14 * 24 * time.Hour,

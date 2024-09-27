@@ -38,7 +38,7 @@ message HealthResponse {
 
 // swagger:model SendCallbackRequest
 message SendCallbackRequest {
-  repeated CallbackEndpoint callback_endpoints = 1;
+  repeated CallbackRouting callback_routings = 1;
   string txid = 2;
   Status status = 3;
   string merkle_path = 4;
@@ -48,8 +48,9 @@ message SendCallbackRequest {
   uint64 block_height = 8;
 }
 
-// swagger:model CallbackEndpoint
-message CallbackEndpoint {
+// swagger:model CallbackRouting
+message CallbackRouting {
   string url = 1;
   string token = 2;
+  bool allow_batch = 3;
 }

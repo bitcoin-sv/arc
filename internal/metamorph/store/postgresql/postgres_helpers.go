@@ -216,14 +216,6 @@ func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competing
 	return res
 }
 
-func prepareStructForSaving(data interface{}) ([]byte, error) {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return dataBytes, nil
-}
-
 func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
 	var callbacksData []store.StoreCallback
 	err := json.Unmarshal(callbacks, &callbacksData)

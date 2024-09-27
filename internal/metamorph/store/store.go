@@ -35,6 +35,7 @@ type StoreData struct {
 type StoreCallback struct {
 	CallbackURL   string `json:"callback_url"`
 	CallbackToken string `json:"callback_token"`
+	AllowBatch    bool   `json:"allow_batch"`
 }
 
 type StoreStatus struct {

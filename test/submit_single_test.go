@@ -295,11 +295,11 @@ func TestCallback(t *testing.T) {
 			// submit transactions
 			for _, tx := range txs {
 				for _, callbackSrv := range callbackServers {
-					testTxSubmission(t, callbackSrv.url, callbackSrv.token, tx)
+					testTxSubmission(t, callbackSrv.url, callbackSrv.token, false, tx)
 					// This is to test the multiple submissions with the same callback URL and token
 					// Expected behavior is that the callback should not be added to tx and the server should receive the callback only once
 					if tc.attemptMultipleSubmissions {
-						testTxSubmission(t, callbackSrv.url, callbackSrv.token, tx)
+						testTxSubmission(t, callbackSrv.url, callbackSrv.token, false, tx)
 					}
 				}
 
@@ -339,6 +339,155 @@ func TestCallback(t *testing.T) {
 						}
 
 						require.Equal(t, Status_MINED, callback.TxStatus)
+
+					case err := <-srv.errChan:
+						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)
+					case <-callbackTimeout:
+						t.Fatalf("callback server %d not received %d callback - timeout", i, j)
+					}
+				}
+
+				require.Empty(t, expectedTxsCallbacks) // ensure all expected callbacks were received
+			}
+		})
+	}
+}
+
+func TestBatchCallback(t *testing.T) {
+
+	tt := []struct {
+		name                       string
+		numberOfTxs                int
+		numberOfCallbackServers    int
+		attemptMultipleSubmissions bool
+	}{
+		{
+			name:                    "post transaction with one callback",
+			numberOfTxs:             1,
+			numberOfCallbackServers: 1,
+		},
+		{
+			name:                    "post transaction with multiple callbacks",
+			numberOfTxs:             1,
+			numberOfCallbackServers: 10,
+		},
+		{
+			name:                       "post transaction with one callback - multiple submissions",
+			numberOfTxs:                1,
+			numberOfCallbackServers:    1,
+			attemptMultipleSubmissions: true,
+		},
+		{
+			name:                    "post transactions with one callback",
+			numberOfTxs:             10,
+			numberOfCallbackServers: 1,
+		},
+		{
+			name:                    "post transactions with multiple callback",
+			numberOfTxs:             10,
+			numberOfCallbackServers: 10,
+		},
+	}
+
+	type callbackServer struct {
+		url, token   string
+		responseChan chan *CallbackBatchResponse
+		errChan      chan error
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+
+			// setup callback servers
+			const callbacksNumber = 2 // cannot be greater than 5
+
+			callbackServers := make([]*callbackServer, 0, tc.numberOfCallbackServers)
+
+			for range tc.numberOfCallbackServers {
+				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareBatchCallback(t, callbacksNumber)
+				callbackUrl, token, shutdown := startBatchCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+				defer shutdown()
+
+				callbackServers = append(callbackServers, &callbackServer{
+					url:          callbackUrl,
+					token:        token,
+					responseChan: callbackReceivedChan,
+					errChan:      callbackErrChan,
+				})
+			}
+
+			// create transactions
+			address, privateKey := getNewWalletAddress(t)
+			for i := range tc.numberOfTxs {
+				sendToAddress(t, address, float64(10+i))
+			}
+			generate(t, 1)
+
+			utxos := getUtxos(t, address)
+			require.True(t, len(utxos) >= tc.numberOfTxs, "Insufficient UTXOs available for the address")
+
+			txs := make([]*sdkTx.Transaction, 0, tc.numberOfTxs)
+			for i := range tc.numberOfTxs {
+				tx, err := createTx(privateKey, address, utxos[i])
+				require.NoError(t, err)
+
+				txs = append(txs, tx)
+			}
+
+			// when
+
+			// submit transactions
+			for _, tx := range txs {
+				for _, callbackSrv := range callbackServers {
+					testTxSubmission(t, callbackSrv.url, callbackSrv.token, true, tx)
+					// This is to test the multiple submissions with the same callback URL and token
+					// Expected behavior is that the callback should not be added to tx and the server should receive the callback only once
+					if tc.attemptMultipleSubmissions {
+						testTxSubmission(t, callbackSrv.url, callbackSrv.token, true, tx)
+					}
+				}
+
+			}
+
+			// mine trasactions
+			generate(t, 1)
+
+			// then
+
+			// verify callbacks were received correctly
+			for i, srv := range callbackServers {
+				t.Logf("listen callbacks on server %s", srv.url)
+
+				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
+				for _, tx := range txs {
+					expectedTxsCallbacks[tx.TxID()] = 0
+				}
+
+				expectedCallbacksNumber := callbacksNumber
+				for j := 0; j < expectedCallbacksNumber; j++ {
+					callbackTimeout := time.After(30 * time.Second)
+
+					select {
+					case batch := <-srv.responseChan:
+						require.NotNil(t, batch)
+						require.Greater(t, batch.Count, 0)
+						require.NotNil(t, batch.Callbacks)
+
+						t.Logf("callback server %d iteration %d, count: %d result[0]: %s", i, j, batch.Count, batch.Callbacks[0].TxStatus)
+
+						for _, callback := range batch.Callbacks {
+							visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
+							require.True(t, expectedTx)
+							visitNumber++
+							expectedTxsCallbacks[callback.Txid] = visitNumber
+
+							if visitNumber == callbacksNumber {
+								delete(expectedTxsCallbacks, callback.Txid) // remove after receiving expected callbacks
+							}
+
+							require.Equal(t, Status_MINED, callback.TxStatus)
+						}
 
 					case err := <-srv.errChan:
 						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)

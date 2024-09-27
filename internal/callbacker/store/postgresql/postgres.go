@@ -57,6 +57,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	blockHeights := make([]sql.NullInt64, len(data))
 	competingTxs := make([]*string, len(data))
 	quarantineUntils := make([]sql.NullTime, len(data))
+	allowBatches := make([]bool, len(data))
 
 	for i, d := range data {
 		urls[i] = d.Url
@@ -67,6 +68,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		extraInfos[i] = d.ExtraInfo
 		merklePaths[i] = d.MerklePath
 		blockHashes[i] = d.BlockHash
+		allowBatches[i] = d.AllowBatch
 
 		if d.BlockHeight != nil {
 			blockHeights[i] = sql.NullInt64{Int64: int64(*d.BlockHeight), Valid: true}
@@ -93,6 +95,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 				,timestamp
 				,competing_txs
 				,postponed_until
+				,allow_batch
 				)
 				SELECT	
 					UNNEST($1::TEXT[])
@@ -105,7 +108,8 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])		
 					,UNNEST($10::TEXT[])
-					,UNNEST($11::TIMESTAMPTZ[])`
+					,UNNEST($11::TIMESTAMPTZ[])
+					,UNNEST($12::BOOLEAN[])`
 
 	_, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),
@@ -119,6 +123,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(timestamps),
 		pq.Array(competingTxs),
 		pq.Array(quarantineUntils),
+		pq.Array(allowBatches),
 	)
 
 	return err
@@ -156,7 +161,8 @@ func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackD
 				,block_height
 				,competing_txs
 				,timestamp
-				,postponed_until`
+				,postponed_until
+				,allow_batch`
 
 	rows, err := tx.QueryContext(ctx, q, limit)
 	if err != nil {
@@ -209,7 +215,8 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 				,block_height
 				,competing_txs
 				,timestamp
-				,postponed_until`
+				,postponed_until
+				,allow_batch`
 
 	rows, err := tx.QueryContext(ctx, q, t, limit)
 	if err != nil {
@@ -266,6 +273,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			&ctxs,
 			&ts,
 			&postponedUntil,
+			&r.AllowBatch,
 		)
 
 		if err != nil {

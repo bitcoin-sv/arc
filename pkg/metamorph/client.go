@@ -181,14 +181,7 @@ func (m *Metamorph) Health(ctx context.Context) error {
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error) {
-	request := &metamorph_api.TransactionRequest{
-		RawTx:             tx.Bytes(),
-		CallbackUrl:       options.CallbackURL,
-		CallbackToken:     options.CallbackToken,
-		WaitForStatus:     options.WaitForStatus,
-		FullStatusUpdates: options.FullStatusUpdates,
-		MaxTimeout:        int64(options.MaxTimeout),
-	}
+	request := transactionRequest(tx.Bytes(), options)
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
@@ -240,14 +233,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
 	for _, tx := range txs {
-		in.Transactions = append(in.GetTransactions(), &metamorph_api.TransactionRequest{
-			RawTx:             tx.Bytes(),
-			CallbackUrl:       options.CallbackURL,
-			CallbackToken:     options.CallbackToken,
-			WaitForStatus:     options.WaitForStatus,
-			FullStatusUpdates: options.FullStatusUpdates,
-			MaxTimeout:        int64(options.MaxTimeout),
-		})
+		in.Transactions = append(in.Transactions, transactionRequest(tx.Bytes(), options))
 	}
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
@@ -335,11 +321,24 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 	return resp.RecordsAffected, nil
 }
 
+func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.TransactionRequest {
+	return &metamorph_api.TransactionRequest{
+		RawTx:             rawTx,
+		CallbackUrl:       options.CallbackURL,
+		CallbackToken:     options.CallbackToken,
+		CallbackBatch:     options.CallbackBatch,
+		WaitForStatus:     options.WaitForStatus,
+		FullStatusUpdates: options.FullStatusUpdates,
+		MaxTimeout:        int64(options.MaxTimeout),
+	}
+}
+
 // TransactionOptions options passed from header when creating transactions.
 type TransactionOptions struct {
 	ClientID                string               `json:"client_id"`
 	CallbackURL             string               `json:"callback_url,omitempty"`
 	CallbackToken           string               `json:"callback_token,omitempty"`
+	CallbackBatch           bool                 `json:"callback_batch,omitempty"`
 	SkipFeeValidation       bool                 `json:"X-SkipFeeValidation,omitempty"`
 	SkipScriptValidation    bool                 `json:"X-SkipScriptValidation,omitempty"`
 	SkipTxValidation        bool                 `json:"X-SkipTxValidation,omitempty"`

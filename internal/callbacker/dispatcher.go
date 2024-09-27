@@ -3,7 +3,7 @@ package callbacker
 /* CallbackDispatcher */
 /*
 
-The CallbackDispatcher is a decorator of the CallbackerI interface, responsible for routing and dispatching callbacks to appropriate sendManager based on the callback URL.
+The CallbackDispatcher is responsible for routing and dispatching callbacks to appropriate sendManager based on the callback URL.
 
 Key components:
 - CallbackerI Interface: the CallbackDispatcher decorates this interface, enhancing its functionality by managing the actual dispatch logic
@@ -30,8 +30,9 @@ type CallbackDispatcher struct {
 	managers   map[string]*sendManager
 	managersMu sync.Mutex
 
-	sleep  time.Duration
-	policy *quarantinePolicy
+	policy            *quarantinePolicy
+	sleep             time.Duration
+	batchSendInterval time.Duration
 }
 
 type CallbackEntry struct {
@@ -41,13 +42,14 @@ type CallbackEntry struct {
 }
 
 func NewCallbackDispatcher(callbacker CallbackerI, store store.CallbackerStore, logger *slog.Logger,
-	sleepDuration, quarantineBaseDuration, permQuarantineAfterDuration time.Duration) *CallbackDispatcher {
+	singleSendPause, batchSendInterval, quarantineBaseDuration, permQuarantineAfterDuration time.Duration) *CallbackDispatcher {
 
 	return &CallbackDispatcher{
-		c:     callbacker,
-		s:     store,
-		l:     logger.With(slog.String("module", "dispatcher")),
-		sleep: sleepDuration,
+		c:                 callbacker,
+		s:                 store,
+		l:                 logger.With(slog.String("module", "dispatcher")),
+		sleep:             singleSendPause,
+		batchSendInterval: batchSendInterval,
 		policy: &quarantinePolicy{
 			baseDuration:        quarantineBaseDuration,
 			permQuarantineAfter: permQuarantineAfterDuration,
@@ -55,15 +57,6 @@ func NewCallbackDispatcher(callbacker CallbackerI, store store.CallbackerStore, 
 		},
 		managers: make(map[string]*sendManager),
 	}
-}
-
-func (d *CallbackDispatcher) Send(url, token string, dto *Callback) bool {
-	d.Dispatch(url, &CallbackEntry{Token: token, Data: dto})
-	return true
-}
-
-func (d *CallbackDispatcher) Health() error {
-	return d.c.Health()
 }
 
 func (d *CallbackDispatcher) GracefulStop() {
@@ -75,15 +68,15 @@ func (d *CallbackDispatcher) GracefulStop() {
 	}
 }
 
-func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry) {
+func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch bool) {
 	d.managersMu.Lock()
 	m, ok := d.managers[url]
 
 	if !ok {
-		m = runNewSendManager(url, d.c, d.s, d.l, d.sleep, d.policy)
+		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sleep, d.batchSendInterval)
 		d.managers[url] = m
 	}
 	d.managersMu.Unlock()
 
-	m.Add(dto)
+	m.Add(dto, allowBatch)
 }

@@ -6,7 +6,7 @@ import (
 
 type CallbackerI interface {
 	Send(url, token string, callback *Callback) bool
-	Health() error
+	SendBatch(url, token string, callbacks []*Callback) bool
 }
 
 type Callback struct {
@@ -21,4 +21,9 @@ type Callback struct {
 
 	BlockHash   *string `json:"blockHash,omitempty"`
 	BlockHeight *uint64 `json:"blockHeight,omitempty"`
+}
+
+type BatchCallback struct {
+	Count     int         `json:"count"`
+	Callbacks []*Callback `json:"callbacks,omitempty"`
 }

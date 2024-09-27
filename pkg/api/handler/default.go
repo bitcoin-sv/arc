@@ -290,6 +290,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 		transactionOptions.CallbackToken = *params.XCallbackToken
 	}
 
+	if params.XCallbackBatch != nil {
+		transactionOptions.CallbackBatch = *params.XCallbackBatch
+	}
+
 	// NOTE: deprecated header, to be removed soon
 	if params.XWaitForStatus != nil {
 		oldStatusesMap := map[int]string{

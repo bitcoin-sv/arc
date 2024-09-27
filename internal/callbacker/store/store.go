@@ -31,4 +31,5 @@ type CallbackData struct {
 	BlockHeight *uint64
 
 	PostponedUntil *time.Time
+	AllowBatch     bool
 }

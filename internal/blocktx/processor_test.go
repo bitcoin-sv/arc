@@ -500,7 +500,7 @@ func TestStartFillGaps(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.GreaterOrEqual(t, tc.minExpectedGetBlockCapsCalls, len(storeMock.GetBlockGapsCalls()))
+			require.GreaterOrEqual(t, len(storeMock.GetBlockGapsCalls()), tc.minExpectedGetBlockCapsCalls)
 		})
 	}
 }

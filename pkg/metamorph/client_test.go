@@ -121,40 +121,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			expectedErrorStr: "failed to put tx",
 		},
 		{
-			name: "wait for received, put tx err, with mq client",
-			options: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-			},
-			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1Hash.String(),
-				Status: metamorph_api.Status_RECEIVED,
-			},
-			putTxErr:     errors.New("failed to put tx"),
-			withMqClient: true,
-
-			expectedStatus: &metamorph.TransactionStatus{
-				TxID:      testdata.TX1Hash.String(),
-				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: now.Unix(),
-			},
-		},
-		{
-			name: "wait for received, put tx err, with mq client, publish submit tx err",
-			options: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-			},
-			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1Hash.String(),
-				Status: metamorph_api.Status_RECEIVED,
-			},
-			putTxErr:           errors.New("failed to put tx"),
-			withMqClient:       true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatus:   nil,
-			expectedErrorStr: "failed to publish tx",
-		},
-		{
 			name: "wait for queued, with mq client",
 			options: &metamorph.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
@@ -299,76 +265,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			expectedStatuses: nil,
 			expectedErrorStr: "failed to put tx",
-		},
-		{
-			name: "wait for received, put tx err, with mq client",
-			options: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-			},
-			putTxStatus: &metamorph_api.TransactionStatuses{
-				Statuses: []*metamorph_api.TransactionStatus{
-					{
-						Txid:   tx1.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-					{
-						Txid:   tx2.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-					{
-						Txid:   tx3.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-				},
-			},
-			putTxErr:     errors.New("failed to put tx"),
-			withMqClient: true,
-
-			expectedStatuses: []*metamorph.TransactionStatus{
-				{
-					TxID:      tx1.TxID(),
-					Status:    metamorph_api.Status_QUEUED.String(),
-					Timestamp: now.Unix(),
-				},
-				{
-					TxID:      tx2.TxID(),
-					Status:    metamorph_api.Status_QUEUED.String(),
-					Timestamp: now.Unix(),
-				},
-				{
-					TxID:      tx3.TxID(),
-					Status:    metamorph_api.Status_QUEUED.String(),
-					Timestamp: now.Unix(),
-				},
-			},
-		},
-		{
-			name: "wait for received, put tx err, with mq client, publish submit tx err",
-			options: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-			},
-			putTxStatus: &metamorph_api.TransactionStatuses{
-				Statuses: []*metamorph_api.TransactionStatus{
-					{
-						Txid:   tx1.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-					{
-						Txid:   tx2.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-					{
-						Txid:   tx3.TxID(),
-						Status: metamorph_api.Status_RECEIVED,
-					},
-				},
-			},
-			putTxErr:           errors.New("failed to put tx"),
-			withMqClient:       true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatuses: nil,
-			expectedErrorStr: "failed to publish tx",
 		},
 		{
 			name: "wait for queued, with mq client",

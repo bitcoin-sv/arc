@@ -196,20 +196,22 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 		}, nil
 	}
 
-	response, err := m.client.PutTransaction(ctx, request)
-	if err != nil {
-		m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
-		if m.mqClient != nil {
-			err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
-			if err != nil {
-				return nil, err
-			}
-
-			return &TransactionStatus{
-				TxID:      tx.TxID(),
-				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: m.now().Unix(),
-			}, nil
+	var response *metamorph_api.TransactionStatus
+	var err error
+	// in case of error try PutTransaction until timeout expires
+	start := time.Now()
+	const interval = 300 * time.Millisecond
+	maxTimeout := time.Duration(5 * time.Second)
+	maxTimeout = max(time.Duration(request.MaxTimeout)*time.Second, maxTimeout)
+	for {
+		response, err = m.client.PutTransaction(ctx, request)
+		if err == nil {
+			break
+		}
+		m.logger.Error("Failed to put transactions", slog.String("err", err.Error()))
+		time.Sleep(interval)
+		if maxTimeout >= time.Since(start) {
+			continue
 		}
 
 		return nil, err
@@ -258,28 +260,23 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	}
 
 	// put all transactions together
-	responses, err := m.client.PutTransactions(ctx, in)
-	if err != nil {
-		m.logger.Warn("Failed to submit transactions", slog.String("key", err.Error()))
-		if m.mqClient != nil {
-			for _, tx := range in.Transactions {
-				err := m.mqClient.PublishMarshal(SubmitTxTopic, tx)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// parse response and return to user
-			ret := make([]*TransactionStatus, 0)
-			for _, tx := range txs {
-				ret = append(ret, &TransactionStatus{
-					TxID:      tx.TxID(),
-					Status:    metamorph_api.Status_QUEUED.String(),
-					Timestamp: m.now().Unix(),
-				})
-			}
-
-			return ret, nil
+	start := time.Now()
+	const interval = 300 * time.Millisecond
+	maxTimeout := time.Duration(5 * time.Second)
+	if len(in.Transactions) != 0 {
+		maxTimeout = time.Duration(in.Transactions[0].MaxTimeout) * time.Second
+	}
+	var responses *metamorph_api.TransactionStatuses
+	var err error
+	for {
+		responses, err = m.client.PutTransactions(ctx, in)
+		if err == nil {
+			break
+		}
+		m.logger.Error("Failed to put transactions", slog.String("err", err.Error()))
+		time.Sleep(interval)
+		if maxTimeout >= time.Since(start) {
+			continue
 		}
 
 		return nil, err

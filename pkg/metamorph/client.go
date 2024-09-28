@@ -196,23 +196,37 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 		}, nil
 	}
 
-	response, err := m.client.PutTransaction(ctx, request)
-	if err != nil {
-		m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
-		if m.mqClient != nil {
-			err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
-			if err != nil {
-				return nil, err
+	var response *metamorph_api.TransactionStatus
+	var err error
+	// in case of error try PutTransaction until timeout expires
+	for {
+		start := time.Now()
+		response, err = m.client.PutTransaction(ctx, request)
+		duration := time.Since(start).Seconds() + 1
+		if err != nil {
+			m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
+			if request.MaxTimeout-int64(duration) > 0 {
+				request.MaxTimeout -= int64(duration)
+				continue
 			}
 
-			return &TransactionStatus{
-				TxID:      tx.TxID(),
-				Status:    metamorph_api.Status_QUEUED.String(),
-				Timestamp: m.now().Unix(),
-			}, nil
-		}
+			if m.mqClient != nil {
+				err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
+				if err != nil {
+					return nil, err
+				}
 
-		return nil, err
+				return &TransactionStatus{
+					TxID:      tx.TxID(),
+					Status:    metamorph_api.Status_QUEUED.String(),
+					Timestamp: m.now().Unix(),
+				}, nil
+			}
+
+			return nil, err
+		} else {
+			break
+		}
 	}
 
 	return &TransactionStatus{

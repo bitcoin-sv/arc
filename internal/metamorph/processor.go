@@ -400,8 +400,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		//statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
-
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -417,11 +415,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(actualUpdateStatusMap)
 
-					err = p.cacheStore.Del(CacheStatusUpdateKey)
-					if err != nil {
-						p.logger.Error("failed to reset status update map", slog.String("err", err.Error()))
-					}
-
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
@@ -430,11 +423,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				statusUpdatesMap := p.getStatusUpdateMap()
 				if len(statusUpdatesMap) > 0 {
 					p.checkAndUpdate(statusUpdatesMap)
-
-					err := p.cacheStore.Del(CacheStatusUpdateKey)
-					if err != nil {
-						p.logger.Error("failed to reset status update map", slog.String("err", err.Error()))
-					}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -464,6 +452,11 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 	err := p.statusUpdateWithCallback(statusUpdates, doubleSpendUpdates)
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
+	}
+
+	err = p.cacheStore.Del(CacheStatusUpdateKey)
+	if err != nil {
+		p.logger.Error("failed to reset status update map", slog.String("err", err.Error()))
 	}
 }
 

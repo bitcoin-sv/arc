@@ -2,11 +2,13 @@ package broadcaster
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -188,6 +190,25 @@ utxoLoop:
 
 			if b.opReturn != "" {
 				err = tx.AddOpReturnOutput([]byte(b.opReturn))
+				if err != nil {
+					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+				}
+			}
+
+			if b.maxSize > 0 {
+				randomMaxSize := big.NewInt(int64(b.maxSize))
+				randomInt, err := rand.Int(rand.Reader, randomMaxSize)
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
+				}
+
+				randomBytes := make([]byte, randomInt.Int64())
+				_, err = rand.Read(randomBytes)
+				if err != nil {
+					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
+				}
+
+				err = tx.AddOpReturnOutput(append([]byte("TAAL ARC size-jitter random bytes - "), randomBytes...))
 				if err != nil {
 					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
 				}

@@ -89,8 +89,8 @@ type UpdateStatus struct {
 	Error        error                `json:"-"`
 	CompetingTxs []string             `json:"competing_txs"`
 	// Fields for marshalling
-	HashStr  string `json:"hash"`
-	ErrorStr string `json:"error"`
+	hashStr  string
+	errorStr string
 }
 
 // UnmarshalJSON Custom method to unmarshall the UpdateStatus struct
@@ -108,12 +108,12 @@ func (u *UpdateStatus) UnmarshalJSON(data []byte) error {
 	}
 
 	// Convert the error string back to an error if necessary
-	if u.ErrorStr != "" {
-		u.Error = errors.New(u.ErrorStr)
+	if u.errorStr != "" {
+		u.Error = errors.New(u.errorStr)
 	}
 
 	// Convert the hash string back to a chainhash.Hash
-	hash, err := chainhash.NewHashFromStr(u.HashStr)
+	hash, err := chainhash.NewHashFromStr(u.hashStr)
 	if err != nil {
 		return err
 	}
@@ -126,10 +126,10 @@ func (u *UpdateStatus) UnmarshalJSON(data []byte) error {
 func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	type Alias UpdateStatus
 	if u.Error != nil {
-		u.ErrorStr = u.Error.Error() // Convert error to string for marshaling
+		u.errorStr = u.Error.Error() // Convert error to string for marshaling
 	}
 
-	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
+	u.hashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
 }

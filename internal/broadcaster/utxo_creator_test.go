@@ -61,15 +61,14 @@ func TestUTXOCreator(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create the mock
+			// Given
 			mockedCreator := &mocks.CreatorMock{
 				StartFunc: tc.startFunc,
 			}
-
-			// Call the Start method with mock
+			// When
 			err := mockedCreator.Start(tc.outputs, tc.satoshisPerOutput)
 
-			// Verify if the error is as expected
+			// Then
 			if tc.expectedError != nil {
 				require.Error(t, err)
 				require.EqualError(t, err, tc.expectedError.Error())
@@ -77,7 +76,6 @@ func TestUTXOCreator(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			// Verify the number of times Start was called
 			require.Equal(t, tc.expectedStartCalls, len(mockedCreator.StartCalls()))
 
 		})

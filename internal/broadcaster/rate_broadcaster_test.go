@@ -63,10 +63,10 @@ func TestRateBroadcaster(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
-				GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					if tc.getUTXOsWithRetriesErr != nil {
 						return nil, tc.getUTXOsWithRetriesErr
 					}
@@ -91,7 +91,7 @@ func TestRateBroadcaster(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			client := &mocks.ArcClientMock{
-				BroadcastTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _ string, _ string, _ bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
 					if tc.broadcastTransactionsErr != nil {
 						return nil, tc.broadcastTransactionsErr
 					}
@@ -114,9 +114,8 @@ func TestRateBroadcaster(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			time.Sleep(500 * time.Millisecond)
 

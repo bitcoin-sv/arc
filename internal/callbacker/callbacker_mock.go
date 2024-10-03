@@ -7,15 +7,15 @@ import (
 	"sync"
 )
 
-// Ensure, that CallbackerIMock does implement CallbackerI.
+// Ensure, that CallbackerIMock does implement SendInterface.
 // If this is not the case, regenerate this file with moq.
-var _ CallbackerI = &CallbackerIMock{}
+var _ SendInterface = &CallbackerIMock{}
 
-// CallbackerIMock is a mock implementation of CallbackerI.
+// CallbackerIMock is a mock implementation of SendInterface.
 //
 //	func TestSomethingThatUsesCallbackerI(t *testing.T) {
 //
-//		// make and configure a mocked CallbackerI
+//		// make and configure a mocked SendInterface
 //		mockedCallbackerI := &CallbackerIMock{
 //			SendFunc: func(url string, token string, callback *Callback) bool {
 //				panic("mock out the Send method")
@@ -25,7 +25,7 @@ var _ CallbackerI = &CallbackerIMock{}
 //			},
 //		}
 //
-//		// use mockedCallbackerI in code that requires CallbackerI
+//		// use mockedCallbackerI in code that requires SendInterface
 //		// and then make assertions.
 //
 //	}
@@ -64,7 +64,7 @@ type CallbackerIMock struct {
 // Send calls SendFunc.
 func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) bool {
 	if mock.SendFunc == nil {
-		panic("CallbackerIMock.SendFunc: method is nil but CallbackerI.Send was just called")
+		panic("CallbackerIMock.SendFunc: method is nil but SendInterface.Send was just called")
 	}
 	callInfo := struct {
 		URL      string
@@ -104,7 +104,7 @@ func (mock *CallbackerIMock) SendCalls() []struct {
 // SendBatch calls SendBatchFunc.
 func (mock *CallbackerIMock) SendBatch(url string, token string, callbacks []*Callback) bool {
 	if mock.SendBatchFunc == nil {
-		panic("CallbackerIMock.SendBatchFunc: method is nil but CallbackerI.SendBatch was just called")
+		panic("CallbackerIMock.SendBatchFunc: method is nil but SendInterface.SendBatch was just called")
 	}
 	callInfo := struct {
 		URL       string

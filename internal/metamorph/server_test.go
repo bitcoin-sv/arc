@@ -123,7 +123,7 @@ func TestPutTransaction(t *testing.T) {
 			s := &storeMocks.MetamorphStoreMock{}
 
 			processor := &mocks.ProcessorIMock{
-				ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) {
+				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
 					time.Sleep(10 * time.Millisecond)
 					req.ResponseChannel <- tc.processorResponse
 				},
@@ -279,13 +279,13 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					data := &store.StoreData{
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					data := &store.Data{
 						StoredAt:     testdata.Time,
 						Hash:         testdata.TX1Hash,
 						Status:       tt.status,
 						CompetingTxs: tt.competingTxs,
-						Callbacks:    []store.StoreCallback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+						Callbacks:    []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
 						MerklePath:   "00000",
 					}
 					return data, tt.getErr
@@ -332,7 +332,7 @@ func TestPutTransactions(t *testing.T) {
 	tt := []struct {
 		name              string
 		processorResponse map[string]*metamorph.StatusAndError
-		transactionFound  map[int]*store.StoreData
+		transactionFound  map[int]*store.Data
 		requests          *metamorph_api.TransactionRequests
 		getErr            error
 
@@ -474,7 +474,7 @@ func TestPutTransactions(t *testing.T) {
 					},
 				},
 			},
-			transactionFound: map[int]*store.StoreData{1: {
+			transactionFound: map[int]*store.Data{1: {
 				Status:   metamorph_api.Status_SENT_TO_NETWORK,
 				Hash:     hash1,
 				StoredAt: time.Time{},
@@ -548,7 +548,7 @@ func TestPutTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			processor := &mocks.ProcessorIMock{
-				ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest) {
+				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
 					resp, found := tc.processorResponse[req.Data.Hash.String()]
 					if found {
 						req.ResponseChannel <- *resp
@@ -565,9 +565,8 @@ func TestPutTransactions(t *testing.T) {
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			// then
 			require.Equal(t, tc.expectedProcessorProcessTransactionCalls, len(processor.ProcessTransactionCalls()))
@@ -608,10 +607,10 @@ func TestSetUnlockedByName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
 			}
@@ -651,10 +650,10 @@ func TestListenAndServe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
 			processor := &mocks.ProcessorIMock{}
@@ -717,15 +716,15 @@ func TestGetTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
-				GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.Data, error) {
 					if tc.getFromStoreErr != nil {
 						return nil, tc.getFromStoreErr
 					}
 
-					res := make([]*store.StoreData, 0)
+					res := make([]*store.Data, 0)
 					for _, hash := range tc.request.TxIDs {
 						h, _ := chainhash.NewHashFromStr(hash)
-						d := store.StoreData{
+						d := store.Data{
 							Hash: h,
 						}
 

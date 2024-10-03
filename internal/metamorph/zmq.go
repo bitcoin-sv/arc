@@ -25,7 +25,7 @@ type ZMQTxInfo struct {
 	FromBlock                   bool          `json:"fromBlock"`
 	Source                      string        `json:"source"`
 	Address                     string        `json:"address"`
-	NodeId                      int           `json:"nodeId"`
+	NodeID                      int           `json:"nodeId"`
 	Size                        int           `json:"size"`
 	Hex                         string        `json:"hex"`
 	IsInvalid                   bool          `json:"isInvalid"`

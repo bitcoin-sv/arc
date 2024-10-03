@@ -20,9 +20,6 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -90,12 +87,12 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	var policy *bitcoin.Settings
-	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
+	policy, err = getPolicyFromNode(arcConfig.PeerRPC)
 	if err != nil {
-		policy = arcConfig.Api.DefaultPolicy
+		policy = arcConfig.API.DefaultPolicy
 	}
 
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRPC, arcConfig.API, apiOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +102,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Info("Starting API server", slog.String("address", arcConfig.Api.Address))
-		err := e.Start(arcConfig.Api.Address)
+		logger.Info("Starting API server", slog.String("address", arcConfig.API.Address))
+		err := e.Start(arcConfig.API.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")
@@ -164,7 +161,7 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(otelecho.Middleware("api-server"))
 
 	// Log info about requests
-	e.Use(logRequestMiddleware(logger, arcConfig.Api.RequestExtendedLogs))
+	e.Use(logRequestMiddleware(logger, arcConfig.API.RequestExtendedLogs))
 
 	// add prometheus metrics
 	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
@@ -277,8 +274,8 @@ func extendRequestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerCon
 	}
 }
 
-func getPolicyFromNode(peerRpcConfig *config.PeerRpcConfig) (*bitcoin.Settings, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcConfig.User, peerRpcConfig.Password, peerRpcConfig.Host, peerRpcConfig.Port))
+func getPolicyFromNode(peerRPCConfig *config.PeerRPCConfig) (*bitcoin.Settings, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPCConfig.User, peerRPCConfig.Password, peerRPCConfig.Host, peerRPCConfig.Port))
 	if err != nil {
 		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}

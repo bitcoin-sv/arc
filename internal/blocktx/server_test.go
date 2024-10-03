@@ -83,11 +83,11 @@ func TestDelUnfinishedBlock(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash}, tc.getBlockHashesProcessingInProgressErr
 				},
 
-				DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+				DelBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
 					return 3, tc.delBlockProcessingErr
 				},
 			}

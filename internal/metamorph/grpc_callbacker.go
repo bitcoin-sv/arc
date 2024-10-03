@@ -21,7 +21,7 @@ func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logg
 	}
 }
 
-func (c GrpcCallbacker) SendCallback(tx *store.StoreData) {
+func (c GrpcCallbacker) SendCallback(tx *store.Data) {
 	if len(tx.Callbacks) == 0 {
 		return
 	}
@@ -37,7 +37,7 @@ func (c GrpcCallbacker) SendCallback(tx *store.StoreData) {
 	}
 }
 
-func toGrpcInput(d *store.StoreData) *callbacker_api.SendCallbackRequest {
+func toGrpcInput(d *store.Data) *callbacker_api.SendCallbackRequest {
 	routings := make([]*callbacker_api.CallbackRouting, 0, len(d.Callbacks))
 
 	for _, c := range d.Callbacks {
@@ -70,7 +70,7 @@ func toGrpcInput(d *store.StoreData) *callbacker_api.SendCallbackRequest {
 	return &in
 }
 
-func getCallbackExtraInfo(d *store.StoreData) string {
+func getCallbackExtraInfo(d *store.Data) string {
 	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -78,7 +78,7 @@ func getCallbackExtraInfo(d *store.StoreData) string {
 	return d.RejectReason
 }
 
-func getCallbackCompetitingTxs(d *store.StoreData) []string {
+func getCallbackCompetitingTxs(d *store.Data) []string {
 	if d.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -86,7 +86,7 @@ func getCallbackCompetitingTxs(d *store.StoreData) []string {
 	return d.CompetingTxs
 }
 
-func getCallbackBlockHash(d *store.StoreData) string {
+func getCallbackBlockHash(d *store.Data) string {
 	if d.BlockHash == nil {
 		return ""
 	}

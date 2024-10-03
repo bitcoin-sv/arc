@@ -1,4 +1,4 @@
-package nats_connection
+package natsconnection
 
 import (
 	"log"

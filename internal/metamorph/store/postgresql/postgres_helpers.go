@@ -37,11 +37,11 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func getStoreDataFromRows(rows *sql.Rows) ([]*store.StoreData, error) {
-	var storeData []*store.StoreData
+func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
+	var storeData []*store.Data
 
 	for rows.Next() {
-		data := &store.StoreData{}
+		data := &store.Data{}
 
 		var status sql.NullInt32
 
@@ -158,7 +158,7 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 	return dbData
 }
 
-func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData, tx *sql.Tx) []*store.StoreData {
+func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData, tx *sql.Tx) []*store.Data {
 	qRejectDoubleSpends := `
 		UPDATE metamorph.transactions t
 		SET
@@ -216,8 +216,8 @@ func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competing
 	return res
 }
 
-func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
-	var callbacksData []store.StoreCallback
+func readCallbacksFromDB(callbacks []byte) ([]store.Callback, error) {
+	var callbacksData []store.Callback
 	err := json.Unmarshal(callbacks, &callbacksData)
 	if err != nil {
 		return nil, err
@@ -225,8 +225,8 @@ func readCallbacksFromDB(callbacks []byte) ([]store.StoreCallback, error) {
 	return callbacksData, nil
 }
 
-func readStatusHistoryFromDB(statusHistory []byte) ([]*store.StoreStatus, error) {
-	var statusHistoryData []*store.StoreStatus
+func readStatusHistoryFromDB(statusHistory []byte) ([]*store.Status, error) {
+	var statusHistoryData []*store.Status
 	err := json.Unmarshal(statusHistory, &statusHistoryData)
 	if err != nil {
 		return nil, err

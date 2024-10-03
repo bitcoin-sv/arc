@@ -63,7 +63,7 @@ func TestSplitUtxo(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			client := &mocks.ArcClientMock{
-				BroadcastTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, waitForStatus metamorph_api.Status, callbackURL string) (*metamorph_api.TransactionStatus, error) {
+				BroadcastTransactionFunc: func(_ context.Context, tx *sdkTx.Transaction, _ metamorph_api.Status, _ string) (*metamorph_api.TransactionStatus, error) {
 
 					require.Len(t, tx.Outputs, 3)
 					require.Equal(t, uint64(500), tx.Outputs[0].Satoshis)
@@ -98,9 +98,8 @@ func TestSplitUtxo(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedBroadcastTransactionCalls, len(client.BroadcastTransactionCalls()))
 		})

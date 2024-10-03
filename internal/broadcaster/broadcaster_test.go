@@ -21,13 +21,13 @@ import (
 func TestBroadcaster(t *testing.T) {
 	// given
 	mockedUtxoClient := &mocks.UtxoClientMock{
-		GetBalanceFunc: func(ctx context.Context, address string) (int64, int64, error) {
+		GetBalanceFunc: func(_ context.Context, _ string) (int64, int64, error) {
 			return 1000, 0, nil
 		},
-		GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 			return 1000, 0, nil
 		},
-		GetUTXOsFunc: func(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
+		GetUTXOsFunc: func(_ context.Context, lockingScript *script.Script, _ string) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          []byte("sample-txid-1"),
@@ -43,7 +43,7 @@ func TestBroadcaster(t *testing.T) {
 				},
 			}, nil // Mock response for UTXOs retrieval with multiple UTXOs
 		},
-		GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+		GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          []byte("sample-txid-1"),
@@ -62,7 +62,7 @@ func TestBroadcaster(t *testing.T) {
 	}
 
 	arcClient := &mocks.ArcClientMock{
-		BroadcastTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+		BroadcastTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ metamorph_api.Status, _ string, _ string, _ bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
 			return nil, nil
 		},
 	}

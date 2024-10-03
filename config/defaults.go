@@ -17,11 +17,11 @@ func getDefaultArcConfig() *ArcConfig {
 		Network:            "regtest",
 		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            getDefaultTracingConfig(),
-		PeerRpc:            getDefaultPeerRpcConfig(),
+		PeerRPC:            getDefaultPeerRPCConfig(),
 		Peers:              getPeersConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
-		Api:                getApiConfig(),
+		API:                getAPIConfig(),
 		K8sWatcher:         nil, // optional
 		Callbacker:         getCallbackerConfig(),
 		Cache:              getCacheConfig(),
@@ -38,8 +38,8 @@ func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	}
 }
 
-func getDefaultPeerRpcConfig() *PeerRpcConfig {
-	return &PeerRpcConfig{
+func getDefaultPeerRPCConfig() *PeerRPCConfig {
+	return &PeerRPCConfig{
 		Password: "bitcoin",
 		User:     "bitcoin",
 		Host:     "localhost",
@@ -111,10 +111,10 @@ func getBlocktxConfig() *BlocktxConfig {
 	}
 }
 
-func getApiConfig() *ApiConfig {
-	return &ApiConfig{
+func getAPIConfig() *APIConfig {
+	return &APIConfig{
 		Address:   "localhost:9090",
-		WocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		WocAPIKey: "mainnet_XXXXXXXXXXXXXXXXXXXX",
 		DefaultPolicy: &bitcoin.Settings{
 			ExcessiveBlockSize:              2000000000,
 			BlockMaxSize:                    512000000,

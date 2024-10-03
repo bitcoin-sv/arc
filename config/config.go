@@ -21,11 +21,11 @@ type ArcConfig struct {
 	Network            string              `mapstructure:"network"`
 	MessageQueue       *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing            *TracingConfig      `mapstructure:"tracing"`
-	PeerRpc            *PeerRpcConfig      `mapstructure:"peerRpc"`
+	PeerRPC            *PeerRPCConfig      `mapstructure:"peerRpc"`
 	Peers              []*PeerConfig       `mapstructure:"peers"`
 	Metamorph          *MetamorphConfig    `mapstructure:"metamorph"`
 	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
-	Api                *ApiConfig          `mapstructure:"api"`
+	API                *APIConfig          `mapstructure:"api"`
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
 	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
 	Cache              *CacheConfig        `mapstructure:"cache"`
@@ -45,7 +45,7 @@ type TracingConfig struct {
 	DialAddr string `mapstructure:"dialAddr"`
 }
 
-type PeerRpcConfig struct {
+type PeerRPCConfig struct {
 	Password string `mapstructure:"password"`
 	User     string `mapstructure:"user"`
 	Host     string `mapstructure:"host"`
@@ -134,9 +134,9 @@ type StatsConfig struct {
 	NotMinedTimeLimit time.Duration `mapstructure:"notMinedTimeLimit"`
 }
 
-type ApiConfig struct {
+type APIConfig struct {
 	Address             string            `mapstructure:"address"`
-	WocApiKey           string            `mapstructure:"wocApiKey"`
+	WocAPIKey           string            `mapstructure:"wocApiKey"`
 	WocMainnet          bool              `mapstructure:"wocMainnet"`
 	DefaultPolicy       *bitcoin.Settings `mapstructure:"defaultPolicy"`
 	RequestExtendedLogs bool              `mapstructure:"requestExtendedLogs"`

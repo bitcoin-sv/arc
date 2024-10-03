@@ -15,7 +15,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file" //nolint: revive // Required for migrations
 )
 
 func MigrateUp(table, path, dbInfo string) error {

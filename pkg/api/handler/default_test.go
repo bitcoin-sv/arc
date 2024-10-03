@@ -132,7 +132,7 @@ func TestGETHealth(t *testing.T) {
 	t.Run("health check", func(t *testing.T) {
 		// given
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
@@ -184,9 +184,8 @@ func TestValidateCallbackURL(t *testing.T) {
 			if err != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 		})
 	}
 }
@@ -271,7 +270,7 @@ func TestGETTransactionStatus(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
 			txHandler := &mtmMocks.TransactionHandlerMock{
-				GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
+				GetTransactionStatusFunc: func(_ context.Context, _ string) (*metamorph.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
 			}
@@ -604,11 +603,11 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 
 			txHandler := &mtmMocks.TransactionHandlerMock{
-				HealthFunc: func(ctx context.Context) error {
+				HealthFunc: func(_ context.Context) error {
 					return nil
 				},
 
-				GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 					if tc.getTx != nil {
 						tx, _ := sdkTx.NewTransactionFromBytes(tc.getTx)
 
@@ -623,17 +622,17 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, nil
 				},
 
-				SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+				SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
 
-				SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
 			}
 
 			merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
-				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
 			}
@@ -642,7 +641,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			arcConfig, err := config.Load()
 			require.NoError(t, err, "error loading config")
 
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, arcConfig.PeerRpc, arcConfig.Api, WithNow(func() time.Time { return now }))
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, arcConfig.PeerRPC, arcConfig.API, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			inputTx := strings.NewReader(tc.txHexString)
@@ -793,19 +792,19 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("valid tx - missing inputs", func(t *testing.T) {
 		// given
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var txStatuses []*metamorph.TransactionStatus
 				return txStatuses, nil
 			},
 
-			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
-			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+			GetTransactionFunc: func(_ context.Context, _ string) ([]byte, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
 
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
@@ -813,7 +812,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		arcConfig, err := config.Load()
 		require.NoError(t, err, "could not load default config")
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRpc, arcConfig.Api)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRPC, arcConfig.API)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -853,15 +852,15 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 				return txResult, nil
 			},
-			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
 
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
@@ -898,7 +897,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
@@ -942,21 +941,21 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 				return txResult, nil
 			},
-			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
 			},
 
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
 
 		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
-			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 				return nil, nil
 			},
 		}
@@ -1006,7 +1005,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
 				return []*metamorph.Transaction{
 					{
@@ -1016,11 +1015,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 					},
 				}, nil
 			},
-			GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
+			GetTransactionFunc: func(_ context.Context, _ string) ([]byte, error) {
 				return validTxParentBytes, nil
 			},
 
-			SubmitTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var res []*metamorph.TransactionStatus
 				for _, t := range txs {
 					txID := t.TxID()
@@ -1032,13 +1031,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return res, nil
 			},
 
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
 
 		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
-			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 				return nil, nil
 			},
 		}
@@ -1296,9 +1295,8 @@ func TestGetTransactionOptions(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, actualErr)
 			}
+			require.NoError(t, actualErr)
 
 			require.Equal(t, tc.expectedOptions, options)
 		})

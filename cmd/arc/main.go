@@ -29,7 +29,7 @@ func main() {
 }
 
 func run() error {
-	configDir, startApi, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
+	configDir, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
 
 	arcConfig, err := config.Load(configDir)
 	if err != nil {
@@ -85,7 +85,7 @@ func run() error {
 
 	if !isAnyFlagPassed("api", "blocktx", "metamorph", "k8s-watcher", "callbacker") {
 		logger.Info("No service selected, starting all")
-		startApi = true
+		startAPI = true
 		startMetamorph = true
 		startBlockTx = true
 		startCallbacker = true
@@ -109,7 +109,7 @@ func run() error {
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
 
-	if startApi {
+	if startAPI {
 		logger.Info("Starting API")
 		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
@@ -154,7 +154,7 @@ func appCleanup(logger *slog.Logger, shutdownFns []func()) {
 }
 
 func parseFlags() (string, bool, bool, bool, bool, bool, string) {
-	startApi := flag.Bool("api", false, "start ARC api server")
+	startAPI := flag.Bool("api", false, "start ARC api server")
 	startMetamorph := flag.Bool("metamorph", false, "start metamorph")
 	startBlockTx := flag.Bool("blocktx", false, "start blocktx")
 	startK8sWatcher := flag.Bool("k8s-watcher", false, "start k8s-watcher")
@@ -193,7 +193,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		os.Exit(0)
 	}
 
-	return *configDir, *startApi, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
+	return *configDir, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
 }
 
 func isAnyFlagPassed(flags ...string) bool {

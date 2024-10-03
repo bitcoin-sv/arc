@@ -136,7 +136,7 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 		}
 
 		for _, c := range callbacks {
-			d.Dispatch(c.Url, toCallbackEntry(c), c.AllowBatch)
+			d.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
 		}
 	}
 }

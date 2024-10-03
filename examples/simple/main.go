@@ -9,7 +9,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
 	merklerootsverifier "github.com/bitcoin-sv/arc/pkg/api/merkle_roots_verifier"
-	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"github.com/labstack/echo/v4"
 )
 
@@ -24,7 +23,7 @@ func main() {
 	}
 
 	// add a single bitcoin node
-	txHandler, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	txHandler, err := transactionhandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		panic(err)
 	}
@@ -36,7 +35,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.Api.DefaultPolicy, arcConfig.PeerRpc, arcConfig.Api); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, arcConfig.PeerRPC, arcConfig.API); err != nil {
 		panic(err)
 	}
 

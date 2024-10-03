@@ -21,7 +21,7 @@ func TestUTXOCreator(t *testing.T) {
 			name:              "successful start",
 			outputs:           5,
 			satoshisPerOutput: 1000,
-			startFunc: func(outputs int, satoshisPerOutput uint64) error {
+			startFunc: func(_ int, _ uint64) error {
 				return nil
 			},
 			expectedError:      nil,
@@ -31,7 +31,7 @@ func TestUTXOCreator(t *testing.T) {
 			name:              "error on start",
 			outputs:           5,
 			satoshisPerOutput: 1000,
-			startFunc: func(outputs int, satoshisPerOutput uint64) error {
+			startFunc: func(_ int, _ uint64) error {
 				return errors.New("failed to start UTXO creation")
 			},
 			expectedError:      errors.New("failed to start UTXO creation"),
@@ -41,7 +41,7 @@ func TestUTXOCreator(t *testing.T) {
 			name:              "invalid input - zero outputs",
 			outputs:           0,
 			satoshisPerOutput: 1000,
-			startFunc: func(outputs int, satoshisPerOutput uint64) error {
+			startFunc: func(_ int, _ uint64) error {
 				return nil // Simulate success to test input handling
 			},
 			expectedError:      nil, // Start should handle zero outputs gracefully
@@ -51,7 +51,7 @@ func TestUTXOCreator(t *testing.T) {
 			name:              "invalid input - zero satoshis per output",
 			outputs:           5,
 			satoshisPerOutput: 0,
-			startFunc: func(outputs int, satoshisPerOutput uint64) error {
+			startFunc: func(_ int, _ uint64) error {
 				return nil // Simulate success to test input handling
 			},
 			expectedError:      nil, // Start should handle zero satoshis gracefully

@@ -62,14 +62,14 @@ func TestSendManager(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &CallbackerIMock{
-				SendFunc:      func(url, token string, callback *Callback) bool { return true },
-				SendBatchFunc: func(url, token string, callbacks []*Callback) bool { return true },
+			cMq := &SendCallbackInterfaceMock{
+				SendFunc:      func(_, _ string, _ *Callback) bool { return true },
+				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return true },
 			}
 
 			var savedCallbacks []*store.CallbackData
 			sMq := &mocks.CallbackerStoreMock{
-				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
 					savedCallbacks = append(savedCallbacks, data...)
 					return nil
 				},
@@ -163,16 +163,16 @@ func TestSendManager_Quarantine(t *testing.T) {
 
 			// given
 			sendOK := true
-			senderMq := &CallbackerIMock{
-				SendFunc:      func(url, token string, callback *Callback) bool { return sendOK },
-				SendBatchFunc: func(url, token string, callbacks []*Callback) bool { return sendOK },
+			senderMq := &SendCallbackInterfaceMock{
+				SendFunc:      func(_, _ string, _ *Callback) bool { return sendOK },
+				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return sendOK },
 			}
 
 			storeMq := &mocks.CallbackerStoreMock{
-				SetFunc: func(ctx context.Context, data *store.CallbackData) error {
+				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
 					return nil
 				},
-				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+				SetManyFunc: func(_ context.Context, _ []*store.CallbackData) error {
 					return nil
 				},
 			}

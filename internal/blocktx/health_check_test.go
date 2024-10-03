@@ -52,10 +52,10 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(ctx context.Context) error {
+				PingFunc: func(_ context.Context) error {
 					return tc.pingErr
 				},
 			}
@@ -123,10 +123,10 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(ctx context.Context) error {
+				PingFunc: func(_ context.Context) error {
 					return tc.pingErr
 				},
 			}

@@ -27,10 +27,10 @@ import (
 
 func TestNewProcessor(t *testing.T) {
 	mtmStore := &storeMocks.MetamorphStoreMock{
-		GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-			return &store.StoreData{Hash: testdata.TX2Hash}, nil
+		GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+			return &store.Data{Hash: testdata.TX2Hash}, nil
 		},
-		SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 	}
 
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
@@ -77,9 +77,8 @@ func TestNewProcessor(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, actualErr)
 			}
+			require.NoError(t, actualErr)
 
 			defer sut.Shutdown()
 
@@ -114,11 +113,11 @@ func TestStartLockTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
+				SetLockedFunc: func(_ context.Context, _ time.Time, limit int64) error {
 					require.Equal(t, int64(5000), limit)
 					return tc.setLockedErr
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
@@ -139,7 +138,7 @@ func TestStartLockTransactions(t *testing.T) {
 func TestProcessTransaction(t *testing.T) {
 	tt := []struct {
 		name            string
-		storeData       *store.StoreData
+		storeData       *store.Data
 		storeDataGetErr error
 
 		expectedResponseMapItems int
@@ -163,7 +162,7 @@ func TestProcessTransaction(t *testing.T) {
 		},
 		{
 			name: "record found",
-			storeData: &store.StoreData{
+			storeData: &store.Data{
 				Hash:         testdata.TX1Hash,
 				Status:       metamorph_api.Status_REJECTED,
 				RejectReason: "missing inputs",
@@ -195,21 +194,21 @@ func TestProcessTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			s := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+				GetFunc: func(_ context.Context, key []byte) (*store.Data, error) {
 					require.Equal(t, testdata.TX1Hash[:], key)
 
 					return tc.storeData, tc.storeDataGetErr
 				},
-				SetFunc: func(ctx context.Context, value *store.StoreData) error {
+				SetFunc: func(_ context.Context, value *store.Data) error {
 					require.True(t, bytes.Equal(testdata.TX1Hash[:], value.Hash[:]))
 
 					return nil
 				},
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
-					return []*store.StoreData{
+					return []*store.Data{
 						{
 							StoredAt: time.Now(),
 							Hash:     testdata.TX1Hash,
@@ -217,20 +216,20 @@ func TestProcessTransaction(t *testing.T) {
 						},
 					}, nil
 				},
-				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+				IncrementRetriesFunc: func(_ context.Context, _ *chainhash.Hash) error {
 					return nil
 				},
 			}
 			pm := &mocks.PeerManagerMock{
-				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
 					require.True(t, testdata.TX1Hash.IsEqual(txHash))
 					return nil
 				},
-				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI { return nil },
+				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI { return nil },
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(topic string, hash []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -257,7 +256,7 @@ func TestProcessTransaction(t *testing.T) {
 
 			sut.ProcessTransaction(context.Background(),
 				&metamorph.ProcessorRequest{
-					Data: &store.StoreData{
+					Data: &store.Data{
 						Hash: testdata.TX1Hash,
 					},
 					ResponseChannel: responseChannel,
@@ -289,7 +288,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 		name       string
 		inputs     []input
 		updateErr  error
-		updateResp [][]*store.StoreData
+		updateResp [][]*store.Data
 
 		expectedUpdateStatusCalls int
 		expectedDoubleSpendCalls  int
@@ -362,13 +361,13 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					competingTxs: []string{"1234"},
 				},
 			},
-			updateResp: [][]*store.StoreData{
+			updateResp: [][]*store.Data{
 				{
 					{
 						Hash:              testdata.TX1Hash,
 						Status:            metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL,
 						FullStatusUpdates: true,
-						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
+						Callbacks:         []store.Callback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -377,7 +376,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 						RejectReason:      "",
 						FullStatusUpdates: true,
-						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
+						Callbacks:         []store.Callback{{CallbackURL: "http://callback.com"}},
 					},
 				},
 				{
@@ -385,7 +384,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 						Hash:              testdata.TX6Hash,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						FullStatusUpdates: true,
-						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
+						Callbacks:         []store.Callback{{CallbackURL: "http://callback.com"}},
 						CompetingTxs:      []string{"1234"},
 					},
 				},
@@ -425,11 +424,11 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					competingTxs: []string{"different_competing_tx"},
 				},
 			},
-			updateResp: [][]*store.StoreData{
+			updateResp: [][]*store.Data{
 				{
 					{
 						Hash:              testdata.TX1Hash,
-						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
+						Callbacks:         []store.Callback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_SEEN_ON_NETWORK,
 					},
@@ -437,7 +436,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				{
 					{
 						Hash:              testdata.TX2Hash,
-						Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.com"}},
+						Callbacks:         []store.Callback{{CallbackURL: "http://callback.com"}},
 						FullStatusUpdates: true,
 						Status:            metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 						CompetingTxs:      []string{"1234", "different_competing_tx"},
@@ -458,25 +457,25 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			callbackSent := make(chan struct{}, tc.expectedCallbacks)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
-				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+				UpdateStatusBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
 						return tc.updateResp[counter-1], tc.updateErr
 					}
 					return nil, tc.updateErr
 				},
-				UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
 						return tc.updateResp[counter-1], tc.updateErr
 					}
 					return nil, tc.updateErr
 				},
-				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+				IncrementRetriesFunc: func(_ context.Context, _ *chainhash.Hash) error {
 					return nil
 				},
 			}
@@ -484,7 +483,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(tx *store.StoreData) {
+				SendCallbackFunc: func(_ *store.Data) {
 					callbackSent <- struct{}{}
 				},
 			}
@@ -614,10 +613,10 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			updateBulkCounter := 0
 			s := &storeMocks.MetamorphStoreMock{
-				SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
+				SetBulkFunc: func(_ context.Context, _ []*store.Data) error {
 					return nil
 				},
-				UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+				UpdateStatusBulkFunc: func(_ context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 					for _, u := range updates {
 						require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, u.Status)
 					}
@@ -628,11 +627,11 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					}
 					return nil, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			counter := 0
 			pm := &mocks.PeerManagerMock{
-				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
 					switch counter {
 					case 0:
 						require.True(t, testdata.TX1Hash.IsEqual(txHash))
@@ -646,7 +645,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(topic string, hash []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -730,15 +729,15 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			retries := tc.retries
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
-					unminedData := []*store.StoreData{
+					unminedData := []*store.Data{
 						{
 							StoredAt: time.Now(),
 							Hash:     testdata.TX4Hash,
@@ -757,22 +756,22 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 					return unminedData, tc.getUnminedErr
 				},
-				IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+				IncrementRetriesFunc: func(_ context.Context, _ *chainhash.Hash) error {
 					return nil
 				},
 			}
 			pm := &mocks.PeerManagerMock{
-				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
+				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI {
 					return nil
 				},
-				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
+				AnnounceTransactionFunc: func(_ *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
 					return nil
 				},
 				ShutdownFunc: func() {},
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(topic string, hash []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -838,21 +837,21 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
+				UpdateMinedFunc: func(_ context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
-					return []*store.StoreData{
-						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
-						{Callbacks: []store.StoreCallback{{CallbackURL: "http://callback.com"}}},
+					return []*store.Data{
+						{Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
+						{Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
 						{},
 					}, tc.updateMinedErr
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(tx *store.StoreData) {},
+				SendCallbackFunc: func(_ *store.Data) {},
 			}
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -906,15 +905,15 @@ func TestProcessorHealth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
-					return &store.StoreData{Hash: testdata.TX2Hash}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
-					return []*store.StoreData{
+					return []*store.Data{
 						{
 							StoredAt: time.Now(),
 							Hash:     testdata.TX1Hash,
@@ -930,7 +929,7 @@ func TestProcessorHealth(t *testing.T) {
 			}
 
 			pm := &mocks.PeerManagerMock{
-				AddPeerFunc: func(peer p2p.PeerI) error {
+				AddPeerFunc: func(_ p2p.PeerI) error {
 					return nil
 				},
 				GetPeersFunc: func() []p2p.PeerI {
@@ -992,7 +991,7 @@ func TestStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			metamorphStore := &storeMocks.MetamorphStoreMock{SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
+			metamorphStore := &storeMocks.MetamorphStoreMock{SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) {
 				return 0, nil
 			}}
 
@@ -1035,9 +1034,8 @@ func TestStart(t *testing.T) {
 				require.ErrorIs(t, actualError, tc.expectedError)
 				require.ErrorContains(t, actualError, tc.topic)
 				return
-			} else {
-				require.NoError(t, actualError)
 			}
+			require.NoError(t, actualError)
 
 			txBlock := &blocktx_api.TransactionBlock{}
 			data, err := proto.Marshal(txBlock)

@@ -1,4 +1,4 @@
-package nats_core
+package natscore
 
 import (
 	"errors"

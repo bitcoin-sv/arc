@@ -1,4 +1,4 @@
-package grpc_opts
+package grpcopts
 
 import (
 	"context"

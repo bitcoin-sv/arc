@@ -2,18 +2,18 @@ package blocktx
 
 import (
 	"context"
+	grpcopts "github.com/bitcoin-sv/arc/internal/grpc_opts"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // check if Client implements all necessary interfaces
-var _ BlocktxClient = &Client{}
+var _ BlockClient = &Client{}
 var _ MerkleRootsVerifier = &Client{}
 
-type BlocktxClient interface {
+type BlockClient interface {
 	Health(ctx context.Context) error
 	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
@@ -101,7 +101,7 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
+	dialOpts, err := grpcopts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, err
 	}

@@ -33,7 +33,7 @@ func TestStartCollectStats(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mtmStore := &storeMocks.MetamorphStoreMock{
-				GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
+				GetStatsFunc: func(_ context.Context, _ time.Time, _ time.Duration, _ time.Duration) (*store.Stats, error) {
 					return &store.Stats{
 						StatusStored:              15,
 						StatusAnnouncedToNetwork:  20,
@@ -46,7 +46,7 @@ func TestStartCollectStats(t *testing.T) {
 						StatusSeenInOrphanMempool: 8,
 					}, tc.getStatsErr
 				},
-				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}

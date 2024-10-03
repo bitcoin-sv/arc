@@ -69,7 +69,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &btxMocks.BlocktxClientMock{}
+			blocktxMock := &btxMocks.BlockClientMock{}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
@@ -157,7 +157,7 @@ func TestStartBlocktxWatcher(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mtmMocks.TransactionMaintainerMock{}
-			blocktxMock := &btxMocks.BlocktxClientMock{
+			blocktxMock := &btxMocks.BlockClientMock{
 				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 

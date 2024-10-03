@@ -62,7 +62,7 @@ func TestSendManager(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &CallbackerIMock{
+			cMq := &SendCallbackInterfaceMock{
 				SendFunc:      func(_, _ string, _ *Callback) bool { return true },
 				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return true },
 			}
@@ -163,7 +163,7 @@ func TestSendManager_Quarantine(t *testing.T) {
 
 			// given
 			sendOK := true
-			senderMq := &CallbackerIMock{
+			senderMq := &SendCallbackInterfaceMock{
 				SendFunc:      func(_, _ string, _ *Callback) bool { return sendOK },
 				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return sendOK },
 			}

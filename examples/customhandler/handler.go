@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	transactionhandler "github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"net/http"
 
 	"github.com/bitcoin-sv/arc/pkg/api"

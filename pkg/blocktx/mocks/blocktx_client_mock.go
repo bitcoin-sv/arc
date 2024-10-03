@@ -9,16 +9,16 @@ import (
 	"sync"
 )
 
-// Ensure, that BlocktxClientMock does implement blocktx.BlockClient.
+// Ensure, that BlockClientMock does implement blocktx.BlockClient.
 // If this is not the case, regenerate this file with moq.
-var _ blocktx.BlockClient = &BlocktxClientMock{}
+var _ blocktx.BlockClient = &BlockClientMock{}
 
-// BlocktxClientMock is a mock implementation of blocktx.BlockClient.
+// BlockClientMock is a mock implementation of blocktx.BlockClient.
 //
-//	func TestSomethingThatUsesBlocktxClient(t *testing.T) {
+//	func TestSomethingThatUsesBlockClient(t *testing.T) {
 //
 //		// make and configure a mocked blocktx.BlockClient
-//		mockedBlocktxClient := &BlocktxClientMock{
+//		mockedBlockClient := &BlockClientMock{
 //			ClearBlockTransactionsMapFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearBlockTransactionsMap method")
 //			},
@@ -36,11 +36,11 @@ var _ blocktx.BlockClient = &BlocktxClientMock{}
 //			},
 //		}
 //
-//		// use mockedBlocktxClient in code that requires blocktx.BlockClient
+//		// use mockedBlockClient in code that requires blocktx.BlockClient
 //		// and then make assertions.
 //
 //	}
-type BlocktxClientMock struct {
+type BlockClientMock struct {
 	// ClearBlockTransactionsMapFunc mocks the ClearBlockTransactionsMap method.
 	ClearBlockTransactionsMapFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
@@ -100,9 +100,9 @@ type BlocktxClientMock struct {
 }
 
 // ClearBlockTransactionsMap calls ClearBlockTransactionsMapFunc.
-func (mock *BlocktxClientMock) ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error) {
+func (mock *BlockClientMock) ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearBlockTransactionsMapFunc == nil {
-		panic("BlocktxClientMock.ClearBlockTransactionsMapFunc: method is nil but BlockClient.ClearBlockTransactionsMap was just called")
+		panic("BlockClientMock.ClearBlockTransactionsMapFunc: method is nil but BlockClient.ClearBlockTransactionsMap was just called")
 	}
 	callInfo := struct {
 		Ctx           context.Context
@@ -120,8 +120,8 @@ func (mock *BlocktxClientMock) ClearBlockTransactionsMap(ctx context.Context, re
 // ClearBlockTransactionsMapCalls gets all the calls that were made to ClearBlockTransactionsMap.
 // Check the length with:
 //
-//	len(mockedBlocktxClient.ClearBlockTransactionsMapCalls())
-func (mock *BlocktxClientMock) ClearBlockTransactionsMapCalls() []struct {
+//	len(mockedBlockClient.ClearBlockTransactionsMapCalls())
+func (mock *BlockClientMock) ClearBlockTransactionsMapCalls() []struct {
 	Ctx           context.Context
 	RetentionDays int32
 } {
@@ -136,9 +136,9 @@ func (mock *BlocktxClientMock) ClearBlockTransactionsMapCalls() []struct {
 }
 
 // ClearBlocks calls ClearBlocksFunc.
-func (mock *BlocktxClientMock) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
+func (mock *BlockClientMock) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearBlocksFunc == nil {
-		panic("BlocktxClientMock.ClearBlocksFunc: method is nil but BlockClient.ClearBlocks was just called")
+		panic("BlockClientMock.ClearBlocksFunc: method is nil but BlockClient.ClearBlocks was just called")
 	}
 	callInfo := struct {
 		Ctx           context.Context
@@ -156,8 +156,8 @@ func (mock *BlocktxClientMock) ClearBlocks(ctx context.Context, retentionDays in
 // ClearBlocksCalls gets all the calls that were made to ClearBlocks.
 // Check the length with:
 //
-//	len(mockedBlocktxClient.ClearBlocksCalls())
-func (mock *BlocktxClientMock) ClearBlocksCalls() []struct {
+//	len(mockedBlockClient.ClearBlocksCalls())
+func (mock *BlockClientMock) ClearBlocksCalls() []struct {
 	Ctx           context.Context
 	RetentionDays int32
 } {
@@ -172,9 +172,9 @@ func (mock *BlocktxClientMock) ClearBlocksCalls() []struct {
 }
 
 // ClearTransactions calls ClearTransactionsFunc.
-func (mock *BlocktxClientMock) ClearTransactions(ctx context.Context, retentionDays int32) (int64, error) {
+func (mock *BlockClientMock) ClearTransactions(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearTransactionsFunc == nil {
-		panic("BlocktxClientMock.ClearTransactionsFunc: method is nil but BlockClient.ClearTransactions was just called")
+		panic("BlockClientMock.ClearTransactionsFunc: method is nil but BlockClient.ClearTransactions was just called")
 	}
 	callInfo := struct {
 		Ctx           context.Context
@@ -192,8 +192,8 @@ func (mock *BlocktxClientMock) ClearTransactions(ctx context.Context, retentionD
 // ClearTransactionsCalls gets all the calls that were made to ClearTransactions.
 // Check the length with:
 //
-//	len(mockedBlocktxClient.ClearTransactionsCalls())
-func (mock *BlocktxClientMock) ClearTransactionsCalls() []struct {
+//	len(mockedBlockClient.ClearTransactionsCalls())
+func (mock *BlockClientMock) ClearTransactionsCalls() []struct {
 	Ctx           context.Context
 	RetentionDays int32
 } {
@@ -208,9 +208,9 @@ func (mock *BlocktxClientMock) ClearTransactionsCalls() []struct {
 }
 
 // DelUnfinishedBlockProcessing calls DelUnfinishedBlockProcessingFunc.
-func (mock *BlocktxClientMock) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
+func (mock *BlockClientMock) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
 	if mock.DelUnfinishedBlockProcessingFunc == nil {
-		panic("BlocktxClientMock.DelUnfinishedBlockProcessingFunc: method is nil but BlockClient.DelUnfinishedBlockProcessing was just called")
+		panic("BlockClientMock.DelUnfinishedBlockProcessingFunc: method is nil but BlockClient.DelUnfinishedBlockProcessing was just called")
 	}
 	callInfo := struct {
 		Ctx         context.Context
@@ -228,8 +228,8 @@ func (mock *BlocktxClientMock) DelUnfinishedBlockProcessing(ctx context.Context,
 // DelUnfinishedBlockProcessingCalls gets all the calls that were made to DelUnfinishedBlockProcessing.
 // Check the length with:
 //
-//	len(mockedBlocktxClient.DelUnfinishedBlockProcessingCalls())
-func (mock *BlocktxClientMock) DelUnfinishedBlockProcessingCalls() []struct {
+//	len(mockedBlockClient.DelUnfinishedBlockProcessingCalls())
+func (mock *BlockClientMock) DelUnfinishedBlockProcessingCalls() []struct {
 	Ctx         context.Context
 	ProcessedBy string
 } {
@@ -244,9 +244,9 @@ func (mock *BlocktxClientMock) DelUnfinishedBlockProcessingCalls() []struct {
 }
 
 // Health calls HealthFunc.
-func (mock *BlocktxClientMock) Health(ctx context.Context) error {
+func (mock *BlockClientMock) Health(ctx context.Context) error {
 	if mock.HealthFunc == nil {
-		panic("BlocktxClientMock.HealthFunc: method is nil but BlockClient.Health was just called")
+		panic("BlockClientMock.HealthFunc: method is nil but BlockClient.Health was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -262,8 +262,8 @@ func (mock *BlocktxClientMock) Health(ctx context.Context) error {
 // HealthCalls gets all the calls that were made to Health.
 // Check the length with:
 //
-//	len(mockedBlocktxClient.HealthCalls())
-func (mock *BlocktxClientMock) HealthCalls() []struct {
+//	len(mockedBlockClient.HealthCalls())
+func (mock *BlockClientMock) HealthCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {

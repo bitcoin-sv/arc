@@ -9,15 +9,15 @@ import (
 	"sync"
 )
 
-// Ensure, that NatsConnectionMock does implement nats_core.NatsConnection.
+// Ensure, that NatsConnectionMock does implement natscore.NatsConnection.
 // If this is not the case, regenerate this file with moq.
 var _ natscore.NatsConnection = &NatsConnectionMock{}
 
-// NatsConnectionMock is a mock implementation of nats_core.NatsConnection.
+// NatsConnectionMock is a mock implementation of natscore.NatsConnection.
 //
 //	func TestSomethingThatUsesNatsConnection(t *testing.T) {
 //
-//		// make and configure a mocked nats_core.NatsConnection
+//		// make and configure a mocked natscore.NatsConnection
 //		mockedNatsConnection := &NatsConnectionMock{
 //			DrainFunc: func() error {
 //				panic("mock out the Drain method")
@@ -30,7 +30,7 @@ var _ natscore.NatsConnection = &NatsConnectionMock{}
 //			},
 //		}
 //
-//		// use mockedNatsConnection in code that requires nats_core.NatsConnection
+//		// use mockedNatsConnection in code that requires natscore.NatsConnection
 //		// and then make assertions.
 //
 //	}

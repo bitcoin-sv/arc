@@ -82,7 +82,7 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, error) {
+func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.Data, error) {
 	q := `SELECT
 	    stored_at
 		,last_submitted_at
@@ -141,7 +141,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.StoreData, er
 		return nil, err
 	}
 
-	data := &store.StoreData{}
+	data := &store.Data{}
 	data.Hash, err = chainhash.NewHash(hash)
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	return retRawTxs, nil
 }
 
-func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
 	const q = `
 	 SELECT
 	 	stored_at
@@ -278,7 +278,7 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 }
 
 // Set stores a single record in the transactions table.
-func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
+func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) error {
 	ctx, span := p.startTracing(ctx, "Set")
 	defer p.endTracing(span)
 
@@ -336,7 +336,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 	}
 
 	if value.StatusHistory == nil {
-		value.StatusHistory = make([]*store.StoreStatus, 0)
+		value.StatusHistory = make([]*store.Status, 0)
 	}
 	statusHistoryData, err := json.Marshal(value.StatusHistory)
 	if err != nil {
@@ -367,7 +367,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.StoreData) error {
 }
 
 // SetBulk bulk inserts records into the transactions table. If a record with the same hash already exists the field last_submitted_at will be overwritten with NOW()
-func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error {
+func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.Data) error {
 	storedAt := make([]time.Time, len(data))
 	hashes := make([][]byte, len(data))
 	statuses := make([]int, len(data))
@@ -394,7 +394,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.StoreData) error
 		callbacks[i] = string(callbacksData)
 
 		if txData.StatusHistory == nil {
-			txData.StatusHistory = make([]*store.StoreStatus, 0)
+			txData.StatusHistory = make([]*store.Status, 0)
 		}
 		statusHistoryData, err := json.Marshal(txData.StatusHistory)
 		if err != nil {
@@ -470,7 +470,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
 	q := `SELECT
 		stored_at
 		,hash
@@ -503,7 +503,7 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) ([]*store.Data, error) {
 	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
@@ -581,7 +581,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
@@ -670,7 +670,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 	qBulk := `
 		UPDATE metamorph.transactions
 			SET
@@ -777,7 +777,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
+func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
 	if txsBlocks == nil {
 		return nil, nil
 	}

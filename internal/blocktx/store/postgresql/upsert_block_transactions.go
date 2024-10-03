@@ -11,7 +11,7 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 	ctx, span := p.startTracing(ctx, "UpdateBlockTransactions")
 	defer p.endTracing(span)
 
@@ -49,14 +49,14 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		WHERE m.blockid = $1 AND t.is_registered = TRUE AND t.hash = ANY($2)
 	`
 
-	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
+	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockID, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
 		return nil, errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
 	}
 
-	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockId, pq.Array(txHashesBytes))
+	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockID, pq.Array(txHashesBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockId, err)
+		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockID, err)
 	}
 	defer rows.Close()
 
@@ -77,7 +77,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockId, err)
+		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockID, err)
 	}
 
 	return registeredRows, nil

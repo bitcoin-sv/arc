@@ -6,12 +6,11 @@ import (
 	"errors"
 	"time"
 
+	_ "github.com/lib/pq" // nolint: revive // required for postgres driver
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-
-	_ "github.com/lib/pq"
 )
 
 const (

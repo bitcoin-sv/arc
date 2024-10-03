@@ -24,7 +24,7 @@ func NewCacheStore(cacheConfig *config.CacheConfig) (cache.Store, error) {
 			Password: cacheConfig.Redis.Password,
 			DB:       cacheConfig.Redis.DB,
 		})
-		return cache.NewRedisStore(c, context.Background()), nil
+		return cache.NewRedisStore(context.Background(), c), nil
 	default:
 		return nil, ErrCacheUnknownType
 	}

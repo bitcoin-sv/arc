@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	natsjetstream "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	natsconnection "github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log"
 	"log/slog"
 	"os"
@@ -8,8 +10,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -27,7 +27,7 @@ const (
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
-	mqClient       *nats_jetstream.Client
+	mqClient       *natsjetstream.Client
 	err            error
 	logger         *slog.Logger
 )
@@ -55,13 +55,13 @@ func testmain(m *testing.M) int {
 
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = nats_connection.New(natsURL, logger)
+	natsConnClient, err = natsconnection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
 	}
 
-	natsConn, err = nats_connection.New(natsURL, logger)
+	natsConn, err = natsconnection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
@@ -99,7 +99,7 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("publish", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		mqClient, err = natsjetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
 		require.NoError(t, err)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		txRequest := &metamorph_api.TransactionRequest{
@@ -152,18 +152,18 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("subscribe", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
+		mqClient, err = natsjetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
 		require.NoError(t, err)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		// subscribe without initialized consumer, expect error
-		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+		err = mqClient.Subscribe(MinedTxsTopic, func(_ []byte) error {
 			return nil
 		})
-		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
+		require.ErrorIs(t, err, natsjetstream.ErrConsumerNotInitialized)
 
 		// subscribe with initialized consumer
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, nats_jetstream.WithSubscribedTopics(MinedTxsTopic))
+		mqClient, err = natsjetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, natsjetstream.WithSubscribedTopics(MinedTxsTopic))
 		require.NoError(t, err)
 
 		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
@@ -210,7 +210,7 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("shutdown", func(t *testing.T) {
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		mqClient, err = natsjetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
 		require.NoError(t, err)
 		mqClient.Shutdown()
 	})

@@ -1,8 +1,8 @@
-package nats_core_test
+package natscore_test
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"log/slog"
 	"os"
@@ -44,9 +44,9 @@ func TestPublishMarshal(t *testing.T) {
 		{
 			name:       "publish err",
 			txsBlock:   txBlock,
-			publishErr: nats_core.ErrFailedToPublish,
+			publishErr: natscore.ErrFailedToPublish,
 
-			expectedError:        nats_core.ErrFailedToPublish,
+			expectedError:        natscore.ErrFailedToPublish,
 			expectedPublishCalls: 2,
 		},
 	}
@@ -55,12 +55,12 @@ func TestPublishMarshal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			//given
 			natsMock := &mocks.NatsConnectionMock{
-				PublishFunc: func(subj string, data []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return tc.publishErr
 				},
 			}
 			logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			sut := nats_core.New(natsMock, nats_core.WithLogger(logger))
+			sut := natscore.New(natsMock, natscore.WithLogger(logger))
 
 			// when
 			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
@@ -94,9 +94,9 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:       "error - publish",
-			publishErr: nats_core.ErrFailedToPublish,
+			publishErr: natscore.ErrFailedToPublish,
 
-			expectedError:        nats_core.ErrFailedToPublish,
+			expectedError:        natscore.ErrFailedToPublish,
 			expectedPublishCalls: 1,
 		},
 	}
@@ -105,12 +105,12 @@ func TestPublish(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			natsMock := &mocks.NatsConnectionMock{
-				PublishFunc: func(subj string, data []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return tc.publishErr
 				},
 			}
 
-			sut := nats_core.New(
+			sut := natscore.New(
 				natsMock,
 			)
 
@@ -148,9 +148,9 @@ func TestSubscribe(t *testing.T) {
 		},
 		{
 			name:         "error - publish",
-			subscribeErr: nats_core.ErrFailedToSubscribe,
+			subscribeErr: natscore.ErrFailedToSubscribe,
 
-			expectedError:               nats_core.ErrFailedToSubscribe,
+			expectedError:               natscore.ErrFailedToSubscribe,
 			expectedQueueSubscribeCalls: 1,
 		},
 		{
@@ -176,12 +176,12 @@ func TestSubscribe(t *testing.T) {
 				},
 			}
 
-			sut := nats_core.New(
+			sut := natscore.New(
 				natsMock,
 			)
 
 			// when
-			err := sut.Subscribe(RegisterTxTopic, func(bytes []byte) error { return tc.msgFuncErr })
+			err := sut.Subscribe(RegisterTxTopic, func(_ []byte) error { return tc.msgFuncErr })
 
 			// then
 			if tc.expectedError == nil {
@@ -216,7 +216,7 @@ func TestShutdown(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			// given
 			natsMock := &mocks.NatsConnectionMock{
 				DrainFunc: func() error {
@@ -225,7 +225,7 @@ func TestShutdown(t *testing.T) {
 			}
 
 			// when
-			sut := nats_core.New(
+			sut := natscore.New(
 				natsMock,
 			)
 

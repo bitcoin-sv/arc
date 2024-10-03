@@ -11,7 +11,7 @@ import (
 
 // Ensure, that K8sClientMock does implement k8s_watcher.K8sClient.
 // If this is not the case, regenerate this file with moq.
-var _ k8s_watcher.K8sClient = &K8sClientMock{}
+var _ k8swatcher.K8sClient = &K8sClientMock{}
 
 // K8sClientMock is a mock implementation of k8s_watcher.K8sClient.
 //

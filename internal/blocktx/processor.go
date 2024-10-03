@@ -489,7 +489,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	p.logger.Info("Upserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
+	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to upsert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return err
@@ -502,7 +502,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
-	if err = p.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = p.markTransactionsAsMined(ctx, blockID, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
@@ -614,7 +614,7 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 	return err
 }
 
-func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
 	ctx, span := p.startTracing(ctx, "markTransactionsAsMined")
 	defer p.endTracing(span)
 
@@ -657,7 +657,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
@@ -688,7 +688,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	p.endTracing(iterateMerkleTree)
 
 	// update all remaining transactions
-	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 	if err != nil {
 		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", blockHeight), err)
 	}

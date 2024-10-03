@@ -48,7 +48,7 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		var competingTxs sql.NullString
 		var pUntil sql.NullTime
 
-		_ = r.Scan(&c.Url, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs, &pUntil)
+		_ = r.Scan(&c.URL, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs, &pUntil)
 
 		if ei.Valid {
 			c.ExtraInfo = &ei.String

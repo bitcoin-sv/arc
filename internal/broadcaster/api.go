@@ -73,10 +73,10 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 		if err != nil {
 			return nil, err
 		}
-		newApiTransactionRequest := api.TransactionRequest{
+		newAPITransactionRequest := api.TransactionRequest{
 			RawTx: rawTx,
 		}
-		body[i] = newApiTransactionRequest
+		body[i] = newAPITransactionRequest
 	}
 
 	var response *http.Response
@@ -202,7 +202,7 @@ func getArcClient(arcServer string, auth *Auth) (*api.Client, error) {
 
 	if auth != nil && auth.Authorization != "" {
 		// custom provider
-		opts = append(opts, api.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+		opts = append(opts, api.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Add("Authorization", auth.Authorization)
 			return nil
 		}))
@@ -216,6 +216,6 @@ func getArcClient(arcServer string, auth *Auth) (*api.Client, error) {
 	return arcClient, nil
 }
 
-func (a *APIBroadcaster) GetTransactionStatus(ctx context.Context, txID string) (*metamorph_api.TransactionStatus, error) {
+func (a *APIBroadcaster) GetTransactionStatus(_ context.Context, _ string) (*metamorph_api.TransactionStatus, error) {
 	return nil, nil
 }

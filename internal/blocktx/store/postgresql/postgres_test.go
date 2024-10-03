@@ -563,9 +563,8 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedUpdatedResLen, len(res))
 

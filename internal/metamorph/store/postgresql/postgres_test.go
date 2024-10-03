@@ -67,21 +67,21 @@ func TestPostgresDB(t *testing.T) {
 	}
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1Hash
-	minedData := &store.StoreData{
+	minedData := &store.Data{
 		RawTx:         make([]byte, 0),
 		StoredAt:      now,
 		Hash:          minedHash,
 		Status:        metamorph_api.Status_MINED,
 		BlockHeight:   100,
 		BlockHash:     testdata.Block1Hash,
-		Callbacks:     []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
+		Callbacks:     []store.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
 		RejectReason:  "not rejected",
 		LockedBy:      "metamorph-1",
-		StatusHistory: make([]*store.StoreStatus, 0),
+		StatusHistory: make([]*store.Status, 0),
 	}
 
 	unminedHash := testdata.TX1Hash
-	unminedData := &store.StoreData{
+	unminedData := &store.Data{
 		RawTx:    make([]byte, 0),
 		StoredAt: now,
 		Hash:     unminedHash,
@@ -118,7 +118,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC), dataReturned2.LastSubmittedAt)
 
-		mined.Callbacks = append(mined.Callbacks, store.StoreCallback{CallbackURL: "http://callback.example2.com", CallbackToken: "67890"})
+		mined.Callbacks = append(mined.Callbacks, store.Callback{CallbackURL: "http://callback.example2.com", CallbackToken: "67890"})
 		err = postgresDB.Set(ctx, &mined)
 		require.NoError(t, err)
 
@@ -193,13 +193,13 @@ func TestPostgresDB(t *testing.T) {
 
 		hash2 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
 
-		data := []*store.StoreData{
+		data := []*store.Data{
 			{
 				RawTx:             testdata.TX1Raw.Bytes(),
 				StoredAt:          now,
 				Hash:              testdata.TX1Hash,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.example.com", CallbackToken: "1234"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "1234"}},
 				FullStatusUpdates: false,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -209,7 +209,7 @@ func TestPostgresDB(t *testing.T) {
 				StoredAt:          now,
 				Hash:              testdata.TX6Hash,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.example2.com", CallbackToken: "5678"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example2.com", CallbackToken: "5678"}},
 				FullStatusUpdates: true,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -219,7 +219,7 @@ func TestPostgresDB(t *testing.T) {
 				StoredAt:          now,
 				Hash:              hash2,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []store.StoreCallback{{CallbackURL: "http://callback.example3.com", CallbackToken: "5678"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example3.com", CallbackToken: "5678"}},
 				FullStatusUpdates: true,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -568,7 +568,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    dataBeforeUpdate.Status,
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
@@ -605,7 +605,7 @@ func TestPostgresDB(t *testing.T) {
 
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    dataBeforeUpdate.Status,
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
@@ -631,7 +631,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		unmined.CompetingTxs = []string{"5678"}
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    unmined.Status,
 			Timestamp: unmined.LastModified,
 		})
@@ -659,7 +659,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    unmined.Status,
 			Timestamp: unmined.LastModified,
 		})

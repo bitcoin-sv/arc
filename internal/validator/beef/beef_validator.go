@@ -14,19 +14,19 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
-type BeefValidator struct {
+type Validator struct {
 	policy     *bitcoin.Settings
 	mrVerifier validator.MerkleVerifierI
 }
 
-func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *BeefValidator {
-	return &BeefValidator{
+func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *Validator {
+	return &Validator{
 		policy:     policy,
 		mrVerifier: mrVerifier,
 	}
 }
 
-func (v *BeefValidator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
 	feeModel := api.FeesToFeeModel(v.policy.MinMiningTxFee)
 
 	for _, btx := range beefTx.Transactions {

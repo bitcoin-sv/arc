@@ -20,7 +20,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "Submit transactions to ARC",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 
 		rateTxsPerSecond, err := helper.GetInt("rate")
 		if err != nil {
@@ -95,7 +95,7 @@ var Cmd = &cobra.Command{
 			return errors.New("no api URL was given")
 		}
 
-		wocApiKey, err := helper.GetString("wocAPIKey")
+		wocAPIKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := wocclient.New(!isTestnet, wocclient.WithAuth(wocAPIKey), wocclient.WithLogger(logger))
 
 		opts := []func(p *broadcaster.Broadcaster){
 			broadcaster.WithFees(miningFeeSat),

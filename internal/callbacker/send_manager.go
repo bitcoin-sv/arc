@@ -14,7 +14,7 @@ The manager operates in various modes:
 It processes callbacks from two channels, ensuring either single or batch dispatch, and manages retries based on a quarantine policy.
 
 Key components:
-- SendInterface : responsible for sending callbacks
+- SendCallbackInterface : responsible for sending callbacks
 - quarantine policy: the duration for quarantining a URL are governed by a configurable policy, determining how long the URL remains inactive before retry attempts
 
 Sending logic: callbacks are sent to the designated URL one at a time, ensuring sequential and orderly processing.
@@ -40,7 +40,7 @@ type sendManager struct {
 	url string
 
 	// dependencies
-	c SendInterface
+	c SendCallbackInterface
 	s store.CallbackerStore
 	l *slog.Logger
 	q *quarantinePolicy
@@ -68,7 +68,7 @@ const (
 	StoppingMode
 )
 
-func runNewSendManager(u string, c SendInterface, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
+func runNewSendManager(u string, c SendCallbackInterface, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
 	singleSendSleep, batchSendInterval time.Duration) *sendManager {
 
 	const defaultBatchSendInterval = time.Duration(5 * time.Second)

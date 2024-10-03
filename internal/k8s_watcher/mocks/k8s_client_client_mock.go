@@ -9,22 +9,22 @@ import (
 	"sync"
 )
 
-// Ensure, that K8sClientMock does implement k8s_watcher.K8sClient.
+// Ensure, that K8sClientMock does implement k8swatcher.K8sClient.
 // If this is not the case, regenerate this file with moq.
 var _ k8swatcher.K8sClient = &K8sClientMock{}
 
-// K8sClientMock is a mock implementation of k8s_watcher.K8sClient.
+// K8sClientMock is a mock implementation of k8swatcher.K8sClient.
 //
 //	func TestSomethingThatUsesK8sClient(t *testing.T) {
 //
-//		// make and configure a mocked k8s_watcher.K8sClient
+//		// make and configure a mocked k8swatcher.K8sClient
 //		mockedK8sClient := &K8sClientMock{
 //			GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
 //				panic("mock out the GetRunningPodNames method")
 //			},
 //		}
 //
-//		// use mockedK8sClient in code that requires k8s_watcher.K8sClient
+//		// use mockedK8sClient in code that requires k8swatcher.K8sClient
 //		// and then make assertions.
 //
 //	}

@@ -45,8 +45,8 @@ func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
 	for _, pathElement := range bump.Path {
 		for _, pe := range pathElement {
 			if pe.Txid != nil {
-				txId := pe.Hash.String()
-				mr, err := bump.ComputeRoot(&txId)
+				txID := pe.Hash.String()
+				mr, err := bump.ComputeRoot(&txID)
 				if err != nil {
 					return "", err
 				}

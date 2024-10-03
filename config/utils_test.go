@@ -122,22 +122,22 @@ func Test_GetZMQUrl_GetP2PUrl(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			actualP2PUrl, actualP2PErr := tc.peerConfig.GetP2PUrl()
-			actualZmqUrl, actualZmqErr := tc.peerConfig.GetZMQUrl()
+			actualP2PURL, actualP2PErr := tc.peerConfig.GetP2PUrl()
+			actualZmqURL, actualZmqErr := tc.peerConfig.GetZMQUrl()
 
 			// then
 			assert.ErrorIs(t, actualP2PErr, tc.expectedP2PError)
-			assert.Equal(t, tc.expectedP2PUrl, actualP2PUrl)
+			assert.Equal(t, tc.expectedP2PUrl, actualP2PURL)
 
 			if tc.expectedZmqIsNil {
-				assert.Nil(t, actualZmqUrl)
+				assert.Nil(t, actualZmqURL)
 				return
-			} else {
-				assert.NotNil(t, actualZmqUrl)
 			}
+
+			assert.NotNil(t, actualZmqURL)
 			assert.ErrorIs(t, actualZmqErr, tc.expectedZMQError)
 			if tc.expectedZMQError == nil {
-				assert.Equal(t, tc.expectedZMQUrl, actualZmqUrl.String())
+				assert.Equal(t, tc.expectedZMQUrl, actualZmqURL.String())
 			}
 		})
 	}

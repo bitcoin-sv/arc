@@ -11,7 +11,7 @@ import (
 
 // Ensure, that TickerMock does implement k8s_watcher.Ticker.
 // If this is not the case, regenerate this file with moq.
-var _ k8s_watcher.Ticker = &TickerMock{}
+var _ k8swatcher.Ticker = &TickerMock{}
 
 // TickerMock is a mock implementation of k8s_watcher.Ticker.
 //

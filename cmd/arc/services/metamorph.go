@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	grpcopts "github.com/bitcoin-sv/arc/internal/grpc_opts"
+	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	natsjetstream "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	natsconnection "github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"net/url"
@@ -21,10 +25,6 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -56,18 +56,18 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
 	var mqClient metamorph.MessageQueueClient
-	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := natsconnection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic)}
+		opts := []natsjetstream.Option{natsjetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic)}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
+			opts = append(opts, natsjetstream.WithFileStorage())
 		}
 
-		mqClient, err = nats_jetstream.New(natsClient, logger,
+		mqClient, err = natsjetstream.New(natsClient, logger,
 			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
 			opts...,
 		)
@@ -75,7 +75,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
+		mqClient = natscore.New(natsClient, natscore.WithLogger(logger))
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
@@ -121,9 +121,9 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 
 	if mtmConfig.CheckUtxos {
-		peerRpc := arcConfig.PeerRpc
+		peerRPC := arcConfig.PeerRPC
 
-		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPC.User, peerRPC.Password, peerRPC.Host, peerRPC.Port))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 		}
@@ -273,19 +273,19 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	}
 
 	for _, peerSetting := range arcConfig.Peers {
-		peerUrl, err := peerSetting.GetP2PUrl()
+		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerUrl, peerHandler, network, peerOpts...)
+		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
+			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
+			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerURL, err)
 		}
 	}
 
@@ -293,7 +293,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 }
 
 func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
+	dialOpts, err := grpcopts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
 	if err != nil {
 		return nil, err
 	}

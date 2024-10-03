@@ -60,7 +60,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	allowBatches := make([]bool, len(data))
 
 	for i, d := range data {
-		urls[i] = d.Url
+		urls[i] = d.URL
 		tokens[i] = d.Token
 		timestamps[i] = d.Timestamp
 		txids[i] = d.TxID
@@ -262,7 +262,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		)
 
 		err := rows.Scan(
-			&r.Url,
+			&r.URL,
 			&r.Token,
 			&r.TxID,
 			&r.TxStatus,

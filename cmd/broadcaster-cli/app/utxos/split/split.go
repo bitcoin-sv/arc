@@ -17,7 +17,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "split",
 	Short: "Split a UTXO",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 
 		txid, err := helper.GetString("txid")
 		if err != nil {

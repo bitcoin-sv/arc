@@ -1,4 +1,4 @@
-package nats_connection
+package natsconnection
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	}
 	opts := []nats.Option{
 		nats.Name(hostname),
-		nats.ErrorHandler(func(c *nats.Conn, s *nats.Subscription, err error) {
+		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
 			if err != nil {
 				logger.Error("connection error", slog.String("err", err.Error()))
 			}

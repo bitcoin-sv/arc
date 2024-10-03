@@ -38,7 +38,7 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, _ *metamorph_api.SetUnlockedByNameRequest, _ ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
 					return &metamorph_api.SetUnlockedByNameResponse{RecordsAffected: 5}, tc.setUnlockedErr
 				},
 			}
@@ -183,7 +183,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+				PutTransactionFunc: func(_ context.Context, _ *metamorph_api.TransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 			}
@@ -191,7 +191,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			opts := []func(client *metamorph.Metamorph){metamorph.WithNow(func() time.Time { return now })}
 			if tc.withMqClient {
 				mqClient := &mocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
+					PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
 				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
 			}
@@ -411,7 +411,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+				PutTransactionsFunc: func(_ context.Context, _ *metamorph_api.TransactionRequests, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 			}
@@ -419,7 +419,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			opts := []func(client *metamorph.Metamorph){metamorph.WithNow(func() time.Time { return now })}
 			if tc.withMqClient {
 				mqClient := &mocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+					PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 						return tc.publishSubmitTxErr
 					},
 				}

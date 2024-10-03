@@ -13,7 +13,7 @@ var (
 	Cmd    = &cobra.Command{
 		Use:   "address",
 		Short: "Show address of the keyset",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 
 			isTestnet, err := helper.GetBool("testnet")
 			if err != nil {

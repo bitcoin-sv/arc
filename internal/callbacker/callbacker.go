@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type CallbackerI interface {
+type SendInterface interface {
 	Send(url, token string, callback *Callback) bool
 	SendBatch(url, token string, callbacks []*Callback) bool
 }

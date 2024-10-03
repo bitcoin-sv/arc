@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	k8swatcher "github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
@@ -23,7 +23,7 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(mtmConn))
 
-	k8sClient, err := k8s_client.New()
+	k8sClient, err := k8sclient.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
@@ -35,7 +35,7 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	blocktxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(blocktxConn))
 
-	k8sWatcher := k8s_watcher.New(metamorphClient, blocktxClient, k8sClient, arcConfig.K8sWatcher.Namespace, k8s_watcher.WithLogger(logger))
+	k8sWatcher := k8swatcher.New(metamorphClient, blocktxClient, k8sClient, arcConfig.K8sWatcher.Namespace, k8swatcher.WithLogger(logger))
 	err = k8sWatcher.Start()
 	if err != nil {
 		return nil, fmt.Errorf("faile to start k8s-watcher: %v", err)

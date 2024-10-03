@@ -3,13 +3,13 @@ package callbacker
 import (
 	"context"
 	"errors"
+	grpcopts "github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"log/slog"
 	"net"
 	"os"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -51,7 +51,7 @@ func NewServer(dispatcher *CallbackDispatcher, opts ...ServerOption) *Server {
 func (s *Server) Serve(address string, grpcMessageSize int, prometheusEndpoint string) error {
 	// LEVEL 0 - no security / no encryption
 
-	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(s.logger, prometheusEndpoint, grpcMessageSize, "callbacker")
+	srvMetrics, opts, cleanup, err := grpcopts.GetGRPCServerOpts(s.logger, prometheusEndpoint, grpcMessageSize, "callbacker")
 	if err != nil {
 		return err
 	}

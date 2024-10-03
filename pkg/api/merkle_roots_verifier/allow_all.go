@@ -8,7 +8,7 @@ import (
 
 type allowAllMerkleRootsVerifier struct{}
 
-func (c *allowAllMerkleRootsVerifier) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+func (c *allowAllMerkleRootsVerifier) VerifyMerkleRoots(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 	// Verify all BUMPs as correct
 	return nil, nil
 }

@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-// Ensure, that TickerMock does implement k8s_watcher.Ticker.
+// Ensure, that TickerMock does implement k8swatcher.Ticker.
 // If this is not the case, regenerate this file with moq.
 var _ k8swatcher.Ticker = &TickerMock{}
 
-// TickerMock is a mock implementation of k8s_watcher.Ticker.
+// TickerMock is a mock implementation of k8swatcher.Ticker.
 //
 //	func TestSomethingThatUsesTicker(t *testing.T) {
 //
-//		// make and configure a mocked k8s_watcher.Ticker
+//		// make and configure a mocked k8swatcher.Ticker
 //		mockedTicker := &TickerMock{
 //			StopFunc: func()  {
 //				panic("mock out the Stop method")
@@ -27,7 +27,7 @@ var _ k8swatcher.Ticker = &TickerMock{}
 //			},
 //		}
 //
-//		// use mockedTicker in code that requires k8s_watcher.Ticker
+//		// use mockedTicker in code that requires k8swatcher.Ticker
 //		// and then make assertions.
 //
 //	}

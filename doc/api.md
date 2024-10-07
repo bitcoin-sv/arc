@@ -704,6 +704,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
+|X-CallbackBatch|header|boolean|false|Send callbacks in batches.|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|true|Transaction hex string|
@@ -810,6 +811,7 @@ X-SkipScriptValidation: true
 X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
 X-CallbackToken: string
+X-CallbackBatch: false
 X-WaitForStatus: 0
 X-WaitFor: string
 
@@ -829,6 +831,7 @@ const headers = {
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
+  'X-CallbackBatch':'false',
   'X-WaitForStatus':'0',
   'X-WaitFor':'string',
   'Authorization':'Bearer {access-token}'
@@ -1163,6 +1166,17 @@ callback object
 |merklePath|string¦null|false|none|none|
 |blockHash|string¦null|false|none|none|
 |blockHeight|integer¦null|false|none|none|
+
+batch callbacks object
+
+### Properites
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|count|integer|true|none|none|
+|callbacks|[object]|true|none|none|
+
+
 
 <h2 id="tocS_CommonResponse">CommonResponse</h2>
 <!-- backwards compatibility -->

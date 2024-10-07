@@ -85,7 +85,7 @@ func TestPostgresDB(t *testing.T) {
 		RawTx:    make([]byte, 0),
 		StoredAt: now,
 		Hash:     unminedHash,
-		Status:   metamorph_api.Status_SENT_TO_NETWORK,
+		Status:   metamorph_api.Status_UNKNOWN,
 		LockedBy: "metamorph-1",
 	}
 
@@ -586,15 +586,19 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 
 		// First update - UpdateStatusBulk
+		// Update tx with status UNKNOWN to RECEIVED but with status history which contain QUEUED status
 		updates := []store.UpdateStatus{
 			{
 				Hash:   *unminedHash,
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Status: metamorph_api.Status_RECEIVED,
+				StatusHistory: []store.StatusWithTimestamp{
+					{
+						Status:    metamorph_api.Status_QUEUED,
+						Timestamp: postgresDB.now(),
+					},
+				},
 			},
 		}
-
-		dataBeforeUpdate, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
@@ -605,9 +609,39 @@ func TestPostgresDB(t *testing.T) {
 
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
+		unmined.StatusHistory = append(unmined.StatusHistory,
+			&store.StoreStatus{
+				Status:    metamorph_api.Status_UNKNOWN,
+				Timestamp: postgresDB.now(),
+			},
+			&store.StoreStatus{
+				Status:    metamorph_api.Status_QUEUED,
+				Timestamp: postgresDB.now(),
+			},
+		)
+		unmined.Status = metamorph_api.Status_RECEIVED
+		unmined.LastModified = postgresDB.now()
+
+		require.Equal(t, &unmined, updatedTx)
+
+		// Update tx with status RECEIVED to ACCEPTED_BY_NETWORK without additional history
+		updates = []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			},
+		}
+
+		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
-			Status:    dataBeforeUpdate.Status,
-			Timestamp: dataBeforeUpdate.LastModified,
+			Status:    metamorph_api.Status_RECEIVED,
+			Timestamp: postgresDB.now(),
 		})
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
 		unmined.LastModified = postgresDB.now()

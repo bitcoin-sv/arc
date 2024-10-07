@@ -84,8 +84,14 @@ type MetamorphStore interface {
 }
 
 type UpdateStatus struct {
-	Hash         chainhash.Hash
-	Status       metamorph_api.Status
-	Error        error
-	CompetingTxs []string
+	Hash          chainhash.Hash
+	Status        metamorph_api.Status
+	StatusHistory []StatusWithTimestamp
+	Error         error
+	CompetingTxs  []string
+}
+
+type StatusWithTimestamp struct {
+	Status    metamorph_api.Status `json:"status"`
+	Timestamp time.Time            `json:"timestamp"`
 }

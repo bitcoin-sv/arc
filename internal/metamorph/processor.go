@@ -454,10 +454,7 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
 
-	err = p.cacheStore.Del(CacheStatusUpdateKey)
-	if err != nil {
-		p.logger.Error("failed to reset status update map", slog.String("err", err.Error()))
-	}
+	_ = p.cacheStore.Del(CacheStatusUpdateKey)
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {

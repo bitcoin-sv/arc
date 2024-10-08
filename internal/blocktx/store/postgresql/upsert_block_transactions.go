@@ -3,7 +3,6 @@ package postgresql
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/lib/pq"
 
@@ -12,7 +11,7 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
@@ -41,45 +40,10 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash;
 	`
 
-	qRegisteredTransactions := `
-		SELECT
-			t.hash,
-			m.merkle_path
-		FROM blocktx.transactions t
-		JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
-		WHERE m.blockid = $1 AND t.is_registered = TRUE AND t.hash = ANY($2)
-	`
-
-	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockID, pq.Array(txHashesBytes), pq.Array(merklePaths))
+	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
-		return nil, errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
+		return errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
 	}
 
-	rows, err := p.db.QueryContext(ctx, qRegisteredTransactions, blockID, pq.Array(txHashesBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get registered transactions for block with id %d: %v", blockID, err)
-	}
-	defer rows.Close()
-
-	registeredRows := make([]store.TxWithMerklePath, 0)
-
-	for rows.Next() {
-		var txHash []byte
-		var merklePath string
-		err = rows.Scan(&txHash, &merklePath)
-		if err != nil {
-			return nil, errors.Join(store.ErrFailedToGetRows, err)
-		}
-
-		registeredRows = append(registeredRows, store.TxWithMerklePath{
-			Hash:       txHash,
-			MerklePath: merklePath,
-		})
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error getting registered transactions for block with id %d: %v", blockID, err)
-	}
-
-	return registeredRows, nil
+	return nil
 }

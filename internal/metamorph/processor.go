@@ -190,22 +190,6 @@ func (p *Processor) Start() error {
 		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", MinedTxsTopic), err)
 	}
 
-	err = p.mqClient.Subscribe(StaleTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.TransactionBlock{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal message subscribed on %s topic: %w", MinedTxsTopic, err)
-		}
-
-		// TODO: send txs to a channel that will make a separate query to db
-		// and upadate the status of txs from MINED -> MINED_IN_STALE_BLOCk
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to %s topic: %w", MinedTxsTopic, err)
-	}
-
 	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.TransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)

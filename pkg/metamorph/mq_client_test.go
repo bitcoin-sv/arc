@@ -23,7 +23,7 @@ func (m *DummyProtoMessage) String() string { return "DummyProtoMessage" }
 func (m *DummyProtoMessage) ProtoMessage()  {}
 
 func TestMessageQueueClient_PublishMarshal(t *testing.T) {
-	// Test case: Publish successfully
+	// Given
 	mockClient := &mocks.MessageQueueClientMock{
 		PublishMarshalFunc: func(topic string, m proto.Message) error {
 			return nil
@@ -31,8 +31,10 @@ func TestMessageQueueClient_PublishMarshal(t *testing.T) {
 	}
 
 	msg := &DummyProtoMessage{}
-	err := mockClient.PublishMarshal("submit-tx", msg)
 
+	// When
+	err := mockClient.PublishMarshal("submit-tx", msg)
+	// Then
 	require.NoError(t, err)
 	require.Equal(t, 1, len(mockClient.PublishMarshalCalls()))
 	require.Equal(t, "submit-tx", mockClient.PublishMarshalCalls()[0].Topic)
@@ -40,16 +42,16 @@ func TestMessageQueueClient_PublishMarshal(t *testing.T) {
 }
 
 func TestMessageQueueClient_PublishMarshal_Error(t *testing.T) {
-	// Test case: Publish fails with error
+	// Given
 	mockClient := &mocks.MessageQueueClientMock{
 		PublishMarshalFunc: func(topic string, m proto.Message) error {
 			return errors.New("publish failed")
 		},
 	}
-
 	msg := &DummyProtoMessage{}
+	// When
 	err := mockClient.PublishMarshal("submit-tx", msg)
-
+	// Then
 	require.Error(t, err)
 	require.Equal(t, "publish failed", err.Error())
 	require.Equal(t, 1, len(mockClient.PublishMarshalCalls()))
@@ -58,33 +60,33 @@ func TestMessageQueueClient_PublishMarshal_Error(t *testing.T) {
 }
 
 func TestMessageQueueClient_Shutdown(t *testing.T) {
-	// Test case: Shutdown is called
+	// Given
 	mockClient := &mocks.MessageQueueClientMock{
 		ShutdownFunc: func() {},
 	}
 
-	// Call the shutdown function
+	// When
 	mockClient.Shutdown()
 
-	// Ensure Shutdown was called once
+	// Then
 	require.Equal(t, 1, len(mockClient.ShutdownCalls()))
 }
 
 func TestMessageQueueClient_PublishMarshal_And_Shutdown(t *testing.T) {
-	// Test case: Both Publish and Shutdown functions are called
+	// Given
 	mockClient := &mocks.MessageQueueClientMock{
 		PublishMarshalFunc: func(topic string, m proto.Message) error {
 			return nil
 		},
 		ShutdownFunc: func() {},
 	}
-
 	msg := &DummyProtoMessage{}
+	// When
 	err := mockClient.PublishMarshal("submit-tx", msg)
 	require.NoError(t, err)
 	mockClient.Shutdown()
 
-	// Ensure PublishMarshal and Shutdown were both called
+	// Then
 	require.Equal(t, 1, len(mockClient.PublishMarshalCalls()))
 	require.Equal(t, 1, len(mockClient.ShutdownCalls()))
 }

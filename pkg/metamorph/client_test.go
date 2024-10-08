@@ -40,6 +40,7 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
 					return &metamorph_api.SetUnlockedByNameResponse{RecordsAffected: 5}, tc.setUnlockedErr
@@ -47,8 +48,9 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 			}
 
 			client := metamorph.NewClient(apiClient)
-
+			// When
 			res, err := client.SetUnlockedByName(context.Background(), "test-1")
+			// Then
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
 			} else {
@@ -151,6 +153,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PutTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.putTxStatus, tc.putTxErr
@@ -166,8 +169,9 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			}
 
 			client := metamorph.NewClient(apiClient, opts...)
-
+			// When
 			tx, err := sdkTx.NewTransactionFromHex(testdata.TX1RawString)
+			// Then
 			require.NoError(t, err)
 			status, err := client.SubmitTransaction(context.Background(), tx, tc.options)
 
@@ -309,6 +313,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PutTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 					return tc.putTxStatus, tc.putTxErr
@@ -326,9 +331,9 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			}
 
 			client := metamorph.NewClient(apiClient, opts...)
-
+			// When
 			statuses, err := client.SubmitTransactions(context.Background(), sdkTx.Transactions{tx1, tx2, tx3}, tc.options)
-
+			// Then
 			require.Equal(t, tc.expectedStatuses, statuses)
 
 			if tc.expectedErrorStr == "" {
@@ -344,7 +349,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 func TestTransactionHandler_GetTransaction(t *testing.T) {
 	ctx := context.Background()
 	txID := "testTxID"
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		GetTransactionFunc: func(ctx context.Context, txID string) ([]byte, error) {
 			if txID == "testTxID" {
@@ -353,34 +358,30 @@ func TestTransactionHandler_GetTransaction(t *testing.T) {
 			return nil, metamorph.ErrTransactionNotFound
 		},
 	}
-
-	// Test case: Transaction found
+	// When
 	txData, err := mockHandler.GetTransaction(ctx, txID)
+	// Then
 	require.NoError(t, err)
 	require.Equal(t, []byte("testdata"), txData)
 
-	// Test case: Transaction not found
 	_, err = mockHandler.GetTransaction(ctx, "invalidTxID")
 	require.ErrorIs(t, err, metamorph.ErrTransactionNotFound)
-
-	// Ensure GetTransaction was called twice
 	require.Equal(t, 2, len(mockHandler.GetTransactionCalls()))
 }
 
 func TestTransactionHandler_Health(t *testing.T) {
 	ctx := context.Background()
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		HealthFunc: func(ctx context.Context) error {
 			return nil
 		},
 	}
 
-	// Test case: Health check success
+	// When
 	err := mockHandler.Health(ctx)
+	// Then
 	require.NoError(t, err)
-
-	// Ensure Health was called once
 	require.Equal(t, 1, len(mockHandler.HealthCalls()))
 }
 
@@ -390,20 +391,19 @@ func TestTransactionHandler_SubmitTransactionWithError(t *testing.T) {
 	options := &metamorph.TransactionOptions{
 		CallbackURL: "http://example.com/callback",
 	}
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 			return nil, errors.New("failed to submit transaction")
 		},
 	}
 
-	// Test case: Submit transaction with an error
+	// When
 	status, err := mockHandler.SubmitTransaction(ctx, tx, options)
+	// Then
 	require.Error(t, err)
 	require.Nil(t, status)
 	require.EqualError(t, err, "failed to submit transaction")
-
-	// Ensure SubmitTransaction was called once
 	require.Equal(t, 1, len(mockHandler.SubmitTransactionCalls()))
 }
 
@@ -412,7 +412,7 @@ func TestTransactionHandler_SubmitEmptyTransaction(t *testing.T) {
 	options := &metamorph.TransactionOptions{
 		CallbackURL: "http://example.com/callback",
 	}
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 			if tx == nil {
@@ -425,13 +425,12 @@ func TestTransactionHandler_SubmitEmptyTransaction(t *testing.T) {
 		},
 	}
 
-	// Test case: Submit nil transaction
+	// When
 	status, err := mockHandler.SubmitTransaction(ctx, nil, options)
+	// Then
 	require.Error(t, err)
 	require.Nil(t, status)
 	require.EqualError(t, err, "transaction cannot be nil")
-
-	// Ensure SubmitTransaction was called once
 	require.Equal(t, 1, len(mockHandler.SubmitTransactionCalls()))
 }
 
@@ -444,7 +443,7 @@ func TestTransactionHandler_SubmitLargeNumberOfTransactions(t *testing.T) {
 	options := &metamorph.TransactionOptions{
 		CallbackURL: "http://example.com/callback",
 	}
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		SubmitTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 			statuses := make([]*metamorph.TransactionStatus, len(txs))
@@ -458,18 +457,17 @@ func TestTransactionHandler_SubmitLargeNumberOfTransactions(t *testing.T) {
 		},
 	}
 
-	// Test case: Submit a large number of transactions
+	// When
 	statuses, err := mockHandler.SubmitTransactions(ctx, txs, options)
+	// Then
 	require.NoError(t, err)
 	require.Len(t, statuses, 1000)
-
-	// Ensure SubmitTransactions was called once
 	require.Equal(t, 1, len(mockHandler.SubmitTransactionsCalls()))
 }
 
 func TestTransactionHandler_GetTransactionsWithEmptyList(t *testing.T) {
 	ctx := context.Background()
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 			if len(txIDs) == 0 {
@@ -479,30 +477,28 @@ func TestTransactionHandler_GetTransactionsWithEmptyList(t *testing.T) {
 		},
 	}
 
-	// Test case: Get transactions with an empty list of transaction IDs
+	// When
 	txs, err := mockHandler.GetTransactions(ctx, []string{})
+	// Then
 	require.Error(t, err)
 	require.Nil(t, txs)
 	require.EqualError(t, err, "transaction IDs cannot be empty")
-
-	// Ensure GetTransactions was called once
 	require.Equal(t, 1, len(mockHandler.GetTransactionsCalls()))
 }
 
 func TestTransactionHandler_HealthWithError(t *testing.T) {
 	ctx := context.Background()
-
+	// Given
 	mockHandler := &mocks.TransactionHandlerMock{
 		HealthFunc: func(ctx context.Context) error {
 			return errors.New("health check failed")
 		},
 	}
 
-	// Test case: Health check returns an error
+	// When
 	err := mockHandler.Health(ctx)
+	// Then
 	require.Error(t, err)
 	require.EqualError(t, err, "health check failed")
-
-	// Ensure Health was called once
 	require.Equal(t, 1, len(mockHandler.HealthCalls()))
 }

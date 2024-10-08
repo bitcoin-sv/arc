@@ -104,6 +104,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	processor, err := metamorph.NewProcessor(
 		metamorphStore,
+		cacheStore,
 		pm,
 		statusMessageCh,
 		processorOpts...,

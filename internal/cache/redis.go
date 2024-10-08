@@ -28,7 +28,7 @@ func (r *RedisStore) Get(key string) ([]byte, error) {
 	if errors.Is(err, redis.Nil) {
 		return nil, ErrCacheNotFound
 	} else if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrCacheFailedToGet, err)
 	}
 	return []byte(result), nil
 }
@@ -37,7 +37,7 @@ func (r *RedisStore) Get(key string) ([]byte, error) {
 func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
 	err := r.client.Set(r.ctx, key, value, ttl).Err()
 	if err != nil {
-		return err
+		return errors.Join(ErrCacheFailedToSet, err)
 	}
 	return nil
 }
@@ -46,7 +46,7 @@ func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
 func (r *RedisStore) Del(key string) error {
 	result, err := r.client.Del(r.ctx, key).Result()
 	if err != nil {
-		return err
+		return errors.Join(ErrCacheFailedToDel, err)
 	}
 	if result == 0 {
 		return ErrCacheNotFound

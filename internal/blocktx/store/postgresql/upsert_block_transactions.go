@@ -10,7 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
-// UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
+// UpsertBlockTransactions upserts the transaction hashes for a given block hash.
 func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)

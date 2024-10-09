@@ -380,7 +380,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		hashesBytes[i] = h[:]
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, blocktx_api.Status_LONGEST)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -435,7 +435,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 
-	// don't process block that was already processed
+	// don't process block that was already processed or is below our retention height
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 	if existingBlock != nil && existingBlock.Processed {
 		return nil
@@ -476,15 +476,13 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 			return err
 		}
 
-		// check for all registered transactions in the longest chain
-		// any registered transactions that are in this block but not
-		// in the longest chain - publish to metamorph as MINED_IN_STALE_CHAIN
 		incomingBlock.Status = blocktx_api.Status_STALE
 
 		if hasGreatestChainwork {
-			p.logger.Info("reorg detected - updating blocks", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
 
 			incomingBlock.Status = blocktx_api.Status_LONGEST
+
 			shouldPerformReorg = true
 		}
 	}
@@ -509,23 +507,36 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
-	// update this struct to have status (for MINED and MINED_IN_STALE_BLOCK statuses)
-	txsToPublish := make([]*blocktx_api.TransactionBlock, 0)
+	txsToPublish := make([]store.TransactionBlock, 0)
 
-	// perform reorg - return txs to publish
 	if shouldPerformReorg {
-		txsToPublish, err = p.performReorg(ctx, incomingBlock, msg.TransactionHashes)
+		txsToPublish, err = p.performReorg(ctx, incomingBlock)
 		if err != nil {
 			p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 			return err
 		}
 	} else if incomingBlock.Status == blocktx_api.Status_STALE {
-		// txsToPublish, err = p.getStaleTxs()
-	} else {
+		txsToPublish, err = p.getStaleTxs(ctx, blockId)
+		if err != nil {
+			p.logger.Error("unable to get stale transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return err
+		}
+	} else if incomingBlock.Status == blocktx_api.Status_LONGEST {
 		txsToPublish, err = p.store.GetRegisteredTransactions(ctx, blockId)
+		if err != nil {
+			p.logger.Error("unable to get registered transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return err
+		}
 	}
 
-	for _, txBlock := range txsToPublish {
+	for _, tx := range txsToPublish {
+		txBlock := &blocktx_api.TransactionBlock{
+			BlockHash:       tx.BlockHash,
+			BlockHeight:     tx.BlockHeight,
+			TransactionHash: tx.TxHash,
+			MerklePath:      tx.MerklePath,
+		}
+
 		// change that receiver method in metamorph to accept statuses (MINED and MINED_IN_STALE_BLOCK)
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
@@ -609,7 +620,7 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
-func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block, transactionHashes []*chainhash.Hash) ([]*blocktx_api.TransactionBlock, error) {
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) ([]store.TransactionBlock, error) {
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
 	if err != nil {
 		return nil, err
@@ -641,30 +652,33 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	prevStaleTxs, prevLongestTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
+	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
 	if err != nil {
 		return nil, err
 	}
-
-	minedTxs, staleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
 
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, err
 	}
 
-	txsCombined := append(minedTxs, staleTxs...)
+	prevLongestTxs := make([]store.TransactionBlock, 0)
+	prevStaleTxs := make([]store.TransactionBlock, 0)
 
-	txsToPublish := make([]*blocktx_api.TransactionBlock, len(txsCombined))
-
-	for i, tx := range txsCombined {
-		txsToPublish[i] = &blocktx_api.TransactionBlock{
-			TransactionHash: tx.TxHash,
-			BlockHash:       tx.BlockHash,
-			BlockHeight:     tx.BlockHeight,
-			MerklePath:      tx.MerklePath,
+	for _, tx := range registeredTxs {
+		switch tx.BlockStatus {
+		case blocktx_api.Status_LONGEST:
+			prevLongestTxs = append(prevLongestTxs, tx)
+		case blocktx_api.Status_STALE:
+			prevStaleTxs = append(prevStaleTxs, tx)
+		default:
+			// do nothing - ignore ORPHANED and UNKNOWN blocks
 		}
 	}
+
+	minedTxs, staleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+
+	txsToPublish := append(minedTxs, staleTxs...)
 
 	return txsToPublish, nil
 }
@@ -740,6 +754,54 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 	}
 
 	return nil
+}
+
+// getStaleTxs returns all transactions from a given STALE block that are not in the longest chain
+func (p *Processor) getStaleTxs(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+	// 1. Find registered txs from the given STALE block
+	// 2. Check for those transactions in the longest chain
+	// 3. Return only those registered txs from the STALE block that are not found in the longest chain
+
+	registeredTxs, err := p.store.GetRegisteredTransactions(ctx, blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	registeredHashes := make([][]byte, len(registeredTxs))
+	for i, tx := range registeredTxs {
+		registeredHashes[i] = tx.TxHash
+	}
+
+	minedTxs, err := p.store.GetMinedTransactions(ctx, registeredHashes)
+	if err != nil {
+		return nil, err
+	}
+
+	minedTxsMap := make(map[string]bool)
+	for _, tx := range minedTxs {
+		minedTxsMap[string(tx.TxHash)] = true
+	}
+
+	staleTxs := make([]store.TransactionBlock, 0)
+
+	for _, tx := range registeredTxs {
+		if minedTxsMap[string(tx.TxHash)] {
+			continue
+		}
+
+		staleTxs = append(staleTxs, tx)
+	}
+
+	return staleTxs, nil
+}
+
+const (
+	hoursPerDay   = 24
+	blocksPerHour = 6
+)
+
+func (p *Processor) getRetentionHeightRange() int {
+	return p.dataRetentionDays * hoursPerDay * blocksPerHour
 }
 
 func (p *Processor) Shutdown() {

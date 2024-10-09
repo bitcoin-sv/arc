@@ -51,8 +51,8 @@ func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
 	return lowest
 }
 
-func findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs []store.GetMinedTransactionResult) (nowMinedTxs, nowStaleTxs []store.GetMinedTransactionResult) {
-	prevStaleMap := make(map[string]store.GetMinedTransactionResult)
+func findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs []store.TransactionBlock) (nowMinedTxs, nowStaleTxs []store.TransactionBlock) {
+	prevStaleMap := make(map[string]store.TransactionBlock)
 
 	for _, tx := range prevStaleTxs {
 		prevStaleMap[string(tx.TxHash)] = tx

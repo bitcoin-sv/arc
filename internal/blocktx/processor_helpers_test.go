@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,6 +34,53 @@ func TestGetLowestHeight(t *testing.T) {
 
 	// then
 	require.Equal(t, uint64(4), lowestHeight)
+}
+
+func TestFindMinedAndStaleTxs(t *testing.T) {
+	// given
+	prevStaleTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("1"),
+		},
+		{
+			TxHash: []byte("2"),
+		},
+	}
+	prevLongestTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("A"),
+		},
+		{
+			TxHash: []byte("B"),
+		},
+		{
+			TxHash: []byte("1"),
+		},
+	}
+
+	expectedMinedTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("1"),
+		},
+		{
+			TxHash: []byte("2"),
+		},
+	}
+	expectedStaleTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("A"),
+		},
+		{
+			TxHash: []byte("B"),
+		},
+	}
+
+	// when
+	actualMinedTxs, actualStaleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+
+	// then
+	require.Equal(t, expectedMinedTxs, actualMinedTxs)
+	require.Equal(t, expectedStaleTxs, actualStaleTxs)
 }
 
 func TestChainWork(t *testing.T) {

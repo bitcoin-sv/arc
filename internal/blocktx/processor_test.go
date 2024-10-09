@@ -177,7 +177,7 @@ func TestHandleBlock(t *testing.T) {
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) { return nil, nil },
 			}
 
-			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 				require.LessOrEqual(t, len(txsWithMerklePaths), batchSize)
 
 				for _, txWithMr := range txsWithMerklePaths {
@@ -187,7 +187,7 @@ func TestHandleBlock(t *testing.T) {
 					actualInsertedBlockTransactions = append(actualInsertedBlockTransactions, tx[:])
 				}
 
-				return txsWithMerklePaths, nil
+				return nil
 			}
 
 			mq := &mocks.MessageQueueClientMock{
@@ -341,13 +341,10 @@ func TestHandleBlockReorg(t *testing.T) {
 					mtx.Lock()
 					insertedBlock = block
 					mtx.Unlock()
-					return 1, nil
+					return 1, errors.New("dummy error") // return error here so we don't have to override next db functions
 				},
-				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
-					return nil
-				},
-				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
-					return []store.TxWithMerklePath{}, nil
+				DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+					return 0, nil
 				},
 			}
 
@@ -635,12 +632,12 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(_ context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
 					for _, hash := range hashes {
-						require.Equal(t, testdata.TX1Hash, hash)
+						require.Equal(t, testdata.TX1Hash[:], hash)
 					}
 
-					return []store.GetMinedTransactionResult{{
+					return []store.TransactionBlock{{
 						TxHash:      testdata.TX1Hash[:],
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,

@@ -364,8 +364,9 @@ func TestHandleBlockReorg(t *testing.T) {
 						Status: block.Status,
 					}
 					mtx.Unlock()
-					return 1, nil
+					return 1, errors.New("dummy error") // return error here so we don't have to override next db functions
 				},
+<<<<<<< HEAD
 				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 					// this function is called ONLY when performing reorg
 					mtx.Lock()
@@ -393,6 +394,10 @@ func TestHandleBlockReorg(t *testing.T) {
 				},
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size, txCount uint64) error {
 					return nil
+=======
+				DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+					return 0, nil
+>>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
 				},
 			}
 

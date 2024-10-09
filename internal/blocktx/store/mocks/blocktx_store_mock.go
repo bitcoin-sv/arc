@@ -76,10 +76,14 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
 <<<<<<< HEAD
+<<<<<<< HEAD
 //			UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the UpsertBlock method")
 //			},
 //			UpsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+=======
+//			UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+>>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
 =======
 //			UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 >>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
@@ -154,7 +158,11 @@ type BlocktxStoreMock struct {
 
 	// UpsertBlockTransactionsFunc mocks the UpsertBlockTransactions method.
 <<<<<<< HEAD
+<<<<<<< HEAD
 	UpsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error)
+=======
+	UpsertBlockTransactionsFunc func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error
+>>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
 =======
 	UpsertBlockTransactionsFunc func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error
 >>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
@@ -1036,7 +1044,11 @@ func (mock *BlocktxStoreMock) UpsertBlockCalls() []struct {
 
 // UpsertBlockTransactions calls UpsertBlockTransactionsFunc.
 <<<<<<< HEAD
+<<<<<<< HEAD
 func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+=======
+func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+>>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)
 =======
 func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 >>>>>>> 35a3353a (feat: improved way of transactions publishing to metamorph, store methods refactor and test coverage)

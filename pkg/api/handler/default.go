@@ -458,7 +458,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 
 	if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.Error("failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("id", int(statusCode)), slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 		return arcError
 	}
 
@@ -473,7 +473,9 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 	feeOpts, scriptOpts := toValidationOpts(options)
 
 	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
-		_, arcError := m.handleError(ctx, errTx, err)
+		statusCode, arcError := m.handleError(ctx, errTx, err)
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+
 		return arcError
 	}
 
@@ -490,7 +492,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		status, err := m.TransactionHandler.SubmitTransaction(ctx, tx, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, tx, err)
-			m.logger.Error("failed to submit transaction", slog.String("id", tx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+			m.logger.ErrorContext(ctx, "failed to submit transaction", slog.String("id", tx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 			return nil, arcError
 		}
@@ -502,7 +504,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, nil, err)
-			m.logger.Error("failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+			m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 			return nil, arcError
 		}

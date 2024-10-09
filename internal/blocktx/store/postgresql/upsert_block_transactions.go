@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
+// UpsertBlockTransactions upserts the transaction hashes for a given block hash.
 func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	if tracer != nil {
 		var span trace.Span

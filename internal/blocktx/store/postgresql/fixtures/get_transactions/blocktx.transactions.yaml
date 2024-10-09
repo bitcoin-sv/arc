@@ -1,4 +1,4 @@
-# txs from block 1
+# txs from block 1 - LONGEST
 - id: 1
   hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
   inserted_at: 2023-12-10 14:00:00
@@ -20,7 +20,7 @@
   inserted_at: 2023-12-10 14:00:00
   is_registered: false
 
-# txs from block 2
+# txs from block 2 - STALE
 - id: 6
   hash: 0x213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0
   inserted_at: 2023-12-15 14:00:00

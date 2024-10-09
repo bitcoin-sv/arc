@@ -58,11 +58,13 @@ message TransactionRequest {
   Status wait_for_status = 9;
   bool full_status_updates = 10;
   int64 max_timeout = 11;
+  string event_id = 12;
 }
 
 // swagger:model TransactionRequests
 message TransactionRequests {
   repeated TransactionRequest Transactions = 1;
+  string event_id = 2;
 }
 
 // swagger:model Transaction
@@ -96,11 +98,13 @@ message TransactionStatus {
 // swagger:model TransactionStatuses
 message TransactionStatuses {
   repeated TransactionStatus Statuses = 1;
+  string event_id = 2;
 }
 
 // swagger:model TransactionRequest
 message TransactionStatusRequest {
   string txid = 1;
+  string event_id = 2;
 }
 
 // swagger:model SetUnlockedByNameRequest

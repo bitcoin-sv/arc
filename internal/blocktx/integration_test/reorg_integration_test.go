@@ -11,10 +11,11 @@ package integrationtest
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
 // 		4. Next competing block, at height 822016 is being send through the mocked PeerHandler
 // 		5. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
+// 		6. Verification of reorg - checking if statuses are correctly switched
 //
 // Todo: Next tasks:
-// 		- Verify if reorg was performed correctly, if previous blocks have updated statuses
-// 		- Include metamorph in this test and verify that transactions statuses are properly updated
+// 		- Verify that transactions are properly updated in blocktx store
+// 		- Include mock metamorph in this test and verify that transactions statuses are properly updated
 
 import (
 	"context"

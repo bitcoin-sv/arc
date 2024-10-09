@@ -9,9 +9,17 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-// exported for testing purposes
+func getHashStringNoErr(hash []byte) string {
+	chash, err := chainhash.NewHash(hash)
+	if err != nil {
+		return ""
+	}
+	return chash.String()
+}
+
 func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx

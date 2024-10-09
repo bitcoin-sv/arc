@@ -520,8 +520,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		// change that receiver method in metamorph to accept statuses (MINED and MINED_IN_STALE_BLOCK)
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
-			// TODO: add txID to err log
-			p.logger.Error("failed to publish mined txs", slog.Uint64("height", txBlock.BlockHeight), slog.String("err", err.Error()))
+			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
 		}
 	}
 

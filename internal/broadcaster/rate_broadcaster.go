@@ -160,32 +160,11 @@ utxoLoop:
 			return txs, nil
 		case utxo := <-b.utxoCh:
 			tx := sdkTx.NewTransaction()
+			amount := utxo.Satoshis
 
 			err := tx.AddInputsFromUTXOs(utxo)
 			if err != nil {
 				return nil, errors.Join(ErrFailedToAddInput, err)
-			}
-
-			fee, err := b.feeModel.ComputeFee(tx)
-			if err != nil {
-				return nil, err
-			}
-
-			if utxo.Satoshis <= fee {
-				if len(b.utxoCh) == 0 {
-					return nil, ErrNotEnoughUTXOs
-				}
-
-				if len(b.utxoCh) < b.batchSize {
-					return nil, ErrNotEnoughUTXOsForBatch
-				}
-
-				continue
-			}
-			amount := utxo.Satoshis - fee
-			err = PayTo(tx, b.ks.Script, amount)
-			if err != nil {
-				return nil, errors.Join(ErrFailedToAddOutput, err)
 			}
 
 			if b.opReturn != "" {
@@ -196,8 +175,25 @@ utxoLoop:
 			}
 
 			if b.maxSize > 0 {
+				// Add additional inputs to the transaction
+				randomInt, err := rand.Int(rand.Reader, big.NewInt(int64(10)))
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
+				}
+
+				for i := 0; i < int(randomInt.Int64()); i++ {
+					additionalUtxo := <-b.utxoCh
+					err = tx.AddInputsFromUTXOs(additionalUtxo)
+					if err != nil {
+						return nil, errors.Join(ErrFailedToAddInput, err)
+					}
+
+					amount += additionalUtxo.Satoshis
+				}
+
+				// Add additional OP_RETURN with random data to the transaction
 				randomMaxSize := big.NewInt(int64(b.maxSize))
-				randomInt, err := rand.Int(rand.Reader, randomMaxSize)
+				randomInt, err = rand.Int(rand.Reader, randomMaxSize)
 				if err != nil {
 					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
 				}
@@ -208,10 +204,38 @@ utxoLoop:
 					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
 				}
 
-				err = tx.AddOpReturnOutput(append([]byte("TAAL ARC size-jitter random bytes - "), randomBytes...))
+				testHeader := []byte(" size-jitter random bytes - ")
+				if b.opReturn != "" {
+					testHeader = append([]byte(b.opReturn), testHeader...)
+				}
+
+				err = tx.AddOpReturnOutput(append(testHeader, randomBytes...))
 				if err != nil {
 					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
 				}
+			}
+
+			fee, err := b.EstimateFee(tx)
+			if err != nil {
+				return nil, err
+			}
+
+			if amount <= fee {
+				if len(b.utxoCh) == 0 {
+					return nil, ErrNotEnoughUTXOs
+				}
+
+				if len(b.utxoCh) < b.batchSize {
+					return nil, ErrNotEnoughUTXOsForBatch
+				}
+
+				continue
+			}
+			amount -= fee
+
+			err = PayTo(tx, b.ks.Script, amount)
+			if err != nil {
+				return nil, errors.Join(ErrFailedToAddOutput, err)
 			}
 
 			err = SignAllInputs(tx, b.ks.PrivateKey)
@@ -230,6 +254,19 @@ utxoLoop:
 	}
 
 	return txs, nil
+}
+
+// EstimateFee estimates the fee for a transaction
+// based on the estimated size of the transaction
+func (b *UTXORateBroadcaster) EstimateFee(tx *sdkTx.Transaction) (uint64, error) {
+	size := EstimateSize(tx)
+
+	fee, err := b.feeModel.ComputeFeeBasedOnSize(uint64(size))
+	if err != nil {
+		return 0, err
+	}
+
+	return fee, nil
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {

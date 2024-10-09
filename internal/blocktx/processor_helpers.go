@@ -7,7 +7,16 @@ import (
 	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
+
+func getHashStringNoErr(hash []byte) string {
+	chash, err := chainhash.NewHash(hash)
+	if err != nil {
+		return ""
+	}
+	return chash.String()
+}
 
 func createBlock(msg *blockchain.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
 	hash := msg.Header.BlockHash()

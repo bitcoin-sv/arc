@@ -111,7 +111,8 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte) *validator.Error {
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
 	if err != nil {
-		return validator.NewError(err, api.ErrStatusCumulativeFees)
+		e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
+		return validator.NewError(e, api.ErrStatusCumulativeFees)
 	}
 	txSet[""] = tx // do not need to care about key in the set
 

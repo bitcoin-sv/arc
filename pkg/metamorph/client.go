@@ -205,7 +205,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	response, err := m.client.PutTransaction(ctx, request)
 	if err != nil {
-		m.logger.Warn("Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("key", err.Error()))
+		m.logger.WarnContext(ctx, "Failed to submit transaction", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
 		if m.mqClient != nil {
 			err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
 			if err != nil {
@@ -274,7 +274,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	// put all transactions together
 	responses, err := m.client.PutTransactions(ctx, in)
 	if err != nil {
-		m.logger.Warn("Failed to submit transactions", slog.String("key", err.Error()))
+		m.logger.WarnContext(ctx, "Failed to submit transactions", slog.String("err", err.Error()))
 		if m.mqClient != nil {
 			for _, tx := range in.Transactions {
 				err := m.mqClient.PublishMarshal(SubmitTxTopic, tx)

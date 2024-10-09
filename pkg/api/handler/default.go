@@ -83,7 +83,7 @@ func NewDefault(
 		wocClient = woc_client.New(false)
 	}
 
-	finder := txfinder.New(transactionHandler, peerRpcConfig, wocClient, logger)
+	finder := txfinder.NewCached(transactionHandler, peerRpcConfig, wocClient, logger)
 	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{

@@ -478,6 +478,7 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	shouldPerformReorg := false
 	if competing {
 		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+		incomingBlock.Status = blocktx_api.Status_STALE
 
 		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, incomingBlock)
 		if err != nil {
@@ -485,13 +486,8 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 			return err
 		}
 
-		incomingBlock.Status = blocktx_api.Status_STALE
-
 		if hasGreatestChainwork {
 			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
-
-			incomingBlock.Status = blocktx_api.Status_LONGEST
-
 			shouldPerformReorg = true
 		}
 	}
@@ -545,6 +541,8 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 			TransactionHash: tx.TxHash,
 			MerklePath:      tx.MerklePath,
 		}
+
+		p.logger.Info("publishing tx", slog.String("txHash", getHashStringNoErr(tx.TxHash)))
 
 		// change that receiver method in metamorph to accept statuses (MINED and MINED_IN_STALE_BLOCK)
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
@@ -629,7 +627,7 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 }
 
 func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) ([]store.TransactionBlock, error) {
-	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.Hash)
 	if err != nil {
 		return nil, err
 	}
@@ -669,6 +667,8 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 	if err != nil {
 		return nil, err
 	}
+
+	p.logger.Info("reorg performed successfully")
 
 	prevLongestTxs := make([]store.TransactionBlock, 0)
 	prevStaleTxs := make([]store.TransactionBlock, 0)
@@ -751,7 +751,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 
 		if percentage, found := progress[txIndex+1]; found {
 			if totalSize > 0 {
-				p.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
+				p.logger.Info(fmt.Sprintf("%d txs out of %d stored", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
 			}
 		}
 	}

@@ -2,13 +2,12 @@ package broadcaster
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
-	"math/big"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -174,15 +173,18 @@ utxoLoop:
 				}
 			}
 
-			if b.maxSize > 0 {
+			if b.sizeJitterMax > 0 {
 				// Add additional inputs to the transaction
-				randomInt, err := rand.Int(rand.Reader, big.NewInt(int64(10)))
-				if err != nil {
-					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
-				}
+				src := rand.NewSource(time.Now().UnixNano())
+				r := rand.New(src)
+				numOfInputs := r.Intn(10)
 
-				for i := 0; i < int(randomInt.Int64()); i++ {
-					additionalUtxo := <-b.utxoCh
+				for i := 0; i < numOfInputs; i++ {
+					additionalUtxo, ok := <-b.utxoCh
+					if !ok {
+						return nil, ErrNotEnoughUTXOsForBatch
+					}
+
 					err = tx.AddInputsFromUTXOs(additionalUtxo)
 					if err != nil {
 						return nil, errors.Join(ErrFailedToAddInput, err)
@@ -192,13 +194,12 @@ utxoLoop:
 				}
 
 				// Add additional OP_RETURN with random data to the transaction
-				randomMaxSize := big.NewInt(int64(b.maxSize))
-				randomInt, err = rand.Int(rand.Reader, randomMaxSize)
+				dataSize := r.Intn(b.sizeJitterMax)
 				if err != nil {
 					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
 				}
 
-				randomBytes := make([]byte, randomInt.Int64())
+				randomBytes := make([]byte, dataSize)
 				_, err = rand.Read(randomBytes)
 				if err != nil {
 					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)

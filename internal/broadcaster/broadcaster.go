@@ -41,7 +41,7 @@ type Broadcaster struct {
 	batchSize         int
 	waitForStatus     metamorph_api.Status
 	opReturn          string
-	maxSize           int
+	sizeJitterMax     int
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
@@ -87,9 +87,9 @@ func WithOpReturn(opReturn string) func(broadcaster *Broadcaster) {
 	}
 }
 
-func WithSizeJitter(maxSize int) func(broadcaster *Broadcaster) {
+func WithSizeJitter(sizeJitterMax int) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
-		broadcaster.maxSize = maxSize
+		broadcaster.sizeJitterMax = sizeJitterMax
 	}
 }
 

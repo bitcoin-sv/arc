@@ -105,7 +105,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		maxSize, err := helper.GetInt("size-jitter")
+		sizeJitterMax, err := helper.GetInt("size-jitter")
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithOpReturn(opReturn),
-			broadcaster.WithSizeJitter(maxSize),
+			broadcaster.WithSizeJitter(sizeJitterMax),
 		}
 
 		if waitForStatus > 0 {

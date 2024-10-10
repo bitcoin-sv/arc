@@ -218,7 +218,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	Cmd.Flags().Int("size-jitter", 0, "Enable the option to randomise the transaction size, the parameter specifies the maximum size of bytes that will be added to OP_RETURN")
+	Cmd.Flags().Int("size-jitter", 0, "Enable the option to randomise the transaction size by adding random data and using multiple inputs, the parameter specifies the maximum size of bytes that will be added to OP_RETURN (plus OP_RETURN header if specified)")
 	err = viper.BindPFlag("size-jitter", Cmd.Flags().Lookup("size-jitter"))
 	if err != nil {
 		log.Fatal(err)

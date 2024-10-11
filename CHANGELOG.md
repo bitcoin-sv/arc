@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file. The format 
 
 - The Callbacker service handles unsuccessful callback attempts by placing problematic receivers in quarantine, temporarily pausing callback delivery to them.
 
+### Added
+- Callbacks are batched for transaction submitted with `X-CallbackBatch: true` header.
+
 ## [1.3.0] - 2024-08-21
 
 ### Changed

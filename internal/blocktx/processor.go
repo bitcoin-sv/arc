@@ -540,11 +540,11 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 			BlockHeight:     tx.BlockHeight,
 			TransactionHash: tx.TxHash,
 			MerklePath:      tx.MerklePath,
+			BlockStatus:     tx.BlockStatus,
 		}
 
 		p.logger.Info("publishing tx", slog.String("txHash", getHashStringNoErr(tx.TxHash)))
 
-		// change that receiver method in metamorph to accept statuses (MINED and MINED_IN_STALE_BLOCK)
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
@@ -684,9 +684,17 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 		}
 	}
 
-	minedTxs, staleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+	nowMinedTxs, nowStaleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
 
-	txsToPublish := append(minedTxs, staleTxs...)
+	for i := range nowMinedTxs {
+		nowMinedTxs[i].BlockStatus = blocktx_api.Status_LONGEST
+	}
+
+	for i := range nowStaleTxs {
+		nowStaleTxs[i].BlockStatus = blocktx_api.Status_STALE
+	}
+
+	txsToPublish := append(nowMinedTxs, nowStaleTxs...)
 
 	return txsToPublish, nil
 }

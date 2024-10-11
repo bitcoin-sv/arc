@@ -2,6 +2,7 @@ package broadcaster
 
 import (
 	"context"
+	cRand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -200,7 +201,7 @@ utxoLoop:
 				}
 
 				randomBytes := make([]byte, dataSize)
-				_, err = rand.Read(randomBytes)
+				_, err = cRand.Read(randomBytes)
 				if err != nil {
 					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
 				}

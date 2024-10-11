@@ -10,7 +10,7 @@ package integrationtest
 // 		1. A list of blocks from height 822014 to 822017 is added to db from fixtures
 // 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
-// 		4. Registered transactions from this block that are not in the longest chain are published to metamorph message queue
+// 		4. Registered transactions from this block that are not in the longest chain are published to metamorph message queue with blockstatus = STALE
 // 		5. Next competing block, at height 822016 is being send through the mocked PeerHandler
 // 		6. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
 // 		7. Verification of reorg - checking if statuses are correctly switched

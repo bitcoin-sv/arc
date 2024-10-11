@@ -3,6 +3,8 @@ package metamorph_test
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
 	"log/slog"
 	"os"
 	"testing"
@@ -49,8 +51,11 @@ func TestStartCollectStats(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-			processor, err := metamorph.NewProcessor(mtmStore, pm, nil,
+
+			processor, err := metamorph.NewProcessor(mtmStore, cStore, pm, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 				metamorph.WithStatCollectionInterval(10*time.Millisecond),
 			)

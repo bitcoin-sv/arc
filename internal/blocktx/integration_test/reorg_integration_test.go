@@ -133,7 +133,7 @@ func TestReorg(t *testing.T) {
 	processor.StartBlockProcessing()
 
 	testHandleBlockOnEmptyDatabase(t, peerHandler, blocktxStore)
-	publishedTxs = make([]*blocktx_api.TransactionBlock, 0) // clear slice for the next test
+	publishedTxs = publishedTxs[:0] // clear slice for the next test
 
 	// only load fixtures at this point
 	testutils.LoadFixtures(t, dbConn, "fixtures")
@@ -218,6 +218,7 @@ func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store 
 			BlockHash:       blockHashStale[:],
 			BlockHeight:     822015,
 			TransactionHash: txHash[:],
+			BlockStatus:     blocktx_api.Status_STALE,
 		},
 	}
 
@@ -226,7 +227,9 @@ func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store 
 
 func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL, publishedTxs []*blocktx_api.TransactionBlock, staleBlockHash *chainhash.Hash) []*blocktx_api.TransactionBlock {
 	txHash := testutils.RevChainhash(t, "2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f")
-	merkleRoot := testutils.RevChainhash(t, "2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f")
+	txHash2 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+	treeStore := bc.BuildMerkleTreeStoreChainHash([]*chainhash.Hash{txHash, txHash2})
+	merkleRoot := treeStore[len(treeStore)-1]
 
 	// should become LONGEST
 	// reorg should happen
@@ -238,7 +241,7 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 			Bits:       0x1a05db8b, // chainwork: "12301577519373468" higher than the competing block
 		},
 		Height:            uint64(822016), // competing block already exists at this height
-		TransactionHashes: []*chainhash.Hash{txHash},
+		TransactionHashes: []*chainhash.Hash{txHash, txHash2},
 	}
 
 	err := peerHandler.HandleBlock(blockMessage, nil)
@@ -284,21 +287,30 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
 
 	expectedTxs := []*blocktx_api.TransactionBlock{
-		{
+		{ // previously in stale chain
 			BlockHash:       staleBlockHash[:],
 			BlockHeight:     822015,
 			TransactionHash: testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
+			BlockStatus:     blocktx_api.Status_LONGEST,
 		},
-		{
+		{ // previously in longest chain - also in stale - should have blockdata updated
 			BlockHash:       staleBlockHash[:],
 			BlockHeight:     822015,
 			TransactionHash: testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")[:],
+			BlockStatus:     blocktx_api.Status_LONGEST,
 		},
-		// {
-		// 	BlockHash:       blockHashLongest[:],
-		// 	BlockHeight:     822016,
-		// 	TransactionHash: txHash[:],
-		// },
+		{ // newly mined from stale block that became longest after reorg
+			BlockHash:       blockHashLongest[:],
+			BlockHeight:     822016,
+			TransactionHash: txHash[:],
+			BlockStatus:     blocktx_api.Status_LONGEST,
+		},
+		{ // previously longest chain - not found in the new longest chain
+			BlockHash:       previouslyLongestBlockHash[:],
+			BlockHeight:     822017,
+			TransactionHash: testutils.RevChainhash(t, "ece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6")[:],
+			BlockStatus:     blocktx_api.Status_STALE,
+		},
 	}
 
 	return expectedTxs
@@ -307,14 +319,11 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 func verifyTxs(t *testing.T, expectedTxs []*blocktx_api.TransactionBlock, publishedTxs []*blocktx_api.TransactionBlock) {
 	strippedTxs := make([]*blocktx_api.TransactionBlock, len(publishedTxs))
 	for i, tx := range publishedTxs {
-		chash, err := chainhash.NewHash(tx.TransactionHash)
-		require.NoError(t, err)
-		t.Logf("published tx hash: %s", chash.String())
 		strippedTxs[i] = &blocktx_api.TransactionBlock{
 			BlockHash:       tx.BlockHash,
 			BlockHeight:     tx.BlockHeight,
 			TransactionHash: tx.TransactionHash,
-			// TODO: add block status
+			BlockStatus:     tx.BlockStatus,
 		}
 	}
 

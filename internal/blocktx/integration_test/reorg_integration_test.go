@@ -4,18 +4,20 @@ package integrationtest
 // 		Postgresql Store - running on docker
 // 		Blocktx Processor
 // 		PeerHandler - mocked
+// 		Message queue sending txs to metamorph - mocked
 //
 // Flow of this test:
 // 		1. A list of blocks from height 822014 to 822017 is added to db from fixtures
 // 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
-// 		4. Next competing block, at height 822016 is being send through the mocked PeerHandler
-// 		5. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
-// 		6. Verification of reorg - checking if statuses are correctly switched
-//
-// Todo: Next tasks:
-// 		- Verify that transactions are properly updated in blocktx store
-// 		- Include mock metamorph in this test and verify that transactions statuses are properly updated
+// 		4. Registered transactions from this block that are not in the longest chain are published to metamorph message queue
+// 		5. Next competing block, at height 822016 is being send through the mocked PeerHandler
+// 		6. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
+// 		7. Verification of reorg - checking if statuses are correctly switched
+// 		8. Verification of transactions
+// 			- transactions from the stale chain becoming the longest are published
+// 			- transactions that were previously in the longest chain are published with udpated block data
+// 			- transactions that were previously in the longest chain, but are not in the stale chain are published with blockstatus = STALE
 
 import (
 	"context"
@@ -175,11 +177,7 @@ func testHandleBlockOnEmptyDatabase(t *testing.T, p2pMsgHandler *blocktx_p2p.Msg
 	time.Sleep(200 * time.Millisecond)
 
 	blockHashZero := blockMessage.Header.BlockHash()
-
-	block, err := store.GetBlock(context.Background(), &blockHashZero)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822011), block.Height)
-	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+	verifyBlock(t, store, &blockHashZero, 822011, blocktx_api.Status_LONGEST)
 }
 
 func testHandleStaleBlock(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store *postgresql.PostgreSQL, publishedTxs []*blocktx_api.TransactionBlock) (*chainhash.Hash, []*blocktx_api.TransactionBlock) {
@@ -206,11 +204,7 @@ func testHandleStaleBlock(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, s
 	time.Sleep(200 * time.Millisecond)
 
 	blockHashStale := blockMessage.Header.BlockHash()
-
-	block, err := store.GetBlock(context.Background(), &blockHashStale)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822015), block.Height)
-	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+	verifyBlock(t, store, &blockHashStale, 822015, blocktx_api.Status_STALE)
 
 	// transactions expected to be published to metamorph
 	expectedTxs := []*blocktx_api.TransactionBlock{
@@ -250,40 +244,20 @@ func testHandleReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store 
 
 	// verify that reorg happened
 	blockHashLongest := blockMessage.Header.BlockHash()
-
-	block, err := store.GetBlock(context.Background(), &blockHashLongest)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822016), block.Height)
-	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
-
-	block, err = store.GetBlock(context.Background(), staleBlockHash)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822015), block.Height)
-	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+	verifyBlock(t, store, &blockHashLongest, 822016, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, staleBlockHash, 822015, blocktx_api.Status_LONGEST)
 
 	previouslyLongestBlockHash := testutils.RevChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
-	block, err = store.GetBlock(context.Background(), previouslyLongestBlockHash)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822015), block.Height)
-	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+	verifyBlock(t, store, previouslyLongestBlockHash, 822015, blocktx_api.Status_STALE)
 
 	previouslyLongestBlockHash = testutils.RevChainhash(t, "e1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000")
-	block, err = store.GetBlock(context.Background(), previouslyLongestBlockHash)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822016), block.Height)
-	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+	verifyBlock(t, store, previouslyLongestBlockHash, 822016, blocktx_api.Status_STALE)
 
 	previouslyLongestBlockHash = testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
-	block, err = store.GetBlock(context.Background(), previouslyLongestBlockHash)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822017), block.Height)
-	require.Equal(t, blocktx_api.Status_STALE, block.Status)
+	verifyBlock(t, store, previouslyLongestBlockHash, 822017, blocktx_api.Status_STALE)
 
 	beginningOfChain := testutils.RevChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
-	block, err = store.GetBlock(context.Background(), beginningOfChain)
-	require.NoError(t, err)
-	require.Equal(t, uint64(822014), block.Height)
-	require.Equal(t, blocktx_api.Status_LONGEST, block.Status)
+	verifyBlock(t, store, beginningOfChain, 822014, blocktx_api.Status_LONGEST)
 
 	expectedTxs := []*blocktx_api.TransactionBlock{
 		{ // previously in stale chain
@@ -313,6 +287,13 @@ func testHandleReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store 
 	}
 
 	return expectedTxs
+}
+
+func verifyBlock(t *testing.T, store *postgresql.PostgreSQL, hash *chainhash.Hash, height uint64, status blocktx_api.Status) {
+	block, err := store.GetBlock(context.Background(), hash)
+	require.NoError(t, err)
+	require.Equal(t, height, block.Height)
+	require.Equal(t, status, block.Status)
 }
 
 func verifyTxs(t *testing.T, expectedTxs []*blocktx_api.TransactionBlock, publishedTxs []*blocktx_api.TransactionBlock) {

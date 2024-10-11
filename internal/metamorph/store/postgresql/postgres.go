@@ -443,7 +443,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		   SELECT t2.hash
 		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE' AND t2.status < $3 AND last_submitted_at > $4
-		   ORDER BY hash DESC
+		   ORDER BY hash
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED
 		);
@@ -502,7 +502,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	AND status = $1
 	AND last_submitted_at > $2
 	AND last_submitted_at <= $3
-	ORDER BY hash DESC
+	ORDER BY hash
 	LIMIT $4 OFFSET $5
 	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {
@@ -521,7 +521,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 			AND status = $1
 			AND last_submitted_at >= $2
 			AND last_submitted_at <= $3
-			ORDER BY hash DESC
+			ORDER BY hash
 			LIMIT $4 OFFSET $5)
 		as t
 		WHERE metamorph.transactions.hash = t.hash
@@ -624,7 +624,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash DESC FOR UPDATE`, pq.Array(txHashes))
+	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -707,7 +707,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	// Get current competing transactions and lock them for update
-	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash DESC FOR UPDATE`, pq.Array(txHashes))
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
@@ -825,7 +825,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash DESC FOR UPDATE`, pq.Array(txHashes))
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

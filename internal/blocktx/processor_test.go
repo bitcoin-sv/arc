@@ -357,7 +357,20 @@ func TestHandleBlockReorg(t *testing.T) {
 						Chainwork: "62209952899966",
 					}, nil
 				},
-				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+				InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+					mtx.Lock()
+					insertedBlock = &blocktx_api.Block{
+						Hash:   block.Hash,
+						Status: block.Status,
+					}
+					mtx.Unlock()
+					return 1, nil
+				},
+				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+					// this function is called ONLY when performing reorg
+					mtx.Lock()
+					insertedBlock.Status = blocktx_api.Status_LONGEST
+					mtx.Unlock()
 					return nil, nil
 				},
 				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
@@ -366,14 +379,20 @@ func TestHandleBlockReorg(t *testing.T) {
 				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error {
 					return nil
 				},
-				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {
-					mtx.Lock()
-					insertedBlock = block
-					mtx.Unlock()
-					return 1, errors.New("dummy error") // return error here so we don't have to override next db functions
+				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+					return nil
 				},
-				DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-					return 0, nil
+				GetRegisteredTransactionsFunc: func(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size, txCount uint64) error {
+					return nil
 				},
 			}
 

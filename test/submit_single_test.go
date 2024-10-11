@@ -86,6 +86,7 @@ func TestSubmitSingle(t *testing.T) {
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			generate(t, 1)
+			time.Sleep(10 * time.Second)
 
 			statusResponse = getRequest[TransactionResponse](t, statusUrl)
 			require.Equal(t, Status_MINED, statusResponse.TxStatus)

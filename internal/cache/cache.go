@@ -5,7 +5,12 @@ import (
 	"time"
 )
 
-var ErrCacheNotFound = errors.New("key not found in cache")
+var (
+	ErrCacheNotFound    = errors.New("key not found in cache")
+	ErrCacheFailedToSet = errors.New("failed to set value in cache")
+	ErrCacheFailedToDel = errors.New("failed to delete value from cache")
+	ErrCacheFailedToGet = errors.New("failed to get value from cache")
+)
 
 type Store interface {
 	Get(key string) ([]byte, error)

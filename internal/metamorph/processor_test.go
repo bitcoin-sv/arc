@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
 	"log/slog"
 	"os"
 	"sync"
@@ -34,6 +36,8 @@ func TestNewProcessor(t *testing.T) {
 	}
 
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+
+	cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name  string
@@ -68,7 +72,7 @@ func TestNewProcessor(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			sut, actualErr := metamorph.NewProcessor(tc.store, tc.pm, nil,
+			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.pm, nil,
 				metamorph.WithCacheExpiryTime(time.Second*5),
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 			)
@@ -121,10 +125,12 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			// when
-			sut, err := metamorph.NewProcessor(metamorphStore, pm, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
 			require.NoError(t, err)
 			defer sut.Shutdown()
 			sut.StartLockTransactions()
@@ -221,6 +227,9 @@ func TestProcessTransaction(t *testing.T) {
 					return nil
 				},
 			}
+
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
 					require.True(t, testdata.TX1Hash.IsEqual(txHash))
@@ -235,7 +244,7 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(s, pm, nil, metamorph.WithMessageQueueClient(publisher))
+			sut, err := metamorph.NewProcessor(s, cStore, pm, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -481,6 +490,8 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
@@ -491,7 +502,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
 
-			sut, err := metamorph.NewProcessor(metamorphStore, pm, statusMessageChannel, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
 			require.NoError(t, err)
 
 			// when
@@ -630,6 +641,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 			counter := 0
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, peers []p2p.PeerI) []p2p.PeerI {
@@ -652,7 +664,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 			const submittedTxsBuffer = 5
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
-			sut, err := metamorph.NewProcessor(s, pm, nil,
+			sut, err := metamorph.NewProcessor(s, cStore, pm, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
@@ -761,6 +773,9 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return nil
 				},
 			}
+
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{
 				RequestTransactionFunc: func(txHash *chainhash.Hash) p2p.PeerI {
 					return nil
@@ -777,7 +792,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(metamorphStore, pm, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20), metamorph.WithMaxRetries(10), metamorph.WithNow(func() time.Time {
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20), metamorph.WithMaxRetries(10), metamorph.WithNow(func() time.Time {
 				return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 			}))
 			require.NoError(t, err)
@@ -854,8 +869,10 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(tx *store.StoreData) {},
 			}
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
+				cStore,
 				pm,
 				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
@@ -929,6 +946,8 @@ func TestProcessorHealth(t *testing.T) {
 				},
 			}
 
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{
 				AddPeerFunc: func(peer p2p.PeerI) error {
 					return nil
@@ -944,7 +963,7 @@ func TestProcessorHealth(t *testing.T) {
 				ShutdownFunc: func() {},
 			}
 
-			sut, err := metamorph.NewProcessor(metamorphStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -996,6 +1015,8 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
+			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			var subscribeMinedTxsFunction func([]byte) error
@@ -1020,7 +1041,7 @@ func TestStart(t *testing.T) {
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 2)
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 2)
 
-			sut, err := metamorph.NewProcessor(metamorphStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
 				metamorph.WithMessageQueueClient(mqClient),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithMinedTxsChan(minedTxsChan),

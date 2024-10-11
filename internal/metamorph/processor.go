@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
@@ -57,6 +58,7 @@ var (
 
 type Processor struct {
 	store                     store.MetamorphStore
+	cacheStore                cache.Store
 	hostname                  string
 	pm                        p2p.PeerManagerI
 	mqClient                  MessageQueueClient
@@ -105,7 +107,7 @@ type CallbackSender interface {
 	SendCallback(data *store.StoreData)
 }
 
-func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
@@ -121,6 +123,7 @@ func NewProcessor(s store.MetamorphStore, pm p2p.PeerManagerI, statusMessageChan
 
 	p := &Processor{
 		store:                     s,
+		cacheStore:                c,
 		hostname:                  hostname,
 		pm:                        pm,
 		mapExpiryTime:             mapExpiryTimeDefault,
@@ -397,28 +400,29 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
-
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				updateStatusMap(statusUpdatesMap, statusUpdate)
+				actualUpdateStatusMap, err := p.updateStatusMap(statusUpdate)
+				if err != nil {
+					p.logger.Error("failed to update status", slog.String("err", err.Error()))
+					return
+				}
 
-				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.checkAndUpdate(statusUpdatesMap)
-					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
+					p.checkAndUpdate(actualUpdateStatusMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
+				statusUpdatesMap := p.getStatusUpdateMap()
 				if len(statusUpdatesMap) > 0 {
 					p.checkAndUpdate(statusUpdatesMap)
-					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -449,6 +453,8 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
+
+	_ = p.cacheStore.Del(CacheStatusUpdateKey)
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {

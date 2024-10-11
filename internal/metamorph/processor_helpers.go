@@ -1,15 +1,26 @@
 package metamorph
 
 import (
+	"encoding/json"
+	"errors"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+)
+
+const CacheStatusUpdateKey = "status-updates"
+
+var (
+	ErrFailedToSerialize   = errors.New("failed to serialize value")
+	ErrFailedToDeserialize = errors.New("failed to deserialize value")
 )
 
 func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
+func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) {
+	statusUpdatesMap := p.getStatusUpdateMap()
+
 	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 
 	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
@@ -19,6 +30,40 @@ func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, sta
 
 		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 	}
+
+	err := p.setStatusUpdateMap(statusUpdatesMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return statusUpdatesMap, nil
+}
+
+func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error {
+	bytes, err := serializeStatusMap(statusUpdatesMap)
+	if err != nil {
+		return err
+	}
+
+	err = p.cacheStore.Set(CacheStatusUpdateKey, bytes, processStatusUpdatesIntervalDefault)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus {
+	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
+
+	if err == nil {
+		statusUpdatesMap, err := deserializeStatusMap(existingMap)
+		if err == nil {
+			return statusUpdatesMap
+		}
+	}
+
+	// If the key doesn't exist or there was an error unmarshalling the value return new map
+	return make(map[chainhash.Hash]store.UpdateStatus)
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
@@ -73,4 +118,37 @@ func mergeUnique(arr1, arr2 []string) []string {
 	}
 
 	return uniqueSlice
+}
+
+func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) {
+	serializeMap := make(map[string]store.UpdateStatus)
+	for k, v := range updateStatusMap {
+		serializeMap[k.String()] = v
+	}
+
+	bytes, err := json.Marshal(serializeMap)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToSerialize, err)
+	}
+	return bytes, nil
+}
+
+func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) {
+	serializeMap := make(map[string]store.UpdateStatus)
+	updateStatusMap := make(map[chainhash.Hash]store.UpdateStatus)
+
+	err := json.Unmarshal(data, &serializeMap)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToDeserialize, err)
+	}
+
+	for k, v := range serializeMap {
+		hash, err := chainhash.NewHashFromStr(k)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToDeserialize, err)
+		}
+		updateStatusMap[*hash] = v
+	}
+
+	return updateStatusMap, nil
 }

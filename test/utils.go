@@ -329,8 +329,10 @@ func generateRandomString(length int) string {
 	return string(b)
 }
 
-type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
-type callbackBatchResponseFn func(w http.ResponseWriter, rc chan *CallbackBatchResponse, ec chan error, status *CallbackBatchResponse)
+type (
+	callbackResponseFn      func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
+	callbackBatchResponseFn func(w http.ResponseWriter, rc chan *CallbackBatchResponse, ec chan error, status *CallbackBatchResponse)
+)
 
 // use buffered channels for multiple callbacks
 func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
@@ -551,7 +553,6 @@ func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionRespon
 		respondWithSuccess := false
 		if callbackNumber < callbackNumbers {
 			respondWithSuccess = false
-
 		} else {
 			respondWithSuccess = true
 		}
@@ -585,7 +586,6 @@ func prepareBatchCallback(t *testing.T, callbackNumbers int) (chan *CallbackBatc
 		respondWithSuccess := false
 		if callbackNumber < callbackNumbers {
 			respondWithSuccess = false
-
 		} else {
 			respondWithSuccess = true
 		}

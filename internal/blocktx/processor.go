@@ -415,9 +415,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 
-	// don't process block that was already processed or is below our retention height
+	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
+
+	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
-	if existingBlock != nil || msg.Height < uint64(p.getRetentionHeightRange()) {
+	if existingBlock != nil {
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()))
 		return nil
 	}
 

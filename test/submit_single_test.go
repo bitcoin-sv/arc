@@ -61,7 +61,6 @@ func TestSubmitSingle(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			// Send POST request
 			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, tc.expectedStatusCode)
 
@@ -86,7 +85,6 @@ func TestSubmitSingle(t *testing.T) {
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			generate(t, 1)
-			time.Sleep(10 * time.Second)
 
 			statusResponse = getRequest[TransactionResponse](t, statusUrl)
 			require.Equal(t, Status_MINED, statusResponse.TxStatus)
@@ -115,7 +113,6 @@ func TestSubmitSingle(t *testing.T) {
 
 func TestSubmitMined(t *testing.T) {
 	t.Run("submit mined tx", func(t *testing.T) {
-
 		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 		// given
@@ -210,7 +207,6 @@ func TestSubmitQueued(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-
 	tt := []struct {
 		name                       string
 		numberOfTxs                int
@@ -303,7 +299,6 @@ func TestCallback(t *testing.T) {
 						testTxSubmission(t, callbackSrv.url, callbackSrv.token, false, tx)
 					}
 				}
-
 			}
 
 			// mine trasactions
@@ -355,7 +350,6 @@ func TestCallback(t *testing.T) {
 }
 
 func TestBatchCallback(t *testing.T) {
-
 	tt := []struct {
 		name                       string
 		numberOfTxs                int
@@ -448,7 +442,6 @@ func TestBatchCallback(t *testing.T) {
 						testTxSubmission(t, callbackSrv.url, callbackSrv.token, true, tx)
 					}
 				}
-
 			}
 
 			// mine trasactions
@@ -504,7 +497,6 @@ func TestBatchCallback(t *testing.T) {
 }
 
 func TestSkipValidation(t *testing.T) {
-
 	tt := []struct {
 		name              string
 		skipFeeValidation bool

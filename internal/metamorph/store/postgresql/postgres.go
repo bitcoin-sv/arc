@@ -625,7 +625,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 		var historyDataStr *string
 		if update.StatusHistory != nil {
-			historyData, err := prepareStructForSaving(update.StatusHistory)
+			historyData, err := json.Marshal(update.StatusHistory)
 			if err != nil {
 				return nil, err
 			}

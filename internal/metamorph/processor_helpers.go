@@ -18,19 +18,14 @@ func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func (p *Processor) updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
+func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) {
+	statusUpdatesMap := p.getStatusUpdateMap()
+
 	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 
 	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
 		if len(statusUpdate.CompetingTxs) > 0 {
 			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
-		}
-
-		if found {
-			statusUpdate.StatusHistory = append(foundStatusUpdate.StatusHistory, store.StatusWithTimestamp{
-				Status:    foundStatusUpdate.Status,
-				Timestamp: p.now(),
-			})
 		}
 
 		statusUpdatesMap[statusUpdate.Hash] = statusUpdate

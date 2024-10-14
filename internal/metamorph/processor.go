@@ -406,7 +406,11 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				p.updateStatusMap(statusUpdatesMap, statusUpdate)
+				actualUpdateStatusMap, err := p.updateStatusMap(statusUpdate)
+				if err != nil {
+					p.logger.Error("failed to update status", slog.String("err", err.Error()))
+					return
+				}
 
 				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(actualUpdateStatusMap)

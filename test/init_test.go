@@ -40,8 +40,8 @@ func setupSut() {
 	const minNumbeOfBlocks = 101
 
 	if info.Blocks < minNumbeOfBlocks {
-		// generate blocks in part to make sure blocktx is able to process all blocks
-		const blockBatch = 4
+		// generate blocks in part to ensure blocktx is able to process all blocks
+		const blockBatch = 40 // should be leq n*10 where n is number of blocktx instances
 
 		for {
 			_, err = bitcoind.Generate(blockBatch)
@@ -49,8 +49,8 @@ func setupSut() {
 				log.Fatalln(err)
 			}
 
-			//give time to process blocks
-			time.Sleep(2 * time.Second)
+			//give time to send all INV messages
+			time.Sleep(5 * time.Second)
 
 			info, err = bitcoind.GetInfo()
 			if err != nil {

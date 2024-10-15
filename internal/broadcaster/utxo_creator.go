@@ -64,7 +64,7 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 	balance := confirmed + unconfirmed
 
 	if requestedOutputsSatoshis > balance {
-		return errors.Join(ErrRequestedSatoshisTooHigh, fmt.Errorf("equested: %d, balance: %d", requestedOutputsSatoshis, balance))
+		return errors.Join(ErrRequestedSatoshisTooHigh, fmt.Errorf("requested: %d, balance: %d", requestedOutputsSatoshis, balance))
 	}
 
 	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Script, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)

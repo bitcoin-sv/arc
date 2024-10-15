@@ -31,8 +31,8 @@ var (
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
-	maxRequestBlocks                   = 1
-	maxBlocksInProgress                = 1
+	maxRequestBlocks                   = 10
+	maxBlocksInProgress                = 10
 	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
@@ -144,7 +144,7 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				if len(bhs) >= maxBlocksInProgress {
-					p.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+					p.logger.Warn("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
 					continue
 				}
 
@@ -219,7 +219,7 @@ func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
 
 				err := p.fillGaps(peers[peerIndex])
 				if err != nil {
-					p.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
+					p.logger.Error("failed to fill gaps", slog.String("err", err.Error()))
 				}
 
 				peerIndex++
@@ -378,13 +378,12 @@ func (p *Processor) fillGaps(peer p2p.PeerI) error {
 			break
 		}
 
-		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
+		p.logger.Info("adding request for missing block to channel", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
 
-		pair := BlockRequest{
+		p.blockRequestCh <- BlockRequest{
 			Hash: gaps.Hash,
 			Peer: peer,
 		}
-		p.blockRequestCh <- pair
 	}
 
 	return nil

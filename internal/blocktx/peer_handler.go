@@ -1,10 +1,12 @@
 package blocktx
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"log/slog"
 
+	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p"
@@ -107,18 +109,37 @@ func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI
 	}
 
 	ph.blockRequestCh <- req
-
 	return nil
 }
 
 func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
 	msg, ok := wireMsg.(*p2p.BlockMessage)
 	if !ok {
-		ph.logger.Debug(ErrUnableToCastWireMessage.Error())
 		return ErrUnableToCastWireMessage
 	}
 
 	ph.blockProcessCh <- msg
-
 	return nil
+}
+
+func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
+	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig (BIP-34)
+
+	cscript := *(tx.Inputs[0].UnlockingScript)
+
+	if cscript[0] >= script.Op1 && cscript[0] <= script.Op16 { // first 16 blocks are treated differently (we have to handle it due to our tests)
+		return uint64(cscript[0] - 0x50)
+	}
+
+	hLenght := int(cscript[0])
+	if len(cscript) < hLenght+1 {
+		return 0
+	}
+
+	b := make([]byte, 8)
+	for i := 0; i < hLenght; i++ {
+		b[i] = cscript[i+1]
+	}
+
+	return binary.LittleEndian.Uint64(b)
 }

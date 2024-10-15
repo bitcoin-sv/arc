@@ -59,17 +59,5 @@ func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSource
 		f.s.Set(tx.TxID, tx, cacheExpiration)
 	}
 
-	return unit(cachedTxs, foundTxs), nil
-}
-
-func unit(left, right []validator.RawTx) []validator.RawTx {
-	r := left
-	m := right
-
-	if len(left) < len(right) {
-		r = right
-		m = left
-	}
-
-	return append(r, m...)
+	return append(cachedTxs, foundTxs...), nil
 }

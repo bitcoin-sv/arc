@@ -67,7 +67,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
 
-	// decore context with event ID
+	// decorate context with event ID
 	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		if event, ok := req.(common_api.UnaryEvent); ok && event != nil {
 			id := event.GetEventId()

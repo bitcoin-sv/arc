@@ -74,7 +74,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	}
 
 	// try to get remaining txs from the node
-	if source.Has(validator.SourceNodes) {
+	if source.Has(validator.SourceNodes) && f.n != nil {
 		var nErr error
 		for _, id := range ids {
 			nTx, err := f.n.GetRawTransaction(id)

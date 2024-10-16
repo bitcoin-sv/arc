@@ -28,6 +28,13 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainh
 			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
 		}
 
+		if found {
+			statusUpdate.StatusHistory = append(foundStatusUpdate.StatusHistory, store.StatusWithTimestamp{
+				Status:    foundStatusUpdate.Status,
+				Timestamp: p.now(),
+			})
+		}
+
 		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 	}
 

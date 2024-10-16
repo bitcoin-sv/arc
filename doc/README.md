@@ -99,18 +99,17 @@ Metamorph is a microservice that is responsible for processing transactions sent
 
 ### Callbacker
 
-The Callbacker is a microservice responsible for handling all registered callbacks. It sends a `POST` request to the specified URL, including a `Bearer token` in the `Authorization` header when required.
+The Callbacker is a microservice responsible for handling all registered callbacks. It sends `POST` requests to the specified URL, including a `Bearer token` in the `Authorization header` when required, and supports sending callbacks in two distinct ways: either as an individual callback or as a batch of callbacks. When sending a single callback, the service makes a call with just one callback object. Callbacks registered as batchable are sent together in a single request (with a maximum of `50` callbacks per request). By default, batched callbacks are sent at `5s` intervals, though this is configurable.
 
-The specification of the callback object with different examples can be found [here](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#callback)
+The specification of the callback objects, along with examples, can be found [here for single](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#callback) callback and [here for batched](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#batchedCallbacks) callbacks.
 
-To prevent DDoS attacks on callback receivers, the Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring only one request is sent at a time.
+To prevent DDoS attacks on callback receivers, each Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring that only one request is sent at a time.
 
->NOTE: Typically, there are several instances of Callbacker, and each one works independently.
+>NOTE: Typically, there are several instances of Callbacker, and each one operates independently.
 
-The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in quarantine for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service to be retried later.
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in quarantine for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service for later retries.
 
->NOTE: Callbacks that weren't successfully sent for an extended period (e.g., 24 hours) are no longer sent.
-
+>NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 
 ### BlockTx
 

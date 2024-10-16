@@ -10,6 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestStart(t *testing.T) {
-	ks, err := keyset.New()
+	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
 	utxo1 := &sdkTx.UTXO{

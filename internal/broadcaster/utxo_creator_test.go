@@ -2,7 +2,6 @@ package broadcaster_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -51,7 +50,7 @@ func TestUTXOCreator(t *testing.T) {
 				return 100, 0, nil
 			},
 			expectedBroadcastCalls: 0,
-			expectedError:          errors.New("requested total of satoshis exceeds balance\nrequested: 400, balance: 100"),
+			expectedError:          broadcaster.ErrRequestedSatoshisTooHigh,
 			requestedUTXOs:         4,
 			requestedAmountPerUTXO: 100,
 		},
@@ -86,7 +85,7 @@ func TestUTXOCreator(t *testing.T) {
 
 			// Then
 			if tt.expectedError != nil {
-				require.EqualError(t, actualError, tt.expectedError.Error(), "Error message mismatch")
+				require.ErrorIs(t, actualError, tt.expectedError)
 				return
 			} else {
 				require.NoError(t, actualError)

@@ -28,6 +28,7 @@ var (
 	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
 	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
 	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
 )
 
@@ -701,7 +702,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 
 	blockhash, err := chainhash.NewHash(block.Hash)
 	if err != nil {
-		return fmt.Errorf("failed to create block hash for block at height %d", block.Height)
+		return errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
 	}
 
 	var totalSize int
@@ -726,7 +727,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex))
 		if err != nil {
-			return fmt.Errorf("failed to create new bump for tx hash %s from merkle tree and index at block height %d: %v", hash.String(), block.Height, err)
+			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}
 
 		bumpHex, err := bump.String()

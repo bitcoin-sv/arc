@@ -608,7 +608,7 @@ components:
           ]
           description: Transaction status
           example: "ACCEPTED_BY_NETWORK"
-#          nullable: false
+          nullable: false
         extraInfo:
           type: string
           description: Extra information about the transaction

@@ -26,14 +26,16 @@ func New(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_clien
 	l = l.With(slog.String("module", "tx-finder"))
 	var n *bitcoin.Bitcoind
 
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
-	if err != nil {
-		l.Warn("cannot parse node rpc url. Finder will not use node as source")
-	} else {
-		// get the transaction from the bitcoin node rpc
-		n, err = bitcoin.NewFromURL(rpcURL, false)
+	if pc != nil {
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
 		if err != nil {
-			l.Warn("cannot create node client. Finder will not use node as source")
+			l.Warn("cannot parse node rpc url. Finder will not use node as source")
+		} else {
+			// get the transaction from the bitcoin node rpc
+			n, err = bitcoin.NewFromURL(rpcURL, false)
+			if err != nil {
+				l.Warn("cannot create node client. Finder will not use node as source")
+			}
 		}
 	}
 

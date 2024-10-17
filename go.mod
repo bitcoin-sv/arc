@@ -9,7 +9,6 @@ require (
 	github.com/enescakir/emoji v1.0.0
 	github.com/getkin/kin-openapi v0.127.0
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/go-redis/redismock/v8 v8.11.5
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/google/uuid v1.6.0
@@ -29,6 +28,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/ordishs/go-bitcoin v1.0.86
 	github.com/ory/dockertest/v3 v3.11.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/sirupsen/logrus v1.9.3
@@ -118,7 +118,6 @@ require (
 	github.com/opencontainers/runc v1.1.14 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/ordishs/go-utils v1.0.51 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/paulmach/orb v0.9.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
@@ -136,7 +135,6 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect

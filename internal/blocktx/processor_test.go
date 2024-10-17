@@ -328,6 +328,14 @@ func TestHandleBlockReorg(t *testing.T) {
 			shouldFindOrphanChain: true,
 		},
 		{
+			name:                  "previous block longest - orphaned chain - competing - reorg",
+			prevBlockStatus:       blocktx_api.Status_LONGEST,
+			hasCompetingBlock:     true,
+			hasGreaterChainwork:   false, // tip of orphan chain has greater chainwork
+			expectedStatus:        blocktx_api.Status_LONGEST,
+			shouldFindOrphanChain: true,
+		},
+		{
 			name:                  "previous block stale - orphaned chain - competing - reorg",
 			prevBlockStatus:       blocktx_api.Status_STALE,
 			hasCompetingBlock:     true,

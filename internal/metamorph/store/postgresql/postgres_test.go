@@ -277,11 +277,11 @@ func TestPostgresDB(t *testing.T) {
 		expectedHash2 := testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")
 
 		// locked by NONE
-		expectedHash3 := testutils.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
+		expectedHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
 
 		// check if previously unlocked tx has b
 		// locked by NONE
-		expectedHash4 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
+		expectedHash4 := testutils.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
 
 		// check if previously unlocked tx has been locked
 		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])

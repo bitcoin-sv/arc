@@ -54,9 +54,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetStaleChainBackFromHash method")
 //			},
-//			InsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-//				panic("mock out the InsertBlock method")
-//			},
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
 //			},
@@ -71,6 +68,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
+//			},
+//			UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+//				panic("mock out the UpsertBlock method")
 //			},
 //			UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 //				panic("mock out the UpsertBlockTransactions method")
@@ -118,9 +118,6 @@ type BlocktxStoreMock struct {
 	// GetStaleChainBackFromHashFunc mocks the GetStaleChainBackFromHash method.
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 
-	// InsertBlockFunc mocks the InsertBlock method.
-	InsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
-
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 
@@ -135,6 +132,9 @@ type BlocktxStoreMock struct {
 
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
+
+	// UpsertBlockFunc mocks the UpsertBlock method.
+	UpsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 
 	// UpsertBlockTransactionsFunc mocks the UpsertBlockTransactions method.
 	UpsertBlockTransactionsFunc func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error)
@@ -221,13 +221,6 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
-		// InsertBlock holds details about calls to the InsertBlock method.
-		InsertBlock []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Block is the block argument value.
-			Block *blocktx_api.Block
-		}
 		// MarkBlockAsDone holds details about calls to the MarkBlockAsDone method.
 		MarkBlockAsDone []struct {
 			// Ctx is the ctx argument value.
@@ -267,6 +260,13 @@ type BlocktxStoreMock struct {
 			// BlockStatusUpdates is the blockStatusUpdates argument value.
 			BlockStatusUpdates []store.BlockStatusUpdate
 		}
+		// UpsertBlock holds details about calls to the UpsertBlock method.
+		UpsertBlock []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Block is the block argument value.
+			Block *blocktx_api.Block
+		}
 		// UpsertBlockTransactions holds details about calls to the UpsertBlockTransactions method.
 		UpsertBlockTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -297,12 +297,12 @@ type BlocktxStoreMock struct {
 	lockGetLongestChainFromHeight          sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
 	lockGetStaleChainBackFromHash          sync.RWMutex
-	lockInsertBlock                        sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
 	lockPing                               sync.RWMutex
 	lockRegisterTransactions               sync.RWMutex
 	lockSetBlockProcessing                 sync.RWMutex
 	lockUpdateBlocksStatuses               sync.RWMutex
+	lockUpsertBlock                        sync.RWMutex
 	lockUpsertBlockTransactions            sync.RWMutex
 	lockVerifyMerkleRoots                  sync.RWMutex
 }
@@ -702,42 +702,6 @@ func (mock *BlocktxStoreMock) GetStaleChainBackFromHashCalls() []struct {
 	return calls
 }
 
-// InsertBlock calls InsertBlockFunc.
-func (mock *BlocktxStoreMock) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-	if mock.InsertBlockFunc == nil {
-		panic("BlocktxStoreMock.InsertBlockFunc: method is nil but BlocktxStore.InsertBlock was just called")
-	}
-	callInfo := struct {
-		Ctx   context.Context
-		Block *blocktx_api.Block
-	}{
-		Ctx:   ctx,
-		Block: block,
-	}
-	mock.lockInsertBlock.Lock()
-	mock.calls.InsertBlock = append(mock.calls.InsertBlock, callInfo)
-	mock.lockInsertBlock.Unlock()
-	return mock.InsertBlockFunc(ctx, block)
-}
-
-// InsertBlockCalls gets all the calls that were made to InsertBlock.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.InsertBlockCalls())
-func (mock *BlocktxStoreMock) InsertBlockCalls() []struct {
-	Ctx   context.Context
-	Block *blocktx_api.Block
-} {
-	var calls []struct {
-		Ctx   context.Context
-		Block *blocktx_api.Block
-	}
-	mock.lockInsertBlock.RLock()
-	calls = mock.calls.InsertBlock
-	mock.lockInsertBlock.RUnlock()
-	return calls
-}
-
 // MarkBlockAsDone calls MarkBlockAsDoneFunc.
 func (mock *BlocktxStoreMock) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 	if mock.MarkBlockAsDoneFunc == nil {
@@ -923,6 +887,42 @@ func (mock *BlocktxStoreMock) UpdateBlocksStatusesCalls() []struct {
 	mock.lockUpdateBlocksStatuses.RLock()
 	calls = mock.calls.UpdateBlocksStatuses
 	mock.lockUpdateBlocksStatuses.RUnlock()
+	return calls
+}
+
+// UpsertBlock calls UpsertBlockFunc.
+func (mock *BlocktxStoreMock) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+	if mock.UpsertBlockFunc == nil {
+		panic("BlocktxStoreMock.UpsertBlockFunc: method is nil but BlocktxStore.UpsertBlock was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Block *blocktx_api.Block
+	}{
+		Ctx:   ctx,
+		Block: block,
+	}
+	mock.lockUpsertBlock.Lock()
+	mock.calls.UpsertBlock = append(mock.calls.UpsertBlock, callInfo)
+	mock.lockUpsertBlock.Unlock()
+	return mock.UpsertBlockFunc(ctx, block)
+}
+
+// UpsertBlockCalls gets all the calls that were made to UpsertBlock.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.UpsertBlockCalls())
+func (mock *BlocktxStoreMock) UpsertBlockCalls() []struct {
+	Ctx   context.Context
+	Block *blocktx_api.Block
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Block *blocktx_api.Block
+	}
+	mock.lockUpsertBlock.RLock()
+	calls = mock.calls.UpsertBlock
+	mock.lockUpsertBlock.RUnlock()
 	return calls
 }
 

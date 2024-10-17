@@ -148,6 +148,7 @@ func (p *Processor) StartBlockRequesting() {
 					continue
 				}
 
+				// lock block for the current instance to process
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
@@ -161,13 +162,22 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				msg := wire.NewMsgGetData()
-				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-					p.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					continue
-				}
+				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
 				if err = peer.WriteMsg(msg); err != nil {
-					p.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+
+					// unlock block
+					// use closures for retries
+					unlockFn := func() error {
+						_, sErr := p.store.DelBlockProcessing(p.ctx, hash, p.hostname)
+						return sErr
+					}
+
+					if unlockErr := withRetry(p.ctx, unlockFn, 5); unlockErr != nil {
+						p.logger.Error("failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
+					}
+
 					continue
 				}
 
@@ -188,12 +198,22 @@ func (p *Processor) StartBlockProcessing() {
 			case <-p.ctx.Done():
 				return
 			case blockMsg := <-p.blockProcessCh:
+				blockhash := blockMsg.Header.BlockHash()
+				p.logger.Info("received block", slog.String("hash", blockhash.String()))
+
 				err := p.processBlock(blockMsg)
+
 				if err != nil {
-					blockhash := blockMsg.Header.BlockHash()
-					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
-					if errDel != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", errDel.Error()))
+					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
+					// unlock block for future processing
+					// use closures for retries
+					unlockFn := func() error {
+						_, sErr := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
+						return sErr
+					}
+
+					if unlockErr := withRetry(p.ctx, unlockFn, 5); unlockErr != nil {
+						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", unlockErr.Error()))
 					}
 				}
 			}
@@ -416,7 +436,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
-	if existingBlock != nil {
+	if existingBlock != nil && existingBlock.Processed {
 		return nil
 	}
 
@@ -472,11 +492,11 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		}
 	}
 
-	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+	p.logger.Info("Upserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
+	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
-		p.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to upsert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return err
 	}
 

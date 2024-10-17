@@ -122,7 +122,8 @@ api:
     minconfconsolidationinput: 6
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
-
+  requestExtendedLogs: true
+  
 callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: arc-callbacker:8021

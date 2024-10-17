@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"runtime/debug"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
@@ -15,6 +17,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+
+	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
@@ -63,6 +67,19 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	chainUnaryInterceptors = append(chainUnaryInterceptors, // Order matters e.g. tracing interceptor have to create span first for the later exemplars to work.
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
 
+	// decorate context with event ID
+	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		if event, ok := req.(common_api.UnaryEvent); ok && event != nil {
+			id := event.GetEventId()
+			if id != "" {
+				//nolint:staticcheck // use string key on purpose
+				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) //lint:ignore SA1029 use string key on purpose
+			}
+		}
+
+		return handler(ctx, req)
+	})
+
 	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(chainUnaryInterceptors...),
 		grpc.MaxRecvMsgSize(grpcMessageSize),
@@ -96,6 +113,15 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 		chainUnaryInterceptors = append(chainUnaryInterceptors, clientMetrics.UnaryClientInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
 	}
 
+	// add eventID from context to grpc request if possible
+	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if eventID, ok := ctx.Value(arc_logger.EventIDField).(string); ok {
+			trySetEventId(req, eventID)
+		}
+
+		return invoker(ctx, method, req, reply, cc, opts...)
+	})
+
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...),
@@ -104,4 +130,25 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 	}
 
 	return dialOpts, nil
+}
+
+func trySetEventId(x any, eventId string) {
+	// get the value and type of the argument
+	v := reflect.ValueOf(x)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// if x is not a struct return
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	// check if struct has EventId field
+	field := v.FieldByName("EventId")
+	if !field.IsValid() && !field.CanSet() && field.Kind() != reflect.String {
+		return
+	}
+
+	field.SetString(eventId)
 }

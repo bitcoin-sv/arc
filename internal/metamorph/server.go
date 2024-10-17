@@ -318,7 +318,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
 	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
-		s.logger.Error("failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -340,7 +340,7 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (*metamorph_api.Transactions, error) {
 	data, err := s.getTransactions(ctx, req)
 	if err != nil {
-		s.logger.Error("failed to get transactions", slog.String("err", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get transactions", slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -372,7 +372,7 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrNotFound
 		}
-		s.logger.Error("failed to get transaction status", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get transaction status", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
 		return nil, err
 	}
 

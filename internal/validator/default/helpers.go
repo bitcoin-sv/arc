@@ -14,7 +14,7 @@ var (
 	ErrFailedToGetRawTxs = errors.New("failed to get raw transactions for parent")
 )
 
-func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *sdkTx.Transaction) error {
+func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transaction) error {
 	// potential improvement: implement version for the rawTx with only one input
 
 	// get distinct parents
@@ -39,7 +39,7 @@ func extendTx(ctx context.Context, w validator.TxFinderI, rawTx *sdkTx.Transacti
 	// get parents
 	const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
 
-	parentsTxs, err := w.GetRawTxs(ctx, finderSource, parentsIDs)
+	parentsTxs, err := f.GetRawTxs(ctx, finderSource, parentsIDs)
 	if err != nil {
 		return fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err)
 	}
@@ -131,12 +131,12 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 
 		// get parent ancestors
 		parentAncestorsSet, err := getUnminedAncestors(ctx, w, bTx)
-		if err != nil {
-			return nil, err
-		}
-
 		for aID, aTx := range parentAncestorsSet {
 			unmindedAncestorsSet[aID] = aTx
+		}
+
+		if err != nil {
+			return unmindedAncestorsSet, err
 		}
 	}
 

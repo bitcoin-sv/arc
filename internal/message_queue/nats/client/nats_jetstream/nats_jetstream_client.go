@@ -66,7 +66,7 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 	ctx, cancel := context.WithCancel(context.Background())
 
 	p := &Client{
-		logger:      logger,
+		logger:      logger.With("module", "nats-jetstream"),
 		nc:          nc,
 		consumers:   map[string]jetstream.Consumer{},
 		storageType: jetstream.MemoryStorage,

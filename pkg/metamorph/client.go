@@ -208,7 +208,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 		if err == nil {
 			break
 		}
-		m.logger.Error("Failed to put transactions", slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
 		time.Sleep(interval)
 		if maxTimeout >= time.Since(start) {
 			continue
@@ -273,7 +273,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		if err == nil {
 			break
 		}
-		m.logger.Error("Failed to put transactions", slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
 		time.Sleep(interval)
 		if maxTimeout >= time.Since(start) {
 			continue

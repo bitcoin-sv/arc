@@ -206,7 +206,7 @@ utxoLoop:
 					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
 				}
 
-				testHeader := []byte(" size-jitter random bytes - ")
+				testHeader := []byte(" sizeJitter random bytes - ")
 				if b.opReturn != "" {
 					testHeader = append([]byte(b.opReturn), testHeader...)
 				}

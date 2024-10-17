@@ -163,7 +163,7 @@ func TestHandleBlock(t *testing.T) {
 				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				GetRegisteredTransactionsFunc: func(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+				GetRegisteredTransactionsFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
@@ -380,7 +380,7 @@ func TestHandleBlockReorg(t *testing.T) {
 				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 					return nil
 				},
-				GetRegisteredTransactionsFunc: func(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+				GetRegisteredTransactionsFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {

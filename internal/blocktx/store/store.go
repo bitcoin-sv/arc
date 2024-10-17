@@ -36,7 +36,8 @@ type BlocktxStore interface {
 	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]TransactionBlock, error)
+	GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 

@@ -38,3 +38,15 @@
   txid: 10
   merkle_path: merkle-path-10
   inserted_at: 2023-12-15 14:00:00
+- blockid: 3
+  txid: 11
+  merkle_path: merkle-path-11
+  inserted_at: 2023-12-15 14:00:00
+- blockid: 3
+  txid: 12
+  merkle_path: merkle-path-12
+  inserted_at: 2023-12-15 14:00:00
+- blockid: 3
+  txid: 13
+  merkle_path: merkle-path-13
+  inserted_at: 2023-12-15 14:00:00

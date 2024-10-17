@@ -15,5 +15,15 @@ func (c chain) getTip() (*blocktx_api.Block, error) {
 		return nil, ErrEmptyChain
 	}
 
-	return c[0], nil
+	return c[len(c)-1], nil
+}
+
+func (c chain) getHashes() [][]byte {
+	hashes := make([][]byte, len(c))
+
+	for i, b := range c {
+		hashes[i] = b.Hash
+	}
+
+	return hashes
 }

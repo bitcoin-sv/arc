@@ -273,6 +273,32 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
+	t.Run("get orphaned chain up from hash", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB.db, "fixtures/get_orphaned_chain")
+
+		hashGapFiller := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+		hash2Orphaned := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
+		hash3Orphaned := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
+		hash4Orphaned := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+
+		expectedOrphanedHashes := [][]byte{
+			hash2Orphaned[:],
+			hash3Orphaned[:],
+			hash4Orphaned[:],
+		}
+
+		// when
+		actualOrphanedBlocks, err := postgresDB.GetOrphanedChainUpFromHash(ctx, hashGapFiller[:])
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, len(expectedOrphanedHashes), len(actualOrphanedBlocks))
+		for i, b := range actualOrphanedBlocks {
+			require.Equal(t, expectedOrphanedHashes[i], b.Hash)
+		}
+	})
+
 	t.Run("update blocks statuses", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB.db, "fixtures/update_blocks_statuses")
@@ -350,20 +376,27 @@ func TestPostgresDB(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_transactions")
 
-		blockId := uint64(2)
-		blockHash := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
+		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
+		blockHash2 := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
 
 		expectedTxs := []store.TransactionBlock{
 			{
-				TxHash:      testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")[:],
+				TxHash:      testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")[:],
 				BlockHash:   blockHash[:],
+				BlockHeight: 822013,
+				MerklePath:  "merkle-path-2",
+				BlockStatus: blocktx_api.Status_STALE,
+			},
+			{
+				TxHash:      testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")[:],
+				BlockHash:   blockHash2[:],
 				BlockHeight: 822012,
 				MerklePath:  "merkle-path-6",
 				BlockStatus: blocktx_api.Status_STALE,
 			},
 			{
 				TxHash:      testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")[:],
-				BlockHash:   blockHash[:],
+				BlockHash:   blockHash2[:],
 				BlockHeight: 822012,
 				MerklePath:  "merkle-path-7",
 				BlockStatus: blocktx_api.Status_STALE,
@@ -371,7 +404,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetRegisteredTransactions(ctx, blockId)
+		actualTxs, err := postgresDB.GetRegisteredTransactions(ctx, [][]byte{blockHash[:], blockHash2[:]})
 
 		// then
 		require.NoError(t, err)
@@ -639,6 +672,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			prepareDb(t, sut.db, "fixtures/upsert_block_transactions")
 
 			testBlockID := uint64(9736)
+			testBlockHash := testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")
 
 			// when
 			err := sut.UpsertBlockTransactions(ctx, testBlockID, tc.txsWithMerklePaths)
@@ -646,7 +680,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			// then
 			require.NoError(t, err)
 
-			res, err := sut.GetRegisteredTransactions(ctx, testBlockID)
+			res, err := sut.GetRegisteredTransactions(ctx, [][]byte{testBlockHash[:]})
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedUpdatedResLen, len(res))

@@ -21,10 +21,10 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes), blocktx_api.Status_LONGEST)
 }
 
-func (p *PostgreSQL) GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
-	predicate := "WHERE m.blockid = $1 AND t.is_registered = TRUE"
+func (p *PostgreSQL) GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+	predicate := "WHERE b.hash = ANY($1) AND t.is_registered = TRUE"
 
-	return p.getTransactionBlocksByPredicate(ctx, predicate, blockId)
+	return p.getTransactionBlocksByPredicate(ctx, predicate, blockHashes)
 }
 
 func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {

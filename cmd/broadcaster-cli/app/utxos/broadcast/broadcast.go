@@ -105,6 +105,11 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
+		sizeJitterMax, err := helper.GetInt("sizeJitter")
+		if err != nil {
+			return err
+		}
+
 		logger := helper.GetLogger()
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
@@ -122,6 +127,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithOpReturn(opReturn),
+			broadcaster.WithSizeJitter(sizeJitterMax),
 		}
 
 		if waitForStatus > 0 {
@@ -208,6 +214,12 @@ func init() {
 
 	Cmd.Flags().String("opReturn", "", "Text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added")
 	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Cmd.Flags().Int("sizeJitter", 0, "Enable the option to randomise the transaction size by adding random data and using multiple inputs, the parameter specifies the maximum size of bytes that will be added to OP_RETURN (plus OP_RETURN header if specified)")
+	err = viper.BindPFlag("sizeJitter", Cmd.Flags().Lookup("sizeJitter"))
 	if err != nil {
 		log.Fatal(err)
 	}

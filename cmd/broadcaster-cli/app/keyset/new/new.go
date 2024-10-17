@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,17 @@ var (
 		Short: "Create new key set",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			newKeyset, err := keyset.New()
+			isTestnet, err := helper.GetBool("testnet")
+			if err != nil {
+				return err
+			}
+
+			netCfg := chaincfg.MainNet
+			if isTestnet {
+				netCfg = chaincfg.TestNet
+			}
+
+			newKeyset, err := keyset.New(&netCfg)
 			if err != nil {
 				return err
 			}
@@ -34,10 +45,6 @@ func init() {
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
-		err = command.Flags().MarkHidden("testnet")
-		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
-		}
 		err = command.Flags().MarkHidden("keyfile")
 		if err != nil {
 			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))

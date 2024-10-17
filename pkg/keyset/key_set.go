@@ -31,14 +31,14 @@ func (k *KeySet) Address(mainnet bool) string {
 	return addr.AddressString
 }
 
-func New() (*KeySet, error) {
+func New(netCfg *chaincfg.Params) (*KeySet, error) {
 	var seed [64]byte
 	_, err := rand.Read(seed[:])
 	if err != nil {
 		return nil, err
 	}
 
-	master, err := bip32.NewMaster(seed[:], &chaincfg.MainNet)
+	master, err := bip32.NewMaster(seed[:], netCfg)
 	if err != nil {
 		return nil, err
 	}

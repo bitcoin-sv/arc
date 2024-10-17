@@ -39,3 +39,23 @@ func SignAllInputs(tx *sdkTx.Transaction, privKey *primitives.PrivateKey) error 
 	}
 	return nil
 }
+
+func EstimateSize(tx *sdkTx.Transaction) int {
+	size := 4                                             // version
+	size += sdkTx.VarInt(uint64(len(tx.Inputs))).Length() // number of inputs
+
+	inputSize := len(tx.Inputs) * (40 + 1 + 107) // txid, output index, sequence number, script length
+	size += inputSize
+
+	size += sdkTx.VarInt(len(tx.Outputs)).Length() // number of outputs
+	for _, out := range tx.Outputs {
+		size += 8 // satoshis
+		length := len(*out.LockingScript)
+		size += sdkTx.VarInt(length).Length() // script length
+		size += length                        // script
+	}
+	size += 4  // lock time
+	size += 34 // change
+
+	return size
+}

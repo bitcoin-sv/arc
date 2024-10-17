@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
@@ -50,14 +51,14 @@ func TestSplitUtxo(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			fromKs, err := keyset.New()
+			fromKs, err := keyset.New(&chaincfg.MainNet)
 			require.NoError(t, err)
 
-			toKs1, err := keyset.New()
+			toKs1, err := keyset.New(&chaincfg.MainNet)
 			require.NoError(t, err)
-			toKs2, err := keyset.New()
+			toKs2, err := keyset.New(&chaincfg.MainNet)
 			require.NoError(t, err)
-			toKs3, err := keyset.New()
+			toKs3, err := keyset.New(&chaincfg.MainNet)
 			require.NoError(t, err)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))

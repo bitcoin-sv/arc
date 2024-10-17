@@ -3,12 +3,13 @@ package keyset
 import (
 	"testing"
 
+	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	keySet, err := New()
+	keySet, err := New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
 	assert.NotNil(t, keySet)

@@ -25,7 +25,7 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
-
+	"github.com/prometheus/client_golang/prometheus"
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
@@ -138,7 +138,15 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(logRequestMiddleware(logger, arcConfig.Api.RequestExtendedLogs))
 
 	// add prometheus metrics
-	e.Use(echoprometheus.NewMiddleware("api"))
+	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
+		Subsystem: "api",
+		HistogramOptsFunc: func(opts prometheus.HistogramOpts) prometheus.HistogramOpts {
+			if opts.Name == "request_duration_seconds" {
+				opts.Buckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30, 60}
+			}
+			return opts
+		},
+	}))
 
 	return e
 }

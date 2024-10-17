@@ -1616,7 +1616,7 @@
       "callbackBatch": {
         "name": "X-CallbackBatch",
         "in": "header",
-        "description": "Callback will be send in batch",
+        "description": "Callback will be send in a batch",
         "schema": {
           "type": "boolean"
         }

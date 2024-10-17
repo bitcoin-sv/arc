@@ -6,11 +6,20 @@ import (
 	"math/big"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-// exported for testing purposes
+func getHashStringNoErr(hash []byte) string {
+	chash, err := chainhash.NewHash(hash)
+	if err != nil {
+		return ""
+	}
+	return chash.String()
+}
+
 func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
 	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
 	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
@@ -71,6 +80,29 @@ func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
 	}
 
 	return lowest
+}
+
+func findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs []store.TransactionBlock) (nowMinedTxs, nowStaleTxs []store.TransactionBlock) {
+	prevStaleMap := make(map[string]store.TransactionBlock)
+
+	for _, tx := range prevStaleTxs {
+		prevStaleMap[string(tx.TxHash)] = tx
+		// every tx that was in previously stale blocks is to
+		// be mined regardless of whether it was also in the
+		// previously longest chain (update block info)
+		// or previously stale chain (new mined)
+		nowMinedTxs = append(nowMinedTxs, tx)
+	}
+
+	for _, longestTx := range prevLongestTxs {
+		if _, found := prevStaleMap[string(longestTx.TxHash)]; !found {
+			// if a transaction that was previously in a longest chain is
+			// not found in the previously stale blocks - it is now stale
+			nowStaleTxs = append(nowStaleTxs, longestTx)
+		}
+	}
+
+	return
 }
 
 // calculateChainwork calculates chainwork from the given difficulty bits

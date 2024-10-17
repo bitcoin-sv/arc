@@ -16,7 +16,7 @@ import (
 
 type ZMQ struct {
 	url             *url.URL
-	statusMessageCh chan<- *PeerTxMessage
+	statusMessageCh chan<- *TxStatusMessage
 	logger          *slog.Logger
 }
 
@@ -56,7 +56,7 @@ type CollidingTx struct {
 	Size int    `json:"size"`
 }
 
-func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, logger *slog.Logger) *ZMQ {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *TxStatusMessage, logger *slog.Logger) *ZMQ {
 	z := &ZMQ{
 		url:             zmqURL,
 		statusMessageCh: statusMessageCh,
@@ -88,7 +88,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					continue
 				}
 
-				z.statusMessageCh <- &PeerTxMessage{
+				z.statusMessageCh <- &TxStatusMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
@@ -104,7 +104,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 				}
 
 				if len(competingTxs) == 0 {
-					z.statusMessageCh <- &PeerTxMessage{
+					z.statusMessageCh <- &TxStatusMessage{
 						Start:        time.Now(),
 						Hash:         hash,
 						Status:       status,
@@ -127,7 +127,7 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 					continue
 				}
 
-				z.statusMessageCh <- &PeerTxMessage{
+				z.statusMessageCh <- &TxStatusMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
@@ -215,8 +215,8 @@ func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 	return &txInfo, nil
 }
 
-func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*PeerTxMessage {
-	msgs := []*PeerTxMessage{{
+func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*TxStatusMessage {
+	msgs := []*TxStatusMessage{{
 		Start:        time.Now(),
 		Hash:         hash,
 		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
@@ -241,7 +241,7 @@ func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string
 		// and return a copy of the slice
 		txsWithoutSelf := removeCompetingSelf(allCompetingTxs, tx)
 
-		msgs = append(msgs, &PeerTxMessage{
+		msgs = append(msgs, &TxStatusMessage{
 			Start:        time.Now(),
 			Hash:         competingHash,
 			Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,

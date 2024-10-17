@@ -29,13 +29,15 @@ type BlocktxStore interface {
 	GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
 	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
-	UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []TxWithMerklePath) (registeredTxs []TxWithMerklePath, err error)
+	UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []TxWithMerklePath) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
-	GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]GetMinedTransactionResult, error)
+	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]TransactionBlock, error)
+	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)

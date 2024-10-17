@@ -26,6 +26,7 @@ var (
 	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
 	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
 	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
 )
 
@@ -320,7 +321,12 @@ func (p *Processor) StartProcessRequestTxs() {
 }
 
 func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
+	hashesBytes := make([][]byte, len(txHashes))
+	for i, h := range txHashes {
+		hashesBytes[i] = h[:]
+	}
+
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -356,13 +362,8 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	}
 }
 
-const (
-	hoursPerDay   = 24
-	blocksPerHour = 6
-)
-
 func (p *Processor) fillGaps(peer p2p.PeerI) error {
-	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
+	heightRange := p.getRetentionHeightRange()
 
 	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
 	if err != nil {
@@ -415,9 +416,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 
+	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
+
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 	if existingBlock != nil {
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()))
 		return nil
 	}
 
@@ -446,8 +450,10 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
+	shouldPerformReorg := false
 	if competing {
 		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+		incomingBlock.Status = blocktx_api.Status_STALE
 
 		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, incomingBlock)
 		if err != nil {
@@ -455,21 +461,9 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 			return err
 		}
 
-		// find competing chains back to the common ancestor
-		// get all registered transactions
-		// prepare msg with competing blocks
-		incomingBlock.Status = blocktx_api.Status_STALE
-
 		if hasGreatestChainwork {
-			p.logger.Info("reorg detected - updating blocks", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
-
-			incomingBlock.Status = blocktx_api.Status_LONGEST
-
-			err := p.performReorg(ctx, incomingBlock)
-			if err != nil {
-				p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-				return err
-			}
+			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+			shouldPerformReorg = true
 		}
 	}
 
@@ -488,9 +482,48 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
-	if err = p.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = p.storeTransactions(ctx, blockId, incomingBlock, calculatedMerkleTree); err != nil {
 		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
+	}
+
+	txsToPublish := make([]store.TransactionBlock, 0)
+
+	if shouldPerformReorg {
+		txsToPublish, err = p.performReorg(ctx, incomingBlock)
+		if err != nil {
+			p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return err
+		}
+	} else if incomingBlock.Status == blocktx_api.Status_STALE {
+		txsToPublish, err = p.getStaleTxs(ctx, blockId)
+		if err != nil {
+			p.logger.Error("unable to get stale transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return err
+		}
+	} else if incomingBlock.Status == blocktx_api.Status_LONGEST {
+		txsToPublish, err = p.store.GetRegisteredTransactions(ctx, blockId)
+		if err != nil {
+			p.logger.Error("unable to get registered transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return err
+		}
+	}
+
+	for _, tx := range txsToPublish {
+		txBlock := &blocktx_api.TransactionBlock{
+			BlockHash:       tx.BlockHash,
+			BlockHeight:     tx.BlockHeight,
+			TransactionHash: tx.TxHash,
+			MerklePath:      tx.MerklePath,
+			BlockStatus:     tx.BlockStatus,
+		}
+
+		p.logger.Info("publishing tx", slog.String("txHash", getHashStringNoErr(tx.TxHash)))
+
+		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+		if err != nil {
+			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
+		}
 	}
 
 	if err = p.store.MarkBlockAsDone(ctx, &blockHash, msg.Size, uint64(len(msg.TransactionHashes))); err != nil {
@@ -568,10 +601,10 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, incomingBlock *blo
 	return tipChainWork.Cmp(incomingBlockChainwork) < 0, nil
 }
 
-func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) error {
-	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.PreviousHash)
+func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api.Block) ([]store.TransactionBlock, error) {
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, incomingBlock.Hash)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	lowestHeight := incomingBlock.Height
@@ -581,26 +614,67 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 
 	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	staleHashes := make([][]byte, 0)
+	longestHashes := make([][]byte, len(longestBlocks))
 	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
 
 	for _, b := range staleBlocks {
+		staleHashes = append(staleHashes, b.Hash)
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	for _, b := range longestBlocks {
+	for i, b := range longestBlocks {
+		longestHashes[i] = b.Hash
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
+	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
+	if err != nil {
+		return nil, err
+	}
+
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	p.logger.Info("reorg performed successfully")
+
+	prevLongestTxs := make([]store.TransactionBlock, 0)
+	prevStaleTxs := make([]store.TransactionBlock, 0)
+
+	for _, tx := range registeredTxs {
+		switch tx.BlockStatus {
+		case blocktx_api.Status_LONGEST:
+			prevLongestTxs = append(prevLongestTxs, tx)
+		case blocktx_api.Status_STALE:
+			prevStaleTxs = append(prevStaleTxs, tx)
+		default:
+			// do nothing - ignore ORPHANED and UNKNOWN blocks
+		}
+	}
+
+	nowMinedTxs, nowStaleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+
+	for i := range nowMinedTxs {
+		nowMinedTxs[i].BlockStatus = blocktx_api.Status_LONGEST
+	}
+
+	for i := range nowStaleTxs {
+		nowStaleTxs[i].BlockStatus = blocktx_api.Status_STALE
+	}
+
+	txsToPublish := append(nowMinedTxs, nowStaleTxs...)
+
+	return txsToPublish, nil
 }
 
-func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) error {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
@@ -608,6 +682,11 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	}
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
+
+	blockhash, err := chainhash.NewHash(block.Hash)
+	if err != nil {
+		return errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
+	}
 
 	var totalSize int
 	for totalSize = 1; totalSize < len(leaves); totalSize++ {
@@ -631,9 +710,9 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockHeight, merkleTree, uint64(txIndex))
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex))
 		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, err)
+			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}
 
 		bumpHex, err := bump.String()
@@ -647,30 +726,17 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+			err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
 			// free up memory
 			txs = txs[:0]
-
-			for _, updResp := range updateResp {
-				txBlock := &blocktx_api.TransactionBlock{
-					TransactionHash: updResp.Hash[:],
-					BlockHash:       blockhash[:],
-					BlockHeight:     blockHeight,
-					MerklePath:      updResp.MerklePath,
-				}
-				err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
-				if err != nil {
-					p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
-				}
-			}
 		}
 
 		if percentage, found := progress[txIndex+1]; found {
 			if totalSize > 0 {
-				p.logger.Info(fmt.Sprintf("%d txs out of %d marked as mined", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("duration", time.Since(now).String()))
+				p.logger.Info(fmt.Sprintf("%d txs out of %d stored", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
 			}
 		}
 	}
@@ -680,25 +746,60 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	}
 
 	// update all remaining transactions
-	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+	err = p.store.UpsertBlockTransactions(ctx, blockId, txs)
 	if err != nil {
-		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", blockHeight), err)
-	}
-
-	for _, updResp := range updateResp {
-		txBlock := &blocktx_api.TransactionBlock{
-			TransactionHash: updResp.Hash[:],
-			BlockHash:       blockhash[:],
-			BlockHeight:     blockHeight,
-			MerklePath:      updResp.MerklePath,
-		}
-		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
-		}
+		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
 	}
 
 	return nil
+}
+
+// getStaleTxs returns all transactions from a given STALE block that are not in the longest chain
+func (p *Processor) getStaleTxs(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+	// 1. Find registered txs from the given STALE block
+	// 2. Check for those transactions in the longest chain
+	// 3. Return only those registered txs from the STALE block that are not found in the longest chain
+
+	registeredTxs, err := p.store.GetRegisteredTransactions(ctx, blockId)
+	if err != nil {
+		return nil, err
+	}
+
+	registeredHashes := make([][]byte, len(registeredTxs))
+	for i, tx := range registeredTxs {
+		registeredHashes[i] = tx.TxHash
+	}
+
+	minedTxs, err := p.store.GetMinedTransactions(ctx, registeredHashes)
+	if err != nil {
+		return nil, err
+	}
+
+	minedTxsMap := make(map[string]bool)
+	for _, tx := range minedTxs {
+		minedTxsMap[string(tx.TxHash)] = true
+	}
+
+	staleTxs := make([]store.TransactionBlock, 0)
+
+	for _, tx := range registeredTxs {
+		if minedTxsMap[string(tx.TxHash)] {
+			continue
+		}
+
+		staleTxs = append(staleTxs, tx)
+	}
+
+	return staleTxs, nil
+}
+
+const (
+	hoursPerDay   = 24
+	blocksPerHour = 6
+)
+
+func (p *Processor) getRetentionHeightRange() int {
+	return p.dataRetentionDays * hoursPerDay * blocksPerHour
 }
 
 func (p *Processor) Shutdown() {

@@ -1,8 +1,12 @@
 package blocktx
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p"
@@ -116,4 +120,30 @@ func progressIndices(total, steps int) map[int]int {
 
 	progress[total] = 100
 	return progress
+}
+
+func withRetry(ctx context.Context, fn func() error, n int) error {
+	n = int(math.Max(float64(n), 1)) // ensure n is at least 1
+	var rerr error
+
+	for i := range n {
+		select {
+		case <-ctx.Done():
+			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i+1, ctx.Err()))
+			return rerr
+
+		default:
+			err := fn()
+
+			// return if the function completes successfully
+			if err == nil {
+				return nil
+			}
+
+			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i, err))
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	return rerr
 }

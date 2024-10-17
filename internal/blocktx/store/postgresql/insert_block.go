@@ -3,12 +3,13 @@ package postgresql
 import (
 	"context"
 	"errors"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "InsertBlock")

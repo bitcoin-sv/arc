@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"errors"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -39,7 +40,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
 	if tracer != nil {
 		var span trace.Span
-		ctx, span = tracer.Start(ctx, "InsertBlock")
+		ctx, span = tracer.Start(ctx, "DelBlockProcessing")
 		defer span.End()
 	}
 

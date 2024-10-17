@@ -469,11 +469,15 @@ This endpoint is used to get the current status of a previously submitted transa
   "timestamp": "2019-08-24T14:15:22Z",
   "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
   "blockHeight": 782318,
-  "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
-  "merklePath": "string",
-  "txStatus": "MINED",
-  "extraInfo": null,
-  "competingTxs": null
+  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+  "merklePath": "0000",
+  "txStatus": "ACCEPTED_BY_NETWORK",
+  "extraInfo": "Transaction is not valid",
+  "competingTxs": [
+    [
+      "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    ]
+  ]
 }
 ```
 
@@ -510,6 +514,7 @@ X-SkipScriptValidation: true
 X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
 X-CallbackToken: string
+X-CallbackBatch: true
 X-WaitForStatus: 0
 X-WaitFor: string
 
@@ -528,6 +533,7 @@ const headers = {
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
+  'X-CallbackBatch':'true',
   'X-WaitForStatus':'0',
   'X-WaitFor':'string',
   'Authorization':'Bearer {access-token}'
@@ -585,6 +591,7 @@ func main() {
         "X-SkipTxValidation": []string{"true"},
         "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
+        "X-CallbackBatch": []string{"true"},
         "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
         "Authorization": []string{"Bearer {access-token}"},
@@ -616,6 +623,7 @@ headers = {
   'X-SkipTxValidation' => 'true',
   'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
+  'X-CallbackBatch' => 'true',
   'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
   'Authorization' => 'Bearer {access-token}'
@@ -642,6 +650,7 @@ headers = {
   'X-SkipTxValidation': 'true',
   'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
+  'X-CallbackBatch': 'true',
   'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
   'Authorization': 'Bearer {access-token}'
@@ -666,6 +675,7 @@ curl -X POST https://tapi.taal.com/arc/v1/tx \
   -H 'X-SkipTxValidation: true' \
   -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
+  -H 'X-CallbackBatch: true' \
   -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
   -H 'Authorization: Bearer {access-token}'
@@ -704,7 +714,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
-|X-CallbackBatch|header|boolean|false|Send callbacks in batches.|
+|X-CallbackBatch|header|boolean|false|Callback will be send in batch|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|true|Transaction hex string|
@@ -811,7 +821,7 @@ X-SkipScriptValidation: true
 X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
 X-CallbackToken: string
-X-CallbackBatch: false
+X-CallbackBatch: true
 X-WaitForStatus: 0
 X-WaitFor: string
 
@@ -831,7 +841,7 @@ const headers = {
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
-  'X-CallbackBatch':'false',
+  'X-CallbackBatch':'true',
   'X-WaitForStatus':'0',
   'X-WaitFor':'string',
   'Authorization':'Bearer {access-token}'
@@ -889,6 +899,7 @@ func main() {
         "X-SkipTxValidation": []string{"true"},
         "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
+        "X-CallbackBatch": []string{"true"},
         "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
         "Authorization": []string{"Bearer {access-token}"},
@@ -920,6 +931,7 @@ headers = {
   'X-SkipTxValidation' => 'true',
   'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
+  'X-CallbackBatch' => 'true',
   'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
   'Authorization' => 'Bearer {access-token}'
@@ -946,6 +958,7 @@ headers = {
   'X-SkipTxValidation': 'true',
   'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
+  'X-CallbackBatch': 'true',
   'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
   'Authorization': 'Bearer {access-token}'
@@ -970,6 +983,7 @@ curl -X POST https://tapi.taal.com/arc/v1/txs \
   -H 'X-SkipTxValidation: true' \
   -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
+  -H 'X-CallbackBatch: true' \
   -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
   -H 'Authorization: Bearer {access-token}'
@@ -1012,6 +1026,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
+|X-CallbackBatch|header|boolean|false|Callback will be send in batch|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|false|none|
@@ -1105,78 +1120,6 @@ BearerAuth, None, None
 </aside>
 
 # Schemas
-
-<h2 id="tocS_Callback">Callback</h2>
-<!-- backwards compatibility -->
-<a id="schemacallback"></a>
-<a id="schema_Callback"></a>
-<a id="tocScallback"></a>
-<a id="tocscallback"></a>
-
-```json
-[
-  {
-    "mined": null,
-    "summary": "Transaction mined",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
-      "txStatus": "MINED",
-      "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
-      "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
-      "blockHeight": 837394
-    }
-  },
-  {
-    "seen on network": null,
-    "summary": "Transaction seen on network",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
-      "txStatus": "SEEN_ON_NETWORK"
-    }
-  },
-  {
-    "double spend attempted": null,
-    "summary": "Transaction with one or more competing transactions",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "competingTxs": [
-        "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
-      ],
-      "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
-      "txStatus": "DOUBLE_SPEND_ATTEMPTED"
-    }
-  }
-]
-
-```
-
-callback object
-
-### Properties
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|timestamp|string|true|none|none|
-|txid|string|true|none|none|
-|txStatus|string|true|none|none|
-|extraInfo|string¦null|false|none|none|
-|competingTxs|[string]|false|none|none|
-|merklePath|string¦null|false|none|none|
-|blockHash|string¦null|false|none|none|
-|blockHeight|integer¦null|false|none|none|
-
-batch callbacks object
-
-### Properites
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|count|integer|true|none|none|
-|callbacks|[object]|true|none|none|
-
-
 
 <h2 id="tocS_CommonResponse">CommonResponse</h2>
 <!-- backwards compatibility -->
@@ -1326,8 +1269,8 @@ and
 
 ```json
 {
-  "satoshis": 0,
-  "bytes": 0
+  "satoshis": 1,
+  "bytes": 1000
 }
 
 ```
@@ -1368,16 +1311,20 @@ and
 
 ```json
 {
-  "timestamp": "2023-03-09T12:03:48.382910514Z",
-  "blockHash": "",
-  "blockHeight": 0,
-  "status": 200,
-  "title": "OK",
-  "extraInfo": "string",
-  "txStatus": "string",
-  "txid": "string",
-  "merklePath": "string",
-  "competingTxs": null
+  "timestamp": "2019-08-24T14:15:22Z",
+  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+  "blockHeight": 782318,
+  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+  "merklePath": "0000",
+  "txStatus": "ACCEPTED_BY_NETWORK",
+  "extraInfo": "Transaction is not valid",
+  "competingTxs": [
+    [
+      "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    ]
+  ],
+  "status": 201,
+  "title": "Added to mempool"
 }
 
 ```
@@ -1406,12 +1353,56 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|object|false|none|none|
-|» txid|string|true|none|Transaction ID in hex|
-|» txStatus|string|true|none|Transaction status|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)|
-|» extraInfo|string¦null|true|none|Extra info|
-|» competingTxs|[string]¦null|false|none|none|
+|*anonymous*|[TransactionSubmitStatus](#schematransactionsubmitstatus)|false|none|Transaction submit status|
+
+<h2 id="tocS_TransactionResponses">TransactionResponses</h2>
+<!-- backwards compatibility -->
+<a id="schematransactionresponses"></a>
+<a id="schema_TransactionResponses"></a>
+<a id="tocStransactionresponses"></a>
+<a id="tocstransactionresponses"></a>
+
+```json
+{
+  "transactions": [
+    {
+      "timestamp": "2019-08-24T14:15:22Z",
+      "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+      "blockHeight": 782318,
+      "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+      "merklePath": "0000",
+      "txStatus": "ACCEPTED_BY_NETWORK",
+      "extraInfo": "Transaction is not valid",
+      "competingTxs": [
+        [
+          "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+        ]
+      ],
+      "status": 201,
+      "title": "Added to mempool"
+    }
+  ]
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|transactions|[oneOf]|false|none|none|
+
+oneOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» *anonymous*|[TransactionResponse](#schematransactionresponse)|false|none|none|
+
+xor
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» *anonymous*|[Error](#schemaerror)|false|none|An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).|
 
 <h2 id="tocS_TransactionStatus">TransactionStatus</h2>
 <!-- backwards compatibility -->
@@ -1425,11 +1416,15 @@ and
   "timestamp": "2019-08-24T14:15:22Z",
   "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
   "blockHeight": 782318,
-  "txid": "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e",
-  "merklePath": "string",
-  "txStatus": "MINED",
-  "extraInfo": null,
-  "competingTxs": null
+  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+  "merklePath": "0000",
+  "txStatus": "ACCEPTED_BY_NETWORK",
+  "extraInfo": "Transaction is not valid",
+  "competingTxs": [
+    [
+      "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    ]
+  ]
 }
 
 ```
@@ -1452,12 +1447,7 @@ and
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|object|false|none|none|
-|» txid|string|true|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
-|» txStatus|string|false|none|Transaction status|
-|» extraInfo|string¦null|false|none|Extra information about the transaction|
-|» competingTxs|[string]¦null|false|none|none|
+|*anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|Transaction details|
 
 <h2 id="tocS_TransactionSubmitStatus">TransactionSubmitStatus</h2>
 <!-- backwards compatibility -->
@@ -1483,68 +1473,6 @@ Transaction submit status
 |status|integer(int)|true|none|Status|
 |title|string|true|none|Title|
 
-<h2 id="tocS_TransactionResponses">TransactionResponses</h2>
-<!-- backwards compatibility -->
-<a id="schematransactionresponses"></a>
-<a id="schema_TransactionResponses"></a>
-<a id="tocStransactionresponses"></a>
-<a id="tocstransactionresponses"></a>
-
-```json
-{
-  "timestamp": "2019-08-24T14:15:22Z",
-  "blockHash": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
-  "blockHeight": 782318,
-  "transactions": [
-    {
-      "status": 200,
-      "title": "OK",
-      "blockHash": "",
-      "blockHeight": 0,
-      "extraInfo": "",
-      "timestamp": "2023-03-09T12:03:48.382910514Z",
-      "txStatus": "SEEN_ON_NETWORK",
-      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-      "merklePath": "0000"
-    }
-  ]
-}
-
-```
-
-### Properties
-
-allOf
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|[CommonResponse](#schemacommonresponse)|false|none|Common response object|
-
-and
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|[ChainInfo](#schemachaininfo)|false|none|Chain info|
-
-and
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|object|false|none|none|
-|» transactions|[oneOf]|false|none|none|
-
-oneOf
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|»» *anonymous*|[TransactionDetails](#schematransactiondetails)|false|none|Transaction details|
-
-xor
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|»» *anonymous*|[Error](#schemaerror)|false|none|An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).|
-
 <h2 id="tocS_TransactionDetails">TransactionDetails</h2>
 <!-- backwards compatibility -->
 <a id="schematransactiondetails"></a>
@@ -1554,15 +1482,15 @@ xor
 
 ```json
 {
-  "status": 200,
-  "title": "OK",
-  "blockHash": "",
-  "blockHeight": 0,
-  "extraInfo": "",
-  "timestamp": "2023-03-09T12:03:48.382910514Z",
-  "txStatus": "SEEN_ON_NETWORK",
-  "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-  "merklePath": "0000"
+  "txid": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+  "merklePath": "0000",
+  "txStatus": "ACCEPTED_BY_NETWORK",
+  "extraInfo": "Transaction is not valid",
+  "competingTxs": [
+    [
+      "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+    ]
+  ]
 }
 
 ```
@@ -1571,39 +1499,31 @@ Transaction details
 
 ### Properties
 
-allOf
-
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[TransactionSubmitStatus](#schematransactionsubmitstatus)|false|none|Transaction submit status|
-
-and
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-|*anonymous*|object|false|none|none|
-|» txid|string|false|none|Transaction ID in hex|
-|» merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
-|» txStatus|string|false|none|Transaction status|
-|» extraInfo|string¦null|false|none|Extra information about the transaction|
-|» competingTxs|[string]¦null|false|none|none|
+|txid|string|true|none|Transaction ID in hex|
+|merklePath|string¦null|false|none|Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)|
+|txStatus|string|true|none|Transaction status|
+|extraInfo|string¦null|false|none|Extra information about the transaction|
+|competingTxs|[string]¦null|false|none|none|
 
 #### Enumerated Values
 
 |Property|Value|
 |---|---|
 |txStatus|UNKNOWN|
+|txStatus|QUEUED|
 |txStatus|RECEIVED|
 |txStatus|STORED|
 |txStatus|ANNOUNCED_TO_NETWORK|
 |txStatus|REQUESTED_BY_NETWORK|
 |txStatus|SENT_TO_NETWORK|
 |txStatus|ACCEPTED_BY_NETWORK|
-|txStatus|SEEN_ON_NETWORK|
 |txStatus|SEEN_IN_ORPHAN_MEMPOOL|
+|txStatus|SEEN_ON_NETWORK|
 |txStatus|DOUBLE_SPEND_ATTEMPTED|
-|txStatus|MINED|
 |txStatus|REJECTED|
+|txStatus|MINED|
 
 <h2 id="tocS_Error">Error</h2>
 <!-- backwards compatibility -->
@@ -1663,12 +1583,6 @@ xor
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[ErrorValidatingMerkleRoots](#schemaerrorvalidatingmerkleroots)|false|none|none|
-
-xor
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
 |*anonymous*|[ErrorFrozenPolicy](#schemaerrorfrozenpolicy)|false|none|none|
 
 xor
@@ -1676,6 +1590,38 @@ xor
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |*anonymous*|[ErrorFrozenConsensus](#schemaerrorfrozenconsensus)|false|none|none|
+
+<h2 id="tocS_ErrorFields">ErrorFields</h2>
+<!-- backwards compatibility -->
+<a id="schemaerrorfields"></a>
+<a id="schema_ErrorFields"></a>
+<a id="tocSerrorfields"></a>
+<a id="tocserrorfields"></a>
+
+```json
+{
+  "type": "string",
+  "title": "string",
+  "status": 402,
+  "detail": "The fee in the transaction is too low to be included in a block.",
+  "instance": "string",
+  "txid": "string",
+  "extraInfo": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|type|string|true|none|Type of error, with link to more information|
+|title|string|true|none|Descriptive text for error|
+|status|integer(int)|true|none|Error code|
+|detail|string|true|none|Longer description of error|
+|instance|string¦null|false|none|(Optional) Link to actual error on server|
+|txid|string¦null|false|none|Transaction ID this error is referring to|
+|extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
 
 <h2 id="tocS_ErrorBadRequest">ErrorBadRequest</h2>
 <!-- backwards compatibility -->
@@ -2301,34 +2247,64 @@ and
 |» detail|any|false|none|none|
 |» instance|any|false|none|none|
 
-<h2 id="tocS_ErrorFields">ErrorFields</h2>
+<h2 id="tocS_Callback">Callback</h2>
 <!-- backwards compatibility -->
-<a id="schemaerrorfields"></a>
-<a id="schema_ErrorFields"></a>
-<a id="tocSerrorfields"></a>
-<a id="tocserrorfields"></a>
+<a id="schemacallback"></a>
+<a id="schema_Callback"></a>
+<a id="tocScallback"></a>
+<a id="tocscallback"></a>
 
 ```json
-{
-  "type": "string",
-  "title": "string",
-  "status": 402,
-  "detail": "The fee in the transaction is too low to be included in a block.",
-  "instance": "string",
-  "txid": "string",
-  "extraInfo": "string"
-}
+[
+  {
+    "mined": null,
+    "summary": "Transaction mined",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+      "txStatus": "MINED",
+      "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+      "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+      "blockHeight": 837394
+    }
+  },
+  {
+    "seen on network": null,
+    "summary": "Transaction seen on network",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
+      "txStatus": "SEEN_ON_NETWORK"
+    }
+  },
+  {
+    "double spend attempted": null,
+    "summary": "Transaction with one or more competing transactions",
+    "value": {
+      "timestamp": "2024-03-26T16:02:29.655390092Z",
+      "competingTxs": [
+        "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+      ],
+      "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+      "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+    }
+  }
+]
 
 ```
+
+callback object
 
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|type|string|true|none|Type of error, with link to more information|
-|title|string|true|none|Descriptive text for error|
-|status|integer(int)|true|none|Error code|
-|detail|string|true|none|Longer description of error|
-|instance|string¦null|false|none|(Optional) Link to actual error on server|
-|txid|string¦null|false|none|Transaction ID this error is referring to|
-|extraInfo|string¦null|false|none|Optional extra information about the error from the miner|
+|timestamp|string|true|none|none|
+|txid|string|true|none|none|
+|txStatus|string|true|none|none|
+|extraInfo|string¦null|false|none|none|
+|competingTxs|[string]|false|none|none|
+|merklePath|string¦null|false|none|none|
+|blockHash|string¦null|false|none|none|
+|blockHeight|integer¦null|false|none|none|
+

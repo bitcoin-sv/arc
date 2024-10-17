@@ -411,70 +411,6 @@ paths:
 
 components:
   schemas:
-    Callback:
-      type: object
-      description: callback object
-      required:
-        - timestamp
-        - txid
-        - txStatus
-      properties:
-        timestamp:
-          type: string
-        txid:
-          type: string
-          nullable: false
-        txStatus:
-          type: string
-          nullable: false
-        extraInfo:
-          type: string
-          nullable: true
-        competingTxs:
-          type: array
-          items:
-            type: string
-        merklePath:
-          type: string
-          nullable: true
-        blockHash:
-          type: string
-          nullable: true
-        blockHeight:
-          type: integer
-          nullable: true
-      example:
-        - mined:
-          summary: Transaction mined
-          value:
-            {
-              "timestamp": "2024-03-26T16:02:29.655390092Z",
-              "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
-              "txStatus": "MINED",
-              "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
-              "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
-              "blockHeight": 837394
-            }
-        - seen on network:
-          summary: Transaction seen on network
-          value:
-            {
-              "timestamp": "2024-03-26T16:02:29.655390092Z",
-              "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
-              "txStatus": "SEEN_ON_NETWORK"
-            }
-        - double spend attempted:
-          summary: Transaction with one or more competing transactions
-          value:
-            {
-              "timestamp": "2024-03-26T16:02:29.655390092Z",
-              "competingTxs": [
-                "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
-              ],
-              "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
-              "txStatus": "DOUBLE_SPEND_ATTEMPTED"
-            }
-    # Common response object
     CommonResponse:
       type: object
       required:
@@ -547,27 +483,24 @@ components:
           format: uint64
           nullable: false
           description: Maximum script size [bytes]
+          example: 500000
         maxtxsigopscountspolicy:
           type: integer
           format: uint64
           nullable: false
           description: Maximum number of signature operations
+          example: 4294967295
         maxtxsizepolicy:
           type: integer
           format: uint64
           nullable: false
           description: Maximum transaction size [bytes]
+          example: 10000000
         miningFee:
           $ref: '#/components/schemas/FeeAmount'
           description: Mining fee
       additionalProperties: false
-      example:
-        maxscriptsizepolicy: 500000
-        maxtxsigopscountspolicy: 4294967295
-        maxtxsizepolicy: 10000000
-        miningFee:
-          satoshis: 1
-          bytes: 1000
+
     FeeAmount:
       type: object
       required:
@@ -578,13 +511,14 @@ components:
           type: integer
           format: uint64
           description: Amount in Satoshis
+          example: 1
         bytes:
           type: integer
           format: uint64
           description: Number of bytes
+          example: 1000
       additionalProperties: false
 
-    # Transaction request for application/json
     TransactionRequest:
       type: object
       required:
@@ -594,78 +528,30 @@ components:
           type: string
           nullable: false
           description: Raw hex string
-      example: { "rawTx": "<transaction hex string>" }
+          example: "<transaction hex string>"
 
     TransactionResponse:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
         - $ref: '#/components/schemas/TransactionDetails'
-        - type: object
-          required:
-            - txid
-            - txStatus
-            - extraInfo
-          properties:
-            txid:
-              type: string
-              nullable: false
-              description: Transaction ID in hex
-            txStatus:
-              type: string
-              nullable: false
-              description: Transaction status
-            merklePath:
-              type: string
-              nullable: true
-              description: Transaction Merkle path as a hex string in  BUMP format [BRC-74](https://brc.dev/74)
-            extraInfo:
-              type: string
-              nullable: true
-              description: Extra info
-            competingTxs:
-              type: array
-              nullable: true
-              items:
-                type: string
-              example: null
-          additionalProperties: false
+        - $ref: '#/components/schemas/TransactionSubmitStatus'
+
+    TransactionResponses:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/TransactionResponse'
+              - $ref: '#/components/schemas/Error'
 
     TransactionStatus:
       allOf:
         - $ref: '#/components/schemas/CommonResponse'
         - $ref: '#/components/schemas/ChainInfo'
-        - type: object
-          required:
-            - txid
-            - status
-          properties:
-            txid:
-              type: string
-              nullable: false
-              example: "7927233d10dacd5606cee5bf0b28668fc191e730029ace4c7fc40ede59a2825e"
-              description: Transaction ID in hex
-            merklePath:
-              type: string
-              nullable: true
-              description: Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
-            txStatus:
-              type: string
-              nullable: false
-              description: Transaction status
-              example: "MINED"
-            extraInfo:
-              type: string
-              nullable: true
-              description: Extra information about the transaction
-              example: null
-            competingTxs:
-              type: array
-              nullable: true
-              items:
-                type: string
-              example: null
-          additionalProperties: false
+        - $ref: '#/components/schemas/TransactionDetails'
 
     TransactionSubmitStatus:
       type: object
@@ -686,365 +572,66 @@ components:
           example: "Added to mempool"
           nullable: false
 
-    TransactionResponses:
-      allOf:
-        - $ref: '#/components/schemas/CommonResponse'
-        - $ref: '#/components/schemas/ChainInfo'
-        - type: object
-          properties:
-            transactions:
-              type: array
-              items:
-                oneOf:
-                  - $ref: '#/components/schemas/TransactionDetails'
-                  - $ref: '#/components/schemas/Error'
-          additionalProperties: false
-
     TransactionDetails:
       type: object
       description: Transaction details
       required:
         - txid
-      allOf:
-        - $ref: '#/components/schemas/TransactionSubmitStatus'
-        - type: object
-          properties:
-            txid:
-              type: string
-              description: Transaction ID in hex
-              example: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
-              nullable: false
-            merklePath:
-              type: string
-              nullable: true
-              description: Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
-            txStatus:
-              type: string
-              enum: [
-                "UNKNOWN",
-                "RECEIVED",
-                "STORED",
-                "ANNOUNCED_TO_NETWORK",
-                "REQUESTED_BY_NETWORK",
-                "SENT_TO_NETWORK",
-                "ACCEPTED_BY_NETWORK",
-                "SEEN_ON_NETWORK",
-                "SEEN_IN_ORPHAN_MEMPOOL",
-                "DOUBLE_SPEND_ATTEMPTED",
-                "MINED",
-                "REJECTED"
-              ]
-              description: Transaction status
-              example: "ACCEPTED_BY_NETWORK"
-              nullable: false
-            extraInfo:
-              type: string
-              description: Extra information about the transaction
-              example: "Transaction is not valid"
-              nullable: true
-            competingTxs:
-              type: array
-              nullable: true
-              items:
-                type: string
-              example: ["c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"]
-          example:
-            {
-              "blockHash": "",
-              "blockHeight": 0,
-              "extraInfo": "",
-              "status": 200,
-              "timestamp": "2023-03-09T12:03:48.382910514Z",
-              "title": "OK",
-              "txStatus": "SEEN_ON_NETWORK",
-              "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
-              "merklePath": "0000"
-            }
+        - txStatus
+      properties:
+        txid:
+          type: string
+          description: Transaction ID in hex
+          example: "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0"
+          nullable: false
+        merklePath:
+          type: string
+          nullable: true
+          description: Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)
+          example: "0000"
+        txStatus:
+          type: string
+          enum: [
+            "UNKNOWN",
+            "QUEUED",
+            "RECEIVED",
+            "STORED",
+            "ANNOUNCED_TO_NETWORK",
+            "REQUESTED_BY_NETWORK",
+            "SENT_TO_NETWORK",
+            "ACCEPTED_BY_NETWORK",
+            "SEEN_IN_ORPHAN_MEMPOOL",
+            "SEEN_ON_NETWORK",
+            "DOUBLE_SPEND_ATTEMPTED",
+            "REJECTED",
+            "MINED",
+          ]
+          description: Transaction status
+          example: "ACCEPTED_BY_NETWORK"
+          nullable: false
+        extraInfo:
+          type: string
+          description: Extra information about the transaction
+          example: "Transaction is not valid"
+          nullable: true
+        competingTxs:
+          type: array
+          nullable: true
+          items:
+            type: string
+            example: ["c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"]
 
     Error:
       description: An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).
-      oneOf: [
-        {
-          "$ref": "#/components/schemas/ErrorUnlockingScripts"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorInputs"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorMalformed"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorFrozenPolicy"
-        },
-        {
-          "$ref": "#/components/schemas/ErrorFrozenConsensus"
-        }
-      ]
-    ErrorBadRequest:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_400"
-            title:
-              example: "Bad request"
-            status:
-              example: 400
-            detail:
-              example: "The request seems to be malformed and cannot be processed"
-            instance:
-              example: "https://arc.taal.com/errors/1234556"
-    ErrorNotFound:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_404"
-            title:
-              example: "Not found"
-            status:
-              example: 404
-            detail:
-              example: "The requested resource could not be found"
-            instance:
-              example: "https://arc.taal.com/errors/1234556"
-    ErrorGeneric:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_409"
-            title:
-              example: "Generic error"
-            status:
-              example: 409
-            detail:
-              example: "Transaction could not be processed"
-            instance:
-              example: "https://arc.taal.com/errors/1234556"
-    ErrorTxFormat :
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_460"
-            title:
-              example: "Not extended format"
-            status:
-              example: 460
-            detail:
-              example: "Missing input scripts: Transaction could not be transformed to extended format"
-            instance:
-              example: "https://arc.taal.com/errors/1234556"
-    ErrorUnlockingScripts:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_461"
-            title:
-              example: "Malformed transaction"
-            status:
-              example: 461
-            detail:
-              example: "Transaction is malformed and cannot be processed"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorInputs:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_462"
-            title:
-              example: "Invalid inputs"
-            status:
-              example: 462
-            detail:
-              example: "Transaction is invalid because the inputs are non-existent or spent"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorMalformed:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
-            title:
-              example: "Malformed transaction"
-            status:
-              example: 463
-            detail:
-              example: "Transaction is malformed and cannot be processed"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorOutputs:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_464"
-            title:
-              example: "Invalid outputs"
-            status:
-              example: 464
-            detail:
-              example: "Transaction is invalid because the outputs are non-existent or invalid"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorFee:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_465"
-            title:
-              example: "Fee too low"
-            status:
-              example: 465
-            detail:
-              example: "The fees are too low"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorConflict:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_466"
-            title:
-              example: "Conflicting tx found"
-            status:
-              example: 466
-            detail:
-              example: "Transaction is valid, but there is a conflicting tx in the block template"
-            instance:
-              example: "https://arc.taal.com/errors/123453"
-    ErrorMinedAncestorsNotFound:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_467"
-            title:
-              example: "Mined ancestors not found"
-            status:
-              example: 467
-            detail:
-              example: "Error validating BEEF: mined ancestors not found in transaction inputs"
-            instance:
-              example: "https://arc.taal.com/errors/123453"
-    ErrorCalculatingMerkleRoots:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_468"
-            title:
-              example: "Invalid BUMPs"
-            status:
-              example: 468
-            detail:
-              example: "Error validating BEEF: could not calculate Merkle Roots from given BUMPs"
-            instance:
-              example: "https://arc.taal.com/errors/123453"
-    ErrorValidatingMerkleRoots:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_469"
-            title:
-              example: "Merkle Roots validation failed"
-            status:
-              example: 469
-            detail:
-              example: "Error validating BEEF: could not validate Merkle Roots"
-            instance:
-              example: "https://arc.taal.com/errors/123453"
-    ErrorFrozenPolicy:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_471"
-            title:
-              example: "Input Frozen"
-            status:
-              example: 471
-            detail:
-              example: "Input Frozen (blacklist manager policy blacklisted)"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorFrozenConsensus:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_472"
-            title:
-              example: "Input Frozen"
-            status:
-              example: 472
-            detail:
-              example: "Input Frozen (blacklist manager consensus blacklisted)"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
-    ErrorCumulativeFees:
-      type: object
-      allOf:
-        - "$ref": "#/components/schemas/ErrorFields"
-        - type: object
-          properties:
-            type:
-              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_473"
-            title:
-              example: "Cumulative fee too low"
-            status:
-              example: 473
-            detail:
-              example: "The cumulative fee is too low"
-            instance:
-              example: "https://arc.taal.com/errors/123452"
+      oneOf:
+          - $ref: '#/components/schemas/ErrorUnlockingScripts'
+          - $ref: '#/components/schemas/ErrorInputs'
+          - $ref: '#/components/schemas/ErrorMalformed'
+          - $ref: '#/components/schemas/ErrorMinedAncestorsNotFound'
+          - $ref: '#/components/schemas/ErrorCalculatingMerkleRoots'
+          - $ref: '#/components/schemas/ErrorFrozenPolicy'
+          - $ref: '#/components/schemas/ErrorFrozenConsensus'
+
     ErrorFields:
       type: object
       required:
@@ -1084,15 +671,338 @@ components:
           type: string
           description: Optional extra information about the error from the miner
           nullable: true
+
+    ErrorBadRequest:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_400"
+            title:
+              example: "Bad request"
+            status:
+              example: 400
+            detail:
+              example: "The request seems to be malformed and cannot be processed"
+            instance:
+              example: "https://arc.taal.com/errors/1234556"
+
+    ErrorNotFound:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_404"
+            title:
+              example: "Not found"
+            status:
+              example: 404
+            detail:
+              example: "The requested resource could not be found"
+            instance:
+              example: "https://arc.taal.com/errors/1234556"
+
+    ErrorGeneric:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_409"
+            title:
+              example: "Generic error"
+            status:
+              example: 409
+            detail:
+              example: "Transaction could not be processed"
+            instance:
+              example: "https://arc.taal.com/errors/1234556"
+
+    ErrorTxFormat :
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_460"
+            title:
+              example: "Not extended format"
+            status:
+              example: 460
+            detail:
+              example: "Missing input scripts: Transaction could not be transformed to extended format"
+            instance:
+              example: "https://arc.taal.com/errors/1234556"
+
+    ErrorUnlockingScripts:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_461"
+            title:
+              example: "Malformed transaction"
+            status:
+              example: 461
+            detail:
+              example: "Transaction is malformed and cannot be processed"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorInputs:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_462"
+            title:
+              example: "Invalid inputs"
+            status:
+              example: 462
+            detail:
+              example: "Transaction is invalid because the inputs are non-existent or spent"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorMalformed:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
+            title:
+              example: "Malformed transaction"
+            status:
+              example: 463
+            detail:
+              example: "Transaction is malformed and cannot be processed"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorOutputs:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_464"
+            title:
+              example: "Invalid outputs"
+            status:
+              example: 464
+            detail:
+              example: "Transaction is invalid because the outputs are non-existent or invalid"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorFee:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_465"
+            title:
+              example: "Fee too low"
+            status:
+              example: 465
+            detail:
+              example: "The fees are too low"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorConflict:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_466"
+            title:
+              example: "Conflicting tx found"
+            status:
+              example: 466
+            detail:
+              example: "Transaction is valid, but there is a conflicting tx in the block template"
+            instance:
+              example: "https://arc.taal.com/errors/123453"
+
+    ErrorMinedAncestorsNotFound:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_467"
+            title:
+              example: "Mined ancestors not found"
+            status:
+              example: 467
+            detail:
+              example: "Error validating BEEF: mined ancestors not found in transaction inputs"
+            instance:
+              example: "https://arc.taal.com/errors/123453"
+
+    ErrorCalculatingMerkleRoots:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_468"
+            title:
+              example: "Invalid BUMPs"
+            status:
+              example: 468
+            detail:
+              example: "Error validating BEEF: could not calculate Merkle Roots from given BUMPs"
+            instance:
+              example: "https://arc.taal.com/errors/123453"
+
+    ErrorValidatingMerkleRoots:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_469"
+            title:
+              example: "Merkle Roots validation failed"
+            status:
+              example: 469
+            detail:
+              example: "Error validating BEEF: could not validate Merkle Roots"
+            instance:
+              example: "https://arc.taal.com/errors/123453"
+
+    ErrorFrozenPolicy:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_471"
+            title:
+              example: "Input Frozen"
+            status:
+              example: 471
+            detail:
+              example: "Input Frozen (blacklist manager policy blacklisted)"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorFrozenConsensus:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_472"
+            title:
+              example: "Input Frozen"
+            status:
+              example: 472
+            detail:
+              example: "Input Frozen (blacklist manager consensus blacklisted)"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    ErrorCumulativeFees:
+      allOf:
+        - "$ref": "#/components/schemas/ErrorFields"
+        - type: object
+          properties:
+            type:
+              example: "https://bitcoin-sv.github.io/arc/#/errors?id=_473"
+            title:
+              example: "Cumulative fee too low"
+            status:
+              example: 473
+            detail:
+              example: "The cumulative fee is too low"
+            instance:
+              example: "https://arc.taal.com/errors/123452"
+
+    Callback:
+      type: object
+      description: callback object
+      required:
+        - timestamp
+        - txid
+        - txStatus
+      properties:
+        timestamp:
+          type: string
+        txid:
+          type: string
+          nullable: false
+        txStatus:
+          type: string
+          nullable: false
+        extraInfo:
+          type: string
+          nullable: true
+        competingTxs:
+          type: array
+          items:
+            type: string
+        merklePath:
+          type: string
+          nullable: true
+        blockHash:
+          type: string
+          nullable: true
+        blockHeight:
+          type: integer
+          nullable: true
+      example:
+        - mined:
+          summary: Transaction mined
+          value:
+            {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+              "txStatus": "MINED",
+              "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+              "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+              "blockHeight": 837394
+            }
+        - seen on network:
+          summary: Transaction seen on network
+          value:
+            {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
+              "txStatus": "SEEN_ON_NETWORK"
+            }
+        - double spend attempted:
+          summary: Transaction with one or more competing transactions
+          value:
+            {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "competingTxs": [
+                "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+              ],
+              "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+              "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+            }
+
   responses:
     NotAuthorized:
       description: Security requirements failed
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       description: >-
         Bearer authentication as defined in RFC 6750
+
   parameters:
     callbackUrl:
       name: X-CallbackUrl
@@ -1101,6 +1011,7 @@ components:
         Default double spend and merkle proof notification callback endpoint.
       schema:
         type: string
+
     skipFeeValidation:
       name: X-SkipFeeValidation
       in: header
@@ -1108,6 +1019,7 @@ components:
         Whether we should skip fee validation or not.
       schema:
         type: boolean
+
     fullStatusUpdates:
       name: X-FullStatusUpdates
       in: header
@@ -1115,6 +1027,7 @@ components:
         Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).
       schema:
         type: boolean
+
     maxTimeout:
       name: X-MaxTimeout
       in: header
@@ -1122,6 +1035,7 @@ components:
         Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)
       schema:
         type: integer
+
     skipScriptValidation:
       name: X-SkipScriptValidation
       in: header
@@ -1129,6 +1043,7 @@ components:
         Whether we should skip script validation or not.
       schema:
         type: boolean
+
     skipTxValidation:
       name: X-SkipTxValidation
       in: header
@@ -1136,6 +1051,7 @@ components:
         Whether we should skip overall tx validation or not.
       schema:
         type: boolean
+
     cumulativeFeeValidation:
       name: X-CumulativeFeeValidation
       in: header
@@ -1143,24 +1059,28 @@ components:
         Whether we should perform cumulative fee validation for fee consolidation txs or not.
       schema:
         type: boolean
+
     callbackToken:
       name: X-CallbackToken
       in: header
       description: Access token for notification callback endpoint. It will be used as a Authorization header for the http callback
       schema:
         type: string
+
     callbackBatch:
       name: X-CallbackBatch
       in: header
       description: Callback will be send in batch
       schema:
         type: boolean
+
     waitForStatus:
       name: X-WaitForStatus
       in: header
       description: "DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)"
       schema:
         type: integer
+
     waitFor:
       name: X-WaitFor
       in: header

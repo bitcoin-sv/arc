@@ -209,7 +209,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 	return ctx.JSON(http.StatusOK, api.TransactionStatus{
 		BlockHash:    &tx.BlockHash,
 		BlockHeight:  &tx.BlockHeight,
-		TxStatus:     &tx.Status,
+		TxStatus:     (api.TransactionStatusTxStatus)(tx.Status),
 		Timestamp:    m.now(),
 		Txid:         tx.TxID,
 		MerklePath:   &tx.MerklePath,
@@ -437,7 +437,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			Title:        "OK",
 			BlockHash:    &tx.BlockHash,
 			BlockHeight:  &tx.BlockHeight,
-			TxStatus:     tx.Status,
+			TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
 			ExtraInfo:    &tx.ExtraInfo,
 			CompetingTxs: &tx.CompetingTxs,
 			Timestamp:    now,

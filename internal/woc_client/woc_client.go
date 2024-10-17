@@ -122,7 +122,7 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	}
 
 	notify := func(err error, nextTry time.Duration) {
-		w.logger.Error("failed to get utxos from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
+		w.logger.ErrorContext(ctx, "failed to get utxos from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
 	}
 
 	utxos, err := backoff.RetryNotifyWithData(operation, policyContext, notify)
@@ -210,7 +210,7 @@ func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, c
 	}
 
 	notify := func(err error, nextTry time.Duration) {
-		w.logger.Error("failed to get balance from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
+		w.logger.ErrorContext(ctx, "failed to get balance from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
 	}
 
 	balanceRes, err := backoff.RetryNotifyWithData(operation, policyContext, notify)

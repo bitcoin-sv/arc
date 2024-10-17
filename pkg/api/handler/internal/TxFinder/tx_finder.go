@@ -3,6 +3,7 @@ package txfinder
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -16,17 +17,33 @@ import (
 
 type Finder struct {
 	th metamorph.TransactionHandler
-	pc *config.PeerRpcConfig
-	l  *slog.Logger
+	n  *bitcoin.Bitcoind
 	w  *woc_client.WocClient
+	l  *slog.Logger
 }
 
 func New(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
+	l = l.With(slog.String("module", "tx-finder"))
+	var n *bitcoin.Bitcoind
+
+	if pc != nil {
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
+		if err != nil {
+			l.Warn("cannot parse node rpc url. Finder will not use node as source")
+		} else {
+			// get the transaction from the bitcoin node rpc
+			n, err = bitcoin.NewFromURL(rpcURL, false)
+			if err != nil {
+				l.Warn("cannot create node client. Finder will not use node as source")
+			}
+		}
+	}
+
 	return Finder{
 		th: th,
-		pc: pc,
-		l:  l,
+		n:  n,
 		w:  w,
+		l:  l,
 	}
 }
 
@@ -37,7 +54,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 	// first get transactions from the handler
 	if source.Has(validator.SourceTransactionHandler) {
-		txs, _ := f.th.GetTransactions(ctx, ids)
+		txs, thErr := f.th.GetTransactions(ctx, ids)
 		for _, tx := range txs {
 			rt := validator.RawTx{
 				TxID:    tx.TxID,
@@ -50,8 +67,8 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 		// add remaining ids
 		remainingIDs = outerRightJoin(foundTxs, ids)
-		if len(remainingIDs) > 0 {
-			f.l.Warn("couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs))
+		if len(remainingIDs) > 0 || thErr != nil {
+			f.l.WarnContext(ctx, "couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs), slog.Any("source-err", thErr))
 		}
 
 		ids = remainingIDs[:]
@@ -59,11 +76,12 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	}
 
 	// try to get remaining txs from the node
-	if source.Has(validator.SourceNodes) {
+	if source.Has(validator.SourceNodes) && f.n != nil {
+		var nErr error
 		for _, id := range ids {
-			nTx, err := getTransactionFromNode(f.pc, id)
+			nTx, err := f.n.GetRawTransaction(id)
 			if err != nil {
-				f.l.Warn("failed to get transaction from node", slog.String("id", id), slog.String("err", err.Error()))
+				nErr = errors.Join(nErr, fmt.Errorf("%s: %w", id, err))
 			}
 			if nTx != nil {
 				rt, e := newRawTx(nTx.TxID, nTx.Hex, nTx.BlockHeight)
@@ -77,8 +95,8 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 			}
 		}
 
-		if len(remainingIDs) > 0 {
-			f.l.Warn("couldn't find transactions in node", slog.Any("ids", remainingIDs))
+		if len(remainingIDs) > 0 || nErr != nil {
+			f.l.WarnContext(ctx, "couldn't find transactions in node", slog.Any("ids", remainingIDs), slog.Any("source-error", nErr))
 		}
 
 		ids = remainingIDs[:]
@@ -87,9 +105,10 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 	// at last try the WoC
 	if source.Has(validator.SourceWoC) && len(ids) > 0 {
-		wocTxs, _ := f.w.GetRawTxs(ctx, ids)
+		wocTxs, wocErr := f.w.GetRawTxs(ctx, ids)
 		for _, wTx := range wocTxs {
 			if wTx.Error != "" {
+				wocErr = errors.Join(wocErr, fmt.Errorf("returned error data tx %s: %s", wTx.TxID, wTx.Error))
 				continue
 			}
 
@@ -103,25 +122,12 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 		// add remaining ids
 		remainingIDs = outerRightJoin(foundTxs, ids)
-		if len(remainingIDs) > 0 {
-			f.l.Warn("couldn't find transactions in WoC", slog.Any("ids", remainingIDs))
+		if len(remainingIDs) > 0 || wocErr != nil {
+			f.l.WarnContext(ctx, "couldn't find transactions in WoC", slog.Any("ids", remainingIDs), slog.Any("source-error", wocErr))
 		}
 	}
 
 	return foundTxs, nil
-}
-
-func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
-	}
-	// get the transaction from the bitcoin node rpc
-	node, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		return nil, err
-	}
-	return node.GetRawTransaction(inputTxID)
 }
 
 func newRawTx(id, hexTx string, blockH uint64) (validator.RawTx, error) {

@@ -714,7 +714,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
-|X-CallbackBatch|header|boolean|false|Callback will be send in batch|
+|X-CallbackBatch|header|boolean|false|Callback will be send in a batch|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|true|Transaction hex string|
@@ -1026,7 +1026,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
-|X-CallbackBatch|header|boolean|false|Callback will be send in batch|
+|X-CallbackBatch|header|boolean|false|Callback will be send in a batch|
 |X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|false|none|
@@ -2255,41 +2255,18 @@ and
 <a id="tocscallback"></a>
 
 ```json
-[
-  {
-    "mined": null,
-    "summary": "Transaction mined",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
-      "txStatus": "MINED",
-      "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
-      "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
-      "blockHeight": 837394
-    }
-  },
-  {
-    "seen on network": null,
-    "summary": "Transaction seen on network",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
-      "txStatus": "SEEN_ON_NETWORK"
-    }
-  },
-  {
-    "double spend attempted": null,
-    "summary": "Transaction with one or more competing transactions",
-    "value": {
-      "timestamp": "2024-03-26T16:02:29.655390092Z",
-      "competingTxs": [
-        "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
-      ],
-      "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
-      "txStatus": "DOUBLE_SPEND_ATTEMPTED"
-    }
-  }
-]
+{
+  "timestamp": "string",
+  "txid": "string",
+  "txStatus": "string",
+  "extraInfo": "string",
+  "competingTxs": [
+    "string"
+  ],
+  "merklePath": "string",
+  "blockHash": "string",
+  "blockHeight": 0
+}
 
 ```
 
@@ -2307,4 +2284,47 @@ callback object
 |merklePath|string¦null|false|none|none|
 |blockHash|string¦null|false|none|none|
 |blockHeight|integer¦null|false|none|none|
+
+<h2 id="tocS_BatchedCallbacks">BatchedCallbacks</h2>
+<!-- backwards compatibility -->
+<a id="schemabatchedcallbacks"></a>
+<a id="schema_BatchedCallbacks"></a>
+<a id="tocSbatchedcallbacks"></a>
+<a id="tocsbatchedcallbacks"></a>
+
+```json
+{
+  "value": {
+    "count": 2,
+    "callbacks": [
+      {
+        "timestamp": "2024-03-26T16:02:29.655390092Z",
+        "competingTxs": [
+          "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+        ],
+        "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+        "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+      },
+      {
+        "timestamp": "2024-03-26T16:02:29.655390092Z",
+        "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+        "txStatus": "MINED",
+        "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+        "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+        "blockHeight": 837394
+      }
+    ]
+  }
+}
+
+```
+
+batched callbacks object
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|count|integer|true|none|number of callbacks in response|
+|callbacks|[[Callback](#schemacallback)]¦null|false|none|[callback object]|
 

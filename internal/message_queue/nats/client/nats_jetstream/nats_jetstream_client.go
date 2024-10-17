@@ -1,4 +1,4 @@
-package nats_jetstream
+package natsjetstream
 
 import (
 	"context"

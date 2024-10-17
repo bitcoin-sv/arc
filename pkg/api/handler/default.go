@@ -48,7 +48,7 @@ type ArcDefaultHandler struct {
 
 	logger                        *slog.Logger
 	now                           func() time.Time
-	rejectedCallbackUrlSubstrings []string
+	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mrVerifier                    validator.MerkleVerifierI
 }
@@ -59,9 +59,9 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	}
 }
 
-func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*ArcDefaultHandler) {
+func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.rejectedCallbackUrlSubstrings = rejectedCallbackUrlSubstrings
+		p.rejectedCallbackURLSubstrings = rejectedCallbackURLSubstrings
 	}
 }
 
@@ -72,18 +72,18 @@ func NewDefault(
 	transactionHandler metamorph.TransactionHandler,
 	merkleRootsVerifier blocktx.MerkleRootsVerifier,
 	policy *bitcoin.Settings,
-	peerRpcConfig *config.PeerRpcConfig,
-	apiConfig *config.ApiConfig,
+	peerRPCConfig *config.PeerRPCConfig,
+	apiConfig *config.APIConfig,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-	var wocClient *woc_client.WocClient
+	var wocClient *wocclient.WocClient
 	if apiConfig != nil {
-		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocApiKey))
+		wocClient = wocclient.New(apiConfig.WocMainnet, wocclient.WithAuth(apiConfig.WocAPIKey))
 	} else {
-		wocClient = woc_client.New(false)
+		wocClient = wocclient.New(false)
 	}
 
-	finder := txfinder.New(transactionHandler, peerRpcConfig, wocClient, logger)
+	finder := txfinder.New(transactionHandler, peerRPCConfig, wocClient, logger)
 	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
@@ -155,7 +155,7 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
-	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
+	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -221,7 +221,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
 	// set the globals for all transactions in this request
-	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
+	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -256,17 +256,17 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(int(api.StatusOK), responses)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
-	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackUrlSubstrings)
+func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
+	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackURLSubstrings)
 }
 
-func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []string) error {
+func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []string) error {
 	_, err := url.ParseRequestURI(callbackURL)
 	if err != nil {
 		return errors.Join(ErrInvalidCallbackURL, err)
 	}
 
-	for _, substring := range rejectedCallbackUrlSubstrings {
+	for _, substring := range rejectedCallbackURLSubstrings {
 		if strings.Contains(callbackURL, substring) {
 			return ErrCallbackURLNotAcceptable
 		}
@@ -274,12 +274,12 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []str
 	return nil
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
+func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
 	transactionOptions := &metamorph.TransactionOptions{
 		MaxTimeout: maxTimeoutSecondsDefault,
 	}
 	if params.XCallbackUrl != nil {
-		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
+		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackURLSubstrings); err != nil {
 			return nil, err
 		}
 
@@ -362,7 +362,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
 	// decode and validate txs
-	var txIds []string
+	var txIDs []string
 
 	for len(txsHex) != 0 {
 		hexFormat := validator.GetHexFormat(txsHex)
@@ -388,7 +388,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				}
 			}
 
-			txIds = append(txIds, beefTx.GetLatestTx().TxID())
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID())
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
@@ -404,7 +404,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			submittedTxs = append(submittedTxs, transaction)
-			txIds = append(txIds, transaction.TxID())
+			txIDs = append(txIDs, transaction.TxID())
 		}
 	}
 
@@ -422,7 +422,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	}
 
 	// prepare success results
-	txStatuses = filterStatusesByTxIDs(txIds, txStatuses)
+	txStatuses = filterStatusesByTxIDs(txIDs, txStatuses)
 
 	now := m.now()
 	successes = make([]*api.TransactionResponse, 0, len(submittedTxs))

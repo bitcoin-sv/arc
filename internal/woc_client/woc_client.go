@@ -1,4 +1,4 @@
-package woc_client
+package wocclient
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	apiUrl    = "https://api.whatsonchain.com/v1/bsv"
+	apiURL    = "https://api.whatsonchain.com/v1/bsv"
 	maxIDsNum = 20 // value from doc
 )
 
@@ -75,7 +75,7 @@ func New(mainnet bool, opts ...func(client *WocClient)) *WocClient {
 	w := &WocClient{
 		client:    http.Client{Timeout: 10 * time.Second},
 		net:       net,
-		url:       apiUrl,
+		url:       apiURL,
 		maxNumIDs: maxIDsNum,
 	}
 
@@ -98,7 +98,7 @@ type wocBalance struct {
 	Unconfirmed int64 `json:"unconfirmed"`
 }
 
-type wocRawTx struct {
+type WocRawTx struct {
 	TxID          string `json:"txid"`
 	Hex           string `json:"hex"`
 	BlockHash     string `json:"blockhash"`
@@ -239,9 +239,9 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 	return nil
 }
 
-func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*wocRawTx, error) {
+func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*WocRawTx, error) {
 
-	var result []*wocRawTx
+	var result []*WocRawTx
 
 	for len(ids) > 0 {
 		bsize := min(w.maxNumIDs, len(ids))
@@ -259,7 +259,7 @@ func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*wocRawTx, e
 	return result, nil
 }
 
-func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*wocRawTx, error) {
+func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*WocRawTx, error) {
 	payload := map[string][]string{"txids": batch}
 	body, _ := json.Marshal(payload)
 
@@ -274,7 +274,7 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*wocRawTx,
 	}
 	defer resp.Body.Close()
 
-	var res []*wocRawTx
+	var res []*WocRawTx
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, errors.Join(ErrWOCFailedToDecodeRawTxs, err)

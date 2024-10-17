@@ -16,12 +16,12 @@ import (
 
 type Finder struct {
 	th metamorph.TransactionHandler
-	pc *config.PeerRpcConfig
+	pc *config.PeerRPCConfig
 	l  *slog.Logger
-	w  *woc_client.WocClient
+	w  *wocclient.WocClient
 }
 
-func New(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
+func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *wocclient.WocClient, l *slog.Logger) Finder {
 	return Finder{
 		th: th,
 		pc: pc,
@@ -111,8 +111,8 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	return foundTxs, nil
 }
 
-func getTransactionFromNode(peerRpc *config.PeerRpcConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
+func getTransactionFromNode(peerRPC *config.PeerRPCConfig, inputTxID string) (*bitcoin.RawTransaction, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPC.User, peerRPC.Password, peerRPC.Host, peerRPC.Port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 	}

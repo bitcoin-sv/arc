@@ -9,7 +9,7 @@ import (
 )
 
 type ProcessorRequest struct {
-	Data            *store.StoreData
+	Data            *store.Data
 	ResponseChannel chan StatusAndError
 }
 

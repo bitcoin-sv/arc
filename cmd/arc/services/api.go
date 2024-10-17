@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	natsjetstream "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	natsconnection "github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -10,9 +13,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
@@ -46,7 +46,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		LogURI:      true,
 		LogError:    true,
 		HandleError: true, // forwards error to the global error handler, so it can decide appropriate status code
-		LogValuesFunc: func(c echo.Context, v echomiddleware.RequestLoggerValues) error {
+		LogValuesFunc: func(_ echo.Context, v echomiddleware.RequestLoggerValues) error {
 			if v.Error == nil {
 				logger.LogAttrs(context.Background(), slog.LevelInfo, "REQUEST",
 					slog.String("uri", v.URI),
@@ -77,23 +77,23 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	var mqClient metamorph.MessageQueueClient
-	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	natsClient, err := natsconnection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		var opts []nats_jetstream.Option
+		var opts []natsjetstream.Option
 		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
+			opts = append(opts, natsjetstream.WithFileStorage())
 		}
 
-		mqClient, err = nats_jetstream.New(natsClient, logger, []string{metamorph.SubmitTxTopic}, opts...)
+		mqClient, err = natsjetstream.New(natsClient, logger, []string{metamorph.SubmitTxTopic}, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
+		mqClient = natscore.New(natsClient, natscore.WithLogger(logger))
 	}
 
 	metamorphClient := metamorph.NewClient(
@@ -109,17 +109,17 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	var policy *bitcoin.Settings
-	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
+	policy, err = getPolicyFromNode(arcConfig.PeerRPC)
 	if err != nil {
-		policy = arcConfig.Api.DefaultPolicy
+		policy = arcConfig.API.DefaultPolicy
 	}
 
 	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []handler.Option{
-		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+		handler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
 
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRPC, arcConfig.API, apiOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +129,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Info("Starting API server", slog.String("address", arcConfig.Api.Address))
-		err := e.Start(arcConfig.Api.Address)
+		logger.Info("Starting API server", slog.String("address", arcConfig.API.Address))
+		err := e.Start(arcConfig.API.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")
@@ -154,8 +154,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}, nil
 }
 
-func getPolicyFromNode(peerRpcConfig *config.PeerRpcConfig) (*bitcoin.Settings, error) {
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpcConfig.User, peerRpcConfig.Password, peerRpcConfig.Host, peerRpcConfig.Port))
+func getPolicyFromNode(peerRPCConfig *config.PeerRPCConfig) (*bitcoin.Settings, error) {
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPCConfig.User, peerRPCConfig.Password, peerRPCConfig.Host, peerRPCConfig.Port))
 	if err != nil {
 		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
 	}

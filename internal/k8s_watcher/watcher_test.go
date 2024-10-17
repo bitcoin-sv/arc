@@ -1,4 +1,4 @@
-package k8s_watcher_test
+package k8swatcher_test
 
 import (
 	"context"
@@ -59,7 +59,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnlockedErrTest := tc.setUnlockedErr
 			metamorphMock := &mtmMocks.TransactionMaintainerMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, name string) (int64, error) {
 					require.Equal(t, "metamorph-pod-2", name)
 
 					if setUnlockedErrTest != nil {
@@ -69,13 +69,13 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &btxMocks.BlocktxClientMock{}
+			blocktxMock := &btxMocks.BlockClientMock{}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamestTest := tc.podNames
 			k8sClientMock := &mocks.K8sClientMock{
-				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+				GetRunningPodNamesFunc: func(_ context.Context, _ string, _ string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
 					}
@@ -97,9 +97,9 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
-				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
-				k8s_watcher.WithRetryInterval(20*time.Millisecond),
+			watcher := k8swatcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8swatcher.WithMetamorphTicker(ticker),
+				k8swatcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+				k8swatcher.WithRetryInterval(20*time.Millisecond),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)
@@ -157,15 +157,15 @@ func TestStartBlocktxWatcher(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mtmMocks.TransactionMaintainerMock{}
-			blocktxMock := &btxMocks.BlocktxClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) { return 0, nil },
+			blocktxMock := &btxMocks.BlockClientMock{
+				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamesTest := tc.podNames
 			k8sClientMock := &mocks.K8sClientMock{
-				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+				GetRunningPodNamesFunc: func(_ context.Context, _ string, _ string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
 					}
@@ -187,8 +187,8 @@ func TestStartBlocktxWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithBlocktxTicker(ticker),
-				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+			watcher := k8swatcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8swatcher.WithBlocktxTicker(ticker),
+				k8swatcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)

@@ -104,7 +104,7 @@ type Processor struct {
 type Option func(f *Processor)
 
 type CallbackSender interface {
-	SendCallback(data *store.StoreData)
+	SendCallback(data *store.Data)
 }
 
 func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
@@ -313,7 +313,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		reqs := make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+		reqs := make([]*store.Data, 0, p.processTransactionsBatchSize)
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -321,7 +321,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 			case <-ticker.C:
 				if len(reqs) > 0 {
 					p.ProcessTransactions(reqs)
-					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -332,14 +332,14 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					continue
 				}
 				now := p.now()
-				callback := store.StoreCallback{
+				callback := store.Callback{
 					CallbackURL:   submittedTx.GetCallbackUrl(),
 					CallbackToken: submittedTx.GetCallbackToken(),
 				}
-				sReq := &store.StoreData{
+				sReq := &store.Data{
 					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
 					Status:            metamorph_api.Status_STORED,
-					Callbacks:         []store.StoreCallback{callback},
+					Callbacks:         []store.Callback{callback},
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
 					StoredAt:          now,
@@ -349,7 +349,7 @@ func (p *Processor) StartProcessSubmittedTxs() {
 				reqs = append(reqs, sReq)
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(reqs)
-					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
+					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -458,7 +458,7 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 }
 
 func (p *Processor) statusUpdateWithCallback(statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	var updatedData []*store.StoreData
+	var updatedData []*store.Data
 	var err error
 
 	if len(statusUpdates) > 0 {
@@ -716,7 +716,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	p.responseProcessor.Add(statusResponse)
 }
 
-func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
+func (p *Processor) ProcessTransactions(sReq []*store.Data) {
 	// store in database
 	err := p.store.SetBulk(p.ctx, sReq)
 	if err != nil {
@@ -763,12 +763,12 @@ func (p *Processor) Health() error {
 	return nil
 }
 
-func (p *Processor) storeData(ctx context.Context, data *store.StoreData) error {
+func (p *Processor) storeData(ctx context.Context, data *store.Data) error {
 	data.LastSubmittedAt = p.now()
 	return p.store.Set(ctx, data)
 }
 
-func addNewCallback(data, reqData *store.StoreData) {
+func addNewCallback(data, reqData *store.Data) {
 	if reqData.Callbacks == nil {
 		return
 	}
@@ -778,7 +778,7 @@ func addNewCallback(data, reqData *store.StoreData) {
 	}
 }
 
-func callbackExists(callback store.StoreCallback, data *store.StoreData) bool {
+func callbackExists(callback store.Callback, data *store.Data) bool {
 	for _, c := range data.Callbacks {
 		if c == callback {
 			return true

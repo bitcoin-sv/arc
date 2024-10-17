@@ -150,8 +150,8 @@ func TestCheckInputs(t *testing.T) {
 
 	coinbaseInput := &sdkTx.TransactionInput{}
 	coinbaseInput.SetPrevTxFromOutput(&sdkTx.TransactionOutput{Satoshis: 100})
-	hexTxId, _ := hex.DecodeString(coinbaseTxID)
-	coinbaseInput.SourceTXID = hexTxId
+	hexTxID, _ := hex.DecodeString(coinbaseTxID)
+	coinbaseInput.SourceTXID = hexTxID
 
 	tests := []struct {
 		name    string

@@ -7,7 +7,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file" //nolint: revive // Required for migrations
 )
 
 const (

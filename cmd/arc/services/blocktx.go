@@ -2,13 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	natsjetstream "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	natsconnection "github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log/slog"
 	"net"
 	"time"
-
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -45,18 +44,18 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	requestTxChannel := make(chan []byte, chanBufferSize)
 
 	var mqClient blocktx.MessageQueueClient
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	natsConnection, err := natsconnection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		opts := []natsjetstream.Option{natsjetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
+			opts = append(opts, natsjetstream.WithFileStorage())
 		}
 
-		mqClient, err = nats_jetstream.New(natsConnection, logger,
+		mqClient, err = natsjetstream.New(natsConnection, logger,
 			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
 			opts...,
 		)
@@ -64,7 +63,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(natsConnection, nats_core.WithLogger(logger))
+		mqClient = natscore.New(natsConnection, natscore.WithLogger(logger))
 	}
 
 	processorOpts := []func(handler *blocktx.Processor){

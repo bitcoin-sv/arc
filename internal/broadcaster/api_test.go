@@ -87,7 +87,7 @@ func TestBroadcastTransactions(t *testing.T) {
 			}
 
 			arcClientMock := &mocks.ClientInterfaceMock{
-				POSTTransactionsFunc: func(ctx context.Context, params *api.POSTTransactionsParams, body []api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+				POSTTransactionsFunc: func(_ context.Context, _ *api.POSTTransactionsParams, _ []api.TransactionRequest, _ ...api.RequestEditorFn) (*http.Response, error) {
 					return response, nil
 				},
 			}
@@ -171,7 +171,7 @@ func TestBroadcastTransaction(t *testing.T) {
 			}
 
 			arcClientMock := &mocks.ClientInterfaceMock{
-				POSTTransactionFunc: func(ctx context.Context, params *api.POSTTransactionParams, body api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+				POSTTransactionFunc: func(_ context.Context, _ *api.POSTTransactionParams, _ api.TransactionRequest, _ ...api.RequestEditorFn) (*http.Response, error) {
 					return response, nil
 				},
 			}

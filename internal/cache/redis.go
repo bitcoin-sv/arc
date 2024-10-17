@@ -15,7 +15,7 @@ type RedisStore struct {
 }
 
 // NewRedisStore initializes a RedisStore.
-func NewRedisStore(c redis.UniversalClient, ctx context.Context) *RedisStore {
+func NewRedisStore(ctx context.Context, c redis.UniversalClient) *RedisStore {
 	return &RedisStore{
 		client: c,
 		ctx:    ctx,

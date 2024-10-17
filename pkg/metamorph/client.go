@@ -3,12 +3,12 @@ package metamorph
 import (
 	"context"
 	"errors"
+	grpcopts "github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
@@ -89,7 +89,7 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
+	dialOpts, err := grpcopts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
 	if err != nil {
 		return nil, err
 	}

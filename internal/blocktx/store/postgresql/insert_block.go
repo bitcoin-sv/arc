@@ -22,7 +22,7 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		RETURNING id
 	`
 
-	var blockId uint64
+	var blockID uint64
 
 	row := p.db.QueryRowContext(ctx, qInsert,
 		block.GetHash(),
@@ -33,10 +33,10 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		block.GetChainwork(),
 	)
 
-	err := row.Scan(&blockId)
+	err := row.Scan(&blockID)
 	if err != nil {
 		return 0, errors.Join(store.ErrFailedToInsertBlock, err)
 	}
 
-	return blockId, nil
+	return blockID, nil
 }

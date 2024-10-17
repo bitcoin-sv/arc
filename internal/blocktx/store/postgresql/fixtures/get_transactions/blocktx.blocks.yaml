@@ -20,3 +20,14 @@
   tx_count: 856
   orphanedyn: false
   status: 20 # STALE
+- inserted_at: 2023-12-10 14:00:00
+  id: 3
+  hash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  prevhash: 0x000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9
+  merkleroot: 0x713e7713ebc6414420a418e87bbd42ecaf7e0e38c923c2cf9e72718d3c329acb
+  height: 822013
+  processed_at: 2023-12-10 14:10:00
+  size: 86840000
+  tx_count: 23477
+  orphanedyn: false
+  status: 10 # LONGEST

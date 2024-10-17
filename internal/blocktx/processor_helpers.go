@@ -140,7 +140,7 @@ func withRetry(ctx context.Context, fn func() error, n int) error {
 				return nil
 			}
 
-			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i, err))
+			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i+1, err))
 			time.Sleep(100 * time.Millisecond)
 		}
 	}

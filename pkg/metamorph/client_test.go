@@ -369,6 +369,14 @@ func TestClient_GetTransaction(t *testing.T) {
 			mockErr:        metamorph.ErrTransactionNotFound,
 			expectedErrStr: metamorph.ErrTransactionNotFound.Error(),
 		},
+		{
+			name:           "error - transaction is nil ",
+			txID:           "nilTxID",
+			mockResp:       nil,
+			mockErr:        metamorph.ErrTransactionNotFound,
+			expectedData:   nil,
+			expectedErrStr: metamorph.ErrTransactionNotFound.Error(),
+		},
 	}
 
 	for _, tc := range tt {
@@ -444,6 +452,13 @@ func TestClient_GetTransactions(t *testing.T) {
 			mockError:        errors.New("transaction not found"),
 			expectedErrorStr: "transaction not found",
 		},
+		{
+			name:            "txs is nil",
+			txIDs:           []string{"tx1"},
+			mockResponse:    nil,
+			mockError:       nil,
+			expectedTxCount: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -482,24 +497,50 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name           string
 		txID           string
-		status         metamorph_api.Status
-		expectedStatus string
+		mockResp       *metamorph_api.TransactionStatus
+		mockErr        error
+		expectedStatus *metamorph.TransactionStatus
 		expectedErrStr string
 	}{
-		{"unknown", "testTxID1", metamorph_api.Status_UNKNOWN, "UNKNOWN", "UNKNOWN"},
-		{"queued", "testTxID2", metamorph_api.Status_QUEUED, "QUEUED", "QUEUED"},
-		{"received", "testTxID3", metamorph_api.Status_RECEIVED, "RECEIVED", "RECEIVED"},
-		{"stored", "testTxID4", metamorph_api.Status_STORED, "STORED", "STORED"},
-		{"announced_to_network", "testTxID5", metamorph_api.Status_ANNOUNCED_TO_NETWORK, "ANNOUNCED_TO_NETWORK", "ANNOUNCED_TO_NETWORK"},
-		{"requested_by_network", "testTxID6", metamorph_api.Status_REQUESTED_BY_NETWORK, "REQUESTED_BY_NETWORK", "REQUESTED_BY_NETWORK"},
-		{"sent_to_network", "testTxID7", metamorph_api.Status_SENT_TO_NETWORK, "SENT_TO_NETWORK", "SENT_TO_NETWORK"},
-		{"accepted_by_network", "testTxID8", metamorph_api.Status_ACCEPTED_BY_NETWORK, "ACCEPTED_BY_NETWORK", "ACCEPTED_BY_NETWORK"},
-		{"seen_in_orphan_mempool", "testTxID9", metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, "SEEN_IN_ORPHAN_MEMPOOL", "SEEN_IN_ORPHAN_MEMPOOL"},
-		{"seen_on_network", "testTxID10", metamorph_api.Status_SEEN_ON_NETWORK, "SEEN_ON_NETWORK", "SEEN_ON_NETWORK"},
-		{"double_spend_attempted", "testTxID11", metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, "DOUBLE_SPEND_ATTEMPTED", "DOUBLE_SPEND_ATTEMPTED"},
-		{"rejected", "testTxID12", metamorph_api.Status_REJECTED, "REJECTED", "REJECTED"},
-		{"mined", "testTxID13", metamorph_api.Status_MINED, "MINED", "MINED"},
-		{"transaction not found", "missingTxID", metamorph_api.Status_UNKNOWN, "", metamorph.ErrTransactionNotFound.Error()},
+		{
+			name:           "error - client error",
+			txID:           "testTxID1",
+			mockResp:       nil,
+			mockErr:        errors.New("client error"),
+			expectedStatus: nil,
+			expectedErrStr: "client error",
+		},
+		{
+			name:           "error - transaction not found",
+			txID:           "missingTxID",
+			mockResp:       nil,
+			mockErr:        nil,
+			expectedStatus: nil,
+			expectedErrStr: metamorph.ErrTransactionNotFound.Error(),
+		},
+		{
+			name: "success - transaction status retrieved",
+			txID: "testTxID2",
+			mockResp: &metamorph_api.TransactionStatus{
+				Txid:         "testTxID2",
+				MerklePath:   "sampleMerklePath",
+				Status:       metamorph_api.Status_MINED,
+				BlockHash:    "sampleBlockHash",
+				BlockHeight:  200,
+				RejectReason: "none",
+				CompetingTxs: []string{"competingTx1"},
+			},
+			expectedStatus: &metamorph.TransactionStatus{
+				TxID:         "testTxID2",
+				MerklePath:   "sampleMerklePath",
+				Status:       metamorph_api.Status_MINED.String(),
+				BlockHash:    "sampleBlockHash",
+				BlockHeight:  200,
+				ExtraInfo:    "none",
+				CompetingTxs: []string{"competingTx1"},
+				Timestamp:    time.Now().Unix(),
+			},
+		},
 	}
 
 	for _, tc := range tt {
@@ -507,15 +548,10 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
 				GetTransactionStatusFunc: func(ctx context.Context, req *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
-					if tc.expectedErrStr != "" {
-						return nil, errors.New(tc.expectedErrStr)
+					if tc.mockErr != nil {
+						return nil, tc.mockErr
 					}
-					return &metamorph_api.TransactionStatus{
-						Txid:        tc.txID,
-						Status:      tc.status,
-						BlockHash:   "sampleBlockHash",
-						BlockHeight: 100,
-					}, nil
+					return tc.mockResp, nil
 				},
 			}
 
@@ -532,13 +568,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 				require.Nil(t, status)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, &metamorph.TransactionStatus{
-					TxID:        tc.txID,
-					Status:      tc.expectedStatus,
-					BlockHash:   "sampleBlockHash",
-					BlockHeight: 100,
-					Timestamp:   now,
-				}, status)
+				require.Equal(t, tc.expectedStatus, status)
 			}
 
 			require.Equal(t, 1, len(mockClient.GetTransactionStatusCalls()), "Unexpected number of GetTransactionStatus calls")
@@ -586,82 +616,6 @@ func TestClient_Health(t *testing.T) {
 			}
 
 			require.Equal(t, 1, len(mockClient.HealthCalls()), "Unexpected number of Health calls")
-		})
-	}
-}
-
-func TestGetTransactions(t *testing.T) {
-	// Define test cases
-	tt := []struct {
-		name                 string
-		txIDs                []string
-		mockResp             *metamorph_api.Transactions
-		mockErr              error
-		expectedTransactions []*metamorph.Transaction
-		expectedErrStr       string
-	}{
-		{
-			name:  "success - valid transactions",
-			txIDs: []string{"txid1", "txid2"},
-			mockResp: &metamorph_api.Transactions{
-				Transactions: []*metamorph_api.Transaction{
-					{
-						Txid:        "txid1",
-						RawTx:       []byte{0x01, 0x02},
-						BlockHeight: 100,
-					},
-					{
-						Txid:        "txid2",
-						RawTx:       []byte{0x03, 0x04},
-						BlockHeight: 200,
-					},
-				},
-			},
-			expectedTransactions: []*metamorph.Transaction{
-				{
-					TxID:        "txid1",
-					Bytes:       []byte{0x01, 0x02},
-					BlockHeight: 100,
-				},
-				{
-					TxID:        "txid2",
-					Bytes:       []byte{0x03, 0x04},
-					BlockHeight: 200,
-				},
-			},
-		},
-		{
-			name:           "error - transaction not found",
-			txIDs:          []string{"missingTxid"},
-			mockResp:       nil,
-			mockErr:        errors.New("transaction not found"),
-			expectedErrStr: "transaction not found",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			// Given
-			mockClient := &apiMocks.MetaMorphAPIClientMock{
-				GetTransactionsFunc: func(ctx context.Context, req *metamorph_api.TransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
-					return tc.mockResp, tc.mockErr
-				},
-			}
-
-			client := metamorph.NewClient(mockClient)
-
-			// When
-			transactions, err := client.GetTransactions(context.Background(), tc.txIDs)
-
-			// Then
-			if tc.expectedErrStr != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedErrStr)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expectedTransactions, transactions)
-			}
-
 		})
 	}
 }

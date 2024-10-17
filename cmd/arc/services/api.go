@@ -126,8 +126,8 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
-			//nolint:staticcheck
-			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String())
+			//nolint:staticcheck // use string key on purpose
+			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) //lint:ignore SA1029 use string key on purpose
 			c.SetRequest(req.WithContext(reqCtx))
 
 			return next(c)

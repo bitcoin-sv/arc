@@ -72,7 +72,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		if event, ok := req.(common_api.UnaryEvent); ok && event != nil {
 			id := event.GetEventId()
 			if id != "" {
-				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) //lint:ignore SA1029 ignore
+				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) //nolint:staticcheck // ignore SA1029
 			}
 		}
 

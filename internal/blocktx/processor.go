@@ -38,6 +38,7 @@ const (
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
+	waitForBlockProcessing             = 10 * time.Minute
 )
 
 type Processor struct {
@@ -166,21 +167,12 @@ func (p *Processor) StartBlockRequesting() {
 
 				if err = peer.WriteMsg(msg); err != nil {
 					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-
-					// unlock block
-					// use closures for retries
-					unlockFn := func() error {
-						_, sErr := p.store.DelBlockProcessing(p.ctx, hash, p.hostname)
-						return sErr
-					}
-
-					if unlockErr := withRetry(p.ctx, unlockFn, 5); unlockErr != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
-					}
+					p.unlockBlock(p.ctx, hash)
 
 					continue
 				}
 
+				p.startBlockProcessedGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
@@ -205,20 +197,49 @@ func (p *Processor) StartBlockProcessing() {
 
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
-					// unlock block for future processing
-					// use closures for retries
-					unlockFn := func() error {
-						_, sErr := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
-						return sErr
-					}
-
-					if unlockErr := withRetry(p.ctx, unlockFn, 5); unlockErr != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", unlockErr.Error()))
-					}
+					p.unlockBlock(p.ctx, &blockhash)
 				}
 			}
 		}
 	}()
+}
+
+// unlock block for future processing
+func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
+	// use closures for retries
+	unlockFn := func() error {
+		_, err := p.store.DelBlockProcessing(ctx, hash, p.hostname)
+		return err
+	}
+
+	if unlockErr := withRetry(ctx, unlockFn, 5); unlockErr != nil {
+		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
+	}
+}
+
+func (p *Processor) startBlockProcessedGuard(ctx context.Context, hash *chainhash.Hash) {
+	p.waitGroup.Add(1)
+
+	go func(ctx context.Context, hash *chainhash.Hash) {
+		defer p.waitGroup.Done()
+
+		// respect processor shutdown while waiting
+		select {
+		case <-p.ctx.Done():
+			return // we can do nothing here
+		case <-time.After(waitForBlockProcessing):
+			// check if block was processed successfully
+			block, _ := p.store.GetBlock(ctx, hash)
+
+			if block != nil && block.Processed {
+				return // success
+			}
+
+			p.logger.Error(fmt.Sprintf("block is not processed after %v. Block will be unlock to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.unlockBlock(ctx, hash)
+		}
+
+	}(ctx, hash)
 }
 
 func (p *Processor) StartFillGaps(peers []p2p.PeerI) {

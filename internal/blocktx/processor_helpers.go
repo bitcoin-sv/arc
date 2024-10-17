@@ -1,35 +1,16 @@
 package blocktx
 
 import (
-	"encoding/binary"
+	"context"
+	"errors"
+	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-p2p"
 )
-
-// exported for testing purposes
-func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {
-	// Coinbase tx has a special format, the height is encoded in the first 4 bytes of the scriptSig
-	// https://en.bitcoin.it/wiki/Protocol_documentation#tx
-	// Get the length
-	script := *(tx.Inputs[0].UnlockingScript)
-	length := int(script[0])
-
-	if len(script) < length+1 {
-		return 0
-	}
-
-	b := make([]byte, 8)
-
-	for i := 0; i < length; i++ {
-		b[i] = script[i+1]
-	}
-
-	return binary.LittleEndian.Uint64(b)
-}
 
 func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
 	hash := msg.Header.BlockHash()
@@ -139,4 +120,30 @@ func progressIndices(total, steps int) map[int]int {
 
 	progress[total] = 100
 	return progress
+}
+
+func withRetry(ctx context.Context, fn func() error, n int) error {
+	n = int(math.Max(float64(n), 1)) // ensure n is at least 1
+	var rerr error
+
+	for i := range n {
+		select {
+		case <-ctx.Done():
+			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i+1, ctx.Err()))
+			return rerr
+
+		default:
+			err := fn()
+
+			// return if the function completes successfully
+			if err == nil {
+				return nil
+			}
+
+			rerr = errors.Join(rerr, fmt.Errorf("failure on %d try: %w", i, err))
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	return rerr
 }

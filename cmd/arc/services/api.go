@@ -126,7 +126,8 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
-			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) //nolint:staticcheck // ignore SA1029
+			//lint:ignore SA1029 ignore
+			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String())
 			c.SetRequest(req.WithContext(reqCtx))
 
 			return next(c)

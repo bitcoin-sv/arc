@@ -33,7 +33,6 @@ const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 10
-	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
@@ -56,7 +55,6 @@ type Processor struct {
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
-	fillGapsInterval            time.Duration
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -87,7 +85,6 @@ func NewProcessor(
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
 		waitGroup:                   &sync.WaitGroup{},
-		fillGapsInterval:            fillGapsInterval,
 	}
 
 	for _, opt := range opts {
@@ -242,34 +239,6 @@ func (p *Processor) startBlockProcessedGuard(ctx context.Context, hash *chainhas
 	}(ctx, hash)
 }
 
-func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
-	p.waitGroup.Add(1)
-
-	ticker := time.NewTicker(p.fillGapsInterval)
-	go func() {
-		defer p.waitGroup.Done()
-		peerIndex := 0
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				if peerIndex >= len(peers) {
-					peerIndex = 0
-				}
-
-				err := p.fillGaps(peers[peerIndex])
-				if err != nil {
-					p.logger.Error("failed to fill gaps", slog.String("err", err.Error()))
-				}
-
-				peerIndex++
-				ticker.Reset(p.fillGapsInterval)
-			}
-		}
-	}()
-}
-
 func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
 	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
@@ -395,39 +364,6 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 		}
 	}
-}
-
-const (
-	hoursPerDay   = 24
-	blocksPerHour = 6
-)
-
-func (p *Processor) fillGaps(peer p2p.PeerI) error {
-	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
-
-	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
-	if err != nil {
-		return err
-	}
-
-	if len(blockHeightGaps) == 0 {
-		return nil
-	}
-
-	for i, gaps := range blockHeightGaps {
-		if i+1 > maxRequestBlocks {
-			break
-		}
-
-		p.logger.Info("adding request for missing block to channel", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
-
-		p.blockRequestCh <- BlockRequest{
-			Hash: gaps.Hash,
-			Peer: peer,
-		}
-	}
-
-	return nil
 }
 
 func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
@@ -744,9 +680,4 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 func (p *Processor) Shutdown() {
 	p.cancelAll()
 	p.waitGroup.Wait()
-}
-
-// for testing purposes only
-func (p *Processor) GetBlockRequestCh() chan BlockRequest {
-	return p.blockRequestCh
 }

@@ -37,13 +37,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		pm           p2p.PeerManagerI
 		server       *blocktx.Server
 		healthServer *grpc_opts.GrpcServer
+		workers      *blocktx.BackgroundWorkers
 
 		err error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer)
+		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer, workers)
 		logger.Info("Shutted down")
 	}
 
@@ -90,7 +91,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithFillGapsInterval(btxConfig.FillGapsInterval),
 	}
 	if tracingEnabled {
 		processorOpts = append(processorOpts, blocktx.WithTracer())
@@ -152,7 +152,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peers[i] = peer
 	}
 
-	processor.StartFillGaps(peers)
+	workers = blocktx.NewBackgroundWorkers(blockStore, logger)
+	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
 
 	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
 		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch)
@@ -209,18 +210,22 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnab
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
 	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
-	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer) {
+	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers) {
 
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new requests will be received
-	// 2. processor - ensure all started job are complete
-	// 3. peer manager
-	// 4. mqClient
-	// 5. store
-	// 6. healthServer
+	// 2. background workers
+	// 3. processor - ensure all started job are complete
+	// 4. peer manager
+	// 5. mqClient
+	// 6. store
+	// 7. healthServer
 
 	if server != nil {
 		server.GracefulStop()
+	}
+	if workers != nil {
+		workers.GracefulStop()
 	}
 	if processor != nil {
 		processor.Shutdown()

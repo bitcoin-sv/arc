@@ -44,6 +44,8 @@ func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Durat
 	w.workersWg.Add(1)
 
 	go func() {
+		defer w.workersWg.Done()
+
 		t := time.NewTicker(interval)
 		peerIndex := 0
 
@@ -63,10 +65,8 @@ func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Durat
 				t.Reset(interval)
 
 			case <-w.ctx.Done():
-				w.workersWg.Done()
 				return
 			}
-
 		}
 	}()
 }

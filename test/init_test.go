@@ -41,7 +41,7 @@ func setupSut() {
 
 	if info.Blocks < minNumbeOfBlocks {
 		// generate blocks in part to ensure blocktx is able to process all blocks
-		const blockBatch = 20 // should be leq n*10 where n is number of blocktx instances
+		const blockBatch = 20 // should be less or equal n*10 where n is number of blocktx instances
 
 		for {
 			_, err = bitcoind.Generate(blockBatch)
@@ -58,8 +58,6 @@ func setupSut() {
 			}
 
 			missingBlocks := minNumbeOfBlocks - info.Blocks
-			log.Println(missingBlocks)
-
 			if missingBlocks < 0 {
 				break
 			}

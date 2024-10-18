@@ -73,7 +73,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithFillGapsInterval(btxConfig.FillGapsInterval),
 	}
 	if tracingEnabled {
 		processorOpts = append(processorOpts, blocktx.WithTracer())
@@ -130,7 +129,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peers[i] = peer
 	}
 
-	processor.StartFillGaps(peers)
+	workers := blocktx.NewBackgroundWorkers(blockStore, logger)
+	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
 
 	server := blocktx.NewServer(blockStore, logger, pm, btxConfig.MaxAllowedBlockHeightMismatch)
 
@@ -147,11 +147,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	return func() {
 		logger.Info("Shutting down blocktx store")
 
-		processor.Shutdown()
-
-		server.Shutdown()
-
+		workers.GracefulStop()
 		mqClient.Shutdown()
+		server.Shutdown()
+		processor.Shutdown()
 
 		err = blockStore.Close()
 		if err != nil {

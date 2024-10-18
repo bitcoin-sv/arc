@@ -822,11 +822,11 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 	return txsToPublish, nil
 }
 
-// getStaleTxs returns all transactions from a given STALE block that are not in the longest chain
+// getStaleTxs returns all transactions from given STALE blocks that are not in the longest chain
 func (p *Processor) getStaleTxs(ctx context.Context, staleChain chain) ([]store.TransactionBlock, error) {
-	// 1. Find registered txs from the given STALE block
+	// 1. Find registered txs from given STALE blocks
 	// 2. Check for those transactions in the longest chain
-	// 3. Return only those registered txs from the STALE block that are not found in the longest chain
+	// 3. Return only those registered txs from the STALE blocks that are not found in the longest chain
 
 	registeredTxs, err := p.store.GetRegisteredTransactions(ctx, staleChain.getHashes())
 	if err != nil {

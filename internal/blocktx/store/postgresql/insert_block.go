@@ -16,7 +16,7 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)
 		VALUES ($1 ,$2 , $3, $4, $5, $6)
-		ON CONFLICT (hash) DO UPDATE SET orphanedyn = FALSE
+		ON CONFLICT (hash) DO UPDATE SET status = EXCLUDED.status
 		RETURNING id
 	`
 

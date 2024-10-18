@@ -31,13 +31,13 @@ var (
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
-	maxRequestBlocks                   = 1
-	maxBlocksInProgress                = 1
-	fillGapsInterval                   = 15 * time.Minute
+	maxRequestBlocks                   = 10
+	maxBlocksInProgress                = 10
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
+	waitForBlockProcessing             = 10 * time.Minute
 )
 
 type Processor struct {
@@ -55,7 +55,6 @@ type Processor struct {
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
-	fillGapsInterval            time.Duration
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -86,7 +85,6 @@ func NewProcessor(
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
 		waitGroup:                   &sync.WaitGroup{},
-		fillGapsInterval:            fillGapsInterval,
 	}
 
 	for _, opt := range opts {
@@ -144,10 +142,11 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				if len(bhs) >= maxBlocksInProgress {
-					p.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+					p.logger.Warn("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
 					continue
 				}
 
+				// lock block for the current instance to process
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
@@ -161,16 +160,16 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				msg := wire.NewMsgGetData()
-				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-					p.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					continue
-				}
+				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
 				if err = peer.WriteMsg(msg); err != nil {
-					p.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, hash)
+
 					continue
 				}
 
+				p.startBlockProcessedGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
@@ -188,45 +187,56 @@ func (p *Processor) StartBlockProcessing() {
 			case <-p.ctx.Done():
 				return
 			case blockMsg := <-p.blockProcessCh:
+				blockhash := blockMsg.Header.BlockHash()
+				p.logger.Info("received block", slog.String("hash", blockhash.String()))
+
 				err := p.processBlock(blockMsg)
+
 				if err != nil {
-					blockhash := blockMsg.Header.BlockHash()
-					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
-					if errDel != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", errDel.Error()))
-					}
+					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, &blockhash)
 				}
 			}
 		}
 	}()
 }
 
-func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
+// unlock block for future processing
+func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
+	// use closures for retries
+	unlockFn := func() error {
+		_, err := p.store.DelBlockProcessing(ctx, hash, p.hostname)
+		return err
+	}
+
+	if unlockErr := withRetry(ctx, unlockFn, 5); unlockErr != nil {
+		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
+	}
+}
+
+func (p *Processor) startBlockProcessedGuard(ctx context.Context, hash *chainhash.Hash) {
 	p.waitGroup.Add(1)
 
-	ticker := time.NewTicker(p.fillGapsInterval)
-	go func() {
+	go func(ctx context.Context, hash *chainhash.Hash) {
 		defer p.waitGroup.Done()
-		peerIndex := 0
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				if peerIndex >= len(peers) {
-					peerIndex = 0
-				}
 
-				err := p.fillGaps(peers[peerIndex])
-				if err != nil {
-					p.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
-				}
+		// respect processor shutdown while waiting
+		select {
+		case <-p.ctx.Done():
+			return // we can do nothing here
+		case <-time.After(waitForBlockProcessing):
+			// check if block was processed successfully
+			block, _ := p.store.GetBlock(ctx, hash)
 
-				peerIndex++
-				ticker.Reset(p.fillGapsInterval)
+			if block != nil && block.Processed {
+				return // success
 			}
+
+			p.logger.Error(fmt.Sprintf("block is not processed after %v. Block will be unlock to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.unlockBlock(ctx, hash)
 		}
-	}()
+
+	}(ctx, hash)
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
@@ -356,40 +366,6 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	}
 }
 
-const (
-	hoursPerDay   = 24
-	blocksPerHour = 6
-)
-
-func (p *Processor) fillGaps(peer p2p.PeerI) error {
-	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
-
-	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
-	if err != nil {
-		return err
-	}
-
-	if len(blockHeightGaps) == 0 {
-		return nil
-	}
-
-	for i, gaps := range blockHeightGaps {
-		if i+1 > maxRequestBlocks {
-			break
-		}
-
-		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
-
-		pair := BlockRequest{
-			Hash: gaps.Hash,
-			Peer: peer,
-		}
-		p.blockRequestCh <- pair
-	}
-
-	return nil
-}
-
 func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
 	if tracer != nil {
 		var span trace.Span
@@ -417,7 +393,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
-	if existingBlock != nil {
+	if existingBlock != nil && existingBlock.Processed {
 		return nil
 	}
 
@@ -473,11 +449,11 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		}
 	}
 
-	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+	p.logger.Info("Upserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
+	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
-		p.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to upsert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return err
 	}
 
@@ -704,9 +680,4 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 func (p *Processor) Shutdown() {
 	p.cancelAll()
 	p.waitGroup.Wait()
-}
-
-// for testing purposes only
-func (p *Processor) GetBlockRequestCh() chan BlockRequest {
-	return p.blockRequestCh
 }

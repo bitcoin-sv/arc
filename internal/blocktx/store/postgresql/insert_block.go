@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"errors"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"go.opentelemetry.io/otel/trace"
@@ -18,7 +19,7 @@ func (p *PostgreSQL) InsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)
 		VALUES ($1 ,$2 , $3, $4, $5, $6)
-		ON CONFLICT (hash) DO UPDATE SET orphanedyn = FALSE
+		ON CONFLICT (hash) DO UPDATE SET status = EXCLUDED.status
 		RETURNING id
 	`
 

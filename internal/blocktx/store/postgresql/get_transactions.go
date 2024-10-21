@@ -24,7 +24,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 func (p *PostgreSQL) GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 	predicate := "WHERE b.hash = ANY($1) AND t.is_registered = TRUE"
 
-	return p.getTransactionBlocksByPredicate(ctx, predicate, blockHashes)
+	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(blockHashes))
 }
 
 func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {

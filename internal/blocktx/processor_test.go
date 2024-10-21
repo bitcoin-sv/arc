@@ -145,10 +145,21 @@ func TestHandleBlock(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			batchSize := 4
+			txMock := &storeMocks.DbTransactionMock{
+				CommitFunc: func() error {
+					return nil
+				},
+				RollbackFunc: func() error {
+					return nil
+				},
+			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
-					if tc.blockAlreadyProcessed {
-						return &blocktx_api.Block{Processed: true}, nil
+				BeginTxFunc: func() (store.DbTransaction, error) {
+					return txMock, nil
+				},
+				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+					if tc.blockAlreadyExists {
+						return &blocktx_api.Block{}, nil
 					}
 					return nil, store.ErrBlockNotFound
 				},
@@ -359,8 +370,19 @@ func TestHandleBlockReorg(t *testing.T) {
 			shouldReturnNoBlock := true
 			shouldCheckUpdateStatuses := true
 
+			txMock := &storeMocks.DbTransactionMock{
+				CommitFunc: func() error {
+					return nil
+				},
+				RollbackFunc: func() error {
+					return nil
+				},
+			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
+				BeginTxFunc: func() (store.DbTransaction, error) {
+					return txMock, nil
+				},
+				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 					if shouldReturnNoBlock {
 						shouldReturnNoBlock = false
 						return nil, nil

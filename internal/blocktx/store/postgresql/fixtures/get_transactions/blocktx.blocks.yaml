@@ -7,7 +7,6 @@
   processed_at: 2023-12-10 14:10:00
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
   status: 10 # LONGEST
 - inserted_at: 2023-12-15 14:00:00
   id: 2
@@ -18,7 +17,6 @@
   processed_at: 2023-12-15 14:10:00
   size: 3030000
   tx_count: 856
-  orphanedyn: false
   status: 20 # STALE
 - inserted_at: 2023-12-10 14:00:00
   id: 3
@@ -29,5 +27,4 @@
   processed_at: 2023-12-10 14:10:00
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
   status: 10 # LONGEST

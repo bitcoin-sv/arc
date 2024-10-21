@@ -19,7 +19,6 @@ func (p *PostgreSQL) parseBlocks(rows *sql.Rows) ([]*blocktx_api.Block, error) {
 			&block.MerkleRoot,
 			&block.Height,
 			&processedAt,
-			&block.Orphaned,
 			&block.Status,
 			&block.Chainwork,
 		)

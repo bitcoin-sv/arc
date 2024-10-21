@@ -35,7 +35,6 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,merkleroot
 				,height
 				,processed_at
-				,orphanedyn
 				,status
 				,chainwork
 			FROM blocktx.blocks WHERE hash = $1
@@ -46,7 +45,6 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,b.merkleroot
 				,b.height
 				,b.processed_at
-				,b.orphanedyn
 				,b.status
 				,b.chainwork
 			FROM blocktx.blocks b JOIN prevBlocks p ON b.hash = p.prevhash AND b.status = $2
@@ -57,7 +55,6 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM prevBlocks

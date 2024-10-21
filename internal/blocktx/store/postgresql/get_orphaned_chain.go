@@ -29,7 +29,6 @@ func (p *PostgreSQL) GetOrphanedChainUpFromHash(ctx context.Context, hash []byte
 				,merkleroot
 				,height
 				,processed_at
-				,orphanedyn
 				,status
 				,chainwork
 			FROM blocktx.blocks WHERE prevhash = $1 AND status = $2
@@ -40,7 +39,6 @@ func (p *PostgreSQL) GetOrphanedChainUpFromHash(ctx context.Context, hash []byte
 				,b.merkleroot
 				,b.height
 				,b.processed_at
-				,b.orphanedyn
 				,b.status
 				,b.chainwork
 			FROM blocktx.blocks b JOIN orphans o ON b.prevhash = o.hash AND b.status = $2
@@ -51,7 +49,6 @@ func (p *PostgreSQL) GetOrphanedChainUpFromHash(ctx context.Context, hash []byte
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM orphans

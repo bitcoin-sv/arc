@@ -36,7 +36,6 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM blocktx.blocks
@@ -54,7 +53,6 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		&block.MerkleRoot,
 		&block.Height,
 		&processedAt,
-		&block.Orphaned,
 		&block.Status,
 		&block.Chainwork,
 	); err != nil {

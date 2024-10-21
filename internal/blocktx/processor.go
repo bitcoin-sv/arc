@@ -437,6 +437,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
 
+	tx, err := p.store.BeginTx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 	if existingBlock != nil && existingBlock.Processed {
@@ -552,6 +558,8 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
+
+	tx.Commit()
 
 	// add the total block processing time to the stats
 	p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(msg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))

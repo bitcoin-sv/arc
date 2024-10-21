@@ -21,6 +21,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
+//			BeginTxFunc: func() (store.DbTransaction, error) {
+//				panic("mock out the BeginTx method")
+//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -102,6 +105,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
+	// BeginTxFunc mocks the BeginTx method.
+	BeginTxFunc func() (store.DbTransaction, error)
+
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -178,6 +184,9 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// BeginTx holds details about calls to the BeginTx method.
+		BeginTx []struct {
+		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -341,6 +350,7 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch int
 		}
 	}
+	lockBeginTx                            sync.RWMutex
 	lockClearBlocktxTable                  sync.RWMutex
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
@@ -363,6 +373,33 @@ type BlocktxStoreMock struct {
 	lockUpsertBlock                        sync.RWMutex
 	lockUpsertBlockTransactions            sync.RWMutex
 	lockVerifyMerkleRoots                  sync.RWMutex
+}
+
+// BeginTx calls BeginTxFunc.
+func (mock *BlocktxStoreMock) BeginTx() (store.DbTransaction, error) {
+	if mock.BeginTxFunc == nil {
+		panic("BlocktxStoreMock.BeginTxFunc: method is nil but BlocktxStore.BeginTx was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockBeginTx.Lock()
+	mock.calls.BeginTx = append(mock.calls.BeginTx, callInfo)
+	mock.lockBeginTx.Unlock()
+	return mock.BeginTxFunc()
+}
+
+// BeginTxCalls gets all the calls that were made to BeginTx.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.BeginTxCalls())
+func (mock *BlocktxStoreMock) BeginTxCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockBeginTx.RLock()
+	calls = mock.calls.BeginTx
+	mock.lockBeginTx.RUnlock()
+	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.

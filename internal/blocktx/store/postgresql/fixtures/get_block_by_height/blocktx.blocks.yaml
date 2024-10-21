@@ -7,7 +7,6 @@
   processed_at: 2023-12-15 14:10:00
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:30:00
@@ -19,7 +18,6 @@
   processed_at: 2023-12-15 14:30:00
   size: 20160000
   tx_count: 6523
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:30:00
@@ -31,7 +29,6 @@
   processed_at: 2023-12-15 14:30:00
   size: 20160000
   tx_count: 6523
-  orphanedyn: false
   status: 20 # STALE - competing block
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:40:00
@@ -43,7 +40,6 @@
   processed_at: 2023-12-15 14:40:00
   size: 299650000
   tx_count: 62162
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:50:00
@@ -54,6 +50,5 @@
   height: 822020
   size: 8630000
   tx_count: 36724
-  orphanedyn: false
   status: 10
   chainwork: '123456'

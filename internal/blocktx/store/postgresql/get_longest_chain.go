@@ -14,7 +14,6 @@ func (p *PostgreSQL) GetLongestChainFromHeight(ctx context.Context, height uint6
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM blocktx.blocks

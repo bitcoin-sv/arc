@@ -7,7 +7,6 @@
   processed_at:  2024-01-10 13:06:06.122
   size:  108689370
   tx_count:  799
-  orphanedyn: FALSE
 - inserted_at:  2024-01-10 13:06:03.375
   id:  9737
   hash:  0x7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000
@@ -17,4 +16,3 @@
   processed_at:  2024-01-10 13:06:06.122
   size:  108689370
   tx_count:  799
-  orphanedyn: FALSE

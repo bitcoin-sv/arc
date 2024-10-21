@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 
 	_ "github.com/lib/pq"
 	"go.opentelemetry.io/otel"
@@ -19,8 +20,19 @@ const (
 
 var tracer trace.Tracer
 
+type QueryAble interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	Prepare(query string) (*sql.Stmt, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
+
 type PostgreSQL struct {
-	db                        *sql.DB
+	_db                       *sql.DB
+	_tx                       *sql.Tx
+	db                        QueryAble // this would be pointing either to _db or _tx
 	now                       func() time.Time
 	maxPostgresBulkInsertRows int
 }
@@ -50,10 +62,12 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	db.SetMaxOpenConns(maxOpenConns)
 
 	p := &PostgreSQL{
-		db:                        db,
+		_db:                       db,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 	}
+
+	p.db = p._db
 
 	for _, opt := range opts {
 		opt(p)
@@ -62,15 +76,37 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	return p, nil
 }
 
+func (p *PostgreSQL) BeginTx() (store.DbTransaction, error) {
+	tx, err := p._db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	p._tx = tx
+	p.db = p._tx
+
+	return p, nil
+}
+
 func (p *PostgreSQL) Close() error {
-	return p.db.Close()
+	return p._db.Close()
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	r, err := p.db.QueryContext(ctx, "SELECT 1;")
+	r, err := p._db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
 	return r.Close()
+}
+
+func (p *PostgreSQL) Commit() error {
+	p.db = p._db
+	return p._tx.Commit()
+}
+
+func (p *PostgreSQL) Rollback() error {
+	p.db = p._db
+	return p._tx.Rollback()
 }

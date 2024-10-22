@@ -13,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -209,7 +210,12 @@ func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
 		return err
 	}
 
-	if unlockErr := withRetry(ctx, unlockFn, 5); unlockErr != nil {
+	var bo backoff.BackOff
+	bo = backoff.NewConstantBackOff(100 * time.Millisecond)
+	bo = backoff.WithContext(bo, ctx)
+	bo = backoff.WithMaxRetries(bo, 5)
+
+	if unlockErr := backoff.Retry(unlockFn, bo); unlockErr != nil {
 		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
 	}
 }

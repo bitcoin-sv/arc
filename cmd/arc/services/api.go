@@ -49,15 +49,24 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
+	mtmOpts := []func(*metamorph.Metamorph){
+		metamorph.WithMqClient(mqClient),
+		metamorph.WithLogger(logger),
+	}
+
+	tracingEnabled := arcConfig.Tracing != nil
+	if tracingEnabled {
+		mtmOpts = append(mtmOpts, metamorph.WithTracer())
+	}
+
 	metamorphClient := metamorph.NewClient(
 		metamorph_api.NewMetaMorphAPIClient(conn),
-		metamorph.WithMqClient(mqClient),
-		metamorph.WithLogger(logger.With("module", "mtm-client")),
+		mtmOpts...,
 	)
 
 	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
+		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
@@ -70,6 +79,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []handler.Option{
 		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+	}
+
+	if tracingEnabled {
+		apiOpts = append(apiOpts, handler.WithTracer())
 	}
 
 	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)

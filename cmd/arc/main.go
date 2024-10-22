@@ -65,7 +65,7 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
-	if arcConfig.Tracing != nil {
+	if arcConfig.Tracing.DialAddr != "" {
 		logger.Info("Tracing enabled")
 		cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
 		if err != nil {

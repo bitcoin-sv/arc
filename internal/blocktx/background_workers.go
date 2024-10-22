@@ -79,12 +79,8 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 
 	heightRange := retentionDays * hoursPerDay * blocksPerHour
 	blockHeightGaps, err := w.s.GetBlockGaps(w.ctx, heightRange)
-	if err != nil {
+	if err != nil || len(blockHeightGaps) == 0 {
 		return err
-	}
-
-	if len(blockHeightGaps) == 0 {
-		return nil
 	}
 
 	for i, block := range blockHeightGaps {

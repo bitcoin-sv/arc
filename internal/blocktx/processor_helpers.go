@@ -123,7 +123,7 @@ func progressIndices(total, steps int) map[int]int {
 }
 
 func withRetry(ctx context.Context, fn func() error, n int) error {
-	n = int(math.Max(float64(n), 1)) // ensure n is at least 1
+	n = max(n, 1) // ensure n is at least 1
 	var rerr error
 
 	for i := range n {

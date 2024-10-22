@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,9 +110,7 @@ func setupPostgresTest(t testing.TB) (ctx context.Context, now time.Time, db *Po
 	t.Helper()
 
 	now = time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)
-	db, err := New(dbInfo, 10, 10, WithNow(func() time.Time {
-		return now
-	}))
+	db, err := New(dbInfo, 10, 10)
 	if err != nil {
 		t.Errorf("error setup tests %s", err.Error())
 	}
@@ -401,6 +402,55 @@ func TestPostgresDB(t *testing.T) {
 		blockHashes, err = postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")
 		require.NoError(t, err)
 		require.Len(t, blockHashes, 0)
+	})
+
+	t.Run("set block processing concurrently", func(t *testing.T) {
+		prepareDb(t, postgresDB.db, "fixtures/block_processing")
+		postgresDB.now = time.Now
+		now = time.Now()
+
+		numOfInstances := 8
+		bh1 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
+
+		startSig := make(chan struct{})
+		var wg sync.WaitGroup
+
+		wg.Add(numOfInstances)
+		for i := 1; i <= numOfInstances; i++ {
+			go func(start chan struct{}, waitGroup *sync.WaitGroup) {
+				defer waitGroup.Done()
+				pod := fmt.Sprintf("pod-%d", i)
+
+				<-start
+
+				processedBy, err := postgresDB.SetBlockProcessingNew(ctx, bh1, pod)
+				t.Logf("SetBlockProcessingNew result: instance:%s | processedBy= %s | err= %v", pod, processedBy, err)
+
+			}(startSig, &wg)
+		}
+		time.Sleep(200 * time.Millisecond)
+
+		// simulate receiving msg INV from nodes -> start goroutines
+		close(startSig)
+
+		wg.Wait()
+
+		r, e := postgresDB.db.Query("SELECT block_hash, processed_by, inserted_at FROM blocktx.block_processing WHERE inserted_at > $1", now)
+		require.NoError(t, e)
+
+		t.Log("block_processing rows:")
+		for r.Next() {
+			var hash []byte
+			var processedBy string
+			var insertedAt time.Time
+
+			e = r.Scan(&hash, &processedBy, &insertedAt)
+			require.NoError(t, e)
+
+			t.Log(hex.EncodeToString(hash), processedBy, insertedAt)
+		}
+
+		t.Fail()
 	})
 
 	t.Run("mark block as done", func(t *testing.T) {

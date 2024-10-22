@@ -1,0 +1,2 @@
+ALTER TABLE block_processing
+DROP CONSTRAINT block_processing_pkey;

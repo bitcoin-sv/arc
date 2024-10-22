@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
@@ -32,6 +33,38 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 
 			return processedBy, store.ErrBlockProcessingDuplicateKey
 		}
+	}
+
+	return processedBy, nil
+}
+
+func (p *PostgreSQL) SetBlockProcessingNew(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
+	// Try to set a block as being processed by this instance
+	qInsert := `
+		INSERT INTO blocktx.block_processing (block_hash, processed_by, inserted_at)
+			SELECT $1, $2, $4
+			WHERE NOT EXISTS ( 
+				SELECT 1 FROM blocktx.block_processing bp 
+				WHERE bp.block_hash = $1 AND bp.inserted_at > $3 
+			)
+		RETURNING processed_by
+	`
+
+	tenMinAgo := p.now().Add(-10 * time.Minute)
+
+	var processedBy string
+	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, tenMinAgo, p.now()).Scan(&processedBy)
+	if err != nil {
+		return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
+	}
+
+	if processedBy == "" {
+		err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1 AND inserted_at < $2`, hash[:], tenMinAgo).Scan(&processedBy)
+		if err != nil {
+			return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
+		}
+
+		return processedBy, store.ErrBlockProcessingDuplicateKey
 	}
 
 	return processedBy, nil

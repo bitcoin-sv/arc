@@ -21,6 +21,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
+//			BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
+//				panic("mock out the BeginTx method")
+//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -51,7 +54,10 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
 //				panic("mock out the GetMinedTransactions method")
 //			},
-//			GetRegisteredTransactionsFunc: func(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+//			GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+//				panic("mock out the GetOrphanedChainUpFromHash method")
+//			},
+//			GetRegisteredTransactionsFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 //				panic("mock out the GetRegisteredTransactions method")
 //			},
 //			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
@@ -91,6 +97,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
+	// BeginTxFunc mocks the BeginTx method.
+	BeginTxFunc func(ctx context.Context) (store.DbTransaction, error)
+
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -121,8 +130,11 @@ type BlocktxStoreMock struct {
 	// GetMinedTransactionsFunc mocks the GetMinedTransactions method.
 	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error)
 
+	// GetOrphanedChainUpFromHashFunc mocks the GetOrphanedChainUpFromHash method.
+	GetOrphanedChainUpFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+
 	// GetRegisteredTransactionsFunc mocks the GetRegisteredTransactions method.
-	GetRegisteredTransactionsFunc func(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error)
+	GetRegisteredTransactionsFunc func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error)
 
 	// GetRegisteredTxsByBlockHashesFunc mocks the GetRegisteredTxsByBlockHashes method.
 	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error)
@@ -156,6 +168,11 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// BeginTx holds details about calls to the BeginTx method.
+		BeginTx []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -226,12 +243,19 @@ type BlocktxStoreMock struct {
 			// Hashes is the hashes argument value.
 			Hashes [][]byte
 		}
+		// GetOrphanedChainUpFromHash holds details about calls to the GetOrphanedChainUpFromHash method.
+		GetOrphanedChainUpFromHash []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
+		}
 		// GetRegisteredTransactions holds details about calls to the GetRegisteredTransactions method.
 		GetRegisteredTransactions []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// BlockId is the blockId argument value.
-			BlockId uint64
+			// BlockHashes is the blockHashes argument value.
+			BlockHashes [][]byte
 		}
 		// GetRegisteredTxsByBlockHashes holds details about calls to the GetRegisteredTxsByBlockHashes method.
 		GetRegisteredTxsByBlockHashes []struct {
@@ -312,6 +336,7 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch int
 		}
 	}
+	lockBeginTx                            sync.RWMutex
 	lockClearBlocktxTable                  sync.RWMutex
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
@@ -322,6 +347,7 @@ type BlocktxStoreMock struct {
 	lockGetChainTip                        sync.RWMutex
 	lockGetLongestChainFromHeight          sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
+	lockGetOrphanedChainUpFromHash         sync.RWMutex
 	lockGetRegisteredTransactions          sync.RWMutex
 	lockGetRegisteredTxsByBlockHashes      sync.RWMutex
 	lockGetStaleChainBackFromHash          sync.RWMutex
@@ -333,6 +359,38 @@ type BlocktxStoreMock struct {
 	lockUpdateBlocksStatuses               sync.RWMutex
 	lockUpsertBlockTransactions            sync.RWMutex
 	lockVerifyMerkleRoots                  sync.RWMutex
+}
+
+// BeginTx calls BeginTxFunc.
+func (mock *BlocktxStoreMock) BeginTx(ctx context.Context) (store.DbTransaction, error) {
+	if mock.BeginTxFunc == nil {
+		panic("BlocktxStoreMock.BeginTxFunc: method is nil but BlocktxStore.BeginTx was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockBeginTx.Lock()
+	mock.calls.BeginTx = append(mock.calls.BeginTx, callInfo)
+	mock.lockBeginTx.Unlock()
+	return mock.BeginTxFunc(ctx)
+}
+
+// BeginTxCalls gets all the calls that were made to BeginTx.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.BeginTxCalls())
+func (mock *BlocktxStoreMock) BeginTxCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockBeginTx.RLock()
+	calls = mock.calls.BeginTx
+	mock.lockBeginTx.RUnlock()
+	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -694,22 +752,58 @@ func (mock *BlocktxStoreMock) GetMinedTransactionsCalls() []struct {
 	return calls
 }
 
+// GetOrphanedChainUpFromHash calls GetOrphanedChainUpFromHashFunc.
+func (mock *BlocktxStoreMock) GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	if mock.GetOrphanedChainUpFromHashFunc == nil {
+		panic("BlocktxStoreMock.GetOrphanedChainUpFromHashFunc: method is nil but BlocktxStore.GetOrphanedChainUpFromHash was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetOrphanedChainUpFromHash.Lock()
+	mock.calls.GetOrphanedChainUpFromHash = append(mock.calls.GetOrphanedChainUpFromHash, callInfo)
+	mock.lockGetOrphanedChainUpFromHash.Unlock()
+	return mock.GetOrphanedChainUpFromHashFunc(ctx, hash)
+}
+
+// GetOrphanedChainUpFromHashCalls gets all the calls that were made to GetOrphanedChainUpFromHash.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetOrphanedChainUpFromHashCalls())
+func (mock *BlocktxStoreMock) GetOrphanedChainUpFromHashCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockGetOrphanedChainUpFromHash.RLock()
+	calls = mock.calls.GetOrphanedChainUpFromHash
+	mock.lockGetOrphanedChainUpFromHash.RUnlock()
+	return calls
+}
+
 // GetRegisteredTransactions calls GetRegisteredTransactionsFunc.
-func (mock *BlocktxStoreMock) GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
+func (mock *BlocktxStoreMock) GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 	if mock.GetRegisteredTransactionsFunc == nil {
 		panic("BlocktxStoreMock.GetRegisteredTransactionsFunc: method is nil but BlocktxStore.GetRegisteredTransactions was just called")
 	}
 	callInfo := struct {
-		Ctx     context.Context
-		BlockId uint64
+		Ctx         context.Context
+		BlockHashes [][]byte
 	}{
-		Ctx:     ctx,
-		BlockId: blockId,
+		Ctx:         ctx,
+		BlockHashes: blockHashes,
 	}
 	mock.lockGetRegisteredTransactions.Lock()
 	mock.calls.GetRegisteredTransactions = append(mock.calls.GetRegisteredTransactions, callInfo)
 	mock.lockGetRegisteredTransactions.Unlock()
-	return mock.GetRegisteredTransactionsFunc(ctx, blockId)
+	return mock.GetRegisteredTransactionsFunc(ctx, blockHashes)
 }
 
 // GetRegisteredTransactionsCalls gets all the calls that were made to GetRegisteredTransactions.
@@ -717,12 +811,12 @@ func (mock *BlocktxStoreMock) GetRegisteredTransactions(ctx context.Context, blo
 //
 //	len(mockedBlocktxStore.GetRegisteredTransactionsCalls())
 func (mock *BlocktxStoreMock) GetRegisteredTransactionsCalls() []struct {
-	Ctx     context.Context
-	BlockId uint64
+	Ctx         context.Context
+	BlockHashes [][]byte
 } {
 	var calls []struct {
-		Ctx     context.Context
-		BlockId uint64
+		Ctx         context.Context
+		BlockHashes [][]byte
 	}
 	mock.lockGetRegisteredTransactions.RLock()
 	calls = mock.calls.GetRegisteredTransactions

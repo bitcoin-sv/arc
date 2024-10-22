@@ -26,6 +26,8 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -51,6 +53,7 @@ type ArcDefaultHandler struct {
 	rejectedCallbackUrlSubstrings []string
 	txFinder                      validator.TxFinderI
 	mrVerifier                    validator.MerkleVerifierI
+	tracer                        trace.Tracer
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -62,6 +65,12 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.rejectedCallbackUrlSubstrings = rejectedCallbackUrlSubstrings
+	}
+}
+
+func WithTracer() func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.tracer = otel.GetTracerProvider().Tracer("API")
 	}
 }
 
@@ -104,6 +113,11 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx.Request().Context(), "GETPolicy")
+		defer span.End()
+	}
+
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
@@ -121,6 +135,11 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx.Request().Context(), "GETHealth")
+		defer span.End()
+	}
+
 	err := m.TransactionHandler.Health(ctx.Request().Context())
 	if err != nil {
 		reason := err.Error()
@@ -155,6 +174,11 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx.Request().Context(), "POSTTransaction")
+		defer span.End()
+	}
+
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
@@ -190,6 +214,11 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx.Request().Context(), "GETTransactionStatus")
+		defer span.End()
+	}
+
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
@@ -220,6 +249,11 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx.Request().Context(), "POSTTransactions")
+		defer span.End()
+	}
+
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
@@ -361,6 +395,10 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
+	if m.tracer != nil {
+		_, span := m.tracer.Start(ctx, "processTransactions")
+		defer span.End()
+	}
 	// decode and validate txs
 	var txIds []string
 

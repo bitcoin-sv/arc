@@ -14,6 +14,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -58,6 +59,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		logger.Info("Shutting down metamorph")
 		disposeMtm(logger, server, processor, peerHandler, mqClient, metamorphStore, healthServer)
 		logger.Info("Shutted down")
+	}
+
+	// if tracing enabled set up global tracer for metamorph
+	if arcConfig.Tracing.DialAddr != "" {
+		tracer := otel.GetTracerProvider().Tracer("Metamorph")
+		metamorph.WithTracer(tracer)
 	}
 
 	metamorphStore, err = NewMetamorphStore(mtmConfig.Db)
@@ -285,7 +292,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 }
 
 func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, nil)
 	if err != nil {
 		return nil, err
 	}

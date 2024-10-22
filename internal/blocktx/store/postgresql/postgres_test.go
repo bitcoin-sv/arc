@@ -14,8 +14,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -23,6 +21,9 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
@@ -377,12 +378,12 @@ func TestPostgresDB(t *testing.T) {
 
 		bh1 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 
-		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
+		processedBy, err := postgresDB.SetBlockProcessingNew(ctx, bh1, "pod-1")
 		require.NoError(t, err)
 		require.Equal(t, "pod-1", processedBy)
 
 		// set a second time, expect error
-		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
+		processedBy, err = postgresDB.SetBlockProcessingNew(ctx, bh1, "pod-1")
 		require.ErrorIs(t, err, store.ErrBlockProcessingDuplicateKey)
 		require.Equal(t, "pod-1", processedBy)
 

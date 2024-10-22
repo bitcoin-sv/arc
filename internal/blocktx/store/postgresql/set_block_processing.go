@@ -2,13 +2,15 @@ package postgresql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
@@ -41,25 +43,26 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 func (p *PostgreSQL) SetBlockProcessingNew(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
 	// Try to set a block as being processed by this instance
 	qInsert := `
-		INSERT INTO blocktx.block_processing (block_hash, processed_by, inserted_at)
-			SELECT $1, $2, $4
-			WHERE NOT EXISTS ( 
-				SELECT 1 FROM blocktx.block_processing bp 
-				WHERE bp.block_hash = $1 AND bp.inserted_at > $3 
+		INSERT INTO blocktx.block_processing (block_hash, processed_by)
+			SELECT $1, $2
+			WHERE NOT EXISTS (
+				SELECT * FROM blocktx.block_processing bp
+				WHERE bp.block_hash = $1 AND bp.inserted_at > $3
 			)
-		RETURNING processed_by
+		RETURNING processed_by;
 	`
 
-	tenMinAgo := p.now().Add(-10 * time.Minute)
+	tenMinAgo := p.now().Add(-10 * time.Minute) // Todo: pass as argument in function
 
 	var processedBy string
-	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, tenMinAgo, p.now()).Scan(&processedBy)
-	if err != nil {
+	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, tenMinAgo).Scan(&processedBy)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
 	}
 
 	if processedBy == "" {
-		err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1 AND inserted_at < $2`, hash[:], tenMinAgo).Scan(&processedBy)
+		// no result means another blocktx is currently processing the block => get the name of the blocktx instance which is currently processing the block
+		err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1 ORDER BY inserted_at DESC LIMIT 1`, hash[:]).Scan(&processedBy) // ORDER BY my_id DESC LIMIT 1
 		if err != nil {
 			return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
 		}
@@ -86,7 +89,7 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 		return 0, err
 	}
 	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected != 1 {
+	if rowsAffected == 0 {
 		return 0, store.ErrBlockNotFound
 	}
 

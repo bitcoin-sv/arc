@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"time"
 
@@ -34,10 +33,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 )
 
 func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), error) {
@@ -52,7 +48,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		dispatcher   *callbacker.CallbackDispatcher
 		workers      *callbacker.BackgroundWorkers
 		server       *callbacker.Server
-		healthServer *grpc.Server
+		healthServer *grpc_opts.GrpcServer
 
 		err error
 	)
@@ -97,7 +93,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	healthServer, err = startHealthServerCallbacker(server, config.Health, logger)
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, config.Health.SeverDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -145,32 +141,9 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 	}
 }
 
-func startHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
-	gs := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
-	// register your own services
-	reflection.Register(gs)
-
-	listener, err := net.Listen("tcp", healthConfig.SeverDialAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", healthConfig.SeverDialAddr))
-		err = gs.Serve(listener)
-		if err != nil {
-			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return gs, nil
-}
-
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store store.CallbackerStore, healthServer *grpc.Server) {
+	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer) {
 
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
@@ -200,9 +173,8 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 	}
 
 	if healthServer != nil {
-		healthServer.Stop()
+		healthServer.GracefulStop()
 	}
-
 }
 
 func toCallbackEntry(dto *store.CallbackData) *callbacker.CallbackEntry {

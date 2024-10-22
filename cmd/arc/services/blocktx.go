@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
@@ -16,9 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -39,7 +36,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		processor    *blocktx.Processor
 		pm           p2p.PeerManagerI
 		server       *blocktx.Server
-		healthServer *grpc.Server
+		healthServer *grpc_opts.GrpcServer
 
 		err error
 	)
@@ -170,36 +167,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
 	}
 
-	healthServer, err = StartHealthServerBlocktx(server, logger, btxConfig)
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, btxConfig.HealthServerDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
 	return stopFn, nil
-}
-
-func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger, btxConfig *config.BlocktxConfig) (*grpc.Server, error) {
-	gs := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
-	// register your own services
-	reflection.Register(gs)
-
-	listener, err := net.Listen("tcp", btxConfig.HealthServerDialAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", btxConfig.HealthServerDialAddr))
-		err = gs.Serve(listener)
-		if err != nil {
-			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return gs, nil
 }
 
 func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnabled bool) (s store.BlocktxStore, err error) {
@@ -235,7 +209,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnab
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
 	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
-	store store.BlocktxStore, healthServer *grpc.Server) {
+	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer) {
 
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new requests will be received
@@ -266,6 +240,6 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	}
 
 	if healthServer != nil {
-		healthServer.Stop()
+		healthServer.GracefulStop()
 	}
 }

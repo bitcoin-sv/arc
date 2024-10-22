@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -16,8 +15,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -52,7 +49,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		mqClient        metamorph.MessageQueueClient
 		processor       *metamorph.Processor
 		server          *metamorph.Server
-		healthServer    *grpc.Server
+		healthServer    *grpc_opts.GrpcServer
 
 		err error
 	)
@@ -207,36 +204,13 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 	}
 
-	healthServer, err = StartHealthServerMetamorph(server, mtmConfig.Health, logger)
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
 	return stopFn, nil
-}
-
-func StartHealthServerMetamorph(serv *metamorph.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
-	gs := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
-	// register your own services
-	reflection.Register(gs)
-
-	listener, err := net.Listen("tcp", healthConfig.SeverDialAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", healthConfig.SeverDialAddr))
-		err = gs.Serve(listener)
-		if err != nil {
-			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return gs, nil
 }
 
 func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err error) {
@@ -325,7 +299,7 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int)
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
 	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueueClient,
-	metamorphStore store.MetamorphStore, healthServer *grpc.Server) {
+	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer) {
 
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new request will be received
@@ -356,6 +330,6 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 	}
 
 	if healthServer != nil {
-		healthServer.Stop()
+		healthServer.GracefulStop()
 	}
 }

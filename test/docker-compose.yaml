@@ -9,6 +9,8 @@ services:
       - "18332"
       - "18333"
       - "28332"
+    networks:
+      - ip6net
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -24,6 +26,8 @@ services:
     expose:
       - "18332"
       - "18333"
+    networks:
+      - ip6net
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -39,6 +43,8 @@ services:
     expose:
       - "18332"
       - "18333"
+    networks:
+      - ip6net
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -53,6 +59,8 @@ services:
       - POSTGRES_USER=arcuser
       - POSTGRES_PASSWORD=arcpass
       - POSTGRES_DB=main
+    networks:
+      - ip6net
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-d blocktx", "-U arcuser" ]
       interval: 5s
@@ -77,6 +85,8 @@ services:
     command: [ "up" ]
     volumes:
       - ../internal/blocktx/store/postgresql/migrations:/migrations
+    networks:
+      - ip6net
     depends_on:
       db:
         condition: service_healthy
@@ -96,6 +106,8 @@ services:
     command: [ "up" ]
     volumes:
       - ../internal/metamorph/store/postgresql/migrations:/migrations
+    networks:
+      - ip6net
     depends_on:
       db:
         condition: service_healthy
@@ -115,6 +127,8 @@ services:
     command: [ "up" ]
     volumes:
       - ../internal/callbacker/store/postgresql/migrations:/migrations
+    networks:
+      - ip6net
     depends_on:
       db:
         condition: service_healthy
@@ -130,6 +144,8 @@ services:
     volumes:
       - nats1-data:/data
       - ./config/nats-server-host-1.conf:/etc/nats/nats-server.conf
+    networks:
+      - ip6net
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
       interval: 5s
@@ -143,6 +159,8 @@ services:
     ports:
       - "4223:4222"
     hostname: nats-server
+    networks:
+      - ip6net
     volumes:
       - nats2-data:/data
       - ./config/nats-server-host-2.conf:/etc/nats/nats-server.conf
@@ -159,6 +177,8 @@ services:
       - "6379:6379"
     volumes:
       - arc-redis-data:/data
+    networks:
+      - ip6net
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
 
@@ -169,6 +189,8 @@ services:
     volumes:
       - ./config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
+    networks:
+      - ip6net
     depends_on:
       nats-1:
         condition: service_healthy
@@ -184,7 +206,6 @@ services:
         condition: service_completed_successfully
       migrate-metamorph:
         condition: service_completed_successfully
-
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -198,6 +219,8 @@ services:
     command: [ "./arc", "-callbacker=true", "-config=." ]
     volumes:
       - ./config/config.yaml:/service/config.yaml
+    networks:
+      - ip6net
     depends_on:
       migrate-callbacker:
         condition: service_completed_successfully
@@ -214,6 +237,8 @@ services:
     command: [ "./arc", "-metamorph=true", "-config=." ]
     volumes:
       - ./config/config.yaml:/service/config.yaml
+    networks:
+      - ip6net
     depends_on:
       arc-blocktx:
         condition: service_healthy
@@ -240,14 +265,25 @@ services:
     command: [ "./arc", "-api=true", "-config=." ]
     volumes:
       - ./config/config.yaml:/service/config.yaml
+    networks:
+      - ip6net
     depends_on:
       arc-metamorph:
         condition: service_healthy
 
   tests:
     build: .
+    networks:
+      - ip6net
     depends_on:
       - arc
+
+networks:
+  ip6net:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:db8::/64
 
 volumes:
   node1-data:

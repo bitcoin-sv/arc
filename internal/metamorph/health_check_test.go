@@ -3,8 +3,7 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/coocood/freecache"
+	"log/slog"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -17,8 +16,6 @@ import (
 const baseCacheSize = 100 * 1024 * 1024
 
 func TestCheck(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 	tt := []struct {
 		name               string
 		service            string
@@ -74,7 +71,9 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -87,8 +86,6 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 	tt := []struct {
 		name               string
 		service            string
@@ -144,7 +141,9 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -154,7 +153,7 @@ func TestWatch(t *testing.T) {
 			}
 
 			// when
-			err := sut.Watch(req, watchServer)
+			err = sut.Watch(req, watchServer)
 
 			// then
 			require.NoError(t, err)

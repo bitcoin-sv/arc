@@ -47,21 +47,17 @@ func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Durat
 		defer w.workersWg.Done()
 
 		t := time.NewTicker(interval)
-		peerIndex := 0
+		i := 0
 
 		for {
 			select {
 			case <-t.C:
-				if peerIndex >= len(peers) {
-					peerIndex = 0
-				}
-
-				err := w.fillGaps(peers[peerIndex], retentionDays, blockRequestCh)
+				err := w.fillGaps(peers[i%len(peers)], retentionDays, blockRequestCh)
 				if err != nil {
 					w.l.Error("failed to fill blocks gaps", slog.String("err", err.Error()))
 				}
 
-				peerIndex++
+				i++
 				t.Reset(interval)
 
 			case <-w.ctx.Done():

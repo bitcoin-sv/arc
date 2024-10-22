@@ -46,7 +46,7 @@ type BlocktxStore interface {
 	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
 
-	BeginTx() (DbTransaction, error)
+	BeginTx(ctx context.Context) (DbTransaction, error)
 	Ping(ctx context.Context) error
 	Close() error
 }
@@ -54,4 +54,5 @@ type BlocktxStore interface {
 type DbTransaction interface {
 	Commit() error
 	Rollback() error
+	LockBlocksTable(ctx context.Context) error
 }

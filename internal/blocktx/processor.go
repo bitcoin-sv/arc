@@ -437,11 +437,16 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
 
-	tx, err := p.store.BeginTx()
+	tx, err := p.store.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+
+	err = tx.LockBlocksTable(ctx)
+	if err != nil {
+		return err
+	}
 
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)

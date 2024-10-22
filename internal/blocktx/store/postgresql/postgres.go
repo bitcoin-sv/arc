@@ -12,6 +12,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
+var ErrNoTransaction = errors.New("sql: transaction has already been committed or rolled back")
+
 const (
 	postgresDriverName        = "postgres"
 	maxPostgresBulkInsertRows = 8192
@@ -78,8 +80,8 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	return p, nil
 }
 
-func (p *PostgreSQL) BeginTx() (store.DbTransaction, error) {
-	tx, err := p._db.Begin()
+func (p *PostgreSQL) BeginTx(ctx context.Context) (store.DbTransaction, error) {
+	tx, err := p._db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -111,4 +113,14 @@ func (p *PostgreSQL) Commit() error {
 func (p *PostgreSQL) Rollback() error {
 	p.db = p._db
 	return p._tx.Rollback()
+}
+
+func (p *PostgreSQL) LockBlocksTable(ctx context.Context) error {
+	tx, ok := p.db.(*sql.Tx)
+	if !ok {
+		return ErrNoTransaction
+	}
+
+	_, err := tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN ACCESS EXCLUSIVE MODE")
+	return err
 }

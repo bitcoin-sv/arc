@@ -21,7 +21,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			BeginTxFunc: func() (store.DbTransaction, error) {
+//			BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
 //				panic("mock out the BeginTx method")
 //			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
@@ -106,7 +106,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //	}
 type BlocktxStoreMock struct {
 	// BeginTxFunc mocks the BeginTx method.
-	BeginTxFunc func() (store.DbTransaction, error)
+	BeginTxFunc func(ctx context.Context) (store.DbTransaction, error)
 
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
@@ -186,6 +186,8 @@ type BlocktxStoreMock struct {
 	calls struct {
 		// BeginTx holds details about calls to the BeginTx method.
 		BeginTx []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
@@ -376,16 +378,19 @@ type BlocktxStoreMock struct {
 }
 
 // BeginTx calls BeginTxFunc.
-func (mock *BlocktxStoreMock) BeginTx() (store.DbTransaction, error) {
+func (mock *BlocktxStoreMock) BeginTx(ctx context.Context) (store.DbTransaction, error) {
 	if mock.BeginTxFunc == nil {
 		panic("BlocktxStoreMock.BeginTxFunc: method is nil but BlocktxStore.BeginTx was just called")
 	}
 	callInfo := struct {
-	}{}
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
 	mock.lockBeginTx.Lock()
 	mock.calls.BeginTx = append(mock.calls.BeginTx, callInfo)
 	mock.lockBeginTx.Unlock()
-	return mock.BeginTxFunc()
+	return mock.BeginTxFunc(ctx)
 }
 
 // BeginTxCalls gets all the calls that were made to BeginTx.
@@ -393,8 +398,10 @@ func (mock *BlocktxStoreMock) BeginTx() (store.DbTransaction, error) {
 //
 //	len(mockedBlocktxStore.BeginTxCalls())
 func (mock *BlocktxStoreMock) BeginTxCalls() []struct {
+	Ctx context.Context
 } {
 	var calls []struct {
+		Ctx context.Context
 	}
 	mock.lockBeginTx.RLock()
 	calls = mock.calls.BeginTx

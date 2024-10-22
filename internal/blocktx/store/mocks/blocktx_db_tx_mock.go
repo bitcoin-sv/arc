@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"sync"
 )
@@ -21,6 +22,9 @@ var _ store.DbTransaction = &DbTransactionMock{}
 //			CommitFunc: func() error {
 //				panic("mock out the Commit method")
 //			},
+//			LockBlocksTableFunc: func(ctx context.Context) error {
+//				panic("mock out the LockBlocksTable method")
+//			},
 //			RollbackFunc: func() error {
 //				panic("mock out the Rollback method")
 //			},
@@ -34,6 +38,9 @@ type DbTransactionMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func() error
 
+	// LockBlocksTableFunc mocks the LockBlocksTable method.
+	LockBlocksTableFunc func(ctx context.Context) error
+
 	// RollbackFunc mocks the Rollback method.
 	RollbackFunc func() error
 
@@ -42,12 +49,18 @@ type DbTransactionMock struct {
 		// Commit holds details about calls to the Commit method.
 		Commit []struct {
 		}
+		// LockBlocksTable holds details about calls to the LockBlocksTable method.
+		LockBlocksTable []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// Rollback holds details about calls to the Rollback method.
 		Rollback []struct {
 		}
 	}
-	lockCommit   sync.RWMutex
-	lockRollback sync.RWMutex
+	lockCommit          sync.RWMutex
+	lockLockBlocksTable sync.RWMutex
+	lockRollback        sync.RWMutex
 }
 
 // Commit calls CommitFunc.
@@ -74,6 +87,38 @@ func (mock *DbTransactionMock) CommitCalls() []struct {
 	mock.lockCommit.RLock()
 	calls = mock.calls.Commit
 	mock.lockCommit.RUnlock()
+	return calls
+}
+
+// LockBlocksTable calls LockBlocksTableFunc.
+func (mock *DbTransactionMock) LockBlocksTable(ctx context.Context) error {
+	if mock.LockBlocksTableFunc == nil {
+		panic("DbTransactionMock.LockBlocksTableFunc: method is nil but DbTransaction.LockBlocksTable was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockLockBlocksTable.Lock()
+	mock.calls.LockBlocksTable = append(mock.calls.LockBlocksTable, callInfo)
+	mock.lockLockBlocksTable.Unlock()
+	return mock.LockBlocksTableFunc(ctx)
+}
+
+// LockBlocksTableCalls gets all the calls that were made to LockBlocksTable.
+// Check the length with:
+//
+//	len(mockedDbTransaction.LockBlocksTableCalls())
+func (mock *DbTransactionMock) LockBlocksTableCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockLockBlocksTable.RLock()
+	calls = mock.calls.LockBlocksTable
+	mock.lockLockBlocksTable.RUnlock()
 	return calls
 }
 

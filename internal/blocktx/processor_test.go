@@ -152,9 +152,12 @@ func TestHandleBlock(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
+				LockBlocksTableFunc: func(ctx context.Context) error {
+					return nil
+				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				BeginTxFunc: func() (store.DbTransaction, error) {
+				BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
 					return txMock, nil
 				},
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
@@ -270,7 +273,7 @@ func TestHandleBlock(t *testing.T) {
 	}
 }
 
-func TestHandleBlockReorg(t *testing.T) {
+func TestHandleBlockReorgAndOrphans(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		prevBlockStatus       blocktx_api.Status
@@ -374,9 +377,12 @@ func TestHandleBlockReorg(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
+				LockBlocksTableFunc: func(ctx context.Context) error {
+					return nil
+				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				BeginTxFunc: func() (store.DbTransaction, error) {
+				BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
 					return txMock, nil
 				},
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {

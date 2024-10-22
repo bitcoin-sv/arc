@@ -260,6 +260,8 @@ func (p *Processor) StartProcessMinedCallbacks() {
 			case <-p.ctx.Done():
 				return
 			case txBlock := <-p.minedTxsChan:
+				span := StartTracing("StartProcessMinedCallbacks-txBlock")
+
 				if txBlock == nil {
 					continue
 				}
@@ -277,7 +279,11 @@ func (p *Processor) StartProcessMinedCallbacks() {
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 				ticker.Reset(p.processMinedInterval)
 
+				EndTracing(span)
+
 			case <-ticker.C:
+				span := StartTracing("StartProcessMinedCallbacks-ticker")
+
 				if len(txsBlocks) == 0 {
 					continue
 				}
@@ -288,12 +294,17 @@ func (p *Processor) StartProcessMinedCallbacks() {
 				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 				ticker.Reset(p.processMinedInterval)
+
+				EndTracing(span)
 			}
 		}
 	}()
 }
 
 func (p *Processor) updateMined(txsBlocks []*blocktx_api.TransactionBlock) {
+	span := StartTracing("updateMined")
+	defer EndTracing(span)
+
 	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
@@ -319,6 +330,8 @@ func (p *Processor) StartProcessSubmittedTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
+				span := StartTracing("StartProcessSubmittedTxs-ticker")
+
 				if len(reqs) > 0 {
 					p.ProcessTransactions(reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
@@ -327,7 +340,10 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
+
+				EndTracing(span)
 			case submittedTx := <-p.submittedTxsChan:
+				span := StartTracing("StartProcessSubmittedTxs-submittedTx")
 				if submittedTx == nil {
 					continue
 				}
@@ -355,6 +371,8 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
+
+				EndTracing(span)
 			}
 		}
 	}()
@@ -370,6 +388,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				span := StartTracing("StartSendStatusUpdate")
 
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
@@ -388,6 +407,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				})
 
 				p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
+				EndTracing(span)
 			}
 		}
 	}()
@@ -434,6 +454,9 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	span := StartTracing("checkAndUpdate")
+	defer EndTracing(span)
+
 	if len(statusUpdatesMap) == 0 {
 		return
 	}
@@ -524,6 +547,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
+				span := StartTracing("StartRequestingSeenOnNetworkTxs")
+
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
 				getSeenOnNetworkUntil := p.now().Add(-1 * p.seenOnNetworkTxTimeUntil)
@@ -555,6 +580,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 				if totalSeenOnNetworkTxs > 0 {
 					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", totalSeenOnNetworkTxs))
 				}
+
+				EndTracing(span)
 			}
 		}
 	}()
@@ -571,6 +598,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
+				span := StartTracing("StartProcessExpiredTransactions")
+
 				// define from what point in time we are interested in unmined transactions
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
 				var offset int64
@@ -622,6 +651,8 @@ func (p *Processor) StartProcessExpiredTransactions() {
 				if announced > 0 || requested > 0 {
 					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnminedSince))
 				}
+
+				EndTracing(span)
 			}
 		}
 	}()
@@ -633,6 +664,9 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
+	span := StartTracing("ProcessTransaction")
+	defer EndTracing(span)
+
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it
@@ -717,6 +751,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) ProcessTransactions(sReq []*store.StoreData) {
+	span := StartTracing("ProcessTransactions")
+	defer EndTracing(span)
+
 	// store in database
 	err := p.store.SetBulk(p.ctx, sReq)
 	if err != nil {

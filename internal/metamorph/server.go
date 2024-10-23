@@ -9,16 +9,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
 const (
@@ -123,6 +125,11 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.Hea
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		s.logger.Info("Put transaction request", slog.String("address", p.Addr.String()))
+	}
+
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	statusReceived := metamorph_api.Status_RECEIVED
 
@@ -132,6 +139,11 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		s.logger.Info("Put transactions request", slog.String("address", p.Addr.String()))
+	}
+
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
 	type processTxInput struct {
@@ -265,6 +277,11 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 }
 
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		s.logger.Info("Get transaction request", slog.String("address", p.Addr.String()))
+	}
+
 	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get transaction", slog.String("hash", req.GetTxid()), slog.String("err", err.Error()))
@@ -287,6 +304,11 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 }
 
 func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (*metamorph_api.Transactions, error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		s.logger.Info("Get transactions request", slog.String("address", p.Addr.String()))
+	}
+
 	data, err := s.getTransactions(ctx, req)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get transactions", slog.String("err", err.Error()))
@@ -316,6 +338,11 @@ func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		s.logger.Info("Get transaction status request", slog.String("address", p.Addr.String()))
+	}
+
 	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {

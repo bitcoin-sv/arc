@@ -41,11 +41,11 @@ func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
 
 			_, err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
+
+			require.NoError(t, err)
 		})
 	}
 }
@@ -79,12 +79,11 @@ func TestClient_ClearBlocks(t *testing.T) {
 
 			res, err := client.ClearBlocks(context.Background(), 1)
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -119,12 +118,11 @@ func TestClient_ClearTransactions(t *testing.T) {
 
 			res, err := client.ClearTransactions(context.Background(), 1)
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -159,12 +157,11 @@ func TestClient_ClearBlockTransactionsMap(t *testing.T) {
 
 			res, err := client.ClearBlockTransactionsMap(context.Background(), 1)
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -206,12 +203,11 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 
 			res, err := client.VerifyMerkleRoots(context.Background(), merkleRootsRequest)
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, []uint64{81190, 89022}, res)
 		})
 	}

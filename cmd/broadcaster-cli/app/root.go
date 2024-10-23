@@ -34,7 +34,6 @@ func init() {
 	if err != nil {
 		logger.Error("failed to bind flag keys", slog.String("err", err.Error()))
 		os.Exit(1)
-
 	}
 
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
@@ -42,7 +41,6 @@ func init() {
 	if err != nil {
 		logger.Error("failed to bind flag wocAPIKey", slog.String("err", err.Error()))
 		os.Exit(1)
-
 	}
 
 	var configFilenameArg string

@@ -50,7 +50,6 @@ func GetKeySetsXpriv(xpriv string) (fundingKeySet *keyset.KeySet, receivingKeySe
 }
 
 func GetString(settingName string) (string, error) {
-
 	setting := viper.GetString(settingName)
 	if setting != "" {
 		return setting, nil
@@ -60,7 +59,6 @@ func GetString(settingName string) (string, error) {
 }
 
 func GetInt(settingName string) (int, error) {
-
 	setting := viper.GetInt(settingName)
 	if setting != 0 {
 		return setting, nil
@@ -70,7 +68,6 @@ func GetInt(settingName string) (int, error) {
 }
 
 func GetUint64(settingName string) (uint64, error) {
-
 	setting := viper.GetUint64(settingName)
 	if setting != 0 {
 		return setting, nil
@@ -80,7 +77,6 @@ func GetUint64(settingName string) (uint64, error) {
 }
 
 func GetUint32(settingName string) (uint32, error) {
-
 	setting := viper.GetUint32(settingName)
 	if setting != 0 {
 		return setting, nil
@@ -90,7 +86,6 @@ func GetUint32(settingName string) (uint32, error) {
 }
 
 func GetInt64(settingName string) (int64, error) {
-
 	setting := viper.GetInt64(settingName)
 	if setting != 0 {
 		return setting, nil
@@ -101,7 +96,6 @@ func GetInt64(settingName string) (int64, error) {
 
 func getSettingFromEnvFile[T any](settingName string) (T, error) {
 	var result map[string]interface{}
-
 	var nullValue T
 
 	err := viper.Unmarshal(&result)
@@ -119,7 +113,6 @@ func getSettingFromEnvFile[T any](settingName string) (T, error) {
 }
 
 func GetBool(settingName string) (bool, error) {
-
 	setting := viper.GetBool(settingName)
 	if setting {
 		return true, nil
@@ -158,7 +151,6 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*k
 
 	if len(selectedKeys) > 0 {
 		for _, selectedKey := range selectedKeys {
-
 			key, found := keys[selectedKey]
 			if !found {
 				return nil, fmt.Errorf("key not found: %s", selectedKey)
@@ -241,7 +233,6 @@ func GetAllKeySets() (map[string]*keyset.KeySet, error) {
 }
 
 func GetOrderedKeys[T any](keysMap map[string]T) []string {
-
 	var keys []string
 
 	for key := range keysMap {

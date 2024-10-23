@@ -88,7 +88,6 @@ func TestCheck(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
-
 	}
 }
 
@@ -169,6 +168,5 @@ func TestWatch(t *testing.T) {
 			// then
 			require.NoError(t, err)
 		})
-
 	}
 }

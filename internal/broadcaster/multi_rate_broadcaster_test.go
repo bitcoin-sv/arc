@@ -13,7 +13,6 @@ import (
 )
 
 func TestMultiRateBroadcasterStart(t *testing.T) {
-
 	tt := []struct {
 		name          string
 		expectedError error

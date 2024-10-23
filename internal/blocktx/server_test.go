@@ -102,13 +102,12 @@ func TestDelUnfinishedBlock(t *testing.T) {
 			})
 
 			// then
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedRows, resp.Rows)
 		})
 	}

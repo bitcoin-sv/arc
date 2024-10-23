@@ -1,4 +1,4 @@
-package natsjetstream
+package nats_jetstream
 
 import (
 	"context"
@@ -98,7 +98,6 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 }
 
 func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
-
 	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -147,7 +146,6 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 
 		cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
 		return cons, nil
-
 	} else if err != nil {
 		return nil, err
 	}

@@ -49,7 +49,6 @@ func (b *UTXOCreator) Wait() {
 	b.wg.Wait()
 }
 func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uint64) error {
-
 	// Use a goroutine for concurrent execution
 
 	b.logger.Info("creating utxos", slog.String("address", b.keySet.Address(!b.isTestnet)))
@@ -169,7 +168,6 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 						utxoSet.PushBack(newUtxo)
 					}
 					delete(satoshiMap, res.Txid)
-
 				}
 				// do not performance test ARC when creating the utxos
 				time.Sleep(100 * time.Millisecond)

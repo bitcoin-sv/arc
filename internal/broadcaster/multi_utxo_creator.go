@@ -29,7 +29,6 @@ func NewMultiKeyUTXOCreator(logger *slog.Logger, creators []Creator, opts ...fun
 }
 
 func (mkuc *MultiKeyUTXOCreator) Start(outputs int, satoshisPerOutput uint64) {
-
 	for _, creator := range mkuc.creators {
 		err := creator.Start(outputs, satoshisPerOutput)
 		if err != nil {
@@ -43,7 +42,6 @@ func (mkuc *MultiKeyUTXOCreator) Start(outputs int, satoshisPerOutput uint64) {
 }
 
 func (mkuc *MultiKeyUTXOCreator) Shutdown() {
-
 	for _, creator := range mkuc.creators {
 		creator.Shutdown()
 	}

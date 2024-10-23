@@ -30,7 +30,6 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 	names := helper.GetOrderedKeys(keySets)
 
 	for _, name := range names {
-
 		ks := keySets[name]
 		utxos, err := wocClient.GetUTXOsWithRetries(ctx, ks.Script, ks.Address(!isTestnet), 1*time.Second, 5)
 		if err != nil {
@@ -99,7 +98,6 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 
 	for i := 0; i < maxRowNr; i++ {
 		for j := range columns {
-
 			if len(columns[j]) < i+1 {
 				rows[i] = append(rows[i], "")
 				rows[i] = append(rows[i], "")

@@ -19,7 +19,6 @@ import (
 )
 
 func TestSplitUtxo(t *testing.T) {
-
 	tt := []struct {
 		name                     string
 		broadcastTransactionsErr error
@@ -64,7 +63,6 @@ func TestSplitUtxo(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			client := &mocks.ArcClientMock{
 				BroadcastTransactionFunc: func(_ context.Context, tx *sdkTx.Transaction, _ metamorph_api.Status, _ string) (*metamorph_api.TransactionStatus, error) {
-
 					require.Len(t, tx.Outputs, 3)
 					require.Equal(t, uint64(500), tx.Outputs[0].Satoshis)
 					require.Equal(t, uint64(500), tx.Outputs[1].Satoshis)

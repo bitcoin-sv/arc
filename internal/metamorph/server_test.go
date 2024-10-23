@@ -626,12 +626,11 @@ func TestSetUnlockedByName(t *testing.T) {
 
 			// then
 			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedRecordsAffected, int(response.GetRecordsAffected()))
 		})
 	}

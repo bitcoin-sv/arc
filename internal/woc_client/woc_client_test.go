@@ -49,7 +49,6 @@ func Test_New(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedRequestPath, httpReq.URL.Path)
-
 		})
 	}
 }
@@ -204,7 +203,6 @@ func Test_GetBalance(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				resp := make(map[string]any)
 				if tc.responseOk {
@@ -238,7 +236,6 @@ func Test_GetBalance(t *testing.T) {
 
 			require.Equal(t, int64(1), actualConfirmed)
 			require.Equal(t, int64(2), actualUnconfirmed)
-
 		})
 	}
 }
@@ -289,7 +286,6 @@ func Test_TopUp(t *testing.T) {
 
 				_, err = w.Write(jsonResp)
 				require.NoError(t, err)
-
 			}))
 			defer svr.Close()
 
@@ -367,7 +363,6 @@ func Test_GetRawTxs(t *testing.T) {
 
 				_, err = w.Write(jsonResp)
 				require.NoError(t, err)
-
 			}))
 			defer svr.Close()
 
@@ -393,5 +388,4 @@ func Test_GetRawTxs(t *testing.T) {
 			require.Equal(t, tc.expected, actual)
 		})
 	}
-
 }

@@ -43,7 +43,7 @@ func (c *prometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	stats := c.processor.GetProcessorMapSize()
 
-	//Note that you can pass erValue, GaugeValue, or UntypedValue types here.
+	// Note that you can pass erValue, GaugeValue, or UntypedValue types here.
 	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.GaugeValue, float64(stats))
 
 	healthyConnections := 0

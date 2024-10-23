@@ -19,7 +19,6 @@ import (
 )
 
 func TestRateBroadcaster(t *testing.T) {
-
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 

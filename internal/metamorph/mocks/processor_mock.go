@@ -32,9 +32,6 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //			ProcessTransactionFunc: func(ctx context.Context, req *metamorph.ProcessorRequest)  {
 //				panic("mock out the ProcessTransaction method")
 //			},
-//			ShutdownFunc: func()  {
-//				panic("mock out the Shutdown method")
-//			},
 //		}
 //
 //		// use mockedProcessorI in code that requires metamorph.ProcessorI
@@ -54,9 +51,6 @@ type ProcessorIMock struct {
 	// ProcessTransactionFunc mocks the ProcessTransaction method.
 	ProcessTransactionFunc func(ctx context.Context, req *metamorph.ProcessorRequest)
 
-	// ShutdownFunc mocks the Shutdown method.
-	ShutdownFunc func()
-
 	// calls tracks calls to the methods.
 	calls struct {
 		// GetPeers holds details about calls to the GetPeers method.
@@ -75,15 +69,11 @@ type ProcessorIMock struct {
 			// Req is the req argument value.
 			Req *metamorph.ProcessorRequest
 		}
-		// Shutdown holds details about calls to the Shutdown method.
-		Shutdown []struct {
-		}
 	}
 	lockGetPeers            sync.RWMutex
 	lockGetProcessorMapSize sync.RWMutex
 	lockHealth              sync.RWMutex
 	lockProcessTransaction  sync.RWMutex
-	lockShutdown            sync.RWMutex
 }
 
 // GetPeers calls GetPeersFunc.
@@ -200,32 +190,5 @@ func (mock *ProcessorIMock) ProcessTransactionCalls() []struct {
 	mock.lockProcessTransaction.RLock()
 	calls = mock.calls.ProcessTransaction
 	mock.lockProcessTransaction.RUnlock()
-	return calls
-}
-
-// Shutdown calls ShutdownFunc.
-func (mock *ProcessorIMock) Shutdown() {
-	if mock.ShutdownFunc == nil {
-		panic("ProcessorIMock.ShutdownFunc: method is nil but ProcessorI.Shutdown was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockShutdown.Lock()
-	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	mock.lockShutdown.Unlock()
-	mock.ShutdownFunc()
-}
-
-// ShutdownCalls gets all the calls that were made to Shutdown.
-// Check the length with:
-//
-//	len(mockedProcessorI.ShutdownCalls())
-func (mock *ProcessorIMock) ShutdownCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockShutdown.RLock()
-	calls = mock.calls.Shutdown
-	mock.lockShutdown.RUnlock()
 	return calls
 }

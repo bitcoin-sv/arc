@@ -75,7 +75,10 @@ func TestCheck(t *testing.T) {
 					},
 				}}
 			}}
-			sut := blocktx.NewServer(storeMock, logger, pm, 0)
+
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -148,7 +151,9 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut := blocktx.NewServer(storeMock, logger, pm, 0)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -158,7 +163,7 @@ func TestWatch(t *testing.T) {
 			}
 
 			// when
-			err := sut.Watch(req, watchServer)
+			err = sut.Watch(req, watchServer)
 
 			// then
 			require.NoError(t, err)

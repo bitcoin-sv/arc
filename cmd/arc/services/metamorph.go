@@ -3,20 +3,18 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"log/slog"
-	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
+
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -39,15 +37,37 @@ const (
 
 func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
+	logger.Info("Starting")
+
 	mtmConfig := arcConfig.Metamorph
 
-	metamorphStore, err := NewMetamorphStore(mtmConfig.Db)
+	var (
+		metamorphStore  store.MetamorphStore
+		peerHandler     *metamorph.PeerHandler
+		pm              metamorph.PeerManager
+		statusMessageCh chan *metamorph.PeerTxMessage
+		mqClient        metamorph.MessageQueueClient
+		processor       *metamorph.Processor
+		server          *metamorph.Server
+		healthServer    *grpc_opts.GrpcServer
+
+		err error
+	)
+
+	stopFn := func() {
+		logger.Info("Shutting down metamorph")
+		disposeMtm(logger, server, processor, peerHandler, mqClient, metamorphStore, healthServer)
+		logger.Info("Shutted down")
+	}
+
+	metamorphStore, err = NewMetamorphStore(mtmConfig.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	pm, peerHandler, statusMessageCh, err := initPeerManager(logger, metamorphStore, arcConfig)
+	pm, peerHandler, statusMessageCh, err = initPeerManager(logger, metamorphStore, arcConfig)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
@@ -55,9 +75,9 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	minedTxsChan := make(chan *blocktx_api.TransactionBlock, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
-	var mqClient metamorph.MessageQueueClient
 	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
@@ -72,6 +92,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			opts...,
 		)
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
@@ -82,6 +103,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
 	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger)
@@ -102,7 +124,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 	}
 
-	processor, err := metamorph.NewProcessor(
+	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
 		pm,
@@ -110,38 +132,46 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		processorOpts...,
 	)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 	err = processor.Start()
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
-	optsServer := []metamorph.ServerOption{
-		metamorph.WithLogger(logger.With(slog.String("module", "mtm-server"))),
-	}
+	optsServer := []metamorph.ServerOption{}
 
 	if mtmConfig.CheckUtxos {
 		peerRpc := arcConfig.PeerRpc
 
 		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
 		}
 
 		node, err := bitcoin.NewFromURL(rpcURL, false)
 		if err != nil {
+			stopFn()
 			return nil, err
 		}
 
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server := metamorph.NewServer(metamorphStore, processor, cacheStore, optsServer...)
+	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
+		metamorphStore, processor, optsServer...)
 
-	err = server.StartGRPCServer(mtmConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
 	if err != nil {
-		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+		stopFn()
+		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+	}
+	err = server.ListenAndServe(mtmConfig.ListenAddr)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
 	for i, peerSetting := range arcConfig.Peers {
@@ -159,6 +189,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 		port, err := strconv.Atoi(zmqURL.Port())
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("failed to parse port from peer settings: %v", err)
 		}
 
@@ -168,58 +199,18 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		zmqLogger.SetFormatter(&logrus.JSONFormatter{})
 		err = zmq.Start(bitcoin.NewZMQ(zmqURL.Hostname(), port, zmqLogger))
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
 		}
 	}
 
-	healthServer, err := StartHealthServerMetamorph(server, mtmConfig.Health, logger)
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
-	return func() {
-		logger.Info("Shutting down metamorph")
-
-		server.Shutdown()
-
-		mqClient.Shutdown()
-		if err != nil {
-			logger.Error("failed to shutdown mqClient", slog.String("err", err.Error()))
-		}
-
-		peerHandler.Shutdown()
-
-		err = metamorphStore.Close(context.Background())
-		if err != nil {
-			logger.Error("Could not close store", slog.String("err", err.Error()))
-		}
-
-		healthServer.Stop()
-
-	}, nil
-}
-
-func StartHealthServerMetamorph(serv *metamorph.Server, healthConfig *config.HealthConfig, logger *slog.Logger) (*grpc.Server, error) {
-	gs := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
-	// register your own services
-	reflection.Register(gs)
-
-	listener, err := net.Listen("tcp", healthConfig.SeverDialAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", healthConfig.SeverDialAddr))
-		err = gs.Serve(listener)
-		if err != nil {
-			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return gs, nil
+	return stopFn, nil
 }
 
 func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err error) {
@@ -304,4 +295,41 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int)
 	}
 
 	return callbacker_api.NewCallbackerAPIClient(callbackerConn), nil
+}
+
+func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
+	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueueClient,
+	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer) {
+
+	// dispose the dependencies in the correct order:
+	// 1. server - ensure no new request will be received
+	// 2. processor - ensure all started job are complete
+	// 3. peerHandler
+	// 4. mqClient
+	// 5. store
+	// 6. healthServer
+
+	if server != nil {
+		server.GracefulStop()
+	}
+	if processor != nil {
+		processor.Shutdown()
+	}
+	if peerHandler != nil {
+		peerHandler.Shutdown()
+	}
+	if mqClient != nil {
+		mqClient.Shutdown()
+	}
+
+	if metamorphStore != nil {
+		err := metamorphStore.Close(context.Background())
+		if err != nil {
+			l.Error("Could not close store", slog.String("err", err.Error()))
+		}
+	}
+
+	if healthServer != nil {
+		healthServer.GracefulStop()
+	}
 }

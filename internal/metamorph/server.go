@@ -5,13 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
-	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -19,16 +16,10 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// PtrTo returns a pointer to the given value.
-func PtrTo[T any](v T) *T {
-	return &v
-}
 
 const (
 	maxTimeoutDefault   = 5 * time.Second
@@ -36,8 +27,7 @@ const (
 )
 
 var (
-	ErrNotFound                 = errors.New("key could not be found")
-	ErrGRPCServerFailedToListen = errors.New("GRPC server failed to listen")
+	ErrNotFound = errors.New("key could not be found")
 )
 
 type BitcoinNode interface {
@@ -48,28 +38,20 @@ type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetProcessorMapSize() int
 	GetPeers() []p2p.PeerI
-	Shutdown()
 	Health() error
 }
 
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
+	grpc_opts.GrpcServer
+
 	logger            *slog.Logger
 	processor         ProcessorI
 	store             store.MetamorphStore
 	maxTimeoutDefault time.Duration
-	grpcServer        *grpc.Server
 	bitcoinNode       BitcoinNode
 	forceCheckUtxos   bool
-	cleanup           func()
-	cacheStore        cache.Store
-}
-
-func WithLogger(logger *slog.Logger) func(*Server) {
-	return func(s *Server) {
-		s.logger = logger
-	}
 }
 
 func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
@@ -88,66 +70,33 @@ func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(s store.MetamorphStore, p ProcessorI, cacheStore cache.Store, opts ...ServerOption) *Server {
-	server := &Server{
-		logger:            slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm")),
-		processor:         p,
-		store:             s,
+func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
+	store store.MetamorphStore, processor ProcessorI, opts ...ServerOption) (*Server, error) {
+
+	logger = logger.With(slog.String("module", "server"))
+
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "metamorph", prometheusEndpoint, maxMsgSize)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &Server{
+		GrpcServer:        grpcServer,
+		logger:            logger,
+		processor:         processor,
+		store:             store,
 		maxTimeoutDefault: maxTimeoutDefault,
 		forceCheckUtxos:   false,
-		cacheStore:        cacheStore,
 	}
 
 	for _, opt := range opts {
-		opt(server)
+		opt(s)
 	}
 
-	return server
-}
+	metamorph_api.RegisterMetaMorphAPIServer(s.GrpcServer.Srv, s)
+	reflection.Register(s.GrpcServer.Srv)
 
-// StartGRPCServer function
-func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
-	// LEVEL 0 - no security / no encryption
-
-	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "metamorph")
-	if err != nil {
-		return err
-	}
-
-	s.cleanup = cleanup
-
-	grpcSrv := grpc.NewServer(opts...)
-	srvMetrics.InitializeMetrics(grpcSrv)
-
-	s.grpcServer = grpcSrv
-
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		return errors.Join(ErrGRPCServerFailedToListen, err)
-	}
-
-	metamorph_api.RegisterMetaMorphAPIServer(s.grpcServer, s)
-
-	// Register reflection service on gRPC server.
-	reflection.Register(s.grpcServer)
-
-	go func() {
-		s.logger.Info("GRPC server listening", slog.String("address", address))
-		err = s.grpcServer.Serve(lis)
-		if err != nil {
-			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return nil
-}
-
-func (s *Server) Shutdown() {
-	s.logger.Info("Shutting down")
-	s.processor.Shutdown()
-	s.grpcServer.GracefulStop()
-	s.grpcServer.Stop()
-	s.cleanup()
+	return s, nil
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
@@ -463,4 +412,9 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	}
 
 	return result, nil
+}
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
 }

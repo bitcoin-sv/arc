@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
@@ -16,9 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -28,15 +25,34 @@ const (
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
+	logger.Info("Starting")
+
 	tracingEnabled := arcConfig.Tracing != nil
 	btxConfig := arcConfig.Blocktx
+
+	var (
+		blockStore   store.BlocktxStore
+		mqClient     blocktx.MessageQueueClient
+		processor    *blocktx.Processor
+		pm           p2p.PeerManagerI
+		server       *blocktx.Server
+		healthServer *grpc_opts.GrpcServer
+
+		err error
+	)
+
+	stopFn := func() {
+		logger.Info("Shutting down blocktx")
+		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer)
+		logger.Info("Shutted down")
+	}
 
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, err
 	}
 
-	blockStore, err := NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
+	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -44,9 +60,9 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	registerTxsChan := make(chan []byte, chanBufferSize)
 	requestTxChannel := make(chan []byte, chanBufferSize)
 
-	var mqClient blocktx.MessageQueueClient
 	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
 
@@ -61,6 +77,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			opts...,
 		)
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
@@ -82,13 +99,15 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)
 
-	processor, err := blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
+	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
 	err = processor.Start()
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
 	}
 
@@ -107,7 +126,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
+	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Peers))
 
 	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
@@ -115,15 +134,18 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	for i, peerSetting := range arcConfig.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
 		peer, err := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
 		err = pm.AddPeer(peer)
 		if err != nil {
+			stopFn()
 			return nil, fmt.Errorf("error adding peer: %v", err)
 		}
 
@@ -132,57 +154,26 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	processor.StartFillGaps(peers)
 
-	server := blocktx.NewServer(blockStore, logger, pm, btxConfig.MaxAllowedBlockHeightMismatch)
-
-	err = server.StartGRPCServer(btxConfig.ListenAddr, arcConfig.GrpcMessageSize, arcConfig.PrometheusEndpoint, logger)
+	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
+		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch)
 	if err != nil {
-		return nil, fmt.Errorf("GRPCServer failed: %v", err)
+		stopFn()
+		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
 
-	healthServer, err := StartHealthServerBlocktx(server, logger, btxConfig)
+	err = server.ListenAndServe(btxConfig.ListenAddr)
 	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
+	}
+
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, btxConfig.HealthServerDialAddr)
+	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
-	return func() {
-		logger.Info("Shutting down blocktx store")
-
-		processor.Shutdown()
-
-		server.Shutdown()
-
-		mqClient.Shutdown()
-
-		err = blockStore.Close()
-		if err != nil {
-			logger.Error("Failed to close blocktx store", slog.String("err", err.Error()))
-		}
-
-		healthServer.Stop()
-	}, nil
-}
-
-func StartHealthServerBlocktx(serv *blocktx.Server, logger *slog.Logger, btxConfig *config.BlocktxConfig) (*grpc.Server, error) {
-	gs := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(gs, serv) // registration
-	// register your own services
-	reflection.Register(gs)
-
-	listener, err := net.Listen("tcp", btxConfig.HealthServerDialAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		logger.Info("GRPC health server listening", slog.String("address", btxConfig.HealthServerDialAddr))
-		err = gs.Serve(listener)
-		if err != nil {
-			logger.Error("GRPC health server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return gs, nil
+	return stopFn, nil
 }
 
 func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnabled bool) (s store.BlocktxStore, err error) {
@@ -214,4 +205,41 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnab
 	}
 
 	return s, err
+}
+
+func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
+	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
+	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer) {
+
+	// dispose the dependencies in the correct order:
+	// 1. server - ensure no new requests will be received
+	// 2. processor - ensure all started job are complete
+	// 3. peer manager
+	// 4. mqClient
+	// 5. store
+	// 6. healthServer
+
+	if server != nil {
+		server.GracefulStop()
+	}
+	if processor != nil {
+		processor.Shutdown()
+	}
+	if pm != nil {
+		pm.Shutdown()
+	}
+	if mqClient != nil {
+		mqClient.Shutdown()
+	}
+
+	if store != nil {
+		err := store.Close()
+		if err != nil {
+			l.Error("Could not close store", slog.String("err", err.Error()))
+		}
+	}
+
+	if healthServer != nil {
+		healthServer.GracefulStop()
+	}
 }

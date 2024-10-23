@@ -10,6 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
@@ -18,15 +19,14 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/google/uuid"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
-
-	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -138,7 +138,15 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(logRequestMiddleware(logger, arcConfig.Api.RequestExtendedLogs))
 
 	// add prometheus metrics
-	e.Use(echoprometheus.NewMiddleware("api"))
+	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
+		Subsystem: "api",
+		HistogramOptsFunc: func(opts prometheus.HistogramOpts) prometheus.HistogramOpts {
+			if opts.Name == "request_duration_seconds" {
+				opts.Buckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30, 60}
+			}
+			return opts
+		},
+	}))
 
 	return e
 }

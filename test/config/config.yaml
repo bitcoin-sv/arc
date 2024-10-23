@@ -39,7 +39,7 @@ cache:
     db: 1
 
 metamorph:
-  listenAddr: 0.0.0.0:8001
+  listenAddr: "[::1]:8001"
   dialAddr: arc-metamorph:8001
   db:
     mode: postgres
@@ -69,7 +69,7 @@ metamorph:
     notMinedTimeLimit: 20m
 
 blocktx:
-  listenAddr: 0.0.0.0:8011
+  listenAddr: "[::1]:8011"
   dialAddr: arc-blocktx:8011
   healthServerDialAddr: localhost:8006
   db:
@@ -90,7 +90,7 @@ blocktx:
   maxAllowedBlockHeightMismatch: 3
 
 api:
-  address: 0.0.0.0:9090
+  address: "[::1]:9090"
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   defaultPolicy:
     excessiveblocksize: 2000000000
@@ -123,9 +123,9 @@ api:
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
   requestExtendedLogs: true
-  
+
 callbacker:
-  listenAddr: 0.0.0.0:8021
+  listenAddr: "[::1]:8021"
   dialAddr: arc-callbacker:8021
   health:
     serverDialAddr: localhost:8022

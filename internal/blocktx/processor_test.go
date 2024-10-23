@@ -163,6 +163,9 @@ func TestHandleBlock(t *testing.T) {
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 					return nil
 				},
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 			}
 
 			mq := &mocks.MessageQueueClientMock{
@@ -437,6 +440,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(ctx context.Context, transaction [][]byte) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 			}
 
 			txChan := make(chan []byte, 10)
@@ -601,7 +607,7 @@ func TestStartBlockRequesting(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
+			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls+1 /* one call on Shutdown() */, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
 			require.Equal(t, tc.expectedDelBlockProcessingCalls, len(storeMock.DelBlockProcessingCalls()))
 			require.Equal(t, tc.expectedSetBlockProcessingCalls, len(storeMock.SetBlockProcessingCalls()))
 			require.Equal(t, tc.expectedPeerWriteMessageCalls, len(peerMock.WriteMsgCalls()))
@@ -687,6 +693,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHeight: 1,
 					}}, tc.getMinedErr
 				},
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 			}
 
 			mq := &mocks.MessageQueueClientMock{
@@ -751,7 +760,11 @@ func TestStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			storeMock := &storeMocks.BlocktxStoreMock{}
+			storeMock := &storeMocks.BlocktxStoreMock{
+				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
+			}
 
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {

@@ -38,7 +38,7 @@ const (
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
-	waitForBlockProcessing             = 10 * time.Minute
+	waitForBlockProcessing             = 5 * time.Minute
 )
 
 type Processor struct {
@@ -56,6 +56,8 @@ type Processor struct {
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
+
+	processGruadsMap sync.Map
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -170,7 +172,7 @@ func (p *Processor) StartBlockRequesting() {
 					continue
 				}
 
-				p.startBlockProcessedGuard(p.ctx, hash)
+				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
@@ -189,10 +191,11 @@ func (p *Processor) StartBlockProcessing() {
 				return
 			case blockMsg := <-p.blockProcessCh:
 				blockhash := blockMsg.Header.BlockHash()
+
+				defer p.stopBlockProcessGuard(&blockhash) // release guardian at the end
+
 				p.logger.Info("received block", slog.String("hash", blockhash.String()))
-
 				err := p.processBlock(blockMsg)
-
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, &blockhash)
@@ -202,11 +205,53 @@ func (p *Processor) StartBlockProcessing() {
 	}()
 }
 
+func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.Hash) {
+	p.waitGroup.Add(1)
+
+	execCtx, stopFn := context.WithCancel(ctx)
+	p.processGruadsMap.Store(hash, stopFn)
+
+	go func() {
+		defer p.waitGroup.Done()
+
+		select {
+		case <-execCtx.Done():
+			// we may do nothing here:
+			// 1. block processing is completed, or
+			// 2. processor is shutting down – all unprocessed blocks are released in the Shutdown func
+			return
+
+		case <-time.After(waitForBlockProcessing):
+			// check if block was processed successfully
+			block, _ := p.store.GetBlock(execCtx, hash)
+
+			if block != nil && block.Processed {
+				return // success
+			}
+
+			p.logger.Error(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.unlockBlock(execCtx, hash)
+		}
+
+	}()
+}
+
+func (p *Processor) stopBlockProcessGuard(hash *chainhash.Hash) {
+	stopFn, found := p.processGruadsMap.LoadAndDelete(*hash)
+	if found {
+		stopFn.(context.CancelFunc)()
+	}
+}
+
 // unlock block for future processing
 func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
 	// use closures for retries
 	unlockFn := func() error {
 		_, err := p.store.DelBlockProcessing(ctx, hash, p.hostname)
+		if errors.Is(err, store.ErrBlockNotFound) {
+			return nil // block is already unlocked
+		}
+
 		return err
 	}
 
@@ -218,31 +263,6 @@ func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
 	if unlockErr := backoff.Retry(unlockFn, bo); unlockErr != nil {
 		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
 	}
-}
-
-func (p *Processor) startBlockProcessedGuard(ctx context.Context, hash *chainhash.Hash) {
-	p.waitGroup.Add(1)
-
-	go func(ctx context.Context, hash *chainhash.Hash) {
-		defer p.waitGroup.Done()
-
-		// respect processor shutdown while waiting
-		select {
-		case <-p.ctx.Done():
-			return // we can do nothing here
-		case <-time.After(waitForBlockProcessing):
-			// check if block was processed successfully
-			block, _ := p.store.GetBlock(ctx, hash)
-
-			if block != nil && block.Processed {
-				return // success
-			}
-
-			p.logger.Error(fmt.Sprintf("block is not processed after %v. Block will be unlock to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
-			p.unlockBlock(ctx, hash)
-		}
-
-	}(ctx, hash)
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
@@ -686,4 +706,18 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 func (p *Processor) Shutdown() {
 	p.cancelAll()
 	p.waitGroup.Wait()
+
+	// unlock unprocessed blocks
+	bhs, err := p.store.GetBlockHashesProcessingInProgress(context.Background(), p.hostname)
+	if err != nil {
+		p.logger.Error("reading unprocessing blocks on shutdown failed", slog.Any("err", err))
+		return
+	}
+
+	for _, bh := range bhs {
+		_, err := p.store.DelBlockProcessing(context.Background(), bh, p.hostname)
+		if err != nil {
+			p.logger.Error("unlocking unprocessed block on shutdown failed", slog.String("hash", bh.String()), slog.Any("err", err))
+		}
+	}
 }

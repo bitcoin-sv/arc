@@ -283,7 +283,6 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
-
 			// In case of error put utxos back in channel
 			for _, tx := range txs {
 				for _, input := range tx.Inputs {
@@ -307,7 +306,6 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		atomic.AddInt64(&b.connectionCount, -1)
 
 		for _, res := range resp {
-
 			txIDBytes, err := hex.DecodeString(res.Txid)
 			if err != nil {
 				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))

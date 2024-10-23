@@ -70,7 +70,6 @@ const (
 
 func runNewSendManager(u string, c SendCallbackInterface, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
 	singleSendSleep, batchSendInterval time.Duration) *sendManager {
-
 	const defaultBatchSendInterval = time.Duration(5 * time.Second)
 	if batchSendInterval == 0 {
 		batchSendInterval = defaultBatchSendInterval

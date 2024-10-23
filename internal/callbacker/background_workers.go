@@ -19,11 +19,11 @@ type BackgroundWorkers struct {
 	cancelAll func()
 }
 
-func NewBackgroundWorkers(store store.CallbackerStore, dispatcher *CallbackDispatcher, logger *slog.Logger) *BackgroundWorkers {
+func NewBackgroundWorkers(s store.CallbackerStore, dispatcher *CallbackDispatcher, logger *slog.Logger) *BackgroundWorkers {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BackgroundWorkers{
-		s: store,
+		s: s,
 		d: dispatcher,
 		l: logger.With(slog.String("module", "background workers")),
 

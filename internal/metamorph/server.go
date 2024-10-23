@@ -212,7 +212,7 @@ func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req 
 		RawTx:             req.GetRawTx(),
 	}
 }
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, timeoutSeconds int64, TxID string) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, timeoutSeconds int64, txID string) *metamorph_api.TransactionStatus {
 	ctx, span := s.startTracing(ctx, "processTransaction")
 	defer s.endTracing(span)
 
@@ -238,7 +238,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	returnedStatus := &metamorph_api.TransactionStatus{
-		Txid:   TxID,
+		Txid:   txID,
 		Status: metamorph_api.Status_RECEIVED,
 	}
 
@@ -268,7 +268,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				returnedStatus.RejectReason = ""
 				if res.Status == metamorph_api.Status_MINED {
 					tx, err := s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
-						Txid: TxID,
+						Txid: txID,
 					})
 					if err != nil {
 						s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
@@ -407,7 +407,6 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*store.Data, error) {
 	keys := make([][]byte, 0, len(req.TxIDs))
 	for _, id := range req.TxIDs {
-
 		idBytes, err := hex.DecodeString(id)
 		if err != nil {
 			return nil, err

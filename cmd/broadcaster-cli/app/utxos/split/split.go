@@ -18,7 +18,6 @@ var Cmd = &cobra.Command{
 	Use:   "split",
 	Short: "Split a UTXO",
 	RunE: func(_ *cobra.Command, _ []string) error {
-
 		txid, err := helper.GetString("txid")
 		if err != nil {
 			return err
@@ -123,7 +122,6 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-
 	logger := helper.GetLogger()
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

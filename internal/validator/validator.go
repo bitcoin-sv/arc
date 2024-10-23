@@ -29,5 +29,5 @@ type DefaultValidator interface {
 }
 
 type BeefValidator interface {
-	ValidateTransaction(ctx context.Context, beef *beef.BEEF, feeValidation FeeValidation, scriptValidation ScriptValidation) (*sdkTx.Transaction, error)
+	ValidateTransaction(ctx context.Context, b *beef.BEEF, feeValidation FeeValidation, scriptValidation ScriptValidation) (*sdkTx.Transaction, error)
 }

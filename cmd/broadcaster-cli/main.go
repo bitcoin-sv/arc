@@ -17,7 +17,6 @@ func main() {
 }
 
 func run() error {
-
 	err := app.Execute()
 	if err != nil {
 		return err

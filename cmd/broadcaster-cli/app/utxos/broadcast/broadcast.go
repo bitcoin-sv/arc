@@ -21,7 +21,6 @@ var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "Submit transactions to ARC",
 	RunE: func(_ *cobra.Command, _ []string) error {
-
 		rateTxsPerSecond, err := helper.GetInt("rate")
 		if err != nil {
 			return err
@@ -223,5 +222,4 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }

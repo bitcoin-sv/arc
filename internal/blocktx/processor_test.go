@@ -177,7 +177,7 @@ func TestHandleBlock(t *testing.T) {
 			// build peer manager and processor
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			var blockRequestCh chan blocktx.BlockRequest
+			var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			// when
@@ -374,7 +374,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			// build peer manager and processor
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			var blockRequestCh chan blocktx.BlockRequest
+			var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)

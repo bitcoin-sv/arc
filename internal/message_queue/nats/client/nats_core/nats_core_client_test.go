@@ -1,4 +1,4 @@
-package natscore_test
+package nats_core_test
 
 import (
 	"errors"
@@ -53,7 +53,7 @@ func TestPublishMarshal(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			//given
+			// given
 			natsMock := &mocks.NatsConnectionMock{
 				PublishFunc: func(_ string, _ []byte) error {
 					return tc.publishErr
@@ -66,20 +66,18 @@ func TestPublishMarshal(t *testing.T) {
 			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedPublishCalls, len(natsMock.PublishCalls()))
 		})
 	}
 }
 
 func TestPublish(t *testing.T) {
-
 	tt := []struct {
 		name       string
 		publishErr error
@@ -118,12 +116,12 @@ func TestPublish(t *testing.T) {
 			err := sut.Publish(RegisterTxTopic, []byte("tx"))
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
+
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedPublishCalls, len(natsMock.PublishCalls()))
 		})
@@ -131,7 +129,6 @@ func TestPublish(t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-
 	tt := []struct {
 		name         string
 		subscribeErr error
@@ -184,12 +181,12 @@ func TestSubscribe(t *testing.T) {
 			err := sut.Subscribe(RegisterTxTopic, func(_ []byte) error { return tc.msgFuncErr })
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
+
+			require.NoError(t, err)
 
 			if tc.runFunc {
 				msgHandler(&nats.Msg{})

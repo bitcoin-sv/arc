@@ -169,7 +169,6 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 				}
 				require.Len(t, res, len(expectedUnminedAncestors))
 			}
-
 		})
 	}
 }

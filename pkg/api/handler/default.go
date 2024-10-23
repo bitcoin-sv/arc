@@ -538,7 +538,6 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		}
 
 		submitStatuses = append(submitStatuses, status)
-
 	} else {
 		var err error
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)

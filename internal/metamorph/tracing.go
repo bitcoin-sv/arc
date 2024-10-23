@@ -13,12 +13,12 @@ func WithTracer(t trace.Tracer) {
 }
 
 // StartTracing starts a new span with the given name
-func StartTracing(spanName string) trace.Span {
+func StartTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if tracer != nil {
-		_, span := tracer.Start(context.Background(), spanName)
-		return span
+		ctx, span := tracer.Start(ctx, spanName)
+		return ctx, span
 	}
-	return nil
+	return ctx, nil
 }
 
 // EndTracing ends the given span

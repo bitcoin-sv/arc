@@ -16,7 +16,7 @@ func getDefaultArcConfig() *ArcConfig {
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
 		MessageQueue:       getDefaultMessageQueueConfig(),
-		Tracing:            nil, // optional
+		Tracing:            getDefaultTracingConfig(),
 		PeerRpc:            getDefaultPeerRpcConfig(),
 		Peers:              getPeersConfig(),
 		Metamorph:          getMetamorphConfig(),
@@ -196,5 +196,11 @@ func getCacheConfig() *CacheConfig {
 			Password: "",
 			DB:       0,
 		},
+	}
+}
+
+func getDefaultTracingConfig() *TracingConfig {
+	return &TracingConfig{
+		DialAddr: "", // optional
 	}
 }

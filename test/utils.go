@@ -530,6 +530,7 @@ func testTxSubmission(t *testing.T, callbackUrl string, token string, callbackBa
 			"X-CallbackUrl":   callbackUrl,
 			"X-CallbackToken": token,
 			"X-CallbackBatch": strconv.FormatBool(callbackBatch),
+			"X-MaxTimeout":    "7",
 		}, http.StatusOK)
 	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
 }

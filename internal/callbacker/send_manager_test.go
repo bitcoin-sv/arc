@@ -160,7 +160,6 @@ func TestSendManager_Quarantine(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			// given
 			sendOK := true
 			senderMq := &SendCallbackInterfaceMock{
@@ -267,10 +266,8 @@ func TestSendManager_Quarantine(t *testing.T) {
 
 				require.True(t, ok)
 			}
-
 		})
 	}
-
 }
 
 func find[T any](arr []T, predicate func(T) bool) (T, bool) {

@@ -225,7 +225,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get longest chain from height", func(t *testing.T) {
-		//given
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_longest_chain")
 
 		startingHeight := uint64(822014)

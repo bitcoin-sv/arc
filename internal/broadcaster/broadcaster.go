@@ -87,7 +87,6 @@ func WithOpReturn(opReturn string) func(broadcaster *Broadcaster) {
 }
 
 func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (Broadcaster, error) {
-
 	b := Broadcaster{
 		logger:        logger,
 		client:        client,

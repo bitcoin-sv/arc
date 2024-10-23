@@ -36,7 +36,6 @@ func WithLogInterval(d time.Duration) func(*MultiKeyRateBroadcaster) {
 }
 
 func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts ...func(client *MultiKeyRateBroadcaster)) *MultiKeyRateBroadcaster {
-
 	mrb := &MultiKeyRateBroadcaster{
 		rbs:         rbs,
 		logger:      logger,

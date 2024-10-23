@@ -166,7 +166,6 @@ func startHealthServerCallbacker(serv *callbacker.Server, healthConfig *config.H
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
 	store store.CallbackerStore, healthServer *grpc.Server) {
-
 	// dispose of dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. background workers - ensure no callbacks from background will be accepted
@@ -197,7 +196,6 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 	if healthServer != nil {
 		healthServer.Stop()
 	}
-
 }
 
 func toCallbackEntry(dto *store.CallbackData) *callbacker.CallbackEntry {

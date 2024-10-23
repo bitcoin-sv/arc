@@ -45,7 +45,6 @@ func (b *UTXOConsolidator) Wait() {
 }
 
 func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
-
 	submitBatchesPerMinute := float64(txsRateTxsPerMinute) / float64(b.batchSize)
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond
@@ -115,7 +114,6 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 					}
 					b.logger.Error("failed to broadcast consolidation txs", slog.String("err", err.Error()))
 					return
-
 				}
 
 				for _, res := range resp {
@@ -217,14 +215,12 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 			txsConsolidationBatches = append(txsConsolidationBatches, txsConsolidation)
 			txsConsolidation = make(sdkTx.Transactions, 0)
 		}
-
 	}
 
 	return txsConsolidationBatches, nil
 }
 
 func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
-
 	fee, err := b.feeModel.ComputeFee(tx)
 	if err != nil {
 		return err

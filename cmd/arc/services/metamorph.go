@@ -194,7 +194,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		healthServer.Stop()
-
 	}, nil
 }
 

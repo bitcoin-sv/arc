@@ -18,7 +18,6 @@ import (
 )
 
 func TestRateBroadcaster(t *testing.T) {
-
 	ks, err := keyset.New()
 	require.NoError(t, err)
 

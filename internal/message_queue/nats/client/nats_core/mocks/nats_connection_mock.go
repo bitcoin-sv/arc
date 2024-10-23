@@ -11,7 +11,7 @@ import (
 
 // Ensure, that NatsConnectionMock does implement natscore.NatsConnection.
 // If this is not the case, regenerate this file with moq.
-var _ natscore.NatsConnection = &NatsConnectionMock{}
+var _ nats_core.NatsConnection = &NatsConnectionMock{}
 
 // NatsConnectionMock is a mock implementation of natscore.NatsConnection.
 //

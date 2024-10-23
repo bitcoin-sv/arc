@@ -240,7 +240,6 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 }
 
 func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*WocRawTx, error) {
-
 	var result []*WocRawTx
 
 	for len(ids) > 0 {
@@ -284,7 +283,6 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*WocRawTx,
 }
 
 func (w *WocClient) httpRequest(ctx context.Context, method string, endpoint string, payload []byte) (*http.Request, error) {
-
 	var body io.Reader
 	if len(payload) > 0 {
 		body = bytes.NewBuffer(payload)

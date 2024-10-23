@@ -15,7 +15,6 @@ var (
 		Use:   "new",
 		Short: "Create new key set",
 		RunE: func(_ *cobra.Command, _ []string) error {
-
 			newKeyset, err := keyset.New()
 			if err != nil {
 				return err

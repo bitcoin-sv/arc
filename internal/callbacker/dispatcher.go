@@ -41,12 +41,11 @@ type CallbackEntry struct {
 	postponedUntil *time.Time
 }
 
-func NewCallbackDispatcher(callbacker SendCallbackInterface, store store.CallbackerStore, logger *slog.Logger,
+func NewCallbackDispatcher(callbacker SendCallbackInterface, cStore store.CallbackerStore, logger *slog.Logger,
 	singleSendPause, batchSendInterval, quarantineBaseDuration, permQuarantineAfterDuration time.Duration) *CallbackDispatcher {
-
 	return &CallbackDispatcher{
 		c:                 callbacker,
-		s:                 store,
+		s:                 cStore,
 		l:                 logger.With(slog.String("module", "dispatcher")),
 		sleep:             singleSendPause,
 		batchSendInterval: batchSendInterval,

@@ -206,7 +206,6 @@ func TestNatsClient(t *testing.T) {
 			}
 		}
 		require.Equal(t, 3, counter)
-
 	})
 
 	t.Run("shutdown", func(t *testing.T) {

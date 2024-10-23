@@ -77,7 +77,6 @@ func TestUTXOCreator(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expectedStartCalls, len(mockedCreator.StartCalls()))
-
 		})
 	}
 }

@@ -139,6 +139,57 @@ linters-settings:
     # Default: false
     require-specific: true
 
+  revive:
+    enable-all-rules: true
+    rules:
+#      - name: var-naming # disable for package name with underscore
+#        disabled: true
+      - name: cognitive-complexity # disable for db methods
+        disabled: true
+      - name: line-length-limit # disable for our dictionary package
+        disabled: true
+      - name: add-constant # too strict
+        disabled: true
+      - name:  deep-exit
+        disabled: true
+      - name: function-length # disable for our tests
+        disabled: true
+      - name: confusing-naming # too strict
+        disabled: true
+      - name:  max-public-structs # too strict
+        disabled: true
+      - name: import-alias-naming # too strict for sdkTx
+        disabled: true
+      - name: cyclomatic # too strict for our complex functions
+        disabled: true
+      - name:  use-any
+        disabled: true
+      - name: confusing-results
+        disabled: true
+      - name: flag-parameter
+        disabled: false
+      - name: unused-receiver
+        disabled: true
+      - name:  bare-return
+        disabled: true
+      - name: function-result-limit
+        disabled: true
+      - name: flag-parameter
+        disabled: true
+      - name: datarace
+        disabled: true
+      - name: if-return
+        disabled: true
+      - name: unhandled-error # disable for fmt.Println errors
+        disabled: true
+      - name: redundant-import-alias
+        disabled: true
+      - name: import-shadowing
+        disabled: true
+      - name: range-val-in-closure
+        disabled: true
+
+
   rowserrcheck:
     # database/sql is always checked
     # Default: []
@@ -278,6 +329,9 @@ issues:
   # Set to 0 to disable.
   # Default: 3
   max-same-issues: 50
+
+  exclude:
+    - "don't use an underscore in package name"
 
 #  exclude-rules:
 #    - source: "(noinspection|TODO)"

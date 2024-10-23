@@ -13,7 +13,6 @@ var validLockingScript = &script.Script{
 }
 
 func TestComputeFee(t *testing.T) {
-
 	tests := []struct {
 		name         string
 		satsPerKB    uint64
@@ -54,7 +53,7 @@ func TestComputeFee(t *testing.T) {
 			var err error
 			sut := SatoshisPerKilobyte{Satoshis: tt.satsPerKB}
 
-			//when
+			// when
 			// test ComputeFee
 			if tt.tx != nil {
 				fee1, err = sut.ComputeFee(tt.tx)

@@ -63,7 +63,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 			BlockHeight: blockHeight,
 			MerklePath:  merklePath,
 		})
-
 	}
 
 	return result, nil

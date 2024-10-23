@@ -1,4 +1,4 @@
-package natsconnection
+package nats_connection
 
 import (
 	"errors"

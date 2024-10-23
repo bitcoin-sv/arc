@@ -304,7 +304,6 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.Equal(t, countAll-countToDelete, tutils.CountCallbacks(t, postgresDB.db))
 	})
-
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {

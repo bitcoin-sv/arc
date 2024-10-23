@@ -7,14 +7,14 @@ import (
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 )
 
-func PayTo(tx *sdkTx.Transaction, script *script.Script, satoshis uint64) error {
-	if !script.IsP2PKH() {
+func PayTo(tx *sdkTx.Transaction, s *script.Script, satoshis uint64) error {
+	if !s.IsP2PKH() {
 		return sdkTx.ErrInvalidScriptType
 	}
 
 	tx.AddOutput(&sdkTx.TransactionOutput{
 		Satoshis:      satoshis,
-		LockingScript: script,
+		LockingScript: s,
 	})
 	return nil
 }

@@ -15,7 +15,6 @@ var Cmd = &cobra.Command{
 	Use:   "balance",
 	Short: "Show balance of the keyset",
 	RunE: func(_ *cobra.Command, _ []string) error {
-
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err

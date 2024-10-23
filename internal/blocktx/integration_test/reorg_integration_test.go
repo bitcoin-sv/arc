@@ -95,7 +95,7 @@ func TestBlockStatus(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	var blockRequestCh chan blocktx.BlockRequest
+	var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
 	blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 	blocktxStore, err := postgresql.New(dbInfo, 10, 80)

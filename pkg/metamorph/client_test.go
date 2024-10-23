@@ -48,11 +48,10 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 			res, err := client.SetUnlockedByName(context.Background(), "test-1")
 			if tc.expectedErrorStr == "" {
 				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
-
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -204,12 +203,12 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			require.Equal(t, tc.expectedStatus, status)
 
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
+			require.NoError(t, err)
 		})
 	}
 }
@@ -432,12 +431,12 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			require.Equal(t, tc.expectedStatuses, statuses)
 
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.NoError(t, err)
-			} else {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
+			require.NoError(t, err)
 		})
 	}
 }

@@ -585,7 +585,7 @@ func TestStartBlockRequesting(t *testing.T) {
 			}
 
 			// build peer manager
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			logger := slog.Default()
 
 			blockRequestCh := make(chan blocktx.BlockRequest, 10)
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
@@ -604,13 +604,14 @@ func TestStartBlockRequesting(t *testing.T) {
 			// call tested function
 			require.NoError(t, err)
 			time.Sleep(200 * time.Millisecond)
-			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls+1 /* one call on Shutdown() */, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
+			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
 			require.Equal(t, tc.expectedDelBlockProcessingCalls, len(storeMock.DelBlockProcessingCalls()))
 			require.Equal(t, tc.expectedSetBlockProcessingCalls, len(storeMock.SetBlockProcessingCalls()))
 			require.Equal(t, tc.expectedPeerWriteMessageCalls, len(peerMock.WriteMsgCalls()))
+
+			sut.Shutdown()
 		})
 	}
 }

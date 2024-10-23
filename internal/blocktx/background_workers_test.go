@@ -27,7 +27,7 @@ func TestStartFillGaps(t *testing.T) {
 		getBlockGapsErr error
 		blockGaps       []*store.BlockGap
 
-		minExpectedGetBlockCapsCalls int
+		expectedGetBlockCapsCalls int
 	}{
 		{
 			name:     "success",
@@ -43,21 +43,21 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			},
 
-			minExpectedGetBlockCapsCalls: 1,
+			expectedGetBlockCapsCalls: 1,
 		},
 		{
 			name:            "error getting block gaps",
 			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 
-			minExpectedGetBlockCapsCalls: 1,
+			expectedGetBlockCapsCalls: 1,
 		},
 		{
 			name:      "no block gaps",
 			hostname:  hostname,
 			blockGaps: make([]*store.BlockGap, 0),
 
-			minExpectedGetBlockCapsCalls: 4,
+			expectedGetBlockCapsCalls: 3,
 		},
 	}
 
@@ -90,8 +90,10 @@ func TestStartFillGaps(t *testing.T) {
 
 			sut := blocktx.NewBackgroundWorkers(storeMock, logger)
 
+			interval := 50 * time.Millisecond
+
 			// when
-			sut.StartFillGaps(peers, 20*time.Millisecond, 28, blockRequestCh)
+			sut.StartFillGaps(peers, interval, 28, blockRequestCh)
 
 			// then
 			select {
@@ -99,11 +101,11 @@ func TestStartFillGaps(t *testing.T) {
 				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
 			case err = <-getBlockErrCh:
 				require.ErrorIs(t, err, tc.getBlockGapsErr)
-			case <-time.NewTimer(100 * time.Millisecond).C:
+			case <-time.After(time.Duration(3.5 * float64(interval))):
 			}
 
 			sut.GracefulStop()
-			require.GreaterOrEqual(t, tc.minExpectedGetBlockCapsCalls, len(storeMock.GetBlockGapsCalls()))
+			require.Equal(t, tc.expectedGetBlockCapsCalls, len(storeMock.GetBlockGapsCalls()))
 		})
 	}
 }

@@ -256,9 +256,9 @@ services:
     build: ../
     ports:
       - "8011:8011"
-      - "9090:9090"
       - "9999:9999"
       - "2112:2112"
+      - "[::1]:9090:9090"
     expose:
       - "9090"
       - "2112"
@@ -283,7 +283,7 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 2001:db8::/64
+        - subnet: fd00:abcd:1234::/64
 
 volumes:
   node1-data:

@@ -183,7 +183,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	}
 
 	if len(fails) > 0 {
-		// if an fail result is returned, the processing/validation failed
+		// if a fail result is returned, the processing/validation failed
 		e = fails[0]
 		return ctx.JSON(e.Status, e)
 	}

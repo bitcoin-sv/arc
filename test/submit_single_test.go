@@ -305,7 +305,7 @@ func TestCallback(t *testing.T) {
 
 			}
 
-			// mine trasactions
+			// mine transactions
 			generate(t, 1)
 
 			// then
@@ -450,7 +450,7 @@ func TestBatchCallback(t *testing.T) {
 
 			}
 
-			// mine trasactions
+			// mine transactions
 			generate(t, 1)
 
 			// then

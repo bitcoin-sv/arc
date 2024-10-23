@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -23,9 +27,6 @@ import (
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
 )
 
 const (
@@ -104,6 +105,9 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+
+	m.logger.Info("Get policy", slog.String("address", ctx.Request().RemoteAddr))
+
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
@@ -155,6 +159,9 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
+
+	m.logger.Info("Post transaction", slog.String("address", ctx.Request().RemoteAddr))
+
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
@@ -190,6 +197,8 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
+
+	m.logger.Info("Get transaction status", slog.String("address", ctx.Request().RemoteAddr))
 	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
@@ -220,6 +229,9 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
+
+	m.logger.Info("Post transactions", slog.String("address", ctx.Request().RemoteAddr))
+
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {

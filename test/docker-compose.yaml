@@ -169,6 +169,8 @@ services:
     volumes:
       - ./config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
+    environment:
+      - ARC_TRACING_DIALADDR
     depends_on:
       nats-1:
         condition: service_healthy
@@ -196,6 +198,8 @@ services:
     expose:
       - "8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
+    environment:
+      - ARC_TRACING_DIALADDR
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
@@ -212,6 +216,8 @@ services:
     expose:
       - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
+    environment:
+      - ARC_TRACING_DIALADDR
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
@@ -221,8 +227,6 @@ services:
         condition: service_healthy
       arc-redis:
         condition: service_healthy
-      arc-jaeger:
-        condition: service_started
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -240,6 +244,8 @@ services:
       - "9090"
       - "2112"
     command: [ "./arc", "-api=true", "-config=." ]
+    environment:
+      - ARC_TRACING_DIALADDR
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:

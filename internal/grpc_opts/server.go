@@ -59,7 +59,7 @@ func ServeNewHealthServer(logger *slog.Logger, serv grpc_health_v1.HealthServer,
 }
 
 func (s *GrpcServer) ListenAndServe(address string) error {
-	listener, err := net.Listen("tcp", address)
+	listener, err := net.Listen("tcp6", address)
 	if err != nil {
 		return ErrServerFailedToListen
 	}

@@ -136,7 +136,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 
 	cons, err := stream.Consumer(consCtx, consumerName)
 	if errors.Is(err, jetstream.ErrConsumerNotFound) {
-		cl.logger.Error(fmt.Sprintf("consumer %s not found, creating new", consumerName))
+		cl.logger.Warn(fmt.Sprintf("consumer %s not found, creating new", consumerName))
 		cons, err = stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
 			Durable:   consumerName,
 			AckPolicy: jetstream.AckExplicitPolicy,

@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/ordishs/go-bitcoin"
+
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/ordishs/go-bitcoin"
 )
 
 type BeefValidator struct {
@@ -136,7 +137,7 @@ func calculateInputsOutputsSatoshis(tx *sdkTx.Transaction, inputTxs []*beef.TxDa
 		inputParentTx := findParentForInput(input, inputTxs)
 
 		if inputParentTx == nil {
-			return 0, 0, errors.New("invalid parent transactions, no matching trasactions for input")
+			return 0, 0, errors.New("invalid parent transactions, no matching transactions for input")
 		}
 
 		inputSum += inputParentTx.Transaction.Outputs[input.SourceTxOutIndex].Satoshis
@@ -151,7 +152,7 @@ func validateScripts(tx *sdkTx.Transaction, inputTxs []*beef.TxData) *validator.
 	for i, input := range tx.Inputs {
 		inputParentTx := findParentForInput(input, inputTxs)
 		if inputParentTx == nil {
-			return validator.NewError(errors.New("invalid parent transactions, no matching trasactions for input"), api.ErrStatusUnlockingScripts)
+			return validator.NewError(errors.New("invalid parent transactions, no matching transactions for input"), api.ErrStatusUnlockingScripts)
 		}
 
 		err := checkScripts(tx, inputParentTx.Transaction, i)

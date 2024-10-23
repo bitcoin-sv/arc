@@ -238,8 +238,8 @@ func TestCallback(t *testing.T) {
 			numberOfCallbackServers: 1,
 		},
 		{
-			name:                    "post transactions with multiple callback",
-			numberOfTxs:             10,
+			name:                    "post transactions with multiple callbacks",
+			numberOfTxs:             8,
 			numberOfCallbackServers: 10,
 		},
 	}
@@ -305,7 +305,7 @@ func TestCallback(t *testing.T) {
 
 			}
 
-			// mine trasactions
+			// mine transactions
 			generate(t, 1)
 
 			// then
@@ -383,8 +383,8 @@ func TestBatchCallback(t *testing.T) {
 			numberOfCallbackServers: 1,
 		},
 		{
-			name:                    "post transactions with multiple callback",
-			numberOfTxs:             10,
+			name:                    "post transactions with multiple callbacks",
+			numberOfTxs:             8,
 			numberOfCallbackServers: 10,
 		},
 	}
@@ -450,7 +450,7 @@ func TestBatchCallback(t *testing.T) {
 
 			}
 
-			// mine trasactions
+			// mine transactions
 			generate(t, 1)
 
 			// then

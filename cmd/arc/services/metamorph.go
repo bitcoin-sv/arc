@@ -62,7 +62,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 
 	// if tracing enabled set up global tracer for metamorph
-	if arcConfig.Tracing.DialAddr != "" {
+	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
 		tracer := otel.GetTracerProvider().Tracer("Metamorph")
 		metamorph.WithTracer(tracer)
 	}

@@ -36,8 +36,6 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 		return nil, err
 	}
 
-	fmt.Println("TRACING:    ", arcConfig.Tracing.DialAddr)
-
 	return arcConfig, nil
 }
 

@@ -140,6 +140,3 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-
-tracing: # (optional)
-  dialAddr: arc-jaeger:4317

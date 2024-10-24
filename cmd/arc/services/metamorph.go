@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"log/slog"
 	"net/url"
 	"os"

@@ -16,7 +16,6 @@ import (
 const baseCacheSize = 100 * 1024 * 1024
 
 func TestCheck(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name               string
@@ -73,11 +72,9 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-
 			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
-
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -90,7 +87,6 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	tt := []struct {
 		name               string
@@ -150,7 +146,6 @@ func TestWatch(t *testing.T) {
 			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
-
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {

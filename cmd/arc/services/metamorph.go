@@ -162,10 +162,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-
 	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
 		metamorphStore, processor, optsServer...)
-
 
 	if err != nil {
 		stopFn()

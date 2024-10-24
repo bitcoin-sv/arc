@@ -5,8 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/coocood/freecache"
+
 	"log/slog"
 	"os"
 	"sync"

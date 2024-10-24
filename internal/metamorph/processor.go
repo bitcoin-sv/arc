@@ -260,8 +260,6 @@ func (p *Processor) StartProcessMinedCallbacks() {
 			case <-p.ctx.Done():
 				return
 			case txBlock := <-p.minedTxsChan:
-				ctx, span := StartTracing(p.ctx, "StartProcessMinedCallbacks-txBlock")
-
 				if txBlock == nil {
 					continue
 				}
@@ -272,30 +270,24 @@ func (p *Processor) StartProcessMinedCallbacks() {
 					continue
 				}
 
-				p.updateMined(ctx, txsBlocks)
+				p.updateMined(p.ctx, txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
 
 				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 				ticker.Reset(p.processMinedInterval)
 
-				EndTracing(span)
-
 			case <-ticker.C:
-				ctx, span := StartTracing(p.ctx, "StartProcessMinedCallbacks-ticker")
-
 				if len(txsBlocks) == 0 {
 					continue
 				}
 
-				p.updateMined(ctx, txsBlocks)
+				p.updateMined(p.ctx, txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
 
 				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 				ticker.Reset(p.processMinedInterval)
-
-				EndTracing(span)
 			}
 		}
 	}()
@@ -330,20 +322,15 @@ func (p *Processor) StartProcessSubmittedTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := StartTracing(p.ctx, "StartProcessSubmittedTxs-ticker")
-
 				if len(reqs) > 0 {
-					p.ProcessTransactions(ctx, reqs)
+					p.ProcessTransactions(p.ctx, reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
-
-				EndTracing(span)
 			case submittedTx := <-p.submittedTxsChan:
-				ctx, span := StartTracing(p.ctx, "StartProcessSubmittedTxs-submittedTx")
 				if submittedTx == nil {
 					continue
 				}
@@ -364,15 +351,13 @@ func (p *Processor) StartProcessSubmittedTxs() {
 
 				reqs = append(reqs, sReq)
 				if len(reqs) >= p.processTransactionsBatchSize {
-					p.ProcessTransactions(ctx, reqs)
+					p.ProcessTransactions(p.ctx, reqs)
 					reqs = make([]*store.StoreData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
 				}
-
-				EndTracing(span)
 			}
 		}
 	}()
@@ -388,8 +373,6 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
-				_, span := StartTracing(p.ctx, "StartSendStatusUpdate")
-
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -407,7 +390,6 @@ func (p *Processor) StartSendStatusUpdate() {
 				})
 
 				p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
-				EndTracing(span)
 			}
 		}
 	}()
@@ -433,7 +415,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
-					p.checkAndUpdate(actualUpdateStatusMap)
+					p.checkAndUpdate(p.ctx, actualUpdateStatusMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -442,7 +424,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-ticker.C:
 				statusUpdatesMap := p.getStatusUpdateMap()
 				if len(statusUpdatesMap) > 0 {
-					p.checkAndUpdate(statusUpdatesMap)
+					p.checkAndUpdate(p.ctx, statusUpdatesMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -453,8 +435,8 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	}()
 }
 
-func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
-	ctx, span := StartTracing(p.ctx, "checkAndUpdate")
+func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	ctx, span := StartTracing(ctx, "checkAndUpdate")
 	defer EndTracing(span)
 
 	if len(statusUpdatesMap) == 0 {

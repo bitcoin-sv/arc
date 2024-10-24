@@ -481,7 +481,7 @@ func (p *Processor) checkAndUpdate(statusUpdatesMap map[chainhash.Hash]store.Upd
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	ctx, span := StartTracing(p.ctx, "statusUpdateWithCallback")
+	ctx, span := StartTracing(ctx, "statusUpdateWithCallback")
 	defer EndTracing(span)
 
 	var updatedData []*store.StoreData

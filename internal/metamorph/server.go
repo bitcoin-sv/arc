@@ -100,7 +100,7 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 }
 
 func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
-	ctx, span := StartTracing(ctx, "Health")
+	_, span := StartTracing(ctx, "Health")
 	defer EndTracing(span)
 
 	processorMapSize := s.processor.GetProcessorMapSize()

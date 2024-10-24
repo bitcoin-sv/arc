@@ -13,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -792,9 +795,14 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20), metamorph.WithMaxRetries(10), metamorph.WithNow(func() time.Time {
-				return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
-			}))
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+				metamorph.WithMessageQueueClient(publisher),
+				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithMaxRetries(10),
+				metamorph.WithNow(func() time.Time {
+					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
+				}))
+
 			require.NoError(t, err)
 			defer sut.Shutdown()
 

@@ -29,8 +29,10 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-		server := metamorph.NewServer(nil, nil, cacheStore)
+
+		server, _ := metamorph.NewServer("", 0, slog.Default(), nil, nil)
+		defer server.GracefulStop()
+
 		assert.IsType(t, &metamorph.Server{}, server)
 	})
 }
@@ -45,7 +47,11 @@ func TestHealth(t *testing.T) {
 			return []p2p.PeerI{}
 		}
 
-		sut := metamorph.NewServer(nil, processor, cacheStore)
+
+		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor)
+		require.NoError(t, err)
+		defer sut.GracefulStop()
+
 
 		// when
 		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
@@ -131,7 +137,11 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(s, processor, cacheStore, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
 
 			txRequest := &metamorph_api.TransactionRequest{
 				RawTx:         testdata.TX1Raw.Bytes(),
@@ -293,7 +303,11 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, nil, cacheStore)
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
 
 			// when
 			got, err := sut.GetTransactionStatus(context.Background(), tt.req)
@@ -308,7 +322,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 }
 
 func TestPutTransactions(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
@@ -556,8 +569,11 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			serverLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := metamorph.NewServer(nil, processor, cacheStore, metamorph.WithLogger(serverLogger), metamorph.WithMaxTimeoutDefault(5*time.Second))
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, metamorph.WithMaxTimeoutDefault(5*time.Second))
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
 
 			// when
 			statuses, err := sut.PutTransactions(context.Background(), tc.requests)
@@ -617,7 +633,11 @@ func TestSetUnlockedByName(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(metamorphStore, nil, cacheStore)
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
 
 			// when
 			response, err := sut.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
@@ -637,8 +657,8 @@ func TestSetUnlockedByName(t *testing.T) {
 	}
 }
 
-func TestStartGRPCServer(t *testing.T) {
-	cacheStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+
+func TestListenAndServe(t *testing.T) {
 
 	tt := []struct {
 		name string
@@ -658,19 +678,19 @@ func TestStartGRPCServer(t *testing.T) {
 				SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) { return 0, nil },
 			}
 
-			processor := &mocks.ProcessorIMock{
-				ShutdownFunc: func() {},
-			}
-			sut := metamorph.NewServer(metamorphStore, processor, cacheStore)
+			processor := &mocks.ProcessorIMock{}
+
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			sut, err := metamorph.NewServer("", 0, logger, metamorphStore, processor)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			// when
-			err := sut.StartGRPCServer("localhost:7000", 10000, "", logger)
+			err = sut.ListenAndServe("localhost:7000")
 
 			// then
 			require.NoError(t, err)
 			time.Sleep(50 * time.Millisecond)
-			sut.Shutdown()
 		})
 	}
 }
@@ -740,7 +760,11 @@ func TestGetTransactions(t *testing.T) {
 				},
 			}
 
-			sut := metamorph.NewServer(&store, nil, cacheStore)
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), &store, nil)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
 
 			// when
 			res, err := sut.GetTransactions(context.TODO(), tc.request)

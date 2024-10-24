@@ -2,78 +2,52 @@ package blocktx
 
 import (
 	"context"
-	"errors"
 	"log/slog"
-	"net"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/libsv/go-p2p"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var ErrServerFailedToListen = errors.New("GRPC server failed to listen")
-
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	store                         store.BlocktxStore
+	grpc_opts.GrpcServer
+
 	logger                        *slog.Logger
-	grpcServer                    *grpc.Server
 	pm                            p2p.PeerManagerI
-	cleanup                       func()
+	store                         store.BlocktxStore
 	maxAllowedBlockHeightMismatch int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(storeI store.BlocktxStore, logger *slog.Logger, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int) *Server {
-	return &Server{
-		store:                         storeI,
+func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
+	store store.BlocktxStore, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int) (*Server, error) {
+
+	logger = logger.With(slog.String("module", "server"))
+
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &Server{
+		GrpcServer:                    grpcServer,
+		store:                         store,
 		logger:                        logger,
 		pm:                            pm,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
-}
 
-// StartGRPCServer function.
-func (s *Server) StartGRPCServer(address string, grpcMessageSize int, prometheusEndpoint string, logger *slog.Logger) error {
-	// LEVEL 0 - no security / no encryption
-	srvMetrics, opts, cleanup, err := grpc_opts.GetGRPCServerOpts(logger, prometheusEndpoint, grpcMessageSize, "blocktx")
-	if err != nil {
-		return err
-	}
+	blocktx_api.RegisterBlockTxAPIServer(s.GrpcServer.Srv, s)
+	reflection.Register(s.GrpcServer.Srv)
 
-	s.cleanup = cleanup
-
-	grpcSrv := grpc.NewServer(opts...)
-	srvMetrics.InitializeMetrics(grpcSrv)
-
-	s.grpcServer = grpcSrv
-
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		return errors.Join(ErrServerFailedToListen, err)
-	}
-
-	blocktx_api.RegisterBlockTxAPIServer(s.grpcServer, s)
-
-	// Register reflection service on gRPC server.
-	reflection.Register(s.grpcServer)
-
-	go func() {
-		s.logger.Info("GRPC server listening", slog.String("address", address))
-		err = s.grpcServer.Serve(lis)
-		if err != nil {
-			s.logger.Error("GRPC server failed to serve", slog.String("err", err.Error()))
-		}
-	}()
-
-	return nil
+	return s, nil
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
@@ -116,11 +90,4 @@ func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots(), s.maxAllowedBlockHeightMismatch)
-}
-
-func (s *Server) Shutdown() {
-	s.logger.Info("Shutting down")
-	s.grpcServer.Stop()
-	s.pm.Shutdown()
-	s.cleanup()
 }

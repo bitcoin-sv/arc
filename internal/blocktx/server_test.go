@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStartGRPCServer(t *testing.T) {
+func TestListenAndServe(t *testing.T) {
 	tt := []struct {
 		name string
 	}{
@@ -32,16 +32,17 @@ func TestStartGRPCServer(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-			sut := blocktx.NewServer(storeMock, logger, pm, 0)
+
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			// when
-			err := sut.StartGRPCServer("localhost:7000", 10000, "", logger)
+			err = sut.ListenAndServe("localhost:7000")
 
 			// then
 			require.NoError(t, err)
 			time.Sleep(10 * time.Millisecond)
-
-			sut.Shutdown()
 		})
 	}
 }
@@ -90,7 +91,9 @@ func TestDelUnfinishedBlock(t *testing.T) {
 				},
 			}
 
-			sut := blocktx.NewServer(storeMock, logger, nil, 0)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, nil, 0)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
 
 			// when
 			resp, err := sut.DelUnfinishedBlockProcessing(context.Background(), &blocktx_api.DelUnfinishedBlockProcessingRequest{

@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"log/slog"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -19,6 +14,10 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"log/slog"
+	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -70,6 +69,7 @@ func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
+
 func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 	store store.MetamorphStore, processor ProcessorI, opts ...ServerOption) (*Server, error) {
 

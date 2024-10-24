@@ -16,6 +16,7 @@ import (
 const baseCacheSize = 100 * 1024 * 1024
 
 func TestCheck(t *testing.T) {
+
 	tt := []struct {
 		name               string
 		service            string
@@ -86,6 +87,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
+
 	tt := []struct {
 		name               string
 		service            string

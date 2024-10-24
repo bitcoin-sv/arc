@@ -27,6 +27,7 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
+
 		server, _ := metamorph.NewServer("", 0, slog.Default(), nil, nil)
 		defer server.GracefulStop()
 
@@ -57,6 +58,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPutTransaction(t *testing.T) {
+
 	testCases := []struct {
 		name              string
 		processorResponse metamorph.StatusAndError
@@ -582,6 +584,7 @@ func TestPutTransactions(t *testing.T) {
 }
 
 func TestSetUnlockedByName(t *testing.T) {
+
 	tt := []struct {
 		name            string
 		recordsAffected int64
@@ -639,6 +642,7 @@ func TestSetUnlockedByName(t *testing.T) {
 }
 
 func TestListenAndServe(t *testing.T) {
+
 	tt := []struct {
 		name string
 	}{
@@ -675,6 +679,7 @@ func TestListenAndServe(t *testing.T) {
 }
 
 func TestGetTransactions(t *testing.T) {
+
 	tcs := []struct {
 		name    string
 		request *metamorph_api.TransactionsStatusRequest

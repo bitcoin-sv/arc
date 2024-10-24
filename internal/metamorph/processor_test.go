@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"log/slog"
 	"os"
 	"sync"
@@ -800,6 +801,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}))
+
 			require.NoError(t, err)
 			defer sut.Shutdown()
 

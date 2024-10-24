@@ -22,7 +22,7 @@ type Server struct {
 func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher *CallbackDispatcher) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, nil)
 	if err != nil {
 		return nil, err
 	}

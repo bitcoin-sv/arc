@@ -101,7 +101,7 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, nil)
 	if err != nil {
 		return nil, err
 	}

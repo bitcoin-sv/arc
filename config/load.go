@@ -3,11 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+	"os"
+	"strings"
 )
 
 var (
@@ -23,14 +22,14 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 		return nil, err
 	}
 
-	viper.SetEnvPrefix("ARC")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
-
 	err = overrideWithFiles(configFileDirs...)
 	if err != nil {
 		return nil, err
 	}
+
+	viper.SetEnvPrefix("ARC")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	err = viper.Unmarshal(arcConfig)
 	if err != nil {

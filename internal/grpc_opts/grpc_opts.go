@@ -11,7 +11,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
+	ototel "go.opentelemetry.io/otel/bridge/opentracing"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,7 +26,7 @@ import (
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracer trace.Tracer) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 
@@ -85,6 +88,12 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		grpc.MaxRecvMsgSize(grpcMessageSize),
 	}
 
+	if tracer != nil {
+		bTracer := getBridgedTracer(tracer)
+		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(bTracer)))
+		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(bTracer)))
+	}
+
 	cleanup := func() {
 		prometheusclient.Unregister(panicsTotal)
 	}
@@ -92,7 +101,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	return srvMetrics, opts, cleanup, err
 }
 
-func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
+func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracer trace.Tracer) ([]grpc.DialOption, error) {
 
 	clientMetrics := prometheus.NewClientMetrics(
 		prometheus.WithClientHandlingTimeHistogram(
@@ -129,6 +138,12 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
 	}
 
+	if tracer != nil {
+		bTracer := getBridgedTracer(tracer)
+		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(bTracer)))
+		dialOpts = append(dialOpts, grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(bTracer)))
+	}
+
 	return dialOpts, nil
 }
 
@@ -151,4 +166,11 @@ func trySetEventId(x any, eventId string) {
 	}
 
 	field.SetString(eventId)
+}
+
+func getBridgedTracer(tracer trace.Tracer) *ototel.BridgeTracer {
+	bridge := ototel.NewBridgeTracer()
+	bridge.SetOpenTelemetryTracer(tracer)
+	bridge.SetTextMapPropagator(propagation.TraceContext{})
+	return bridge
 }

@@ -2,6 +2,7 @@ package grpc_opts
 
 import (
 	"errors"
+	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"net"
 
@@ -19,8 +20,8 @@ type GrpcServer struct {
 	cleanup func()
 }
 
-func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int) (GrpcServer, error) {
-	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name)
+func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int, tracer trace.Tracer) (GrpcServer, error) {
+	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name, tracer)
 	if err != nil {
 		return GrpcServer{}, err
 	}

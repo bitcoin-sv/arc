@@ -31,7 +31,7 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, nil)
 	if err != nil {
 		return nil, err
 	}

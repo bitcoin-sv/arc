@@ -146,7 +146,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when -> then
-		id, err := postgresDB.InsertBlock(ctx, expectedBlock)
+		id, err := postgresDB.UpsertBlock(ctx, expectedBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1), id)
 

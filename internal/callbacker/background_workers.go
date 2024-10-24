@@ -43,8 +43,12 @@ func (w *BackgroundWorkers) StartQuarantineCallbacksDispatch(interval time.Durat
 }
 
 func (w *BackgroundWorkers) GracefulStop() {
+	w.l.Info("Shutting down")
+
 	w.cancelAll()
 	w.workersWg.Wait()
+
+	w.l.Info("Shutted down")
 }
 
 func (w *BackgroundWorkers) pruneCallbacks(interval, olderThanDuration time.Duration) {

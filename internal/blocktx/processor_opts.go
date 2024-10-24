@@ -24,12 +24,6 @@ func WithRetentionDays(dataRetentionDays int) func(handler *Processor) {
 	}
 }
 
-func WithFillGapsInterval(interval time.Duration) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.fillGapsInterval = interval
-	}
-}
-
 func WithRegisterTxsInterval(d time.Duration) func(handler *Processor) {
 	return func(p *Processor) {
 		p.registerTxsInterval = d

@@ -57,7 +57,7 @@ type Processor struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 
-	processGruadsMap sync.Map
+	processGuardsMap sync.Map
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -209,10 +209,11 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 	p.waitGroup.Add(1)
 
 	execCtx, stopFn := context.WithCancel(ctx)
-	p.processGruadsMap.Store(hash, stopFn)
+	p.processGuardsMap.Store(hash, stopFn)
 
 	go func() {
 		defer p.waitGroup.Done()
+		defer p.processGuardsMap.Delete(*hash)
 
 		select {
 		case <-execCtx.Done():
@@ -232,12 +233,11 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 			p.logger.Error(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
 			p.unlockBlock(execCtx, hash)
 		}
-
 	}()
 }
 
 func (p *Processor) stopBlockProcessGuard(hash *chainhash.Hash) {
-	stopFn, found := p.processGruadsMap.LoadAndDelete(*hash)
+	stopFn, found := p.processGuardsMap.Load(*hash)
 	if found {
 		stopFn.(context.CancelFunc)()
 	}

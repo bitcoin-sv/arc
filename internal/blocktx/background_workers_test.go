@@ -27,7 +27,7 @@ func TestStartFillGaps(t *testing.T) {
 		getBlockGapsErr error
 		blockGaps       []*store.BlockGap
 
-		expectedGetBlockCapsCalls int
+		expectedGetBlockGapsCalls int
 	}{
 		{
 			name:     "success",
@@ -43,21 +43,21 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			},
 
-			expectedGetBlockCapsCalls: 1,
+			expectedGetBlockGapsCalls: 1,
 		},
 		{
 			name:            "error getting block gaps",
 			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 
-			expectedGetBlockCapsCalls: 1,
+			expectedGetBlockGapsCalls: 1,
 		},
 		{
 			name:      "no block gaps",
 			hostname:  hostname,
 			blockGaps: make([]*store.BlockGap, 0),
 
-			expectedGetBlockCapsCalls: 3,
+			expectedGetBlockGapsCalls: 3,
 		},
 	}
 
@@ -105,7 +105,7 @@ func TestStartFillGaps(t *testing.T) {
 			}
 
 			sut.GracefulStop()
-			require.Equal(t, tc.expectedGetBlockCapsCalls, len(storeMock.GetBlockGapsCalls()))
+			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
 		})
 	}
 }

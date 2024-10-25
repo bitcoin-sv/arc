@@ -3,6 +3,7 @@ package postgresql
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -32,6 +33,7 @@ type Block struct {
 	Height       int64     `db:"height"`
 	Status       int       `db:"status"`
 	Chainwork    string    `db:"chainwork"`
+	IsLongest    bool      `db:"is_longest"`
 	Size         *int64    `db:"size"`
 	TxCount      *int64    `db:"tx_count"`
 	Processed    bool      `db:"processed"`
@@ -135,12 +137,21 @@ func TestPostgresDB(t *testing.T) {
 
 		blockHash1 := testutils.RevChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
 		blockHash2 := testutils.RevChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
+		blockHashViolating := testutils.RevChainhash(t, "00000000b69bd8e4dc60580117617a466d5c76ada85fb7b87e9baea01f9d9984")
 		merkleRoot := testutils.RevChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
 		expectedBlock := &blocktx_api.Block{
 			Hash:         blockHash2[:],
 			PreviousHash: blockHash1[:],
 			MerkleRoot:   merkleRoot[:],
 			Height:       100,
+			Status:       blocktx_api.Status_LONGEST,
+		}
+		expectedBlockViolatingUniqueIndex := &blocktx_api.Block{
+			Hash:         blockHashViolating[:],
+			PreviousHash: blockHash1[:],
+			MerkleRoot:   merkleRoot[:],
+			Height:       100,
+			Status:       blocktx_api.Status_LONGEST,
 		}
 
 		// when -> then
@@ -151,6 +162,12 @@ func TestPostgresDB(t *testing.T) {
 		actualBlockResp, err := postgresDB.GetBlock(ctx, blockHash2)
 		require.NoError(t, err)
 		require.Equal(t, expectedBlock, actualBlockResp)
+
+		// when
+		id, err = postgresDB.InsertBlock(ctx, expectedBlockViolatingUniqueIndex)
+
+		// then
+		require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
 	})
 
 	t.Run("get block by height / get chain tip", func(t *testing.T) {
@@ -313,6 +330,11 @@ func TestPostgresDB(t *testing.T) {
 			{Hash: hash4Stale[:], Status: blocktx_api.Status_LONGEST},
 		}
 
+		blockStatusUpdatesViolating := []store.BlockStatusUpdate{
+			// there is already a LONGEST block at that height
+			{Hash: hash1Longest[:], Status: blocktx_api.Status_LONGEST},
+		}
+
 		// when
 		err := postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 		require.NoError(t, err)
@@ -333,6 +355,10 @@ func TestPostgresDB(t *testing.T) {
 		stale4, err := postgresDB.GetBlock(ctx, hash4Stale)
 		require.NoError(t, err)
 		require.Equal(t, blocktx_api.Status_LONGEST, stale4.Status)
+
+		// when
+		err = postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdatesViolating)
+		require.Equal(t, store.ErrFailedToUpdateBlockStatuses, err)
 	})
 
 	t.Run("get mined txs", func(t *testing.T) {
@@ -768,13 +794,6 @@ func TestPostgresStore_UpsertBlockTransactions_CompetingBlocks(t *testing.T) {
 			BlockHash:   testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
 			BlockHeight: uint64(826481),
 			MerklePath:  "merkle-path-1",
-			BlockStatus: blocktx_api.Status_LONGEST,
-		},
-		{
-			TxHash:      txHash[:],
-			BlockHash:   testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
-			BlockHeight: uint64(826481),
-			MerklePath:  "merkle-path-2",
 			BlockStatus: blocktx_api.Status_LONGEST,
 		},
 	}

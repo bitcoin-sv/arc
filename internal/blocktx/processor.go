@@ -455,7 +455,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return nil
 	}
 
-	// TODO: get previous chain (e.g. 5-10 blocks) - check orphaned based on this
+	// TODO: get previous chain (e.g. 5-10 blocks)
 	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
 	if err != nil {
 		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
@@ -472,6 +472,8 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 			return err
 		}
 	}
+
+	// TODO: Verify (and fix) chain backwards
 
 	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
 
@@ -782,15 +784,19 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 	longestHashes := make([][]byte, len(longestBlocks))
 	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
 
-	for _, b := range staleBlocks {
-		staleHashes = append(staleHashes, b.Hash)
-		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
-		blockStatusUpdates = append(blockStatusUpdates, update)
-	}
-
+	// Order of inserting into blockStatusUpdates is important here, we need to do:
+	// 1. LONGEST -> STALE
+	// 2. STALE -> LONGEST
+	// otherwise, a unique constraint on (height, is_longest) will be violated.
 	for i, b := range longestBlocks {
 		longestHashes[i] = b.Hash
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
+
+	for _, b := range staleBlocks {
+		staleHashes = append(staleHashes, b.Hash)
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 

@@ -16,9 +16,9 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 		defer span.End()
 	}
 
-	predicate := "WHERE t.hash = ANY($1) AND b.status = $2"
+	predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"
 
-	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes), blocktx_api.Status_LONGEST)
+	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
 }
 
 func (p *PostgreSQL) GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {

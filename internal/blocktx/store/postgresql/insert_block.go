@@ -14,8 +14,8 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	defer tracing.EndTracing(span)
 
 	qInsert := `
-		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)
-		VALUES ($1 ,$2 , $3, $4, $5, $6)
+		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork, is_longest)
+		VALUES ($1 ,$2 , $3, $4, $5, $6, $7)
 		ON CONFLICT (hash) DO UPDATE SET status = EXCLUDED.status
 		RETURNING id
 	`
@@ -29,6 +29,7 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		block.GetHeight(),
 		block.GetStatus(),
 		block.GetChainwork(),
+		block.GetStatus() == blocktx_api.Status_LONGEST,
 	)
 
 	err := row.Scan(&blockID)

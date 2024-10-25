@@ -17,13 +17,13 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	maxAllowedBlockHeightMismatch int,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	qTopHeight := `
-		SELECT MAX(b.height), MIN(b.height) FROM blocktx.blocks b WHERE b.status != $1
+		SELECT MAX(b.height), MIN(b.height) FROM blocktx.blocks b WHERE b.is_longest = true
 	`
 
 	var topHeight uint64
 	var lowestHeight uint64
 
-	err := p.db.QueryRow(qTopHeight, blocktx_api.Status_ORPHANED).Scan(&topHeight, &lowestHeight)
+	err := p.db.QueryRow(qTopHeight).Scan(&topHeight, &lowestHeight)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrNotFound
@@ -32,7 +32,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	}
 
 	qMerkleRoot := `
-		SELECT b.height FROM blocktx.blocks b WHERE b.merkleroot = $1 AND b.height = $2 AND b.status != $3
+		SELECT b.height FROM blocktx.blocks b WHERE b.merkleroot = $1 AND b.height = $2 AND b.is_longest = true
 	`
 
 	var unverifiedBlockHeights []uint64
@@ -46,7 +46,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 
 		merkleBytes = util.ReverseBytes(merkleBytes)
 
-		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight, blocktx_api.Status_ORPHANED).Scan(new(interface{}))
+		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return nil, err

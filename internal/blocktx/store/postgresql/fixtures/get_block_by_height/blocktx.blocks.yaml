@@ -31,6 +31,7 @@
   tx_count: 6523
   status: 20 # STALE - competing block
   chainwork: '123456'
+  is_longest: false
 - inserted_at: 2023-12-15 14:40:00
   id: 3
   hash: 0xe1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000

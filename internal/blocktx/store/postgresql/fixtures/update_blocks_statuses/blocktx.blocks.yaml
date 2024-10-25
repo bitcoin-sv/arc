@@ -9,6 +9,7 @@
   tx_count: 23477
   status: 10 # LONGEST
   chainwork: '123456'
+  is_longest: true
 - inserted_at: 2023-12-15 14:30:00
   id: 1
   hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
@@ -20,6 +21,7 @@
   tx_count: 6523
   status: 10 # LONGEST
   chainwork: '123456'
+  is_longest: true
 - inserted_at: 2023-12-15 14:30:00
   id: 2
   hash: 0x00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9
@@ -31,6 +33,7 @@
   tx_count: 6523
   status: 20 # STALE - competing block
   chainwork: '123456'
+  is_longest: false
 - inserted_at: 2023-12-15 14:40:00
   id: 3
   hash: 0x0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1
@@ -42,6 +45,7 @@
   tx_count: 62162
   status: 20 # STALE
   chainwork: '123456'
+  is_longest: false
 - inserted_at: 2023-12-15 14:50:00
   id: 4
   hash: 0x000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca
@@ -52,3 +56,4 @@
   tx_count: 36724
   status: 20 # STALE
   chainwork: '123456'
+  is_longest: false

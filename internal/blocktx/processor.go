@@ -33,7 +33,7 @@ var (
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 10
-	maxBlocksInProgress                = 10
+	maxBlocksInProgress                = 1
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
@@ -129,6 +129,29 @@ func (p *Processor) Start() error {
 func (p *Processor) StartBlockRequesting() {
 	p.waitGroup.Add(1)
 
+	waitUntilFree := func(ctx context.Context) bool {
+		t := time.NewTicker(time.Second)
+
+		for {
+			bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
+			if err != nil {
+				p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
+			}
+
+			if len(bhs) < maxBlocksInProgress && err == nil {
+				return true
+			}
+
+			select {
+			case <-ctx.Done():
+				return false
+
+			case <-t.C:
+
+			}
+		}
+	}
+
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -139,13 +162,7 @@ func (p *Processor) StartBlockRequesting() {
 				hash := req.Hash
 				peer := req.Peer
 
-				bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
-				if err != nil {
-					p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
-				}
-
-				if len(bhs) >= maxBlocksInProgress {
-					p.logger.Warn("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+				if ok := waitUntilFree(p.ctx); !ok {
 					continue
 				}
 

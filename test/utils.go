@@ -109,6 +109,8 @@ func getRequest[T any](t *testing.T, url string) T {
 }
 
 func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[string]string, expectedStatusCode int) T {
+	t.Helper()
+
 	req, err := http.NewRequest("POST", url, reader)
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")

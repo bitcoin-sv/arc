@@ -56,7 +56,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
 		dispose(logger, server, workers, dispatcher, sender, store, healthServer)
-		logger.Info("Shutted down")
+		logger.Info("Shutdown complete")
 	}
 
 	store, err = newStore(config.Db)

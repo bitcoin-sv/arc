@@ -13,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -31,13 +32,13 @@ var (
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
-	maxRequestBlocks                   = 1
+	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
-	fillGapsInterval                   = 15 * time.Minute
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
+	waitForBlockProcessing             = 5 * time.Minute
 )
 
 type Processor struct {
@@ -55,7 +56,8 @@ type Processor struct {
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
-	fillGapsInterval            time.Duration
+
+	processGuardsMap sync.Map
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -86,7 +88,6 @@ func NewProcessor(
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
 		waitGroup:                   &sync.WaitGroup{},
-		fillGapsInterval:            fillGapsInterval,
 	}
 
 	for _, opt := range opts {
@@ -128,6 +129,29 @@ func (p *Processor) Start() error {
 func (p *Processor) StartBlockRequesting() {
 	p.waitGroup.Add(1)
 
+	waitUntilFree := func(ctx context.Context) bool {
+		t := time.NewTicker(time.Second)
+
+		for {
+			bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
+			if err != nil {
+				p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
+			}
+
+			if len(bhs) < maxBlocksInProgress && err == nil {
+				return true
+			}
+
+			select {
+			case <-ctx.Done():
+				return false
+
+			case <-t.C:
+
+			}
+		}
+	}
+
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -138,16 +162,11 @@ func (p *Processor) StartBlockRequesting() {
 				hash := req.Hash
 				peer := req.Peer
 
-				bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
-				if err != nil {
-					p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
-				}
-
-				if len(bhs) >= maxBlocksInProgress {
-					p.logger.Debug("max blocks being processed reached", slog.String("hash", hash.String()), slog.Int("max", maxBlocksInProgress), slog.Int("number", len(bhs)))
+				if ok := waitUntilFree(p.ctx); !ok {
 					continue
 				}
 
+				// lock block for the current instance to process
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname)
 				if err != nil {
 					// block is already being processed by another blocktx instance
@@ -161,16 +180,16 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				msg := wire.NewMsgGetData()
-				if err = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)); err != nil {
-					p.logger.Error("Failed to create InvVect for block request", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					continue
-				}
+				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
 				if err = peer.WriteMsg(msg); err != nil {
-					p.logger.Error("Failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, hash)
+
 					continue
 				}
 
+				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
@@ -188,45 +207,79 @@ func (p *Processor) StartBlockProcessing() {
 			case <-p.ctx.Done():
 				return
 			case blockMsg := <-p.blockProcessCh:
+				blockhash := blockMsg.Header.BlockHash()
+
+				defer p.stopBlockProcessGuard(&blockhash) // release guardian at the end
+
+				p.logger.Info("received block", slog.String("hash", blockhash.String()))
 				err := p.processBlock(blockMsg)
 				if err != nil {
-					blockhash := blockMsg.Header.BlockHash()
-					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockhash, p.hostname)
-					if errDel != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", blockhash.String()), slog.String("err", errDel.Error()))
-					}
+					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, &blockhash)
 				}
 			}
 		}
 	}()
 }
 
-func (p *Processor) StartFillGaps(peers []p2p.PeerI) {
+func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.Hash) {
 	p.waitGroup.Add(1)
 
-	ticker := time.NewTicker(p.fillGapsInterval)
+	execCtx, stopFn := context.WithCancel(ctx)
+	p.processGuardsMap.Store(hash, stopFn)
+
 	go func() {
 		defer p.waitGroup.Done()
-		peerIndex := 0
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				if peerIndex >= len(peers) {
-					peerIndex = 0
-				}
+		defer p.processGuardsMap.Delete(*hash)
 
-				err := p.fillGaps(peers[peerIndex])
-				if err != nil {
-					p.logger.Error("failed to fill gaps", slog.String("error", err.Error()))
-				}
+		select {
+		case <-execCtx.Done():
+			// we may do nothing here:
+			// 1. block processing is completed, or
+			// 2. processor is shutting down – all unprocessed blocks are released in the Shutdown func
+			return
 
-				peerIndex++
-				ticker.Reset(p.fillGapsInterval)
+		case <-time.After(waitForBlockProcessing):
+			// check if block was processed successfully
+			block, _ := p.store.GetBlock(execCtx, hash)
+
+			if block != nil && block.Processed {
+				return // success
 			}
+
+			p.logger.Error(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.unlockBlock(execCtx, hash)
 		}
 	}()
+}
+
+func (p *Processor) stopBlockProcessGuard(hash *chainhash.Hash) {
+	stopFn, found := p.processGuardsMap.Load(*hash)
+	if found {
+		stopFn.(context.CancelFunc)()
+	}
+}
+
+// unlock block for future processing
+func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
+	// use closures for retries
+	unlockFn := func() error {
+		_, err := p.store.DelBlockProcessing(ctx, hash, p.hostname)
+		if errors.Is(err, store.ErrBlockNotFound) {
+			return nil // block is already unlocked
+		}
+
+		return err
+	}
+
+	var bo backoff.BackOff
+	bo = backoff.NewConstantBackOff(100 * time.Millisecond)
+	bo = backoff.WithContext(bo, ctx)
+	bo = backoff.WithMaxRetries(bo, 5)
+
+	if unlockErr := backoff.Retry(unlockFn, bo); unlockErr != nil {
+		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
+	}
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
@@ -356,40 +409,6 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	}
 }
 
-const (
-	hoursPerDay   = 24
-	blocksPerHour = 6
-)
-
-func (p *Processor) fillGaps(peer p2p.PeerI) error {
-	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
-
-	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
-	if err != nil {
-		return err
-	}
-
-	if len(blockHeightGaps) == 0 {
-		return nil
-	}
-
-	for i, gaps := range blockHeightGaps {
-		if i+1 > maxRequestBlocks {
-			break
-		}
-
-		p.logger.Info("Requesting missing block", slog.String("hash", gaps.Hash.String()), slog.Uint64("height", gaps.Height), slog.String("peer", peer.String()))
-
-		pair := BlockRequest{
-			Hash: gaps.Hash,
-			Peer: peer,
-		}
-		p.blockRequestCh <- pair
-	}
-
-	return nil
-}
-
 func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
 	if tracer != nil {
 		var span trace.Span
@@ -417,7 +436,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	// don't process block that was already processed
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
-	if existingBlock != nil {
+	if existingBlock != nil && existingBlock.Processed {
 		return nil
 	}
 
@@ -473,11 +492,11 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		}
 	}
 
-	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+	p.logger.Info("Upserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
+	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
-		p.logger.Error("unable to insert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to upsert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return err
 	}
 
@@ -704,9 +723,18 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 func (p *Processor) Shutdown() {
 	p.cancelAll()
 	p.waitGroup.Wait()
-}
 
-// for testing purposes only
-func (p *Processor) GetBlockRequestCh() chan BlockRequest {
-	return p.blockRequestCh
+	// unlock unprocessed blocks
+	bhs, err := p.store.GetBlockHashesProcessingInProgress(context.Background(), p.hostname)
+	if err != nil {
+		p.logger.Error("reading unprocessing blocks on shutdown failed", slog.Any("err", err))
+		return
+	}
+
+	for _, bh := range bhs {
+		_, err := p.store.DelBlockProcessing(context.Background(), bh, p.hostname)
+		if err != nil {
+			p.logger.Error("unlocking unprocessed block on shutdown failed", slog.String("hash", bh.String()), slog.Any("err", err))
+		}
+	}
 }

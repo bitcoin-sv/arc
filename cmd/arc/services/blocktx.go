@@ -45,7 +45,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
 		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer, workers)
-		logger.Info("Shutted down")
+		logger.Info("Shutdown complete")
 	}
 
 	network, err := config.GetNetwork(arcConfig.Network)

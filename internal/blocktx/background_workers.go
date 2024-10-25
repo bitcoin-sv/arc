@@ -37,7 +37,7 @@ func (w *BackgroundWorkers) GracefulStop() {
 	w.cancelAll()
 	w.workersWg.Wait()
 
-	w.l.Info("Shutted down")
+	w.l.Info("Shutdown complete")
 }
 
 func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Duration, retentionDays int, blockRequestCh chan<- BlockRequest) {

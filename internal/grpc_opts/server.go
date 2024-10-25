@@ -84,5 +84,5 @@ func (s *GrpcServer) GracefulStop() {
 		s.cleanup()
 	}
 
-	s.logger.Info("Shutted down")
+	s.logger.Info("Shutdown complete")
 }

@@ -48,7 +48,7 @@ func (w *BackgroundWorkers) GracefulStop() {
 	w.cancelAll()
 	w.workersWg.Wait()
 
-	w.l.Info("Shutted down")
+	w.l.Info("Shutdown complete")
 }
 
 func (w *BackgroundWorkers) pruneCallbacks(interval, olderThanDuration time.Duration) {

@@ -496,6 +496,8 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return err
 	}
 
+	// for ORPHANED blocks -> we can return here (but mark block as done)
+
 	chain, err := p.updateOrphans(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))

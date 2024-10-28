@@ -3,6 +3,7 @@ package create
 import (
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"log"
 	"log/slog"
 	"os"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -79,7 +79,7 @@ var Cmd = &cobra.Command{
 
 		names := helper.GetOrderedKeys(keySetsMap)
 
-		wocClient := wocclient.New(!isTestnet, wocclient.WithAuth(wocAPIKey), wocclient.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 		creators := make([]broadcaster.Creator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
 		for _, keyName := range names {
 			ks := keySetsMap[keyName]

@@ -1,4 +1,4 @@
-package wocclient
+package woc_client
 
 import (
 	"context"

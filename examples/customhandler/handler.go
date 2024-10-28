@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	transactionhandler "github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"net/http"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
@@ -28,7 +28,7 @@ func (c *CustomMerkleRootsVerifier) VerifyMerkleRoots(ctx context.Context, merkl
 
 func NewCustomHandler() (api.ServerInterface, error) {
 	// add a single bitcoin node
-	node, err := transactionhandler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
+	node, err := transaction_handler.NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 	if err != nil {
 		return nil, err
 	}

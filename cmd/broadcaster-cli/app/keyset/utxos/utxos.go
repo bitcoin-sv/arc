@@ -32,7 +32,7 @@ var Cmd = &cobra.Command{
 		}
 
 		logger := helper.GetLogger()
-		wocClient := wocclient.New(!isTestnet, wocclient.WithAuth(wocAPIKey), wocclient.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
 		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {

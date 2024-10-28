@@ -1,4 +1,4 @@
-package k8swatcher
+package k8s_watcher
 
 import (
 	"context"

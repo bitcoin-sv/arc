@@ -3,8 +3,8 @@ package keyset
 import (
 	"context"
 	"crypto/rand"
-	wocclient "github.com/bitcoin-sv/arc/internal/woc_client"
 
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	bip32 "github.com/bitcoin-sv/go-sdk/compat/bip32"
 	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"github.com/bitcoin-sv/go-sdk/script"
@@ -99,7 +99,7 @@ func (k *KeySet) DeriveChildFromPath(derivationPath string) (*KeySet, error) {
 
 func (k *KeySet) GetUTXOs(mainnet bool) ([]*sdkTx.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
-	woc := wocclient.New(mainnet)
+	woc := woc_client.New(mainnet)
 
 	return woc.GetUTXOs(context.Background(), k.Script, k.Address(mainnet))
 }
@@ -115,7 +115,7 @@ func (k *KeySet) GetMaster() *bip32.ExtendedKey {
 
 func (k *KeySet) GetBalance(mainnet bool) (WocBalance, error) {
 	// Get UTXOs from WhatsOnChain
-	woc := wocclient.New(mainnet)
+	woc := woc_client.New(mainnet)
 	confirmed, unconfirmed, err := woc.GetBalance(context.Background(), k.Address(mainnet))
 
 	return WocBalance{Confirmed: uint64(confirmed), Unconfirmed: uint64(unconfirmed)}, err

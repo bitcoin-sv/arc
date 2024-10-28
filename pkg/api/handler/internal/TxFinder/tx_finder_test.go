@@ -111,7 +111,7 @@ func Test_GetRawTxs(t *testing.T) {
 				pc = peerRPCConfig(t)
 			}
 
-			var w *wocclient.WocClient
+			var w *woc_client.WocClient
 			if tc.source.Has(validator.SourceWoC) {
 				w = wocClient()
 			}
@@ -143,6 +143,6 @@ func peerRPCConfig(_ *testing.T) *config.PeerRPCConfig {
 	return &config.PeerRPCConfig{}
 }
 
-func wocClient() *wocclient.WocClient {
-	return wocclient.New(true)
+func wocClient() *woc_client.WocClient {
+	return woc_client.New(true)
 }

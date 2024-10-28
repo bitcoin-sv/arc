@@ -331,7 +331,7 @@ issues:
   max-same-issues: 50
 
   exclude:
-    - "don't use an underscore in package name"
+    - "don't use an underscore in package name" # exclude check from revive linter
 
 #  exclude-rules:
 #    - source: "(noinspection|TODO)"

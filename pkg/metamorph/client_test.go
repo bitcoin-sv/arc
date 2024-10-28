@@ -177,7 +177,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedStatus, status)
 
 			if tc.expectedErrorStr != "" {
-				require.NoError(t, err)
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
@@ -336,7 +335,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			require.Equal(t, tc.expectedStatuses, statuses)
 
 			if tc.expectedErrorStr != "" {
-				require.NoError(t, err)
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}

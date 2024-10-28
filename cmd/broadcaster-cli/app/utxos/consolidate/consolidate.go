@@ -3,6 +3,7 @@ package consolidate
 import (
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 )
 
 var Cmd = &cobra.Command{
@@ -61,7 +61,7 @@ var Cmd = &cobra.Command{
 
 		names := helper.GetOrderedKeys(keySetsMap)
 
-		wocClient := wocclient.New(!isTestnet, wocclient.WithAuth(wocAPIKey), wocclient.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 		cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
 		for _, keyName := range names {
 			ks := keySetsMap[keyName]

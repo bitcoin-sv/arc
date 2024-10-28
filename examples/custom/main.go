@@ -77,7 +77,7 @@ func main() {
 	}
 
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize)
+	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize)
+	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}

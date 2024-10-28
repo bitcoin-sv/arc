@@ -14,7 +14,6 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -29,6 +28,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -36,7 +36,7 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
+func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store, tracer trace.Tracer) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
 
@@ -61,9 +61,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		logger.Info("Shutdown complete")
 	}
 
-	// if tracing enabled set up global tracer for metamorph
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
-		tracer := otel.GetTracerProvider().Tracer("Metamorph")
+	// if tracer has been set up, pass it to metamorph
+	if tracer != nil {
 		metamorph.WithTracer(tracer)
 	}
 
@@ -108,7 +107,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
+	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -291,8 +290,8 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	return pm, peerHandler, messageCh, nil
 }
 
-func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, nil)
+func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracer trace.Tracer) (callbacker_api.CallbackerAPIClient, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracer)
 	if err != nil {
 		return nil, err
 	}

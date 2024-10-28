@@ -4,3 +4,21 @@ logFormat: text
 network: mainnet
 tracing:
   dialAddr: http://tracing:1234
+broadcasting:
+  mode: unicast
+  ipv6Enabled: true
+  multicastGroup: 172.28.56.77
+  peers: # list of bitcoin node peers to connect to
+  - host: localhost
+    port:
+      p2p: 18333 # port for p2p connection
+      zmq: 28332 # port for zmq connection
+  - host: localhost
+    port:
+      p2p: 18334
+  - host: localhost
+    port:
+      p2p: 18335
+  interfaces:
+    - "eth0"
+    - "eth1"

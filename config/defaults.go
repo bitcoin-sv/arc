@@ -18,7 +18,7 @@ func getDefaultArcConfig() *ArcConfig {
 		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            nil, // optional
 		PeerRpc:            getDefaultPeerRpcConfig(),
-		Peers:              getPeersConfig(),
+		Broadcasting:       getPeersConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
@@ -47,25 +47,31 @@ func getDefaultPeerRpcConfig() *PeerRpcConfig {
 	}
 }
 
-func getPeersConfig() []*PeerConfig {
-	return []*PeerConfig{
-		{
-			Host: "localhost",
-			Port: &PeerPortConfig{
-				P2P: 18333,
-				ZMQ: 28332,
+func getPeersConfig() *BroadcastingConfig {
+	return &BroadcastingConfig{
+		Mode:           "unicast",
+		Ipv6Enabled:    false,
+		MulticastGroup: "",
+		Interfaces:     nil,
+		Peers: []*PeerConfig{
+			{
+				Host: "localhost",
+				Port: &PeerPortConfig{
+					P2P: 18333,
+					ZMQ: 28332,
+				},
 			},
-		},
-		{
-			Host: "localhost",
-			Port: &PeerPortConfig{
-				P2P: 18334,
+			{
+				Host: "localhost",
+				Port: &PeerPortConfig{
+					P2P: 18334,
+				},
 			},
-		},
-		{
-			Host: "localhost",
-			Port: &PeerPortConfig{
-				P2P: 18335,
+			{
+				Host: "localhost",
+				Port: &PeerPortConfig{
+					P2P: 18335,
+				},
 			},
 		},
 	}

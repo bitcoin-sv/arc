@@ -22,13 +22,26 @@ type ArcConfig struct {
 	MessageQueue       *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing            *TracingConfig      `mapstructure:"tracing"`
 	PeerRpc            *PeerRpcConfig      `mapstructure:"peerRpc"`
-	Peers              []*PeerConfig       `mapstructure:"peers"`
+	Broadcasting       *BroadcastingConfig `mapstructure:"broadcasting"`
 	Metamorph          *MetamorphConfig    `mapstructure:"metamorph"`
 	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
 	Api                *ApiConfig          `mapstructure:"api"`
 	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
 	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
 	Cache              *CacheConfig        `mapstructure:"cache"`
+}
+
+type BroadcastingConfig struct {
+	Mode           string        `mapstructure:"mode"`
+	Ipv6Enabled    bool          `mapstructure:"ipv6Enabled"`
+	MulticastGroup string        `mapstructure:"multicastGroup"`
+	Peers          []*PeerConfig `mapstructure:"peers"`
+	Interfaces     []*string     `mapstructure:"interfaces"`
+}
+
+type PeerConfig struct {
+	Host string          `mapstructure:"host"`
+	Port *PeerPortConfig `mapstructure:"port"`
 }
 
 type MessageQueueConfig struct {
@@ -50,11 +63,6 @@ type PeerRpcConfig struct {
 	User     string `mapstructure:"user"`
 	Host     string `mapstructure:"host"`
 	Port     int    `mapstructure:"port"`
-}
-
-type PeerConfig struct {
-	Host string          `mapstructure:"host"`
-	Port *PeerPortConfig `mapstructure:"port"`
 }
 
 type PeerPortConfig struct {

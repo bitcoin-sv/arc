@@ -20,7 +20,11 @@ peerRpc: # rpc configuration for bitcoin node
   host: localhost
   port: 18332
 
-peers: # list of bitcoin node peers to connect to
+broadcasting:
+  mode: unicast
+  ipv6Enabled: true
+  multicastGroup: 172.28.56.77
+  peers: # list of bitcoin node peers to connect to
   - host: localhost
     port:
       p2p: 18333 # port for p2p connection
@@ -31,6 +35,10 @@ peers: # list of bitcoin node peers to connect to
   - host: localhost
     port:
       p2p: 18335
+  interfaces:
+    - "eth0"
+    - "eth1"
+  
 
 cache:
   engine: freecache # cache engine - freecache/redis

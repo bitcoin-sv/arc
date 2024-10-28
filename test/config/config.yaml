@@ -31,6 +31,27 @@ peers:
       p2p: 18333
       zmq: 28332
 
+broadcasting:
+  mode: unicast
+  ipv6Enabled: true
+  multicastGroup: 172.28.56.77
+  peers: # list of bitcoin node peers to connect to
+  - host: node1
+    port:
+      p2p: 18333
+      zmq: 28332
+  - host: node2
+    port:
+      p2p: 18333
+      zmq: 28332
+  - host: node3
+    port:
+      p2p: 18333
+      zmq: 28332
+  interfaces:
+    - "eth0"
+    - "eth1"
+
 cache:
   engine: redis
   redis:

@@ -57,6 +57,10 @@ lint:
 	golangci-lint run -v ./...
 	staticcheck ./...
 
+.PHONY: lint_fix
+lint_fix:
+	golangci-lint run -v ./... --fix
+
 .PHONY: gen_go
 gen_go:
 	go generate ./...

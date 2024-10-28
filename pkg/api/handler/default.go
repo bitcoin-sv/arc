@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -23,7 +24,6 @@ import (
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	merkleverifier "github.com/bitcoin-sv/arc/pkg/api/handler/internal/MerkeVerifier"
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
@@ -86,11 +86,11 @@ func NewDefault(
 	apiConfig *config.APIConfig,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-	var wocClient *wocclient.WocClient
+	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
-		wocClient = wocclient.New(apiConfig.WocMainnet, wocclient.WithAuth(apiConfig.WocAPIKey))
+		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocAPIKey))
 	} else {
-		wocClient = wocclient.New(false)
+		wocClient = woc_client.New(false)
 	}
 
 	finder := txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger)

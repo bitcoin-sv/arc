@@ -20,6 +20,10 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -99,12 +103,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []natsjetstream.Option{natsjetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic)}
+		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic)}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, natsjetstream.WithFileStorage())
+			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
 
-		mqClient, err = natsjetstream.New(natsClient, logger,
+		mqClient, err = nats_jetstream.New(natsClient, logger,
 			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
 			opts...,
 		)
@@ -113,7 +117,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = natscore.New(natsClient, natscore.WithLogger(logger))
+		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))

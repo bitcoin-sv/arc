@@ -118,7 +118,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := wocclient.New(!isTestnet, wocclient.WithAuth(wocAPIKey), wocclient.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
 		opts := []func(p *broadcaster.Broadcaster){
 			broadcaster.WithFees(miningFeeSat),

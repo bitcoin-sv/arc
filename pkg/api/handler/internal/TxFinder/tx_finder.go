@@ -22,7 +22,7 @@ type Finder struct {
 	l  *slog.Logger
 }
 
-func New(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
+func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
 	l = l.With(slog.String("module", "tx-finder"))
 	var n *bitcoin.Bitcoind
 

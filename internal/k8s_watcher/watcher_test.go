@@ -1,4 +1,4 @@
-package k8swatcher_test
+package k8s_watcher_test
 
 import (
 	"context"
@@ -97,9 +97,9 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8swatcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8swatcher.WithMetamorphTicker(ticker),
-				k8swatcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
-				k8swatcher.WithRetryInterval(20*time.Millisecond),
+			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
+				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+				k8s_watcher.WithRetryInterval(20*time.Millisecond),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)
@@ -187,8 +187,8 @@ func TestStartBlocktxWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8swatcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8swatcher.WithBlocktxTicker(ticker),
-				k8swatcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithBlocktxTicker(ticker),
+				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)

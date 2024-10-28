@@ -39,7 +39,7 @@ func TestCallbackDispatcher(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &SendCallbackInterfaceMock{
+			cMq := &SenderIMock{
 				SendFunc: func(_, _ string, _ *Callback) bool { return true },
 			}
 

@@ -2,13 +2,13 @@ package nats_core_test
 
 import (
 	"errors"
-	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
@@ -44,9 +44,9 @@ func TestPublishMarshal(t *testing.T) {
 		{
 			name:       "publish err",
 			txsBlock:   txBlock,
-			publishErr: natscore.ErrFailedToPublish,
+			publishErr: nats_core.ErrFailedToPublish,
 
-			expectedError:        natscore.ErrFailedToPublish,
+			expectedError:        nats_core.ErrFailedToPublish,
 			expectedPublishCalls: 2,
 		},
 	}
@@ -60,7 +60,7 @@ func TestPublishMarshal(t *testing.T) {
 				},
 			}
 			logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			sut := natscore.New(natsMock, natscore.WithLogger(logger))
+			sut := nats_core.New(natsMock, nats_core.WithLogger(logger))
 
 			// when
 			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
@@ -92,9 +92,9 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:       "error - publish",
-			publishErr: natscore.ErrFailedToPublish,
+			publishErr: nats_core.ErrFailedToPublish,
 
-			expectedError:        natscore.ErrFailedToPublish,
+			expectedError:        nats_core.ErrFailedToPublish,
 			expectedPublishCalls: 1,
 		},
 	}
@@ -108,7 +108,7 @@ func TestPublish(t *testing.T) {
 				},
 			}
 
-			sut := natscore.New(
+			sut := nats_core.New(
 				natsMock,
 			)
 
@@ -145,9 +145,9 @@ func TestSubscribe(t *testing.T) {
 		},
 		{
 			name:         "error - publish",
-			subscribeErr: natscore.ErrFailedToSubscribe,
+			subscribeErr: nats_core.ErrFailedToSubscribe,
 
-			expectedError:               natscore.ErrFailedToSubscribe,
+			expectedError:               nats_core.ErrFailedToSubscribe,
 			expectedQueueSubscribeCalls: 1,
 		},
 		{
@@ -173,7 +173,7 @@ func TestSubscribe(t *testing.T) {
 				},
 			}
 
-			sut := natscore.New(
+			sut := nats_core.New(
 				natsMock,
 			)
 
@@ -222,7 +222,7 @@ func TestShutdown(t *testing.T) {
 			}
 
 			// when
-			sut := natscore.New(
+			sut := nats_core.New(
 				natsMock,
 			)
 

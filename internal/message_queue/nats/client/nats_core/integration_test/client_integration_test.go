@@ -1,8 +1,6 @@
 package integration_test
 
 import (
-	natscore "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	natsconnection "github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"log"
 	"log/slog"
 	"os"
@@ -10,6 +8,8 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -27,7 +27,7 @@ const (
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
-	mqClient       *natscore.Client
+	mqClient       *nats_core.Client
 )
 
 func TestMain(m *testing.M) {
@@ -51,13 +51,13 @@ func testmain(m *testing.M) int {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = natsconnection.New(natsURL, logger)
+	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
 	}
 
-	natsConn, err = natsconnection.New(natsURL, logger)
+	natsConn, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
@@ -95,7 +95,7 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("publish", func(t *testing.T) {
 		// given
-		mqClient = natscore.New(natsConnClient)
+		mqClient = nats_core.New(natsConnClient)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		txRequest := &metamorph_api.TransactionRequest{
 			CallbackUrl:   "callback.example.com",
@@ -150,7 +150,7 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("subscribe", func(t *testing.T) {
 		// given
-		mqClient = natscore.New(natsConnClient)
+		mqClient = nats_core.New(natsConnClient)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		// when

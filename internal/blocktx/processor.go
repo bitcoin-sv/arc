@@ -11,14 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 var tracer trace.Tracer
@@ -175,13 +176,14 @@ func (p *Processor) StartBlockRequesting() {
 						continue
 					}
 
-					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
+					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
 				msg := wire.NewMsgGetData()
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
+				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
 				if err = peer.WriteMsg(msg); err != nil {
 					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, hash)
@@ -247,7 +249,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 				return // success
 			}
 
-			p.logger.Error(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.logger.Warn(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
 			p.unlockBlock(execCtx, hash)
 		}
 	}()

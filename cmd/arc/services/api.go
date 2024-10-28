@@ -10,7 +10,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
@@ -26,10 +25,13 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
+
+	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, tracer trace.Tracer) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 
 	e := setApiEcho(logger, arcConfig)
@@ -44,19 +46,24 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
-	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
-	}
-
 	mtmOpts := []func(*metamorph.Metamorph){
 		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	}
 
-	tracingEnabled := arcConfig.Tracing != nil
-	if tracingEnabled {
-		mtmOpts = append(mtmOpts, metamorph.WithTracer())
+	// TODO: WithSecurityConfig(appConfig.Security)
+	apiOpts := []handler.Option{
+		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+	}
+
+	if tracer != nil {
+		mtmOpts = append(mtmOpts, metamorph.WithTracer(tracer))
+		apiOpts = append(apiOpts, handler.WithTracer(tracer))
+	}
+
+	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
 	metamorphClient := metamorph.NewClient(
@@ -64,7 +71,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		mtmOpts...,
 	)
 
-	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
@@ -74,15 +81,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	policy, err = getPolicyFromNode(arcConfig.PeerRpc)
 	if err != nil {
 		policy = arcConfig.Api.DefaultPolicy
-	}
-
-	// TODO: WithSecurityConfig(appConfig.Security)
-	apiOpts := []handler.Option{
-		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
-	}
-
-	if tracingEnabled {
-		apiOpts = append(apiOpts, handler.WithTracer())
 	}
 
 	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRpc, arcConfig.Api, apiOpts...)

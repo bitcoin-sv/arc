@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"time"
 
@@ -19,10 +20,10 @@ type Server struct {
 }
 
 // NewServer will return a server instance
-func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher *CallbackDispatcher) (*Server, error) {
+func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher *CallbackDispatcher, tracer trace.Tracer) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, nil)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, tracer)
 	if err != nil {
 		return nil, err
 	}

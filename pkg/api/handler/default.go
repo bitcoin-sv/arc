@@ -26,7 +26,6 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -68,9 +67,9 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 	}
 }
 
-func WithTracer() func(*ArcDefaultHandler) {
+func WithTracer(t trace.Tracer) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.tracer = otel.GetTracerProvider().Tracer("API")
+		p.tracer = t
 	}
 }
 
@@ -113,10 +112,9 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx.Request().Context(), "GETPolicy")
-		defer span.End()
-	}
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "GETPolicy")
+	defer m.endTracing(span)
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
@@ -135,12 +133,11 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx.Request().Context(), "GETHealth")
-		defer span.End()
-	}
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "GETHealth")
+	defer m.endTracing(span)
 
-	err := m.TransactionHandler.Health(ctx.Request().Context())
+	err := m.TransactionHandler.Health(reqCtx)
 	if err != nil {
 		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
@@ -174,10 +171,9 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx.Request().Context(), "POSTTransaction")
-		defer span.End()
-	}
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "POSTTransaction")
+	defer m.endTracing(span)
 
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
 	if err != nil {
@@ -191,7 +187,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	reqCtx := ctx.Request().Context()
 	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 
 	if e != nil {
@@ -214,12 +209,11 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx.Request().Context(), "GETTransactionStatus")
-		defer span.End()
-	}
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "GETTransactionStatus")
+	defer m.endTracing(span)
 
-	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
+	tx, err := m.getTransactionStatus(reqCtx, id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
@@ -249,10 +243,9 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx.Request().Context(), "POSTTransactions")
-		defer span.End()
-	}
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "POSTTransactions")
+	defer m.endTracing(span)
 
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
@@ -267,7 +260,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	reqCtx := ctx.Request().Context()
 	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
 		return ctx.JSON(e.Status, e)
@@ -395,10 +387,9 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
-	if m.tracer != nil {
-		_, span := m.tracer.Start(ctx, "processTransactions")
-		defer span.End()
-	}
+	ctx, span := m.startTracing(ctx, "processTransactions")
+	defer m.endTracing(span)
+
 	// decode and validate txs
 	var txIds []string
 
@@ -488,6 +479,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+	ctx, span := m.startTracing(ctx, "validateEFTransaction")
+	defer m.endTracing(span)
+
 	if options.SkipTxValidation {
 		return nil
 	}
@@ -504,6 +498,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
+	ctx, span := m.startTracing(ctx, "validateEFTransaction")
+	defer m.endTracing(span)
+
 	if options.SkipTxValidation {
 		return nil
 	}
@@ -521,6 +518,9 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 }
 
 func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
+	ctx, span := m.startTracing(ctx, "submitTransactions")
+	defer m.endTracing(span)
+
 	var submitStatuses []*metamorph.TransactionStatus
 
 	if len(txs) == 1 {
@@ -552,6 +552,9 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*metamorph.TransactionStatus, error) {
+	ctx, span := m.startTracing(ctx, "getTransactionStatus")
+	defer m.endTracing(span)
+
 	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
@@ -581,6 +584,20 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	}
 
 	return status, arcError
+}
+
+func (m ArcDefaultHandler) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	if m.tracer != nil {
+		ctx, span := m.tracer.Start(ctx, spanName)
+		return ctx, span
+	}
+	return ctx, nil
+}
+
+func (m ArcDefaultHandler) endTracing(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
 }
 
 func prepareSizingInfo(txs []*sdkTx.Transaction) [][]uint64 {

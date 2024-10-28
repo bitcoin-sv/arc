@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
@@ -65,13 +66,15 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
+	var globalTracer trace.Tracer = nil
 	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
-		cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
+		tracer, cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
+		globalTracer = tracer
 	}
 
 	go func() {
@@ -106,7 +109,7 @@ func run() error {
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig, globalTracer)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -115,7 +118,7 @@ func run() error {
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore, globalTracer)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -124,7 +127,7 @@ func run() error {
 
 	if startApi {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig, globalTracer)
 		if err != nil {
 			return fmt.Errorf("failed to start api: %v", err)
 		}
@@ -134,7 +137,7 @@ func run() error {
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig, globalTracer)
 		if err != nil {
 			return fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -142,7 +145,7 @@ func run() error {
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig, globalTracer)
 		if err != nil {
 			return fmt.Errorf("failed to start callbacker: %v", err)
 		}
@@ -224,21 +227,21 @@ func isAnyFlagPassed(flags ...string) bool {
 	return false
 }
 
-func enableTracing(logger *slog.Logger, tracingAddr string) (func(), error) {
+func enableTracing(logger *slog.Logger, tracingAddr string) (trace.Tracer, func(), error) {
 	if tracingAddr == "" {
-		return nil, errors.New("tracing enabled, but tracing address empty")
+		return nil, nil, errors.New("tracing enabled, but tracing address empty")
 	}
 
 	ctx := context.Background()
 
 	exporter, err := tracing.NewExporter(ctx, tracingAddr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize exporter: %v", err)
+		return nil, nil, fmt.Errorf("failed to initialize exporter: %v", err)
 	}
 
 	tp, err := tracing.NewTraceProvider(exporter, "arc")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace provider: %v", err)
+		return nil, nil, fmt.Errorf("failed to create trace provider: %v", err)
 	}
 
 	otel.SetTracerProvider(tp)
@@ -256,5 +259,7 @@ func enableTracing(logger *slog.Logger, tracingAddr string) (func(), error) {
 		}
 	}
 
-	return cleanup, nil
+	tracer := otel.GetTracerProvider().Tracer("")
+
+	return tracer, cleanup, nil
 }

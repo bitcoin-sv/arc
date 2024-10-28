@@ -16,6 +16,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/libsv/go-p2p"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 	blockProcessingBuffer = 100
 )
 
-func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, tracer trace.Tracer) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
 
@@ -92,8 +93,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithFillGapsInterval(btxConfig.FillGapsInterval),
 	}
-	if tracingEnabled {
-		processorOpts = append(processorOpts, blocktx.WithTracer())
+	if tracer != nil {
+		processorOpts = append(processorOpts, blocktx.WithTracer(tracer))
 	}
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
@@ -155,7 +156,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	processor.StartFillGaps(peers)
 
 	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
-		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch)
+		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, tracer)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

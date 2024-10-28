@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -100,8 +101,8 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 	return resp.UnverifiedBlockHeights, nil
 }
 
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, nil)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracer trace.Tracer) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracer)
 	if err != nil {
 		return nil, err
 	}

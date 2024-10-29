@@ -147,7 +147,7 @@ func TestHandleBlock(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
-						return &blocktx_api.Block{}, nil
+						return &blocktx_api.Block{Processed: true}, nil
 					}
 					return nil, store.ErrBlockNotFound
 				},

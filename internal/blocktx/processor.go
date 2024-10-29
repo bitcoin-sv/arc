@@ -147,7 +147,6 @@ func (p *Processor) StartBlockRequesting() {
 				return false
 
 			case <-t.C:
-
 			}
 		}
 	}

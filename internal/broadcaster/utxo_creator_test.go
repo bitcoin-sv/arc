@@ -36,7 +36,7 @@ func TestUTXOCreator(t *testing.T) {
 		{
 			name:         "success - creates correct UTXOs",
 			getUTXOsResp: sdkTx.UTXOs{{TxID: testdata.TX1Hash[:], Vout: 0, LockingScript: ks.Script, Satoshis: 401}},
-			getBalanceFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 				return 400, 0, nil
 			},
 			expectedBroadcastCalls: 1,
@@ -47,7 +47,7 @@ func TestUTXOCreator(t *testing.T) {
 		{
 			name:         "Insufficient balance",
 			getUTXOsResp: sdkTx.UTXOs{{TxID: testdata.TX1Hash[:], Vout: 0, LockingScript: ks.Script, Satoshis: 50}},
-			getBalanceFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 				return 100, 0, nil
 			},
 			expectedBroadcastCalls: 0,
@@ -61,7 +61,7 @@ func TestUTXOCreator(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Given
 			mockArcClient := &mocks.ArcClientMock{
-				BroadcastTransactionsFunc: func(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL, callbackToken string, fullStatusUpdates, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
+				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _, _ string, _, _ bool) ([]*metamorph_api.TransactionStatus, error) {
 					statuses := make([]*metamorph_api.TransactionStatus, len(txs))
 					for i, tx := range txs {
 						statuses[i] = &metamorph_api.TransactionStatus{Txid: tx.TxID(), Status: metamorph_api.Status_SEEN_ON_NETWORK}
@@ -72,7 +72,7 @@ func TestUTXOCreator(t *testing.T) {
 
 			mockUtxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: tt.getBalanceFunc,
-				GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					return tt.getUTXOsResp, nil
 				},
 			}
@@ -88,9 +88,9 @@ func TestUTXOCreator(t *testing.T) {
 			if tt.expectedError != nil {
 				require.ErrorIs(t, actualError, tt.expectedError)
 				return
-			} else {
-				require.NoError(t, actualError)
 			}
+
+			require.NoError(t, actualError)
 
 			time.Sleep(500 * time.Millisecond)
 

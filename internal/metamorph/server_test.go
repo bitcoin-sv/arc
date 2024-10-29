@@ -309,7 +309,6 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 }
 
 func TestPutTransactions(t *testing.T) {
-
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
 

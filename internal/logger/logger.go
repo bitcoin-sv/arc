@@ -65,7 +65,6 @@ func (h ArcContextHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 func (h ArcContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-
 	return ArcContextHandler{h.Handler.WithAttrs(attrs)}
 }
 

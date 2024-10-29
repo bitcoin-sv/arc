@@ -17,8 +17,6 @@ package integrationtest
 import (
 	"context"
 	"database/sql"
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/coocood/freecache"
 	"log"
 	"log/slog"
 	"net/url"
@@ -27,11 +25,13 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/coocood/freecache"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"

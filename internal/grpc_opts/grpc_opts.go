@@ -75,12 +75,12 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
 
 	// decorate context with event ID
-	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		if event, ok := req.(common_api.UnaryEvent); ok && event != nil {
 			id := event.GetEventId()
 			if id != "" {
 				//nolint:staticcheck // use string key on purpose
-				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) //lint:ignore SA1029 use string key on purpose
+				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) // lint:ignore SA1029 use string key on purpose
 			}
 		}
 
@@ -125,7 +125,7 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingEn
 	// add eventID from context to grpc request if possible
 	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if eventID, ok := ctx.Value(arc_logger.EventIDField).(string); ok {
-			trySetEventId(req, eventID)
+			trySetEventID(req, eventID)
 		}
 
 		return invoker(ctx, method, req, reply, cc, opts...)
@@ -139,7 +139,7 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingEn
 	return opts, nil
 }
 
-func trySetEventId(x any, eventId string) {
+func trySetEventID(x any, eventID string) {
 	// get the value and type of the argument
 	v := reflect.ValueOf(x)
 	if v.Kind() == reflect.Ptr {
@@ -157,5 +157,5 @@ func trySetEventId(x any, eventId string) {
 		return
 	}
 
-	field.SetString(eventId)
+	field.SetString(eventID)
 }

@@ -83,7 +83,6 @@ type ServerOption func(s *Server)
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 	store store.MetamorphStore, processor ProcessorI, opts ...ServerOption) (*Server, error) {
-
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{

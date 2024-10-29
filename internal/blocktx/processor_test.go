@@ -157,13 +157,13 @@ func TestHandleBlock(t *testing.T) {
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
-				UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
 					return nil
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -357,7 +357,7 @@ func TestHandleBlockReorg(t *testing.T) {
 				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error {
 					return nil
 				},
-				UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {
 					mtx.Lock()
 					insertedBlock = block
 					mtx.Unlock()
@@ -439,7 +439,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -565,7 +565,7 @@ func TestStartBlockRequesting(t *testing.T) {
 					return bhsProcInProgErr, nil
 				},
 			}
-			storeMock.DelBlockProcessingFunc = func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+			storeMock.DelBlockProcessingFunc = func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
 				j := len(storeMock.DelBlockProcessingCalls())
 				if j <= tc.expectedDelBlockProcessingErrors {
 					return 0, errors.New("DelBlockProcessing failed")
@@ -693,7 +693,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHeight: 1,
 					}}, tc.getMinedErr
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -761,7 +761,7 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}

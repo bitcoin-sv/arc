@@ -20,6 +20,9 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -31,7 +34,7 @@ import (
 func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 
-	e := setApiEcho(logger, arcConfig)
+	e := setAPIEcho(logger, arcConfig)
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
@@ -131,7 +134,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}, nil
 }
 
-func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
+func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -151,7 +154,7 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 		return func(c echo.Context) error {
 			req := c.Request()
 			//nolint:staticcheck // use string key on purpose
-			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) //lint:ignore SA1029 use string key on purpose
+			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) // lint:ignore SA1029 use string key on purpose
 			c.SetRequest(req.WithContext(reqCtx))
 
 			return next(c)

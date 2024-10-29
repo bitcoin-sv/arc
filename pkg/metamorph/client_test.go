@@ -380,7 +380,7 @@ func TestClient_GetTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
-				GetTransactionFunc: func(ctx context.Context, req *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transaction, error) {
+				GetTransactionFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.Transaction, error) {
 					return tc.mockResp, tc.mockErr
 				},
 			}
@@ -462,7 +462,7 @@ func TestClient_GetTransactions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				GetTransactionsFunc: func(ctx context.Context, req *metamorph_api.TransactionsStatusRequest, opts ...grpc.CallOption) (*metamorph_api.Transactions, error) {
+				GetTransactionsFunc: func(_ context.Context, req *metamorph_api.TransactionsStatusRequest, _ ...grpc.CallOption) (*metamorph_api.Transactions, error) {
 					require.Equal(t, tt.txIDs, req.TxIDs, "TxIDs do not match")
 					return tt.mockResponse, tt.mockError
 				},
@@ -485,7 +485,6 @@ func TestClient_GetTransactions(t *testing.T) {
 			} else {
 				require.ErrorContains(t, err, tt.expectedErrorStr)
 			}
-
 		})
 	}
 }
@@ -544,7 +543,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
-				GetTransactionStatusFunc: func(ctx context.Context, req *metamorph_api.TransactionStatusRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					if tc.mockErr != nil {
 						return nil, tc.mockErr
 					}
@@ -595,7 +594,7 @@ func TestClient_Health(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
-				HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*metamorph_api.HealthResponse, error) {
+				HealthFunc: func(_ context.Context, _ *emptypb.Empty, _ ...grpc.CallOption) (*metamorph_api.HealthResponse, error) {
 					return &metamorph_api.HealthResponse{}, tc.mockError
 				},
 			}

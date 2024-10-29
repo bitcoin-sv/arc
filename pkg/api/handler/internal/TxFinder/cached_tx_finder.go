@@ -22,7 +22,7 @@ type CachedFinder struct {
 	s *cache.Cache
 }
 
-func NewCached(th metamorph.TransactionHandler, pc *config.PeerRpcConfig, w *woc_client.WocClient, l *slog.Logger) CachedFinder {
+func NewCached(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger) CachedFinder {
 	f := New(th, pc, w, l)
 	return CachedFinder{
 		f: &f,

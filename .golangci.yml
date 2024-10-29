@@ -188,6 +188,10 @@ linters-settings:
         disabled: true
       - name: range-val-in-closure
         disabled: true
+      - name: defer
+        disabled: true
+      - name: modifies-value-receiver # disable for our custom marshalling
+        disabled: true
 
 
   rowserrcheck:

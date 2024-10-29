@@ -325,7 +325,6 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
 	shutdownFns []func(),
 ) {
-
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new request will be received
 	// 2. processor - ensure all started job are complete

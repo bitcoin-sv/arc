@@ -227,7 +227,6 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {
-
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new requests will be received
 	// 2. background workers

@@ -144,7 +144,6 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
 	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer) {
-
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. background workers - ensure no callbacks from background will be accepted

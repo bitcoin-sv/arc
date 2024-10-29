@@ -51,8 +51,7 @@ func TestClient_SetUnlockedByName(t *testing.T) {
 			// When
 			res, err := client.SetUnlockedByName(context.Background(), "test-1")
 			// Then
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}

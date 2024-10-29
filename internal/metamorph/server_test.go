@@ -624,7 +624,7 @@ func TestSetUnlockedByName(t *testing.T) {
 			})
 
 			// then
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}

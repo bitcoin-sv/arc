@@ -40,7 +40,7 @@ func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
 			client := blocktx.NewClient(apiClient)
 
 			_, err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
@@ -78,7 +78,7 @@ func TestClient_ClearBlocks(t *testing.T) {
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearBlocks(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
@@ -117,7 +117,7 @@ func TestClient_ClearTransactions(t *testing.T) {
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearTransactions(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
@@ -156,7 +156,7 @@ func TestClient_ClearBlockTransactionsMap(t *testing.T) {
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearBlockTransactionsMap(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
@@ -202,7 +202,7 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 			}
 
 			res, err := client.VerifyMerkleRoots(context.Background(), merkleRootsRequest)
-			if tc.expectedErrorStr == "" {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}

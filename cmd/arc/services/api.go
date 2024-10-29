@@ -154,7 +154,7 @@ func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 		return func(c echo.Context) error {
 			req := c.Request()
 			//nolint:staticcheck // use string key on purpose
-			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) // lint:ignore SA1029 use string key on purpose
+			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) //lint:ignore SA1029 use string key on purpose
 			c.SetRequest(req.WithContext(reqCtx))
 
 			return next(c)

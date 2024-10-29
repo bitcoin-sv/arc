@@ -192,6 +192,8 @@ linters-settings:
         disabled: true
       - name: modifies-value-receiver # disable for our custom marshalling
         disabled: true
+      - name: comment-spacings # disable for staticcheck ignore comments
+        disabled: true
 
 
   rowserrcheck:

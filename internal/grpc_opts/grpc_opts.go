@@ -80,7 +80,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 			id := event.GetEventId()
 			if id != "" {
 				//nolint:staticcheck // use string key on purpose
-				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) // lint:ignore SA1029 use string key on purpose
+				ctx = context.WithValue(ctx, arc_logger.EventIDField, event.GetEventId()) //lint:ignore SA1029 use string key on purpose
 			}
 		}
 

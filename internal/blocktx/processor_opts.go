@@ -2,8 +2,6 @@ package blocktx
 
 import (
 	"time"
-
-	"go.opentelemetry.io/otel/trace"
 )
 
 func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *Processor) {
@@ -60,8 +58,8 @@ func WithRegisterRequestTxsBatchSize(size int) func(handler *Processor) {
 	}
 }
 
-func WithTracer(t trace.Tracer) func(handler *Processor) {
-	return func(_ *Processor) {
-		tracer = t
+func WithTracer() func(handler *Processor) {
+	return func(p *Processor) {
+		p.tracingEnabled = true
 	}
 }

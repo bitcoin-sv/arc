@@ -8,13 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 var (
@@ -50,11 +52,11 @@ type TransactionStatus struct {
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	client   metamorph_api.MetaMorphAPIClient
-	mqClient MessageQueueClient
-	logger   *slog.Logger
-	now      func() time.Time
-	tracer   trace.Tracer
+	client         metamorph_api.MetaMorphAPIClient
+	mqClient       MessageQueueClient
+	logger         *slog.Logger
+	now            func() time.Time
+	tracingEnabled bool
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
@@ -75,9 +77,9 @@ func WithLogger(logger *slog.Logger) func(*Metamorph) {
 	}
 }
 
-func WithTracer(tracer trace.Tracer) func(*Metamorph) {
+func WithTracer() func(*Metamorph) {
 	return func(m *Metamorph) {
-		m.tracer = tracer
+		m.tracingEnabled = true
 	}
 }
 
@@ -96,8 +98,8 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 	return m
 }
 
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracer trace.Tracer) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracer)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -351,8 +353,9 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 }
 
 func (m *Metamorph) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if m.tracer != nil {
-		ctx, span := m.tracer.Start(ctx, spanName)
+	if m.tracingEnabled {
+		var span trace.Span
+		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}
 	return ctx, nil

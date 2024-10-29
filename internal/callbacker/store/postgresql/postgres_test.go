@@ -265,7 +265,8 @@ func TestPostgresDBt(t *testing.T) {
 			records, ok := rm.Load(i)
 			require.True(t, ok)
 
-			callbacks := records.([]*store.CallbackData)
+			callbacks, ok := records.([]*store.CallbackData)
+			require.True(t, ok)
 			require.LessOrEqual(t, len(callbacks), popLimit)
 		}
 	})

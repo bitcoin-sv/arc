@@ -11,13 +11,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"go.opentelemetry.io/otel/trace"
 )
 
-func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig, tracer trace.Tracer) (func(), error) {
+func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	mtmConn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
+	mtmConn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -29,7 +28,7 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig, tracer tr
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
-	blocktxConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
+	blocktxConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}

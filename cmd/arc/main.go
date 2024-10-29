@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,15 +11,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/logger"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
@@ -66,17 +61,6 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
-	var globalTracer trace.Tracer = nil
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
-		tracer, cleanup, err := enableTracing(logger, arcConfig.Tracing.DialAddr)
-		if err != nil {
-			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, cleanup)
-		}
-		globalTracer = tracer
-	}
-
 	go func() {
 		if arcConfig.ProfilerAddr != "" {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.ProfilerAddr))
@@ -109,7 +93,7 @@ func run() error {
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig, globalTracer)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -118,7 +102,7 @@ func run() error {
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore, globalTracer)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -127,7 +111,7 @@ func run() error {
 
 	if startApi {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig, globalTracer)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start api: %v", err)
 		}
@@ -137,7 +121,7 @@ func run() error {
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig, globalTracer)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -145,7 +129,7 @@ func run() error {
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig, globalTracer)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start callbacker: %v", err)
 		}
@@ -225,41 +209,4 @@ func isAnyFlagPassed(flags ...string) bool {
 		}
 	}
 	return false
-}
-
-func enableTracing(logger *slog.Logger, tracingAddr string) (trace.Tracer, func(), error) {
-	if tracingAddr == "" {
-		return nil, nil, errors.New("tracing enabled, but tracing address empty")
-	}
-
-	ctx := context.Background()
-
-	exporter, err := tracing.NewExporter(ctx, tracingAddr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize exporter: %v", err)
-	}
-
-	tp, err := tracing.NewTraceProvider(exporter, "arc")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create trace provider: %v", err)
-	}
-
-	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-
-	cleanup := func() {
-		err = exporter.Shutdown(ctx)
-		if err != nil {
-			logger.Error("Failed to shutdown exporter", slog.String("err", err.Error()))
-		}
-
-		err = tp.Shutdown(ctx)
-		if err != nil {
-			logger.Error("Failed to shutdown tracing provider", slog.String("err", err.Error()))
-		}
-	}
-
-	tracer := otel.GetTracerProvider().Tracer("")
-
-	return tracer, cleanup, nil
 }

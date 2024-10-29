@@ -8,30 +8,30 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
-
-	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+
+	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
-func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, tracer trace.Tracer) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 
 	e := setApiEcho(logger, arcConfig)
@@ -56,12 +56,24 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, tracer tra
 		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
 
-	if tracer != nil {
-		mtmOpts = append(mtmOpts, metamorph.WithTracer(tracer))
-		apiOpts = append(apiOpts, handler.WithTracer(tracer))
+	shutdownFns := make([]func(), 0)
+
+	tracingEnabled := false
+	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
+		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing.DialAddr)
+		if err != nil {
+			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, cleanup)
+		}
+
+		tracingEnabled = true
+
+		mtmOpts = append(mtmOpts, metamorph.WithTracer())
+		apiOpts = append(apiOpts, handler.WithTracer())
 	}
 
-	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
+	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -71,7 +83,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, tracer tra
 		mtmOpts...,
 	)
 
-	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracer)
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
@@ -115,6 +127,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, tracer tra
 		}
 
 		mqClient.Shutdown()
+
+		for _, fn := range shutdownFns {
+			fn()
+		}
 	}, nil
 }
 
@@ -144,6 +160,8 @@ func setApiEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 			return next(c)
 		}
 	})
+
+	e.Use(otelecho.Middleware("api-server"))
 
 	// Log info about requests
 	e.Use(logRequestMiddleware(logger, arcConfig.Api.RequestExtendedLogs))

@@ -8,25 +8,24 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
-	ototel "go.opentelemetry.io/otel/bridge/opentracing"
-	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
+
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracer trace.Tracer) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracingEnabled bool) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 
@@ -53,6 +52,11 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	err := prometheusclient.Register(panicsTotal)
 	if err != nil {
 		return nil, nil, nil, errors.Join(ErrGRPCFailedToRegisterPanics, err)
+	}
+	opts := make([]grpc.ServerOption, 0)
+
+	if tracingEnabled {
+		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
 
 	grpcPanicRecoveryHandler := func(p any) (err error) {
@@ -83,16 +87,8 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		return handler(ctx, req)
 	})
 
-	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(chainUnaryInterceptors...),
-		grpc.MaxRecvMsgSize(grpcMessageSize),
-	}
-
-	if tracer != nil {
-		bTracer := getBridgedTracer(tracer)
-		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(bTracer)))
-		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(bTracer)))
-	}
+	opts = append(opts, grpc.ChainUnaryInterceptor(chainUnaryInterceptors...))
+	opts = append(opts, grpc.MaxRecvMsgSize(grpcMessageSize))
 
 	cleanup := func() {
 		prometheusclient.Unregister(panicsTotal)
@@ -101,7 +97,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	return srvMetrics, opts, cleanup, err
 }
 
-func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracer trace.Tracer) ([]grpc.DialOption, error) {
+func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) ([]grpc.DialOption, error) {
 
 	clientMetrics := prometheus.NewClientMetrics(
 		prometheus.WithClientHandlingTimeHistogram(
@@ -114,6 +110,11 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracer tr
 			return prometheusclient.Labels{"traceID": span.TraceID().String()}
 		}
 		return nil
+	}
+	opts := make([]grpc.DialOption, 0)
+
+	if tracingEnabled {
+		opts = append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	}
 
 	var chainUnaryInterceptors []grpc.UnaryClientInterceptor
@@ -131,20 +132,12 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracer tr
 		return invoker(ctx, method, req, reply, cc, opts...)
 	})
 
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
-	}
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...))
+	opts = append(opts, grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`)) // This sets the initial balancing policy.
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
 
-	if tracer != nil {
-		bTracer := getBridgedTracer(tracer)
-		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(otgrpc.OpenTracingClientInterceptor(bTracer)))
-		dialOpts = append(dialOpts, grpc.WithStreamInterceptor(otgrpc.OpenTracingStreamClientInterceptor(bTracer)))
-	}
-
-	return dialOpts, nil
+	return opts, nil
 }
 
 func trySetEventId(x any, eventId string) {
@@ -166,11 +159,4 @@ func trySetEventId(x any, eventId string) {
 	}
 
 	field.SetString(eventId)
-}
-
-func getBridgedTracer(tracer trace.Tracer) *ototel.BridgeTracer {
-	bridge := ototel.NewBridgeTracer()
-	bridge.SetOpenTelemetryTracer(tracer)
-	bridge.SetTextMapPropagator(propagation.TraceContext{})
-	return bridge
 }

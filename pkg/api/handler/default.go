@@ -10,6 +10,12 @@ import (
 	"strings"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -23,10 +29,6 @@ import (
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -52,7 +54,7 @@ type ArcDefaultHandler struct {
 	rejectedCallbackUrlSubstrings []string
 	txFinder                      validator.TxFinderI
 	mrVerifier                    validator.MerkleVerifierI
-	tracer                        trace.Tracer
+	tracingEnabled                bool
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -67,9 +69,9 @@ func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*A
 	}
 }
 
-func WithTracer(t trace.Tracer) func(*ArcDefaultHandler) {
+func WithTracer() func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.tracer = t
+		p.tracingEnabled = true
 	}
 }
 
@@ -112,8 +114,7 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
-	reqCtx := ctx.Request().Context()
-	reqCtx, span := m.startTracing(reqCtx, "GETPolicy")
+	_, span := m.startTracing(ctx.Request().Context(), "GETPolicy")
 	defer m.endTracing(span)
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
@@ -587,8 +588,9 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 }
 
 func (m ArcDefaultHandler) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if m.tracer != nil {
-		ctx, span := m.tracer.Start(ctx, spanName)
+	if m.tracingEnabled {
+		var span trace.Span
+		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}
 	return ctx, nil

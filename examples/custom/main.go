@@ -9,6 +9,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
+	middleware "github.com/oapi-codegen/echo-middleware"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -16,10 +21,6 @@ import (
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
-	middleware "github.com/oapi-codegen/echo-middleware"
 )
 
 // This example does not use the configuration files or env variables,
@@ -77,7 +78,7 @@ func main() {
 	}
 
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, false)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +86,7 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, false)
 	if err != nil {
 		panic(err)
 	}

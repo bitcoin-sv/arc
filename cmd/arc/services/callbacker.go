@@ -25,7 +25,6 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"net/http"
 	"time"
@@ -37,7 +36,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 )
 
-func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig, tracer trace.Tracer) (func(), error) {
+func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
@@ -82,7 +81,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig, tracer tr
 	workers.StartCallbackStoreCleanup(config.PruneInterval, config.PruneOlderThan)
 	workers.StartQuarantineCallbacksDispatch(config.QuarantineCheckInterval)
 
-	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, tracer)
+	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, false)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

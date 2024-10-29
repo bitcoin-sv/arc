@@ -455,15 +455,15 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		return nil
 	}
 
-	// TODO: get previous chain (e.g. 5-10 blocks)
-	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
+	// TODO: make this 10 a constant
+	prevChain, err := p.getPrevChain(ctx, &previousBlockHash, 10)
 	if err != nil {
 		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
 
 	longestTipExists := true
-	if prevBlock == nil {
+	if len(prevChain) == 1 {
 		// This check is only in case there's a fresh, empty database
 		// with no blocks, to mark the first block as the LONGEST chain
 		longestTipExists, err = p.longestTipExists(ctx)
@@ -576,13 +576,44 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	return nil
 }
 
-func (p *Processor) getPrevBlock(ctx context.Context, prevHash *chainhash.Hash) (*blocktx_api.Block, error) {
-	prevBlock, err := p.store.GetBlock(ctx, prevHash)
-	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+func (p *Processor) getPrevChain(ctx context.Context, prevHash *chainhash.Hash, n int) (chain, error) {
+	prevBlocks, err := p.store.GetPreviousBlocks(ctx, prevHash, n)
+	if err != nil {
 		return nil, err
 	}
 
-	return prevBlock, nil
+	return prevBlocks, nil
+}
+
+// TODO: trash this
+func (p *Processor) verifyAndFixChain(ctx context.Context, chain chain) (chain, error) {
+	if len(chain) == 0 {
+		return nil, nil
+	}
+
+	prevStatus := chain[0].Status
+	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
+	problematicHeights := make([]uint64, 0)
+
+	for _, b := range chain {
+		// LONGEST -> LONGEST -> STALE is a normal, acceptable status progression,
+		// anything else is problematic and needs a fix
+		if b.Status != prevStatus && b.Status != blocktx_api.Status_STALE {
+			b.Status = prevStatus
+			blockStatusUpdates = append(blockStatusUpdates, store.BlockStatusUpdate{
+				Hash:   b.Hash,
+				Status: blocktx_api.Status_STALE,
+			})
+		}
+
+		prevStatus = b.Status
+	}
+
+	if len(problematicHeights) != 0 {
+	}
+	// return chain for txs updates
+
+	return nil
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {

@@ -57,6 +57,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetOrphanedChainUpFromHash method")
 //			},
+//			GetPreviousBlocksFunc: func(ctx context.Context, hash *chainhash.Hash, n int) ([]*blocktx_api.Block, error) {
+//				panic("mock out the GetPreviousBlocks method")
+//			},
 //			GetRegisteredTransactionsFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 //				panic("mock out the GetRegisteredTransactions method")
 //			},
@@ -140,6 +143,9 @@ type BlocktxStoreMock struct {
 
 	// GetOrphanedChainUpFromHashFunc mocks the GetOrphanedChainUpFromHash method.
 	GetOrphanedChainUpFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+
+	// GetPreviousBlocksFunc mocks the GetPreviousBlocks method.
+	GetPreviousBlocksFunc func(ctx context.Context, hash *chainhash.Hash, n int) ([]*blocktx_api.Block, error)
 
 	// GetRegisteredTransactionsFunc mocks the GetRegisteredTransactions method.
 	GetRegisteredTransactionsFunc func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error)
@@ -266,6 +272,15 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
+		// GetPreviousBlocks holds details about calls to the GetPreviousBlocks method.
+		GetPreviousBlocks []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+			// N is the n argument value.
+			N int
+		}
 		// GetRegisteredTransactions holds details about calls to the GetRegisteredTransactions method.
 		GetRegisteredTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -364,6 +379,7 @@ type BlocktxStoreMock struct {
 	lockGetLongestChainFromHeight          sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
 	lockGetOrphanedChainUpFromHash         sync.RWMutex
+	lockGetPreviousBlocks                  sync.RWMutex
 	lockGetRegisteredTransactions          sync.RWMutex
 	lockGetRegisteredTxsByBlockHashes      sync.RWMutex
 	lockGetStaleChainBackFromHash          sync.RWMutex
@@ -801,6 +817,46 @@ func (mock *BlocktxStoreMock) GetOrphanedChainUpFromHashCalls() []struct {
 	mock.lockGetOrphanedChainUpFromHash.RLock()
 	calls = mock.calls.GetOrphanedChainUpFromHash
 	mock.lockGetOrphanedChainUpFromHash.RUnlock()
+	return calls
+}
+
+// GetPreviousBlocks calls GetPreviousBlocksFunc.
+func (mock *BlocktxStoreMock) GetPreviousBlocks(ctx context.Context, hash *chainhash.Hash, n int) ([]*blocktx_api.Block, error) {
+	if mock.GetPreviousBlocksFunc == nil {
+		panic("BlocktxStoreMock.GetPreviousBlocksFunc: method is nil but BlocktxStore.GetPreviousBlocks was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+		N    int
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+		N:    n,
+	}
+	mock.lockGetPreviousBlocks.Lock()
+	mock.calls.GetPreviousBlocks = append(mock.calls.GetPreviousBlocks, callInfo)
+	mock.lockGetPreviousBlocks.Unlock()
+	return mock.GetPreviousBlocksFunc(ctx, hash, n)
+}
+
+// GetPreviousBlocksCalls gets all the calls that were made to GetPreviousBlocks.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetPreviousBlocksCalls())
+func (mock *BlocktxStoreMock) GetPreviousBlocksCalls() []struct {
+	Ctx  context.Context
+	Hash *chainhash.Hash
+	N    int
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+		N    int
+	}
+	mock.lockGetPreviousBlocks.RLock()
+	calls = mock.calls.GetPreviousBlocks
+	mock.lockGetPreviousBlocks.RUnlock()
 	return calls
 }
 

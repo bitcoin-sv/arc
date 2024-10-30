@@ -53,7 +53,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []handler.Option{
-		handler.WithCallbackUrlRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+		handler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
 
 	shutdownFns := make([]func(), 0)

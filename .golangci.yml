@@ -194,6 +194,8 @@ linters-settings:
         disabled: true
       - name: comment-spacings # disable for staticcheck ignore comments
         disabled: true
+      - name:  argument-limit
+        disabled: true
 
 
   rowserrcheck:

@@ -11,10 +11,10 @@ import (
 )
 
 // check if Client implements all necessary interfaces
-var _ BlockClient = &Client{}
+var _ Watcher = &Client{}
 var _ MerkleRootsVerifier = &Client{}
 
-type BlockClient interface {
+type Watcher interface {
 	Health(ctx context.Context) error
 	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)

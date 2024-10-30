@@ -3,7 +3,6 @@ package consolidate
 import (
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 )
 
 var Cmd = &cobra.Command{

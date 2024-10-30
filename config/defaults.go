@@ -189,7 +189,7 @@ func getCacheConfig() *CacheConfig {
 	return &CacheConfig{
 		Engine: FreeCache,
 		Freecache: &FreeCacheConfig{
-			Size: 100 * 1024 * 1024, // Default size 100MB.
+			Size: 10 * 1024 * 1024, // Default size 10MB.
 		},
 		Redis: &RedisConfig{
 			Addr:     "localhost:6379",

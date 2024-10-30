@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.2](#132---2024-10-30)
 - [1.3.0](#130---2024-08-21)
 - [1.2.0](#120---2024-08-13)
 - [1.1.91](#1191---2024-06-26)
@@ -17,6 +18,8 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.2] - 2024-10-30
 
 ### Changed
 - Callbacks are sent one by one to the same URL. In the previous implementation, each callback request created a new goroutine to send the callback, which could result in a potential DDoS of the callback receiver. The new approach sends callbacks to the same receiver in a serial manner. Note that URLs are not locked by the `callbacker` instance, so serial sends occur only within a single instance. In other words, the level of parallelism is determined by the number of `callbacker` instances.

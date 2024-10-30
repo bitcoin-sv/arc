@@ -176,8 +176,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	reqCtx, span := m.startTracing(reqCtx, "POSTTransaction")
 	defer m.endTracing(span)
 
-	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
-
+	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)

@@ -664,14 +664,14 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("lock blocks table", func(t *testing.T) {
-		err := postgresDB.LockBlocksTable(context.Background())
+		err := postgresDB.WriteLockBlocksTable(context.Background())
 		require.Error(t, err)
 		require.Equal(t, ErrNoTransaction, err)
 
 		tx, err := postgresDB.BeginTx(context.Background())
 		require.NoError(t, err)
 
-		err = tx.LockBlocksTable(context.Background())
+		err = tx.WriteLockBlocksTable(context.Background())
 		require.NoError(t, err)
 
 		err = tx.Rollback()
@@ -948,14 +948,74 @@ func TestInsertBlockConditions(t *testing.T) {
 		blockStatus     blocktx_api.Status
 		prevBlockExists bool
 		prevBlockStatus blocktx_api.Status
+
+		shouldSucceed bool
 	}{
 		{
-			name: "test",
+			name:            "extend longest chain - success",
+			blockStatus:     blocktx_api.Status_LONGEST,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_LONGEST,
+			shouldSucceed:   true,
+		},
+		{
+			name:            "extend stale chain - sucsess",
+			blockStatus:     blocktx_api.Status_STALE,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_STALE,
+			shouldSucceed:   true,
+		},
+		{
+			name:            "extend orphaned chain - success",
+			blockStatus:     blocktx_api.Status_ORPHANED,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_ORPHANED,
+			shouldSucceed:   true,
+		},
+		{
+			name:            "stale block extends longest - success",
+			blockStatus:     blocktx_api.Status_STALE,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_LONGEST,
+			shouldSucceed:   true,
+		},
+		{
+			name:            "orphan block - success",
+			blockStatus:     blocktx_api.Status_ORPHANED,
+			prevBlockExists: false,
+			shouldSucceed:   true,
+		},
+		{
+			name:            "stale block with no prevBlock - fail",
+			blockStatus:     blocktx_api.Status_STALE,
+			prevBlockExists: false,
+			shouldSucceed:   false,
+		},
+		{
+			name:            "orphan block extending longest chain - fail",
+			blockStatus:     blocktx_api.Status_ORPHANED,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_LONGEST,
+			shouldSucceed:   false,
+		},
+		{
+			name:            "orphan block extending stale chain - fail",
+			blockStatus:     blocktx_api.Status_ORPHANED,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_STALE,
+			shouldSucceed:   false,
+		},
+		{
+			name:            "longest block extending stale chain - fail",
+			blockStatus:     blocktx_api.Status_LONGEST,
+			prevBlockExists: true,
+			prevBlockStatus: blocktx_api.Status_STALE,
+			shouldSucceed:   false,
 		},
 	}
 
 	// common setup for test cases
-	ctx, now, sut := setupPostgresTest(t)
+	ctx, _, sut := setupPostgresTest(t)
 	defer sut.Close()
 
 	for _, tc := range tt {
@@ -966,28 +1026,46 @@ func TestInsertBlockConditions(t *testing.T) {
 			blockHashLongest := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 			blockHashStale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 			blockHashOrphaned := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
+			randomPrevBlockHash := testutils.RevChainhash(t, "0000000000000000099da871f74c55a6305e6a37ef8bf955ad7d29ca4b44fda9")
 
 			var prevBlockHash []byte
 
-			switch tc.prevBlockStatus {
-			case blocktx_api.Status_LONGEST:
-				prevBlockHash = blockHashLongest[:]
-			case blocktx_api.Status_STALE:
-				prevBlockHash = blockHashStale[:]
-			case blocktx_api.Status_ORPHANED:
-				prevBlockHash = blockHashOrphaned[:]
+			if tc.prevBlockExists {
+				switch tc.prevBlockStatus {
+				case blocktx_api.Status_LONGEST:
+					prevBlockHash = blockHashLongest[:]
+				case blocktx_api.Status_STALE:
+					prevBlockHash = blockHashStale[:]
+				case blocktx_api.Status_ORPHANED:
+					prevBlockHash = blockHashOrphaned[:]
+				}
+			} else {
+				prevBlockHash = randomPrevBlockHash[:]
 			}
 
-			blockHash := testutils.RevChainhash(t, "")
+			blockHash := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+			merkleRoot := testutils.RevChainhash(t, "7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257")
 
 			block := &blocktx_api.Block{
-				Hash:         []byte{},
-				PreviousHash: []byte{},
-				MerkleRoot:   []byte{},
+				Hash:         blockHash[:],
+				PreviousHash: prevBlockHash,
+				MerkleRoot:   merkleRoot[:],
 				Height:       822016,
 				Processed:    true,
 				Status:       tc.blockStatus,
 				Chainwork:    "123",
+			}
+
+			// when
+			blockId, err := sut.InsertBlock(ctx, block)
+
+			// then
+			if tc.shouldSucceed {
+				require.NotEqual(t, uint64(0), blockId)
+				require.NoError(t, err)
+			} else {
+				require.Equal(t, uint64(0), blockId)
+				require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
 			}
 		})
 	}

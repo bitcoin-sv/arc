@@ -115,12 +115,19 @@ func (p *PostgreSQL) Rollback() error {
 	return p._tx.Rollback()
 }
 
-func (p *PostgreSQL) LockBlocksTable(ctx context.Context) error {
+func (p *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
 	tx, ok := p.db.(*sql.Tx)
 	if !ok {
 		return ErrNoTransaction
 	}
 
-	_, err := tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN ACCESS EXCLUSIVE MODE")
+	// This will lock `blocks` table for writing, when performing reorg.
+	// Any INSERT or UPDATE to the table will wait until the lock is released.
+	// Another instance wanting to acquire this lock at the same time will have
+	// to wait until the transaction holding the lock is completed and the lock
+	// is released.
+	//
+	// Reading from the table is still allowed.
+	_, err := tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN EXCLUSIVE MODE")
 	return err
 }

@@ -56,5 +56,5 @@ type BlocktxStore interface {
 type DbTransaction interface {
 	Commit() error
 	Rollback() error
-	LockBlocksTable(ctx context.Context) error
+	WriteLockBlocksTable(ctx context.Context) error
 }

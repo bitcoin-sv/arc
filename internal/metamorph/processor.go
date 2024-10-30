@@ -403,8 +403,12 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.processStatusUpdatesInterval)
 	p.waitGroup.Add(1)
 
+	ctx := p.ctx
+
 	go func() {
 		defer p.waitGroup.Done()
+
+		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
 
 		for {
 			select {
@@ -412,23 +416,20 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				actualUpdateStatusMap, err := p.updateStatusMap(statusUpdate)
-				if err != nil {
-					p.logger.Error("failed to update status", slog.String("err", err.Error()))
-					return
-				}
+				updateStatusMap(statusUpdatesMap, statusUpdate)
 
-				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
-					p.checkAndUpdate(p.ctx, actualUpdateStatusMap)
+				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
+					p.checkAndUpdate(ctx, statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
-				statusUpdatesMap := p.getStatusUpdateMap()
 				if len(statusUpdatesMap) > 0 {
-					p.checkAndUpdate(p.ctx, statusUpdatesMap)
+					p.checkAndUpdate(ctx, statusUpdatesMap)
+					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -462,8 +463,6 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
-
-	_ = p.cacheStore.Del(CacheStatusUpdateKey)
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {

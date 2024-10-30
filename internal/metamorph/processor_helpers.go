@@ -3,9 +3,13 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
+
+//lint:file-ignore U1000 Ignore all unused code, functions are temporarily not used
 
 const CacheStatusUpdateKey = "status-updates"
 
@@ -18,7 +22,19 @@ func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) {
+func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
+	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
+
+	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
+		if len(statusUpdate.CompetingTxs) > 0 {
+			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
+		}
+
+		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
+	}
+}
+
+func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
 	statusUpdatesMap := p.getStatusUpdateMap()
 
 	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
@@ -39,7 +55,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainh
 	return statusUpdatesMap, nil
 }
 
-func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error {
+func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error { //nolint:unused
 	bytes, err := serializeStatusMap(statusUpdatesMap)
 	if err != nil {
 		return err
@@ -52,7 +68,7 @@ func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store
 	return nil
 }
 
-func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus {
+func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus { //nolint:unused
 	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
 
 	if err == nil {
@@ -120,7 +136,7 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) {
+func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) { //nolint:unused
 	serializeMap := make(map[string]store.UpdateStatus)
 	for k, v := range updateStatusMap {
 		serializeMap[k.String()] = v
@@ -133,7 +149,7 @@ func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) (
 	return bytes, nil
 }
 
-func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) {
+func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
 	serializeMap := make(map[string]store.UpdateStatus)
 	updateStatusMap := make(map[chainhash.Hash]store.UpdateStatus)
 

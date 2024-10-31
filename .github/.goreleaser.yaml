@@ -1,0 +1,33 @@
+# Make sure to check the documentation at http://goreleaser.com
+# ---------------------------
+# General
+# ---------------------------
+before:
+  hooks:
+    - make all
+snapshot:
+  name_template: "{{ .Tag }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^.github:'
+      - '^.vscode:'
+      - '^test:'
+# ---------------------------
+# Publishers
+# ---------------------------
+# publishers:
+#  - name: "Publish GoDocs"
+#    cmd: make godocs
+# ---------------------------
+# Builder
+# ---------------------------
+build:
+  skip: true
+# ---------------------------
+# Github Release
+# ---------------------------
+release:
+  prerelease: false
+  name_template: "Release v{{.Version}}"

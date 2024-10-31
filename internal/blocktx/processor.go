@@ -17,6 +17,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -57,6 +58,7 @@ type Processor struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 	tracingEnabled              bool
+	attributes                  []attribute.KeyValue
 	processGuardsMap            sync.Map
 
 	waitGroup *sync.WaitGroup
@@ -735,6 +737,12 @@ func (p *Processor) GetBlockRequestCh() chan BlockRequest {
 func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if p.tracingEnabled {
 		var span trace.Span
+
+		if len(p.attributes) > 0 {
+			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(p.attributes...))
+			return ctx, span
+		}
+
 		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}

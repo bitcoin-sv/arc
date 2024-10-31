@@ -14,11 +14,13 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -56,6 +58,7 @@ type Server struct {
 	bitcoinNode       BitcoinNode
 	forceCheckUtxos   bool
 	tracingEnabled    bool
+	attributes        []attribute.KeyValue
 }
 
 func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
@@ -72,9 +75,10 @@ func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 }
 
 // WithTracer sets the tracer to be used for tracing
-func WithTracer() func(s *Server) {
+func WithTracer(attr []attribute.KeyValue) func(s *Server) {
 	return func(s *Server) {
 		s.tracingEnabled = true
+		s.attributes = attr
 	}
 }
 
@@ -82,7 +86,7 @@ type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
 func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
-	store store.MetamorphStore, processor ProcessorI, opts ...ServerOption) (*Server, error) {
+	store store.MetamorphStore, processor ProcessorI, tracingConfig *config.TracingConfig, opts ...ServerOption) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{
@@ -97,7 +101,7 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		opt(s)
 	}
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "metamorph", prometheusEndpoint, maxMsgSize, true)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "metamorph", prometheusEndpoint, maxMsgSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -459,6 +463,12 @@ func PtrTo[T any](v T) *T {
 func (s *Server) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if s.tracingEnabled {
 		var span trace.Span
+
+		if len(s.attributes) > 0 {
+			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(s.attributes...))
+			return ctx, span
+		}
+
 		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}

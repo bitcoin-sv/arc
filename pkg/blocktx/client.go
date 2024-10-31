@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 )
@@ -101,8 +102,8 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 	return resp.UnverifiedBlockHeights, nil
 }
 
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingEnabled)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

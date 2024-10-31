@@ -10,18 +10,19 @@ import (
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 var (
-	ErrTransactionNotFound       = errors.New("transaction not found")
-	ErrParentTransactionNotFound = errors.New("parent transaction not found")
+	ErrTransactionNotFound = errors.New("transaction not found")
 )
 
 type TransactionHandler interface {
@@ -57,6 +58,7 @@ type Metamorph struct {
 	logger         *slog.Logger
 	now            func() time.Time
 	tracingEnabled bool
+	attributes     []attribute.KeyValue
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
@@ -77,9 +79,10 @@ func WithLogger(logger *slog.Logger) func(*Metamorph) {
 	}
 }
 
-func WithTracer() func(*Metamorph) {
+func WithTracer(attr []attribute.KeyValue) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.tracingEnabled = true
+		m.attributes = attr
 	}
 }
 
@@ -98,8 +101,8 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 	return m
 }
 
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingEnabled)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -355,6 +358,11 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 func (m *Metamorph) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if m.tracingEnabled {
 		var span trace.Span
+		if len(m.attributes) > 0 {
+			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(m.attributes...))
+			return ctx, span
+		}
+
 		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}

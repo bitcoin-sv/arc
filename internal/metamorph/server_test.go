@@ -9,13 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -23,11 +16,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server, _ := metamorph.NewServer("", 0, slog.Default(), nil, nil)
+		server, _ := metamorph.NewServer("", 0, slog.Default(), nil, nil, nil)
 		defer server.GracefulStop()
 
 		assert.IsType(t, &metamorph.Server{}, server)
@@ -43,7 +44,7 @@ func TestHealth(t *testing.T) {
 			return []p2p.PeerI{}
 		}
 
-		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor)
+		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil)
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -129,7 +130,7 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), s, processor, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+			sut, err := metamorph.NewServer("", 0, slog.Default(), s, processor, nil, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -292,7 +293,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -555,7 +556,7 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, metamorph.WithMaxTimeoutDefault(5*time.Second))
+			sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil, metamorph.WithMaxTimeoutDefault(5*time.Second))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -614,7 +615,7 @@ func TestSetUnlockedByName(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, nil, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -657,7 +658,7 @@ func TestListenAndServe(t *testing.T) {
 			processor := &mocks.ProcessorIMock{}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			sut, err := metamorph.NewServer("", 0, logger, metamorphStore, processor)
+			sut, err := metamorph.NewServer("", 0, logger, metamorphStore, processor, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -734,7 +735,7 @@ func TestGetTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), &store, nil)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), &store, nil, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

@@ -6,11 +6,12 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const baseCacheSize = 100 * 1024 * 1024
@@ -71,7 +72,7 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -141,7 +142,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor)
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

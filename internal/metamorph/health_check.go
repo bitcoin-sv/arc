@@ -19,8 +19,6 @@ type HealthWatchServer interface {
 }
 
 func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	ctx, span := s.startTracing(ctx, "HealthCheck")
-	defer s.endTracing(span)
 	s.logger.Debug("checking health", slog.String("service", req.Service))
 
 	switch req.Service {
@@ -52,10 +50,8 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 }
 
 func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
-	ctx, span := s.startTracing(context.Background(), "HealthWatch")
-	defer s.endTracing(span)
 	s.logger.Info("watching health", slog.String("service", req.Service))
-
+	ctx := context.Background()
 	switch req.Service {
 	case readiness:
 		err := s.store.Ping(ctx)

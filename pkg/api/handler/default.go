@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -41,8 +42,7 @@ var (
 	ErrCallbackURLNotAcceptable = errors.New("callback URL not acceptable")
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
-
-	ErrMaxTimeoutExceeded = fmt.Errorf("max timeout can not be higher than %d", maxTimeout)
+	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", maxTimeout)
 )
 
 type ArcDefaultHandler struct {
@@ -55,6 +55,7 @@ type ArcDefaultHandler struct {
 	txFinder                      validator.TxFinderI
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
+	attributes                    []attribute.KeyValue
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -69,9 +70,10 @@ func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*A
 	}
 }
 
-func WithTracer() func(*ArcDefaultHandler) {
-	return func(p *ArcDefaultHandler) {
-		p.tracingEnabled = true
+func WithTracer(attr []attribute.KeyValue) func(*ArcDefaultHandler) {
+	return func(a *ArcDefaultHandler) {
+		a.tracingEnabled = true
+		a.attributes = attr
 	}
 }
 
@@ -589,6 +591,11 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 func (m ArcDefaultHandler) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if m.tracingEnabled {
 		var span trace.Span
+		if len(m.attributes) > 0 {
+			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(m.attributes...))
+			return ctx, span
+		}
+
 		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}

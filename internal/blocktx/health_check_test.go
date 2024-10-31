@@ -77,7 +77,7 @@ func TestCheck(t *testing.T) {
 				}}
 			}}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, false)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -151,7 +151,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, false)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -28,10 +29,10 @@ type Server struct {
 
 // NewServer will return a server instance with the logger stored within it.
 func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
-	store store.BlocktxStore, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int, tracingEnabled bool) (*Server, error) {
+	store store.BlocktxStore, pm p2p.PeerManagerI, maxAllowedBlockHeightMismatch int, tracingConfig *config.TracingConfig) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, tracingEnabled)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

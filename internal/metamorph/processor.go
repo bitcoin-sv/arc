@@ -12,6 +12,7 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 
@@ -54,8 +55,7 @@ var (
 	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
 	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
-
-	ErrUnhealthy = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
+	ErrUnhealthy                    = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
 )
 
 type Processor struct {
@@ -103,6 +103,7 @@ type Processor struct {
 	processMinedBatchSize int
 
 	tracingEnabled bool
+	attributes     []attribute.KeyValue
 }
 
 type Option func(f *Processor)
@@ -815,6 +816,12 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if p.tracingEnabled {
 		var span trace.Span
+
+		if len(p.attributes) > 0 {
+			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(p.attributes...))
+			return ctx, span
+		}
+
 		ctx, span = otel.Tracer("").Start(ctx, spanName)
 		return ctx, span
 	}

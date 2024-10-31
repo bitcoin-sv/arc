@@ -34,7 +34,7 @@ func TestListenAndServe(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, false)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -92,7 +92,7 @@ func TestDelUnfinishedBlock(t *testing.T) {
 				},
 			}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, nil, 0, false)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, nil, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

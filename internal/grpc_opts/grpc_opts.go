@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
 
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
@@ -25,7 +26,7 @@ import (
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracingEnabled bool) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracingConfig *config.TracingConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 
@@ -35,13 +36,6 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 			prometheus.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
-
-	exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
-		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
-			return prometheusclient.Labels{"traceID": span.TraceID().String()}
-		}
-		return nil
-	}
 
 	// Setup metric for panic recoveries.
 	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
@@ -55,7 +49,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	}
 	opts := make([]grpc.ServerOption, 0)
 
-	if tracingEnabled {
+	if tracingConfig != nil && tracingConfig.Enabled {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
 
@@ -68,6 +62,12 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	var chainUnaryInterceptors []grpc.UnaryServerInterceptor
 
 	if prometheusEndpoint != "" {
+		exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
+			if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
+				return prometheusclient.Labels{"traceID": span.TraceID().String()}
+			}
+			return nil
+		}
 		chainUnaryInterceptors = append(chainUnaryInterceptors, srvMetrics.UnaryServerInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
 	}
 
@@ -97,28 +97,27 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	return srvMetrics, opts, cleanup, err
 }
 
-func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) ([]grpc.DialOption, error) {
+func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) ([]grpc.DialOption, error) {
 	clientMetrics := prometheus.NewClientMetrics(
 		prometheus.WithClientHandlingTimeHistogram(
 			prometheus.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
-
-	exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
-		if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
-			return prometheusclient.Labels{"traceID": span.TraceID().String()}
-		}
-		return nil
-	}
 	opts := make([]grpc.DialOption, 0)
 
-	if tracingEnabled {
+	if tracingConfig != nil && tracingConfig.Enabled {
 		opts = append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	}
 
 	var chainUnaryInterceptors []grpc.UnaryClientInterceptor
 
 	if prometheusEndpoint != "" {
+		exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
+			if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
+				return prometheusclient.Labels{"traceID": span.TraceID().String()}
+			}
+			return nil
+		}
 		chainUnaryInterceptors = append(chainUnaryInterceptors, clientMetrics.UnaryClientInterceptor(prometheus.WithExemplarFromContext(exemplarFromContext)))
 	}
 

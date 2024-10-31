@@ -12,7 +12,11 @@ messageQueue:
     fileStorage: false # if enabled messages are persisted on disk instead of in memory
   URL: nats://nats:4222 # URL for message queue
 tracing: # (optional)
+  enabled: true # if true, then tracing is enabled
   dialAddr: http://localhost:4317 # address where traces are exported to
+  attributes:
+    key1: value1
+    key2: 100
 
 peerRpc: # rpc configuration for bitcoin node
   password: bitcoin

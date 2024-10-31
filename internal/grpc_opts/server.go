@@ -8,6 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/bitcoin-sv/arc/config"
 )
 
 var ErrServerFailedToListen = errors.New("GRPC server failed to listen")
@@ -19,8 +21,8 @@ type GrpcServer struct {
 	cleanup func()
 }
 
-func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int, tracingEnabled bool) (GrpcServer, error) {
-	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name, tracingEnabled)
+func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int, tracingConfig *config.TracingConfig) (GrpcServer, error) {
+	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name, tracingConfig)
 	if err != nil {
 		return GrpcServer{}, err
 	}

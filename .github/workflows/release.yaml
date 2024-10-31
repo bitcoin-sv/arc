@@ -1,5 +1,6 @@
 # .github/workflows/release.yml
 name: release
+version: 2
 
 on:
   push:
@@ -32,7 +33,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: 2
+          version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

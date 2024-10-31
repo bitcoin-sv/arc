@@ -202,52 +202,6 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedTipHeight, actualBlock.Height)
 	})
 
-	t.Run("get previous blocks", func(t *testing.T) {
-		// given
-		prepareDb(t, postgresDB, "fixtures/get_previous_blocks")
-
-		blockHash := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
-		numberOfBlocks := 3
-
-		expectedBlocks := []*blocktx_api.Block{
-			{
-				Hash:         testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")[:],
-				PreviousHash: testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")[:],
-				MerkleRoot:   testutils.RevChainhash(t, "4b58b0402a84012269b124f78c91a78a814eb3c9caa03f1df1d33172b23082d1")[:],
-				Height:       822016,
-				Processed:    true,
-				Status:       blocktx_api.Status_STALE,
-				Chainwork:    "123456",
-			},
-			{
-				Hash:         testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")[:],
-				PreviousHash: testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")[:],
-				MerkleRoot:   testutils.RevChainhash(t, "7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257")[:],
-				Height:       822015,
-				Processed:    true,
-				Status:       blocktx_api.Status_STALE,
-				Chainwork:    "123456",
-			},
-			{
-				Hash:         testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")[:],
-				PreviousHash: testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")[:],
-				MerkleRoot:   testutils.RevChainhash(t, "7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483")[:],
-				Height:       822014,
-				Processed:    true,
-				Status:       blocktx_api.Status_LONGEST,
-				Chainwork:    "123456",
-			},
-		}
-
-		// when
-		actualBlocks, err := postgresDB.GetPreviousBlocks(context.Background(), blockHash, numberOfBlocks)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, numberOfBlocks, len(actualBlocks))
-		require.Equal(t, expectedBlocks, actualBlocks)
-	})
-
 	t.Run("get block gaps", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")

@@ -17,7 +17,7 @@ func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, 
 		SET processed_at = $4,
 				size = $1,
 				tx_count = $2
-		WHERE hash = $3 AND processed_at IS NOT NULL
+		WHERE hash = $3 AND processed_at IS NULL
 	`
 
 	if _, err := p.db.ExecContext(ctx, q, size, txCount, hash[:], p.now()); err != nil {

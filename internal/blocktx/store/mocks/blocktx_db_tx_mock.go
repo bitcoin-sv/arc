@@ -22,11 +22,11 @@ var _ store.DbTransaction = &DbTransactionMock{}
 //			CommitFunc: func() error {
 //				panic("mock out the Commit method")
 //			},
-//			LockBlocksTableFunc: func(ctx context.Context) error {
-//				panic("mock out the LockBlocksTable method")
-//			},
 //			RollbackFunc: func() error {
 //				panic("mock out the Rollback method")
+//			},
+//			WriteLockBlocksTableFunc: func(ctx context.Context) error {
+//				panic("mock out the WriteLockBlocksTable method")
 //			},
 //		}
 //
@@ -38,29 +38,29 @@ type DbTransactionMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func() error
 
-	// LockBlocksTableFunc mocks the LockBlocksTable method.
-	LockBlocksTableFunc func(ctx context.Context) error
-
 	// RollbackFunc mocks the Rollback method.
 	RollbackFunc func() error
+
+	// WriteLockBlocksTableFunc mocks the WriteLockBlocksTable method.
+	WriteLockBlocksTableFunc func(ctx context.Context) error
 
 	// calls tracks calls to the methods.
 	calls struct {
 		// Commit holds details about calls to the Commit method.
 		Commit []struct {
 		}
-		// LockBlocksTable holds details about calls to the LockBlocksTable method.
-		LockBlocksTable []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
 		// Rollback holds details about calls to the Rollback method.
 		Rollback []struct {
 		}
+		// WriteLockBlocksTable holds details about calls to the WriteLockBlocksTable method.
+		WriteLockBlocksTable []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 	}
-	lockCommit          sync.RWMutex
-	lockLockBlocksTable sync.RWMutex
-	lockRollback        sync.RWMutex
+	lockCommit               sync.RWMutex
+	lockRollback             sync.RWMutex
+	lockWriteLockBlocksTable sync.RWMutex
 }
 
 // Commit calls CommitFunc.
@@ -90,38 +90,6 @@ func (mock *DbTransactionMock) CommitCalls() []struct {
 	return calls
 }
 
-// LockBlocksTable calls LockBlocksTableFunc.
-func (mock *DbTransactionMock) LockBlocksTable(ctx context.Context) error {
-	if mock.LockBlocksTableFunc == nil {
-		panic("DbTransactionMock.LockBlocksTableFunc: method is nil but DbTransaction.LockBlocksTable was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockLockBlocksTable.Lock()
-	mock.calls.LockBlocksTable = append(mock.calls.LockBlocksTable, callInfo)
-	mock.lockLockBlocksTable.Unlock()
-	return mock.LockBlocksTableFunc(ctx)
-}
-
-// LockBlocksTableCalls gets all the calls that were made to LockBlocksTable.
-// Check the length with:
-//
-//	len(mockedDbTransaction.LockBlocksTableCalls())
-func (mock *DbTransactionMock) LockBlocksTableCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockLockBlocksTable.RLock()
-	calls = mock.calls.LockBlocksTable
-	mock.lockLockBlocksTable.RUnlock()
-	return calls
-}
-
 // Rollback calls RollbackFunc.
 func (mock *DbTransactionMock) Rollback() error {
 	if mock.RollbackFunc == nil {
@@ -146,5 +114,37 @@ func (mock *DbTransactionMock) RollbackCalls() []struct {
 	mock.lockRollback.RLock()
 	calls = mock.calls.Rollback
 	mock.lockRollback.RUnlock()
+	return calls
+}
+
+// WriteLockBlocksTable calls WriteLockBlocksTableFunc.
+func (mock *DbTransactionMock) WriteLockBlocksTable(ctx context.Context) error {
+	if mock.WriteLockBlocksTableFunc == nil {
+		panic("DbTransactionMock.WriteLockBlocksTableFunc: method is nil but DbTransaction.WriteLockBlocksTable was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockWriteLockBlocksTable.Lock()
+	mock.calls.WriteLockBlocksTable = append(mock.calls.WriteLockBlocksTable, callInfo)
+	mock.lockWriteLockBlocksTable.Unlock()
+	return mock.WriteLockBlocksTableFunc(ctx)
+}
+
+// WriteLockBlocksTableCalls gets all the calls that were made to WriteLockBlocksTable.
+// Check the length with:
+//
+//	len(mockedDbTransaction.WriteLockBlocksTableCalls())
+func (mock *DbTransactionMock) WriteLockBlocksTableCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockWriteLockBlocksTable.RLock()
+	calls = mock.calls.WriteLockBlocksTable
+	mock.lockWriteLockBlocksTable.RUnlock()
 	return calls
 }

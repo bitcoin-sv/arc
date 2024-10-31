@@ -152,7 +152,7 @@ func TestHandleBlock(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
-				LockBlocksTableFunc: func(ctx context.Context) error {
+				WriteLockBlocksTableFunc: func(ctx context.Context) error {
 					return nil
 				},
 			}
@@ -162,7 +162,7 @@ func TestHandleBlock(t *testing.T) {
 				},
 				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyExists {
-						return &blocktx_api.Block{}, nil
+						return &blocktx_api.Block{Processed: true}, nil
 					}
 					return nil, store.ErrBlockNotFound
 				},
@@ -279,12 +279,25 @@ func TestHandleBlock(t *testing.T) {
 func TestHandleBlockReorgAndOrphans(t *testing.T) {
 	testCases := []struct {
 		name                  string
+		blockAlreadyExists    bool
 		prevBlockStatus       blocktx_api.Status
 		hasCompetingBlock     bool
 		hasGreaterChainwork   bool
 		expectedStatus        blocktx_api.Status
 		shouldFindOrphanChain bool
 	}{
+		{
+			name:                  "block already exists - no orphans - should be ingored",
+			blockAlreadyExists:    true,
+			shouldFindOrphanChain: false,
+			expectedStatus:        blocktx_api.Status_UNKNOWN,
+		},
+		{
+			name:                  "block already exists - orphans found - reorg",
+			blockAlreadyExists:    true,
+			shouldFindOrphanChain: true,
+			expectedStatus:        blocktx_api.Status_LONGEST,
+		},
 		{
 			name:              "previous block longest - no competing - no reorg",
 			prevBlockStatus:   blocktx_api.Status_LONGEST,
@@ -370,7 +383,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				Chainwork: "34364008516618225545", // greatest chainwork - should cause reorg if STALE
 			}
 
-			shouldReturnNoBlock := true
+			shouldReturnNoBlock := !tc.blockAlreadyExists
 			shouldCheckUpdateStatuses := true
 
 			txMock := &storeMocks.DbTransactionMock{
@@ -380,7 +393,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
-				LockBlocksTableFunc: func(ctx context.Context) error {
+				WriteLockBlocksTableFunc: func(ctx context.Context) error {
 					return nil
 				},
 			}
@@ -395,7 +408,8 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 
 					return &blocktx_api.Block{
-						Status: tc.prevBlockStatus,
+						Status:    tc.prevBlockStatus,
+						Processed: true,
 					}, nil
 				},
 				GetBlockByHeightFunc: func(_ context.Context, _ uint64, _ blocktx_api.Status) (*blocktx_api.Block, error) {
@@ -446,7 +460,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 						shouldCheckUpdateStatuses = false
 						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
 						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
-						require.Equal(t, insertedBlockStatus, tipStatusUpdate.Status)
+						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
 						mtx.Unlock()
 					}
 					return nil

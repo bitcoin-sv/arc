@@ -218,17 +218,6 @@ func (p *Processor) StartBlockProcessing() {
 
 				p.logger.Info("received block", slog.String("hash", blockhash.String()))
 				err = p.processBlock(blockMsg)
-
-				if err == nil {
-					err = p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
-					if err != nil {
-						p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-					} else {
-						// add the total block processing time to the stats
-						p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
-					}
-				}
-
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, &blockhash)
@@ -239,6 +228,15 @@ func (p *Processor) StartBlockProcessing() {
 					}
 					continue
 				}
+
+				err = p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
+				if err != nil {
+					p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+					continue
+				}
+
+				// add the total block processing time to the stats
+				p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 			}
 		}
 	}()
@@ -450,70 +448,36 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	defer tracing.EndTracing(span)
 
 	blockHash := msg.Header.BlockHash()
-	previousBlockHash := msg.Header.PrevBlock
+	blockHeight := msg.Height
 
 	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
 
-	// don't process block that was already processed
+	var chain chain
+	var competing bool
+	var err error
+
+	// check if we've already processed that block
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
+
 	if existingBlock != nil && existingBlock.Processed {
-		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()))
-		return nil
-	}
-
-	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
-	if err != nil {
-		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
-		return err
-	}
-
-	longestTipExists := true
-	if prevBlock == nil {
-		// This check is only in case there's a fresh, empty database
-		// with no blocks, to mark the first block as the LONGEST chain
-		longestTipExists, err = p.longestTipExists(ctx)
+		// if the block was already processed, check and update
+		// possible orphan children of that block
+		chain, competing, err = p.updateOrphans(ctx, existingBlock, competing)
 		if err != nil {
-			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 			return err
 		}
-	}
 
-	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
-
-	competing, err := p.competingChainsExist(ctx, incomingBlock)
-	if err != nil {
-		p.logger.Error("unable to check for competing chains", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-		return err
-	}
-
-	if competing {
-		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
-		incomingBlock.Status = blocktx_api.Status_STALE
-	}
-
-	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
-
-	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, msg.TransactionHashes, msg.Header.MerkleRoot)
-	if err != nil {
-		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return err
-	}
-
-	// if the block is ORPHANED, there's no need to process it any further
-	if incomingBlock.Status == blocktx_api.Status_ORPHANED {
-		return nil
-	}
-
-	chain, err := p.updateOrphans(ctx, incomingBlock)
-	if err != nil {
-		p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return err
-	}
-
-	// if there were any orphans found, we need to verify
-	// whether they are part of the longest or stale chain
-	if len(chain) > 1 {
-		competing = true
+		if len(chain) == 1 { // this means that no orphans were found
+			p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()))
+			return nil
+		}
+	} else {
+		// if the block was not yet processed, proceed normally
+		chain, competing, err = p.verifyAndInsertBlock(ctx, msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	chainTip, err := chain.getTip()
@@ -526,12 +490,12 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	if competing {
 		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, chainTip)
 		if err != nil {
-			p.logger.Error("unable to get the chain tip to verify chainwork", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to get the chain tip to verify chainwork", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
 
 		if hasGreatestChainwork {
-			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
 			shouldPerformReorg = true
 		}
 	}
@@ -541,19 +505,19 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	if shouldPerformReorg {
 		txsToPublish, err = p.performReorg(ctx, chainTip)
 		if err != nil {
-			p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
 	} else if chainTip.Status == blocktx_api.Status_STALE {
 		txsToPublish, err = p.getStaleTxs(ctx, chain)
 		if err != nil {
-			p.logger.Error("unable to get stale transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to get stale transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
 	} else if chainTip.Status == blocktx_api.Status_LONGEST {
 		txsToPublish, err = p.store.GetRegisteredTransactions(ctx, chain.getHashes())
 		if err != nil {
-			p.logger.Error("unable to get registered transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to get registered transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
 	}
@@ -578,6 +542,62 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	return nil
 }
 
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMessage) (chain, bool, error) {
+	blockHash := msg.Header.BlockHash()
+	previousBlockHash := msg.Header.PrevBlock
+
+	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
+	if err != nil {
+		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
+		return nil, false, err
+	}
+
+	longestTipExists := true
+	if prevBlock == nil {
+		// This check is only in case there's a fresh, empty database
+		// with no blocks, to mark the first block as the LONGEST chain
+		longestTipExists, err = p.longestTipExists(ctx)
+		if err != nil {
+			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+			return nil, false, err
+		}
+	}
+
+	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
+
+	competing, err := p.competingChainsExist(ctx, incomingBlock)
+	if err != nil {
+		p.logger.Error("unable to check for competing chains", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+		return nil, false, err
+	}
+
+	if competing {
+		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
+		incomingBlock.Status = blocktx_api.Status_STALE
+	}
+
+	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+
+	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, msg.TransactionHashes, msg.Header.MerkleRoot)
+	if err != nil {
+		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		return nil, false, err
+	}
+
+	// if the block is ORPHANED, there's no need to process it any further
+	if incomingBlock.Status == blocktx_api.Status_ORPHANED {
+		return chain{incomingBlock}, false, nil
+	}
+
+	chain, competing, err := p.updateOrphans(ctx, incomingBlock, competing)
+	if err != nil {
+		p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		return nil, false, err
+	}
+
+	return chain, competing, nil
+}
+
 func (p *Processor) getPrevBlock(ctx context.Context, prevHash *chainhash.Hash) (*blocktx_api.Block, error) {
 	prevBlock, err := p.store.GetBlock(ctx, prevHash)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
@@ -585,15 +605,6 @@ func (p *Processor) getPrevBlock(ctx context.Context, prevHash *chainhash.Hash) 
 	}
 
 	return prevBlock, nil
-}
-
-func (p *Processor) getPrevChain(ctx context.Context, prevHash *chainhash.Hash, n int) (chain, error) {
-	prevBlocks, err := p.store.GetPreviousBlocks(ctx, prevHash, n)
-	if err != nil {
-		return nil, err
-	}
-
-	return prevBlocks, nil
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
@@ -746,15 +757,15 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 	return nil
 }
 
-func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_api.Block) (chain, error) {
+func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_api.Block, competing bool) (chain, bool, error) {
 	chain := []*blocktx_api.Block{incomingBlock}
 
 	orphanedBlocks, err := p.store.GetOrphanedChainUpFromHash(ctx, incomingBlock.Hash)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if len(orphanedBlocks) == 0 {
-		return chain, nil
+		return chain, competing, nil
 	}
 
 	blockStatusUpdates := make([]store.BlockStatusUpdate, len(orphanedBlocks))
@@ -776,12 +787,15 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	chain = append(chain, orphanedBlocks...)
 
-	return chain, nil
+	// if we found any orphans and marked them as STALE
+	// we need to find out if they are part of the longest
+	// or stale chain, so competing is returned as true
+	return chain, true, nil
 }
 
 func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api.Block) ([]store.TransactionBlock, error) {

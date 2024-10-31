@@ -5,8 +5,8 @@
 before:
   hooks:
     - make all
-snapshot:
-  name_template: "{{ .Tag }}"
+#snapshot:
+#  name_template: "{{ .Tag }}"
 changelog:
   sort: asc
   filters:

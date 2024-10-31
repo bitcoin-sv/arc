@@ -1,6 +1,5 @@
 # .github/workflows/release.yml
 name: release
-version: 2
 
 on:
   push:

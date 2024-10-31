@@ -737,9 +737,13 @@ func (p *Processor) GetBlockRequestCh() chan BlockRequest {
 func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if p.tracingEnabled {
 		var span trace.Span
+		tracer := otel.Tracer("")
+		if tracer == nil {
+			return ctx, nil
+		}
 
 		if len(p.attributes) > 0 {
-			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(p.attributes...))
+			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(p.attributes...))
 			return ctx, span
 		}
 

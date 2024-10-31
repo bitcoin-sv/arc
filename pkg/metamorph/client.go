@@ -358,12 +358,17 @@ func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, 
 func (m *Metamorph) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if m.tracingEnabled {
 		var span trace.Span
+		tracer := otel.Tracer("")
+		if tracer == nil {
+			return ctx, nil
+		}
+
 		if len(m.attributes) > 0 {
-			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(m.attributes...))
+			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(m.attributes...))
 			return ctx, span
 		}
 
-		ctx, span = otel.Tracer("").Start(ctx, spanName)
+		ctx, span = tracer.Start(ctx, spanName)
 		return ctx, span
 	}
 	return ctx, nil

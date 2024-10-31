@@ -463,13 +463,17 @@ func PtrTo[T any](v T) *T {
 func (s *Server) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	if s.tracingEnabled {
 		var span trace.Span
+		tracer := otel.Tracer("")
+		if tracer == nil {
+			return ctx, nil
+		}
 
 		if len(s.attributes) > 0 {
-			ctx, span = otel.Tracer("").Start(ctx, spanName, trace.WithAttributes(s.attributes...))
+			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(s.attributes...))
 			return ctx, span
 		}
 
-		ctx, span = otel.Tracer("").Start(ctx, spanName)
+		ctx, span = tracer.Start(ctx, spanName)
 		return ctx, span
 	}
 	return ctx, nil

@@ -23,7 +23,7 @@ changelog:
 # ---------------------------
 # Builder
 # ---------------------------
-build:
+builds:
   skip: true
 # ---------------------------
 # Github Release

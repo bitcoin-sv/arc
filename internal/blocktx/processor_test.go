@@ -178,7 +178,7 @@ func TestHandleBlock(t *testing.T) {
 				GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
 				GetRegisteredTransactionsFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
@@ -491,7 +491,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
 				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size, txCount uint64) error {
@@ -813,7 +813,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 					for _, hash := range hashes {
 						require.Equal(t, testdata.TX1Hash[:], hash)
 					}

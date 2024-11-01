@@ -51,7 +51,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetLongestChainFromHeight method")
 //			},
-//			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+//			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 //				panic("mock out the GetMinedTransactions method")
 //			},
 //			GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
@@ -136,7 +136,7 @@ type BlocktxStoreMock struct {
 	GetLongestChainFromHeightFunc func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 
 	// GetMinedTransactionsFunc mocks the GetMinedTransactions method.
-	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error)
+	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error)
 
 	// GetOrphanedChainUpFromHashFunc mocks the GetOrphanedChainUpFromHash method.
 	GetOrphanedChainUpFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
@@ -258,6 +258,8 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// Hashes is the hashes argument value.
 			Hashes [][]byte
+			// OnlyLongestChain is the onlyLongestChain argument value.
+			OnlyLongestChain bool
 		}
 		// GetOrphanedChainUpFromHash holds details about calls to the GetOrphanedChainUpFromHash method.
 		GetOrphanedChainUpFromHash []struct {
@@ -733,21 +735,23 @@ func (mock *BlocktxStoreMock) GetLongestChainFromHeightCalls() []struct {
 }
 
 // GetMinedTransactions calls GetMinedTransactionsFunc.
-func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 	if mock.GetMinedTransactionsFunc == nil {
 		panic("BlocktxStoreMock.GetMinedTransactionsFunc: method is nil but BlocktxStore.GetMinedTransactions was just called")
 	}
 	callInfo := struct {
-		Ctx    context.Context
-		Hashes [][]byte
+		Ctx              context.Context
+		Hashes           [][]byte
+		OnlyLongestChain bool
 	}{
-		Ctx:    ctx,
-		Hashes: hashes,
+		Ctx:              ctx,
+		Hashes:           hashes,
+		OnlyLongestChain: onlyLongestChain,
 	}
 	mock.lockGetMinedTransactions.Lock()
 	mock.calls.GetMinedTransactions = append(mock.calls.GetMinedTransactions, callInfo)
 	mock.lockGetMinedTransactions.Unlock()
-	return mock.GetMinedTransactionsFunc(ctx, hashes)
+	return mock.GetMinedTransactionsFunc(ctx, hashes, onlyLongestChain)
 }
 
 // GetMinedTransactionsCalls gets all the calls that were made to GetMinedTransactions.
@@ -755,12 +759,14 @@ func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [
 //
 //	len(mockedBlocktxStore.GetMinedTransactionsCalls())
 func (mock *BlocktxStoreMock) GetMinedTransactionsCalls() []struct {
-	Ctx    context.Context
-	Hashes [][]byte
+	Ctx              context.Context
+	Hashes           [][]byte
+	OnlyLongestChain bool
 } {
 	var calls []struct {
-		Ctx    context.Context
-		Hashes [][]byte
+		Ctx              context.Context
+		Hashes           [][]byte
+		OnlyLongestChain bool
 	}
 	mock.lockGetMinedTransactions.RLock()
 	calls = mock.calls.GetMinedTransactions

@@ -398,7 +398,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		hashesBytes[i] = h[:]
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, false)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -409,6 +409,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 			BlockHash:       minedTx.BlockHash,
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
+			BlockStatus:     minedTx.BlockStatus,
 		}
 		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
 	}
@@ -515,7 +516,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 			return err
 		}
 	} else if chainTip.Status == blocktx_api.Status_LONGEST {
-		txsToPublish, err = p.store.GetRegisteredTransactions(ctx, chain.getHashes())
+		txsToPublish, err = p.store.GetRegisteredTxsByBlockHashes(ctx, chain.getHashes())
 		if err != nil {
 			p.logger.Error("unable to get registered transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
@@ -901,7 +902,7 @@ func (p *Processor) getStaleTxs(ctx context.Context, staleChain chain) ([]store.
 	// 2. Check for those transactions in the longest chain
 	// 3. Return only those registered txs from the STALE blocks that are not found in the longest chain
 
-	registeredTxs, err := p.store.GetRegisteredTransactions(ctx, staleChain.getHashes())
+	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, staleChain.getHashes())
 	if err != nil {
 		return nil, err
 	}
@@ -911,7 +912,7 @@ func (p *Processor) getStaleTxs(ctx context.Context, staleChain chain) ([]store.
 		registeredHashes[i] = tx.TxHash
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(ctx, registeredHashes)
+	minedTxs, err := p.store.GetMinedTransactions(ctx, registeredHashes, true)
 	if err != nil {
 		return nil, err
 	}

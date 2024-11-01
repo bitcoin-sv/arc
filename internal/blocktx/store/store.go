@@ -34,11 +34,10 @@ type BlocktxStore interface {
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
-	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]TransactionBlock, error)
+	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetRegisteredTransactions(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 

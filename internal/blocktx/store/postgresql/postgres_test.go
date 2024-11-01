@@ -390,9 +390,10 @@ func TestPostgresDB(t *testing.T) {
 
 		txHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 		txHash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
-		txHash3 := testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // should not be found - from STALE block
+		txHash3 := testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // from STALE block
 
 		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
+		blockHash2 := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
 
 		expectedTxs := []store.TransactionBlock{
 			{
@@ -409,10 +410,26 @@ func TestPostgresDB(t *testing.T) {
 				MerklePath:  "merkle-path-2",
 				BlockStatus: blocktx_api.Status_LONGEST,
 			},
+			{
+				TxHash:      txHash3[:],
+				BlockHash:   blockHash2[:],
+				BlockHeight: 822012,
+				MerklePath:  "merkle-path-6",
+				BlockStatus: blocktx_api.Status_STALE,
+			},
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
+		onlyLongestChain := true
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, onlyLongestChain)
+
+		// then
+		require.NoError(t, err)
+		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
+
+		// when
+		onlyLongestChain = false
+		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, onlyLongestChain)
 
 		// then
 		require.NoError(t, err)
@@ -451,7 +468,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetRegisteredTransactions(ctx, [][]byte{blockHash[:], blockHash2[:]})
+		actualTxs, err := postgresDB.GetRegisteredTxsByBlockHashes(ctx, [][]byte{blockHash[:], blockHash2[:]})
 
 		// then
 		require.NoError(t, err)
@@ -745,7 +762,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			// then
 			require.NoError(t, err)
 
-			res, err := sut.GetRegisteredTransactions(ctx, [][]byte{testBlockHash[:]})
+			res, err := sut.GetRegisteredTxsByBlockHashes(ctx, [][]byte{testBlockHash[:]})
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedUpdatedResLen, len(res))
@@ -829,7 +846,7 @@ func TestPostgresStore_UpsertBlockTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]})
+	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)

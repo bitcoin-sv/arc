@@ -153,6 +153,13 @@ func TestPostgresDB(t *testing.T) {
 			Height:       100,
 			Status:       blocktx_api.Status_LONGEST,
 		}
+		expectedBlockOverrideStatus := &blocktx_api.Block{
+			Hash:         blockHash2[:],
+			PreviousHash: blockHash1[:],
+			MerkleRoot:   merkleRoot[:],
+			Height:       100,
+			Status:       blocktx_api.Status_ORPHANED,
+		}
 
 		// when -> then
 		id, err := postgresDB.UpsertBlock(ctx, expectedBlock)
@@ -168,6 +175,16 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
+
+		// when
+		id, err = postgresDB.InsertBlock(ctx, expectedBlockOverrideStatus)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), id) // this should only update the status and retain the same ID
+
+		// then
+		actualBlockResp, err = postgresDB.GetBlock(ctx, blockHash2)
+		require.NoError(t, err)
+		require.Equal(t, expectedBlockOverrideStatus, actualBlockResp)
 	})
 
 	t.Run("get block by height / get chain tip", func(t *testing.T) {
@@ -210,23 +227,29 @@ func TestPostgresDB(t *testing.T) {
 		hash822019 := testutils.RevChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
 		hash822020 := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 		hash822009 := testutils.RevChainhash(t, "4ad773b1a464129a0ed8c7a8c71bb98175f0f01da1793f0e0000000000000000")
+		hash822017competing := testutils.RevChainhash(t, "00000000000000000d840fb91c0df3b057db04a0250c6d88b2f25aadcfc8410b")
 
 		expectedBlockGaps := []*store.BlockGap{
 			{ // gap
-				Height: 822019,
-				Hash:   hash822019,
+				Height: 822009,
+				Hash:   hash822009,
 			},
+			// block 11 is being processed
 			{ // gap
 				Height: 822014,
 				Hash:   hash822014,
 			},
+			{ // gap from competing chain
+				Height: 822017,
+				Hash:   hash822017competing,
+			},
+			{ // gap
+				Height: 822019,
+				Hash:   hash822019,
+			},
 			{ // processing not finished
 				Height: 822020,
 				Hash:   hash822020,
-			},
-			{ // gap
-				Height: 822009,
-				Hash:   hash822009,
 			},
 		}
 
@@ -235,7 +258,7 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 4, len(actualBlockGaps))
+		require.Equal(t, len(expectedBlockGaps), len(actualBlockGaps))
 		require.ElementsMatch(t, expectedBlockGaps, actualBlockGaps)
 	})
 

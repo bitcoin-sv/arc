@@ -29,6 +29,7 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		WHERE ((v.status = $8 OR v.status = $9) AND prevblock.id IS NULL)
 				OR prevblock.status = $5
 				OR (prevblock.status = $9 AND $5 = $10)
+		ON CONFLICT (hash) DO UPDATE SET status = EXCLUDED.status
 		RETURNING id
 	`
 

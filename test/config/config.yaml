@@ -19,13 +19,6 @@ peerRpc:
 
 broadcasting: # settings for connection to nodes
   mode: unicast # one of unicast | multicast
-  multicast:
-    ipv6Enabled: true # indicates whether ipv6 is enabled for multicasting
-    multicastGroups: # must be specified if mode = multicast
-    - "172.28.56.77" # address of multicast group, needs to be ipv6 address if ipv6 is enabled
-    interfaces:
-    - "eth0"
-    - "eth1"
   unicast:
     peers: # list of bitcoin node peers to connect to
     - host: node1

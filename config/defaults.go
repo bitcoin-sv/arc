@@ -17,7 +17,7 @@ func getDefaultArcConfig() *ArcConfig {
 		Network:            "regtest",
 		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            getDefaultTracingConfig(),
-		PeerRpc:            getDefaultPeerRpcConfig(),
+		PeerRpc:            getDefaultPeerRPCConfig(),
 		Broadcasting:       getBroadcastingConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
@@ -49,10 +49,10 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 
 func getBroadcastingConfig() *BroadcastingConfig {
 	return &BroadcastingConfig{
-		Mode:           "unicast",
-		Ipv6Enabled:    false,
-		MulticastGroup: nil,
-		Interfaces:     nil,
+		Mode:            "unicast",
+		Ipv6Enabled:     false,
+		MulticastGroups: nil,
+		Interfaces:      nil,
 		Peers: []*PeerConfig{
 			{
 				Host: "localhost",

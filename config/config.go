@@ -32,11 +32,18 @@ type ArcConfig struct {
 }
 
 type BroadcastingConfig struct {
-	Mode           string        `mapstructure:"mode"`
-	Ipv6Enabled    bool          `mapstructure:"ipv6Enabled"`
-	MulticastGroup []*string     `mapstructure:"multicastGroup"`
-	Peers          []*PeerConfig `mapstructure:"peers"`
-	Interfaces     []*string     `mapstructure:"interfaces"`
+	Mode      string      `mapstructure:"mode"`
+	Multicast *Mulsticast `mapstructure:"multicast"`
+	Unicast   *Unicast    `mapstructure:"unicast"`
+}
+
+type Unicast struct {
+	Peers []*PeerConfig `mapstructure:"peers"`
+}
+type Mulsticast struct {
+	Ipv6Enabled     bool      `mapstructure:"ipv6Enabled"`
+	MulticastGroups []*string `mapstructure:"multicastGroups"`
+	Interfaces      []*string `mapstructure:"interfaces"`
 }
 
 type PeerConfig struct {

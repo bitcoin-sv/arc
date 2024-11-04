@@ -20,7 +20,7 @@ peerRpc:
 broadcasting:
   mode: unicast
   ipv6Enabled: true
-  multicastGroup: 
+  multicastGroups: 
   - "172.28.56.77"
   - "172.28.56.78"
   peers: # list of bitcoin node peers to connect to

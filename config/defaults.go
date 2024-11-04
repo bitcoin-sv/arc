@@ -18,7 +18,7 @@ func getDefaultArcConfig() *ArcConfig {
 		MessageQueue:       getDefaultMessageQueueConfig(),
 		Tracing:            nil, // optional
 		PeerRpc:            getDefaultPeerRpcConfig(),
-		Broadcasting:       getPeersConfig(),
+		Broadcasting:       getBroadcastingConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
 		Api:                getApiConfig(),
@@ -47,7 +47,7 @@ func getDefaultPeerRpcConfig() *PeerRpcConfig {
 	}
 }
 
-func getPeersConfig() *BroadcastingConfig {
+func getBroadcastingConfig() *BroadcastingConfig {
 	return &BroadcastingConfig{
 		Mode:           "unicast",
 		Ipv6Enabled:    false,

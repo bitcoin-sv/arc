@@ -37,7 +37,7 @@ func Test_Load(t *testing.T) {
 		assert.Equal(t, "text", actualConfig.LogFormat)
 		assert.Equal(t, "mainnet", actualConfig.Network)
 		assert.Equal(t, 18335, actualConfig.Broadcasting.Unicast.Peers[2].Port.P2P)
-		assert.Equal(t, "172.28.56.77", actualConfig.Broadcasting.Multicast.MulticastGroups[0])
+		assert.Equal(t, "172.28.56.77", *actualConfig.Broadcasting.Multicast.MulticastGroups[0])
 		assert.Equal(t, true, actualConfig.Broadcasting.Multicast.Ipv6Enabled)
 		assert.Equal(t, "unicast", actualConfig.Broadcasting.Mode)
 		assert.Equal(t, "eth1", *actualConfig.Broadcasting.Multicast.Interfaces[1])

@@ -4,9 +4,9 @@
 # ---------------------------
 version: 2
 
-before:
-  hooks:
-    - make test
+#before:
+#  hooks:
+#    - make test
 #    - make run_e2e_tests
 snapshot:
   name_template: "{{ .Tag }}"

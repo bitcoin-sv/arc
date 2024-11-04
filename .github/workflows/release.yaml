@@ -6,7 +6,7 @@ on:
     tags:
       - "*"
     branches:
-      - 'feature/add-release-action'
+      - 'main'
 
 permissions:
   contents: write

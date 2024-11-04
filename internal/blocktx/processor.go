@@ -644,23 +644,37 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 }
 
 func (p *Processor) hasGreatestChainwork(ctx context.Context, competingChainTip *blocktx_api.Block) (bool, error) {
-	longestTip, err := p.store.GetChainTip(ctx)
-	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, competingChainTip.Hash)
+	if err != nil {
 		return false, err
 	}
 
-	// this can happen only in case the blocks table is empty
-	if longestTip == nil {
-		return true, nil
+	lowestHeight := competingChainTip.Height
+	if len(staleBlocks) > 0 {
+		lowestHeight = getLowestHeight(staleBlocks)
 	}
 
-	longestTipChainWork := new(big.Int)
-	longestTipChainWork.SetString(longestTip.Chainwork, 10)
+	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
+	if err != nil {
+		return false, err
+	}
 
-	competingTipChainwork := new(big.Int)
-	competingTipChainwork.SetString(competingChainTip.Chainwork, 10)
+	sumStaleChainwork := big.NewInt(0)
+	sumLongChainwork := big.NewInt(0)
 
-	return longestTipChainWork.Cmp(competingTipChainwork) < 0, nil
+	for _, b := range staleBlocks {
+		chainwork := new(big.Int)
+		chainwork.SetString(b.Chainwork, 10)
+		sumStaleChainwork = sumStaleChainwork.Add(sumStaleChainwork, chainwork)
+	}
+
+	for _, b := range longestBlocks {
+		chainwork := new(big.Int)
+		chainwork.SetString(b.Chainwork, 10)
+		sumLongChainwork = sumLongChainwork.Add(sumLongChainwork, chainwork)
+	}
+
+	return sumLongChainwork.Cmp(sumStaleChainwork) < 0, nil
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) error {
@@ -791,6 +805,8 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 		return nil, false, err
 	}
 
+	p.logger.Info("orphans were found and updated", slog.Int("len", len(orphanedBlocks)))
+
 	chain = append(chain, orphanedBlocks...)
 
 	// if we found any orphans and marked them as STALE
@@ -830,29 +846,44 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		return nil, err
 	}
 
-	staleHashes := make([][]byte, 0)
+	staleHashes := make([][]byte, len(staleBlocks))
 	longestHashes := make([][]byte, len(longestBlocks))
-	blockStatusUpdates := make([]store.BlockStatusUpdate, 0)
 
-	// Order of inserting into blockStatusUpdates is important here, we need to do:
-	// 1. LONGEST -> STALE
-	// 2. STALE -> LONGEST
-	// otherwise, a unique constraint on (height, is_longest) will be violated.
 	for i, b := range longestBlocks {
 		longestHashes[i] = b.Hash
-		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
-		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	for _, b := range staleBlocks {
-		staleHashes = append(staleHashes, b.Hash)
-		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
-		blockStatusUpdates = append(blockStatusUpdates, update)
+	for i, b := range staleBlocks {
+		staleHashes[i] = b.Hash
 	}
 
 	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
 	if err != nil {
 		return nil, err
+	}
+
+	// Order of inserting into blockStatusUpdates is important here, we need to do:
+	// 1. LONGEST -> STALE
+	// 2. STALE -> LONGEST
+	// otherwise, a unique constraint on (height, is_longest) might be violated.
+
+	// 1. LONGEST -> STALE
+	blockStatusUpdates := make([]store.BlockStatusUpdate, len(longestBlocks))
+	for i, b := range longestBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_STALE}
+		blockStatusUpdates[i] = update
+	}
+
+	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. STALE -> LONGEST
+	blockStatusUpdates = make([]store.BlockStatusUpdate, len(staleBlocks))
+	for _, b := range staleBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
+		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)

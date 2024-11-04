@@ -380,11 +380,12 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			orphanedChainTip := &blocktx_api.Block{
 				Hash:      testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")[:],
 				Status:    blocktx_api.Status_ORPHANED,
-				Chainwork: "34364008516618225545", // greatest chainwork - should cause reorg if STALE
+				Chainwork: "34364008516618225545", // greatest chainwork - should cause reorg if found
 			}
 
 			shouldReturnNoBlock := !tc.blockAlreadyExists
 			shouldCheckUpdateStatuses := true
+			comparingChainwork := true
 
 			txMock := &storeMocks.DbTransactionMock{
 				CommitFunc: func() error {
@@ -466,7 +467,33 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					return nil
 				},
 				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-					// this function is called ONLY when performing reorg
+					if comparingChainwork {
+						if tc.shouldFindOrphanChain {
+							require.Equal(t, orphanedChainTip.Hash, hash)
+							return []*blocktx_api.Block{orphanedChainTip}, nil
+						}
+						if tc.hasGreaterChainwork {
+							return []*blocktx_api.Block{
+								{
+									Chainwork: "62209952899966",
+								},
+								{
+									Chainwork: "42069",
+								},
+								{
+									Chainwork: "42069",
+								},
+							}, nil
+						} else {
+							return []*blocktx_api.Block{
+								{
+									Chainwork: "62209952899966",
+								},
+							}, nil
+						}
+					}
+
+					// if we get to this point, it means that reorg is happening
 					mtx.Lock()
 					insertedBlockStatus = blocktx_api.Status_LONGEST
 					if tc.shouldFindOrphanChain {
@@ -476,7 +503,18 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					mtx.Unlock()
 					return nil, nil
 				},
-				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
+				GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
+					if comparingChainwork {
+						comparingChainwork = false
+						return []*blocktx_api.Block{
+							{
+								Chainwork: "62209952899966",
+							},
+							{
+								Chainwork: "42069",
+							},
+						}, nil
+					}
 					return nil, nil
 				},
 				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error {

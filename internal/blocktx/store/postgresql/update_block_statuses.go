@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -28,7 +29,7 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 
 	_, err := p.db.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(is_longest))
 	if err != nil {
-		return store.ErrFailedToUpdateBlockStatuses
+		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
 	}
 
 	return nil

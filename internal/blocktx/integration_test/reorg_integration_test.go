@@ -26,7 +26,7 @@ package integrationtest
 // 		14. The tip of the orphaned chain has a greater chainwork than the current tip of longest chain
 // 			- entire STALE chain at heights 822015 - 822023 becomes LONGEST
 // 			- entire LONGEST chain at height 822015 - 822016 becomes STALE
-// 		15. Verification of reorg - checking if statuses are correctly switched (only for blocks this time, not for transactions)
+// 		15. Verification of reorg - checking if statuses are correctly switched (for blocks and for transactions)
 
 import (
 	"context"
@@ -218,7 +218,7 @@ func testHandleBlockOnEmptyDatabase(t *testing.T, peerHandler *blocktx.PeerHandl
 }
 
 func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
-	prevBlockHash := testutils.RevChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+	prevBlockHash := testutils.RevChainhash(t, blockHash822014_startOfChain)
 	txHash := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 	txHash2 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430") // should not be published - is already in the longest chain
 	treeStore := bc.BuildMerkleTreeStoreChainHash([]*chainhash.Hash{txHash, txHash2})
@@ -271,7 +271,7 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 			Version:    541065216,
 			PrevBlock:  *prevhash, // block with status STALE at height 822015
 			MerkleRoot: *merkleRoot,
-			Bits:       0x1a05db8b, // chainwork: "12301577519373468" higher than the competing block
+			Bits:       0x1a05db8b, // chainwork: "12301577519373468" higher than the competing chain
 		},
 		Height:            uint64(822016), // competing block already exists at this height
 		TransactionHashes: []*chainhash.Hash{txHash, txHash2},
@@ -292,6 +292,7 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 	verifyBlock(t, store, blockHash822017, 822017, blocktx_api.Status_STALE)
 
 	verifyBlock(t, store, blockHash822014_startOfChain, 822014, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822019_orphan, 822019, blocktx_api.Status_ORPHANED)
 
 	previouslyLongestBlockHash := testutils.RevChainhash(t, blockHash822017)
 
@@ -336,7 +337,7 @@ func testHandleStaleOrphans(t *testing.T, peerHandler *blocktx.PeerHandler, stor
 			Version:    541065216,
 			PrevBlock:  *prevhash, // block with status STALE at height 822017
 			MerkleRoot: *merkleRoot,
-			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing block
+			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing chain
 		},
 		Height:            uint64(822018),
 		TransactionHashes: []*chainhash.Hash{txHash},
@@ -369,8 +370,8 @@ func testHandleOrphansReorg(t *testing.T, peerHandler *blocktx.PeerHandler, stor
 			Version:    541065216,
 			PrevBlock:  *prevhash, // block with status STALE at height 822020
 			MerkleRoot: *merkleRoot,
-			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing block
-			// but the tip of orphan chain has a higher chainwork and should cause a reorg
+			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing chain
+			// but the sum of orphan chain has a higher chainwork and should cause a reorg
 		},
 		Height:            uint64(822021),
 		TransactionHashes: []*chainhash.Hash{txHash},

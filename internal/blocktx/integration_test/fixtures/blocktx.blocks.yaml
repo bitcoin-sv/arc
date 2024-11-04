@@ -8,6 +8,7 @@
   size: 86840000
   tx_count: 23477
   status: 10
+  is_longest: true
   chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:30:00
   id: 1002
@@ -19,6 +20,7 @@
   size: 20160000
   tx_count: 6523
   status: 10
+  is_longest: true
   chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:40:00
   id: 1003
@@ -30,6 +32,7 @@
   size: 299650000
   tx_count: 62162
   status: 10
+  is_longest: true
   chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:50:00
   id: 1004
@@ -40,6 +43,7 @@
   size: 8630000
   tx_count: 36724
   status: 10
+  is_longest: true
   chainwork: '62209952899966'
 
 # gap
@@ -53,6 +57,7 @@
   size: 8630000
   tx_count: 36724
   status: 30 # ORPHANED
+  is_longest: false
   chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:50:00
   id: 1006
@@ -63,10 +68,10 @@
   size: 8630000
   tx_count: 36724
   status: 30 # ORPHANED
+  is_longest: false
   chainwork: '62209952899966'
 
 # gap
-
 
 - inserted_at: 2023-12-15 14:50:00
   id: 1007
@@ -77,6 +82,7 @@
   size: 8630000
   tx_count: 36724
   status: 30 # ORPHANED
+  is_longest: false
   chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:50:00
   id: 1008
@@ -87,4 +93,5 @@
   size: 8630000
   tx_count: 36724
   status: 30 # ORPHANED
-  chainwork: '34364008516618225545'
+  is_longest: false
+  chainwork: '12301481384759134'

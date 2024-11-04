@@ -21,7 +21,7 @@ type ArcConfig struct {
 	Network            string              `mapstructure:"network"`
 	MessageQueue       *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing            *TracingConfig      `mapstructure:"tracing"`
-	PeerRpc            *PeerRpcConfig      `mapstructure:"peerRpc"`
+	PeerRpc            *PeerRPCConfig      `mapstructure:"peerRpc"`
 	Broadcasting       *BroadcastingConfig `mapstructure:"broadcasting"`
 	Metamorph          *MetamorphConfig    `mapstructure:"metamorph"`
 	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`

@@ -101,8 +101,8 @@ type Processor struct {
 	processMinedInterval  time.Duration
 	processMinedBatchSize int
 
-	tracingEnabled bool
-	attributes     []attribute.KeyValue
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 type Option func(f *Processor)
@@ -298,7 +298,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 }
 
 func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
-	_, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.attributes...)
+	_, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
@@ -441,7 +441,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
-	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	if len(statusUpdatesMap) == 0 {
@@ -466,7 +466,7 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	var updatedData []*store.Data
@@ -535,7 +535,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.attributes...)
+				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.tracingAttributes...)
 
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
@@ -586,7 +586,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
-				ctx, span := tracing.StartTracing(p.ctx, "StartProcessExpiredTransactions", p.tracingEnabled, p.attributes...)
+				ctx, span := tracing.StartTracing(p.ctx, "StartProcessExpiredTransactions", p.tracingEnabled, p.tracingAttributes...)
 
 				// define from what point in time we are interested in unmined transactions
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
@@ -652,7 +652,7 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
-	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
@@ -739,7 +739,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
-	_, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.attributes...)
+	_, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	// store in database

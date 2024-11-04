@@ -11,7 +11,7 @@ import (
 )
 
 func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
-	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	var hashSlice [][]byte

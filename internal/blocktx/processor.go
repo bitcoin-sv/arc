@@ -58,7 +58,7 @@ type Processor struct {
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
 	tracingEnabled              bool
-	attributes                  []attribute.KeyValue
+	tracingAttributes           []attribute.KeyValue
 	processGuardsMap            sync.Map
 
 	waitGroup *sync.WaitGroup
@@ -412,7 +412,7 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 }
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
-	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.attributes...)
+	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	return bc.BuildMerkleTreeStoreChainHash(txids)
@@ -421,7 +421,7 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
 
-	ctx, span := tracing.StartTracing(ctx, "HandleBlock", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "HandleBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	timeStart := time.Now()
@@ -616,7 +616,7 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
@@ -634,7 +634,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 	now := time.Now()
 
 	var iterateMerkleTree trace.Span
-	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.attributes...)
+	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.

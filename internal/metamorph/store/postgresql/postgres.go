@@ -25,11 +25,11 @@ const (
 )
 
 type PostgreSQL struct {
-	db             *sql.DB
-	hostname       string
-	now            func() time.Time
-	tracingEnabled bool
-	attributes     []attribute.KeyValue
+	db                *sql.DB
+	hostname          string
+	now               func() time.Time
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -41,7 +41,7 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 func WithTracing(attr []attribute.KeyValue) func(*PostgreSQL) {
 	return func(p *PostgreSQL) {
 		p.tracingEnabled = true
-		p.attributes = attr
+		p.tracingAttributes = attr
 	}
 }
 
@@ -281,7 +281,7 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 
 // Set stores a single record in the transactions table.
 func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) error {
-	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	q := `INSERT INTO metamorph.transactions (

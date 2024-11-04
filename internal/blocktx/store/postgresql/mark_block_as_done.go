@@ -9,7 +9,7 @@ import (
 )
 
 func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
-	ctx, span := tracing.StartTracing(ctx, "MarkBlockAsDone", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "MarkBlockAsDone", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	q := `

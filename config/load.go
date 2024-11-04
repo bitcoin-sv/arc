@@ -39,15 +39,15 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 	}
 
 	if arcConfig.Tracing != nil {
-		attributes := make([]attribute.KeyValue, len(arcConfig.Tracing.Attributes))
+		tracingAttributes := make([]attribute.KeyValue, len(arcConfig.Tracing.Attributes))
 		index := 0
 		for key, value := range arcConfig.Tracing.Attributes {
-			attributes[index] = attribute.String(key, value)
+			tracingAttributes[index] = attribute.String(key, value)
 			index++
 		}
 
-		if len(attributes) > 0 {
-			arcConfig.Tracing.KeyValueAttributes = attributes
+		if len(tracingAttributes) > 0 {
+			arcConfig.Tracing.KeyValueAttributes = tracingAttributes
 		}
 	}
 

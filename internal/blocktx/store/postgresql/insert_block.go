@@ -10,7 +10,7 @@ import (
 )
 
 func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-	ctx, span := tracing.StartTracing(ctx, "UpsertBlock", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "UpsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	qInsert := `

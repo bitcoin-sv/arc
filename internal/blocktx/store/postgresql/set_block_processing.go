@@ -39,7 +39,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-	ctx, span := tracing.StartTracing(ctx, "DelBlockProcessing", p.tracingEnabled, p.attributes...)
+	ctx, span := tracing.StartTracing(ctx, "DelBlockProcessing", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	q := `

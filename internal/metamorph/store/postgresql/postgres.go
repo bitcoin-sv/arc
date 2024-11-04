@@ -12,13 +12,12 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 const (
@@ -282,8 +281,8 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 
 // Set stores a single record in the transactions table.
 func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) error {
-	ctx, span := p.startTracing(ctx, "Set")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
@@ -1051,28 +1050,4 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	}
 
 	return stats, nil
-}
-func (p *PostgreSQL) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		tracer := otel.Tracer("")
-		if tracer == nil {
-			return ctx, nil
-		}
-
-		if len(p.attributes) > 0 {
-			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(p.attributes...))
-			return ctx, span
-		}
-
-		ctx, span = tracer.Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *PostgreSQL) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

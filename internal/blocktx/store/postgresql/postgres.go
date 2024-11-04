@@ -7,9 +7,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // nolint: revive // required for postgres driver
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
@@ -76,28 +74,4 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	}
 
 	return r.Close()
-}
-func (p *PostgreSQL) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		tracer := otel.Tracer("")
-		if tracer == nil {
-			return ctx, nil
-		}
-
-		if len(p.attributes) > 0 {
-			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(p.attributes...))
-			return ctx, span
-		}
-
-		ctx, span = tracer.Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *PostgreSQL) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

@@ -6,11 +6,12 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-	ctx, span := p.startTracing(ctx, "UpsertBlock")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "UpsertBlock", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)

@@ -16,12 +16,12 @@ import (
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 var (
@@ -412,8 +412,8 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 }
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
-	_, span := p.startTracing(ctx, "buildMerkleTreeStoreChainHash")
-	defer p.endTracing(span)
+	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
@@ -421,8 +421,8 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
 
-	ctx, span := p.startTracing(ctx, "HandleBlock")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "HandleBlock", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	timeStart := time.Now()
 
@@ -616,8 +616,8 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-	ctx, span := p.startTracing(ctx, "markTransactionsAsMined")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
@@ -634,7 +634,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 	now := time.Now()
 
 	var iterateMerkleTree trace.Span
-	ctx, iterateMerkleTree = p.startTracing(ctx, "iterateMerkleTree")
+	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.attributes...)
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -686,7 +686,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 		}
 	}
 
-	p.endTracing(iterateMerkleTree)
+	tracing.EndTracing(iterateMerkleTree)
 
 	// update all remaining transactions
 	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
@@ -732,29 +732,4 @@ func (p *Processor) Shutdown() {
 // GetBlockRequestCh is for testing purposes only
 func (p *Processor) GetBlockRequestCh() chan BlockRequest {
 	return p.blockRequestCh
-}
-
-func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		tracer := otel.Tracer("")
-		if tracer == nil {
-			return ctx, nil
-		}
-
-		if len(p.attributes) > 0 {
-			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(p.attributes...))
-			return ctx, span
-		}
-
-		ctx, span = otel.Tracer("").Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *Processor) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

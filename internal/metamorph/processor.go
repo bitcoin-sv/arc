@@ -11,15 +11,14 @@ import (
 
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 const (
@@ -299,8 +298,8 @@ func (p *Processor) StartProcessMinedCallbacks() {
 }
 
 func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
-	_, span := p.startTracing(ctx, "updateMined")
-	defer p.endTracing(span)
+	_, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
 	if err != nil {
@@ -442,8 +441,8 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
-	ctx, span := p.startTracing(ctx, "checkAndUpdate")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	if len(statusUpdatesMap) == 0 {
 		return
@@ -467,8 +466,8 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	ctx, span := p.startTracing(ctx, "statusUpdateWithCallback")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	var updatedData []*store.Data
 	var err error
@@ -536,7 +535,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := p.startTracing(p.ctx, "StartRequestingSeenOnNetworkTxs")
+				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.attributes...)
 
 				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkSince := p.now().Add(-1 * p.seenOnNetworkTxTime)
@@ -570,7 +569,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", totalSeenOnNetworkTxs))
 				}
 
-				p.endTracing(span)
+				tracing.EndTracing(span)
 			}
 		}
 	}()
@@ -587,7 +586,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
-				ctx, span := p.startTracing(p.ctx, "StartProcessExpiredTransactions")
+				ctx, span := tracing.StartTracing(p.ctx, "StartProcessExpiredTransactions", p.tracingEnabled, p.attributes...)
 
 				// define from what point in time we are interested in unmined transactions
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
@@ -641,7 +640,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnminedSince))
 				}
 
-				p.endTracing(span)
+				tracing.EndTracing(span)
 			}
 		}
 	}()
@@ -653,8 +652,8 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
-	ctx, span := p.startTracing(ctx, "ProcessTransaction")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
@@ -740,8 +739,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
-	_, span := p.startTracing(ctx, "ProcessTransactions")
-	defer p.endTracing(span)
+	_, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.attributes...)
+	defer tracing.EndTracing(span)
 
 	// store in database
 	err := p.store.SetBulk(p.ctx, sReq)
@@ -811,29 +810,4 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 		}
 	}
 	return false
-}
-
-func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		tracer := otel.Tracer("")
-		if tracer == nil {
-			return ctx, nil
-		}
-
-		if len(p.attributes) > 0 {
-			ctx, span = tracer.Start(ctx, spanName, trace.WithAttributes(p.attributes...))
-			return ctx, span
-		}
-
-		ctx, span = tracer.Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *Processor) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

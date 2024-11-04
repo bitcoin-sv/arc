@@ -28,16 +28,18 @@ broadcasting: # settings for connection to nodes
     - "eth1"
   unicast:
     peers: # list of bitcoin node peers to connect to
-    - host: localhost
+    - host: node1
       port:
-        p2p: 18333 # port for p2p connection
-        zmq: 28332 # port for zmq connection
-    - host: localhost
+        p2p: 18333
+        zmq: 28332
+    - host: node2
       port:
-        p2p: 18334
-    - host: localhost
+        p2p: 18333
+        zmq: 28332
+    - host: node3
       port:
-        p2p: 18335
+        p2p: 18333
+        zmq: 28332
 
 cache:
   engine: redis

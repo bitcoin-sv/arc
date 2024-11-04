@@ -7,16 +7,35 @@ version: 2
 before:
   hooks:
     - make test
-#    - make run_e2e_tests
+    - make run_e2e_tests
 snapshot:
   name_template: "{{ .Tag }}"
 changelog:
   sort: asc
-  filters:
-    exclude:
-      - '^.github:'
-      - '^.vscode:'
-      - '^test:'
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(.+)\(deps\)!?:.+$'
+      order: 300
+    - title: "New Features"
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 100
+    - title: "Security updates"
+      regexp: '^.*?sec(\(.+\))??!?:.+$'
+      order: 150
+    - title: "Bug fixes"
+      regexp: '^.*?(fix)(\(.+\))??!?:.+$'
+      order: 200
+    - title: "Refactor"
+      regexp: '^.*?(refactor)(\(.+\))??!?:.+$'
+      order: 300
+    - title: "Documentation updates"
+      regexp: '^.*?docs?(\(.+\))??!?:.+$'
+      order: 400
+    - title: "Build process updates"
+      regexp: '^.*?(build|ci)(\(.+\))??!?:.+$'
+      order: 400
+    - title: Other work
+      order: 9999
 
 
 # ---------------------------
@@ -33,7 +52,7 @@ release:
   name_template: "Release v{{.Version}}"
   footer: |
     ## Full Changelog: 
-    You can find fll changelog here: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
+    You can find full changelog here: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
     
     ## Docker Image:
     You can find docker container at [Docker Hub](https://hub.docker.com/r/bsvb/arc)

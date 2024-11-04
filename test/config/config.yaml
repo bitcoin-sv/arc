@@ -11,6 +11,13 @@ messageQueue:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
+tracing:
+  enabled: false
+  dialAddr: http://arc-jaeger:4317
+  attributes:
+    testKey1: testAttribute1
+    testKey2: testAttribute2
+
 peerRpc:
   password: bitcoin
   user: bitcoin
@@ -123,7 +130,7 @@ api:
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
   requestExtendedLogs: true
-  
+
 callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: arc-callbacker:8021

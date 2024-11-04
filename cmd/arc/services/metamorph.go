@@ -60,8 +60,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
 
-	tracingEnabled := false
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
+	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
@@ -69,10 +68,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		tracingEnabled = true
-
-		optsServer = append(optsServer, metamorph.WithTracer())
-		processorOpts = append(processorOpts, metamorph.WithProcessorTracer())
+		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	stopFn := func() {
@@ -81,7 +77,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		logger.Info("Shutdown complete")
 	}
 
-	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, tracingEnabled)
+	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, arcConfig.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
@@ -122,7 +118,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracingEnabled)
+	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -179,7 +175,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 
 	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
-		metamorphStore, processor, optsServer...)
+		metamorphStore, processor, arcConfig.Tracing, optsServer...)
 
 	if err != nil {
 		stopFn()
@@ -230,7 +226,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	return stopFn, nil
 }
 
-func NewMetamorphStore(dbConfig *config.DbConfig, tracingEnabled bool) (s store.MetamorphStore, err error) {
+func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.MetamorphStore, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -246,8 +242,8 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingEnabled bool) (s store.
 		)
 
 		opts := make([]func(postgreSQL *postgresql.PostgreSQL), 0)
-		if tracingEnabled {
-			opts = append(opts, postgresql.WithTracing())
+		if tracingConfig != nil && tracingConfig.IsEnabled() {
+			opts = append(opts, postgresql.WithTracing(tracingConfig.KeyValueAttributes))
 		}
 
 		s, err = postgresql.New(dbInfo, hostname, postgres.MaxIdleConns, postgres.MaxOpenConns, opts...)
@@ -307,8 +303,8 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	return pm, peerHandler, messageCh, nil
 }
 
-func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingEnabled bool) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingEnabled)
+func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

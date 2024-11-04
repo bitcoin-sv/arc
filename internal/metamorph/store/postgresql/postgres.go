@@ -12,12 +12,12 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 const (
@@ -25,10 +25,11 @@ const (
 )
 
 type PostgreSQL struct {
-	db             *sql.DB
-	hostname       string
-	now            func() time.Time
-	tracingEnabled bool
+	db                *sql.DB
+	hostname          string
+	now               func() time.Time
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -37,9 +38,10 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	}
 }
 
-func WithTracing() func(*PostgreSQL) {
+func WithTracing(attr []attribute.KeyValue) func(*PostgreSQL) {
 	return func(p *PostgreSQL) {
 		p.tracingEnabled = true
+		p.tracingAttributes = attr
 	}
 }
 
@@ -279,8 +281,8 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 
 // Set stores a single record in the transactions table.
 func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) error {
-	ctx, span := p.startTracing(ctx, "Set")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
 
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
@@ -1048,18 +1050,4 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	}
 
 	return stats, nil
-}
-func (p *PostgreSQL) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		ctx, span = otel.Tracer("").Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *PostgreSQL) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

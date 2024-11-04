@@ -3,10 +3,12 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
-	"github.com/spf13/viper"
 	"os"
 	"strings"
+
+	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -33,7 +35,20 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 
 	err = viper.Unmarshal(arcConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
+	}
+
+	if arcConfig.Tracing != nil {
+		tracingAttributes := make([]attribute.KeyValue, len(arcConfig.Tracing.Attributes))
+		index := 0
+		for key, value := range arcConfig.Tracing.Attributes {
+			tracingAttributes[index] = attribute.String(key, value)
+			index++
+		}
+
+		if len(tracingAttributes) > 0 {
+			arcConfig.Tracing.KeyValueAttributes = tracingAttributes
+		}
 	}
 
 	return arcConfig, nil

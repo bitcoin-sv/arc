@@ -46,7 +46,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	shutdownFns := make([]func(), 0)
 
 	tracingEnabled := false
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
+	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
@@ -68,7 +68,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, tracingEnabled)
+	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, arcConfig.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -108,7 +108,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithMessageQueueClient(mqClient),
 	}
 	if tracingEnabled {
-		processorOpts = append(processorOpts, blocktx.WithTracer())
+		processorOpts = append(processorOpts, blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
@@ -171,7 +171,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
 
 	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
-		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, tracingEnabled)
+		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -192,7 +192,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	return stopFn, nil
 }
 
-func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnabled bool) (s store.BlocktxStore, err error) {
+func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.BlocktxStore, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
 		postgres := dbConfig.Postgres
@@ -208,8 +208,8 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnab
 		)
 
 		var postgresOpts []func(handler *postgresql.PostgreSQL)
-		if tracingEnabled {
-			postgresOpts = append(postgresOpts, postgresql.WithTracer())
+		if tracingConfig != nil && tracingConfig.IsEnabled() {
+			postgresOpts = append(postgresOpts, postgresql.WithTracer(tracingConfig.KeyValueAttributes...))
 		}
 
 		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns, postgresOpts...)

@@ -24,6 +24,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coocood/freecache"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -31,12 +38,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/coocood/freecache"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/require"
 )
 
 const (

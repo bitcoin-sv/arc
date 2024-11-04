@@ -7,11 +7,12 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
-	ctx, span := p.startTracing(ctx, "GetMinedTransactions")
-	defer p.endTracing(span)
+	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
 
 	var hashSlice [][]byte
 	for _, hash := range hashes {

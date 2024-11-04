@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -42,7 +43,18 @@ type MessageQueueStreaming struct {
 }
 
 type TracingConfig struct {
-	DialAddr string `mapstructure:"dialAddr"`
+	Enabled            bool              `mapstructure:"enabled"`
+	DialAddr           string            `mapstructure:"dialAddr"`
+	Attributes         map[string]string `mapstructure:"attributes"`
+	KeyValueAttributes []attribute.KeyValue
+}
+
+func (a *ArcConfig) IsTracingEnabled() bool {
+	return a.Tracing != nil && a.Tracing.IsEnabled()
+}
+
+func (t *TracingConfig) IsEnabled() bool {
+	return t.Enabled && t.DialAddr != ""
 }
 
 type PeerRPCConfig struct {

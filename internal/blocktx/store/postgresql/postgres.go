@@ -7,8 +7,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // nolint: revive // required for postgres driver
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
@@ -23,6 +22,7 @@ type PostgreSQL struct {
 	now                       func() time.Time
 	maxPostgresBulkInsertRows int
 	tracingEnabled            bool
+	tracingAttributes         []attribute.KeyValue
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -31,9 +31,12 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	}
 }
 
-func WithTracer() func(handler *PostgreSQL) {
-	return func(p *PostgreSQL) {
-		p.tracingEnabled = true
+func WithTracer(attr ...attribute.KeyValue) func(s *PostgreSQL) {
+	return func(m *PostgreSQL) {
+		m.tracingEnabled = true
+		if len(attr) > 0 {
+			m.tracingAttributes = append(m.tracingAttributes, attr...)
+		}
 	}
 }
 
@@ -73,18 +76,4 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	}
 
 	return r.Close()
-}
-func (p *PostgreSQL) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	if p.tracingEnabled {
-		var span trace.Span
-		ctx, span = otel.Tracer("").Start(ctx, spanName)
-		return ctx, span
-	}
-	return ctx, nil
-}
-
-func (p *PostgreSQL) endTracing(span trace.Span) {
-	if span != nil {
-		span.End()
-	}
 }

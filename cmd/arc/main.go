@@ -15,7 +15,7 @@ import (
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/logger"
+	arcLogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/version"
 )
 
@@ -40,7 +40,7 @@ func run() error {
 		return config.DumpConfig(dumpConfigFile)
 	}
 
-	logger, err := logger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
+	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}

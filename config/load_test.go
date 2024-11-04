@@ -41,6 +41,7 @@ func Test_Load(t *testing.T) {
 		assert.Equal(t, true, actualConfig.Broadcasting.Multicast.Ipv6Enabled)
 		assert.Equal(t, "unicast", actualConfig.Broadcasting.Mode)
 		assert.Equal(t, "eth1", *actualConfig.Broadcasting.Multicast.Interfaces[1])
+		assert.Equal(t, 18335, actualConfig.Broadcasting.Unicast.Peers[2].Port.P2P)
 		assert.NotNil(t, actualConfig.Tracing)
 		assert.Equal(t, "http://tracing:1234", actualConfig.Tracing.DialAddr)
 	})

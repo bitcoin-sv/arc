@@ -10,6 +10,10 @@ version: 2
 #    - make run_e2e_tests
 snapshot:
   name_template: "{{ .Tag }}"
+  
+# ---------------------------
+# Changelog
+# ---------------------------
 changelog:
   sort: asc
   groups:

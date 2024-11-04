@@ -191,7 +191,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	for i, peerSetting := range arcConfig.Broadcasting.Peers {
+	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
 			logger.Warn("failed to get zmq URL for peer", slog.Int("index", i), slog.String("err", err.Error()))
@@ -287,7 +287,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
 
-	for _, peerSetting := range arcConfig.Broadcasting.Peers {
+	for _, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerUrl, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error getting peer url: %v", err)

@@ -49,7 +49,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	}
 	opts := make([]grpc.ServerOption, 0)
 
-	if tracingConfig != nil && tracingConfig.Enabled {
+	if tracingConfig != nil && tracingConfig.IsEnabled() {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
 
@@ -105,7 +105,7 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingCo
 	)
 	opts := make([]grpc.DialOption, 0)
 
-	if tracingConfig != nil && tracingConfig.Enabled {
+	if tracingConfig != nil && tracingConfig.IsEnabled() {
 		opts = append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	}
 

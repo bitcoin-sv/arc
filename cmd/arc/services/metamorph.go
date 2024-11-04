@@ -60,7 +60,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
 
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" && arcConfig.Tracing.Enabled {
+	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
@@ -242,7 +242,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 		)
 
 		opts := make([]func(postgreSQL *postgresql.PostgreSQL), 0)
-		if tracingConfig != nil && tracingConfig.Enabled {
+		if tracingConfig != nil && tracingConfig.IsEnabled() {
 			opts = append(opts, postgresql.WithTracing(tracingConfig.KeyValueAttributes))
 		}
 

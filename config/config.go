@@ -49,6 +49,14 @@ type TracingConfig struct {
 	KeyValueAttributes []attribute.KeyValue
 }
 
+func (a *ArcConfig) IsTracingEnabled() bool {
+	return a.Tracing != nil && a.Tracing.IsEnabled()
+}
+
+func (t *TracingConfig) IsEnabled() bool {
+	return t.Enabled && t.DialAddr != ""
+}
+
 type PeerRPCConfig struct {
 	Password string `mapstructure:"password"`
 	User     string `mapstructure:"user"`

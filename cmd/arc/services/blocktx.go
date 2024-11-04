@@ -46,7 +46,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	shutdownFns := make([]func(), 0)
 
 	tracingEnabled := false
-	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" && arcConfig.Tracing.Enabled {
+	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
@@ -208,7 +208,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 		)
 
 		var postgresOpts []func(handler *postgresql.PostgreSQL)
-		if tracingConfig != nil && tracingConfig.Enabled {
+		if tracingConfig != nil && tracingConfig.IsEnabled() {
 			postgresOpts = append(postgresOpts, postgresql.WithTracer(tracingConfig.KeyValueAttributes...))
 		}
 

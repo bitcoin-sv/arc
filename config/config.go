@@ -34,7 +34,7 @@ type ArcConfig struct {
 type BroadcastingConfig struct {
 	Mode           string        `mapstructure:"mode"`
 	Ipv6Enabled    bool          `mapstructure:"ipv6Enabled"`
-	MulticastGroup string        `mapstructure:"multicastGroup"`
+	MulticastGroup []*string     `mapstructure:"multicastGroup"`
 	Peers          []*PeerConfig `mapstructure:"peers"`
 	Interfaces     []*string     `mapstructure:"interfaces"`
 }

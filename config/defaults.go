@@ -51,7 +51,7 @@ func getBroadcastingConfig() *BroadcastingConfig {
 	return &BroadcastingConfig{
 		Mode:           "unicast",
 		Ipv6Enabled:    false,
-		MulticastGroup: "",
+		MulticastGroup: nil,
 		Interfaces:     nil,
 		Peers: []*PeerConfig{
 			{

@@ -11,18 +11,18 @@ messageQueue:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
+tracing:
+  enabled: false
+  dialAddr: http://arc-jaeger:4317
+  attributes:
+    testKey1: testAttribute1
+    testKey2: testAttribute2
+
 peerRpc:
   password: bitcoin
   user: bitcoin
   host: node1
   port: 18332
-
-tracing:
-  enabled: true
-  dialAddr: http://arc-jaeger:4317
-  attributes:
-    testKey1: testAttribute1
-    testKey2: testAttribute2
 
 peers:
   - host: node1

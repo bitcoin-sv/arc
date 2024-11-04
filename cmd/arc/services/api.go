@@ -66,8 +66,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		mtmOpts = append(mtmOpts, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes))
-		apiOpts = append(apiOpts, handler.WithTracer(arcConfig.Tracing.KeyValueAttributes))
+		mtmOpts = append(mtmOpts, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		apiOpts = append(apiOpts, handler.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)

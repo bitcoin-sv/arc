@@ -74,10 +74,12 @@ func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 }
 
 // WithTracer sets the tracer to be used for tracing
-func WithTracer(attr []attribute.KeyValue) func(s *Server) {
+func WithTracer(attr ...attribute.KeyValue) func(s *Server) {
 	return func(s *Server) {
 		s.tracingEnabled = true
-		s.attributes = attr
+		if len(attr) > 0 {
+			s.tracingAttributes = append(s.tracingAttributes, attr...)
+		}
 	}
 }
 

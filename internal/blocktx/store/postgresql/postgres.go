@@ -31,10 +31,12 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	}
 }
 
-func WithTracer(attr []attribute.KeyValue) func(handler *PostgreSQL) {
-	return func(p *PostgreSQL) {
-		p.tracingEnabled = true
-		p.tracingAttributes = attr
+func WithTracer(attr ...attribute.KeyValue) func(s *PostgreSQL) {
+	return func(m *PostgreSQL) {
+		m.tracingEnabled = true
+		if len(attr) > 0 {
+			m.tracingAttributes = append(m.tracingAttributes, attr...)
+		}
 	}
 }
 

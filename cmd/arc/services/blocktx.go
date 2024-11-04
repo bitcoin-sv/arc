@@ -108,7 +108,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithMessageQueueClient(mqClient),
 	}
 	if tracingEnabled {
-		processorOpts = append(processorOpts, blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes))
+		processorOpts = append(processorOpts, blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
@@ -209,7 +209,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 
 		var postgresOpts []func(handler *postgresql.PostgreSQL)
 		if tracingConfig != nil && tracingConfig.Enabled {
-			postgresOpts = append(postgresOpts, postgresql.WithTracer(tracingConfig.KeyValueAttributes))
+			postgresOpts = append(postgresOpts, postgresql.WithTracer(tracingConfig.KeyValueAttributes...))
 		}
 
 		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns, postgresOpts...)

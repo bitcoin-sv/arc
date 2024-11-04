@@ -69,10 +69,12 @@ func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*A
 	}
 }
 
-func WithTracer(attr []attribute.KeyValue) func(*ArcDefaultHandler) {
+func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 	return func(a *ArcDefaultHandler) {
 		a.tracingEnabled = true
-		a.tracingAttributes = attr
+		if len(attr) > 0 {
+			a.tracingAttributes = append(a.tracingAttributes, attr...)
+		}
 	}
 }
 

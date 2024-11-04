@@ -78,10 +78,12 @@ func WithLogger(logger *slog.Logger) func(*Metamorph) {
 	}
 }
 
-func WithTracer(attr []attribute.KeyValue) func(*Metamorph) {
+func WithTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
 	return func(m *Metamorph) {
 		m.tracingEnabled = true
-		m.tracingAttributes = attr
+		if len(attr) > 0 {
+			m.tracingAttributes = append(m.tracingAttributes, attr...)
+		}
 	}
 }
 

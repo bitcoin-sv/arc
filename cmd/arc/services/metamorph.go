@@ -68,7 +68,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes))
+		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	stopFn := func() {

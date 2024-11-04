@@ -60,9 +60,11 @@ func WithRegisterRequestTxsBatchSize(size int) func(handler *Processor) {
 	}
 }
 
-func WithTracer(attr []attribute.KeyValue) func(handler *Processor) {
+func WithTracer(attr ...attribute.KeyValue) func(s *Processor) {
 	return func(p *Processor) {
 		p.tracingEnabled = true
-		p.tracingAttributes = attr
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
 	}
 }

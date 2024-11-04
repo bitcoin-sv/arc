@@ -32,8 +32,9 @@ release:
   prerelease: false
   name_template: "Release v{{.Version}}"
   footer: |
-    ##Full Changelog: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
+    ## Full Changelog: 
+    You can find fll changelog here: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
     
-    ##Docker Image:
+    ## Docker Image:
     You can find docker container at [Docker Hub](https://hub.docker.com/r/bsvb/arc)
     or get it by running `docker pull bsvb/arc:{{.Version}}`

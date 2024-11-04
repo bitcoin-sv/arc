@@ -11,17 +11,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
-)
 
-var tracer trace.Tracer
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+)
 
 var (
 	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
@@ -56,8 +56,8 @@ type Processor struct {
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
 	registerRequestTxsBatchSize int
-
-	processGuardsMap sync.Map
+	tracingEnabled              bool
+	processGuardsMap            sync.Map
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -147,7 +147,6 @@ func (p *Processor) StartBlockRequesting() {
 				return false
 
 			case <-t.C:
-
 			}
 		}
 	}
@@ -175,13 +174,14 @@ func (p *Processor) StartBlockRequesting() {
 						continue
 					}
 
-					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()))
+					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					continue
 				}
 
 				msg := wire.NewMsgGetData()
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
+				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
 				if err = peer.WriteMsg(msg); err != nil {
 					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, hash)
@@ -247,7 +247,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 				return // success
 			}
 
-			p.logger.Error(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
+			p.logger.Warn(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
 			p.unlockBlock(execCtx, hash)
 		}
 	}()
@@ -409,12 +409,9 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	}
 }
 
-func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
-	if tracer != nil {
-		var span trace.Span
-		_, span = tracer.Start(ctx, "buildMerkleTreeStoreChainHash")
-		defer span.End()
-	}
+func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
+	_, span := p.startTracing(ctx, "buildMerkleTreeStoreChainHash")
+	defer p.endTracing(span)
 
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
@@ -422,11 +419,8 @@ func buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash)
 func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
 
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "HandleBlock")
-		defer span.End()
-	}
+	ctx, span := p.startTracing(ctx, "HandleBlock")
+	defer p.endTracing(span)
 
 	timeStart := time.Now()
 
@@ -494,20 +488,20 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	p.logger.Info("Upserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
+	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to upsert block at given height", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 		return err
 	}
 
-	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
+	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, msg.TransactionHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		p.logger.Error("merkle root mismatch", slog.String("hash", blockHash.String()))
 		return err
 	}
 
-	if err = p.markTransactionsAsMined(ctx, blockId, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
+	if err = p.markTransactionsAsMined(ctx, blockID, calculatedMerkleTree, msg.Height, &blockHash); err != nil {
 		p.logger.Error("unable to mark block as mined", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 		return err
 	}
@@ -619,12 +613,10 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 	return err
 }
 
-func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "markTransactionsAsMined")
-		defer span.End()
-	}
+func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+	ctx, span := p.startTracing(ctx, "markTransactionsAsMined")
+	defer p.endTracing(span)
+
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
@@ -640,9 +632,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 	now := time.Now()
 
 	var iterateMerkleTree trace.Span
-	if tracer != nil {
-		ctx, iterateMerkleTree = tracer.Start(ctx, "iterateMerkleTree")
-	}
+	ctx, iterateMerkleTree = p.startTracing(ctx, "iterateMerkleTree")
 
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
@@ -666,7 +656,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+			updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
@@ -694,12 +684,10 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockId uint64,
 		}
 	}
 
-	if iterateMerkleTree != nil {
-		iterateMerkleTree.End()
-	}
+	p.endTracing(iterateMerkleTree)
 
 	// update all remaining transactions
-	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 	if err != nil {
 		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", blockHeight), err)
 	}
@@ -736,5 +724,25 @@ func (p *Processor) Shutdown() {
 		if err != nil {
 			p.logger.Error("unlocking unprocessed block on shutdown failed", slog.String("hash", bh.String()), slog.Any("err", err))
 		}
+	}
+}
+
+// GetBlockRequestCh is for testing purposes only
+func (p *Processor) GetBlockRequestCh() chan BlockRequest {
+	return p.blockRequestCh
+}
+
+func (p *Processor) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	if p.tracingEnabled {
+		var span trace.Span
+		ctx, span = otel.Tracer("").Start(ctx, spanName)
+		return ctx, span
+	}
+	return ctx, nil
+}
+
+func (p *Processor) endTracing(span trace.Span) {
+	if span != nil {
+		span.End()
 	}
 }

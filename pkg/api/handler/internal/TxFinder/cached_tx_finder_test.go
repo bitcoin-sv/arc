@@ -41,7 +41,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			thMq := &mocks.TransactionHandlerMock{
-				GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 					return tc.fetchedTx, nil
 				},
 			}
@@ -71,8 +71,6 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 			} else {
 				require.Len(t, thMq.GetTransactionsCalls(), 0, "Transaction handler shoulnd not be called when all transactions were already in cache")
 			}
-
 		})
 	}
-
 }

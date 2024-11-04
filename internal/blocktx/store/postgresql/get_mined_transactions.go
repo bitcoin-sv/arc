@@ -3,18 +3,15 @@ package postgresql
 import (
 	"context"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"go.opentelemetry.io/otel/trace"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "GetMinedTransactions")
-		defer span.End()
-	}
+	ctx, span := p.startTracing(ctx, "GetMinedTransactions")
+	defer p.endTracing(span)
 
 	var hashSlice [][]byte
 	for _, hash := range hashes {
@@ -63,7 +60,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 			BlockHeight: blockHeight,
 			MerklePath:  merklePath,
 		})
-
 	}
 
 	return result, nil

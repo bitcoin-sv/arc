@@ -68,7 +68,7 @@ func TestStartFillGaps(t *testing.T) {
 
 			getBlockGapTestErr := tc.getBlockGapsErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					if getBlockGapTestErr != nil {
 						getBlockErrCh <- getBlockGapTestErr
 						return nil, getBlockGapTestErr

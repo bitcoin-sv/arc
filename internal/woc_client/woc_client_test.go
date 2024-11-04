@@ -35,7 +35,7 @@ func Test_New(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer svr.Close()
@@ -49,7 +49,6 @@ func Test_New(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedRequestPath, httpReq.URL.Path)
-
 		})
 	}
 }
@@ -70,7 +69,7 @@ func Test_WithAuth(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer svr.Close()
@@ -146,7 +145,7 @@ func Test_GetUTXOs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tc.responseOk {
 					w.WriteHeader(http.StatusOK)
 				} else {
@@ -170,9 +169,9 @@ func Test_GetUTXOs(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expected, actual)
 		})
@@ -204,8 +203,7 @@ func Test_GetBalance(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				resp := make(map[string]any)
 				if tc.responseOk {
 					w.WriteHeader(http.StatusOK)
@@ -232,13 +230,12 @@ func Test_GetBalance(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+
+			require.NoError(t, err)
 
 			require.Equal(t, int64(1), actualConfirmed)
 			require.Equal(t, int64(2), actualUnconfirmed)
-
 		})
 	}
 }
@@ -276,7 +273,7 @@ func Test_TopUp(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				resp := make(map[string]any)
 				if tc.responseOk {
 					w.WriteHeader(http.StatusOK)
@@ -289,7 +286,6 @@ func Test_TopUp(t *testing.T) {
 
 				_, err = w.Write(jsonResp)
 				require.NoError(t, err)
-
 			}))
 			defer svr.Close()
 
@@ -303,9 +299,9 @@ func Test_TopUp(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+
+			require.NoError(t, err)
 		})
 	}
 }
@@ -315,7 +311,7 @@ func Test_GetRawTxs(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	rawTx := &wocRawTx{
+	rawTx := &WocRawTx{
 		TxID:          "2d5d5def1dcf8304fdd44ecc6e645997b67dc4c5e6310df4bf5286f960c6afb3",
 		BlockHash:     "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
 		BlockHeight:   10,
@@ -328,16 +324,16 @@ func Test_GetRawTxs(t *testing.T) {
 		responseBody any
 
 		expectedError error
-		expected      []*wocRawTx
+		expected      []*WocRawTx
 	}{
 		{
 			name:       "response OK",
 			responseOk: true,
-			responseBody: []*wocRawTx{
+			responseBody: []*WocRawTx{
 				rawTx, rawTx, rawTx, rawTx,
 			},
 
-			expected: []*wocRawTx{rawTx, rawTx, rawTx, rawTx, rawTx, rawTx, rawTx, rawTx},
+			expected: []*WocRawTx{rawTx, rawTx, rawTx, rawTx, rawTx, rawTx, rawTx, rawTx},
 		},
 		{
 			name:       "response not OK",
@@ -355,7 +351,7 @@ func Test_GetRawTxs(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tc.responseOk {
 					w.WriteHeader(http.StatusOK)
 				} else {
@@ -367,7 +363,6 @@ func Test_GetRawTxs(t *testing.T) {
 
 				_, err = w.Write(jsonResp)
 				require.NoError(t, err)
-
 			}))
 			defer svr.Close()
 
@@ -387,12 +382,10 @@ func Test_GetRawTxs(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, tc.expected, actual)
 		})
 	}
-
 }

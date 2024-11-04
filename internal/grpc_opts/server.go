@@ -19,8 +19,8 @@ type GrpcServer struct {
 	cleanup func()
 }
 
-func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int) (GrpcServer, error) {
-	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name)
+func NewGrpcServer(logger *slog.Logger, name, prometheusEndpoint string, maxMsgSize int, tracingEnabled bool) (GrpcServer, error) {
+	metrics, grpcOpts, cleanupFn, err := GetGRPCServerOpts(logger, prometheusEndpoint, maxMsgSize, name, tracingEnabled)
 	if err != nil {
 		return GrpcServer{}, err
 	}

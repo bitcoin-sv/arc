@@ -139,6 +139,65 @@ linters-settings:
     # Default: false
     require-specific: true
 
+  revive:
+    enable-all-rules: true
+    rules:
+#      - name: var-naming # disable for package name with underscore
+#        disabled: true
+      - name: cognitive-complexity # disable for db methods
+        disabled: true
+      - name: line-length-limit # disable for our dictionary package
+        disabled: true
+      - name: add-constant # too strict
+        disabled: true
+      - name:  deep-exit
+        disabled: true
+      - name: function-length # disable for our tests
+        disabled: true
+      - name: confusing-naming # too strict
+        disabled: true
+      - name:  max-public-structs # too strict
+        disabled: true
+      - name: import-alias-naming # too strict for sdkTx
+        disabled: true
+      - name: cyclomatic # too strict for our complex functions
+        disabled: true
+      - name:  use-any
+        disabled: true
+      - name: confusing-results
+        disabled: true
+      - name: flag-parameter
+        disabled: false
+      - name: unused-receiver
+        disabled: true
+      - name:  bare-return
+        disabled: true
+      - name: function-result-limit
+        disabled: true
+      - name: flag-parameter
+        disabled: true
+      - name: datarace
+        disabled: true
+      - name: if-return
+        disabled: true
+      - name: unhandled-error # disable for fmt.Println errors
+        disabled: true
+      - name: redundant-import-alias
+        disabled: true
+      - name: import-shadowing
+        disabled: true
+      - name: range-val-in-closure
+        disabled: true
+      - name: defer
+        disabled: true
+      - name: modifies-value-receiver # disable for our custom marshalling
+        disabled: true
+      - name: comment-spacings # disable for staticcheck ignore comments
+        disabled: true
+      - name:  argument-limit
+        disabled: true
+
+
   rowserrcheck:
     # database/sql is always checked
     # Default: []
@@ -209,7 +268,7 @@ linters:
 #    - predeclared # finds code that shadows one of Go's predeclared identifiers
 #    - promlinter # checks Prometheus metrics naming via promlint
 #    - reassign # checks that package variables are not reassigned
-#    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
+    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
 #    - rowserrcheck # checks whether Err of rows is checked successfully
 #    - sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
 #    - stylecheck # is a replacement for golint
@@ -278,6 +337,9 @@ issues:
   # Set to 0 to disable.
   # Default: 3
   max-same-issues: 50
+
+  exclude:
+    - "don't use an underscore in package name" # exclude check from revive linter
 
 #  exclude-rules:
 #    - source: "(noinspection|TODO)"

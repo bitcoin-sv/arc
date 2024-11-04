@@ -37,6 +37,13 @@ run_e2e_tests:
 	docker compose -f test/docker-compose.yaml up --build --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc --scale arc-blocktx=4 --scale arc-metamorph=2
 	docker compose -f test/docker-compose.yaml down
 
+.PHONY: run_e2e_tests_with_tracing
+run_e2e_tests_with_tracing:
+	docker compose -f test/docker-compose.yaml down --remove-orphans
+	docker compose -f test/docker-compose.yaml up --abort-on-container-exit migrate-blocktx migrate-metamorph migrate-callbacker
+	ARC_TRACING_DIALADDR=http://arc-jaeger:4317 docker compose -f test/docker-compose.yaml up --build --exit-code-from tests tests arc-blocktx arc-callbacker arc-metamorph arc arc-jaeger --scale arc-blocktx=4 --scale arc-metamorph=2
+	docker compose -f test/docker-compose.yaml down
+
 .PHONY: test
 test:
 	go test -race -count=1 ./...
@@ -47,8 +54,12 @@ install_lint:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config=config/.golangci.yaml -v ./...
+	golangci-lint run -v ./...
 	staticcheck ./...
+
+.PHONY: lint_fix
+lint_fix:
+	golangci-lint run -v ./... --fix
 
 .PHONY: gen_go
 gen_go:

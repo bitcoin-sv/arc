@@ -19,11 +19,11 @@ type BackgroundWorkers struct {
 	cancelAll func()
 }
 
-func NewBackgroundWorkers(store store.CallbackerStore, dispatcher *CallbackDispatcher, logger *slog.Logger) *BackgroundWorkers {
+func NewBackgroundWorkers(s store.CallbackerStore, dispatcher *CallbackDispatcher, logger *slog.Logger) *BackgroundWorkers {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BackgroundWorkers{
-		s: store,
+		s: s,
 		d: dispatcher,
 		l: logger.With(slog.String("module", "background workers")),
 
@@ -94,7 +94,7 @@ func (w *BackgroundWorkers) dispatchQuarantineCallbacks(interval time.Duration) 
 			}
 
 			for _, c := range callbacks {
-				w.d.Dispatch(c.Url, toCallbackEntry(c), c.AllowBatch)
+				w.d.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
 			}
 
 		case <-w.ctx.Done():

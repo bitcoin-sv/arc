@@ -106,9 +106,9 @@ func Test_GetRawTxs(t *testing.T) {
 				th = transactionHandler(t, tc.thResponse)
 			}
 
-			var pc *config.PeerRpcConfig
+			var pc *config.PeerRPCConfig
 			if tc.source.Has(validator.SourceNodes) {
-				pc = peerRpcConfig(t)
+				pc = peerRPCConfig(t)
 			}
 
 			var w *woc_client.WocClient
@@ -132,15 +132,15 @@ func Test_GetRawTxs(t *testing.T) {
 
 func transactionHandler(_ *testing.T, thResponse func() ([]*metamorph.Transaction, error)) metamorph.TransactionHandler {
 	mq := transactionHandlerMock.TransactionHandlerMock{}
-	mq.GetTransactionsFunc = func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+	mq.GetTransactionsFunc = func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 		return thResponse()
 	}
 
 	return &mq
 }
 
-func peerRpcConfig(_ *testing.T) *config.PeerRpcConfig {
-	return &config.PeerRpcConfig{}
+func peerRPCConfig(_ *testing.T) *config.PeerRPCConfig {
+	return &config.PeerRPCConfig{}
 }
 
 func wocClient() *woc_client.WocClient {

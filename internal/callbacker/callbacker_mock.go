@@ -7,16 +7,16 @@ import (
 	"sync"
 )
 
-// Ensure, that CallbackerIMock does implement CallbackerI.
+// Ensure, that SenderIMock does implement SenderI.
 // If this is not the case, regenerate this file with moq.
-var _ CallbackerI = &CallbackerIMock{}
+var _ SenderI = &SenderIMock{}
 
-// CallbackerIMock is a mock implementation of CallbackerI.
+// SenderIMock is a mock implementation of SenderI.
 //
-//	func TestSomethingThatUsesCallbackerI(t *testing.T) {
+//	func TestSomethingThatUsesSenderI(t *testing.T) {
 //
-//		// make and configure a mocked CallbackerI
-//		mockedCallbackerI := &CallbackerIMock{
+//		// make and configure a mocked SenderI
+//		mockedSenderI := &SenderIMock{
 //			SendFunc: func(url string, token string, callback *Callback) bool {
 //				panic("mock out the Send method")
 //			},
@@ -25,11 +25,11 @@ var _ CallbackerI = &CallbackerIMock{}
 //			},
 //		}
 //
-//		// use mockedCallbackerI in code that requires CallbackerI
+//		// use mockedSenderI in code that requires SenderI
 //		// and then make assertions.
 //
 //	}
-type CallbackerIMock struct {
+type SenderIMock struct {
 	// SendFunc mocks the Send method.
 	SendFunc func(url string, token string, callback *Callback) bool
 
@@ -62,9 +62,9 @@ type CallbackerIMock struct {
 }
 
 // Send calls SendFunc.
-func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) bool {
+func (mock *SenderIMock) Send(url string, token string, callback *Callback) bool {
 	if mock.SendFunc == nil {
-		panic("CallbackerIMock.SendFunc: method is nil but CallbackerI.Send was just called")
+		panic("SenderIMock.SendFunc: method is nil but SenderI.Send was just called")
 	}
 	callInfo := struct {
 		URL      string
@@ -84,8 +84,8 @@ func (mock *CallbackerIMock) Send(url string, token string, callback *Callback) 
 // SendCalls gets all the calls that were made to Send.
 // Check the length with:
 //
-//	len(mockedCallbackerI.SendCalls())
-func (mock *CallbackerIMock) SendCalls() []struct {
+//	len(mockedSenderI.SendCalls())
+func (mock *SenderIMock) SendCalls() []struct {
 	URL      string
 	Token    string
 	Callback *Callback
@@ -102,9 +102,9 @@ func (mock *CallbackerIMock) SendCalls() []struct {
 }
 
 // SendBatch calls SendBatchFunc.
-func (mock *CallbackerIMock) SendBatch(url string, token string, callbacks []*Callback) bool {
+func (mock *SenderIMock) SendBatch(url string, token string, callbacks []*Callback) bool {
 	if mock.SendBatchFunc == nil {
-		panic("CallbackerIMock.SendBatchFunc: method is nil but CallbackerI.SendBatch was just called")
+		panic("SenderIMock.SendBatchFunc: method is nil but SenderI.SendBatch was just called")
 	}
 	callInfo := struct {
 		URL       string
@@ -124,8 +124,8 @@ func (mock *CallbackerIMock) SendBatch(url string, token string, callbacks []*Ca
 // SendBatchCalls gets all the calls that were made to SendBatch.
 // Check the length with:
 //
-//	len(mockedCallbackerI.SendBatchCalls())
-func (mock *CallbackerIMock) SendBatchCalls() []struct {
+//	len(mockedSenderI.SendBatchCalls())
+func (mock *SenderIMock) SendBatchCalls() []struct {
 	URL       string
 	Token     string
 	Callbacks []*Callback

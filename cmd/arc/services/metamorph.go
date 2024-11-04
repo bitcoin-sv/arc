@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
@@ -54,13 +55,33 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		err error
 	)
 
+	shutdownFns := make([]func(), 0)
+
+	optsServer := make([]metamorph.ServerOption, 0)
+	processorOpts := make([]metamorph.Option, 0)
+
+	tracingEnabled := false
+	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
+		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr)
+		if err != nil {
+			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, cleanup)
+		}
+
+		tracingEnabled = true
+
+		optsServer = append(optsServer, metamorph.WithTracer())
+		processorOpts = append(processorOpts, metamorph.WithProcessorTracer())
+	}
+
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
-		disposeMtm(logger, server, processor, peerHandler, mqClient, metamorphStore, healthServer)
+		disposeMtm(logger, server, processor, peerHandler, mqClient, metamorphStore, healthServer, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
-	metamorphStore, err = NewMetamorphStore(mtmConfig.Db)
+	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, tracingEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
@@ -101,15 +122,14 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize)
+	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, tracingEnabled)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
 	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger)
 
-	processorOpts := []metamorph.Option{
-		metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
+	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),
 		metamorph.WithSeenOnNetworkTxTimeUntil(mtmConfig.CheckSeenOnNetworkOlderThan),
 		metamorph.WithSeenOnNetworkTxTime(mtmConfig.CheckSeenOnNetworkPeriod),
@@ -121,8 +141,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotMinedTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
-		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
-	}
+		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections))
 
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
@@ -141,12 +160,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
-	optsServer := []metamorph.ServerOption{}
-
 	if mtmConfig.CheckUtxos {
-		peerRpc := arcConfig.PeerRpc
+		peerRPC := arcConfig.PeerRPC
 
-		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRpc.User, peerRpc.Password, peerRpc.Host, peerRpc.Port))
+		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPC.User, peerRPC.Password, peerRPC.Host, peerRPC.Port))
 		if err != nil {
 			stopFn()
 			return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
@@ -213,7 +230,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	return stopFn, nil
 }
 
-func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err error) {
+func NewMetamorphStore(dbConfig *config.DbConfig, tracingEnabled bool) (s store.MetamorphStore, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -227,7 +244,13 @@ func NewMetamorphStore(dbConfig *config.DbConfig) (s store.MetamorphStore, err e
 			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
 			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
 		)
-		s, err = postgresql.New(dbInfo, hostname, postgres.MaxIdleConns, postgres.MaxOpenConns)
+
+		opts := make([]func(postgreSQL *postgresql.PostgreSQL), 0)
+		if tracingEnabled {
+			opts = append(opts, postgresql.WithTracing())
+		}
+
+		s, err = postgresql.New(dbInfo, hostname, postgres.MaxIdleConns, postgres.MaxOpenConns, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}
@@ -271,21 +294,21 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		}
 
 		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerUrl, peerHandler, network, peerOpts...)
+		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerUrl, err)
+			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerUrl, err)
+			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerURL, err)
 		}
 	}
 
 	return pm, peerHandler, messageCh, nil
 }
 
-func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize)
+func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingEnabled bool) (callbacker_api.CallbackerAPIClient, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -299,8 +322,9 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int)
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
 	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueueClient,
-	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer) {
-
+	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
+	shutdownFns []func(),
+) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new request will be received
 	// 2. processor - ensure all started job are complete
@@ -308,6 +332,7 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 	// 4. mqClient
 	// 5. store
 	// 6. healthServer
+	// 7. run shutdown functions
 
 	if server != nil {
 		server.GracefulStop()
@@ -331,5 +356,9 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 
 	if healthServer != nil {
 		healthServer.GracefulStop()
+	}
+
+	for _, shutdownFn := range shutdownFns {
+		shutdownFn()
 	}
 }

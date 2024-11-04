@@ -157,7 +157,7 @@ func TestNatsClient(t *testing.T) {
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		// subscribe without initialized consumer, expect error
-		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+		err = mqClient.Subscribe(MinedTxsTopic, func(_ []byte) error {
 			return nil
 		})
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
@@ -206,7 +206,6 @@ func TestNatsClient(t *testing.T) {
 			}
 		}
 		require.Equal(t, 3, counter)
-
 	})
 
 	t.Run("shutdown", func(t *testing.T) {

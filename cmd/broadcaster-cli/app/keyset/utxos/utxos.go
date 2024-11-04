@@ -19,20 +19,20 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "utxos",
 	Short: "Show distribution of utxo sizes in key set",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		maxRows := viper.GetInt("rows")
 
 		isTestnet, err := helper.GetBool("testnet")
 		if err != nil {
 			return err
 		}
-		wocApiKey, err := helper.GetString("wocAPIKey")
+		wocAPIKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
 		}
 
 		logger := helper.GetLogger()
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
 		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {

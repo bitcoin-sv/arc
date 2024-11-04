@@ -8,22 +8,24 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	prometheusclient "github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
+
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracingEnabled bool) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 
@@ -51,6 +53,11 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	if err != nil {
 		return nil, nil, nil, errors.Join(ErrGRPCFailedToRegisterPanics, err)
 	}
+	opts := make([]grpc.ServerOption, 0)
+
+	if tracingEnabled {
+		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	}
 
 	grpcPanicRecoveryHandler := func(p any) (err error) {
 		panicsTotal.Inc()
@@ -68,7 +75,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)))
 
 	// decorate context with event ID
-	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		if event, ok := req.(common_api.UnaryEvent); ok && event != nil {
 			id := event.GetEventId()
 			if id != "" {
@@ -80,10 +87,8 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 		return handler(ctx, req)
 	})
 
-	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(chainUnaryInterceptors...),
-		grpc.MaxRecvMsgSize(grpcMessageSize),
-	}
+	opts = append(opts, grpc.ChainUnaryInterceptor(chainUnaryInterceptors...))
+	opts = append(opts, grpc.MaxRecvMsgSize(grpcMessageSize))
 
 	cleanup := func() {
 		prometheusclient.Unregister(panicsTotal)
@@ -92,8 +97,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	return srvMetrics, opts, cleanup, err
 }
 
-func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.DialOption, error) {
-
+func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) ([]grpc.DialOption, error) {
 	clientMetrics := prometheus.NewClientMetrics(
 		prometheus.WithClientHandlingTimeHistogram(
 			prometheus.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
@@ -106,6 +110,11 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 		}
 		return nil
 	}
+	opts := make([]grpc.DialOption, 0)
+
+	if tracingEnabled {
+		opts = append(opts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+	}
 
 	var chainUnaryInterceptors []grpc.UnaryClientInterceptor
 
@@ -116,23 +125,21 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int) ([]grpc.D
 	// add eventID from context to grpc request if possible
 	chainUnaryInterceptors = append(chainUnaryInterceptors, func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if eventID, ok := ctx.Value(arc_logger.EventIDField).(string); ok {
-			trySetEventId(req, eventID)
+			trySetEventID(req, eventID)
 		}
 
 		return invoker(ctx, method, req, reply, cc, opts...)
 	})
 
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...),
-		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)),
-	}
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...))
+	opts = append(opts, grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`)) // This sets the initial balancing policy.
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
 
-	return dialOpts, nil
+	return opts, nil
 }
 
-func trySetEventId(x any, eventId string) {
+func trySetEventID(x any, eventID string) {
 	// get the value and type of the argument
 	v := reflect.ValueOf(x)
 	if v.Kind() == reflect.Ptr {
@@ -150,5 +157,5 @@ func trySetEventId(x any, eventId string) {
 		return
 	}
 
-	field.SetString(eventId)
+	field.SetString(eventID)
 }

@@ -19,7 +19,7 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //
 //		// make and configure a mocked metamorph.CallbackSender
 //		mockedCallbackSender := &CallbackSenderMock{
-//			SendCallbackFunc: func(data *store.StoreData)  {
+//			SendCallbackFunc: func(data *store.Data)  {
 //				panic("mock out the SendCallback method")
 //			},
 //		}
@@ -30,26 +30,26 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //	}
 type CallbackSenderMock struct {
 	// SendCallbackFunc mocks the SendCallback method.
-	SendCallbackFunc func(data *store.StoreData)
+	SendCallbackFunc func(data *store.Data)
 
 	// calls tracks calls to the methods.
 	calls struct {
 		// SendCallback holds details about calls to the SendCallback method.
 		SendCallback []struct {
 			// Data is the data argument value.
-			Data *store.StoreData
+			Data *store.Data
 		}
 	}
 	lockSendCallback sync.RWMutex
 }
 
 // SendCallback calls SendCallbackFunc.
-func (mock *CallbackSenderMock) SendCallback(data *store.StoreData) {
+func (mock *CallbackSenderMock) SendCallback(data *store.Data) {
 	if mock.SendCallbackFunc == nil {
 		panic("CallbackSenderMock.SendCallbackFunc: method is nil but CallbackSender.SendCallback was just called")
 	}
 	callInfo := struct {
-		Data *store.StoreData
+		Data *store.Data
 	}{
 		Data: data,
 	}
@@ -64,10 +64,10 @@ func (mock *CallbackSenderMock) SendCallback(data *store.StoreData) {
 //
 //	len(mockedCallbackSender.SendCallbackCalls())
 func (mock *CallbackSenderMock) SendCallbackCalls() []struct {
-	Data *store.StoreData
+	Data *store.Data
 } {
 	var calls []struct {
-		Data *store.StoreData
+		Data *store.Data
 	}
 	mock.lockSendCallback.RLock()
 	calls = mock.calls.SendCallback

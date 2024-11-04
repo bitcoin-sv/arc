@@ -2,13 +2,13 @@ package nats_core_test
 
 import (
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
@@ -53,9 +53,9 @@ func TestPublishMarshal(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			//given
+			// given
 			natsMock := &mocks.NatsConnectionMock{
-				PublishFunc: func(subj string, data []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return tc.publishErr
 				},
 			}
@@ -66,20 +66,18 @@ func TestPublishMarshal(t *testing.T) {
 			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedPublishCalls, len(natsMock.PublishCalls()))
 		})
 	}
 }
 
 func TestPublish(t *testing.T) {
-
 	tt := []struct {
 		name       string
 		publishErr error
@@ -105,7 +103,7 @@ func TestPublish(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			natsMock := &mocks.NatsConnectionMock{
-				PublishFunc: func(subj string, data []byte) error {
+				PublishFunc: func(_ string, _ []byte) error {
 					return tc.publishErr
 				},
 			}
@@ -118,12 +116,12 @@ func TestPublish(t *testing.T) {
 			err := sut.Publish(RegisterTxTopic, []byte("tx"))
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
+
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedPublishCalls, len(natsMock.PublishCalls()))
 		})
@@ -131,7 +129,6 @@ func TestPublish(t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-
 	tt := []struct {
 		name         string
 		subscribeErr error
@@ -181,15 +178,15 @@ func TestSubscribe(t *testing.T) {
 			)
 
 			// when
-			err := sut.Subscribe(RegisterTxTopic, func(bytes []byte) error { return tc.msgFuncErr })
+			err := sut.Subscribe(RegisterTxTopic, func(_ []byte) error { return tc.msgFuncErr })
 
 			// then
-			if tc.expectedError == nil {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
+
+			require.NoError(t, err)
 
 			if tc.runFunc {
 				msgHandler(&nats.Msg{})
@@ -216,7 +213,7 @@ func TestShutdown(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			// given
 			natsMock := &mocks.NatsConnectionMock{
 				DrainFunc: func() error {

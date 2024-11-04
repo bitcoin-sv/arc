@@ -39,13 +39,13 @@ func TestCallbackDispatcher(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &CallbackerIMock{
-				SendFunc: func(url, token string, callback *Callback) bool { return true },
+			cMq := &SenderIMock{
+				SendFunc: func(_, _ string, _ *Callback) bool { return true },
 			}
 
 			var savedCallbacks []*store.CallbackData
 			sMq := &mocks.CallbackerStoreMock{
-				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
 					savedCallbacks = append(savedCallbacks, data...)
 					return nil
 				},

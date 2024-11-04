@@ -6,15 +6,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "InsertBlock")
-		defer span.End()
-	}
+	ctx, span := p.startTracing(ctx, "UpsertBlock")
+	defer p.endTracing(span)
 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)
@@ -23,7 +19,7 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		RETURNING id
 	`
 
-	var blockId uint64
+	var blockID uint64
 
 	row := p.db.QueryRowContext(ctx, qInsert,
 		block.GetHash(),
@@ -34,10 +30,10 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		block.GetChainwork(),
 	)
 
-	err := row.Scan(&blockId)
+	err := row.Scan(&blockID)
 	if err != nil {
 		return 0, errors.Join(store.ErrFailedToInsertBlock, err)
 	}
 
-	return blockId, nil
+	return blockID, nil
 }

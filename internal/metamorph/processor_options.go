@@ -133,3 +133,9 @@ func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processo
 		p.minimumHealthyConnections = minimumHealthyConnections
 	}
 }
+
+func WithProcessorTracer() func(*Processor) {
+	return func(p *Processor) {
+		p.tracingEnabled = true
+	}
+}

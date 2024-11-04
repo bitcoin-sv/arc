@@ -48,7 +48,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			txFinder := mocks.TxFinderIMock{
-				GetRawTxsFunc: func(ctx context.Context, sf validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
 					return tc.foundTransactions, nil
 				},
 			}
@@ -85,7 +85,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 		{
 			name:  "cannot find all parents",
 			txHex: testdata.ValidTxRawHex,
-			foundTransactionsFn: func(i int) []validator.RawTx {
+			foundTransactionsFn: func(_ int) []validator.RawTx {
 				return []validator.RawTx{testdata.ParentTx1}
 			},
 			expectedErr: ErrParentNotFound,
@@ -93,7 +93,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 		{
 			name:  "tx finder returns rubbish",
 			txHex: testdata.ValidTxRawHex,
-			foundTransactionsFn: func(i int) []validator.RawTx {
+			foundTransactionsFn: func(_ int) []validator.RawTx {
 				return []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1}
 			},
 			expectedErr: ErrParentNotFound,
@@ -130,7 +130,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 		{
 			name:  "with mined parents only",
 			txHex: testdata.ValidTxRawHex,
-			foundTransactionsFn: func(i int) []validator.RawTx {
+			foundTransactionsFn: func(_ int) []validator.RawTx {
 				return []validator.RawTx{testdata.ParentTx1, testdata.ParentTx2}
 			},
 		},
@@ -139,11 +139,11 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			var getTxsCounter int = 0
-			var counterPtr *int = &getTxsCounter
+			var getTxsCounter int
+			var counterPtr = &getTxsCounter
 
 			txFinder := mocks.TxFinderIMock{
-				GetRawTxsFunc: func(ctx context.Context, sf validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
 					iteration := *counterPtr
 					*counterPtr = iteration + 1
 					return tc.foundTransactionsFn(iteration), nil
@@ -169,7 +169,6 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 				}
 				require.Len(t, res, len(expectedUnminedAncestors))
 			}
-
 		})
 	}
 }

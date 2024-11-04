@@ -33,7 +33,6 @@ func NewUTXOSplitter(logger *slog.Logger, client ArcClient, fromKeySet *keyset.K
 }
 
 func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryrun bool) error {
-
 	toAddresses := make([]string, len(b.toKeySets))
 	for i, key := range b.toKeySets {
 		toAddresses[i] = key.Address(!b.isTestnet)
@@ -65,7 +64,6 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 
 	var fee uint64
 	for i, toKs := range b.toKeySets {
-
 		if i == len(b.toKeySets)-1 {
 			fee, err = b.feeModel.ComputeFee(tx)
 			if err != nil {

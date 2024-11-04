@@ -150,7 +150,7 @@ func TestValidator(t *testing.T) {
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
 		// given
 		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
 				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
 				return res, nil
 			},
@@ -367,7 +367,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			}(),
 			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+					GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
 						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
 					},
 				}
@@ -381,7 +381,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			}(),
 			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+					GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
 						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
 					},
 				}
@@ -395,13 +395,13 @@ func TestCumulativeCheckFees(t *testing.T) {
 				return &fees.SatoshisPerKilobyte{Satoshis: 50}
 			}(),
 			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
-				var getRawTxCount int = 0
-				var couterPtr *int = &getRawTxCount
+				var getRawTxCount = 0
+				var counterPtr = &getRawTxCount
 
 				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
-						i := *couterPtr
-						*couterPtr = i + 1
+					GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
+						i := *counterPtr
+						*counterPtr = i + 1
 
 						if i == 0 {
 							p1 := validation.RawTx{
@@ -430,13 +430,13 @@ func TestCumulativeCheckFees(t *testing.T) {
 				return &fees.SatoshisPerKilobyte{Satoshis: 1}
 			}(),
 			getTxFinderFn: func(t *testing.T) mocks.TxFinderIMock {
-				var getRawTxCount int = 0
-				var couterPtr *int = &getRawTxCount
+				var getRawTxCount = 0
+				var counterPtr = &getRawTxCount
 
 				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
-						i := *couterPtr
-						*couterPtr = i + 1
+					GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
+						i := *counterPtr
+						*counterPtr = i + 1
 
 						if i == 0 {
 							p1 := validation.RawTx{
@@ -465,7 +465,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			}(),
 			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
 				return mocks.TxFinderIMock{
-					GetRawTxsFunc: func(ctx context.Context, sf validation.FindSourceFlag, ids []string) ([]validation.RawTx, error) {
+					GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
 						return nil, errors.New("test error")
 					},
 				}

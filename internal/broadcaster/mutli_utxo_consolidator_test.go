@@ -12,18 +12,17 @@ import (
 )
 
 func TestMultiKeyUtxoConsolidatorStart(t *testing.T) {
-
-	t.Run("start and shutdown", func(t *testing.T) {
+	t.Run("start and shutdown", func(_ *testing.T) {
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 		cs := []broadcaster.Consolidator{
 			&mocks.ConsolidatorMock{
-				StartFunc:    func(txsRateTxsPerSecond int) error { return nil },
+				StartFunc:    func(_ int) error { return nil },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},
 			&mocks.ConsolidatorMock{
-				StartFunc:    func(txsRateTxsPerSecond int) error { return errors.New("failed to start") },
+				StartFunc:    func(_ int) error { return errors.New("failed to start") },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},

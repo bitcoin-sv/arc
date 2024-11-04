@@ -5,17 +5,19 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/libsv/go-p2p"
+
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/libsv/go-p2p"
 )
 
 const (
@@ -27,7 +29,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
 
-	tracingEnabled := arcConfig.Tracing != nil
 	btxConfig := arcConfig.Blocktx
 
 	var (
@@ -42,9 +43,23 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		err error
 	)
 
+	shutdownFns := make([]func(), 0)
+
+	tracingEnabled := false
+	if arcConfig.Tracing != nil && arcConfig.Tracing.DialAddr != "" {
+		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr)
+		if err != nil {
+			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, cleanup)
+		}
+
+		tracingEnabled = true
+	}
+
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer, workers)
+		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer, workers, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
@@ -156,7 +171,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
 
 	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
-		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch)
+		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, tracingEnabled)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -210,8 +225,9 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingEnab
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
 	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
-	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers) {
-
+	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
+	shutdownFns []func(),
+) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new requests will be received
 	// 2. background workers
@@ -220,6 +236,7 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	// 5. mqClient
 	// 6. store
 	// 7. healthServer
+	// 8. run shutdown functions
 
 	if server != nil {
 		server.GracefulStop()
@@ -246,5 +263,9 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 
 	if healthServer != nil {
 		healthServer.GracefulStop()
+	}
+
+	for _, shutdownFn := range shutdownFns {
+		shutdownFn()
 	}
 }

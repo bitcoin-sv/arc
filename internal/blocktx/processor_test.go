@@ -145,31 +145,31 @@ func TestHandleBlock(t *testing.T) {
 			// given
 			batchSize := 4
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
 						return &blocktx_api.Block{Processed: true}, nil
 					}
 					return nil, store.ErrBlockNotFound
 				},
-				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+				GetBlockByHeightFunc: func(_ context.Context, _ uint64, _ blocktx_api.Status) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
-				GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
-				UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
 					return nil
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+				PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -177,7 +177,7 @@ func TestHandleBlock(t *testing.T) {
 			// build peer manager and processor
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			var blockRequestCh chan blocktx.BlockRequest = nil
+			var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			// when
@@ -199,7 +199,7 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions [][]byte
 
-			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 				require.True(t, len(txsWithMerklePaths) <= batchSize)
 
 				for _, tx := range txsWithMerklePaths {
@@ -316,7 +316,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			shouldReturnNoBlock := true
 
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if shouldReturnNoBlock {
 						shouldReturnNoBlock = false
 						return nil, nil
@@ -326,7 +326,7 @@ func TestHandleBlockReorg(t *testing.T) {
 						Status: tc.prevBlockStatus,
 					}, nil
 				},
-				GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+				GetBlockByHeightFunc: func(_ context.Context, _ uint64, _ blocktx_api.Status) (*blocktx_api.Block, error) {
 					if tc.hasCompetingBlock {
 						blockHash, err := chainhash.NewHashFromStr("0000000000000000087590e1ad6360c0c491556c9af75c0d22ce9324cb5713cf")
 						require.NoError(t, err)
@@ -334,11 +334,10 @@ func TestHandleBlockReorg(t *testing.T) {
 						return &blocktx_api.Block{
 							Hash: blockHash[:],
 						}, nil
-					} else {
-						return nil, store.ErrBlockNotFound
 					}
+					return nil, store.ErrBlockNotFound
 				},
-				GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
+				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
 					if tc.hasGreaterChainwork {
 						return &blocktx_api.Block{
 							Chainwork: "42069",
@@ -349,25 +348,25 @@ func TestHandleBlockReorg(t *testing.T) {
 						Chainwork: "62209952899966",
 					}, nil
 				},
-				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					return nil, nil
 				},
-				GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
+				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
 					return nil, nil
 				},
-				UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error {
 					return nil
 				},
-				UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {
 					mtx.Lock()
 					insertedBlock = block
 					mtx.Unlock()
 					return 1, nil
 				},
-				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
 					return nil
 				},
-				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
 					return []store.TxWithMerklePath{}, nil
 				},
 			}
@@ -375,7 +374,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			// build peer manager and processor
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			var blockRequestCh chan blocktx.BlockRequest = nil
+			var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
 			blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
@@ -437,10 +436,10 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			// given
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(ctx context.Context, transaction [][]byte) ([]*chainhash.Hash, error) {
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) ([]*chainhash.Hash, error) {
 					return nil, registerErrTest
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -559,14 +558,14 @@ func TestStartBlockRequesting(t *testing.T) {
 			setBlockProcessingErrTest := tc.setBlockProcessingErr
 			bhsProcInProgErr := tc.bhsProcInProg
 			storeMock := &storeMocks.BlocktxStoreMock{
-				SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+				SetBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (string, error) {
 					return "abc", setBlockProcessingErrTest
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return bhsProcInProgErr, nil
 				},
 			}
-			storeMock.DelBlockProcessingFunc = func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+			storeMock.DelBlockProcessingFunc = func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
 				j := len(storeMock.DelBlockProcessingCalls())
 				if j <= tc.expectedDelBlockProcessingErrors {
 					return 0, errors.New("DelBlockProcessing failed")
@@ -576,7 +575,7 @@ func TestStartBlockRequesting(t *testing.T) {
 
 			writeMsgErrTest := tc.writeMsgErr
 			peerMock := &mocks.PeerMock{
-				WriteMsgFunc: func(msg wire.Message) error {
+				WriteMsgFunc: func(_ wire.Message) error {
 					return writeMsgErrTest
 				},
 				StringFunc: func() string {
@@ -683,7 +682,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
 						require.Equal(t, testdata.TX1Hash, hash)
 					}
@@ -694,13 +693,13 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHeight: 1,
 					}}, tc.getMinedErr
 				},
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(topic string, m protoreflect.ProtoMessage) error {
+				PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 					return tc.publishMinedErr
 				},
 			}
@@ -762,13 +761,13 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
+				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
 
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+				SubscribeFunc: func(topic string, _ func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err
@@ -787,9 +786,8 @@ func TestStart(t *testing.T) {
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			// cleanup
 			sut.Shutdown()

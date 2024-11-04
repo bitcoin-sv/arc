@@ -10,6 +10,12 @@ import (
 	"strings"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -23,9 +29,6 @@ import (
 	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/TxFinder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
 )
 
 const (
@@ -48,9 +51,10 @@ type ArcDefaultHandler struct {
 
 	logger                        *slog.Logger
 	now                           func() time.Time
-	rejectedCallbackUrlSubstrings []string
+	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mrVerifier                    validator.MerkleVerifierI
+	tracingEnabled                bool
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -59,9 +63,15 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	}
 }
 
-func WithCallbackUrlRestrictions(rejectedCallbackUrlSubstrings []string) func(*ArcDefaultHandler) {
+func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.rejectedCallbackUrlSubstrings = rejectedCallbackUrlSubstrings
+		p.rejectedCallbackURLSubstrings = rejectedCallbackURLSubstrings
+	}
+}
+
+func WithTracer() func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.tracingEnabled = true
 	}
 }
 
@@ -72,18 +82,18 @@ func NewDefault(
 	transactionHandler metamorph.TransactionHandler,
 	merkleRootsVerifier blocktx.MerkleRootsVerifier,
 	policy *bitcoin.Settings,
-	peerRpcConfig *config.PeerRpcConfig,
-	apiConfig *config.ApiConfig,
+	peerRPCConfig *config.PeerRPCConfig,
+	apiConfig *config.APIConfig,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
 	var wocClient *woc_client.WocClient
 	if apiConfig != nil {
-		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocApiKey))
+		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocAPIKey))
 	} else {
 		wocClient = woc_client.New(false)
 	}
 
-	finder := txfinder.NewCached(transactionHandler, peerRpcConfig, wocClient, logger)
+	finder := txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger)
 	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
@@ -104,6 +114,9 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+	_, span := m.startTracing(ctx.Request().Context(), "GETPolicy")
+	defer m.endTracing(span)
+
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
@@ -121,7 +134,11 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
-	err := m.TransactionHandler.Health(ctx.Request().Context())
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "GETHealth")
+	defer m.endTracing(span)
+
+	err := m.TransactionHandler.Health(reqCtx)
 	if err != nil {
 		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
@@ -155,7 +172,11 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
-	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackUrlSubstrings)
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "POSTTransaction")
+	defer m.endTracing(span)
+
+	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -167,7 +188,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	reqCtx := ctx.Request().Context()
 	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 
 	if e != nil {
@@ -190,7 +210,11 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
-	tx, err := m.getTransactionStatus(ctx.Request().Context(), id)
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "GETTransactionStatus")
+	defer m.endTracing(span)
+
+	tx, err := m.getTransactionStatus(reqCtx, id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
@@ -220,8 +244,12 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
+	reqCtx := ctx.Request().Context()
+	reqCtx, span := m.startTracing(reqCtx, "POSTTransactions")
+	defer m.endTracing(span)
+
 	// set the globals for all transactions in this request
-	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackUrlSubstrings)
+	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
@@ -233,7 +261,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		return ctx.JSON(e.Status, e)
 	}
 
-	reqCtx := ctx.Request().Context()
 	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
 		return ctx.JSON(e.Status, e)
@@ -256,17 +283,17 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	return ctx.JSON(int(api.StatusOK), responses)
 }
 
-func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
-	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackUrlSubstrings)
+func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
+	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackURLSubstrings)
 }
 
-func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []string) error {
+func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []string) error {
 	_, err := url.ParseRequestURI(callbackURL)
 	if err != nil {
 		return errors.Join(ErrInvalidCallbackURL, err)
 	}
 
-	for _, substring := range rejectedCallbackUrlSubstrings {
+	for _, substring := range rejectedCallbackURLSubstrings {
 		if strings.Contains(callbackURL, substring) {
 			return ErrCallbackURLNotAcceptable
 		}
@@ -274,12 +301,12 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackUrlSubstrings []str
 	return nil
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackUrlSubstrings []string) (*metamorph.TransactionOptions, error) {
+func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
 	transactionOptions := &metamorph.TransactionOptions{
 		MaxTimeout: maxTimeoutSecondsDefault,
 	}
 	if params.XCallbackUrl != nil {
-		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackUrlSubstrings); err != nil {
+		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackURLSubstrings); err != nil {
 			return nil, err
 		}
 
@@ -361,8 +388,11 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
+	ctx, span := m.startTracing(ctx, "processTransactions")
+	defer m.endTracing(span)
+
 	// decode and validate txs
-	var txIds []string
+	var txIDs []string
 
 	for len(txsHex) != 0 {
 		hexFormat := validator.GetHexFormat(txsHex)
@@ -388,7 +418,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				}
 			}
 
-			txIds = append(txIds, beefTx.GetLatestTx().TxID())
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID())
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
@@ -404,7 +434,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			submittedTxs = append(submittedTxs, transaction)
-			txIds = append(txIds, transaction.TxID())
+			txIDs = append(txIDs, transaction.TxID())
 		}
 	}
 
@@ -422,7 +452,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	}
 
 	// prepare success results
-	txStatuses = filterStatusesByTxIDs(txIds, txStatuses)
+	txStatuses = filterStatusesByTxIDs(txIDs, txStatuses)
 
 	now := m.now()
 	successes = make([]*api.TransactionResponse, 0, len(submittedTxs))
@@ -450,6 +480,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+	ctx, span := m.startTracing(ctx, "validateEFTransaction")
+	defer m.endTracing(span)
+
 	if options.SkipTxValidation {
 		return nil
 	}
@@ -466,6 +499,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
+	ctx, span := m.startTracing(ctx, "validateEFTransaction")
+	defer m.endTracing(span)
+
 	if options.SkipTxValidation {
 		return nil
 	}
@@ -483,6 +519,9 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 }
 
 func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
+	ctx, span := m.startTracing(ctx, "submitTransactions")
+	defer m.endTracing(span)
+
 	var submitStatuses []*metamorph.TransactionStatus
 
 	if len(txs) == 1 {
@@ -498,7 +537,6 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		}
 
 		submitStatuses = append(submitStatuses, status)
-
 	} else {
 		var err error
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
@@ -514,6 +552,9 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*metamorph.TransactionStatus, error) {
+	ctx, span := m.startTracing(ctx, "getTransactionStatus")
+	defer m.endTracing(span)
+
 	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
@@ -543,6 +584,21 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	}
 
 	return status, arcError
+}
+
+func (m ArcDefaultHandler) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	if m.tracingEnabled {
+		var span trace.Span
+		ctx, span = otel.Tracer("").Start(ctx, spanName)
+		return ctx, span
+	}
+	return ctx, nil
+}
+
+func (m ArcDefaultHandler) endTracing(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
 }
 
 func prepareSizingInfo(txs []*sdkTx.Transaction) [][]uint64 {

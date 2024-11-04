@@ -9,12 +9,13 @@ import (
 
 	"github.com/libsv/go-p2p"
 
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestCheck(t *testing.T) {
@@ -52,10 +53,10 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(ctx context.Context) error {
+				PingFunc: func(_ context.Context) error {
 					return tc.pingErr
 				},
 			}
@@ -76,7 +77,7 @@ func TestCheck(t *testing.T) {
 				}}
 			}}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, false)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -87,7 +88,6 @@ func TestCheck(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
-
 	}
 }
 
@@ -126,10 +126,10 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(ctx context.Context) error {
+				PingFunc: func(_ context.Context) error {
 					return tc.pingErr
 				},
 			}
@@ -151,7 +151,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0)
+			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, false)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -168,6 +168,5 @@ func TestWatch(t *testing.T) {
 			// then
 			require.NoError(t, err)
 		})
-
 	}
 }

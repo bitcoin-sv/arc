@@ -31,22 +31,22 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			DelFunc: func(ctx context.Context, key []byte) error {
 //				panic("mock out the Del method")
 //			},
-//			GetFunc: func(ctx context.Context, key []byte) (*store.StoreData, error) {
+//			GetFunc: func(ctx context.Context, key []byte) (*store.Data, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+//			GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
 //				panic("mock out the GetMany method")
 //			},
 //			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
 //				panic("mock out the GetRawTxs method")
 //			},
-//			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+//			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetSeenOnNetwork method")
 //			},
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetUnmined method")
 //			},
 //			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
@@ -55,10 +55,10 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
-//			SetFunc: func(ctx context.Context, value *store.StoreData) error {
+//			SetFunc: func(ctx context.Context, value *store.Data) error {
 //				panic("mock out the Set method")
 //			},
-//			SetBulkFunc: func(ctx context.Context, data []*store.StoreData) error {
+//			SetBulkFunc: func(ctx context.Context, data []*store.Data) error {
 //				panic("mock out the SetBulk method")
 //			},
 //			SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
@@ -67,13 +67,13 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
-//			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+//			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 //				panic("mock out the UpdateDoubleSpend method")
 //			},
-//			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
+//			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
 //				panic("mock out the UpdateMined method")
 //			},
-//			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+//			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 //				panic("mock out the UpdateStatusBulk method")
 //			},
 //		}
@@ -93,22 +93,22 @@ type MetamorphStoreMock struct {
 	DelFunc func(ctx context.Context, key []byte) error
 
 	// GetFunc mocks the Get method.
-	GetFunc func(ctx context.Context, key []byte) (*store.StoreData, error)
+	GetFunc func(ctx context.Context, key []byte) (*store.Data, error)
 
 	// GetManyFunc mocks the GetMany method.
-	GetManyFunc func(ctx context.Context, keys [][]byte) ([]*store.StoreData, error)
+	GetManyFunc func(ctx context.Context, keys [][]byte) ([]*store.Data, error)
 
 	// GetRawTxsFunc mocks the GetRawTxs method.
 	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
-	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error)
+	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
 
 	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error)
+	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error)
 
 	// IncrementRetriesFunc mocks the IncrementRetries method.
 	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
@@ -117,10 +117,10 @@ type MetamorphStoreMock struct {
 	PingFunc func(ctx context.Context) error
 
 	// SetFunc mocks the Set method.
-	SetFunc func(ctx context.Context, value *store.StoreData) error
+	SetFunc func(ctx context.Context, value *store.Data) error
 
 	// SetBulkFunc mocks the SetBulk method.
-	SetBulkFunc func(ctx context.Context, data []*store.StoreData) error
+	SetBulkFunc func(ctx context.Context, data []*store.Data) error
 
 	// SetLockedFunc mocks the SetLocked method.
 	SetLockedFunc func(ctx context.Context, since time.Time, limit int64) error
@@ -129,13 +129,13 @@ type MetamorphStoreMock struct {
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
 
 	// UpdateDoubleSpendFunc mocks the UpdateDoubleSpend method.
-	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error)
+	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
-	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error)
+	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error)
 
 	// UpdateStatusBulkFunc mocks the UpdateStatusBulk method.
-	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error)
+	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -231,14 +231,14 @@ type MetamorphStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Value is the value argument value.
-			Value *store.StoreData
+			Value *store.Data
 		}
 		// SetBulk holds details about calls to the SetBulk method.
 		SetBulk []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Data is the data argument value.
-			Data []*store.StoreData
+			Data []*store.Data
 		}
 		// SetLocked holds details about calls to the SetLocked method.
 		SetLocked []struct {
@@ -403,7 +403,7 @@ func (mock *MetamorphStoreMock) DelCalls() []struct {
 }
 
 // Get calls GetFunc.
-func (mock *MetamorphStoreMock) Get(ctx context.Context, key []byte) (*store.StoreData, error) {
+func (mock *MetamorphStoreMock) Get(ctx context.Context, key []byte) (*store.Data, error) {
 	if mock.GetFunc == nil {
 		panic("MetamorphStoreMock.GetFunc: method is nil but MetamorphStore.Get was just called")
 	}
@@ -439,7 +439,7 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 }
 
 // GetMany calls GetManyFunc.
-func (mock *MetamorphStoreMock) GetMany(ctx context.Context, keys [][]byte) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetMany(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
 	if mock.GetManyFunc == nil {
 		panic("MetamorphStoreMock.GetManyFunc: method is nil but MetamorphStore.GetMany was just called")
 	}
@@ -511,7 +511,7 @@ func (mock *MetamorphStoreMock) GetRawTxsCalls() []struct {
 }
 
 // GetSeenOnNetwork calls GetSeenOnNetworkFunc.
-func (mock *MetamorphStoreMock) GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error) {
 	if mock.GetSeenOnNetworkFunc == nil {
 		panic("MetamorphStoreMock.GetSeenOnNetworkFunc: method is nil but MetamorphStore.GetSeenOnNetwork was just called")
 	}
@@ -603,7 +603,7 @@ func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
 }
 
 // GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
 	if mock.GetUnminedFunc == nil {
 		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
 	}
@@ -715,13 +715,13 @@ func (mock *MetamorphStoreMock) PingCalls() []struct {
 }
 
 // Set calls SetFunc.
-func (mock *MetamorphStoreMock) Set(ctx context.Context, value *store.StoreData) error {
+func (mock *MetamorphStoreMock) Set(ctx context.Context, value *store.Data) error {
 	if mock.SetFunc == nil {
 		panic("MetamorphStoreMock.SetFunc: method is nil but MetamorphStore.Set was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		Value *store.StoreData
+		Value *store.Data
 	}{
 		Ctx:   ctx,
 		Value: value,
@@ -738,11 +738,11 @@ func (mock *MetamorphStoreMock) Set(ctx context.Context, value *store.StoreData)
 //	len(mockedMetamorphStore.SetCalls())
 func (mock *MetamorphStoreMock) SetCalls() []struct {
 	Ctx   context.Context
-	Value *store.StoreData
+	Value *store.Data
 } {
 	var calls []struct {
 		Ctx   context.Context
-		Value *store.StoreData
+		Value *store.Data
 	}
 	mock.lockSet.RLock()
 	calls = mock.calls.Set
@@ -751,13 +751,13 @@ func (mock *MetamorphStoreMock) SetCalls() []struct {
 }
 
 // SetBulk calls SetBulkFunc.
-func (mock *MetamorphStoreMock) SetBulk(ctx context.Context, data []*store.StoreData) error {
+func (mock *MetamorphStoreMock) SetBulk(ctx context.Context, data []*store.Data) error {
 	if mock.SetBulkFunc == nil {
 		panic("MetamorphStoreMock.SetBulkFunc: method is nil but MetamorphStore.SetBulk was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
-		Data []*store.StoreData
+		Data []*store.Data
 	}{
 		Ctx:  ctx,
 		Data: data,
@@ -774,11 +774,11 @@ func (mock *MetamorphStoreMock) SetBulk(ctx context.Context, data []*store.Store
 //	len(mockedMetamorphStore.SetBulkCalls())
 func (mock *MetamorphStoreMock) SetBulkCalls() []struct {
 	Ctx  context.Context
-	Data []*store.StoreData
+	Data []*store.Data
 } {
 	var calls []struct {
 		Ctx  context.Context
-		Data []*store.StoreData
+		Data []*store.Data
 	}
 	mock.lockSetBulk.RLock()
 	calls = mock.calls.SetBulk
@@ -863,7 +863,7 @@ func (mock *MetamorphStoreMock) SetUnlockedByNameCalls() []struct {
 }
 
 // UpdateDoubleSpend calls UpdateDoubleSpendFunc.
-func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 	if mock.UpdateDoubleSpendFunc == nil {
 		panic("MetamorphStoreMock.UpdateDoubleSpendFunc: method is nil but MetamorphStore.UpdateDoubleSpend was just called")
 	}
@@ -899,7 +899,7 @@ func (mock *MetamorphStoreMock) UpdateDoubleSpendCalls() []struct {
 }
 
 // UpdateMined calls UpdateMinedFunc.
-func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
 	if mock.UpdateMinedFunc == nil {
 		panic("MetamorphStoreMock.UpdateMinedFunc: method is nil but MetamorphStore.UpdateMined was just called")
 	}
@@ -935,7 +935,7 @@ func (mock *MetamorphStoreMock) UpdateMinedCalls() []struct {
 }
 
 // UpdateStatusBulk calls UpdateStatusBulkFunc.
-func (mock *MetamorphStoreMock) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.StoreData, error) {
+func (mock *MetamorphStoreMock) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 	if mock.UpdateStatusBulkFunc == nil {
 		panic("MetamorphStoreMock.UpdateStatusBulkFunc: method is nil but MetamorphStore.UpdateStatusBulk was just called")
 	}

@@ -15,8 +15,7 @@ var (
 	Cmd    = &cobra.Command{
 		Use:   "new",
 		Short: "Create new key set",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
+		RunE: func(_ *cobra.Command, _ []string) error {
 			isTestnet, err := helper.GetBool("testnet")
 			if err != nil {
 				return err

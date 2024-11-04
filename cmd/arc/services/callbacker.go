@@ -81,7 +81,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	workers.StartCallbackStoreCleanup(config.PruneInterval, config.PruneOlderThan)
 	workers.StartQuarantineCallbacksDispatch(config.QuarantineCheckInterval)
 
-	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher)
+	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, false)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -136,7 +136,7 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 		}
 
 		for _, c := range callbacks {
-			d.Dispatch(c.Url, toCallbackEntry(c), c.AllowBatch)
+			d.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
 		}
 	}
 }
@@ -144,7 +144,6 @@ func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackD
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
 	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer) {
-
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. background workers - ensure no callbacks from background will be accepted

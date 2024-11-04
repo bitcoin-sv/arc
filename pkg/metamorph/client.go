@@ -8,12 +8,15 @@ import (
 	"strings"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -49,10 +52,11 @@ type TransactionStatus struct {
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
-	client   metamorph_api.MetaMorphAPIClient
-	mqClient MessageQueueClient
-	logger   *slog.Logger
-	now      func() time.Time
+	client         metamorph_api.MetaMorphAPIClient
+	mqClient       MessageQueueClient
+	logger         *slog.Logger
+	now            func() time.Time
+	tracingEnabled bool
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
@@ -73,6 +77,12 @@ func WithLogger(logger *slog.Logger) func(*Metamorph) {
 	}
 }
 
+func WithTracer() func(*Metamorph) {
+	return func(m *Metamorph) {
+		m.tracingEnabled = true
+	}
+}
+
 // NewClient creates a connection to a list of metamorph servers via gRPC.
 func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Metamorph)) *Metamorph {
 	m := &Metamorph{
@@ -88,8 +98,8 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 	return m
 }
 
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize)
+func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingEnabled bool) (*grpc.ClientConn, error) {
+	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +114,9 @@ func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int) (*
 
 // GetTransaction gets the transaction bytes from metamorph.
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
+	ctx, span := m.startTracing(ctx, "GetTransaction")
+	defer m.endTracing(span)
+
 	var tx *metamorph_api.Transaction
 	tx, err := m.client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
@@ -121,6 +134,9 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 
 // GetTransactions gets the transactions data from metamorph.
 func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error) {
+	ctx, span := m.startTracing(ctx, "GetTransactions")
+	defer m.endTracing(span)
+
 	txs, err := m.client.GetTransactions(ctx, &metamorph_api.TransactionsStatusRequest{
 		TxIDs: txIDs[:],
 	})
@@ -146,6 +162,9 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Tra
 
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (status *TransactionStatus, err error) {
+	ctx, span := m.startTracing(ctx, "GetTransactionStatus")
+	defer m.endTracing(span)
+
 	var tx *metamorph_api.TransactionStatus
 	tx, err = m.client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
@@ -171,6 +190,9 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (stat
 }
 
 func (m *Metamorph) Health(ctx context.Context) error {
+	ctx, span := m.startTracing(ctx, "Health")
+	defer m.endTracing(span)
+
 	_, err := m.client.Health(ctx, &emptypb.Empty{})
 	if err != nil {
 		return err
@@ -181,6 +203,9 @@ func (m *Metamorph) Health(ctx context.Context) error {
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error) {
+	ctx, span := m.startTracing(ctx, "SubmitTransaction")
+	defer m.endTracing(span)
+
 	request := transactionRequest(tx.Bytes(), options)
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
@@ -231,6 +256,9 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error) {
+	ctx, span := m.startTracing(ctx, "SubmitTransactions")
+	defer m.endTracing(span)
+
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
 	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
@@ -301,6 +329,9 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 }
 
 func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
+	ctx, span := m.startTracing(ctx, "ClearData")
+	defer m.endTracing(span)
+
 	resp, err := m.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: retentionDays})
 	if err != nil {
 		return 0, err
@@ -310,12 +341,30 @@ func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, 
 }
 
 func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, error) {
+	ctx, span := m.startTracing(ctx, "SetUnlockedByName")
+	defer m.endTracing(span)
+
 	resp, err := m.client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: name})
 	if err != nil {
 		return 0, err
 	}
 
 	return resp.RecordsAffected, nil
+}
+
+func (m *Metamorph) startTracing(ctx context.Context, spanName string) (context.Context, trace.Span) {
+	if m.tracingEnabled {
+		var span trace.Span
+		ctx, span = otel.Tracer("").Start(ctx, spanName)
+		return ctx, span
+	}
+	return ctx, nil
+}
+
+func (m *Metamorph) endTracing(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
 }
 
 func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.TransactionRequest {

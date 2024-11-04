@@ -104,7 +104,7 @@ func TestNatsClient(t *testing.T) {
 			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		}
 
-		//when
+		// when
 		t.Log("subscribe to topic")
 		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
@@ -192,6 +192,5 @@ func TestNatsClient(t *testing.T) {
 			}
 		}
 		require.Equal(t, 3, counter)
-
 	})
 }

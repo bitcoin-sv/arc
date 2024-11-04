@@ -225,7 +225,7 @@ func TestPostgresDB(t *testing.T) {
 	})
 
 	t.Run("get longest chain from height", func(t *testing.T) {
-		//given
+		// given
 		prepareDb(t, postgresDB.db, "fixtures/get_longest_chain")
 
 		startingHeight := uint64(822014)
@@ -563,9 +563,8 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedUpdatedResLen, len(res))
 

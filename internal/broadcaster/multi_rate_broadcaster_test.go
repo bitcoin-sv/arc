@@ -13,7 +13,6 @@ import (
 )
 
 func TestMultiRateBroadcasterStart(t *testing.T) {
-
 	tt := []struct {
 		name          string
 		expectedError error
@@ -62,9 +61,8 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			if actualError != nil {
 				require.ErrorIs(t, actualError, tc.expectedError)
 				return
-			} else {
-				require.NoError(t, actualError)
 			}
+			require.NoError(t, actualError)
 
 			time.Sleep(50 * time.Millisecond)
 		})

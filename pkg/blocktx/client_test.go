@@ -33,19 +33,19 @@ func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ *blocktx_api.DelUnfinishedBlockProcessingRequest, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{}, tc.delErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
 
 			_, err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
+
+			require.NoError(t, err)
 		})
 	}
 }
@@ -71,20 +71,19 @@ func TestClient_ClearBlocks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+				ClearBlocksFunc: func(_ context.Context, _ *blocktx_api.ClearData, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearBlocks(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -111,20 +110,19 @@ func TestClient_ClearTransactions(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+				ClearTransactionsFunc: func(_ context.Context, _ *blocktx_api.ClearData, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearTransactions(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -151,20 +149,19 @@ func TestClient_ClearBlockTransactionsMap(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
+				ClearBlockTransactionsMapFunc: func(_ context.Context, _ *blocktx_api.ClearData, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
 				},
 			}
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearBlockTransactionsMap(context.Background(), 1)
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, int64(5), res)
 		})
 	}
@@ -191,7 +188,7 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				VerifyMerkleRootsFunc: func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
+				VerifyMerkleRootsFunc: func(_ context.Context, _ *blocktx_api.MerkleRootsVerificationRequest, _ ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
 					return &blocktx_api.MerkleRootVerificationResponse{
 						UnverifiedBlockHeights: []uint64{81190, 89022},
 					}, tc.verifyErr
@@ -205,13 +202,12 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 			}
 
 			res, err := client.VerifyMerkleRoots(context.Background(), merkleRootsRequest)
-			if tc.expectedErrorStr == "" {
-				require.NoError(t, err)
-			} else {
+			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return
 			}
 
+			require.NoError(t, err)
 			require.Equal(t, []uint64{81190, 89022}, res)
 		})
 	}

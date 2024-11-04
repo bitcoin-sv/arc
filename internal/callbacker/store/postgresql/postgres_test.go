@@ -71,14 +71,14 @@ func TestPostgresDBt(t *testing.T) {
 
 		data := []*store.CallbackData{
 			{
-				Url:       "https://test-callback-1/",
+				URL:       "https://test-callback-1/",
 				Token:     "token",
 				TxID:      testdata.TX2,
 				TxStatus:  "SEEN_ON_NETWORK",
 				Timestamp: now,
 			},
 			{
-				Url:         "https://test-callback-1/",
+				URL:         "https://test-callback-1/",
 				Token:       "token",
 				TxID:        testdata.TX2,
 				TxStatus:    "MINED",
@@ -88,7 +88,7 @@ func TestPostgresDBt(t *testing.T) {
 			},
 			{
 				// duplicate
-				Url:         "https://test-callback-1/",
+				URL:         "https://test-callback-1/",
 				Token:       "token",
 				TxID:        testdata.TX2,
 				TxStatus:    "MINED",
@@ -97,7 +97,7 @@ func TestPostgresDBt(t *testing.T) {
 				BlockHeight: ptrTo(uint64(4524235)),
 			},
 			{
-				Url:          "https://test-callback-2/",
+				URL:          "https://test-callback-2/",
 				Token:        "token",
 				TxID:         testdata.TX3,
 				TxStatus:     "MINED",
@@ -108,7 +108,7 @@ func TestPostgresDBt(t *testing.T) {
 			},
 			{
 				// duplicate
-				Url:          "https://test-callback-2/",
+				URL:          "https://test-callback-2/",
 				Token:        "token",
 				TxID:         testdata.TX3,
 				TxStatus:     "MINED",
@@ -118,7 +118,7 @@ func TestPostgresDBt(t *testing.T) {
 				CompetingTxs: []string{testdata.TX2},
 			},
 			{
-				Url:         "https://test-callback-2/",
+				URL:         "https://test-callback-2/",
 				TxID:        testdata.TX2,
 				TxStatus:    "MINED",
 				Timestamp:   now,
@@ -126,7 +126,7 @@ func TestPostgresDBt(t *testing.T) {
 				BlockHeight: ptrTo(uint64(4524235)),
 			},
 			{
-				Url:            "https://test-callback-3/",
+				URL:            "https://test-callback-3/",
 				TxID:           testdata.TX2,
 				TxStatus:       "MINED",
 				Timestamp:      now,
@@ -136,7 +136,7 @@ func TestPostgresDBt(t *testing.T) {
 			},
 
 			{
-				Url:            "https://test-callback-3/",
+				URL:            "https://test-callback-3/",
 				TxID:           testdata.TX3,
 				TxStatus:       "MINED",
 				Timestamp:      now,
@@ -265,7 +265,8 @@ func TestPostgresDBt(t *testing.T) {
 			records, ok := rm.Load(i)
 			require.True(t, ok)
 
-			callbacks := records.([]*store.CallbackData)
+			callbacks, ok := records.([]*store.CallbackData)
+			require.True(t, ok)
 			require.LessOrEqual(t, len(callbacks), popLimit)
 		}
 	})
@@ -303,7 +304,6 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.Equal(t, countAll-countToDelete, tutils.CountCallbacks(t, postgresDB.db))
 	})
-
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {

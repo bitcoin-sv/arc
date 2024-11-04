@@ -59,7 +59,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnlockedErrTest := tc.setUnlockedErr
 			metamorphMock := &mtmMocks.TransactionMaintainerMock{
-				SetUnlockedByNameFunc: func(ctx context.Context, name string) (int64, error) {
+				SetUnlockedByNameFunc: func(_ context.Context, name string) (int64, error) {
 					require.Equal(t, "metamorph-pod-2", name)
 
 					if setUnlockedErrTest != nil {
@@ -69,13 +69,13 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &btxMocks.BlocktxClientMock{}
+			blocktxMock := &btxMocks.WatcherMock{}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamestTest := tc.podNames
 			k8sClientMock := &mocks.K8sClientMock{
-				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+				GetRunningPodNamesFunc: func(_ context.Context, _ string, _ string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
 					}
@@ -157,15 +157,15 @@ func TestStartBlocktxWatcher(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphMock := &mtmMocks.TransactionMaintainerMock{}
-			blocktxMock := &btxMocks.BlocktxClientMock{
-				DelUnfinishedBlockProcessingFunc: func(ctx context.Context, processedBy string) (int64, error) { return 0, nil },
+			blocktxMock := &btxMocks.WatcherMock{
+				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamesTest := tc.podNames
 			k8sClientMock := &mocks.K8sClientMock{
-				GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
+				GetRunningPodNamesFunc: func(_ context.Context, _ string, _ string) (map[string]struct{}, error) {
 					if getPodNamesErrTest != nil {
 						return nil, getPodNamesErrTest
 					}

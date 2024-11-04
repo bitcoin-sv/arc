@@ -18,7 +18,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a UTXO set",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		outputs, err := helper.GetInt("outputs")
 		if err != nil {
 			return err
@@ -63,7 +63,7 @@ var Cmd = &cobra.Command{
 			return errors.New("no api URL was given")
 		}
 
-		wocApiKey, err := helper.GetString("wocAPIKey")
+		wocAPIKey, err := helper.GetString("wocAPIKey")
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ var Cmd = &cobra.Command{
 
 		names := helper.GetOrderedKeys(keySetsMap)
 
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocApiKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 		creators := make([]broadcaster.Creator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
 		for _, keyName := range names {
 			ks := keySetsMap[keyName]

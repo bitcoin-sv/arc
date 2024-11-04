@@ -16,12 +16,12 @@ func getDefaultArcConfig() *ArcConfig {
 		GrpcMessageSize:    100000000,
 		Network:            "regtest",
 		MessageQueue:       getDefaultMessageQueueConfig(),
-		Tracing:            nil, // optional
+		Tracing:            getDefaultTracingConfig(),
 		PeerRpc:            getDefaultPeerRpcConfig(),
 		Broadcasting:       getBroadcastingConfig(),
 		Metamorph:          getMetamorphConfig(),
 		Blocktx:            getBlocktxConfig(),
-		Api:                getApiConfig(),
+		API:                getAPIConfig(),
 		K8sWatcher:         nil, // optional
 		Callbacker:         getCallbackerConfig(),
 		Cache:              getCacheConfig(),
@@ -38,8 +38,8 @@ func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	}
 }
 
-func getDefaultPeerRpcConfig() *PeerRpcConfig {
-	return &PeerRpcConfig{
+func getDefaultPeerRPCConfig() *PeerRPCConfig {
+	return &PeerRPCConfig{
 		Password: "bitcoin",
 		User:     "bitcoin",
 		Host:     "localhost",
@@ -117,10 +117,10 @@ func getBlocktxConfig() *BlocktxConfig {
 	}
 }
 
-func getApiConfig() *ApiConfig {
-	return &ApiConfig{
+func getAPIConfig() *APIConfig {
+	return &APIConfig{
 		Address:   "localhost:9090",
-		WocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		WocAPIKey: "mainnet_XXXXXXXXXXXXXXXXXXXX",
 		DefaultPolicy: &bitcoin.Settings{
 			ExcessiveBlockSize:              2000000000,
 			BlockMaxSize:                    512000000,
@@ -195,12 +195,18 @@ func getCacheConfig() *CacheConfig {
 	return &CacheConfig{
 		Engine: FreeCache,
 		Freecache: &FreeCacheConfig{
-			Size: 100 * 1024 * 1024, // Default size 100MB.
+			Size: 10 * 1024 * 1024, // Default size 10MB.
 		},
 		Redis: &RedisConfig{
 			Addr:     "localhost:6379",
 			Password: "",
 			DB:       0,
 		},
+	}
+}
+
+func getDefaultTracingConfig() *TracingConfig {
+	return &TracingConfig{
+		DialAddr: "", // optional
 	}
 }

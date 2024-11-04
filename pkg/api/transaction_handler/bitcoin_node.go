@@ -44,7 +44,7 @@ func (b *BitcoinNode) GetTransaction(_ context.Context, txID string) (txBytes []
 }
 
 // GetTransactions gets a raw transactions from the bitcoin node.
-func (b *BitcoinNode) GetTransactions(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+func (b *BitcoinNode) GetTransactions(_ context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
 	txs := make([]*metamorph.Transaction, 0, len(txIDs))
 
 	for _, id := range txIDs {
@@ -95,7 +95,7 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (b *BitcoinNode) SubmitTransaction(ctx context.Context, tx *sdkTx.Transacti
 }
 
 // SubmitTransactions submits a list of transaction to the bitcoin network and returns the transaction statuses.
-func (b *BitcoinNode) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+func (b *BitcoinNode) SubmitTransactions(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 	statuses := make([]*metamorph.TransactionStatus, 0, len(txs))
 	for _, tx := range txs {
 		txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))

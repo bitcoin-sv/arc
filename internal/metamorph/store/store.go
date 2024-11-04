@@ -13,7 +13,7 @@ import (
 
 var ErrNotFound = errors.New("key could not be found")
 
-type StoreData struct {
+type Data struct {
 	RawTx             []byte
 	StoredAt          time.Time
 	LastModified      time.Time
@@ -21,25 +21,25 @@ type StoreData struct {
 	Status            metamorph_api.Status
 	BlockHeight       uint64
 	BlockHash         *chainhash.Hash
-	Callbacks         []StoreCallback
-	StatusHistory     []*StoreStatus
+	Callbacks         []Callback
+	StatusHistory     []*Status
 	FullStatusUpdates bool
 	RejectReason      string
 	CompetingTxs      []string
 	LockedBy          string
-	Ttl               int64
+	TTL               int64
 	MerklePath        string
 	LastSubmittedAt   time.Time
 	Retries           int
 }
 
-type StoreCallback struct {
+type Callback struct {
 	CallbackURL   string `json:"callback_url"`
 	CallbackToken string `json:"callback_token"`
 	AllowBatch    bool   `json:"allow_batch"`
 }
 
-type StoreStatus struct {
+type Status struct {
 	Status    metamorph_api.Status
 	Timestamp time.Time
 }
@@ -62,20 +62,20 @@ type Stats struct {
 }
 
 type MetamorphStore interface {
-	Get(ctx context.Context, key []byte) (*StoreData, error)
-	GetMany(ctx context.Context, keys [][]byte) ([]*StoreData, error)
-	Set(ctx context.Context, value *StoreData) error
-	SetBulk(ctx context.Context, data []*StoreData) error
+	Get(ctx context.Context, key []byte) (*Data, error)
+	GetMany(ctx context.Context, keys [][]byte) ([]*Data, error)
+	Set(ctx context.Context, value *Data) error
+	SetBulk(ctx context.Context, data []*Data) error
 	Del(ctx context.Context, key []byte) error
 
 	SetLocked(ctx context.Context, since time.Time, limit int64) error
 	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*StoreData, error)
-	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*StoreData, error)
-	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
-	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*StoreData, error)
-	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*StoreData, error)
+	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
+	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*Data, error)
+	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
+	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
+	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error

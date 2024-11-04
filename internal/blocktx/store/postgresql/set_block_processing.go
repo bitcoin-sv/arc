@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
@@ -38,11 +38,8 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 }
 
 func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "DelBlockProcessing")
-		defer span.End()
-	}
+	ctx, span := p.startTracing(ctx, "DelBlockProcessing")
+	defer p.endTracing(span)
 
 	q := `
 		DELETE FROM blocktx.block_processing WHERE block_hash = $1 AND processed_by = $2;

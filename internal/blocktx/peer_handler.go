@@ -18,7 +18,7 @@ var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to p2p.
 
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
-	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, length uint64, bytesRead int) (int, wire.Message, []byte, error) {
+	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, _ uint64, bytesRead int) (int, wire.Message, []byte, error) {
 		blockMessage := &p2p.BlockMessage{
 			Header: &wire.BlockHeader{},
 		}
@@ -82,15 +82,15 @@ func NewPeerHandler(logger *slog.Logger, blockRequestCh chan BlockRequest, block
 	}
 }
 
-func (ph *PeerHandler) HandleTransactionsGet(_ []*wire.InvVect, peer p2p.PeerI) ([][]byte, error) {
+func (ph *PeerHandler) HandleTransactionsGet(_ []*wire.InvVect, _ p2p.PeerI) ([][]byte, error) {
 	return nil, nil
 }
 
-func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, peer p2p.PeerI) error {
+func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, _ p2p.PeerI) error {
 	return nil
 }
 
-func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, peer p2p.PeerI) error {
+func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, _ p2p.PeerI) error {
 	return nil
 }
 

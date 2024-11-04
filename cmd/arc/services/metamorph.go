@@ -288,7 +288,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 	}
 
 	for _, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
-		peerUrl, err := peerSetting.GetP2PUrl()
+		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("error getting peer url: %v", err)
 		}

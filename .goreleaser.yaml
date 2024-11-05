@@ -53,7 +53,7 @@ builds:
 # ---------------------------
 release:
   prerelease: false
-  name_template: "Release {{.Tag}}"
+  name_template: "{{.Tag}}"
   header: |
     # 🚀 Release of {{ .ProjectName }} - {{ .Tag }}
     

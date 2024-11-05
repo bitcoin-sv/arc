@@ -108,7 +108,7 @@ type Processor struct {
 type Option func(f *Processor)
 
 type CallbackSender interface {
-	SendCallback(data *store.Data)
+	SendCallback(ctx context.Context, data *store.Data)
 }
 
 func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
@@ -298,7 +298,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 }
 
 func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
-	_, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
@@ -309,7 +309,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 	for _, data := range updatedData {
 		if len(data.Callbacks) > 0 {
-			p.callbackSender.SendCallback(data)
+			p.callbackSender.SendCallback(ctx, data)
 		}
 	}
 }
@@ -496,7 +496,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		}
 
 		if sendCallback && len(data.Callbacks) > 0 {
-			p.callbackSender.SendCallback(data)
+			p.callbackSender.SendCallback(ctx, data)
 		}
 	}
 	return nil

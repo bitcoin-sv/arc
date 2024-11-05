@@ -59,6 +59,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
+	callbackerOpts := make([]metamorph.CallbackerOption, 0)
 
 	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr)
@@ -69,6 +70,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		callbackerOpts = append(callbackerOpts, metamorph.WithCallbackerTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	stopFn := func() {
@@ -123,7 +125,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
-	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger)
+
+	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
 	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),

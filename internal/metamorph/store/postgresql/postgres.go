@@ -584,6 +584,9 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 }
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+	ctx, span := tracing.StartTracing(ctx, "UpdateStatusBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
+	defer tracing.EndTracing(span)
+
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
@@ -673,6 +676,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 }
 
 func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	qBulk := `
 		UPDATE metamorph.transactions
 			SET

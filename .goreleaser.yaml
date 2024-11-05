@@ -53,24 +53,21 @@ builds:
 # ---------------------------
 release:
   prerelease: false
-  name_template: "{{.ProjectName}} - Release {{.Tag}}"
+  name_template: "Release {{.Tag}}"
   header: |
-    ## 🚀 Release {{ .Tag }} - {{ .ProjectName }}
+    # 🚀 Release of {{ .ProjectName }} - {{ .Tag }}
     
     **Released on**: {{ .Date }}
     
-    ### What's New
+    ## What's New
     Here are the latest updates, bug fixes, and features in this release:
 
   footer: |
-    ### Full Changelog: 
+    ## Full Changelog: 
     You can find full changelog here: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
     
-    ### Docker Image:
+    ## Docker Image:
     You can find docker container at [Docker Hub](https://hub.docker.com/r/bsvb/arc)
     or get it by running `docker pull bsvb/arc:{{.Version}}`
     
-    ### Contributors
-    🚀 Thank you to everyone who contributed to this release!
-    
-    Thank you for using {{ .ProjectName }}! 🎉
+    ### Thank you for using {{ .ProjectName }}! 🎉

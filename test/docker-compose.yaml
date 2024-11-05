@@ -170,7 +170,7 @@ services:
       - ./config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
     environment:
-      - ARC_TRACING_DIALADDR
+      - ARC_TRACING_ENABLED
     depends_on:
       nats-1:
         condition: service_healthy
@@ -199,7 +199,7 @@ services:
       - "8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
     environment:
-      - ARC_TRACING_DIALADDR
+      - ARC_TRACING_ENABLED
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
@@ -217,7 +217,7 @@ services:
       - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
     environment:
-      - ARC_TRACING_DIALADDR
+      - ARC_TRACING_ENABLED
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:
@@ -227,6 +227,8 @@ services:
         condition: service_healthy
       arc-redis:
         condition: service_healthy
+      migrate-metamorph:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -245,7 +247,7 @@ services:
       - "2112"
     command: [ "./arc", "-api=true", "-config=." ]
     environment:
-      - ARC_TRACING_DIALADDR
+      - ARC_TRACING_ENABLED
     volumes:
       - ./config/config.yaml:/service/config.yaml
     depends_on:

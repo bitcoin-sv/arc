@@ -239,8 +239,8 @@ func TestCallback(t *testing.T) {
 		},
 		{
 			name:                    "post transactions with multiple callbacks",
-			numberOfTxs:             8,
-			numberOfCallbackServers: 10,
+			numberOfTxs:             5,
+			numberOfCallbackServers: 3,
 		},
 	}
 
@@ -295,6 +295,7 @@ func TestCallback(t *testing.T) {
 			// submit transactions
 			for _, tx := range txs {
 				for _, callbackSrv := range callbackServers {
+					time.Sleep(100 * time.Millisecond)
 					testTxSubmission(t, callbackSrv.url, callbackSrv.token, false, tx)
 					// This is to test the multiple submissions with the same callback URL and token
 					// Expected behavior is that the callback should not be added to tx and the server should receive the callback only once

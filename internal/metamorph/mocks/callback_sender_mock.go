@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"sync"
@@ -19,7 +20,7 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //
 //		// make and configure a mocked metamorph.CallbackSender
 //		mockedCallbackSender := &CallbackSenderMock{
-//			SendCallbackFunc: func(data *store.Data)  {
+//			SendCallbackFunc: func(ctx context.Context, data *store.Data)  {
 //				panic("mock out the SendCallback method")
 //			},
 //		}
@@ -30,12 +31,14 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //	}
 type CallbackSenderMock struct {
 	// SendCallbackFunc mocks the SendCallback method.
-	SendCallbackFunc func(data *store.Data)
+	SendCallbackFunc func(ctx context.Context, data *store.Data)
 
 	// calls tracks calls to the methods.
 	calls struct {
 		// SendCallback holds details about calls to the SendCallback method.
 		SendCallback []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Data is the data argument value.
 			Data *store.Data
 		}
@@ -44,19 +47,21 @@ type CallbackSenderMock struct {
 }
 
 // SendCallback calls SendCallbackFunc.
-func (mock *CallbackSenderMock) SendCallback(data *store.Data) {
+func (mock *CallbackSenderMock) SendCallback(ctx context.Context, data *store.Data) {
 	if mock.SendCallbackFunc == nil {
 		panic("CallbackSenderMock.SendCallbackFunc: method is nil but CallbackSender.SendCallback was just called")
 	}
 	callInfo := struct {
+		Ctx  context.Context
 		Data *store.Data
 	}{
+		Ctx:  ctx,
 		Data: data,
 	}
 	mock.lockSendCallback.Lock()
 	mock.calls.SendCallback = append(mock.calls.SendCallback, callInfo)
 	mock.lockSendCallback.Unlock()
-	mock.SendCallbackFunc(data)
+	mock.SendCallbackFunc(ctx, data)
 }
 
 // SendCallbackCalls gets all the calls that were made to SendCallback.
@@ -64,9 +69,11 @@ func (mock *CallbackSenderMock) SendCallback(data *store.Data) {
 //
 //	len(mockedCallbackSender.SendCallbackCalls())
 func (mock *CallbackSenderMock) SendCallbackCalls() []struct {
+	Ctx  context.Context
 	Data *store.Data
 } {
 	var calls []struct {
+		Ctx  context.Context
 		Data *store.Data
 	}
 	mock.lockSendCallback.RLock()

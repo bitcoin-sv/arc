@@ -11,21 +11,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/coocood/freecache"
+	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestNewProcessor(t *testing.T) {
@@ -495,7 +495,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(_ *store.Data) {
+				SendCallbackFunc: func(_ context.Context, _ *store.Data) {
 					callbackSent <- struct{}{}
 				},
 			}
@@ -871,7 +871,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(_ *store.Data) {},
+				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
 			}
 			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 			sut, err := metamorph.NewProcessor(

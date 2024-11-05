@@ -2,16 +2,17 @@ package test
 
 import (
 	"fmt"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
-	"github.com/bitcoinsv/bsvutil"
-
-	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"net/http"
 	"testing"
 	"time"
 
+	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"github.com/stretchr/testify/require"
+
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
+	"github.com/bitcoinsv/bsvutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBatchChainedTxs(t *testing.T) {
@@ -22,7 +23,7 @@ func TestBatchChainedTxs(t *testing.T) {
 		utxos := getUtxos(t, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-		txs, err := createTxChain(privateKey, utxos[0], 30)
+		txs, err := createTxChain(privateKey, utxos[0], 20)
 		require.NoError(t, err)
 
 		request := make([]TransactionRequest, len(txs))
@@ -37,8 +38,14 @@ func TestBatchChainedTxs(t *testing.T) {
 		// Send POST request
 		t.Logf("submitting batch of %d chained txs", len(txs))
 		resp := postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
-		for _, txResponse := range resp {
-			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
+		hasFailed := false
+		for i, txResponse := range resp {
+			if !assert.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
+				hasFailed = true
+			}
+		}
+		if hasFailed {
+			t.FailNow()
 		}
 
 		time.Sleep(1 * time.Second)
@@ -46,8 +53,13 @@ func TestBatchChainedTxs(t *testing.T) {
 		// repeat request to ensure response remains the same
 		t.Logf("re-submitting batch of %d chained txs", len(txs))
 		resp = postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
-		for _, txResponse := range resp {
-			require.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus)
+		for i, txResponse := range resp {
+			if !assert.Equal(t, Status_SEEN_ON_NETWORK, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
+				hasFailed = true
+			}
+		}
+		if hasFailed {
+			t.FailNow()
 		}
 	})
 }

@@ -51,9 +51,6 @@ func Enable(logger *slog.Logger, serviceName string, tracingAddr string) (func()
 		return nil, fmt.Errorf("failed to create trace provider: %v", err)
 	}
 
-	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-
 	cleanup := func() {
 		err = exporter.Shutdown(ctx)
 		if err != nil {

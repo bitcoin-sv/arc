@@ -4,34 +4,59 @@ import (
 	"context"
 	"log/slog"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 type GrpcCallbacker struct {
-	cc callbacker_api.CallbackerAPIClient
-	l  *slog.Logger
+	cc                callbacker_api.CallbackerAPIClient
+	l                 *slog.Logger
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
-func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logger) GrpcCallbacker {
-	return GrpcCallbacker{
+func WithCallbackerTracer(attr ...attribute.KeyValue) func(*GrpcCallbacker) {
+	return func(p *GrpcCallbacker) {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+	}
+}
+
+type CallbackerOption func(s *GrpcCallbacker)
+
+func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logger, opts ...CallbackerOption) GrpcCallbacker {
+	c := GrpcCallbacker{
 		cc: api,
 		l:  logger,
 	}
+
+	for _, opt := range opts {
+		opt(&c)
+	}
+
+	return c
 }
 
-func (c GrpcCallbacker) SendCallback(tx *store.Data) {
-	if len(tx.Callbacks) == 0 {
+func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
+	ctx, span := tracing.StartTracing(ctx, "SendCallback", c.tracingEnabled, c.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
+	if len(data.Callbacks) == 0 {
 		return
 	}
 
-	in := toGrpcInput(tx)
+	in := toGrpcInput(data)
 	if in == nil {
 		return
 	}
 
-	_, err := c.cc.SendCallback(context.Background(), in)
+	_, err := c.cc.SendCallback(ctx, in)
 	if err != nil {
 		c.l.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
 	}

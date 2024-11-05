@@ -14,6 +14,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -218,7 +219,16 @@ func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req 
 }
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, timeoutSeconds int64, txID string) *metamorph_api.TransactionStatus {
 	ctx, span := tracing.StartTracing(ctx, "processTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	returnedStatus := &metamorph_api.TransactionStatus{
+		Txid:   txID,
+		Status: metamorph_api.Status_RECEIVED,
+	}
+	defer func() {
+		if span != nil {
+			span.SetAttributes(attribute.String("final-status", returnedStatus.Status.String()), attribute.String("TxID", returnedStatus.Txid), attribute.Bool("time-out", returnedStatus.TimedOut))
+		}
+		tracing.EndTracing(span)
+	}()
 
 	responseChannel := make(chan StatusAndError, 10)
 
@@ -241,11 +251,6 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		waitForStatus = metamorph_api.Status_SEEN_ON_NETWORK
 	}
 
-	returnedStatus := &metamorph_api.TransactionStatus{
-		Txid:   txID,
-		Status: metamorph_api.Status_RECEIVED,
-	}
-
 	// Return the status if it has greater or equal value
 	if returnedStatus.GetStatus() >= waitForStatus {
 		return returnedStatus
@@ -259,6 +264,10 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			return returnedStatus
 		case res := <-responseChannel:
 			returnedStatus.Status = res.Status
+
+			if span != nil {
+				span.AddEvent("status change", trace.WithAttributes(attribute.String("status", returnedStatus.Status.String())))
+			}
 
 			if len(res.CompetingTxs) > 0 {
 				returnedStatus.CompetingTxs = res.CompetingTxs

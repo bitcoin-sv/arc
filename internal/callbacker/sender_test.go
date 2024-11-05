@@ -159,18 +159,3 @@ func TestCallbackSender_Send_WithRetries(t *testing.T) {
 	// Then
 	assert.True(t, ok)
 }
-
-var (
-	once       sync.Once
-	testSender *callbacker.CallbackSender
-)
-
-func getTestSender(t *testing.T) *callbacker.CallbackSender {
-	var err error
-	once.Do(func() {
-		logger := slog.New(slog.NewTextHandler(new(bytes.Buffer), nil))
-		testSender, err = callbacker.NewSender(http.DefaultClient, logger)
-	})
-	require.NoError(t, err)
-	return testSender
-}

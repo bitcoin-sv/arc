@@ -254,7 +254,7 @@ Metamorph publishes new transactions to the message queue and BlockTx subscribes
 
 ### Callbacker
 
-Callbacker is a microservice that sends callbacks to a specified URL. 
+Callbacker is a microservice that sends callbacks to a specified URL.
 
 Callbacker is designed to be horizontally scalable, with each instance operating independently. As a result, they do not communicate with each other and remain unaware of each other's existence.
 

@@ -15,13 +15,13 @@ digraph arc {
     api [shape=rectangle, label="API", style=filled, fillcolor=yellow]
     validation [shape=rectangle, label="validation"]
     empty [width=0 height=0 label="" margin="0.5,0" color="white"]  // to adjust nodes to the left
-    
+
     api -> {validation metamorph }
 
     { rank=same; api; validation; empty; }
     { rank=same; metamorph; blocktx; callbacker; }
 
-    metamorph -> {blocktx [style="dashed", dir="both"] callbacker}  
+    metamorph -> {blocktx [style="dashed", dir="both"] callbacker}
 
     subgraph cluster_mtm {
       label = "metamorph";

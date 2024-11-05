@@ -13,4 +13,3 @@ CREATE TABLE callbacker.callbacks (
     competing_txs TEXT,
     timestamp TIMESTAMPTZ NOT NULL
 );
-

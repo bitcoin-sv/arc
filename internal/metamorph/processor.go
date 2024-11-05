@@ -301,7 +301,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	ctx, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
-	updatedData, err := p.store.UpdateMined(p.ctx, txsBlocks)
+	updatedData, err := p.store.UpdateMined(ctx, txsBlocks)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 		return
@@ -739,11 +739,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
-	_, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	// store in database
-	err := p.store.SetBulk(p.ctx, sReq)
+	err := p.store.SetBulk(ctx, sReq)
 	if err != nil {
 		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
 		return

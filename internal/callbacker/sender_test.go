@@ -3,13 +3,14 @@ package callbacker_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCallbackSender_Send(t *testing.T) {
@@ -31,7 +32,7 @@ func TestCallbackSender_Send(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			retries := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.responseStatus)
 				retries++
 			}))
@@ -141,7 +142,7 @@ func TestCallbackSender_Send_WithRetries(t *testing.T) {
 	sender, _ := callbacker.NewSender(client, logger)
 
 	retryCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		retryCount++
 		if retryCount < 3 {
 			w.WriteHeader(http.StatusInternalServerError)

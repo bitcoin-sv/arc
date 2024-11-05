@@ -676,7 +676,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 }
 
 func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer tracing.EndTracing(span)
 
 	qBulk := `
@@ -786,6 +786,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
+	ctx, span := tracing.StartTracing(ctx, "UpdateMined", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsBlocks)))...)
+	defer tracing.EndTracing(span)
+
 	if txsBlocks == nil {
 		return nil, nil
 	}

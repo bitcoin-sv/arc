@@ -14,9 +14,6 @@ messageQueue:
 tracing:
   enabled: false
   dialAddr: http://arc-jaeger:4317
-  attributes:
-    testKey1: testAttribute1
-    testKey2: testAttribute2
 
 peerRpc:
   password: bitcoin

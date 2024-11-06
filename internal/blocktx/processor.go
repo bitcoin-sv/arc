@@ -217,29 +217,28 @@ func (p *Processor) StartBlockProcessing() {
 				blockHash := blockMsg.Header.BlockHash()
 				timeStart := time.Now()
 
-				defer p.stopBlockProcessGuard(&blockHash) // release guardian at the end
-
 				p.logger.Info("received block", slog.String("hash", blockHash.String()))
+
 				err = p.processBlock(blockMsg)
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, &blockHash)
-
-					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockHash, p.hostname)
-					if errDel != nil {
-						p.logger.Error("failed to delete block processing", slog.String("hash", blockHash.String()), slog.String("err", errDel.Error()))
-					}
+					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
+
 				}
 
-				err = p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
-				if err != nil {
-					p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+				storeErr := p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
+				if storeErr != nil {
+					p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", storeErr.Error()))
+					p.unlockBlock(p.ctx, &blockHash)
+					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
 				}
 
 				// add the total block processing time to the stats
 				p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+				p.stopBlockProcessGuard(&blockHash) // release guardian
 			}
 		}
 	}()
@@ -249,7 +248,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 	p.waitGroup.Add(1)
 
 	execCtx, stopFn := context.WithCancel(ctx)
-	p.processGuardsMap.Store(hash, stopFn)
+	p.processGuardsMap.Store(*hash, stopFn)
 
 	go func() {
 		defer p.waitGroup.Done()
@@ -688,7 +687,7 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, competingChainTip 
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) error {
-	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
+	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to insert block at given height", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return err
@@ -701,7 +700,7 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		return err
 	}
 
-	if err = p.storeTransactions(ctx, blockId, incomingBlock, calculatedMerkleTree); err != nil {
+	if err = p.storeTransactions(ctx, blockID, incomingBlock, calculatedMerkleTree); err != nil {
 		p.logger.Error("unable to store transactions from block", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.String("err", err.Error()))
 		return err
 	}
@@ -709,7 +708,7 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 	return nil
 }
 
-func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) (err error) {
+func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -759,7 +758,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			err := p.store.UpsertBlockTransactions(ctx, blockId, txs)
+			err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
@@ -777,7 +776,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockId uint64, block
 	tracing.EndTracing(iterateMerkleTree, nil)
 
 	// update all remaining transactions
-	err = p.store.UpsertBlockTransactions(ctx, blockId, txs)
+	err = p.store.UpsertBlockTransactions(ctx, blockID, txs)
 	if err != nil {
 		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
 	}
@@ -977,15 +976,6 @@ func (p *Processor) getStaleTxs(ctx context.Context, staleChain chain) ([]store.
 	}
 
 	return staleTxs, nil
-}
-
-const (
-	hoursPerDay   = 24
-	blocksPerHour = 6
-)
-
-func (p *Processor) getRetentionHeightRange() int {
-	return p.dataRetentionDays * hoursPerDay * blocksPerHour
 }
 
 func (p *Processor) Shutdown() {

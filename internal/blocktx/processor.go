@@ -225,7 +225,6 @@ func (p *Processor) StartBlockProcessing() {
 					p.unlockBlock(p.ctx, &blockHash)
 					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
-
 				}
 
 				storeErr := p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))

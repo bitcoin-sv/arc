@@ -853,7 +853,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 				SELECT *
 				FROM
 					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[])
-				  AS t(mined_status, hash, block_hash, block_height, merkle_path)
+					AS t(mined_status, hash, block_hash, block_height, merkle_path)
 			  ) AS bulk_query
 			WHERE
 			  t.hash=bulk_query.hash

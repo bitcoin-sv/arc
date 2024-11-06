@@ -220,8 +220,8 @@ func testHandleBlockOnEmptyDatabase(t *testing.T, p2pMsgHandler *blocktx_p2p.Msg
 
 func testHandleStaleBlock(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
 	prevBlockHash := testutils.RevChainhash(t, blockHash822014_startOfChain)
-	txHash := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
-	txHash2 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430") // should not be published - is already in the longest chain
+	txHash := testutils.RevChainhash(t, txhash822015)
+	txHash2 := testutils.RevChainhash(t, txhash822015_2) // should not be published - is already in the longest chain
 	treeStore := bc.BuildMerkleTreeStoreChainHash([]*chainhash.Hash{txHash, txHash2})
 	merkleRoot := treeStore[len(treeStore)-1]
 

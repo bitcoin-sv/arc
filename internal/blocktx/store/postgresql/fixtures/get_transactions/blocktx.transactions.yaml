@@ -41,3 +41,17 @@
   hash: 0xa3d4e78a8e11e97c8faf34880da861412273948edf467f23590601a1057079d8
   inserted_at: 2023-12-15 14:00:00
   is_registered: false
+
+# txs from block 3 - LONGEST
+- id: 11
+  hash: 0x2eb9f15adaf9e7d1de19f3ebc6bf95b62871a4e053c30ac0d1b1df85a6163d8e
+  inserted_at: 2023-12-15 14:00:00
+  is_registered: true
+- id: 12
+  hash: 0x45ad0e3de133e386faeff8ecf12b665875d527031b9aa75ca96d3fc2b7098fa5
+  inserted_at: 2023-12-15 14:00:00
+  is_registered: false
+- id: 13
+  hash: 0x4bac520c26dba4e24c3fb73bf4fd0d66e45ec39b976d1d052f8a4f499f4aa004
+  inserted_at: 2023-12-15 14:00:00
+  is_registered: false

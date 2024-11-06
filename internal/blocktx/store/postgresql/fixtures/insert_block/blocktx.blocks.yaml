@@ -1,0 +1,36 @@
+- inserted_at: 2023-12-15 14:30:00
+  id: 1
+  hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
+  prevhash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822015
+  processed_at: 2023-12-15 14:30:00
+  size: 20160000
+  tx_count: 6523
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:30:00
+  id: 2
+  hash: 0x00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9
+  prevhash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822015
+  processed_at: 2023-12-15 14:30:00
+  size: 20160000
+  tx_count: 6523
+  status: 20 # STALE
+  chainwork: '123456'
+  is_longest: false
+- inserted_at: 2023-12-15 14:30:00
+  id: 3
+  hash: 0x0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7
+  prevhash: 0x000000000000000002a0926c51854d2bd525c26026ab0f178ca07f723b31033a
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822015
+  processed_at: 2023-12-15 14:30:00
+  size: 20160000
+  tx_count: 6523
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false

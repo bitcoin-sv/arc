@@ -9,22 +9,25 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]store.TransactionBlock, error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 	if tracer != nil {
 		var span trace.Span
 		ctx, span = tracer.Start(ctx, "GetMinedTransactions")
 		defer span.End()
 	}
 
-	predicate := "WHERE t.hash = ANY($1) AND b.status = $2"
+	if onlyLongestChain {
+		predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"
+		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
+	}
 
-	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes), blocktx_api.Status_LONGEST)
-}
+	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3)"
 
-func (p *PostgreSQL) GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]store.TransactionBlock, error) {
-	predicate := "WHERE m.blockid = $1 AND t.is_registered = TRUE"
-
-	return p.getTransactionBlocksByPredicate(ctx, predicate, blockId)
+	return p.getTransactionBlocksByPredicate(ctx, predicate,
+		pq.Array(hashes),
+		blocktx_api.Status_LONGEST,
+		blocktx_api.Status_STALE,
+	)
 }
 
 func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {

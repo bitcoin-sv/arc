@@ -8,18 +8,24 @@ import (
 	"log/slog"
 	"net/url"
 
+	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/ordishs/go-bitcoin"
 )
 
 type Finder struct {
-	th metamorph.TransactionHandler
-	n  *bitcoin.Bitcoind
-	w  *woc_client.WocClient
-	l  *slog.Logger
+	th                metamorph.TransactionHandler
+	n                 *bitcoin.Bitcoind
+	w                 *woc_client.WocClient
+	l                 *slog.Logger
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger) Finder {
@@ -48,6 +54,9 @@ func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_clien
 }
 
 func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+	ctx, span := tracing.StartTracing(ctx, "GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]validator.RawTx, 0, len(ids))
 	var remainingIDs []string
@@ -79,7 +88,10 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	if source.Has(validator.SourceNodes) && f.n != nil {
 		var nErr error
 		for _, id := range ids {
+			var getRawTxsspan trace.Span
+			ctx, getRawTxsspan = tracing.StartTracing(ctx, "GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 			nTx, err := f.n.GetRawTransaction(id)
+			tracing.EndTracing(getRawTxsspan)
 			if err != nil {
 				nErr = errors.Join(nErr, fmt.Errorf("%s: %w", id, err))
 			}
@@ -105,7 +117,11 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 	// at last try the WoC
 	if source.Has(validator.SourceWoC) && len(ids) > 0 {
+		var wocSpan trace.Span
+		ctx, wocSpan = tracing.StartTracing(ctx, "GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 		wocTxs, wocErr := f.w.GetRawTxs(ctx, ids)
+		defer tracing.EndTracing(wocSpan)
+
 		for _, wTx := range wocTxs {
 			if wTx.Error != "" {
 				wocErr = errors.Join(wocErr, fmt.Errorf("returned error data tx %s: %s", wTx.TxID, wTx.Error))

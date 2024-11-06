@@ -26,7 +26,6 @@ var (
 
 type TransactionHandler interface {
 	Health(ctx context.Context) error
-	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error)

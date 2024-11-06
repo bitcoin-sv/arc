@@ -2,6 +2,8 @@ package api
 
 import (
 	"strconv"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type StatusCode int
@@ -28,6 +30,14 @@ const (
 	ErrStatusCumulativeFees         StatusCode = 473
 	ErrStatusTxSize                 StatusCode = 474
 )
+
+func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
+	attr := []attribute.KeyValue{attribute.Int("code", e.Status)}
+	if e.ExtraInfo != nil {
+		attr = append(attr, attribute.String("extraInfo", *e.ExtraInfo))
+	}
+	return attr
+}
 
 func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 	emptyString := ""

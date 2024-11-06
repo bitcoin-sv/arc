@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/validator"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/validator"
 )
 
 var (
@@ -14,7 +17,10 @@ var (
 	ErrFailedToGetRawTxs = errors.New("failed to get raw transactions for parent")
 )
 
-func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transaction) error {
+func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
+	ctx, span := tracing.StartTracing(ctx, "extendTx", tracingEnabled, tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	// potential improvement: implement version for the rawTx with only one input
 
 	// get distinct parents
@@ -69,7 +75,9 @@ func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transacti
 }
 
 // getUnminedAncestors returns unmined ancestors with data necessary to perform Deep Fee validation
-func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.Transaction) (map[string]*sdkTx.Transaction, error) {
+func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (map[string]*sdkTx.Transaction, error) {
+	ctx, span := tracing.StartTracing(ctx, "getUnminedAncestors", tracingEnabled, tracingAttributes...)
+	defer tracing.EndTracing(span)
 	unmindedAncestorsSet := make(map[string]*sdkTx.Transaction)
 
 	// get distinct parents
@@ -130,7 +138,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 		unmindedAncestorsSet[p.TxID] = bTx
 
 		// get parent ancestors
-		parentAncestorsSet, err := getUnminedAncestors(ctx, w, bTx)
+		parentAncestorsSet, err := getUnminedAncestors(ctx, w, bTx, tracingEnabled, tracingAttributes...)
 		for aID, aTx := range parentAncestorsSet {
 			unmindedAncestorsSet[aID] = aTx
 		}

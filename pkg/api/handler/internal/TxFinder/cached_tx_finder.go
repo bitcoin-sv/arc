@@ -5,11 +5,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/patrickmn/go-cache"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/patrickmn/go-cache"
 )
 
 const (
@@ -18,8 +21,10 @@ const (
 )
 
 type CachedFinder struct {
-	f *Finder
-	s *cache.Cache
+	f                 *Finder
+	s                 *cache.Cache
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 func NewCached(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger) CachedFinder {
@@ -31,6 +36,9 @@ func NewCached(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc
 }
 
 func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+	ctx, span := tracing.StartTracing(ctx, "GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	cachedTxs := make([]validator.RawTx, 0, len(ids))
 	var toFindIDs []string
 

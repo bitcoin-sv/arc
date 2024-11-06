@@ -7,17 +7,18 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/script"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/ordishs/go-bitcoin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var validLockingScript = &script.Script{
@@ -40,7 +41,7 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.NoError(t, actualError)
@@ -54,7 +55,7 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.Error(t, actualError, "Validation should have returned an error")
@@ -71,7 +72,7 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.Error(t, actualError)
@@ -85,7 +86,7 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.NoError(t, actualError)
@@ -107,7 +108,7 @@ func TestValidator(t *testing.T) {
 			sut := New(policy, nil)
 
 			// when
-			actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+			actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 			// then
 			require.NoError(t, actualError, "Failed to validate tx %d", txIndex)
@@ -141,7 +142,7 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.NoError(t, actualError, "Failed to validate tx")
@@ -161,7 +162,7 @@ func TestValidator(t *testing.T) {
 		sut := New(getPolicy(5), &txFinder)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		actualError := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 		// then
 		require.NoError(t, actualError)
@@ -287,7 +288,7 @@ func BenchmarkValidator(b *testing.B) {
 	sut := New(policy, nil)
 
 	for i := 0; i < b.N; i++ {
-		_ = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+		_ = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 	}
 }
 
@@ -299,7 +300,7 @@ func TestFeeCalculation(t *testing.T) {
 	sut := New(policy, nil)
 
 	// when
-	err = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+	err = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 	// then
 	t.Log(err)
@@ -483,7 +484,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.hex)
 
 			// when
-			actualError := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel)
+			actualError := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel, false)
 
 			// then
 			if tc.expectedErr == nil {

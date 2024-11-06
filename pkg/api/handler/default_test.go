@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"io"
 	"log/slog"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -800,9 +801,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
 				return nil, metamorph.ErrTransactionNotFound
 			},
-			GetTransactionFunc: func(_ context.Context, _ string) ([]byte, error) {
-				return nil, metamorph.ErrTransactionNotFound
-			},
 
 			HealthFunc: func(_ context.Context) error {
 				return nil
@@ -1014,9 +1012,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 						BlockHeight: 100,
 					},
 				}, nil
-			},
-			GetTransactionFunc: func(_ context.Context, _ string) ([]byte, error) {
-				return validTxParentBytes, nil
 			},
 
 			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {

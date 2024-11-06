@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultValidator_helpers_extendTx(t *testing.T) {
@@ -55,7 +56,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
 			// when
-			err := extendTx(context.TODO(), &txFinder, tx)
+			err := extendTx(context.TODO(), &txFinder, tx, false)
 
 			// then
 			require.Equal(t, tc.expectedErr, err)
@@ -153,7 +154,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
 			// when
-			res, err := getUnminedAncestors(context.TODO(), &txFinder, tx)
+			res, err := getUnminedAncestors(context.TODO(), &txFinder, tx, false)
 
 			// then
 			require.Equal(t, tc.expectedErr, err)

@@ -1,7 +1,6 @@
 package callbacker_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -41,7 +40,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			client := &http.Client{Timeout: 500 * time.Second}
 
 			retries := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if retries < tc.expectedRetries-1 {
 					w.WriteHeader(tc.responseStatus)
 				} else {
@@ -52,7 +51,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			}))
 			defer server.Close()
 
-			logger := slog.New(slog.NewTextHandler(new(bytes.Buffer), nil))
+			logger := slog.Default()
 			sut, err := callbacker.NewSender(client, logger)
 			require.NoError(t, err)
 
@@ -68,7 +67,7 @@ func TestCallbackSender_Send(t *testing.T) {
 }
 func TestCallbackSender_GracefulStop(t *testing.T) {
 	// Given
-	logger := slog.New(slog.NewTextHandler(new(bytes.Buffer), nil))
+	logger := slog.Default()
 	sut, err := callbacker.NewSender(http.DefaultClient, logger)
 	require.NoError(t, err)
 
@@ -83,7 +82,7 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 
 func TestCallbackSender_Health(t *testing.T) {
 	// Given
-	logger := slog.New(slog.NewTextHandler(new(bytes.Buffer), nil))
+	logger := slog.Default()
 	sut, err := callbacker.NewSender(http.DefaultClient, logger)
 	require.NoError(t, err)
 
@@ -136,9 +135,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			// Given
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 				require.Equal(t, "Bearer "+tc.token, r.Header.Get("Authorization"))
-
 				var batch callbacker.BatchCallback
 				err := json.NewDecoder(r.Body).Decode(&batch)
 				require.NoError(t, err)
@@ -155,7 +152,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			defer server.Close()
 
 			client := &http.Client{Timeout: 2 * time.Second}
-			logger := slog.New(slog.NewTextHandler(new(bytes.Buffer), nil))
+			logger := slog.Default()
 			sut, err := callbacker.NewSender(client, logger)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
@@ -172,7 +169,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 func TestCallbackSender_Send_WithRetries(t *testing.T) {
 	// Given
 	client := &http.Client{}
-	logger := slog.New(slog.NewJSONHandler(bytes.NewBuffer([]byte{}), nil))
+	logger := slog.Default()
 	sut, _ := callbacker.NewSender(client, logger)
 
 	retryCount := 0

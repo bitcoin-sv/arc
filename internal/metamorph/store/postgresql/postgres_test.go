@@ -706,7 +706,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block2Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StoreStatus{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    unmined.Status,
 			Timestamp: unmined.LastModified,
 		})

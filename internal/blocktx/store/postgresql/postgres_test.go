@@ -131,7 +131,7 @@ func TestPostgresDB(t *testing.T) {
 
 	var err error
 
-	t.Run("insert block / get block", func(t *testing.T) {
+	t.Run("upsert block / get block", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "")
 
@@ -171,13 +171,13 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedBlock, actualBlockResp)
 
 		// when
-		id, err = postgresDB.InsertBlock(ctx, expectedBlockViolatingUniqueIndex)
+		id, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
 
 		// then
 		require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
 
 		// when
-		id, err = postgresDB.InsertBlock(ctx, expectedBlockOverrideStatus)
+		id, err = postgresDB.UpsertBlock(ctx, expectedBlockOverrideStatus)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1), id) // this should only update the status and retain the same ID
 
@@ -381,7 +381,7 @@ func TestPostgresDB(t *testing.T) {
 
 		// when
 		err = postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdatesViolating)
-		require.Equal(t, store.ErrFailedToUpdateBlockStatuses, err)
+		require.True(t, errors.Is(err, store.ErrFailedToUpdateBlockStatuses))
 	})
 
 	t.Run("get mined txs", func(t *testing.T) {
@@ -936,7 +936,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 	}
 }
 
-func TestInsertBlockConditions(t *testing.T) {
+func TestUpsertBlockConditions(t *testing.T) {
 	tt := []struct {
 		name            string
 		blockStatus     blocktx_api.Status
@@ -1051,7 +1051,7 @@ func TestInsertBlockConditions(t *testing.T) {
 			}
 
 			// when
-			blockId, err := sut.InsertBlock(ctx, block)
+			blockId, err := sut.UpsertBlock(ctx, block)
 
 			// then
 			if tc.shouldSucceed {

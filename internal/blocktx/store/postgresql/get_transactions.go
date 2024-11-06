@@ -5,16 +5,13 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/lib/pq"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
-	if tracer != nil {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "GetMinedTransactions")
-		defer span.End()
-	}
+	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
 
 	if onlyLongestChain {
 		predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"

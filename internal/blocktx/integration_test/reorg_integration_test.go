@@ -395,13 +395,13 @@ func testHandleOrphansReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler,
 	verifyBlock(t, store, blockHash822016Fork, 822016, blocktx_api.Status_STALE)
 
 	bh822015 := testutils.RevChainhash(t, blockHash822015)
-	bh822015_fork := testutils.RevChainhash(t, blockHash822015Fork)
-	bh822016_fork := testutils.RevChainhash(t, blockHash822016Fork)
+	bh822015Fork := testutils.RevChainhash(t, blockHash822015Fork)
+	bh822016Fork := testutils.RevChainhash(t, blockHash822016Fork)
 	bh822017 := testutils.RevChainhash(t, blockHash822017)
 
 	expectedTxs := []*blocktx_api.TransactionBlock{
 		{ // in stale chain
-			BlockHash:       bh822015_fork[:],
+			BlockHash:       bh822015Fork[:],
 			BlockHeight:     822015,
 			TransactionHash: testutils.RevChainhash(t, txhash822015)[:],
 			BlockStatus:     blocktx_api.Status_STALE,
@@ -413,7 +413,7 @@ func testHandleOrphansReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler,
 			BlockStatus:     blocktx_api.Status_LONGEST,
 		},
 		{ // in stale chain
-			BlockHash:       bh822016_fork[:],
+			BlockHash:       bh822016Fork[:],
 			BlockHeight:     822016,
 			TransactionHash: testutils.RevChainhash(t, txhash822016)[:],
 			BlockStatus:     blocktx_api.Status_STALE,

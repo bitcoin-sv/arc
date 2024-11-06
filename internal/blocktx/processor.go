@@ -635,7 +635,7 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 	}
 
 	if block.Status == blocktx_api.Status_LONGEST {
-		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height, blocktx_api.Status_LONGEST)
+		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 			return false, err
 		}
@@ -741,7 +741,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex))
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // NOSONAR
 		if err != nil {
 			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}

@@ -15,6 +15,7 @@ var (
 	ErrUnableToPrepareStatement         = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows               = errors.New("unable to delete rows")
 	ErrFailedToInsertBlock              = errors.New("failed to insert block")
+	ErrFailedToUpdateBlockStatuses      = errors.New("failed to update block statuses")
 	ErrFailedToOpenDB                   = errors.New("failed to open postgres database")
 	ErrFailedToInsertTransactions       = errors.New("failed to bulk insert transactions")
 	ErrFailedToGetRows                  = errors.New("failed to get rows")
@@ -32,15 +33,15 @@ type BlocktxStore interface {
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
-	UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
+	InsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []TxWithMerklePath) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
-	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]TransactionBlock, error)
+	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetRegisteredTransactions(ctx context.Context, blockId uint64) ([]TransactionBlock, error)
+	GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
@@ -50,6 +51,13 @@ type BlocktxStore interface {
 	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
 
+	BeginTx(ctx context.Context) (DbTransaction, error)
 	Ping(ctx context.Context) error
 	Close() error
+}
+
+type DbTransaction interface {
+	Commit() error
+	Rollback() error
+	WriteLockBlocksTable(ctx context.Context) error
 }

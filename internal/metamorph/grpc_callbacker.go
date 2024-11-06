@@ -19,7 +19,7 @@ type GrpcCallbacker struct {
 	tracingAttributes []attribute.KeyValue
 }
 
-func WithCallbackerTracer(attr ...attribute.KeyValue) func(*GrpcCallbacker) {
+func WithTracerCallbacker(attr ...attribute.KeyValue) func(*GrpcCallbacker) {
 	return func(p *GrpcCallbacker) {
 		p.tracingEnabled = true
 		if len(attr) > 0 {

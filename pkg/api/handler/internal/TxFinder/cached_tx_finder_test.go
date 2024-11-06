@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/patrickmn/go-cache"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
-	"github.com/patrickmn/go-cache"
-	"github.com/stretchr/testify/require"
 )
 
 // Mocked data for RawTx
@@ -52,10 +53,10 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 			}
 
 			sut := CachedFinder{
-				f: &Finder{
-					th: thMq,
+				finder: &Finder{
+					transactionHandler: thMq,
 				},
-				s: c,
+				cacheStore: c,
 			}
 
 			// when

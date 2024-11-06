@@ -96,7 +96,6 @@ func NewDefault(
 		wocClient = woc_client.New(false)
 	}
 
-	finder := txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger)
 	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
@@ -104,7 +103,6 @@ func NewDefault(
 		NodePolicy:         policy,
 		logger:             logger,
 		now:                time.Now,
-		txFinder:           &finder,
 		mrVerifier:         mr,
 	}
 
@@ -112,6 +110,12 @@ func NewDefault(
 	for _, opt := range opts {
 		opt(handler)
 	}
+	var finderOpts []func(f *txfinder.CachedFinder)
+	if handler.tracingEnabled {
+		finderOpts = append(finderOpts, txfinder.WithTracerCachedFinder(handler.tracingAttributes...))
+	}
+
+	handler.txFinder = txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger, finderOpts...)
 
 	return handler, nil
 }

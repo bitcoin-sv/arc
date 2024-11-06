@@ -142,11 +142,11 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
-	peers := make([]p2p.PeerI, len(arcConfig.Peers))
+	peers := make([]p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
 
 	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
 
-	for i, peerSetting := range arcConfig.Peers {
+	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
 			stopFn()

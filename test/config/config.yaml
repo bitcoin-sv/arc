@@ -21,19 +21,22 @@ peerRpc:
   host: node1
   port: 18332
 
-peers:
-  - host: node1
-    port:
-      p2p: 18333
-      zmq: 28332
-  - host: node2
-    port:
-      p2p: 18333
-      zmq: 28332
-  - host: node3
-    port:
-      p2p: 18333
-      zmq: 28332
+broadcasting: # settings for connection to nodes
+  mode: unicast # one of unicast | multicast
+  unicast:
+    peers: # list of bitcoin node peers to connect to
+    - host: node1
+      port:
+        p2p: 18333
+        zmq: 28332
+    - host: node2
+      port:
+        p2p: 18333
+        zmq: 28332
+    - host: node3
+      port:
+        p2p: 18333
+        zmq: 28332
 
 cache:
   engine: redis

@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"log/slog"
+	"runtime"
 
 	"go.opentelemetry.io/otel/attribute"
 
@@ -24,6 +25,10 @@ func WithTracerCallbacker(attr ...attribute.KeyValue) func(*GrpcCallbacker) {
 		p.tracingEnabled = true
 		if len(attr) > 0 {
 			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

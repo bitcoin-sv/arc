@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"runtime"
 
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,6 +34,10 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 		p.tracingEnabled = true
 		if len(attr) > 0 {
 			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

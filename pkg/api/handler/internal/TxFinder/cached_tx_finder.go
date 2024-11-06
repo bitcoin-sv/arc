@@ -3,6 +3,7 @@ package txfinder
 import (
 	"context"
 	"log/slog"
+	"runtime"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -32,6 +33,11 @@ func WithTracerCachedFinder(attr ...attribute.KeyValue) func(s *CachedFinder) {
 		p.tracingEnabled = true
 		if len(attr) > 0 {
 			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +81,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Server) {
 		s.tracingEnabled = true
 		if len(attr) > 0 {
 			s.tracingAttributes = append(s.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			s.tracingAttributes = append(s.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

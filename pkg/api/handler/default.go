@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -74,6 +75,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 		a.tracingEnabled = true
 		if len(attr) > 0 {
 			a.tracingAttributes = append(a.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			a.tracingAttributes = append(a.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

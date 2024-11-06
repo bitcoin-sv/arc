@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -82,6 +83,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
 		m.tracingEnabled = true
 		if len(attr) > 0 {
 			m.tracingAttributes = append(m.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			m.tracingAttributes = append(m.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

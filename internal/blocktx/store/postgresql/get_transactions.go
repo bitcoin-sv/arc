@@ -80,7 +80,6 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			MerklePath:  merklePath,
 			BlockStatus: blockStatus,
 		})
-
 	}
 
 	return transactionBlocks, nil

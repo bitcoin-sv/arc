@@ -217,13 +217,13 @@ func (p *Processor) StartBlockProcessing() {
 				blockHash := blockMsg.Header.BlockHash()
 				timeStart := time.Now()
 
-				defer p.stopBlockProcessGuard(&blockhash) // release guardian at the end
+				defer p.stopBlockProcessGuard(&blockHash) // release guardian at the end
 
-				p.logger.Info("received block", slog.String("hash", blockhash.String()))
+				p.logger.Info("received block", slog.String("hash", blockHash.String()))
 				err = p.processBlock(blockMsg)
 				if err != nil {
-					p.logger.Error("block processing failed", slog.String("hash", blockhash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, &blockhash)
+					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, &blockHash)
 
 					_, errDel := p.store.DelBlockProcessing(p.ctx, &blockHash, p.hostname)
 					if errDel != nil {
@@ -688,13 +688,13 @@ func (p *Processor) hasGreatestChainwork(ctx context.Context, competingChainTip 
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) error {
-	blockId, err := p.store.InsertBlock(ctx, incomingBlock)
+	blockId, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to insert block at given height", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return err
 	}
 
-	calculatedMerkleTree := buildMerkleTreeStoreChainHash(ctx, txHashes)
+	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
 
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))

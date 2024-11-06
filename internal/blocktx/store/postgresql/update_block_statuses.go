@@ -19,15 +19,15 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 
 	blockHashes := make([][]byte, len(blockStatusUpdates))
 	statuses := make([]blocktx_api.Status, len(blockStatusUpdates))
-	is_longest := make([]bool, len(blockStatusUpdates))
+	isLongest := make([]bool, len(blockStatusUpdates))
 
 	for i, update := range blockStatusUpdates {
 		blockHashes[i] = update.Hash
 		statuses[i] = update.Status
-		is_longest[i] = update.Status == blocktx_api.Status_LONGEST
+		isLongest[i] = update.Status == blocktx_api.Status_LONGEST
 	}
 
-	_, err := p.db.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(is_longest))
+	_, err := p.db.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
 	}

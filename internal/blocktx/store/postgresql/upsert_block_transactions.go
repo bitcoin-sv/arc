@@ -11,7 +11,7 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
@@ -40,7 +40,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockId uint64
 		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash;
 	`
 
-	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockId, pq.Array(txHashesBytes), pq.Array(merklePaths))
+	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockID, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
 		return errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
 	}

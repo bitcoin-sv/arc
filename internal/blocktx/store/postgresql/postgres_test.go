@@ -171,7 +171,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedBlock, actualBlockResp)
 
 		// when
-		id, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
+		_, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
 
 		// then
 		require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
@@ -1051,14 +1051,14 @@ func TestUpsertBlockConditions(t *testing.T) {
 			}
 
 			// when
-			blockId, err := sut.UpsertBlock(ctx, block)
+			blockID, err := sut.UpsertBlock(ctx, block)
 
 			// then
 			if tc.shouldSucceed {
-				require.NotEqual(t, uint64(0), blockId)
+				require.NotEqual(t, uint64(0), blockID)
 				require.NoError(t, err)
 			} else {
-				require.Equal(t, uint64(0), blockId)
+				require.Equal(t, uint64(0), blockID)
 				require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
 			}
 		})

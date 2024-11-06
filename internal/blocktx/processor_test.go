@@ -152,15 +152,15 @@ func TestHandleBlock(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
-				WriteLockBlocksTableFunc: func(ctx context.Context) error {
+				WriteLockBlocksTableFunc: func(_ context.Context) error {
 					return nil
 				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
+				BeginTxFunc: func(_ context.Context) (store.DbTransaction, error) {
 					return txMock, nil
 				},
-				GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
+				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
 						return &blocktx_api.Block{Processed: true}, nil
 					}
@@ -175,16 +175,16 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
 					return nil
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
@@ -223,7 +223,7 @@ func TestHandleBlock(t *testing.T) {
 
 			var insertedBlockTransactions [][]byte
 
-			storeMock.UpsertBlockTransactionsFunc = func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 				require.True(t, len(txsWithMerklePaths) <= batchSize)
 
 				for _, tx := range txsWithMerklePaths {
@@ -391,7 +391,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				RollbackFunc: func() error {
 					return nil
 				},
-				WriteLockBlocksTableFunc: func(ctx context.Context) error {
+				WriteLockBlocksTableFunc: func(_ context.Context) error {
 					return nil
 				},
 			}
@@ -424,13 +424,13 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
 					return &blocktx_api.Block{}, nil
 				},
-				UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {
 					mtx.Lock()
 					insertedBlockStatus = block.Status
 					mtx.Unlock()
 					return 1, nil
 				},
-				GetOrphanedChainUpFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					if tc.shouldFindOrphanChain {
 						return []*blocktx_api.Block{
 							{
@@ -444,7 +444,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 
 					return nil, nil
 				},
-				UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
 						mtx.Lock()
 						shouldCheckUpdateStatuses = false
@@ -455,7 +455,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 					return nil
 				},
-				GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 					if comparingChainwork {
 						if tc.shouldFindOrphanChain {
 							require.Equal(t, orphanedChainTip.Hash, hash)
@@ -492,7 +492,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					mtx.Unlock()
 					return nil, nil
 				},
-				GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
+				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
 					if comparingChainwork {
 						comparingChainwork = false
 						return []*blocktx_api.Block{
@@ -506,19 +506,19 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 					return nil, nil
 				},
-				UpsertBlockTransactionsFunc: func(ctx context.Context, blockId uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil
 				},
-				GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
-				MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size, txCount uint64) error {
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
 				},
-				DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
+				DelBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
 					return 0, nil
 				},
 			}
@@ -837,7 +837,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					for _, hash := range hashes {
 						require.Equal(t, testdata.TX1Hash[:], hash)
 					}

@@ -473,13 +473,12 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 									Chainwork: "42069",
 								},
 							}, nil
-						} else {
-							return []*blocktx_api.Block{
-								{
-									Chainwork: "62209952899966",
-								},
-							}, nil
 						}
+						return []*blocktx_api.Block{
+							{
+								Chainwork: "62209952899966",
+							},
+						}, nil
 					}
 
 					// if we get to this point, it means that reorg is happening

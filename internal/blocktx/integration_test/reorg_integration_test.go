@@ -105,25 +105,25 @@ func testmain(m *testing.M) int {
 const (
 	blockHash822011 = "bf9be09b345cc2d904b59951cc8a2ed452d8d143e2e25cde64058270fb3a667a"
 
-	blockHash822014_startOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
-	blockHash822015              = "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000"
-	blockHash822016              = "e1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000"
-	blockHash822017              = "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000"
+	blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
+	blockHash822015             = "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000"
+	blockHash822016             = "e1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000"
+	blockHash822017             = "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000"
 
-	blockHash822015_fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
-	blockHash822016_fork = "032c3688bc7536b2d787f3a196b1145a09bf33183cd1448ff6b1a9dfbb022db8"
+	blockHash822015Fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
+	blockHash822016Fork = "032c3688bc7536b2d787f3a196b1145a09bf33183cd1448ff6b1a9dfbb022db8"
 
-	blockHash822018        = "212a7598a62295f1a520ef525a34f657bc636d9da9bda74acdf6f051cd84c353"
-	blockHash822019_orphan = "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656"
-	blockHash822020_orphan = "00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076"
-	blockHash822021        = "743c7dc491ae5fddd37ebf63058f9574b4db9f6a89f483a4baec31820e5df61d"
-	blockHash822022_orphan = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
-	blockHash822023_orphan = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
+	blockHash822018       = "212a7598a62295f1a520ef525a34f657bc636d9da9bda74acdf6f051cd84c353"
+	blockHash822019Orphan = "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656"
+	blockHash822020Orphan = "00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076"
+	blockHash822021       = "743c7dc491ae5fddd37ebf63058f9574b4db9f6a89f483a4baec31820e5df61d"
+	blockHash822022Orphan = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
+	blockHash822023Orphan = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
 
-	txhash822015   = "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
-	txhash822015_2 = "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"
-	txhash822016   = "2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f"
-	txhash822017   = "ece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6"
+	txhash822015          = "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
+	txhash822015Competing = "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"
+	txhash822016          = "2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f"
+	txhash822017          = "ece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6"
 )
 
 func TestReorg(t *testing.T) {
@@ -144,7 +144,7 @@ func TestReorg(t *testing.T) {
 	publishedTxs := make([]*blocktx_api.TransactionBlock, 0)
 
 	mockNatsConn := &nats_mock.NatsConnectionMock{
-		PublishFunc: func(subj string, data []byte) error {
+		PublishFunc: func(_ string, data []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
 			err := proto.Unmarshal(data, serialized)
 			require.NoError(t, err)
@@ -218,9 +218,9 @@ func testHandleBlockOnEmptyDatabase(t *testing.T, peerHandler *blocktx.PeerHandl
 }
 
 func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
-	prevBlockHash := testutils.RevChainhash(t, blockHash822014_startOfChain)
+	prevBlockHash := testutils.RevChainhash(t, blockHash822014StartOfChain)
 	txHash := testutils.RevChainhash(t, txhash822015)
-	txHash2 := testutils.RevChainhash(t, txhash822015_2) // should not be published - is already in the longest chain
+	txHash2 := testutils.RevChainhash(t, txhash822015Competing) // should not be published - is already in the longest chain
 	treeStore := bc.BuildMerkleTreeStoreChainHash([]*chainhash.Hash{txHash, txHash2})
 	merkleRoot := treeStore[len(treeStore)-1]
 
@@ -242,7 +242,7 @@ func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store 
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
-	verifyBlock(t, store, blockHash822015_fork, 822015, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
 
 	// transactions expected to be published to metamorph
 	expectedTxs := []*blocktx_api.TransactionBlock{
@@ -262,7 +262,7 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 	txHash2 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
 	treeStore := bc.BuildMerkleTreeStoreChainHash([]*chainhash.Hash{txHash, txHash2})
 	merkleRoot := treeStore[len(treeStore)-1]
-	prevhash := testutils.RevChainhash(t, blockHash822015_fork)
+	prevhash := testutils.RevChainhash(t, blockHash822015Fork)
 
 	// should become LONGEST
 	// reorg should happen
@@ -284,15 +284,15 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 	time.Sleep(1 * time.Second)
 
 	// verify that reorg happened
-	verifyBlock(t, store, blockHash822016_fork, 822016, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822015_fork, 822015, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822016Fork, 822016, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_LONGEST)
 
 	verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_STALE)
 	verifyBlock(t, store, blockHash822016, 822016, blocktx_api.Status_STALE)
 	verifyBlock(t, store, blockHash822017, 822017, blocktx_api.Status_STALE)
 
-	verifyBlock(t, store, blockHash822014_startOfChain, 822014, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822019_orphan, 822019, blocktx_api.Status_ORPHANED)
+	verifyBlock(t, store, blockHash822014StartOfChain, 822014, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_ORPHANED)
 
 	previouslyLongestBlockHash := testutils.RevChainhash(t, blockHash822017)
 
@@ -306,7 +306,7 @@ func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *post
 		{ // previously in longest chain - also in stale - should have blockdata updated
 			BlockHash:       prevhash[:],
 			BlockHeight:     822015,
-			TransactionHash: testutils.RevChainhash(t, txhash822015_2)[:],
+			TransactionHash: testutils.RevChainhash(t, txhash822015Competing)[:],
 			BlockStatus:     blocktx_api.Status_LONGEST,
 		},
 		{ // newly mined from stale block that became longest after reorg
@@ -350,18 +350,18 @@ func testHandleStaleOrphans(t *testing.T, peerHandler *blocktx.PeerHandler, stor
 
 	// verify that the block and orphans have STALE status
 	verifyBlock(t, store, blockHash822018, 822018, blocktx_api.Status_STALE)
-	verifyBlock(t, store, blockHash822019_orphan, 822019, blocktx_api.Status_STALE)
-	verifyBlock(t, store, blockHash822020_orphan, 822020, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822020Orphan, 822020, blocktx_api.Status_STALE)
 
 	// verify that the blocks after the next gap are still orphans
-	verifyBlock(t, store, blockHash822022_orphan, 822022, blocktx_api.Status_ORPHANED)
-	verifyBlock(t, store, blockHash822023_orphan, 822023, blocktx_api.Status_ORPHANED)
+	verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
+	verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_ORPHANED)
 }
 
 func testHandleOrphansReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
 	txHash := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
 	merkleRoot := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
-	prevhash := testutils.RevChainhash(t, blockHash822020_orphan)
+	prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 	// should become LONGEST
 	// reorg should happen
@@ -383,23 +383,23 @@ func testHandleOrphansReorg(t *testing.T, peerHandler *blocktx.PeerHandler, stor
 	time.Sleep(2 * time.Second)
 
 	// verify that the reorg happened
-	verifyBlock(t, store, blockHash822014_startOfChain, 822014, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822014StartOfChain, 822014, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822016, 822016, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822017, 822017, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822018, 822018, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822019_orphan, 822019, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822020_orphan, 822020, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822020Orphan, 822020, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822021, 822021, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822022_orphan, 822022, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822023_orphan, 822023, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_LONGEST)
 
-	verifyBlock(t, store, blockHash822015_fork, 822015, blocktx_api.Status_STALE)
-	verifyBlock(t, store, blockHash822016_fork, 822016, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822016Fork, 822016, blocktx_api.Status_STALE)
 
 	bh822015 := testutils.RevChainhash(t, blockHash822015)
-	bh822015_fork := testutils.RevChainhash(t, blockHash822015_fork)
-	bh822016_fork := testutils.RevChainhash(t, blockHash822016_fork)
+	bh822015_fork := testutils.RevChainhash(t, blockHash822015Fork)
+	bh822016_fork := testutils.RevChainhash(t, blockHash822016Fork)
 	bh822017 := testutils.RevChainhash(t, blockHash822017)
 
 	expectedTxs := []*blocktx_api.TransactionBlock{
@@ -412,7 +412,7 @@ func testHandleOrphansReorg(t *testing.T, peerHandler *blocktx.PeerHandler, stor
 		{ // in both chains - should have blockdata updated
 			BlockHash:       bh822015[:],
 			BlockHeight:     822015,
-			TransactionHash: testutils.RevChainhash(t, txhash822015_2)[:],
+			TransactionHash: testutils.RevChainhash(t, txhash822015Competing)[:],
 			BlockStatus:     blocktx_api.Status_LONGEST,
 		},
 		{ // in stale chain

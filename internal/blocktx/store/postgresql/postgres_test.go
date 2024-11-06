@@ -193,7 +193,6 @@ func TestPostgresDB(t *testing.T) {
 
 		height := uint64(822015)
 		expectedHashAtHeightLongest := testutils.RevChainhash(t, "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000")
-		expectedHashAtHeightStale := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 
 		heightNotFound := uint64(812222)
 
@@ -201,15 +200,11 @@ func TestPostgresDB(t *testing.T) {
 		hashAtTip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 
 		// when -> then
-		actualBlock, err := postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_LONGEST)
+		actualBlock, err := postgresDB.GetBlockByHeight(context.Background(), height)
 		require.NoError(t, err)
 		require.Equal(t, expectedHashAtHeightLongest[:], actualBlock.Hash)
 
-		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), height, blocktx_api.Status_STALE)
-		require.NoError(t, err)
-		require.Equal(t, expectedHashAtHeightStale[:], actualBlock.Hash)
-
-		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), heightNotFound, blocktx_api.Status_LONGEST)
+		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), heightNotFound)
 		require.Nil(t, actualBlock)
 		require.Equal(t, store.ErrBlockNotFound, err)
 

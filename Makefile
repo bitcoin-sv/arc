@@ -118,6 +118,7 @@ install:
 	# arch -arm64 brew install golangci-lint
 	brew install pre-commit
 	pre-commit install
+	pre-commit install --hook-type commit-msg
 
 .PHONY: install_gen
 install_gen:

@@ -47,7 +47,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorphStore  store.MetamorphStore
 		peerHandler     *metamorph.PeerHandler
 		pm              metamorph.PeerManager
-		statusMessageCh chan *metamorph.PeerTxMessage
+		statusMessageCh chan *metamorph.TxStatusMessage
 		mqClient        metamorph.MessageQueueClient
 		processor       *metamorph.Processor
 		server          *metamorph.Server

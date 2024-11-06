@@ -1,0 +1,73 @@
+# Make sure to check the documentation at http://goreleaser.com
+# ---------------------------
+# General
+# ---------------------------
+version: 2
+
+before:
+  hooks:
+    - make test
+    - make run_e2e_tests
+snapshot:
+  version_template: "{{ .Tag }}"
+
+# ---------------------------
+# Changelog
+# ---------------------------
+changelog:
+  sort: asc
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(.+)\(deps\)!?:.+$'
+      order: 300
+    - title: "New Features"
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 100
+    - title: "Security updates"
+      regexp: '^.*?sec(\(.+\))??!?:.+$'
+      order: 150
+    - title: "Bug fixes"
+      regexp: '^.*?(fix)(\(.+\))??!?:.+$'
+      order: 200
+    - title: "Refactor"
+      regexp: '^.*?(refactor)(\(.+\))??!?:.+$'
+      order: 300
+    - title: "Documentation updates"
+      regexp: '^.*?docs?(\(.+\))??!?:.+$'
+      order: 400
+    - title: "Build process updates"
+      regexp: '^.*?(build|ci)(\(.+\))??!?:.+$'
+      order: 400
+    - title: Other work
+      order: 9999
+
+
+# ---------------------------
+# Builder
+# ---------------------------
+builds:
+  - skip: true
+
+# ---------------------------
+# Github Release
+# ---------------------------
+release:
+  prerelease: false
+  name_template: "{{.Tag}}"
+  header: |
+    # 🚀 Release of {{ .ProjectName }} - {{ .Tag }}
+    
+    **Released on**: {{ .Date }}
+    
+    ## What's New
+    Here are the latest updates, bug fixes, and features in this release:
+
+  footer: |
+    ## Full Changelog: 
+    You can find full changelog here: https://github.com/bitcoin-sv/arc/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    ## Docker Image:
+    You can find docker container at [Docker Hub](https://hub.docker.com/r/bsvb/arc)
+    or get it by running `docker pull bsvb/arc:{{.Version}}`
+    
+    ### Thank you for using {{ .ProjectName }}! 🎉

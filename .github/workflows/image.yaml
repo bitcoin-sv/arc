@@ -8,6 +8,7 @@ on:
 jobs:
   image:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4

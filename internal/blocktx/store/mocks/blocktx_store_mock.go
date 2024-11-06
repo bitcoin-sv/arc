@@ -36,7 +36,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
-//			GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+//			GetBlockByHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlockByHeight method")
 //			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
@@ -110,7 +110,7 @@ type BlocktxStoreMock struct {
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
 	// GetBlockByHeightFunc mocks the GetBlockByHeight method.
-	GetBlockByHeightFunc func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
+	GetBlockByHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*store.BlockGap, error)
@@ -201,8 +201,6 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// Height is the height argument value.
 			Height uint64
-			// Status is the status argument value.
-			Status blocktx_api.Status
 		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
@@ -525,23 +523,21 @@ func (mock *BlocktxStoreMock) GetBlockCalls() []struct {
 }
 
 // GetBlockByHeight calls GetBlockByHeightFunc.
-func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
+func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 	if mock.GetBlockByHeightFunc == nil {
 		panic("BlocktxStoreMock.GetBlockByHeightFunc: method is nil but BlocktxStore.GetBlockByHeight was just called")
 	}
 	callInfo := struct {
 		Ctx    context.Context
 		Height uint64
-		Status blocktx_api.Status
 	}{
 		Ctx:    ctx,
 		Height: height,
-		Status: status,
 	}
 	mock.lockGetBlockByHeight.Lock()
 	mock.calls.GetBlockByHeight = append(mock.calls.GetBlockByHeight, callInfo)
 	mock.lockGetBlockByHeight.Unlock()
-	return mock.GetBlockByHeightFunc(ctx, height, status)
+	return mock.GetBlockByHeightFunc(ctx, height)
 }
 
 // GetBlockByHeightCalls gets all the calls that were made to GetBlockByHeight.
@@ -551,12 +547,10 @@ func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint6
 func (mock *BlocktxStoreMock) GetBlockByHeightCalls() []struct {
 	Ctx    context.Context
 	Height uint64
-	Status blocktx_api.Status
 } {
 	var calls []struct {
 		Ctx    context.Context
 		Height uint64
-		Status blocktx_api.Status
 	}
 	mock.lockGetBlockByHeight.RLock()
 	calls = mock.calls.GetBlockByHeight

@@ -16,10 +16,10 @@ func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 	return p.queryBlockByPredicate(ctx, predicate, hash[:])
 }
 
-func (p *PostgreSQL) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
-	predicate := "WHERE height = $1 AND status = $2"
+func (p *PostgreSQL) GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+	predicate := "WHERE height = $1 AND is_longest = true"
 
-	return p.queryBlockByPredicate(ctx, predicate, height, status)
+	return p.queryBlockByPredicate(ctx, predicate, height)
 }
 
 func (p *PostgreSQL) GetChainTip(ctx context.Context) (*blocktx_api.Block, error) {

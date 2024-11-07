@@ -168,22 +168,20 @@ func TestReorg(t *testing.T) {
 	processor.StartBlockProcessing()
 
 	testHandleBlockOnEmptyDatabase(t, peerHandler, blocktxStore)
-	publishedTxs = publishedTxs[:0] // clear slice for the next test
 
 	// only load fixtures at this point
 	testutils.LoadFixtures(t, dbConn, "fixtures")
 
-	expectedTxs := testHandleStaleBlock(t, peerHandler, blocktxStore)
-	// verify the transaction was correctly published to metamorph
-	verifyTxs(t, expectedTxs, publishedTxs)
-	// clear slice for the next test
-	publishedTxs = publishedTxs[:0]
+	testHandleStaleBlock(t, peerHandler, blocktxStore)
+	// verify the no transaction was published to metamorph
+	require.Len(t, publishedTxs, 0)
 
-	expectedTxs = testHandleReorg(t, peerHandler, blocktxStore)
+	expectedTxs := testHandleReorg(t, peerHandler, blocktxStore)
 	verifyTxs(t, expectedTxs, publishedTxs)
 	publishedTxs = publishedTxs[:0]
 
 	testHandleStaleOrphans(t, peerHandler, blocktxStore)
+	require.Len(t, publishedTxs, 0)
 
 	expectedTxs = testHandleOrphansReorg(t, peerHandler, blocktxStore)
 	verifyTxs(t, expectedTxs, publishedTxs)
@@ -217,7 +215,7 @@ func testHandleBlockOnEmptyDatabase(t *testing.T, peerHandler *blocktx.PeerHandl
 	verifyBlock(t, store, blockHash822011, 822011, blocktx_api.Status_LONGEST)
 }
 
-func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
+func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) {
 	prevBlockHash := testutils.RevChainhash(t, blockHash822014StartOfChain)
 	txHash := testutils.RevChainhash(t, txhash822015)
 	txHash2 := testutils.RevChainhash(t, txhash822015Competing) // should not be published - is already in the longest chain
@@ -235,7 +233,6 @@ func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store 
 		Height:            uint64(822015), // competing block already exists at this height
 		TransactionHashes: []*chainhash.Hash{txHash, txHash2},
 	}
-	blockHash := blockMessage.Header.BlockHash()
 
 	err := peerHandler.HandleBlock(blockMessage, nil)
 	require.NoError(t, err)
@@ -243,18 +240,6 @@ func testHandleStaleBlock(t *testing.T, peerHandler *blocktx.PeerHandler, store 
 	time.Sleep(200 * time.Millisecond)
 
 	verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
-
-	// transactions expected to be published to metamorph
-	expectedTxs := []*blocktx_api.TransactionBlock{
-		{
-			BlockHash:       blockHash[:],
-			BlockHeight:     822015,
-			TransactionHash: txHash[:],
-			BlockStatus:     blocktx_api.Status_STALE,
-		},
-	}
-
-	return expectedTxs
 }
 
 func testHandleReorg(t *testing.T, peerHandler *blocktx.PeerHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {

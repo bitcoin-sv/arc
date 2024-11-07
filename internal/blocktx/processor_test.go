@@ -157,7 +157,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			var actualInsertedBlockTransactions [][]byte
-			uowMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.UnitOfWorkMock{
 				CommitFunc: func() error {
 					return nil
 				},
@@ -363,7 +363,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			shouldCheckUpdateStatuses := true
 			comparingChainwork := true
 
-			uowMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.UnitOfWorkMock{
 				CommitFunc: func() error {
 					return nil
 				},

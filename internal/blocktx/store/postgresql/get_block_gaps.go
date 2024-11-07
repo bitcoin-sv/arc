@@ -52,6 +52,12 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 			return nil, err
 		}
 
+		// in e2e tests, peers will misbehave if we ask
+		// for a genesis block, so we need to ignore it
+		if height == uint64(0) {
+			continue
+		}
+
 		txHash, err := chainhash.NewHash(hash)
 		if err != nil {
 			return nil, err

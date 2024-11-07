@@ -21,9 +21,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			BeginTxFunc: func(ctx context.Context) (store.DbTransaction, error) {
-//				panic("mock out the BeginTx method")
-//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -78,6 +75,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
+//			StartUnitOfWorkFunc: func(ctx context.Context) (store.UnitOfWork, error) {
+//				panic("mock out the StartUnitOfWork method")
+//			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
@@ -97,9 +97,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
-	// BeginTxFunc mocks the BeginTx method.
-	BeginTxFunc func(ctx context.Context) (store.DbTransaction, error)
-
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -154,6 +151,9 @@ type BlocktxStoreMock struct {
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
 
+	// StartUnitOfWorkFunc mocks the StartUnitOfWork method.
+	StartUnitOfWorkFunc func(ctx context.Context) (store.UnitOfWork, error)
+
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
 
@@ -168,11 +168,6 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// BeginTx holds details about calls to the BeginTx method.
-		BeginTx []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -301,6 +296,11 @@ type BlocktxStoreMock struct {
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
 		}
+		// StartUnitOfWork holds details about calls to the StartUnitOfWork method.
+		StartUnitOfWork []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// UpdateBlocksStatuses holds details about calls to the UpdateBlocksStatuses method.
 		UpdateBlocksStatuses []struct {
 			// Ctx is the ctx argument value.
@@ -334,7 +334,6 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch int
 		}
 	}
-	lockBeginTx                            sync.RWMutex
 	lockClearBlocktxTable                  sync.RWMutex
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
@@ -353,42 +352,11 @@ type BlocktxStoreMock struct {
 	lockPing                               sync.RWMutex
 	lockRegisterTransactions               sync.RWMutex
 	lockSetBlockProcessing                 sync.RWMutex
+	lockStartUnitOfWork                    sync.RWMutex
 	lockUpdateBlocksStatuses               sync.RWMutex
 	lockUpsertBlock                        sync.RWMutex
 	lockUpsertBlockTransactions            sync.RWMutex
 	lockVerifyMerkleRoots                  sync.RWMutex
-}
-
-// BeginTx calls BeginTxFunc.
-func (mock *BlocktxStoreMock) BeginTx(ctx context.Context) (store.DbTransaction, error) {
-	if mock.BeginTxFunc == nil {
-		panic("BlocktxStoreMock.BeginTxFunc: method is nil but BlocktxStore.BeginTx was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockBeginTx.Lock()
-	mock.calls.BeginTx = append(mock.calls.BeginTx, callInfo)
-	mock.lockBeginTx.Unlock()
-	return mock.BeginTxFunc(ctx)
-}
-
-// BeginTxCalls gets all the calls that were made to BeginTx.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.BeginTxCalls())
-func (mock *BlocktxStoreMock) BeginTxCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockBeginTx.RLock()
-	calls = mock.calls.BeginTx
-	mock.lockBeginTx.RUnlock()
-	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -1039,6 +1007,38 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing
 	mock.lockSetBlockProcessing.RUnlock()
+	return calls
+}
+
+// StartUnitOfWork calls StartUnitOfWorkFunc.
+func (mock *BlocktxStoreMock) StartUnitOfWork(ctx context.Context) (store.UnitOfWork, error) {
+	if mock.StartUnitOfWorkFunc == nil {
+		panic("BlocktxStoreMock.StartUnitOfWorkFunc: method is nil but BlocktxStore.StartUnitOfWork was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockStartUnitOfWork.Lock()
+	mock.calls.StartUnitOfWork = append(mock.calls.StartUnitOfWork, callInfo)
+	mock.lockStartUnitOfWork.Unlock()
+	return mock.StartUnitOfWorkFunc(ctx)
+}
+
+// StartUnitOfWorkCalls gets all the calls that were made to StartUnitOfWork.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.StartUnitOfWorkCalls())
+func (mock *BlocktxStoreMock) StartUnitOfWorkCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockStartUnitOfWork.RLock()
+	calls = mock.calls.StartUnitOfWork
+	mock.lockStartUnitOfWork.RUnlock()
 	return calls
 }
 

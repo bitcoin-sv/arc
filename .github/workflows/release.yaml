@@ -12,7 +12,7 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') && github.ref_name == 'refs/heads/fix/check-branch-in-release-action'
+    if: startsWith(github.ref, 'refs/tags/') && github.ref_name == 'fix/check-branch-in-release-action'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

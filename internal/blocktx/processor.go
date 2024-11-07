@@ -517,12 +517,6 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 			p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
-	} else if chainTip.Status == blocktx_api.Status_STALE {
-		txsToPublish, err = p.getStaleTxs(ctx, chain)
-		if err != nil {
-			p.logger.Error("unable to get stale transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
-			return err
-		}
 	} else if chainTip.Status == blocktx_api.Status_LONGEST {
 		txsToPublish, err = p.store.GetRegisteredTxsByBlockHashes(ctx, chain.getHashes())
 		if err != nil {
@@ -956,45 +950,6 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 	txsToPublish := append(nowMinedTxs, nowStaleTxs...)
 
 	return txsToPublish, nil
-}
-
-// getStaleTxs returns all transactions from given STALE blocks that are not in the longest chain
-func (p *Processor) getStaleTxs(ctx context.Context, staleChain chain) ([]store.TransactionBlock, error) {
-	// 1. Find registered txs from given STALE blocks
-	// 2. Check for those transactions in the longest chain
-	// 3. Return only those registered txs from the STALE blocks that are not found in the longest chain
-
-	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, staleChain.getHashes())
-	if err != nil {
-		return nil, err
-	}
-
-	registeredHashes := make([][]byte, len(registeredTxs))
-	for i, tx := range registeredTxs {
-		registeredHashes[i] = tx.TxHash
-	}
-
-	minedTxs, err := p.store.GetMinedTransactions(ctx, registeredHashes, true)
-	if err != nil {
-		return nil, err
-	}
-
-	minedTxsMap := make(map[string]bool)
-	for _, tx := range minedTxs {
-		minedTxsMap[string(tx.TxHash)] = true
-	}
-
-	staleTxs := make([]store.TransactionBlock, 0)
-
-	for _, tx := range registeredTxs {
-		if minedTxsMap[string(tx.TxHash)] {
-			continue
-		}
-
-		staleTxs = append(staleTxs, tx)
-	}
-
-	return staleTxs, nil
 }
 
 func (p *Processor) Shutdown() {

@@ -1,0 +1,19 @@
+name: Enforce Commit Message Format
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+jobs:
+  check_commit_message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check commit message format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore)(\\([a-zA-Z]+\\))?:\ .+$ ]]; then
+            echo "PR title which is used as merge commit does not follow Conventional Commits format."
+            echo "Please use format: <type>(<scope>): <description> described int CONTRIBUTING.md"
+            exit 1
+          fi

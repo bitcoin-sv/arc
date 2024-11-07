@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"runtime"
 	"time"
 
 	_ "github.com/lib/pq" // nolint: revive // required for postgres driver
@@ -32,10 +33,14 @@ func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 }
 
 func WithTracer(attr ...attribute.KeyValue) func(s *PostgreSQL) {
-	return func(m *PostgreSQL) {
-		m.tracingEnabled = true
+	return func(p *PostgreSQL) {
+		p.tracingEnabled = true
 		if len(attr) > 0 {
-			m.tracingAttributes = append(m.tracingAttributes, attr...)
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

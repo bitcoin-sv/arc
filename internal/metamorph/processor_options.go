@@ -2,7 +2,10 @@ package metamorph
 
 import (
 	"log/slog"
+	"runtime"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -134,8 +137,15 @@ func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processo
 	}
 }
 
-func WithProcessorTracer() func(*Processor) {
+func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 	return func(p *Processor) {
 		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
 	}
 }

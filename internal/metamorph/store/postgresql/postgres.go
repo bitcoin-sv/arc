@@ -240,6 +240,9 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 }
 
 func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
+	ctx, span := tracing.StartTracing(ctx, "GetMany", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	const q = `
 	 SELECT
 	 	stored_at

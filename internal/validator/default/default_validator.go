@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/fees"
-	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/pkg/api"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/bitcoin-sv/arc/internal/fees"
+	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 var (
@@ -28,11 +31,14 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error { //nolint:funlen - mostly comments
+func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error { //nolint:funlen - mostly comments
+	ctx, span := tracing.StartTracing(ctx, "ValidateTransaction", tracingEnabled, tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
-		err := extendTx(ctx, v.txFinder, tx)
+		err := extendTx(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusTxFormat)
 		}
@@ -52,7 +58,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
+		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -108,8 +114,10 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte) *validator.Error {
-	txSet, err := getUnminedAncestors(ctx, txFinder, tx)
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) *validator.Error {
+	ctx, span := tracing.StartTracing(ctx, "cumulativeCheckFees", tracingEnabled, tracingAttributes...)
+	defer tracing.EndTracing(span)
+	txSet, err := getUnminedAncestors(ctx, txFinder, tx, tracingEnabled, tracingAttributes...)
 	if err != nil {
 		e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
 		return validator.NewError(e, api.ErrStatusCumulativeFees)

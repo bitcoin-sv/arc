@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -26,7 +27,6 @@ var (
 
 type TransactionHandler interface {
 	Health(ctx context.Context) error
-	GetTransaction(ctx context.Context, txID string) ([]byte, error)
 	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error)
@@ -83,6 +83,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
 		m.tracingEnabled = true
 		if len(attr) > 0 {
 			m.tracingAttributes = append(m.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			m.tracingAttributes = append(m.tracingAttributes, attribute.String("file", file))
 		}
 	}
 }

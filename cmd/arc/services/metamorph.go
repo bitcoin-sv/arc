@@ -70,7 +70,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		callbackerOpts = append(callbackerOpts, metamorph.WithCallbackerTracer(arcConfig.Tracing.KeyValueAttributes...))
+		callbackerOpts = append(callbackerOpts, metamorph.WithTracerCallbacker(arcConfig.Tracing.KeyValueAttributes...))
+		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	stopFn := func() {

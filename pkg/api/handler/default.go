@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -75,6 +76,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 		if len(attr) > 0 {
 			a.tracingAttributes = append(a.tracingAttributes, attr...)
 		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			a.tracingAttributes = append(a.tracingAttributes, attribute.String("file", file))
+		}
 	}
 }
 
@@ -96,7 +101,6 @@ func NewDefault(
 		wocClient = woc_client.New(false)
 	}
 
-	finder := txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger)
 	mr := merkleverifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
@@ -104,7 +108,6 @@ func NewDefault(
 		NodePolicy:         policy,
 		logger:             logger,
 		now:                time.Now,
-		txFinder:           &finder,
 		mrVerifier:         mr,
 	}
 
@@ -112,6 +115,12 @@ func NewDefault(
 	for _, opt := range opts {
 		opt(handler)
 	}
+	var finderOpts []func(f *txfinder.CachedFinder)
+	if handler.tracingEnabled {
+		finderOpts = append(finderOpts, txfinder.WithTracerCachedFinder(handler.tracingAttributes...))
+	}
+
+	handler.txFinder = txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger, finderOpts...)
 
 	return handler, nil
 }
@@ -188,12 +197,21 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	txHex, err := parseTransactionFromRequest(ctx.Request())
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
+
 		return ctx.JSON(e.Status, e)
 	}
 
 	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 
 	if e != nil {
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		// if an error is returned, the processing failed
 		return ctx.JSON(e.Status, e)
 	}
@@ -201,6 +219,10 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	if len(fails) > 0 {
 		// if a fail result is returned, the processing/validation failed
 		e = fails[0]
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
@@ -208,6 +230,11 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
 	response := successes[0]
+
+	if span != nil {
+		span.SetAttributes(attribute.String("status", string(response.TxStatus)))
+	}
+
 	return ctx.JSON(response.Status, response)
 }
 
@@ -225,11 +252,19 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 		}
 
 		e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
 	if tx == nil {
 		e := api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction")
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
@@ -255,17 +290,29 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
 	txsHex, err := parseTransactionsFromRequest(ctx.Request())
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
 	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
 		return ctx.JSON(e.Status, e)
 	}
 
@@ -492,7 +539,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts); err != nil {
+	if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...); err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 		return arcError

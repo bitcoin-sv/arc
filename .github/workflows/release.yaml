@@ -19,8 +19,8 @@ jobs:
           fetch-depth: 0
       - name: Get current branch
         run: |
-          branch=$(git branch -r --contains ${{ github.ref }} --format "%(refname:lstrip=3)")
-          branch=$(echo "$branch" | xargs)
+          raw=$(git branch -r --contains ${{ github.ref }})
+          branch=${raw##*/}
           echo "BRANCH=$branch" >> $GITHUB_ENV
 #          echo "::set-output name=branch::$branch"
       - name: Echo Branch

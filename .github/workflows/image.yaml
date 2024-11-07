@@ -6,9 +6,31 @@ on:
       - '*'
 
 jobs:
+  check-current-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.check_step.outputs.branch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch
+        id: check_step
+        # 1. Get the list of branches ref where this tag exists
+        # 2. Remove 'origin/' from that result
+        # 3. Put that string in output
+        run: |
+          raw=$(git branch -r --contains ${{ github.ref }})
+          branch="$(echo ${raw//origin\//} | tr -d '\n')"
+          echo "{name}=branch" >> $GITHUB_OUTPUT
+          echo "Branches where this tag exists : $branch."
+
   image:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    needs: check-current-branch
+    if: contains(${{ needs.check.outputs.branch }}, 'main')`
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4

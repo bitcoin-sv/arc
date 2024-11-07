@@ -145,7 +145,7 @@ func TestHandleBlock(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			batchSize := 4
-			uowMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.UnitOfWorkMock{
 				CommitFunc: func() error {
 					return nil
 				},
@@ -384,7 +384,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			shouldCheckUpdateStatuses := true
 			comparingChainwork := true
 
-			uowMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.UnitOfWorkMock{
 				CommitFunc: func() error {
 					return nil
 				},

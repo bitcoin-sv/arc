@@ -20,8 +20,8 @@ jobs:
       - name: Get current branch
         run: |
           branch=$(git branch -r --contains ${{ github.ref }} --format "%(refname:lstrip=3)")
-          echo "BRANCH=$branch" >> $GITHUB_ENV
           branch=$(echo "$branch" | xargs)
+          echo "BRANCH=$branch" >> $GITHUB_ENV
 #          echo "::set-output name=branch::$branch"
       - name: Echo Branch
         run: echo ${{ env.BRANCH }}

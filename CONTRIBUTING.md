@@ -35,6 +35,39 @@ Thank you for considering contributing in the BSV Blockchain ecosystem! This doc
 
 - **Stay Professional**: Avoid including "fun" code, comments, or irrelevant file changes in your commits and pull requests.
 
+### Commit Messages
+
+- **Use Conventional Commits**: To maintain a clean, organized, and automated commit history, we follow the Conventional Commits format.
+This format allows for clear categorization of commits, enabling automated changelogs and improved collaboration.
+
+
+Each commit message should follow this structure:
+
+```
+<type>(<scope>): <description>
+```
+
+
+Where:
+
+`<type>`: Specifies the purpose of the change. Options implemented when sorting changelog:
+```
+deps     -> dependency update
+feat     -> new feature
+sec      -> security update
+fix      -> bug fixes
+refactor -> refactor commits
+docs     -> documentation
+build/ci -> build process update
+```
+
+`<scope>`: **(Optional)** Task or issue identifier, Example: **ARCO-001**\
+`<description>`: A brief description of the change.
+
+Example of a commit:
+
+> `feat(ARCO-001): add new feature to the project`
+
 ## Getting Started
 
 1. **Fork the Repository**: Click on the "Fork" button at the top-right corner of this repository.

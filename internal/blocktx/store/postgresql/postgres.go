@@ -73,12 +73,11 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 
 	p := &PostgreSQL{
 		_db:                       db,
+		db:                        db,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 		dbInfo:                    dbInfo,
 	}
-
-	p.db = p._db
 
 	for _, opt := range opts {
 		opt(p)
@@ -101,46 +100,42 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 }
 
 func (p *PostgreSQL) StartUnitOfWork(ctx context.Context) (store.UnitOfWork, error) {
-	// This will create a clone of the store and start a transaction
-	// to avoid messing with the state of the main singleton store
-	cloneDB, err := sql.Open(postgresDriverName, p.dbInfo)
+	tx, err := p._db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, errors.Join(store.ErrFailedToOpenDB, err)
+		return nil, err
 	}
 
+	// This will create a clone of the store and use the transaction created
+	// above to avoid messing with the state of the main singleton store
 	cloneStore := &PostgreSQL{
-		_db:                       cloneDB,
+		_tx:                       tx,
+		db:                        tx,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 		tracingEnabled:            p.tracingEnabled,
 		tracingAttributes:         p.tracingAttributes,
 	}
 
-	tx, err := cloneStore._db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	cloneStore._tx = tx
-	cloneStore.db = cloneStore._tx
-
 	return cloneStore, nil
 }
 
 // UnitOfWork methods below
-func (uow *PostgreSQL) Commit() error {
-	uow.db = uow._db
-	return uow._tx.Commit()
+func (p *PostgreSQL) Commit() error {
+	if p._tx == nil {
+		return ErrNoTransaction
+	}
+	return p._tx.Commit()
 }
 
-func (uow *PostgreSQL) Rollback() error {
-	uow.db = uow._db
-	return uow._tx.Rollback()
+func (p *PostgreSQL) Rollback() error {
+	if p._tx == nil {
+		return ErrNoTransaction
+	}
+	return p._tx.Rollback()
 }
 
-func (uow *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
-	tx, ok := uow.db.(*sql.Tx)
-	if !ok {
+func (p *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
+	if p._tx == nil {
 		return ErrNoTransaction
 	}
 
@@ -151,6 +146,6 @@ func (uow *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
 	// is released.
 	//
 	// Reading from the table is still allowed.
-	_, err := tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN EXCLUSIVE MODE")
+	_, err := p._tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN EXCLUSIVE MODE")
 	return err
 }

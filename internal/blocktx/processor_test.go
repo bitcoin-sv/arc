@@ -157,8 +157,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			var actualInsertedBlockTransactions [][]byte
-
-			txMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.DbTransactionMock{
 				CommitFunc: func() error {
 					return nil
 				},
@@ -170,8 +169,8 @@ func TestHandleBlock(t *testing.T) {
 				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				BeginTxFunc: func(_ context.Context) (store.DbTransaction, error) {
-					return txMock, nil
+				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
+					return uowMock, nil
 				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
@@ -364,7 +363,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			shouldCheckUpdateStatuses := true
 			comparingChainwork := true
 
-			txMock := &storeMocks.DbTransactionMock{
+			uowMock := &storeMocks.DbTransactionMock{
 				CommitFunc: func() error {
 					return nil
 				},
@@ -376,8 +375,8 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				BeginTxFunc: func(_ context.Context) (store.DbTransaction, error) {
-					return txMock, nil
+				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
+					return uowMock, nil
 				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if shouldReturnNoBlock {

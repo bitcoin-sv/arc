@@ -786,6 +786,21 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_api.Block, competing bool) (chain, bool, error) {
 	chain := []*blocktx_api.Block{incomingBlock}
 
+	uow, err := p.store.StartUnitOfWork(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() {
+		_ = uow.Rollback()
+	}()
+
+	// Very important step, this will lock blocks
+	// table for writing but still allow reading.
+	err = uow.WriteLockBlocksTable(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
 	orphanedBlocks, err := p.store.GetOrphanedChainUpFromHash(ctx, incomingBlock.Hash)
 	if err != nil {
 		return nil, false, err
@@ -816,6 +831,11 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 		return nil, false, err
 	}
 
+	err = uow.Commit()
+	if err != nil {
+		return nil, false, err
+	}
+
 	p.logger.Info("orphans were found and updated", slog.Int("len", len(orphanedBlocks)))
 
 	chain = append(chain, orphanedBlocks...)
@@ -827,17 +847,17 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 }
 
 func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api.Block) ([]store.TransactionBlock, error) {
-	tx, err := p.store.BeginTx(ctx)
+	uow, err := p.store.StartUnitOfWork(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		_ = tx.Rollback()
+		_ = uow.Rollback()
 	}()
 
 	// Very important step, this will lock blocks
 	// table for writing but still allow reading.
-	err = tx.WriteLockBlocksTable(ctx)
+	err = uow.WriteLockBlocksTable(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +922,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		return nil, err
 	}
 
-	err = tx.Commit()
+	err = uow.Commit()
 	if err != nil {
 		return nil, err
 	}

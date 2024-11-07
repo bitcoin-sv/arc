@@ -670,16 +670,16 @@ func TestPostgresDB(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, ErrNoTransaction, err)
 
-		tx, err := postgresDB.BeginTx(context.Background())
+		uow, err := postgresDB.StartUnitOfWork(context.Background())
 		require.NoError(t, err)
 
-		err = tx.WriteLockBlocksTable(context.Background())
+		err = uow.WriteLockBlocksTable(context.Background())
 		require.NoError(t, err)
 
-		err = tx.Rollback()
+		err = uow.Rollback()
 		require.NoError(t, err)
 
-		err = tx.Commit()
+		err = uow.Commit()
 		require.Equal(t, ErrNoTransaction, err)
 	})
 }

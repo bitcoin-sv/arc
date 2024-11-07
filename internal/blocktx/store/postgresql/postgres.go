@@ -37,6 +37,7 @@ type PostgreSQL struct {
 	maxPostgresBulkInsertRows int
 	tracingEnabled            bool
 	tracingAttributes         []attribute.KeyValue
+	dbInfo                    string
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -74,6 +75,7 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 		_db:                       db,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
+		dbInfo:                    dbInfo,
 	}
 
 	p.db = p._db
@@ -81,18 +83,6 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	for _, opt := range opts {
 		opt(p)
 	}
-
-	return p, nil
-}
-
-func (p *PostgreSQL) BeginTx(ctx context.Context) (store.DbTransaction, error) {
-	tx, err := p._db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	p._tx = tx
-	p.db = p._tx
 
 	return p, nil
 }
@@ -110,18 +100,46 @@ func (p *PostgreSQL) Ping(ctx context.Context) error {
 	return r.Close()
 }
 
-func (p *PostgreSQL) Commit() error {
-	p.db = p._db
-	return p._tx.Commit()
+func (p *PostgreSQL) StartUnitOfWork(ctx context.Context) (store.UnitOfWork, error) {
+	// This will create a clone of the store and start a transaction
+	// to avoid messing with the state of the main singleton store
+	cloneDB, err := sql.Open(postgresDriverName, p.dbInfo)
+	if err != nil {
+		return nil, errors.Join(store.ErrFailedToOpenDB, err)
+	}
+
+	cloneStore := &PostgreSQL{
+		_db:                       cloneDB,
+		now:                       time.Now,
+		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
+		tracingEnabled:            p.tracingEnabled,
+		tracingAttributes:         p.tracingAttributes,
+	}
+
+	tx, err := cloneStore._db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	cloneStore._tx = tx
+	cloneStore.db = cloneStore._tx
+
+	return cloneStore, nil
 }
 
-func (p *PostgreSQL) Rollback() error {
-	p.db = p._db
-	return p._tx.Rollback()
+// UnitOfWork methods below
+func (uow *PostgreSQL) Commit() error {
+	uow.db = uow._db
+	return uow._tx.Commit()
 }
 
-func (p *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
-	tx, ok := p.db.(*sql.Tx)
+func (uow *PostgreSQL) Rollback() error {
+	uow.db = uow._db
+	return uow._tx.Rollback()
+}
+
+func (uow *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
+	tx, ok := uow.db.(*sql.Tx)
 	if !ok {
 		return ErrNoTransaction
 	}

@@ -549,7 +549,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
-	ctx, span := tracing.StartTracing(ctx, "validateEFTransaction", m.tracingEnabled, m.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "validateBEEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	if options.SkipTxValidation {

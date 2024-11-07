@@ -788,7 +788,7 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 		return nil, false, err
 	}
 
-	orphanedBlocks, err := p.store.GetOrphanedChainUpFromHash(ctx, incomingBlock.Hash)
+	orphanedBlocks, err := uow.GetOrphanedChainUpFromHash(ctx, incomingBlock.Hash)
 	if err != nil {
 		return nil, false, err
 	}
@@ -813,7 +813,7 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 		}
 	}
 
-	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	err = uow.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, false, err
 	}
@@ -849,7 +849,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		return nil, err
 	}
 
-	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, staleChainTip.Hash)
+	staleBlocks, err := uow.GetStaleChainBackFromHash(ctx, staleChainTip.Hash)
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +859,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		lowestHeight = getLowestHeight(staleBlocks)
 	}
 
-	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
+	longestBlocks, err := uow.GetLongestChainFromHeight(ctx, lowestHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -875,7 +875,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		staleHashes[i] = b.Hash
 	}
 
-	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
+	registeredTxs, err := uow.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
 	if err != nil {
 		return nil, err
 	}
@@ -892,7 +892,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		blockStatusUpdates[i] = update
 	}
 
-	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	err = uow.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, err
 	}
@@ -904,7 +904,7 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		blockStatusUpdates = append(blockStatusUpdates, update)
 	}
 
-	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	err = uow.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, err
 	}

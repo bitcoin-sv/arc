@@ -146,6 +146,9 @@ func TestHandleBlock(t *testing.T) {
 			// given
 			batchSize := 4
 			uowMock := &storeMocks.UnitOfWorkMock{
+				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+					return nil, nil
+				},
 				CommitFunc: func() error {
 					return nil
 				},
@@ -174,9 +177,6 @@ func TestHandleBlock(t *testing.T) {
 				},
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
-				},
-				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					return nil, nil
 				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
@@ -382,9 +382,50 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 
 			shouldReturnNoBlock := !tc.blockAlreadyExists
 			shouldCheckUpdateStatuses := true
-			comparingChainwork := true
 
 			uowMock := &storeMocks.UnitOfWorkMock{
+				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+					if tc.shouldFindOrphanChain {
+						return []*blocktx_api.Block{
+							{
+								Hash:      []byte("123"),
+								Status:    blocktx_api.Status_ORPHANED,
+								Chainwork: "123",
+							},
+							orphanedChainTip,
+						}, nil
+					}
+
+					return nil, nil
+				},
+				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
+						mtx.Lock()
+						shouldCheckUpdateStatuses = false
+						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
+						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
+						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
+						mtx.Unlock()
+					}
+					return nil
+				},
+				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+					// if this method is called from UnitOfwork, it means that reorg is happening
+					mtx.Lock()
+					insertedBlockStatus = blocktx_api.Status_LONGEST
+					if tc.shouldFindOrphanChain {
+						require.Equal(t, orphanedChainTip.Hash[:], hash)
+						orphanedChainTip.Status = blocktx_api.Status_LONGEST
+					}
+					mtx.Unlock()
+					return nil, nil
+				},
+				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
+					return nil, nil
+				},
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
 				CommitFunc: func() error {
 					return nil
 				},
@@ -430,70 +471,12 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					mtx.Unlock()
 					return 1, nil
 				},
-				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					if tc.shouldFindOrphanChain {
-						return []*blocktx_api.Block{
-							{
-								Hash:      []byte("123"),
-								Status:    blocktx_api.Status_ORPHANED,
-								Chainwork: "123",
-							},
-							orphanedChainTip,
-						}, nil
-					}
-
-					return nil, nil
-				},
-				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
-					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
-						mtx.Lock()
-						shouldCheckUpdateStatuses = false
-						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
-						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
-						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
-						mtx.Unlock()
-					}
-					return nil
-				},
 				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-					if comparingChainwork {
-						if tc.shouldFindOrphanChain {
-							require.Equal(t, orphanedChainTip.Hash, hash)
-							return []*blocktx_api.Block{orphanedChainTip}, nil
-						}
-						if tc.hasGreaterChainwork {
-							return []*blocktx_api.Block{
-								{
-									Chainwork: "62209952899966",
-								},
-								{
-									Chainwork: "42069",
-								},
-								{
-									Chainwork: "42069",
-								},
-							}, nil
-						}
-						return []*blocktx_api.Block{
-							{
-								Chainwork: "62209952899966",
-							},
-						}, nil
-					}
-
-					// if we get to this point, it means that reorg is happening
-					mtx.Lock()
-					insertedBlockStatus = blocktx_api.Status_LONGEST
 					if tc.shouldFindOrphanChain {
-						require.Equal(t, orphanedChainTip.Hash[:], hash)
-						orphanedChainTip.Status = blocktx_api.Status_LONGEST
+						require.Equal(t, orphanedChainTip.Hash, hash)
+						return []*blocktx_api.Block{orphanedChainTip}, nil
 					}
-					mtx.Unlock()
-					return nil, nil
-				},
-				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
-					if comparingChainwork {
-						comparingChainwork = false
+					if tc.hasGreaterChainwork {
 						return []*blocktx_api.Block{
 							{
 								Chainwork: "62209952899966",
@@ -501,9 +484,26 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 							{
 								Chainwork: "42069",
 							},
+							{
+								Chainwork: "42069",
+							},
 						}, nil
 					}
-					return nil, nil
+					return []*blocktx_api.Block{
+						{
+							Chainwork: "62209952899966",
+						},
+					}, nil
+				},
+				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
+					return []*blocktx_api.Block{
+						{
+							Chainwork: "62209952899966",
+						},
+						{
+							Chainwork: "42069",
+						},
+					}, nil
 				},
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil

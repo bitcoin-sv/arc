@@ -53,6 +53,7 @@ type BlocktxStore interface {
 }
 
 type UnitOfWork interface {
+	BlocktxStore
 	Commit() error
 	Rollback() error
 	WriteLockBlocksTable(ctx context.Context) error

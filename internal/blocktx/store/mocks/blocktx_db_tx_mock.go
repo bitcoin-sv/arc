@@ -9,16 +9,16 @@ import (
 	"sync"
 )
 
-// Ensure, that DbTransactionMock does implement store.DbTransaction.
+// Ensure, that UnitOfWorkMock does implement store.UnitOfWork.
 // If this is not the case, regenerate this file with moq.
-var _ store.DbTransaction = &DbTransactionMock{}
+var _ store.UnitOfWork = &UnitOfWorkMock{}
 
-// DbTransactionMock is a mock implementation of store.DbTransaction.
+// UnitOfWorkMock is a mock implementation of store.UnitOfWork.
 //
-//	func TestSomethingThatUsesDbTransaction(t *testing.T) {
+//	func TestSomethingThatUsesUnitOfWork(t *testing.T) {
 //
-//		// make and configure a mocked store.DbTransaction
-//		mockedDbTransaction := &DbTransactionMock{
+//		// make and configure a mocked store.UnitOfWork
+//		mockedUnitOfWork := &UnitOfWorkMock{
 //			CommitFunc: func() error {
 //				panic("mock out the Commit method")
 //			},
@@ -30,11 +30,11 @@ var _ store.DbTransaction = &DbTransactionMock{}
 //			},
 //		}
 //
-//		// use mockedDbTransaction in code that requires store.DbTransaction
+//		// use mockedUnitOfWork in code that requires store.UnitOfWork
 //		// and then make assertions.
 //
 //	}
-type DbTransactionMock struct {
+type UnitOfWorkMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func() error
 
@@ -64,9 +64,9 @@ type DbTransactionMock struct {
 }
 
 // Commit calls CommitFunc.
-func (mock *DbTransactionMock) Commit() error {
+func (mock *UnitOfWorkMock) Commit() error {
 	if mock.CommitFunc == nil {
-		panic("DbTransactionMock.CommitFunc: method is nil but DbTransaction.Commit was just called")
+		panic("UnitOfWorkMock.CommitFunc: method is nil but UnitOfWork.Commit was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -79,8 +79,8 @@ func (mock *DbTransactionMock) Commit() error {
 // CommitCalls gets all the calls that were made to Commit.
 // Check the length with:
 //
-//	len(mockedDbTransaction.CommitCalls())
-func (mock *DbTransactionMock) CommitCalls() []struct {
+//	len(mockedUnitOfWork.CommitCalls())
+func (mock *UnitOfWorkMock) CommitCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -91,9 +91,9 @@ func (mock *DbTransactionMock) CommitCalls() []struct {
 }
 
 // Rollback calls RollbackFunc.
-func (mock *DbTransactionMock) Rollback() error {
+func (mock *UnitOfWorkMock) Rollback() error {
 	if mock.RollbackFunc == nil {
-		panic("DbTransactionMock.RollbackFunc: method is nil but DbTransaction.Rollback was just called")
+		panic("UnitOfWorkMock.RollbackFunc: method is nil but UnitOfWork.Rollback was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -106,8 +106,8 @@ func (mock *DbTransactionMock) Rollback() error {
 // RollbackCalls gets all the calls that were made to Rollback.
 // Check the length with:
 //
-//	len(mockedDbTransaction.RollbackCalls())
-func (mock *DbTransactionMock) RollbackCalls() []struct {
+//	len(mockedUnitOfWork.RollbackCalls())
+func (mock *UnitOfWorkMock) RollbackCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -118,9 +118,9 @@ func (mock *DbTransactionMock) RollbackCalls() []struct {
 }
 
 // WriteLockBlocksTable calls WriteLockBlocksTableFunc.
-func (mock *DbTransactionMock) WriteLockBlocksTable(ctx context.Context) error {
+func (mock *UnitOfWorkMock) WriteLockBlocksTable(ctx context.Context) error {
 	if mock.WriteLockBlocksTableFunc == nil {
-		panic("DbTransactionMock.WriteLockBlocksTableFunc: method is nil but DbTransaction.WriteLockBlocksTable was just called")
+		panic("UnitOfWorkMock.WriteLockBlocksTableFunc: method is nil but UnitOfWork.WriteLockBlocksTable was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -136,8 +136,8 @@ func (mock *DbTransactionMock) WriteLockBlocksTable(ctx context.Context) error {
 // WriteLockBlocksTableCalls gets all the calls that were made to WriteLockBlocksTable.
 // Check the length with:
 //
-//	len(mockedDbTransaction.WriteLockBlocksTableCalls())
-func (mock *DbTransactionMock) WriteLockBlocksTableCalls() []struct {
+//	len(mockedUnitOfWork.WriteLockBlocksTableCalls())
+func (mock *UnitOfWorkMock) WriteLockBlocksTableCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {

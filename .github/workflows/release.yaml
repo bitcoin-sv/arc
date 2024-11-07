@@ -12,12 +12,15 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.check_branch.outputs.branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Get current branch
+        id: check_branch
         run: |
           raw=$(git branch -r --contains ${{ github.ref }})
           branch=${raw##*/}

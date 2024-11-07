@@ -21,7 +21,8 @@ jobs:
         run: |
           branch=$(git branch -r --contains ${{ github.ref }} --format "%(refname:lstrip=3)")
           echo "BRANCH=$branch" >> $GITHUB_ENV
-          echo "::set-output name=branch::$branch"
+          branch=$(echo "$branch" | xargs)
+#          echo "::set-output name=branch::$branch"
       - name: Echo Branch
         run: echo ${{ env.BRANCH }}
       - name: Echo Branch for Debugging

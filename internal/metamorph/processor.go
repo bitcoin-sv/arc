@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/better_p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
@@ -61,7 +62,7 @@ type Processor struct {
 	store                     store.MetamorphStore
 	cacheStore                cache.Store
 	hostname                  string
-	pm                        p2p.PeerManagerI
+	pm                        *better_p2p.NetworkHerald
 	mqClient                  MessageQueueClient
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
@@ -74,7 +75,7 @@ type Processor struct {
 	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
-	statusMessageCh   chan *PeerTxMessage
+	statusMessageCh   chan *metamorph_p2p.PeerTxMessage
 
 	waitGroup *sync.WaitGroup
 
@@ -111,7 +112,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, pm *better_p2p.NetworkHerald, statusMessageChannel chan *metamorph_p2p.PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
@@ -229,17 +230,12 @@ func (p *Processor) Start() error {
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	p.pm.Shutdown()
-
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
 	}
 
-	if p.cancelAll != nil {
-		p.cancelAll()
-	}
-
+	p.cancelAll()
 	p.waitGroup.Wait()
 }
 
@@ -607,32 +603,59 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						break
 					}
 
+					toRequest := make([]*chainhash.Hash, len(unminedTxs)/2)
+					toAnnounce := make([]*chainhash.Hash, len(unminedTxs)/2)
+
 					for _, tx := range unminedTxs {
 						if tx.Retries > p.maxRetries {
 							continue
 						}
 
-						// mark that we retried processing this transaction once more
-						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
-							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-						}
+						// // mark that we retried processing this transaction once more
+						// if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
+						// 	p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+						// }
 
 						// every second time request tx, every other time announce tx
 						if tx.Retries%2 == 0 {
 							// Send GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
-							p.pm.RequestTransaction(tx.Hash)
+							toRequest = append(toRequest, tx.Hash)
+
+							//p.pm.RequestTransaction(tx.Hash)
 							requested++
-							continue
+							//continue
+						} else {
+							p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+							toAnnounce = append(toAnnounce, tx.Hash)
+							//	peers := p.pm.AnnounceTransaction(tx.Hash, nil)
+							//	if len(peers) == 0 {
+							//		p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
+							//		continue
+							//	}
+							announced++
+						}
+					}
+
+					if len(toRequest) > 0 {
+						// mark that we retried processing this transaction once more
+						if err = p.store.IncrementRetriesForMany(ctx, toRequest); err != nil {
+							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
 
-						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
-						if len(peers) == 0 {
-							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
-							continue
+						p.pm.RequestTransactions(toRequest)
+					}
+
+					if len(toAnnounce) > 0 {
+						// mark that we retried processing this transaction once more
+						if err = p.store.IncrementRetriesForMany(ctx, toAnnounce); err != nil {
+							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 						}
-						announced++
+
+						peers := p.pm.AnnounceTransactions(toAnnounce, nil)
+						if len(peers) == 0 {
+							p.logger.Warn("transaction was not announced to any peer during rebroadcast")
+						}
 					}
 				}
 
@@ -646,9 +669,9 @@ func (p *Processor) StartProcessExpiredTransactions() {
 	}()
 }
 
-// GetPeers returns a list of connected and a list of disconnected peers
-func (p *Processor) GetPeers() []p2p.PeerI {
-	return p.pm.GetPeers()
+// GetPeersNmber returns a list of connected and a list of disconnected peers
+func (p *Processor) GetPeersNmber() uint {
+	return p.pm.CountConnectedPeers()
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
@@ -772,13 +795,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 }
 
 func (p *Processor) Health() error {
-	healthyConnections := 0
-
-	for _, peer := range p.pm.GetPeers() {
-		if peer.Connected() && peer.IsHealthy() {
-			healthyConnections++
-		}
-	}
+	healthyConnections := int(p.pm.CountConnectedPeers())
 
 	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))

@@ -7,8 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/libsv/go-p2p"
-
+	"github.com/libsv/go-p2p/better_p2p"
+	better_p2p_mocks "github.com/libsv/go-p2p/better_p2p/mocks"
+	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -66,16 +67,11 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
-				return []p2p.PeerI{&mocks.PeerMock{
-					IsHealthyFunc: func() bool {
-						return false
-					},
-					ConnectedFunc: func() bool {
-						return false
-					},
-				}}
-			}}
+			pm := better_p2p.NewBetterPeerManager(logger, wire.TestNet)
+			peerMq := &better_p2p_mocks.PeerIMock{}
+			peerMq.NetworkFunc = func() wire.BitcoinNet { return wire.TestNet }
+			peerMq.ConnectedFunc = func() bool { return false }
+			_ = pm.AddPeer(peerMq)
 
 			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)
@@ -140,16 +136,11 @@ func TestWatch(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			pm := &mocks.PeerManagerMock{
-				GetPeersFunc: func() []p2p.PeerI {
-					return []p2p.PeerI{
-						&mocks.PeerMock{
-							IsHealthyFunc: func() bool { return false },
-							ConnectedFunc: func() bool { return false },
-						},
-					}
-				},
-			}
+			pm := better_p2p.NewBetterPeerManager(logger, wire.TestNet)
+			peerMq := &better_p2p_mocks.PeerIMock{}
+			peerMq.NetworkFunc = func() wire.BitcoinNet { return wire.TestNet }
+			peerMq.ConnectedFunc = func() bool { return false }
+			_ = pm.AddPeer(peerMq)
 
 			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)

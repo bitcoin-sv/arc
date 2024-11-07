@@ -27,6 +27,7 @@ import (
 	"github.com/coocood/freecache"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/better_p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
@@ -36,6 +37,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
@@ -103,7 +105,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
+	statusMessageChannel := make(chan *metamorph_p2p.PeerTxMessage, 10)
 	minedTxChannel := make(chan *blocktx_api.TransactionBlock, 10)
 
 	mockedZMQ := &mocks.ZMQIMock{
@@ -125,8 +127,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	defer metamorphStore.Close(context.Background())
 
 	cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
-	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+	pm := &better_p2p.NetworkHerald{}
 
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),

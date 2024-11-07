@@ -282,6 +282,24 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 	return nil
 }
 
+func (p *PostgreSQL) IncrementRetriesForMany(ctx context.Context, txHashes []*chainhash.Hash) error {
+	q := `UPDATE metamorph.transactions 
+			SET retries = retries+1 
+			WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
+
+	hashes := make([][]byte, len(txHashes))
+	for i, h := range txHashes {
+		hashes[i] = h[:]
+	}
+
+	_, err := p.db.ExecContext(ctx, q, pq.Array(hashes))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Set stores a single record in the transactions table.
 func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) error {
 	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.tracingAttributes...)

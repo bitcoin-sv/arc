@@ -6,7 +6,6 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/libsv/go-p2p"
 	"sync"
 )
 
@@ -20,8 +19,8 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //		// make and configure a mocked metamorph.ProcessorI
 //		mockedProcessorI := &ProcessorIMock{
-//			GetPeersFunc: func() []p2p.PeerI {
-//				panic("mock out the GetPeers method")
+//			GetPeersNmberFunc: func() uint {
+//				panic("mock out the GetPeersNmber method")
 //			},
 //			GetProcessorMapSizeFunc: func() int {
 //				panic("mock out the GetProcessorMapSize method")
@@ -39,8 +38,8 @@ var _ metamorph.ProcessorI = &ProcessorIMock{}
 //
 //	}
 type ProcessorIMock struct {
-	// GetPeersFunc mocks the GetPeers method.
-	GetPeersFunc func() []p2p.PeerI
+	// GetPeersNmberFunc mocks the GetPeersNmber method.
+	GetPeersNmberFunc func() uint
 
 	// GetProcessorMapSizeFunc mocks the GetProcessorMapSize method.
 	GetProcessorMapSizeFunc func() int
@@ -53,8 +52,8 @@ type ProcessorIMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetPeers holds details about calls to the GetPeers method.
-		GetPeers []struct {
+		// GetPeersNmber holds details about calls to the GetPeersNmber method.
+		GetPeersNmber []struct {
 		}
 		// GetProcessorMapSize holds details about calls to the GetProcessorMapSize method.
 		GetProcessorMapSize []struct {
@@ -70,36 +69,36 @@ type ProcessorIMock struct {
 			Req *metamorph.ProcessorRequest
 		}
 	}
-	lockGetPeers            sync.RWMutex
+	lockGetPeersNmber       sync.RWMutex
 	lockGetProcessorMapSize sync.RWMutex
 	lockHealth              sync.RWMutex
 	lockProcessTransaction  sync.RWMutex
 }
 
-// GetPeers calls GetPeersFunc.
-func (mock *ProcessorIMock) GetPeers() []p2p.PeerI {
-	if mock.GetPeersFunc == nil {
-		panic("ProcessorIMock.GetPeersFunc: method is nil but ProcessorI.GetPeers was just called")
+// GetPeersNmber calls GetPeersNmberFunc.
+func (mock *ProcessorIMock) GetPeersNmber() uint {
+	if mock.GetPeersNmberFunc == nil {
+		panic("ProcessorIMock.GetPeersNmberFunc: method is nil but ProcessorI.GetPeersNmber was just called")
 	}
 	callInfo := struct {
 	}{}
-	mock.lockGetPeers.Lock()
-	mock.calls.GetPeers = append(mock.calls.GetPeers, callInfo)
-	mock.lockGetPeers.Unlock()
-	return mock.GetPeersFunc()
+	mock.lockGetPeersNmber.Lock()
+	mock.calls.GetPeersNmber = append(mock.calls.GetPeersNmber, callInfo)
+	mock.lockGetPeersNmber.Unlock()
+	return mock.GetPeersNmberFunc()
 }
 
-// GetPeersCalls gets all the calls that were made to GetPeers.
+// GetPeersNmberCalls gets all the calls that were made to GetPeersNmber.
 // Check the length with:
 //
-//	len(mockedProcessorI.GetPeersCalls())
-func (mock *ProcessorIMock) GetPeersCalls() []struct {
+//	len(mockedProcessorI.GetPeersNmberCalls())
+func (mock *ProcessorIMock) GetPeersNmberCalls() []struct {
 } {
 	var calls []struct {
 	}
-	mock.lockGetPeers.RLock()
-	calls = mock.calls.GetPeers
-	mock.lockGetPeers.RUnlock()
+	mock.lockGetPeersNmber.RLock()
+	calls = mock.calls.GetPeersNmber
+	mock.lockGetPeersNmber.RUnlock()
 	return calls
 }
 

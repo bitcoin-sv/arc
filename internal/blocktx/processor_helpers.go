@@ -5,10 +5,10 @@ import (
 	"math/big"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/libsv/go-p2p"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/p2p"
 )
 
-func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
+func createBlock(msg *blocktx_p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
 	hash := msg.Header.BlockHash()
 	prevHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot

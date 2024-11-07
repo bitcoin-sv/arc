@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/better_p2p"
+	better_p2p_mocks "github.com/libsv/go-p2p/better_p2p/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,15 +79,15 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			}
 
-			peerMock := &mocks.PeerMock{
+			peerMock := &better_p2p_mocks.PeerIMock{
 				StringFunc: func() string {
 					return ""
 				},
 			}
-			peers := []p2p.PeerI{peerMock}
+			peers := []better_p2p.PeerI{peerMock}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			blockRequestCh := make(chan blocktx.BlockRequest, 10)
+			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
 
 			sut := blocktx.NewBackgroundWorkers(storeMock, logger)
 

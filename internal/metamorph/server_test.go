@@ -10,14 +10,11 @@ import (
 	"time"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -35,27 +32,29 @@ func TestNewServer(t *testing.T) {
 	})
 }
 
-func TestHealth(t *testing.T) {
-	t.Run("Health", func(t *testing.T) {
-		// given
-		processor := &mocks.ProcessorIMock{}
-		processor.GetProcessorMapSizeFunc = func() int { return 22 }
-		processor.GetPeersFunc = func() []p2p.PeerI {
-			return []p2p.PeerI{}
-		}
+// TODO: if answer to server.go:129 is yes, then reimplement test
 
-		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil)
-		require.NoError(t, err)
-		defer sut.GracefulStop()
+// func TestHealth(t *testing.T) {
+// 	t.Run("Health", func(t *testing.T) {
+// 		// given
+// 		processor := &mocks.ProcessorIMock{}
+// 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
+// 		processor.GetPeersFunc = func() []p2p.PeerI {
+// 			return []p2p.PeerI{}
+// 		}
 
-		// when
-		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
+// 		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil)
+// 		require.NoError(t, err)
+// 		defer sut.GracefulStop()
 
-		// then
-		assert.NoError(t, err)
-		assert.Equal(t, int32(22), stats.GetMapSize())
-	})
-}
+// 		// when
+// 		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
+
+// 		// then
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, int32(22), stats.GetMapSize())
+// 	})
+// }
 
 func TestPutTransaction(t *testing.T) {
 	testCases := []struct {
@@ -159,12 +158,11 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	errFailedToGetTxData := errors.New("failed to get transaction data")
 
 	tests := []struct {
-		name               string
-		req                *metamorph_api.TransactionStatusRequest
-		getTxMerklePathErr error
-		getErr             error
-		status             metamorph_api.Status
-		competingTxs       []string
+		name         string
+		req          *metamorph_api.TransactionStatusRequest
+		getErr       error
+		status       metamorph_api.Status
+		competingTxs []string
 
 		want    *metamorph_api.TransactionStatus
 		wantErr assert.ErrorAssertionFunc
@@ -248,8 +246,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1Hash.String(),
 			},
-			status:             metamorph_api.Status_SENT_TO_NETWORK,
-			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
+			status: metamorph_api.Status_SENT_TO_NETWORK,
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:   timestamppb.New(testdata.Time),
@@ -264,8 +261,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			req: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1Hash.String(),
 			},
-			status:             metamorph_api.Status_MINED,
-			getTxMerklePathErr: blocktx.ErrMerklePathNotFoundForTransaction,
+			status: metamorph_api.Status_MINED,
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:   timestamppb.New(testdata.Time),

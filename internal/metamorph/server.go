@@ -6,12 +6,11 @@ import (
 	"errors"
 	"log/slog"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/go-sdk/util"
-	"github.com/libsv/go-p2p"
+
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -43,7 +42,7 @@ type BitcoinNode interface {
 type ProcessorI interface {
 	ProcessTransaction(ctx context.Context, req *ProcessorRequest)
 	GetProcessorMapSize() int
-	GetPeers() []p2p.PeerI
+	GetPeersNmber() uint
 	Health() error
 }
 
@@ -127,23 +126,25 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (*metamorph_api.H
 
 	processorMapSize := s.processor.GetProcessorMapSize()
 
-	peers := s.processor.GetPeers()
+	// TODO: do we need this kind of info? do we check it?
 
-	peersConnected := make([]string, 0, len(peers))
-	peersDisconnected := make([]string, 0, len(peers))
-	for _, peer := range peers {
-		if peer.Connected() {
-			peersConnected = append(peersConnected, peer.String())
-		} else {
-			peersDisconnected = append(peersDisconnected, peer.String())
-		}
-	}
+	// peers := s.processor.GetPeers()
+
+	// peersConnected := make([]string, 0, len(peers))
+	// peersDisconnected := make([]string, 0, len(peers))
+	// for _, peer := range peers {
+	// 	if peer.Connected() {
+	// 		peersConnected = append(peersConnected, peer.String())
+	// 	} else {
+	// 		peersDisconnected = append(peersDisconnected, peer.String())
+	// 	}
+	// }
 
 	return &metamorph_api.HealthResponse{
-		Timestamp:         timestamppb.New(time.Now()),
-		MapSize:           int32(processorMapSize),
-		PeersConnected:    strings.Join(peersConnected, ","),
-		PeersDisconnected: strings.Join(peersDisconnected, ","),
+		Timestamp: timestamppb.New(time.Now()),
+		MapSize:   int32(processorMapSize),
+		//PeersConnected:    strings.Join(peersConnected, ","),
+		//PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil
 }
 

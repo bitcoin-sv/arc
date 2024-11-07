@@ -27,11 +27,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ory/dockertest/v3"
@@ -95,13 +95,13 @@ func TestBlockStatus(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	var blockRequestCh chan blocktx.BlockRequest = nil // nolint: revive
-	blockProcessCh := make(chan *p2p.BlockMessage, 10)
+	var blockRequestCh chan blocktx_p2p.BlockRequest = nil // nolint: revive
+	blockProcessCh := make(chan *blocktx_p2p.BlockMessage, 10)
 
 	blocktxStore, err := postgresql.New(dbInfo, 10, 80)
 	require.NoError(t, err)
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+	peerHandler := blocktx_p2p.NewPeerMsgHandler(logger, blockRequestCh, blockProcessCh)
 	processor, err := blocktx.NewProcessor(logger, blocktxStore, blockRequestCh, blockProcessCh)
 	require.NoError(t, err)
 
@@ -115,7 +115,7 @@ func TestBlockStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// should become LONGEST
-	blockMessage := &p2p.BlockMessage{
+	blockMessage := &blocktx_p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
 			PrevBlock:  *prevBlockHash, // NON-existant in the db
@@ -126,8 +126,8 @@ func TestBlockStatus(t *testing.T) {
 		TransactionHashes: []*chainhash.Hash{txHash},
 	}
 
-	err = peerHandler.HandleBlock(blockMessage, nil)
-	require.NoError(t, err)
+	peerHandler.OnReceive(blockMessage, nil)
+
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
@@ -148,7 +148,7 @@ func TestBlockStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// should become STALE
-	blockMessage = &p2p.BlockMessage{
+	blockMessage = &blocktx_p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
 			PrevBlock:  *prevBlockHash, // block with status LONGEST at height 822014
@@ -159,8 +159,8 @@ func TestBlockStatus(t *testing.T) {
 		TransactionHashes: []*chainhash.Hash{txHash},
 	}
 
-	err = peerHandler.HandleBlock(blockMessage, nil)
-	require.NoError(t, err)
+	peerHandler.OnReceive(blockMessage, nil)
+
 	// Allow DB to process the block
 	time.Sleep(200 * time.Millisecond)
 
@@ -173,7 +173,7 @@ func TestBlockStatus(t *testing.T) {
 
 	// should become LONGEST
 	// reorg should happen
-	blockMessage = &p2p.BlockMessage{
+	blockMessage = &blocktx_p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
 			PrevBlock:  blockHashStale, // block with status STALE at height 822015
@@ -184,8 +184,8 @@ func TestBlockStatus(t *testing.T) {
 		TransactionHashes: []*chainhash.Hash{txHash},
 	}
 
-	err = peerHandler.HandleBlock(blockMessage, nil)
-	require.NoError(t, err)
+	peerHandler.OnReceive(blockMessage, nil)
+
 	// Allow DB to process the block and perform reorg
 	time.Sleep(1 * time.Second)
 

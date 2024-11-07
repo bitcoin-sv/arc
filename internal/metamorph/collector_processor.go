@@ -46,14 +46,6 @@ func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	// Note that you can pass erValue, GaugeValue, or UntypedValue types here.
 	ch <- prometheus.MustNewConstMetric(c.channelMapSize, prometheus.GaugeValue, float64(stats))
 
-	healthyConnections := 0
-
-	for _, peer := range c.processor.GetPeers() {
-		if peer.Connected() && peer.IsHealthy() {
-			healthyConnections++
-			continue
-		}
-	}
-
+	healthyConnections := c.processor.GetPeersNmber()
 	ch <- prometheus.MustNewConstMetric(c.healthyPeerConnections, prometheus.GaugeValue, float64(healthyConnections))
 }

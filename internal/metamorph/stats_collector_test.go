@@ -3,15 +3,16 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/coocood/freecache"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/coocood/freecache"
+	"github.com/libsv/go-p2p/better_p2p"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,7 @@ func TestStartCollectStats(t *testing.T) {
 
 			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			pm := &better_p2p.NetworkHerald{}
 
 			processor, err := metamorph.NewProcessor(mtmStore, cStore, pm, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),

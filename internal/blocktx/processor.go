@@ -13,13 +13,13 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
@@ -44,8 +44,8 @@ const (
 
 type Processor struct {
 	hostname                    string
-	blockRequestCh              chan BlockRequest
-	blockProcessCh              chan *p2p.BlockMessage
+	blockRequestCh              chan blocktx_p2p.BlockRequest
+	blockProcessCh              chan *blocktx_p2p.BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -69,8 +69,8 @@ type Processor struct {
 func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
-	blockRequestCh chan BlockRequest,
-	blockProcessCh chan *p2p.BlockMessage,
+	blockRequestCh chan blocktx_p2p.BlockRequest,
+	blockProcessCh chan *blocktx_p2p.BlockMessage,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -184,12 +184,7 @@ func (p *Processor) StartBlockRequesting() {
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
 				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
-				if err = peer.WriteMsg(msg); err != nil {
-					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, hash)
-
-					continue
-				}
+				peer.WriteMsg(msg)
 
 				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
@@ -418,7 +413,7 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
+func (p *Processor) processBlock(msg *blocktx_p2p.BlockMessage) error {
 	ctx := p.ctx
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
@@ -730,6 +725,6 @@ func (p *Processor) Shutdown() {
 }
 
 // GetBlockRequestCh is for testing purposes only
-func (p *Processor) GetBlockRequestCh() chan BlockRequest {
+func (p *Processor) GetBlockRequestCh() chan blocktx_p2p.BlockRequest {
 	return p.blockRequestCh
 }

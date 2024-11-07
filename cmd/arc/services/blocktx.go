@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/libsv/go-p2p"
+	"github.com/libsv/go-p2p/better_p2p"
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/version"
@@ -35,7 +36,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blockStore   store.BlocktxStore
 		mqClient     blocktx.MessageQueueClient
 		processor    *blocktx.Processor
-		pm           p2p.PeerManagerI
+		pm           *better_p2p.PeerManager
 		server       *blocktx.Server
 		healthServer *grpc_opts.GrpcServer
 		workers      *blocktx.BackgroundWorkers
@@ -111,8 +112,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		processorOpts = append(processorOpts, blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
-	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)
+	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
+	blockProcessCh := make(chan *blocktx_p2p.BlockMessage, blockProcessingBuffer)
 
 	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
@@ -126,25 +127,25 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
 	}
 
-	peerOpts := []p2p.PeerOptions{
-		p2p.WithMaximumMessageSize(maximumBlockSize),
-		p2p.WithRetryReadWriteMessageInterval(5 * time.Second),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+	peerOpts := []better_p2p.PeerOptions{
+		better_p2p.WithMaximumMessageSize(maximumBlockSize),
+		better_p2p.WithPingInterval(30*time.Second, 1*time.Minute),
 	}
 
 	if version.Version != "" {
-		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+		peerOpts = append(peerOpts, better_p2p.WithUserAgent("ARC", version.Version))
 	}
 
-	pmOpts := []p2p.PeerManagerOptions{p2p.WithExcessiveBlockSize(maximumBlockSize)}
+	better_p2p.SetExcessiveBlockSize(maximumBlockSize)
+	pmOpts := []better_p2p.PeerManagerOptions{}
 	if arcConfig.Metamorph.MonitorPeers {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
+		pmOpts = append(pmOpts, better_p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
-	peers := make([]p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
+	pm = better_p2p.NewBetterPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
+	peers := make([]better_p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+	peerHandler := blocktx_p2p.NewPeerMsgHandler(logger, blockRequestCh, blockProcessCh)
 
 	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
@@ -153,10 +154,11 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
-		peer, err := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
-		if err != nil {
+		peer := better_p2p.NewBetterPeer(logger.With(slog.String("module", "peer")), peerHandler, peerURL, network, peerOpts...)
+		ok := peer.Connect()
+		if !ok {
 			stopFn()
-			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
+			return nil, fmt.Errorf("error creating peer %s", peerURL)
 		}
 		err = pm.AddPeer(peer)
 		if err != nil {
@@ -224,7 +226,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
+	pm *better_p2p.PeerManager, mqClient blocktx.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {

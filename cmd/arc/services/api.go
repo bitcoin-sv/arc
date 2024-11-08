@@ -100,7 +100,22 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	wocClient := woc_client.New(arcConfig.API.WocMainnet, woc_client.WithAuth(arcConfig.API.WocAPIKey))
 
-	nodeClient := node_client.New(nodeClientOpts...)
+	pc := arcConfig.PeerRPC
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
+	}
+
+	// get the transaction from the bitcoin node rpc
+	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node client: %w", err)
+	}
+
+	nodeClient, err := node_client.New(bitcoinClient, nodeClientOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
 
 	finder := tx_finder.NewCached(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
 

@@ -3,14 +3,20 @@ package node_client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/bitcoin-sv/arc/internal/validator"
+)
+
+var (
+	ErrFailedToGetRawTransaction   = errors.New("failed to get raw transaction")
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
 )
 
 type NodeClient struct {
@@ -32,59 +38,73 @@ func WithTracer(attr ...attribute.KeyValue) func(s *NodeClient) {
 	}
 }
 
-func New(opts ...func(client *NodeClient)) NodeClient {
-	n := NodeClient{}
-
-	for _, opt := range opts {
-		opt(&n)
+func New(n *bitcoin.Bitcoind, opts ...func(client *NodeClient)) (NodeClient, error) {
+	node := NodeClient{
+		bitcoinClient: n,
 	}
 
-	return n
+	for _, opt := range opts {
+		opt(&node)
+	}
+
+	return node, nil
 }
 
-func (f NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error) {
-	rawTxs := make([]validator.RawTx, 0, len(ids))
+func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
+	_, span := tracing.StartTracing(ctx, "NodeClient_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
+	uniqueIDs := make(map[string]struct{})
+
 	for _, id := range ids {
-		_, span := tracing.StartTracing(ctx, "Bitcoind_GetMempoolAncestors", f.tracingEnabled, f.tracingAttributes...)
-		nTx, err := f.bitcoinClient.GetMempoolAncestors(id, false)
+		_, span := tracing.StartTracing(ctx, "Bitcoind_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
+		nTx, err := n.bitcoinClient.GetMempoolAncestors(id, false)
 		tracing.EndTracing(span)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get mempool ancestors: %v", err)
+			return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 		}
 
 		if nTx == nil {
 			return nil, nil
 		}
 
-		var rawTx *bitcoin.RawTransaction
+		var txIDs []string
 
-		err = json.Unmarshal(nTx, &rawTx)
+		err = json.Unmarshal(nTx, &txIDs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal raw transaction: %v", err)
 		}
 
-		rt, err := validator.NewRawTx(rawTx.TxID, rawTx.Hex, rawTx.BlockHeight)
-		if err != nil {
-			return nil, err
+		for _, txID := range txIDs {
+			_, found := uniqueIDs[txID]
+			if !found {
+				uniqueIDs[txID] = struct{}{}
+			}
 		}
-
-		rawTxs = append(rawTxs, rt)
 	}
 
-	return rawTxs, nil
+	allTxIDs := make([]string, len(uniqueIDs))
+	counter := 0
+	for id := range uniqueIDs {
+		allTxIDs[counter] = id
+		counter++
+	}
+	return allTxIDs, nil
 }
 
-func (f NodeClient) GetRawTransaction(ctx context.Context, id string) (validator.RawTx, error) {
-	_, span := tracing.StartTracing(ctx, "Bitcoind_GetRawTransaction", f.tracingEnabled, f.tracingAttributes...)
-	nTx, err := f.bitcoinClient.GetRawTransaction(id)
-	tracing.EndTracing(span)
+func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error) {
+	_, span := tracing.StartTracing(ctx, "NodeClient_GetRawTransaction", n.tracingEnabled, n.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
+	nTx, err := n.bitcoinClient.GetRawTransaction(id)
+
 	if err != nil {
-		return validator.RawTx{}, fmt.Errorf("failed to get raw transaction: %v", err)
+		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
 	}
 
-	rt, err := validator.NewRawTx(nTx.TxID, nTx.Hex, nTx.BlockHeight)
+	rt, err := sdkTx.NewTransactionFromHex(nTx.Hex)
 	if err != nil {
-		return validator.RawTx{}, err
+		return nil, err
 	}
 
 	return rt, nil

@@ -421,7 +421,7 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
 
-	ctx, span := tracing.StartTracing(ctx, "HandleBlock", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	timeStart := time.Now()

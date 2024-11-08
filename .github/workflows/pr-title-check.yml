@@ -12,7 +12,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if [[ ! "$PR_TITLE" =~ ^(feat|chore|sec|fix|refactor|docs|build|ci|test)(\([A-Z]{3,6}-[0-9]{3,6}\))?:\ .+$ ]]; then
+          if [[ ! "$PR_TITLE" =~ ^(feat|chore|deps|sec|fix|refactor|docs|build|ci|test)(\([A-Z]{3,6}-[0-9]{3,6}\))?:\ .+$ ]]; then
             echo "PR title which is used as merge commit does not follow Conventional Commits format."
             echo "Please use format: <type>(<scope>): <description> as described in CONTRIBUTING.md"
             exit 1

@@ -54,6 +54,8 @@ Where:
 ```
 deps     -> dependency update
 feat     -> new feature
+chore    -> updating grunt tasks, no production code change
+test     -> changes associated with the tests
 sec      -> security update
 fix      -> bug fixes
 refactor -> refactor commits

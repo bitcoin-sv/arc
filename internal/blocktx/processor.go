@@ -181,7 +181,7 @@ func (p *Processor) StartBlockRequesting() {
 					continue
 				}
 
-				msg := wire.NewMsgGetData()
+				msg := wire.NewMsgGetDataSizeHint(1)
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 
 				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
@@ -390,6 +390,8 @@ func (p *Processor) StartProcessRequestTxs() {
 	}()
 }
 
+// do przerobienia - zwraca ostatni błąd co może oznaczać fałszywy nil
+// powinno logować każdy błąd i zwracać hashe, które się nie udało wysłać
 func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 	hashesBytes := make([][]byte, len(txHashes))
 	for i, h := range txHashes {
@@ -461,7 +463,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	if existingBlock != nil && existingBlock.Processed {
 		// if the block was already processed, check and update
 		// possible orphan children of that block
-		chain, competing, err = p.updateOrphans(ctx, existingBlock, competing)
+		chain, competing, err = p.updateOrphans(ctx, existingBlock, false)
 		if err != nil {
 			p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 			return err
@@ -487,15 +489,15 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 	shouldPerformReorg := false
 	if competing {
-		hasGreatestChainwork, err := p.hasGreatestChainwork(ctx, chainTip)
+		shouldPerformReorg, err = p.hasGreatestChainwork(ctx, chainTip)
 		if err != nil {
 			p.logger.Error("unable to get the chain tip to verify chainwork", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 			return err
 		}
 
-		if hasGreatestChainwork {
+		if shouldPerformReorg {
 			p.logger.Info("chain reorg detected", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
-			shouldPerformReorg = true
+
 		}
 	}
 
@@ -539,6 +541,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMess
 	blockHash := msg.Header.BlockHash()
 	previousBlockHash := msg.Header.PrevBlock
 
+	// wrzuć  w create {
 	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
 	if err != nil {
 		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
@@ -557,6 +560,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMess
 	}
 
 	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
+	// }
 
 	competing, err := p.competingChainsExist(ctx, incomingBlock)
 	if err != nil {
@@ -619,6 +623,7 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 	}
 
 	if block.Status == blocktx_api.Status_LONGEST {
+		//rename getLongestBlokByHeigh
 		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 			return false, err
@@ -636,6 +641,7 @@ func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api
 }
 
 func (p *Processor) hasGreatestChainwork(ctx context.Context, competingChainTip *blocktx_api.Block) (bool, error) {
+	// mozna posortowac
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, competingChainTip.Hash)
 	if err != nil {
 		return false, err
@@ -724,6 +730,8 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // NOSONAR
 		if err != nil {
+			ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
+			// memory leak - niezamknięty iterateMerkleTree
 			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}
 
@@ -765,7 +773,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 }
 
 func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_api.Block, competing bool) (chain, bool, error) {
-	chain := []*blocktx_api.Block{incomingBlock}
+	chain := chain{incomingBlock}
 
 	uow, err := p.store.StartUnitOfWork(ctx)
 	if err != nil {
@@ -790,6 +798,7 @@ func (p *Processor) updateOrphans(ctx context.Context, incomingBlock *blocktx_ap
 		return chain, competing, nil
 	}
 
+	// Orphany nie będą
 	blockStatusUpdates := make([]store.BlockStatusUpdate, len(orphanedBlocks))
 	for i := range orphanedBlocks {
 		// We want to mark all orphaned blocks as STALE
@@ -879,6 +888,8 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 	// 2. STALE -> LONGEST
 	// otherwise, a unique constraint on (height, is_longest) might be violated.
 
+	// czemu nie jeden strzal?
+
 	// 1. LONGEST -> STALE
 	blockStatusUpdates := make([]store.BlockStatusUpdate, len(longestBlocks))
 	for i, b := range longestBlocks {
@@ -920,6 +931,11 @@ func (p *Processor) performReorg(ctx context.Context, staleChainTip *blocktx_api
 		case blocktx_api.Status_STALE:
 			prevStaleTxs = append(prevStaleTxs, tx)
 		default:
+			// nie mozemy tego ignorować
+			// nie ma możliwości żeby tu były tego typu bloki
+			// jesli są to mamy niespójne dane i jakaś część systemu jest jebnięta
+			// powinniśmy albo ostro wywrócić system, albo zalogować ten błąd z informacją o potrzebie interwencji w bazę danych
+
 			// do nothing - ignore ORPHANED and UNKNOWN blocks
 		}
 	}

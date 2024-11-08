@@ -2327,4 +2327,3 @@ batched callbacks object
 |---|---|---|---|---|
 |count|integer|true|none|number of callbacks in response|
 |callbacks|[[Callback](#schemacallback)]¦null|false|none|[callback object]|
-

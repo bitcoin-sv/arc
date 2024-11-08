@@ -12,7 +12,7 @@ services:
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
-      - ./config/bitcoin.conf:/data/bitcoin.conf
+      - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
 
@@ -27,7 +27,7 @@ services:
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
-      - ./config/bitcoin.conf:/data/bitcoin.conf
+      - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
 
@@ -42,7 +42,7 @@ services:
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
-      - ./config/bitcoin.conf:/data/bitcoin.conf
+      - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node3-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node2:18333" ]
 
@@ -76,7 +76,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../internal/blocktx/store/postgresql/migrations:/migrations
+      - ./internal/blocktx/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy
@@ -95,7 +95,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../internal/metamorph/store/postgresql/migrations:/migrations
+      - ./internal/metamorph/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy
@@ -114,7 +114,7 @@ services:
       ]
     command: [ "up" ]
     volumes:
-      - ../internal/callbacker/store/postgresql/migrations:/migrations
+      - ./internal/callbacker/store/postgresql/migrations:/migrations
     depends_on:
       db:
         condition: service_healthy
@@ -129,7 +129,7 @@ services:
     hostname: nats-server
     volumes:
       - nats1-data:/data
-      - ./config/nats-server-host-1.conf:/etc/nats/nats-server.conf
+      - ./test/config/nats-server-host-1.conf:/etc/nats/nats-server.conf
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
       interval: 5s
@@ -145,7 +145,7 @@ services:
     hostname: nats-server
     volumes:
       - nats2-data:/data
-      - ./config/nats-server-host-2.conf:/etc/nats/nats-server.conf
+      - ./test/config/nats-server-host-2.conf:/etc/nats/nats-server.conf
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
       interval: 5s
@@ -163,11 +163,11 @@ services:
       test: [ "CMD", "redis-cli", "ping" ]
 
   arc-blocktx:
-    build: ../
+    build: ./
     expose:
       - "8011"
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./test/config/config.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -194,14 +194,14 @@ services:
       retries: 3
 
   arc-callbacker:
-    build: ../
+    build: ./
     expose:
       - "8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./test/config/config.yaml:/service/config.yaml
     depends_on:
       migrate-callbacker:
         condition: service_completed_successfully
@@ -212,14 +212,14 @@ services:
       retries: 3
 
   arc-metamorph:
-    build: ../
+    build: ./
     expose:
       - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./test/config/config.yaml:/service/config.yaml
     depends_on:
       arc-blocktx:
         condition: service_healthy
@@ -236,7 +236,7 @@ services:
       retries: 3
 
   arc:
-    build: ../
+    build: ./
     ports:
       - "8011:8011"
       - "9090:9090"
@@ -249,7 +249,7 @@ services:
     environment:
       - ARC_TRACING_ENABLED
     volumes:
-      - ./config/config.yaml:/service/config.yaml
+      - ./test/config/config.yaml:/service/config.yaml
     depends_on:
       arc-metamorph:
         condition: service_healthy
@@ -265,7 +265,9 @@ services:
       - OTEL_EXPORTER_OTLP_INSECURE=true
 
   tests:
-    build: .
+    build:
+      context: ./
+      dockerfile: ./test/Dockerfile
     depends_on:
       - arc
 

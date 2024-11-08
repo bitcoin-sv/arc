@@ -722,7 +722,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // NOSONAR
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
 		if err != nil {
 			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}

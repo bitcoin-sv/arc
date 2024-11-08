@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	ErrParentNotFound    = errors.New("parent transaction not found")
-	ErrFailedToGetRawTxs = errors.New("failed to get raw transactions for parent")
+	ErrParentNotFound              = errors.New("parent transaction not found")
+	ErrFailedToGetRawTxs           = errors.New("failed to get raw transactions for parent")
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
 )
 
-func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
+func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
 	ctx, span := tracing.StartTracing(ctx, "extendTx", tracingEnabled, tracingAttributes...)
 	defer tracing.EndTracing(span)
 
@@ -45,9 +46,9 @@ func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transacti
 	// get parents
 	const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
 
-	parentsTxs, err := f.GetRawTxs(ctx, finderSource, parentsIDs)
+	parentsTxs, err := txFinder.GetRawTxs(ctx, finderSource, parentsIDs)
 	if err != nil {
-		return fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err)
+		return errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err))
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
@@ -75,7 +76,7 @@ func extendTx(ctx context.Context, f validator.TxFinderI, rawTx *sdkTx.Transacti
 }
 
 // getUnminedAncestors returns unmined ancestors with data necessary to perform Deep Fee validation
-func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (map[string]*sdkTx.Transaction, error) {
+func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (map[string]*sdkTx.Transaction, error) {
 	ctx, span := tracing.StartTracing(ctx, "getUnminedAncestors", tracingEnabled, tracingAttributes...)
 	defer tracing.EndTracing(span)
 	unmindedAncestorsSet := make(map[string]*sdkTx.Transaction)
@@ -99,11 +100,9 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 		parentInputMap[prevTxID] = inputs
 	}
 
-	// get parents
-	const finderSource = validator.SourceTransactionHandler | validator.SourceWoC
-	parentsTxs, err := w.GetRawTxs(ctx, finderSource, parentsIDs)
+	parentsTxs, err := txFinder.GetMempoolAncestors(ctx, parentsIDs)
 	if err != nil {
-		return nil, errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("parent: %v", parentsIDs), err)
+		return nil, errors.Join(ErrFailedToGetMempoolAncestors, fmt.Errorf("failed to get mempool ancestors: %w", err))
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
@@ -112,7 +111,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 
 	for _, p := range parentsTxs {
 		if _, found := unmindedAncestorsSet[p.TxID]; found {
-			continue // parent was proccesed already
+			continue // parent was processed already
 		}
 
 		childInputs, found := parentInputMap[p.TxID]
@@ -120,7 +119,7 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 			return nil, ErrParentNotFound
 		}
 
-		// fulfill data about the parent for further validation
+		// fill data about the parent for further validation
 		bTx, err := sdkTx.NewTransactionFromBytes(p.Bytes)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse parent tx: %w", err)
@@ -136,16 +135,6 @@ func getUnminedAncestors(ctx context.Context, w validator.TxFinderI, tx *sdkTx.T
 		}
 
 		unmindedAncestorsSet[p.TxID] = bTx
-
-		// get parent ancestors
-		parentAncestorsSet, err := getUnminedAncestors(ctx, w, bTx, tracingEnabled, tracingAttributes...)
-		for aID, aTx := range parentAncestorsSet {
-			unmindedAncestorsSet[aID] = aTx
-		}
-
-		if err != nil {
-			return unmindedAncestorsSet, err
-		}
 	}
 
 	return unmindedAncestorsSet, nil

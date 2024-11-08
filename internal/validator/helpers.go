@@ -2,6 +2,8 @@ package validator
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
 )
@@ -28,6 +30,22 @@ func (flag FindSourceFlag) Has(v FindSourceFlag) bool {
 
 type TxFinderI interface {
 	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) ([]RawTx, error)
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]RawTx, error)
+}
+
+func NewRawTx(id, hexTx string, blockH uint64) (RawTx, error) {
+	b, err := hex.DecodeString(hexTx)
+	if err != nil {
+		return RawTx{}, fmt.Errorf("invalid raw tx: %w", err)
+	}
+
+	rt := RawTx{
+		TxID:    id,
+		Bytes:   b,
+		IsMined: blockH > 0,
+	}
+
+	return rt, nil
 }
 
 type RawTx struct {

@@ -2,18 +2,14 @@ package txfinder
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"runtime"
 
-	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
@@ -22,11 +18,16 @@ import (
 
 type Finder struct {
 	transactionHandler metamorph.TransactionHandler
-	bitcoinClient      *bitcoin.Bitcoind
+	bitcoinClient      NodeClient
 	wocClient          *woc_client.WocClient
 	logger             *slog.Logger
 	tracingEnabled     bool
 	tracingAttributes  []attribute.KeyValue
+}
+
+type NodeClient interface {
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error)
+	GetRawTransaction(ctx context.Context, id string) (validator.RawTx, error)
 }
 
 func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
@@ -42,22 +43,8 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 	}
 }
 
-func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
+func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
 	l = l.With(slog.String("module", "tx-finder"))
-	var n *bitcoin.Bitcoind
-
-	if pc != nil {
-		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
-		if err != nil {
-			l.Warn("cannot parse node rpc url. Finder will not use node as source")
-		} else {
-			// get the transaction from the bitcoin node rpc
-			n, err = bitcoin.NewFromURL(rpcURL, false)
-			if err != nil {
-				l.Warn("cannot create node client. Finder will not use node as source")
-			}
-		}
-	}
 
 	f := &Finder{
 		transactionHandler: th,
@@ -71,6 +58,10 @@ func New(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_clien
 	}
 
 	return f
+}
+
+func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error) {
+	return f.bitcoinClient.GetMempoolAncestors(ctx, ids)
 }
 
 func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
@@ -111,23 +102,14 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	if source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
 		var nErr error
 		for _, id := range ids {
-			var bitcoinGetRawTxSpan trace.Span
-			ctx, bitcoinGetRawTxSpan = tracing.StartTracing(ctx, "Bitcoind_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-			nTx, err := f.bitcoinClient.GetRawTransaction(id)
-			tracing.EndTracing(bitcoinGetRawTxSpan)
+			rawTx, err := f.bitcoinClient.GetRawTransaction(ctx, id)
 			if err != nil {
 				nErr = errors.Join(nErr, fmt.Errorf("%s: %w", id, err))
-			}
-			if nTx != nil {
-				rt, e := newRawTx(nTx.TxID, nTx.Hex, nTx.BlockHeight)
-				if e != nil {
-					return nil, e
-				}
-
-				foundTxs = append(foundTxs, rt)
-			} else {
 				remainingIDs = append(remainingIDs, id)
+				continue
 			}
+
+			foundTxs = append(foundTxs, rawTx)
 		}
 
 		if len(remainingIDs) > 0 || nErr != nil {
@@ -151,7 +133,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 				continue
 			}
 
-			rt, e := newRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
+			rt, e := validator.NewRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
 			if e != nil {
 				return nil, e
 			}
@@ -167,21 +149,6 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	}
 
 	return foundTxs, nil
-}
-
-func newRawTx(id, hexTx string, blockH uint64) (validator.RawTx, error) {
-	b, e := hex.DecodeString(hexTx)
-	if e != nil {
-		return validator.RawTx{}, e
-	}
-
-	rt := validator.RawTx{
-		TxID:    id,
-		Bytes:   b,
-		IsMined: blockH > 0,
-	}
-
-	return rt, nil
 }
 
 func outerRightJoin(left []validator.RawTx, right []string) []string {

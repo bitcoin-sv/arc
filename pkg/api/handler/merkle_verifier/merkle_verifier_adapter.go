@@ -1,4 +1,4 @@
-package merkleverifier
+package merkle_verifier
 
 import (
 	"context"

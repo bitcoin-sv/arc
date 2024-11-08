@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -639,10 +638,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 
 			// load default config
-			arcConfig, err := config.Load()
-			require.NoError(t, err, "error loading config")
+			//arcConfig, err := config.Load()
+			//require.NoError(t, err, "error loading config")
 
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, arcConfig.PeerRPC, arcConfig.API, WithNow(func() time.Time { return now }))
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, nil, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			inputTx := strings.NewReader(tc.txHexString)
@@ -807,10 +806,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		arcConfig, err := config.Load()
-		require.NoError(t, err, "could not load default config")
+		//arcConfig, err := config.Load()
+		//require.NoError(t, err, "could not load default config")
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRPC, arcConfig.API)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)

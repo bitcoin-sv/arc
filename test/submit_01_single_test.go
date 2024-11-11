@@ -3,11 +3,11 @@
 package test
 
 import (
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -18,6 +18,9 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
 )
+
+//go:embed fixtures/malformedTxHexString.txt
+var fixtures embed.FS
 
 func TestSubmitSingle(t *testing.T) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
@@ -30,7 +33,7 @@ func TestSubmitSingle(t *testing.T) {
 	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 
-	malFormedRawTx, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
+	malFormedRawTx, err := fixtures.ReadFile("fixtures/malformedTxHexString.txt")
 	require.NoError(t, err)
 
 	type malformedTransactionRequest struct {

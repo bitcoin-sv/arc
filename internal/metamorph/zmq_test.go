@@ -1,7 +1,6 @@
 package metamorph_test
 
 import (
-	"context"
 	"log/slog"
 	"net/url"
 	"os"
@@ -76,7 +75,8 @@ func TestZMQ(t *testing.T) {
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
 
-		sut := metamorph.NewZMQ(context.Background(), zmqURL, statuses, mockedZMQ, logger)
+		sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+		require.NoError(t, err)
 
 		// when
 		err = sut.Start()
@@ -124,7 +124,8 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sut := metamorph.NewZMQ(context.Background(), zmqURL, statuses, mockedZMQ, logger)
+	sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+	require.NoError(t, err)
 
 	// when
 	err = sut.Start()

@@ -143,7 +143,8 @@ func TestDoubleSpendDetection(t *testing.T) {
 	zmqURL, err := url.Parse("https://some-url.com")
 	require.NoError(t, err)
 
-	zmq := metamorph.NewZMQ(context.Background(), zmqURL, statusMessageChannel, mockedZMQ, logger)
+	zmq, err := metamorph.NewZMQ(zmqURL, statusMessageChannel, mockedZMQ, logger)
+	require.NoError(t, err)
 	err = zmq.Start()
 	require.NoError(t, err)
 

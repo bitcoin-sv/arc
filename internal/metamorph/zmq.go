@@ -1,7 +1,6 @@
 package metamorph
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -83,7 +82,7 @@ type ZMQI interface {
 	Subscribe(string, chan []string) error
 }
 
-func NewZMQ(ctx context.Context, zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
 	if zmqHandler == nil {
 		return nil, ErrNilZMQHandler
 	}

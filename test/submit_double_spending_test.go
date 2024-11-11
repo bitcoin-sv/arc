@@ -11,24 +11,26 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 func TestDoubleSpend(t *testing.T) {
 	t.Run("submit tx with a double spend tx before and after tx got mined - ext format", func(t *testing.T) {
-		address, privateKey := fundNewWallet(t)
+		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-		utxos := getUtxos(t, address)
+		utxos := node_client.GetUtxos(t, bitcoind, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-		tx1, err := createTx(privateKey, address, utxos[0])
+		tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
 		// submit first transaction
 		rawTx, err := tx1.EFHex()
 		require.NoError(t, err)
 
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, http.StatusOK)
-		require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusSeenOnNetwork}, http.StatusOK)
+		require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 
 		// send double spending transaction when first tx is in mempool
 		tx2 := createTxToNewAddress(t, privateKey, utxos[0])
@@ -36,50 +38,50 @@ func TestDoubleSpend(t *testing.T) {
 		require.NoError(t, err)
 
 		// submit second transaction
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_DOUBLE_SPEND_ATTEMPTED}, http.StatusOK)
-		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, resp.TxStatus)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusDoubleSpendAttempted}, http.StatusOK)
+		require.Equal(t, StatusDoubleSpendAttempted, resp.TxStatus)
 		require.Equal(t, []string{tx1.TxID()}, *resp.CompetingTxs)
 
 		// give arc time to update the status of all competing transactions
 		time.Sleep(5 * time.Second)
 
-		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
-		statusResp := getRequest[TransactionResponse](t, statusUrl)
+		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
+		statusResp := getRequest[TransactionResponse](t, statusURL)
 
 		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
-		require.Equal(t, Status_DOUBLE_SPEND_ATTEMPTED, statusResp.TxStatus)
+		require.Equal(t, StatusDoubleSpendAttempted, statusResp.TxStatus)
 		require.Equal(t, []string{tx2.TxID()}, *statusResp.CompetingTxs)
 
 		// mine the first tx
-		generate(t, 1)
+		node_client.Generate(t, bitcoind, 1)
 
 		// verify that one of the competing transactions was mined, and the other was rejected
-		tx1_statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
-		tx1_statusResp := getRequest[TransactionResponse](t, tx1_statusUrl)
+		tx1StatusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
+		tx1StatusResp := getRequest[TransactionResponse](t, tx1StatusURL)
 
-		tx2_statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
-		tx2_statusResp := getRequest[TransactionResponse](t, tx2_statusUrl)
+		tx2StatusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
+		tx2StatusResp := getRequest[TransactionResponse](t, tx2StatusURL)
 
-		require.Contains(t, []string{tx1_statusResp.TxStatus, tx2_statusResp.TxStatus}, Status_MINED)
-		require.Contains(t, []string{tx1_statusResp.TxStatus, tx2_statusResp.TxStatus}, Status_REJECTED)
+		require.Contains(t, []string{tx1StatusResp.TxStatus, tx2StatusResp.TxStatus}, StatusMined)
+		require.Contains(t, []string{tx1StatusResp.TxStatus, tx2StatusResp.TxStatus}, StatusRejected)
 
-		require.Contains(t, []string{*tx1_statusResp.ExtraInfo, *tx2_statusResp.ExtraInfo}, "previously double spend attempted")
-		require.Contains(t, []string{*tx1_statusResp.ExtraInfo, *tx2_statusResp.ExtraInfo}, "double spend attempted")
+		require.Contains(t, []string{*tx1StatusResp.ExtraInfo, *tx2StatusResp.ExtraInfo}, "previously double spend attempted")
+		require.Contains(t, []string{*tx1StatusResp.ExtraInfo, *tx2StatusResp.ExtraInfo}, "double spend attempted")
 
 		// send double spending transaction when previous tx was mined
 		txMined := createTxToNewAddress(t, privateKey, utxos[0])
 		rawTx, err = txMined.EFHex()
 		require.NoError(t, err)
 
-		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": Status_SEEN_IN_ORPHAN_MEMPOOL}, http.StatusOK)
-		require.Equal(t, Status_SEEN_IN_ORPHAN_MEMPOOL, resp.TxStatus)
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusSeenInOrphanMempool}, http.StatusOK)
+		require.Equal(t, StatusSeenInOrphanMempool, resp.TxStatus)
 	})
 }
 
-func createTxToNewAddress(t *testing.T, privateKey string, utxo NodeUnspentUtxo) *sdkTx.Transaction {
+func createTxToNewAddress(t *testing.T, privateKey string, utxo node_client.UnspentOutput) *sdkTx.Transaction {
 	address, err := bitcoind.GetNewAddress()
 	require.NoError(t, err)
-	tx1, err := createTx(privateKey, address, utxo)
+	tx1, err := node_client.CreateTx(privateKey, address, utxo)
 	require.NoError(t, err)
 
 	return tx1

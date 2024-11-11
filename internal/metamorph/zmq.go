@@ -29,6 +29,8 @@ var allowedTopics = []string{
 	"invalidtx",
 }
 
+var ErrNilZMQHandler = errors.New("zmq handler is nil")
+
 type subscriptionRequest struct {
 	topic string
 	ch    chan []string
@@ -81,9 +83,9 @@ type ZMQI interface {
 	Subscribe(string, chan []string) error
 }
 
-func NewZMQ(ctx context.Context, zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) *ZMQ {
+func NewZMQ(ctx context.Context, zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
 	if zmqHandler == nil {
-		zmqHandler = NewZMQHandler(ctx, zmqURL, logger)
+		return nil, ErrNilZMQHandler
 	}
 
 	z := &ZMQ{
@@ -93,7 +95,7 @@ func NewZMQ(ctx context.Context, zmqURL *url.URL, statusMessageCh chan<- *PeerTx
 		logger:          logger,
 	}
 
-	return z
+	return z, nil
 }
 
 func (z *ZMQ) Start() error {

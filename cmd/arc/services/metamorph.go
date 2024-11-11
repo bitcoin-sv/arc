@@ -199,7 +199,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			continue
 		}
 
-		zmq := metamorph.NewZMQ(context.Background(), zmqURL, statusMessageCh, nil, logger)
+		zmqHandler := metamorph.NewZMQHandler(context.Background(), zmqURL, logger)
+		zmq, err := metamorph.NewZMQ(context.Background(), zmqURL, statusMessageCh, zmqHandler, logger)
+		if err != nil {
+			stopFn()
+			return nil, fmt.Errorf("failed to create ZMQ: %v", err)
+		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
 		err = zmq.Start()

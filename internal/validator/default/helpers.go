@@ -48,7 +48,7 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 
 	parentsTxs, err := txFinder.GetRawTxs(ctx, finderSource, parentsIDs)
 	if err != nil {
-		return errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("failed to get raw transactions for parent: %v. Reason: %w", parentsIDs, err))
+		return errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("failed to get raw transactions for parents %v: %w", parentsIDs, err))
 	}
 
 	if len(parentsTxs) != len(parentsIDs) {
@@ -75,7 +75,7 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 	return nil
 }
 
-// getUnminedAncestors returns unmined ancestors with data necessary to perform Deep Fee validation
+// getUnminedAncestors returns unmined ancestors with data necessary to perform cumulative fee validation
 func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (map[string]*sdkTx.Transaction, error) {
 	ctx, span := tracing.StartTracing(ctx, "getUnminedAncestors", tracingEnabled, tracingAttributes...)
 	defer tracing.EndTracing(span)
@@ -103,10 +103,6 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 	parentsTxs, err := txFinder.GetMempoolAncestors(ctx, parentsIDs)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, fmt.Errorf("failed to get mempool ancestors: %w", err))
-	}
-
-	if len(parentsTxs) != len(parentsIDs) {
-		return nil, ErrParentNotFound
 	}
 
 	for _, p := range parentsTxs {

@@ -16,6 +16,10 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
+var (
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+)
+
 type Finder struct {
 	transactionHandler metamorph.TransactionHandler
 	bitcoinClient      NodeClient
@@ -61,7 +65,12 @@ func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient,
 }
 
 func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error) {
-	return f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+	rawTxs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
+	}
+
+	return rawTxs, nil
 }
 
 func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {

@@ -59,7 +59,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	shutdownFns := make([]func(), 0)
 
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing.DialAddr)
+		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

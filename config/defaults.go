@@ -212,6 +212,7 @@ func getCacheConfig() *CacheConfig {
 func getDefaultTracingConfig() *TracingConfig {
 	return &TracingConfig{
 		DialAddr: "", // optional
+		Sample:   100,
 		Enabled:  false,
 	}
 }

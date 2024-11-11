@@ -332,6 +332,7 @@ In order to enable tracing for each service ther respective setting in the servi
   tracing:
     enabled: true # is tracing enabled
     dialAddr: http://localhost:4317 # address where traces are exported to
+    sample: 100 # percentage of the sampling
 ```
 
 Currently the traces are exported only in [open telemtry protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol/) on the gRPC endpoint. This endpoint URL of the receiving tracing backend (e.g. [Jaeger](https://www.jaegertracing.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), etc.) can be configured with the respective `tracing.dialAddr` setting.

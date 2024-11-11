@@ -14,6 +14,7 @@ messageQueue:
 tracing: # (optional)
   enabled: true # if true, then tracing is enabled
   dialAddr: http://localhost:4317 # address where traces are exported to
+  sample: 100 # sampling in percentage
   attributes:
     key1: value1
     key2: 100

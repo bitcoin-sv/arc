@@ -13,6 +13,7 @@ messageQueue:
   URL: nats://nats-1:4222,nats://nats-2:4223
 tracing:
   enabled: false
+  sample: 100
   dialAddr: http://arc-jaeger:4317
 
 peerRpc:

@@ -60,7 +60,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	callbackerOpts := make([]metamorph.CallbackerOption, 0)
 
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr)
+		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

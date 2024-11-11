@@ -65,6 +65,7 @@ type MessageQueueStreaming struct {
 type TracingConfig struct {
 	Enabled            bool              `mapstructure:"enabled"`
 	DialAddr           string            `mapstructure:"dialAddr"`
+	Sample             int               `mapstructure:"sample"`
 	Attributes         map[string]string `mapstructure:"attributes"`
 	KeyValueAttributes []attribute.KeyValue
 }

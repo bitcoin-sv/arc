@@ -4,6 +4,7 @@ logFormat: text
 network: mainnet
 tracing:
   dialAddr: http://tracing:1234
+  sample: 10 # sampling in percentage
 broadcasting: # settings for connection to nodes
   mode: unicast # one of unicast | multicast
   multicast:

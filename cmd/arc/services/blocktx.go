@@ -47,7 +47,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	tracingEnabled := false
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr)
+		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/bitcoin-sv/arc/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-func NewTraceProvider(ctx context.Context, serviceName string, opts ...otlptracegrpc.Option) (*trace.TracerProvider, *otlptrace.Exporter, error) {
+func NewTraceProvider(ctx context.Context, serviceName string, sample int, opts ...otlptracegrpc.Option) (*trace.TracerProvider, *otlptrace.Exporter, error) {
 	exporter, err := otlptracegrpc.New(
 		ctx,
 		opts...,
@@ -24,13 +25,18 @@ func NewTraceProvider(ctx context.Context, serviceName string, opts ...otlptrace
 		return nil, nil, err
 	}
 
+	traceOpt := trace.WithSampler(trace.AlwaysSample())
+	if sample != 0 && sample != 100 {
+		traceOpt = trace.WithSampler(trace.TraceIDRatioBased(float64(sample) / 100))
+	}
+
 	tp := trace.NewTracerProvider(
 		trace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceName(serviceName),
 		)),
 		trace.WithBatcher(exporter),
-		trace.WithSampler(trace.AlwaysSample()),
+		traceOpt,
 	)
 
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
@@ -39,14 +45,14 @@ func NewTraceProvider(ctx context.Context, serviceName string, opts ...otlptrace
 	return tp, exporter, nil
 }
 
-func Enable(logger *slog.Logger, serviceName string, tracingAddr string) (func(), error) {
-	if tracingAddr == "" {
+func Enable(logger *slog.Logger, serviceName string, tracingConfig *config.TracingConfig) (func(), error) {
+	if tracingConfig.DialAddr == "" {
 		return nil, errors.New("tracing enabled, but tracing address empty")
 	}
 
 	ctx := context.Background()
 
-	tp, exporter, err := NewTraceProvider(ctx, serviceName, otlptracegrpc.WithEndpointURL(tracingAddr), otlptracegrpc.WithInsecure())
+	tp, exporter, err := NewTraceProvider(ctx, serviceName, tracingConfig.Sample, otlptracegrpc.WithEndpointURL(tracingConfig.DialAddr), otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace provider: %v", err)
 	}

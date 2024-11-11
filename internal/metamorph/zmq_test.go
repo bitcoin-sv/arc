@@ -75,10 +75,11 @@ func TestZMQ(t *testing.T) {
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
 
-		sut := metamorph.NewZMQ(zmqURL, statuses, logger)
+		sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+		require.NoError(t, err)
 
 		// when
-		err = sut.Start(mockedZMQ)
+		err = sut.Start()
 		require.NoError(t, err)
 
 		// then
@@ -123,10 +124,11 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sut := metamorph.NewZMQ(zmqURL, statuses, logger)
+	sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+	require.NoError(t, err)
 
 	// when
-	err = sut.Start(mockedZMQ)
+	err = sut.Start()
 	require.NoError(t, err)
 
 	// then

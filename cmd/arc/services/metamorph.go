@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -202,19 +200,15 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			continue
 		}
 
-		zmq := metamorph.NewZMQ(zmqURL, statusMessageCh, logger)
-
-		port, err := strconv.Atoi(zmqURL.Port())
+		zmqHandler := metamorph.NewZMQHandler(context.Background(), zmqURL, logger)
+		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageCh, zmqHandler, logger)
 		if err != nil {
 			stopFn()
-			return nil, fmt.Errorf("failed to parse port from peer settings: %v", err)
+			return nil, fmt.Errorf("failed to create ZMQ: %v", err)
 		}
+		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
-		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.Int("port", port))
-
-		zmqLogger := logrus.New()
-		zmqLogger.SetFormatter(&logrus.JSONFormatter{})
-		err = zmq.Start(bitcoin.NewZMQ(zmqURL.Hostname(), port, zmqLogger))
+		err = zmq.Start()
 		if err != nil {
 			stopFn()
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)

@@ -14,9 +14,31 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
+var allowedTopics = []string{
+	"hashblock",
+	"hashblock2",
+	"hashtx",
+	"hashtx2",
+	"rawblock",
+	"rawblock2",
+	"rawtx",
+	"rawtx2",
+	"discardedfrommempool",
+	"removedfrommempoolblock",
+	"invalidtx",
+}
+
+var ErrNilZMQHandler = errors.New("zmq handler is nil")
+
+type subscriptionRequest struct {
+	topic string
+	ch    chan []string
+}
+
 type ZMQ struct {
 	url             *url.URL
 	statusMessageCh chan<- *PeerTxMessage
+	handler         ZMQI
 	logger          *slog.Logger
 }
 
@@ -56,21 +78,26 @@ type CollidingTx struct {
 	Size int    `json:"size"`
 }
 
-func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, logger *slog.Logger) *ZMQ {
-	z := &ZMQ{
-		url:             zmqURL,
-		statusMessageCh: statusMessageCh,
-		logger:          logger,
-	}
-
-	return z
-}
-
 type ZMQI interface {
 	Subscribe(string, chan []string) error
 }
 
-func (z *ZMQ) Start(zmqi ZMQI) error {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
+	if zmqHandler == nil {
+		return nil, ErrNilZMQHandler
+	}
+
+	z := &ZMQ{
+		url:             zmqURL,
+		statusMessageCh: statusMessageCh,
+		handler:         zmqHandler,
+		logger:          logger,
+	}
+
+	return z, nil
+}
+
+func (z *ZMQ) Start() error {
 	ch := make(chan []string)
 
 	const hashtxTopic = "hashtx2"
@@ -140,15 +167,15 @@ func (z *ZMQ) Start(zmqi ZMQI) error {
 		}
 	}()
 
-	if err := zmqi.Subscribe(hashtxTopic, ch); err != nil {
+	if err := z.handler.Subscribe(hashtxTopic, ch); err != nil {
 		return err
 	}
 
-	if err := zmqi.Subscribe(invalidTxTopic, ch); err != nil {
+	if err := z.handler.Subscribe(invalidTxTopic, ch); err != nil {
 		return err
 	}
 
-	if err := zmqi.Subscribe(discardedFromMempoolTopic, ch); err != nil {
+	if err := z.handler.Subscribe(discardedFromMempoolTopic, ch); err != nil {
 		return err
 	}
 
@@ -303,4 +330,13 @@ func (z *ZMQ) parseDiscardedInfo(c []string) (*ZMQDiscardFromMempool, error) {
 		return nil, err
 	}
 	return &txInfo, nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

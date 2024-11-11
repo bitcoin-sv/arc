@@ -14,7 +14,7 @@ messageQueue:
 tracing:
   enabled: false
   sample: 100
-  dialAddr: http://arc-jaeger:4317
+  dialAddr: http://jaeger:4317
 
 peerRpc:
   password: bitcoin
@@ -42,13 +42,13 @@ broadcasting: # settings for connection to nodes
 cache:
   engine: redis
   redis:
-    addr: arc-redis:6379
+    addr: cache:6379
     password: ""
     db: 1
 
 metamorph:
   listenAddr: 0.0.0.0:8001
-  dialAddr: arc-metamorph:8001
+  dialAddr: metamorph:8001
   db:
     mode: postgres
     postgres:
@@ -78,7 +78,7 @@ metamorph:
 
 blocktx:
   listenAddr: 0.0.0.0:8011
-  dialAddr: arc-blocktx:8011
+  dialAddr: blocktx:8011
   healthServerDialAddr: localhost:8006
   db:
     mode: postgres
@@ -134,7 +134,7 @@ api:
 
 callbacker:
   listenAddr: 0.0.0.0:8021
-  dialAddr: arc-callbacker:8021
+  dialAddr: callbacker:8021
   health:
     serverDialAddr: localhost:8022
   db:

@@ -29,7 +29,7 @@ func Test_Load(t *testing.T) {
 		require.NoError(t, err, "error loading config")
 
 		// then
-		// verify not overriden default example value
+		// verify not overridden default example value
 		assert.Equal(t, expectedConfig.GrpcMessageSize, actualConfig.GrpcMessageSize)
 
 		// verify correct override

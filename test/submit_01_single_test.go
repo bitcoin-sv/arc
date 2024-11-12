@@ -581,7 +581,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 		expectedError      string
 	}{
 		{
-			name: "post zero fee txs chain with cumulative fees validation and with skiping fee validation - fee validation is ommited",
+			name: "post zero fee txs chain with cumulative fees validation and with skipping fee validation - fee validation is omitted",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 				skipFeeValidation:               true,
@@ -590,7 +590,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
-			name: "post zero fee tx with cumulative fees validation and with skiping cumulative fee validation - cumulative fee validation is ommited",
+			name: "post zero fee tx with cumulative fees validation and with skipping cumulative fee validation - cumulative fee validation is omitted",
 			options: validationOpts{
 				performCumulativeFeesValidation: false,
 			},
@@ -719,7 +719,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			// create last transaction
 			var nodeUtxos []node_client.UnspentOutput
 			for _, chain := range zeroFeeChains {
-				// get otput from the lastes tx in the chain
+				// get output from the latest tx in the chain
 				parentTx := chain[len(chain)-1]
 				output := parentTx.Outputs[0]
 				utxo := node_client.UnspentOutput{

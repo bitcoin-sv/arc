@@ -23,9 +23,9 @@ type Watcher interface {
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
 }
 
-// MerkleRootsVerifier verifies the merkle roots existance in blocktx db and returns unverified block heights.
+// MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
 type MerkleRootsVerifier interface {
-	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights.
+	// VerifyMerkleRoots verifies the merkle roots existence in blocktx db and returns unverified block heights.
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 

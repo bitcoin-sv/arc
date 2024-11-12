@@ -448,7 +448,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 		// with no blocks, to mark the first block as the LONGEST chain
 		longestTipExists, err = p.longestTipExists(ctx)
 		if err != nil {
-			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to verify the longest tip existence in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
 			return err
 		}
 	}

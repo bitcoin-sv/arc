@@ -16,7 +16,7 @@ const (
 const (
 	feeSat = 10
 
-	arcEndpoint      = "http://arc:9090/"
+	arcEndpoint      = "http://api:9090/"
 	v1Tx             = "v1/tx"
 	v1Txs            = "v1/txs"
 	arcEndpointV1Tx  = arcEndpoint + v1Tx

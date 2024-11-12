@@ -50,6 +50,8 @@ type BlocktxStore interface {
 	Close() error
 
 	StartUnitOfWork(ctx context.Context) (UnitOfWork, error)
+
+	TraceToNonOrphanChain(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 }
 
 type UnitOfWork interface {

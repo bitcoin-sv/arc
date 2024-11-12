@@ -75,6 +75,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			StartUnitOfWorkFunc: func(ctx context.Context) (store.UnitOfWork, error) {
 //				panic("mock out the StartUnitOfWork method")
 //			},
+//			TraceToNonOrphanChainFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+//				panic("mock out the TraceToNonOrphanChain method")
+//			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
@@ -147,6 +150,9 @@ type BlocktxStoreMock struct {
 
 	// StartUnitOfWorkFunc mocks the StartUnitOfWork method.
 	StartUnitOfWorkFunc func(ctx context.Context) (store.UnitOfWork, error)
+
+	// TraceToNonOrphanChainFunc mocks the TraceToNonOrphanChain method.
+	TraceToNonOrphanChainFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
@@ -290,6 +296,13 @@ type BlocktxStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// TraceToNonOrphanChain holds details about calls to the TraceToNonOrphanChain method.
+		TraceToNonOrphanChain []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
+		}
 		// UpdateBlocksStatuses holds details about calls to the UpdateBlocksStatuses method.
 		UpdateBlocksStatuses []struct {
 			// Ctx is the ctx argument value.
@@ -341,6 +354,7 @@ type BlocktxStoreMock struct {
 	lockRegisterTransactions               sync.RWMutex
 	lockSetBlockProcessing                 sync.RWMutex
 	lockStartUnitOfWork                    sync.RWMutex
+	lockTraceToNonOrphanChain              sync.RWMutex
 	lockUpdateBlocksStatuses               sync.RWMutex
 	lockUpsertBlock                        sync.RWMutex
 	lockUpsertBlockTransactions            sync.RWMutex
@@ -995,6 +1009,42 @@ func (mock *BlocktxStoreMock) StartUnitOfWorkCalls() []struct {
 	mock.lockStartUnitOfWork.RLock()
 	calls = mock.calls.StartUnitOfWork
 	mock.lockStartUnitOfWork.RUnlock()
+	return calls
+}
+
+// TraceToNonOrphanChain calls TraceToNonOrphanChainFunc.
+func (mock *BlocktxStoreMock) TraceToNonOrphanChain(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	if mock.TraceToNonOrphanChainFunc == nil {
+		panic("BlocktxStoreMock.TraceToNonOrphanChainFunc: method is nil but BlocktxStore.TraceToNonOrphanChain was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockTraceToNonOrphanChain.Lock()
+	mock.calls.TraceToNonOrphanChain = append(mock.calls.TraceToNonOrphanChain, callInfo)
+	mock.lockTraceToNonOrphanChain.Unlock()
+	return mock.TraceToNonOrphanChainFunc(ctx, hash)
+}
+
+// TraceToNonOrphanChainCalls gets all the calls that were made to TraceToNonOrphanChain.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.TraceToNonOrphanChainCalls())
+func (mock *BlocktxStoreMock) TraceToNonOrphanChainCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockTraceToNonOrphanChain.RLock()
+	calls = mock.calls.TraceToNonOrphanChain
+	mock.lockTraceToNonOrphanChain.RUnlock()
 	return calls
 }
 

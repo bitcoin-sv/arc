@@ -134,6 +134,7 @@ func (p *Processor) StartBlockRequesting() {
 
 	waitUntilFree := func(ctx context.Context) bool {
 		t := time.NewTicker(time.Second)
+		defer t.Stop()
 
 		for {
 			bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
@@ -210,15 +211,31 @@ func (p *Processor) StartBlockProcessing() {
 			case <-p.ctx.Done():
 				return
 			case blockMsg := <-p.blockProcessCh:
-				var err error
+				//var err error
 				blockHash := blockMsg.Header.BlockHash()
 				timeStart := time.Now()
 
 				p.logger.Info("received block", slog.String("hash", blockHash.String()))
 
-				err = p.processBlock(blockMsg)
-				if err != nil {
-					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+				// err = p.processBlock(blockMsg)
+				// if err != nil {
+				// 	p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+				// 	p.unlockBlock(p.ctx, &blockHash)
+				// 	p.stopBlockProcessGuard(&blockHash) // release guardian
+				// 	continue
+				// }
+
+				b := incomingBlock{
+					hash:   &blockHash,
+					header: blockMsg.Header,
+					height: blockMsg.Height,
+					txs:    blockMsg.TransactionHashes,
+				}
+
+				ok := startBlockProcessing(p.logger, p.store, p.mqClient, &b)
+
+				if !ok {
+					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()))
 					p.unlockBlock(p.ctx, &blockHash)
 					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
@@ -302,11 +319,15 @@ func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
 
 func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
-	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
 
-	ticker := time.NewTicker(p.registerTxsInterval)
 	go func() {
 		defer p.waitGroup.Done()
+
+		ticker := time.NewTicker(p.registerTxsInterval)
+		defer ticker.Stop()
+
+		txHashes := make([][]byte, 0, p.registerTxsBatchSize)
+
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -338,12 +359,13 @@ func (p *Processor) StartProcessRegisterTxs() {
 func (p *Processor) StartProcessRequestTxs() {
 	p.waitGroup.Add(1)
 
-	txHashes := make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
-
-	ticker := time.NewTicker(p.registerRequestTxsInterval)
-
 	go func() {
 		defer p.waitGroup.Done()
+
+		ticker := time.NewTicker(p.registerRequestTxsInterval)
+		defer ticker.Stop()
+
+		txHashes := make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
 
 		for {
 			select {
@@ -683,7 +705,7 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 	}
 
 	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
-
+	// czy to nie powinno być przed wrzuceniem bloku do bazy?
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
 		return err
@@ -730,7 +752,6 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 
 		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // NOSONAR
 		if err != nil {
-			ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
 			// memory leak - niezamknięty iterateMerkleTree
 			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}
@@ -755,6 +776,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		}
 
 		if percentage, found := progress[txIndex+1]; found {
+			// ten log to kłamstwo...
 			if totalSize > 0 {
 				p.logger.Info(fmt.Sprintf("%d txs out of %d stored", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
 			}

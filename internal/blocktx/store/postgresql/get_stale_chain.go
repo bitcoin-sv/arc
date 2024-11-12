@@ -58,6 +58,8 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 		 ,status
 		 ,chainwork
 		FROM prevBlocks
+		
+		ORDER BY height
 	`
 
 	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_STALE)

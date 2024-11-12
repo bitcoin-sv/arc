@@ -1,3 +1,6 @@
+DROP FUNCTION IF EXISTS reverse_bytes_iter(bytes bytea, length int, midpoint int, index int);
+DROP FUNCTION IF EXISTS reverse_bytes(bytes bytea);
+
 CREATE OR REPLACE FUNCTION reverse_bytes_iter(bytes bytea, length int, midpoint int, index int)
 	RETURNS bytea AS
 	$$

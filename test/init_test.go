@@ -18,6 +18,8 @@ func TestMain(m *testing.M) {
 	}
 
 	log.Printf("current block height: %d", info.Blocks)
+	log.Printf("Start tests")
+	time.Sleep(5 * time.Second)
 
 	os.Exit(m.Run())
 }
@@ -37,11 +39,11 @@ func setupSut() {
 	}
 
 	// fund node
-	const minNumbeOfBlocks = 101
+	const minNumbeOfBlocks = 100
 
 	if info.Blocks < minNumbeOfBlocks {
 		// generate blocks in part to ensure blocktx is able to process all blocks
-		const blockBatch = 20 // should be less or equal n*10 where n is number of blocktx instances
+		const blockBatch = 60 // should be less or equal n*10 where n is number of blocktx instances
 
 		for {
 			_, err = bitcoind.Generate(blockBatch)
@@ -63,6 +65,7 @@ func setupSut() {
 			}
 		}
 
-		time.Sleep(5 * time.Second) // wait for fillGaps to fill eventual gaps
+		log.Printf("Blocks generated. Wait for blocktx to fill gaps")
+		time.Sleep(60 * time.Second) // wait for fillGaps to fill eventual gaps
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 // GetOrphanedChainUpFromHash is a function that recursively searches for blocks marked
@@ -61,4 +62,73 @@ func (p *PostgreSQL) GetOrphanedChainUpFromHash(ctx context.Context, hash []byte
 	defer rows.Close()
 
 	return p.parseBlocks(rows)
+}
+
+func (p *PostgreSQL) TraceToNonOrphanChain(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+
+	q := `
+		WITH RECURSIVE prevBlocks AS (
+			SELECT
+				hash
+				,prevhash
+				,merkleroot
+				,height
+				,processed_at
+				,status
+				,chainwork
+			FROM blocktx.blocks WHERE hash = $1
+			UNION ALL
+			SELECT
+				b.hash
+				,b.prevhash
+				,b.merkleroot
+				,b.height
+				,b.processed_at
+				,b.status
+				,b.chainwork
+			FROM blocktx.blocks b JOIN prevBlocks p ON b.hash = p.prevhash AND b.status = $2
+		)
+		SELECT
+			hash
+		 ,prevhash
+		 ,merkleroot
+		 ,height
+		 ,processed_at
+		 ,status
+		 ,chainwork
+		FROM prevBlocks
+		ORDER BY height
+	`
+
+	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_ORPHANED)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orphans, err := p.parseBlocks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(orphans) == 0 {
+		return orphans, nil
+	}
+
+	// try get girst not orphan ancestor
+	ph, err := chainhash.NewHash(orphans[0].PreviousHash)
+	if err != nil {
+		return nil, err
+	}
+
+	nestor, _ := p.GetBlock(ctx, ph)
+	if nestor == nil {
+		return orphans, nil
+	}
+
+	ancestors := make([]*blocktx_api.Block, 0, len(orphans)+1)
+	ancestors = append(ancestors, nestor)
+	ancestors = append(ancestors, orphans...)
+
+	return ancestors, nil
 }

@@ -175,6 +175,7 @@ func (m *sendManager) consumeBatchedCallbacks() []*store.CallbackData {
 
 	var callbacks []*CallbackEntry
 	sendInterval := time.NewTicker(m.batchSendInterval)
+	defer sendInterval.Stop()
 
 runLoop:
 	for {

@@ -27,8 +27,18 @@ func TestMain(m *testing.M) {
 func setupSut() {
 	log.Printf("init tests")
 
+	if os.Getenv("NODE_HOST") != "" {
+		nodeHost = os.Getenv("NODE_HOST")
+	}
+
+	if os.Getenv("ARC_ENDPOINT") != "" {
+		arcEndpoint = os.Getenv("ARC_ENDPOINT")
+		arcEndpointV1Tx = arcEndpoint + v1Tx
+		arcEndpointV1Txs = arcEndpoint + v1Txs
+	}
+
 	var err error
-	bitcoind, err = bitcoin.New(host, port, user, password, false)
+	bitcoind, err = bitcoin.New(nodeHost, nodePort, nodeUser, nodePassword, false)
 	if err != nil {
 		log.Fatalln("Failed to create bitcoind instance:", err)
 	}

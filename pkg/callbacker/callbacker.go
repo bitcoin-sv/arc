@@ -1,4 +1,4 @@
-package metamorph
+package callbacker
 
 import (
 	"context"
@@ -12,6 +12,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
+
+var minedDoubleSpendMsg = "previously double spend attempted"
 
 type GrpcCallbacker struct {
 	cc                callbacker_api.CallbackerAPIClient
@@ -33,9 +35,9 @@ func WithTracerCallbacker(attr ...attribute.KeyValue) func(*GrpcCallbacker) {
 	}
 }
 
-type CallbackerOption func(s *GrpcCallbacker)
+type Option func(s *GrpcCallbacker)
 
-func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logger, opts ...CallbackerOption) GrpcCallbacker {
+func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logger, opts ...Option) GrpcCallbacker {
 	c := GrpcCallbacker{
 		cc: api,
 		l:  logger,

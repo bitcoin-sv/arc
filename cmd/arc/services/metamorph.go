@@ -10,6 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/callbacker"
 
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
@@ -57,7 +58,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
-	callbackerOpts := make([]metamorph.CallbackerOption, 0)
+	callbackerOpts := make([]callbacker.Option, 0)
 
 	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing)
@@ -68,7 +69,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		callbackerOpts = append(callbackerOpts, metamorph.WithTracerCallbacker(arcConfig.Tracing.KeyValueAttributes...))
+		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(arcConfig.Tracing.KeyValueAttributes...))
 		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
@@ -125,7 +126,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
 
-	callbacker := metamorph.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
+	callbacker := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
 	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),

@@ -130,7 +130,7 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) { //nolint:unused
+func serializeStatusMap(updateStatusMap StatusUpdateMap) ([]byte, error) { //nolint:unused
 	serializeMap := make(map[string]store.UpdateStatus)
 	for k, v := range updateStatusMap {
 		serializeMap[k.String()] = v
@@ -143,9 +143,9 @@ func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) (
 	return bytes, nil
 }
 
-func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
+func deserializeStatusMap(data []byte) (StatusUpdateMap, error) { //nolint:unused
 	serializeMap := make(map[string]store.UpdateStatus)
-	updateStatusMap := make(map[chainhash.Hash]store.UpdateStatus)
+	updateStatusMap := make(StatusUpdateMap)
 
 	err := json.Unmarshal(data, &serializeMap)
 	if err != nil {

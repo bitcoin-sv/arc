@@ -409,7 +409,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		statusUpdatesMap := map[chainhash.Hash]store.UpdateStatus{}
+		statusUpdatesMap := StatusUpdateMap{}
 
 		for {
 			select {
@@ -427,7 +427,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(ctx, statusUpdatesMap)
-					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+					statusUpdatesMap = StatusUpdateMap{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -437,7 +437,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				if len(statusUpdatesMap) > 0 {
 					statusUpdatesMap = p.getStatusUpdateMap(statusUpdatesMap)
 					p.checkAndUpdate(ctx, statusUpdatesMap)
-					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
+					statusUpdatesMap = StatusUpdateMap{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -448,7 +448,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	}()
 }
 
-func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusUpdateMap) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

@@ -69,14 +69,6 @@ func (p *Processor) getStatusUpdateMap() StatusUpdateMap {
 	return make(StatusUpdateMap)
 }
 
-func (p *Processor) clearStatusUpdateMap() error {
-	if p.cacheStore == nil {
-		return nil
-	}
-
-	return p.cacheStore.Del(CacheStatusUpdateKey)
-}
-
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
 	if new.Status > found.Status {
 		return true

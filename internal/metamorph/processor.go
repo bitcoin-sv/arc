@@ -469,7 +469,7 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusU
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
 
-	err = p.clearStatusUpdateMap()
+	err = p.cacheStore.Del(CacheStatusUpdateKey)
 	if err != nil {
 		p.logger.Error("failed to clear status update map", slog.String("err", err.Error()))
 	}

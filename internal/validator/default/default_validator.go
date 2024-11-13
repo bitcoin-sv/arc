@@ -127,9 +127,17 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	cumulativeSize := 0
 	cumulativePaidFee := uint64(0)
 
-	for _, tx := range txSet {
-		cumulativeSize += tx.Size()
-		cumulativePaidFee += tx.TotalInputSatoshis() - tx.TotalOutputSatoshis()
+	for _, txFromSet := range txSet {
+
+		cumulativeSize += txFromSet.Size()
+		totalInput := txFromSet.TotalInputSatoshis()
+		totalOutput := txFromSet.TotalOutputSatoshis()
+
+		if totalOutput > totalInput {
+			return validator.NewError(fmt.Errorf("total outputs %d is larger than total inputs %d for tx %s", totalOutput, totalInput, tx.TxID()), api.ErrStatusCumulativeFees)
+		}
+
+		cumulativePaidFee += totalInput - totalOutput
 	}
 
 	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"runtime"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -30,8 +31,8 @@ type Finder struct {
 }
 
 type NodeClient interface {
-	GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error)
-	GetRawTransaction(ctx context.Context, id string) (validator.RawTx, error)
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
+	GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error)
 }
 
 func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
@@ -64,118 +65,102 @@ func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient,
 	return f
 }
 
-func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]validator.RawTx, error) {
-	rawTxs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
+	txIDs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 	}
 
-	return rawTxs, nil
+	return txIDs, nil
 }
 
-func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
 	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
-	foundTxs := make([]validator.RawTx, 0, len(ids))
-	var remainingIDs []string
+	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))
+	remainingIDs := map[string]struct{}{}
+
+	for _, id := range ids {
+		remainingIDs[id] = struct{}{}
+	}
 
 	// first get transactions from the handler
 	if source.Has(validator.SourceTransactionHandler) {
 		var thGetRawTxSpan trace.Span
 		ctx, thGetRawTxSpan = tracing.StartTracing(ctx, "TransactionHandler_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-		txs, thErr := f.transactionHandler.GetTransactions(ctx, ids)
+		txs, err := f.transactionHandler.GetTransactions(ctx, ids)
 		tracing.EndTracing(thGetRawTxSpan)
-		for _, tx := range txs {
-			rt := validator.RawTx{
-				TxID:    tx.TxID,
-				Bytes:   tx.Bytes,
-				IsMined: tx.BlockHeight > 0,
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.Any("err", err))
+		} else {
+			for _, tx := range txs {
+				var rt *sdkTx.Transaction
+				rt, err = sdkTx.NewTransactionFromBytes(tx.Bytes)
+				if err != nil {
+					f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", tx.TxID), slog.String("err", err.Error()))
+					continue
+				}
+
+				delete(remainingIDs, tx.TxID)
+				foundTxs = append(foundTxs, rt)
 			}
-
-			foundTxs = append(foundTxs, rt)
 		}
-
-		// add remaining ids
-		remainingIDs = outerRightJoin(foundTxs, ids)
-		if len(remainingIDs) > 0 || thErr != nil {
-			f.logger.WarnContext(ctx, "couldn't find transactions in TransactionHandler", slog.Any("ids", remainingIDs), slog.Any("source-err", thErr))
-		}
-
-		ids = remainingIDs[:]
-		remainingIDs = nil
 	}
+
+	ids = getKeys(remainingIDs)
 
 	// try to get remaining txs from the node
 	if source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
-		var nErr error
 		for _, id := range ids {
 			rawTx, err := f.bitcoinClient.GetRawTransaction(ctx, id)
 			if err != nil {
-				nErr = errors.Join(nErr, fmt.Errorf("%s: %w", id, err))
-				remainingIDs = append(remainingIDs, id)
+				f.logger.WarnContext(ctx, "failed to get transactions from bitcoin client", slog.String("id", id), slog.Any("err", err))
 				continue
 			}
 
+			delete(remainingIDs, id)
 			foundTxs = append(foundTxs, rawTx)
 		}
-
-		if len(remainingIDs) > 0 || nErr != nil {
-			f.logger.WarnContext(ctx, "couldn't find transactions in node", slog.Any("ids", remainingIDs), slog.Any("source-error", nErr))
-		}
-
-		ids = remainingIDs[:]
-		remainingIDs = nil
 	}
+
+	ids = getKeys(remainingIDs)
 
 	// at last try the WoC
 	if source.Has(validator.SourceWoC) && len(ids) > 0 {
 		var wocSpan trace.Span
 		ctx, wocSpan = tracing.StartTracing(ctx, "WocClient_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-		wocTxs, wocErr := f.wocClient.GetRawTxs(ctx, ids)
+		wocTxs, err := f.wocClient.GetRawTxs(ctx, ids)
 		defer tracing.EndTracing(wocSpan)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("ids", ids), slog.Any("err", err))
+		} else {
+			for _, wTx := range wocTxs {
+				if wTx.Error != "" {
+					f.logger.WarnContext(ctx, "WoC tx reports error", slog.Any("id", ids), slog.Any("err", wTx.Error))
+					continue
+				}
+				tx, err := sdkTx.NewTransactionFromHex(wTx.Hex)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse WoC hex string to transaction: %v", err)
+				}
 
-		for _, wTx := range wocTxs {
-			if wTx.Error != "" {
-				wocErr = errors.Join(wocErr, fmt.Errorf("returned error data tx %s: %s", wTx.TxID, wTx.Error))
-				continue
+				foundTxs = append(foundTxs, tx)
 			}
-
-			rt, e := validator.NewRawTx(wTx.TxID, wTx.Hex, wTx.BlockHeight)
-			if e != nil {
-				return nil, e
-			}
-
-			foundTxs = append(foundTxs, rt)
-		}
-
-		// add remaining ids
-		remainingIDs = outerRightJoin(foundTxs, ids)
-		if len(remainingIDs) > 0 || wocErr != nil {
-			f.logger.WarnContext(ctx, "couldn't find transactions in WoC", slog.Any("ids", remainingIDs), slog.Any("source-error", wocErr))
 		}
 	}
 
 	return foundTxs, nil
 }
 
-func outerRightJoin(left []validator.RawTx, right []string) []string {
-	var outerRight []string
-
-	for _, id := range right {
-		found := false
-		for _, tx := range left {
-			if tx.TxID == id {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			outerRight = append(outerRight, id)
-		}
+func getKeys(uniqueMap map[string]struct{}) []string {
+	uniqueKeys := make([]string, len(uniqueMap))
+	counter := 0
+	for id := range uniqueMap {
+		uniqueKeys[counter] = id
+		counter++
 	}
 
-	return outerRight
+	return uniqueKeys
 }

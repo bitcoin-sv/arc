@@ -474,6 +474,11 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusU
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
+
+	err = p.clearStatusUpdateMap()
+	if err != nil {
+		p.logger.Error("failed to clear status update map", slog.String("err", err.Error()))
+	}
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) (err error) {

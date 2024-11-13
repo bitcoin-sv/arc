@@ -12,20 +12,31 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 )
 
-const (
-	retries                = 5
-	initRetrySleepDuration = 5 * time.Second
-)
-
 type CallbackSender struct {
-	httpClient *http.Client
-	mu         sync.Mutex
-	disposed   bool
-	stats      *stats
-	logger     *slog.Logger
+	httpClient             *http.Client
+	mu                     sync.Mutex
+	disposed               bool
+	stats                  *stats
+	logger                 *slog.Logger
+	retries                int
+	initRetrySleepDuration time.Duration
 }
 
-func NewSender(httpClient *http.Client, logger *slog.Logger) (*CallbackSender, error) {
+type SenderOption func(s *CallbackSender)
+
+func WithInitRetrySleepDuration(d time.Duration) func(*CallbackSender) {
+	return func(s *CallbackSender) {
+		s.initRetrySleepDuration = d
+	}
+}
+
+func WithRetries(d int) func(*CallbackSender) {
+	return func(s *CallbackSender) {
+		s.retries = d
+	}
+}
+
+func NewSender(httpClient *http.Client, logger *slog.Logger, opts ...SenderOption) (*CallbackSender, error) {
 	stats := newCallbackerStats()
 
 	err := registerStats(
@@ -42,9 +53,16 @@ func NewSender(httpClient *http.Client, logger *slog.Logger) (*CallbackSender, e
 	}
 
 	callbacker := &CallbackSender{
-		httpClient: httpClient,
-		stats:      stats,
-		logger:     logger.With(slog.String("module", "sender")),
+		httpClient:             httpClient,
+		stats:                  stats,
+		logger:                 logger.With(slog.String("module", "sender")),
+		retries:                5,
+		initRetrySleepDuration: 5 * time.Second,
+	}
+
+	// apply options to processor
+	for _, opt := range opts {
+		opt(callbacker)
 	}
 
 	return callbacker, nil
@@ -108,7 +126,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.String("hash", dto.TxID),
-		slog.Int("retries", retries))
+		slog.Int("retries", p.retries))
 
 	p.stats.callbackFailedCount.Inc()
 	return
@@ -133,7 +151,6 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 
 	ok = p.sendCallbackWithRetries(url, token, payload)
 	p.stats.callbackBatchCount.Inc()
-
 	if ok {
 		for _, c := range dtos {
 			p.updateSuccessStats(c.TxStatus)
@@ -145,16 +162,16 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.Bool("batch", true),
-		slog.Int("retries", retries))
+		slog.Int("retries", p.retries))
 
 	p.stats.callbackFailedCount.Inc()
 	return
 }
 
 func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) bool {
-	retrySleep := initRetrySleepDuration
+	retrySleep := p.initRetrySleepDuration
 	ok, retry := false, false
-	for range retries {
+	for range p.retries {
 		ok, retry = p.sendCallback(url, token, jsonPayload)
 
 		// break on success or on non-retryable error (e.g., invalid URL)

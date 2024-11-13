@@ -47,12 +47,12 @@ func TestCallbackSender_Send(t *testing.T) {
 					w.WriteHeader(http.StatusOK)
 				}
 				retries++
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(1 * time.Millisecond)
 			}))
 			defer server.Close()
 
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(client, logger)
+			sut, err := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond))
 			require.NoError(t, err)
 
 			defer sut.GracefulStop()
@@ -68,7 +68,7 @@ func TestCallbackSender_Send(t *testing.T) {
 func TestCallbackSender_GracefulStop(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(http.DefaultClient, logger)
+	sut, err := callbacker.NewSender(http.DefaultClient, logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// When: Call GracefulStop twice to ensure it handles double stop gracefully
@@ -83,7 +83,7 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 func TestCallbackSender_Health(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(http.DefaultClient, logger)
+	sut, err := callbacker.NewSender(http.DefaultClient, logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// When: Test Health on active sender
@@ -147,13 +147,13 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 					w.WriteHeader(http.StatusOK)
 				}
 				retries++
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}))
 			defer server.Close()
 
 			client := &http.Client{Timeout: 2 * time.Second}
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(client, logger)
+			sut, err := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -170,7 +170,7 @@ func TestCallbackSender_Send_WithRetries(t *testing.T) {
 	// Given
 	client := &http.Client{}
 	logger := slog.Default()
-	sut, _ := callbacker.NewSender(client, logger)
+	sut, _ := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 
 	retryCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

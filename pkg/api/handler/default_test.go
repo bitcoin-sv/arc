@@ -331,6 +331,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		getTx            []byte
 		submitTxResponse *metamorph.TransactionStatus
 		submitTxErr      error
+		getRawTxsErr     error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -404,9 +405,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "could not read varint type: EOF"),
 		},
 		{
-			name:        "valid tx - missing inputs, text/plain",
-			contentType: contentTypes[0],
-			txHexString: validTx,
+			name:         "valid tx - missing inputs, text/plain",
+			contentType:  contentTypes[0],
+			txHexString:  validTx,
+			getRawTxsErr: errors.New("failed to get raw txs"),
 
 			expectedStatus:   460,
 			expectedResponse: errFieldMissingInputs,
@@ -638,9 +640,24 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
+			tx, err := sdkTx.NewTransactionFromHex("0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000")
+			require.NoError(t, err)
+			txMap := map[string]*sdkTx.Transaction{
+				"8574e743bb64cf603dbd0e951e7287afd2a59593ff8837b3760e911f8fb38e35": tx,
+			}
 			finder := &mocks.TxFinderIMock{
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
-					return nil, errors.New("some error")
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+
+					var rawTxs []*sdkTx.Transaction
+					for _, id := range ids {
+						rawTx, ok := txMap[id]
+						if !ok {
+							continue
+						}
+						rawTxs = append(rawTxs, rawTx)
+					}
+
+					return rawTxs, tc.getRawTxsErr
 				},
 			}
 
@@ -819,7 +836,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		//arcConfig, err := config.Load()
 		//require.NoError(t, err, "could not load default config")
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
 			return nil, errors.New("error getting raw transactions")
 		}}
 		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, finder)
@@ -846,8 +863,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bErr)
 
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
-			assert.Equal(t, "arc error 460: parent transaction not found", *bErr[0].ExtraInfo)
-			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrParentNotFound.Error())
+
+			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrFailedToGetRawTxs.Error())
 		}
 	})
 
@@ -1050,7 +1067,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, nil
 			},
 		}
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
 			return nil, errors.New("error getting raw transactions")
 		}}
 		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)

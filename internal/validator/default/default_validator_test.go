@@ -151,13 +151,13 @@ func TestValidator(t *testing.T) {
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
 		// given
 		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]validation.RawTx, error) {
-				res := []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}
+			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
+				res := []*sdkTx.Transaction{fixture.ParentTx1}
 				return res, nil
 			},
 		}
 
-		rawTx, _ := sdkTx.NewTransactionFromHex(fixture.ValidTxRawHex)
+		rawTx := fixture.ValidTx
 
 		sut := New(getPolicy(5), &txFinder)
 
@@ -352,85 +352,60 @@ func TestNeedExtension(t *testing.T) {
 }
 
 func TestCumulativeCheckFees(t *testing.T) {
+	txMap := map[string]*sdkTx.Transaction{
+		fixture.ParentTxID1:              fixture.ParentTx1,
+		fixture.AncestorTxID1:            fixture.AncestorTx1,
+		fixture.AncestorOfAncestorTx1ID1: fixture.AncestorOfAncestor1Tx1,
+	}
+
 	tcs := []struct {
-		name          string
-		hex           string
-		feeModel      *fees.SatoshisPerKilobyte
-		getTxFinderFn func(t *testing.T) mocks.TxFinderIMock
+		name                   string
+		feeModel               *fees.SatoshisPerKilobyte
+		mempoolAncestors       []string
+		getMempoolAncestorsErr error
+		getRawTxsErr           error
 
 		expectedErr *validation.Error
 	}{
 		{
 			name: "no unmined ancestors - valid fee",
-			hex:  fixture.ValidTxRawHex,
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 1}
 			}(),
-			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
-				return mocks.TxFinderIMock{
-					GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validation.RawTx, error) {
-						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
-					},
-				}
-			},
+			mempoolAncestors: []string{},
 		},
 		{
-			name: "no unmined ancestors - to low fee",
-			hex:  fixture.ValidTxRawHex,
+			name: "no unmined ancestors - too low fee",
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 50}
 			}(),
-			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
-				return mocks.TxFinderIMock{
-					GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validation.RawTx, error) {
-						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
-					},
-				}
-			},
+			mempoolAncestors: []string{},
+
 			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
 		},
 		{
 			name: "cumulative fees too low",
-			hex:  fixture.ValidTxRawHex,
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 50}
 			}(),
-			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
-				return mocks.TxFinderIMock{
-					GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validation.RawTx, error) {
-						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
-					},
-				}
-			},
+			mempoolAncestors: []string{fixture.AncestorTxID1},
+
 			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
 		},
 		{
 			name: "cumulative fees sufficient",
-			hex:  fixture.ValidTxRawHex,
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 1}
 			}(),
-			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
-				return mocks.TxFinderIMock{
-					GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validation.RawTx, error) {
-						return []validation.RawTx{fixture.ParentTx1, fixture.ParentTx2}, nil
-					},
-				}
-			},
+			mempoolAncestors: []string{fixture.AncestorTxID1},
 		},
 		{
 			name: "failed to get mempool ancestors",
-			hex:  fixture.ValidTxRawHex,
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 5}
 			}(),
-			getTxFinderFn: func(_ *testing.T) mocks.TxFinderIMock {
-				return mocks.TxFinderIMock{
-					GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validation.RawTx, error) {
-						return nil, errors.New("some error")
-					},
-				}
-			},
+			getMempoolAncestorsErr: errors.New("some error"),
+
 			expectedErr: validation.NewError(
 				ErrFailedToGetMempoolAncestors,
 				api.ErrStatusCumulativeFees),
@@ -440,11 +415,30 @@ func TestCumulativeCheckFees(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			txFinder := tc.getTxFinderFn(t)
-			tx, _ := sdkTx.NewTransactionFromHex(tc.hex)
+			txFinder := &mocks.TxFinderIMock{
+				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
+					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
+				},
+				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+					rawTxs := make([]*sdkTx.Transaction, len(ids))
+					for i, id := range ids {
+						rawTx, ok := txMap[id]
+						if !ok {
+							t.Fatalf("tx id %s not found", id)
+						}
+						rawTxs[i] = rawTx
+					}
+
+					return rawTxs, tc.getRawTxsErr
+				},
+			}
+			tx := fixture.ValidTx
+
+			err := extendTx(context.TODO(), txFinder, tx, false)
+			require.NoError(t, err)
 
 			// when
-			actualError := cumulativeCheckFees(context.TODO(), &txFinder, tx, tc.feeModel, false)
+			actualError := cumulativeCheckFees(context.TODO(), txFinder, tx, tc.feeModel, false)
 
 			// then
 			if tc.expectedErr == nil {

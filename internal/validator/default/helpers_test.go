@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/internal/validator/default/testdata"
+	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 )
 
@@ -17,31 +17,25 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 	tcs := []struct {
 		name              string
 		txHex             string
-		foundTransactions []validator.RawTx
+		foundTransactions []*sdkTx.Transaction
 		expectedErr       error
 	}{
 		{
 			name:              "cannot find parents",
-			txHex:             testdata.ValidTxRawHex,
+			txHex:             fixture.ValidTxRawHex,
 			foundTransactions: nil,
 			expectedErr:       ErrParentNotFound,
 		},
 		{
-			name:              "cannot find all parents",
-			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx1},
-			expectedErr:       ErrParentNotFound,
-		},
-		{
 			name:              "tx finder returns rubbish",
-			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1},
+			txHex:             fixture.ValidTxRawHex,
+			foundTransactions: []*sdkTx.Transaction{fixture.ParentTx1, fixture.RandomTx1},
 			expectedErr:       ErrParentNotFound,
 		},
 		{
 			name:              "success",
-			txHex:             testdata.ValidTxRawHex,
-			foundTransactions: []validator.RawTx{testdata.ParentTx1, testdata.ParentTx2},
+			txHex:             fixture.ValidTxRawHex,
+			foundTransactions: []*sdkTx.Transaction{fixture.ParentTx1},
 			expectedErr:       nil,
 		},
 	}
@@ -50,7 +44,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			txFinder := mocks.TxFinderIMock{
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]validator.RawTx, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
 					return tc.foundTransactions, nil
 				},
 			}
@@ -78,29 +72,36 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 }
 
 func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
+	txMap := map[string]*sdkTx.Transaction{
+		fixture.ParentTxID1:              fixture.ParentTx1,
+		fixture.AncestorTxID1:            fixture.AncestorTx1,
+		fixture.AncestorOfAncestorTx1ID1: fixture.AncestorOfAncestor1Tx1,
+		fixture.RandomTxID1:              fixture.RandomTx1,
+	}
+
 	tcs := []struct {
 		name                   string
 		txHex                  string
-		mempoolAncestors       []validator.RawTx
+		mempoolAncestors       []string
 		getMempoolAncestorsErr error
 
 		expectedError error
 	}{
 		{
 			name:             "tx finder returns rubbish",
-			txHex:            testdata.ValidTxRawHex,
-			mempoolAncestors: []validator.RawTx{testdata.ParentTx1, testdata.RandomTx1},
+			txHex:            fixture.ValidTxRawHex,
+			mempoolAncestors: []string{fixture.ParentTx1.TxID(), fixture.RandomTx1.TxID()},
 
 			expectedError: ErrParentNotFound,
 		},
 		{
 			name:             "with mined parents only",
-			txHex:            testdata.ValidTxRawHex,
-			mempoolAncestors: []validator.RawTx{testdata.ParentTx1, testdata.ParentTx2},
+			txHex:            fixture.ValidTxRawHex,
+			mempoolAncestors: []string{fixture.ParentTx1.TxID()},
 		},
 		{
 			name:                   "with mined parents only",
-			txHex:                  testdata.ValidTxRawHex,
+			txHex:                  fixture.ValidTxRawHex,
 			mempoolAncestors:       nil,
 			getMempoolAncestorsErr: errors.New("some error"),
 
@@ -113,8 +114,20 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			// given
 
 			txFinder := mocks.TxFinderIMock{
-				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]validator.RawTx, error) {
+				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
 					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
+				},
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+					var rawTxs []*sdkTx.Transaction
+					for _, id := range ids {
+						rawTx, ok := txMap[id]
+						if !ok {
+							continue
+						}
+						rawTxs = append(rawTxs, rawTx)
+					}
+
+					return rawTxs, nil
 				},
 			}
 
@@ -130,8 +143,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 			}
 
 			require.NoError(t, actualError)
-			expectedUnminedAncestors := make([]validator.RawTx, 0)
-			require.Len(t, actual, len(expectedUnminedAncestors))
+			require.Len(t, actual, 1)
 		})
 	}
 }

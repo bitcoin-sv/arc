@@ -128,7 +128,6 @@ func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	cumulativePaidFee := uint64(0)
 
 	for _, txFromSet := range txSet {
-
 		cumulativeSize += txFromSet.Size()
 		totalInput := txFromSet.TotalInputSatoshis()
 		totalOutput := txFromSet.TotalOutputSatoshis()

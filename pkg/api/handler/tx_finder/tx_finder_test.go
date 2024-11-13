@@ -106,11 +106,6 @@ func Test_GetRawTxs(t *testing.T) {
 				th = transactionHandler(t, tc.thResponse)
 			}
 
-			//var pc *config.PeerRPCConfig
-			//if tc.source.Has(validator.SourceNodes) {
-			//	pc = peerRPCConfig(t)
-			//}
-
 			var w *woc_client.WocClient
 			if tc.source.Has(validator.SourceWoC) {
 				w = woc_client.New(true)
@@ -118,7 +113,6 @@ func Test_GetRawTxs(t *testing.T) {
 
 			l := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			// Todo: mock node client & add more test cases
 			sut := New(th, nil, w, l)
 
 			// then

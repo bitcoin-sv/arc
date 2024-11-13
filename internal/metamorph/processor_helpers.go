@@ -75,7 +75,6 @@ func (p *Processor) clearStatusUpdateMap() error {
 	}
 
 	return p.cacheStore.Del(CacheStatusUpdateKey)
-
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {

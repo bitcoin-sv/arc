@@ -409,35 +409,29 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		statusUpdatesMap := StatusUpdateMap{}
-
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				actualUpdateStatusMap, err := p.updateStatusMap(statusUpdatesMap, statusUpdate)
+				actualUpdateStatusMap, err := p.updateStatusMap(statusUpdate)
 				if err != nil {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()))
 					return
 				}
 
-				statusUpdatesMap = actualUpdateStatusMap
-
-				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
-					p.checkAndUpdate(ctx, statusUpdatesMap)
-					statusUpdatesMap = StatusUpdateMap{}
+				if len(actualUpdateStatusMap) >= p.processStatusUpdatesBatchSize {
+					p.checkAndUpdate(ctx, actualUpdateStatusMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
+				statusUpdatesMap := p.getStatusUpdateMap()
 				if len(statusUpdatesMap) > 0 {
-					statusUpdatesMap = p.getStatusUpdateMap(statusUpdatesMap)
 					p.checkAndUpdate(ctx, statusUpdatesMap)
-					statusUpdatesMap = StatusUpdateMap{}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.

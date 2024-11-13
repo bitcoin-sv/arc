@@ -198,7 +198,7 @@ func getCallbackerConfig() *CallbackerConfig {
 
 func getCacheConfig() *CacheConfig {
 	return &CacheConfig{
-		Engine: InternalCache, // use internal cache
+		Engine: InMemory, // use in memory cache
 		Redis: &RedisConfig{ // example of Redis config
 			Addr:     "localhost:6379",
 			Password: "",

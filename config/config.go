@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	InternalCache = "internal"
-	Redis         = "redis"
+	InMemory = "in-memory"
+	Redis    = "redis"
 )
 
 type ArcConfig struct {

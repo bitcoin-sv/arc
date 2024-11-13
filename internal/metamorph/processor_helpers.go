@@ -22,8 +22,8 @@ func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func (p *Processor) updateStatusMap(statusUpdatesMap StatusUpdateMap, statusUpdate store.UpdateStatus) (StatusUpdateMap, error) {
-	statusUpdatesMap = p.getStatusUpdateMap(statusUpdatesMap)
+func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (StatusUpdateMap, error) {
+	statusUpdatesMap := p.getStatusUpdateMap()
 	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 
 	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
@@ -34,11 +34,9 @@ func (p *Processor) updateStatusMap(statusUpdatesMap StatusUpdateMap, statusUpda
 		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 	}
 
-	if p.cacheStore != nil {
-		err := p.setStatusUpdateMap(statusUpdatesMap)
-		if err != nil {
-			return statusUpdatesMap, err
-		}
+	err := p.setStatusUpdateMap(statusUpdatesMap)
+	if err != nil {
+		return statusUpdatesMap, err
 	}
 
 	return statusUpdatesMap, nil
@@ -57,12 +55,7 @@ func (p *Processor) setStatusUpdateMap(statusUpdatesMap StatusUpdateMap) error {
 	return nil
 }
 
-func (p *Processor) getStatusUpdateMap(statusUpdateMap StatusUpdateMap) StatusUpdateMap {
-	// if cache disabled, return the given map
-	if p.cacheStore == nil {
-		return statusUpdateMap
-	}
-
+func (p *Processor) getStatusUpdateMap() StatusUpdateMap {
 	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
 
 	if err == nil {

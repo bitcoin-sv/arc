@@ -14,8 +14,8 @@ var ErrCacheUnknownType = errors.New("unknown cache type")
 // NewCacheStore creates a new CacheStore based on the provided configuration.
 func NewCacheStore(cacheConfig *config.CacheConfig) (cache.Store, error) {
 	switch cacheConfig.Engine {
-	case config.InternalCache:
-		return nil, nil
+	case config.InMemory:
+		return cache.NewMemoryStore(), nil
 	case config.Redis:
 		c := redis.NewClient(&redis.Options{
 			Addr:     cacheConfig.Redis.Addr,

@@ -29,7 +29,7 @@ func (s *MemoryStore) Get(key string) ([]byte, error) {
 }
 
 // Set stores a key-value pair, ignoring the ttl parameter.
-func (s *MemoryStore) Set(key string, value []byte, ttl time.Duration) error {
+func (s *MemoryStore) Set(key string, value []byte, _ time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

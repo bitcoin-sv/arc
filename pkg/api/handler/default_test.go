@@ -647,7 +647,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 			finder := &mocks.TxFinderIMock{
 				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
-
 					var rawTxs []*sdkTx.Transaction
 					for _, id := range ids {
 						rawTx, ok := txMap[id]

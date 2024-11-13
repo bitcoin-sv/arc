@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coocood/freecache"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -32,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -124,11 +122,9 @@ func TestDoubleSpendDetection(t *testing.T) {
 	require.NoError(t, err)
 	defer metamorphStore.Close(context.Background())
 
-	cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
-	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
+	processor, err := metamorph.NewProcessor(metamorphStore, nil, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),
 		metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 		metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),

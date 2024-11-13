@@ -198,11 +198,8 @@ func getCallbackerConfig() *CallbackerConfig {
 
 func getCacheConfig() *CacheConfig {
 	return &CacheConfig{
-		Engine: FreeCache,
-		Freecache: &FreeCacheConfig{
-			Size: 10 * 1024 * 1024, // Default size 10MB.
-		},
-		Redis: &RedisConfig{
+		Engine: InternalCache, // use internal cache
+		Redis: &RedisConfig{ // example of Redis config
 			Addr:     "localhost:6379",
 			Password: "",
 			DB:       0,

@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
-//lint:file-ignore U1000 Ignore all unused code, functions are temporarily not used
+type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 
 const CacheStatusUpdateKey = "status-updates"
 
@@ -22,21 +22,8 @@ func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
-	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-
-	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
-		if len(statusUpdate.CompetingTxs) > 0 {
-			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
-		}
-
-		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-	}
-}
-
-func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
-	statusUpdatesMap := p.getStatusUpdateMap()
-
+func (p *Processor) updateStatusMap(statusUpdatesMap StatusUpdateMap, statusUpdate store.UpdateStatus) (StatusUpdateMap, error) {
+	statusUpdatesMap = p.getStatusUpdateMap(statusUpdatesMap)
 	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
 
 	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
@@ -47,15 +34,17 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainh
 		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
 	}
 
-	err := p.setStatusUpdateMap(statusUpdatesMap)
-	if err != nil {
-		return nil, err
+	if p.cacheStore != nil {
+		err := p.setStatusUpdateMap(statusUpdatesMap)
+		if err != nil {
+			return statusUpdatesMap, err
+		}
 	}
 
 	return statusUpdatesMap, nil
 }
 
-func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error { //nolint:unused
+func (p *Processor) setStatusUpdateMap(statusUpdatesMap StatusUpdateMap) error {
 	bytes, err := serializeStatusMap(statusUpdatesMap)
 	if err != nil {
 		return err
@@ -68,7 +57,12 @@ func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store
 	return nil
 }
 
-func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus { //nolint:unused
+func (p *Processor) getStatusUpdateMap(statusUpdateMap StatusUpdateMap) StatusUpdateMap {
+	// if cache disabled, return the given map
+	if p.cacheStore == nil {
+		return statusUpdateMap
+	}
+
 	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
 
 	if err == nil {
@@ -79,7 +73,7 @@ func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus {
 	}
 
 	// If the key doesn't exist or there was an error unmarshalling the value return new map
-	return make(map[chainhash.Hash]store.UpdateStatus)
+	return make(StatusUpdateMap)
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {

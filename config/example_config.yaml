@@ -48,9 +48,7 @@ broadcasting: # settings for connection to nodes
         p2p: 18335
 
 cache:
-  engine: freecache # cache engine - one of freecache | redis
-  freecache: # freecache configuration
-    size: 10000000 # size of cache
+  engine: redis
   redis:
     addr: "localhost:6379"
     password: ""

@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	FreeCache = "freecache"
-	Redis     = "redis"
+	InternalCache = "internal"
+	Redis         = "redis"
 )
 
 type ArcConfig struct {
@@ -137,9 +137,8 @@ type PostgresConfig struct {
 }
 
 type CacheConfig struct {
-	Engine    string           `mapstructure:"engine"`
-	Freecache *FreeCacheConfig `mapstructure:"freecache"`
-	Redis     *RedisConfig     `mapstructure:"redis"`
+	Engine string       `mapstructure:"engine"`
+	Redis  *RedisConfig `mapstructure:"redis"`
 }
 
 type FreeCacheConfig struct {

@@ -417,7 +417,11 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				updateStatusMap(statusUpdatesMap, statusUpdate)
+				statusUpdatesMap, err := p.updateStatusMap(statusUpdatesMap, statusUpdate)
+				if err != nil {
+					p.logger.Error("failed to update status", slog.String("err", err.Error()))
+					return
+				}
 
 				if len(statusUpdatesMap) >= p.processStatusUpdatesBatchSize {
 					p.checkAndUpdate(ctx, statusUpdatesMap)
@@ -429,6 +433,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 			case <-ticker.C:
 				if len(statusUpdatesMap) > 0 {
+					statusUpdatesMap = p.getStatusUpdateMap(statusUpdatesMap)
 					p.checkAndUpdate(ctx, statusUpdatesMap)
 					statusUpdatesMap = map[chainhash.Hash]store.UpdateStatus{}
 

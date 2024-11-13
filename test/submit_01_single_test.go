@@ -3,11 +3,11 @@
 package test
 
 import (
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -15,20 +15,25 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
-func TestSubmitSingle(t *testing.T) {
-	address, privateKey := fundNewWallet(t)
+//go:embed fixtures/malformedTxHexString.txt
+var fixtures embed.FS
 
-	utxos := getUtxos(t, address)
+func TestSubmitSingle(t *testing.T) {
+	address, privateKey := node_client.FundNewWallet(t, bitcoind)
+
+	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx, err := createTx(privateKey, address, utxos[0])
+	tx, err := node_client.CreateTx(privateKey, address, utxos[0])
 	require.NoError(t, err)
 	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 
-	malFormedRawTx, err := os.ReadFile("./fixtures/malformedTxHexString.txt")
+	malFormedRawTx, err := fixtures.ReadFile("fixtures/malformedTxHexString.txt")
 	require.NoError(t, err)
 
 	type malformedTransactionRequest struct {
@@ -63,14 +68,13 @@ func TestSubmitSingle(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			// Send POST request
 			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, tc.expectedStatusCode)
 
 			if tc.expectedStatusCode != http.StatusOK {
 				return
 			}
-			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+			require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 
 			time.Sleep(1 * time.Second) // give ARC time to perform the status update on DB
 
@@ -78,19 +82,19 @@ func TestSubmitSingle(t *testing.T) {
 			txID := response.Txid
 			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), nil, http.StatusOK)
 			require.Equal(t, txID, response.Txid)
-			require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+			require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 
 			// Check transaction status
-			statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
+			statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
 			statusResponse := getRequest[TransactionResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID))
-			require.Equal(t, Status_SEEN_ON_NETWORK, statusResponse.TxStatus)
+			require.Equal(t, StatusSeenOnNetwork, statusResponse.TxStatus)
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
-			generate(t, 1)
+			node_client.Generate(t, bitcoind, 1)
 
-			statusResponse = getRequest[TransactionResponse](t, statusUrl)
-			require.Equal(t, Status_MINED, statusResponse.TxStatus)
+			statusResponse = getRequest[TransactionResponse](t, statusURL)
+			require.Equal(t, StatusMined, statusResponse.TxStatus)
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
@@ -108,7 +112,7 @@ func TestSubmitSingle(t *testing.T) {
 			require.NoError(t, err)
 
 			require.NotNil(t, statusResponse.BlockHeight)
-			blockRoot := getBlockRootByHeight(t, int(*statusResponse.BlockHeight))
+			blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, int(*statusResponse.BlockHeight))
 			require.Equal(t, blockRoot, root)
 		})
 	}
@@ -116,12 +120,11 @@ func TestSubmitSingle(t *testing.T) {
 
 func TestSubmitMined(t *testing.T) {
 	t.Run("submit mined tx", func(t *testing.T) {
-
 		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 		// given
-		address, _ := fundNewWallet(t)
-		utxos := getUtxos(t, address)
+		address, _ := node_client.FundNewWallet(t, bitcoind)
+		utxos := node_client.GetUtxos(t, bitcoind, address)
 
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
@@ -130,14 +133,14 @@ func TestSubmitMined(t *testing.T) {
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
 
-		callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+		callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 		defer shutdown()
 
 		// when
 		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
 			map[string]string{
-				"X-WaitFor":       Status_MINED,
-				"X-CallbackUrl":   callbackUrl,
+				"X-WaitFor":       StatusMined,
+				"X-CallbackUrl":   callbackURL,
 				"X-CallbackToken": token,
 			}, http.StatusOK)
 
@@ -147,7 +150,7 @@ func TestSubmitMined(t *testing.T) {
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
-			require.Equal(t, Status_MINED, status.TxStatus)
+			require.Equal(t, StatusMined, status.TxStatus)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:
@@ -158,12 +161,12 @@ func TestSubmitMined(t *testing.T) {
 
 func TestSubmitQueued(t *testing.T) {
 	t.Run("queued", func(t *testing.T) {
-		address, privateKey := fundNewWallet(t)
+		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-		utxos := getUtxos(t, address)
+		utxos := node_client.GetUtxos(t, bitcoind, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-		tx, err := createTx(privateKey, address, utxos[0])
+		tx, err := node_client.CreateTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
 		rawTx, err := tx.EFHex()
@@ -171,20 +174,20 @@ func TestSubmitQueued(t *testing.T) {
 
 		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 			map[string]string{
-				"X-WaitFor":    Status_QUEUED,
+				"X-WaitFor":    StatusQueued,
 				"X-MaxTimeout": strconv.Itoa(1),
 			}, http.StatusOK)
 
-		require.Equal(t, Status_QUEUED, resp.TxStatus)
+		require.Equal(t, StatusQueued, resp.TxStatus)
 
-		statusUrl := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
 	checkSeenLoop:
 		for {
 			select {
 			case <-time.NewTicker(1 * time.Second).C:
 
-				statusResponse := getRequest[TransactionResponse](t, statusUrl)
-				if statusResponse.TxStatus == Status_SEEN_ON_NETWORK {
+				statusResponse := getRequest[TransactionResponse](t, statusURL)
+				if statusResponse.TxStatus == StatusSeenOnNetwork {
 					break checkSeenLoop
 				}
 			case <-time.NewTimer(10 * time.Second).C:
@@ -192,14 +195,14 @@ func TestSubmitQueued(t *testing.T) {
 			}
 		}
 
-		generate(t, 1)
+		node_client.Generate(t, bitcoind, 1)
 
 	checkMinedLoop:
 		for {
 			select {
 			case <-time.NewTicker(1 * time.Second).C:
-				statusResponse := getRequest[TransactionResponse](t, statusUrl)
-				if statusResponse.TxStatus == Status_MINED {
+				statusResponse := getRequest[TransactionResponse](t, statusURL)
+				if statusResponse.TxStatus == StatusMined {
 					break checkMinedLoop
 				}
 
@@ -211,7 +214,6 @@ func TestSubmitQueued(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-
 	tt := []struct {
 		name                       string
 		numberOfTxs                int
@@ -263,11 +265,11 @@ func TestCallback(t *testing.T) {
 
 			for range tc.numberOfCallbackServers {
 				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareCallback(t, callbacksNumber)
-				callbackUrl, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+				callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 				defer shutdown()
 
 				callbackServers = append(callbackServers, &callbackServer{
-					url:          callbackUrl,
+					url:          callbackURL,
 					token:        token,
 					responseChan: callbackReceivedChan,
 					errChan:      callbackErrChan,
@@ -275,18 +277,18 @@ func TestCallback(t *testing.T) {
 			}
 
 			// create transactions
-			address, privateKey := getNewWalletAddress(t)
+			address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)
 			for i := range tc.numberOfTxs {
-				sendToAddress(t, address, float64(10+i))
+				node_client.SendToAddress(t, bitcoind, address, float64(10+i))
 			}
-			generate(t, 1)
+			node_client.Generate(t, bitcoind, 1)
 
-			utxos := getUtxos(t, address)
+			utxos := node_client.GetUtxos(t, bitcoind, address)
 			require.True(t, len(utxos) >= tc.numberOfTxs, "Insufficient UTXOs available for the address")
 
 			txs := make([]*sdkTx.Transaction, 0, tc.numberOfTxs)
 			for i := range tc.numberOfTxs {
-				tx, err := createTx(privateKey, address, utxos[i])
+				tx, err := node_client.CreateTx(privateKey, address, utxos[i])
 				require.NoError(t, err)
 
 				txs = append(txs, tx)
@@ -305,11 +307,10 @@ func TestCallback(t *testing.T) {
 						testTxSubmission(t, callbackSrv.url, callbackSrv.token, false, tx)
 					}
 				}
-
 			}
 
 			// mine transactions
-			generate(t, 1)
+			node_client.Generate(t, bitcoind, 1)
 
 			// then
 
@@ -341,7 +342,7 @@ func TestCallback(t *testing.T) {
 							delete(expectedTxsCallbacks, callback.Txid) // remove after receiving expected callbacks
 						}
 
-						require.Equal(t, Status_MINED, callback.TxStatus)
+						require.Equal(t, StatusMined, callback.TxStatus)
 
 					case err := <-srv.errChan:
 						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)
@@ -357,7 +358,6 @@ func TestCallback(t *testing.T) {
 }
 
 func TestBatchCallback(t *testing.T) {
-
 	tt := []struct {
 		name                       string
 		numberOfTxs                int
@@ -409,11 +409,11 @@ func TestBatchCallback(t *testing.T) {
 
 			for range tc.numberOfCallbackServers {
 				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareBatchCallback(t, callbacksNumber)
-				callbackUrl, token, shutdown := startBatchCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
+				callbackURL, token, shutdown := startBatchCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
 				defer shutdown()
 
 				callbackServers = append(callbackServers, &callbackServer{
-					url:          callbackUrl,
+					url:          callbackURL,
 					token:        token,
 					responseChan: callbackReceivedChan,
 					errChan:      callbackErrChan,
@@ -421,18 +421,18 @@ func TestBatchCallback(t *testing.T) {
 			}
 
 			// create transactions
-			address, privateKey := getNewWalletAddress(t)
+			address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)
 			for i := range tc.numberOfTxs {
-				sendToAddress(t, address, float64(10+i))
+				node_client.SendToAddress(t, bitcoind, address, float64(10+i))
 			}
-			generate(t, 1)
+			node_client.Generate(t, bitcoind, 1)
 
-			utxos := getUtxos(t, address)
+			utxos := node_client.GetUtxos(t, bitcoind, address)
 			require.True(t, len(utxos) >= tc.numberOfTxs, "Insufficient UTXOs available for the address")
 
 			txs := make([]*sdkTx.Transaction, 0, tc.numberOfTxs)
 			for i := range tc.numberOfTxs {
-				tx, err := createTx(privateKey, address, utxos[i])
+				tx, err := node_client.CreateTx(privateKey, address, utxos[i])
 				require.NoError(t, err)
 
 				txs = append(txs, tx)
@@ -450,11 +450,10 @@ func TestBatchCallback(t *testing.T) {
 						testTxSubmission(t, callbackSrv.url, callbackSrv.token, true, tx)
 					}
 				}
-
 			}
 
 			// mine transactions
-			generate(t, 1)
+			node_client.Generate(t, bitcoind, 1)
 
 			// then
 
@@ -489,7 +488,7 @@ func TestBatchCallback(t *testing.T) {
 								delete(expectedTxsCallbacks, callback.Txid) // remove after receiving expected callbacks
 							}
 
-							require.Equal(t, Status_MINED, callback.TxStatus)
+							require.Equal(t, StatusMined, callback.TxStatus)
 						}
 
 					case err := <-srv.errChan:
@@ -506,7 +505,6 @@ func TestBatchCallback(t *testing.T) {
 }
 
 func TestSkipValidation(t *testing.T) {
-
 	tt := []struct {
 		name              string
 		skipFeeValidation bool
@@ -539,14 +537,14 @@ func TestSkipValidation(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			address, privateKey := fundNewWallet(t)
+			address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-			utxos := getUtxos(t, address)
+			utxos := node_client.GetUtxos(t, bitcoind, address)
 			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 			fee := uint64(0)
 
-			lowFeeTx, err := createTx(privateKey, address, utxos[0], fee)
+			lowFeeTx, err := node_client.CreateTx(privateKey, address, utxos[0], fee)
 			require.NoError(t, err)
 
 			lawFeeRawTx, err := lowFeeTx.EFHex()
@@ -554,13 +552,13 @@ func TestSkipValidation(t *testing.T) {
 
 			resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: lawFeeRawTx}),
 				map[string]string{
-					"X-WaitFor":           Status_SEEN_ON_NETWORK,
+					"X-WaitFor":           StatusSeenOnNetwork,
 					"X-SkipFeeValidation": strconv.FormatBool(tc.skipFeeValidation),
 					"X-SkipTxValidation":  strconv.FormatBool(tc.skipTxValidation),
 				}, tc.expectedStatusCode)
 
 			if tc.expectedStatusCode == http.StatusOK {
-				require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+				require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 			}
 		})
 	}
@@ -589,7 +587,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				skipFeeValidation:               true,
 			},
 			expectedStatusCode: 200,
-			expectedTxStatus:   Status_SEEN_ON_NETWORK,
+			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
 			name: "post zero fee tx with cumulative fees validation and with skiping cumulative fee validation - cumulative fee validation is ommited",
@@ -598,7 +596,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          17,
 			expectedStatusCode: 200,
-			expectedTxStatus:   Status_SEEN_ON_NETWORK,
+			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
 			name: "post  txs chain with too low fee with cumulative fees validation",
@@ -616,7 +614,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			},
 			lastTxFee:          90,
 			expectedStatusCode: 200,
-			expectedTxStatus:   Status_SEEN_ON_NETWORK,
+			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
 			name: "post  txs chain with cumulative fees validation - chain too long - ignore it",
@@ -626,26 +624,26 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			lastTxFee:          260,
 			chainLong:          25,
 			expectedStatusCode: 200,
-			expectedTxStatus:   Status_REJECTED,
+			expectedTxStatus:   StatusRejected,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			address, privateKey := getNewWalletAddress(t)
+			address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)
 
 			// create mined ancestors
 			const minedAncestorsCount = 2
 			var minedAncestors sdkTx.Transactions
 
-			sendToAddress(t, address, 0.0001)
-			sendToAddress(t, address, 0.00011)
-			utxos := getUtxos(t, address)
+			node_client.SendToAddress(t, bitcoind, address, 0.0001)
+			node_client.SendToAddress(t, bitcoind, address, 0.00011)
+			utxos := node_client.GetUtxos(t, bitcoind, address)
 			require.GreaterOrEqual(t, len(utxos), minedAncestorsCount, "No UTXOs available for the address")
 
 			for i := range minedAncestorsCount {
-				minedTx, err := createTx(privateKey, address, utxos[i], 10)
+				minedTx, err := node_client.CreateTx(privateKey, address, utxos[i], 10)
 				require.NoError(t, err)
 
 				minedAncestors = append(minedAncestors, minedTx)
@@ -670,7 +668,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 				for i := 0; i < zeroChainCount; i++ {
 					output := parentTx.Outputs[0]
-					utxo := NodeUnspentUtxo{
+					utxo := node_client.UnspentOutput{
 						Txid:         parentTx.TxID(),
 						Vout:         0,
 						Address:      address,
@@ -678,7 +676,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 						Amount:       float64(float64(output.Satoshis) / 1e8),
 					}
 
-					tx, err := createTx(privateKey, address, utxo, zeroFee)
+					tx, err := node_client.CreateTx(privateKey, address, utxo, zeroFee)
 					require.NoError(t, err)
 
 					chain[i] = tx
@@ -695,11 +693,11 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 				body := TransactionRequest{RawTx: rawTx}
 				resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
-					map[string]string{"X-WaitFor": Status_SEEN_ON_NETWORK}, 200)
+					map[string]string{"X-WaitFor": StatusSeenOnNetwork}, 200)
 
-				require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+				require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 			}
-			generate(t, 1) // mine posted transactions
+			node_client.Generate(t, bitcoind, 1) // mine posted transactions
 
 			for _, chain := range zeroFeeChains {
 				for _, tx := range chain {
@@ -709,22 +707,22 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 					body := TransactionRequest{RawTx: rawTx}
 					resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, body),
 						map[string]string{
-							"X-WaitFor":           Status_SEEN_ON_NETWORK,
+							"X-WaitFor":           StatusSeenOnNetwork,
 							"X-SkipFeeValidation": strconv.FormatBool(true),
 						}, 200)
 
-					require.Equal(t, Status_SEEN_ON_NETWORK, resp.TxStatus)
+					require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 				}
 			}
 
 			// then
 			// create last transaction
-			var nodeUtxos []NodeUnspentUtxo
+			var nodeUtxos []node_client.UnspentOutput
 			for _, chain := range zeroFeeChains {
 				// get otput from the lastes tx in the chain
 				parentTx := chain[len(chain)-1]
 				output := parentTx.Outputs[0]
-				utxo := NodeUnspentUtxo{
+				utxo := node_client.UnspentOutput{
 					Txid:         parentTx.TxID(),
 					Vout:         0,
 					Address:      address,
@@ -735,7 +733,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				nodeUtxos = append(nodeUtxos, utxo)
 			}
 
-			lastTx, err := createTxFrom(privateKey, address, nodeUtxos, tc.lastTxFee)
+			lastTx, err := node_client.CreateTxFrom(privateKey, address, nodeUtxos, tc.lastTxFee)
 			require.NoError(t, err)
 
 			rawTx, err := lastTx.EFHex()
@@ -743,7 +741,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 				map[string]string{
-					"X-WaitFor":                 Status_SEEN_ON_NETWORK,
+					"X-WaitFor":                 StatusSeenOnNetwork,
 					"X-CumulativeFeeValidation": strconv.FormatBool(tc.options.performCumulativeFeesValidation),
 					"X-SkipFeeValidation":       strconv.FormatBool(tc.options.skipFeeValidation),
 				}, tc.expectedStatusCode)
@@ -790,14 +788,14 @@ func TestScriptValidation(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		address, privateKey := fundNewWallet(t)
+		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-		utxos := getUtxos(t, address)
+		utxos := node_client.GetUtxos(t, bitcoind, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 		fee := uint64(10)
 
-		lowFeeTx, err := createTx(privateKey, address, utxos[0], fee)
+		lowFeeTx, err := node_client.CreateTx(privateKey, address, utxos[0], fee)
 		require.NoError(t, err)
 
 		sc, err := generateNewUnlockingScriptFromRandomKey()

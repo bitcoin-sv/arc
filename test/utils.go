@@ -20,23 +20,16 @@ import (
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
-	"github.com/bitcoinsv/bsvutil"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	Status_QUEUED                 = "QUEUED"
-	Status_RECEIVED               = "RECEIVED"
-	Status_STORED                 = "STORED"
-	Status_ANNOUNCED_TO_NETWORK   = "ANNOUNCED_TO_NETWORK"
-	Status_REQUESTED_BY_NETWORK   = "REQUESTED_BY_NETWORK"
-	Status_SENT_TO_NETWORK        = "SENT_TO_NETWORK"
-	Status_ACCEPTED_BY_NETWORK    = "ACCEPTED_BY_NETWORK"
-	Status_SEEN_IN_ORPHAN_MEMPOOL = "SEEN_IN_ORPHAN_MEMPOOL"
-	Status_SEEN_ON_NETWORK        = "SEEN_ON_NETWORK"
-	Status_DOUBLE_SPEND_ATTEMPTED = "DOUBLE_SPEND_ATTEMPTED"
-	Status_REJECTED               = "REJECTED"
-	Status_MINED                  = "MINED"
+	StatusQueued               = "QUEUED"
+	StatusSeenInOrphanMempool  = "SEEN_IN_ORPHAN_MEMPOOL"
+	StatusSeenOnNetwork        = "SEEN_ON_NETWORK"
+	StatusDoubleSpendAttempted = "DOUBLE_SPEND_ATTEMPTED"
+	StatusRejected             = "REJECTED"
+	StatusMined                = "MINED"
 )
 
 type TransactionResponseBatch []TransactionResponse
@@ -66,30 +59,6 @@ type CallbackBatchResponse struct {
 type ErrorFee struct {
 	Detail string `json:"detail"`
 	Txid   string `json:"txid"`
-}
-
-type NodeUnspentUtxo struct {
-	Txid          string  `json:"txid"`
-	Vout          uint32  `json:"vout"`
-	Address       string  `json:"address"`
-	Account       string  `json:"account"`
-	ScriptPubKey  string  `json:"scriptPubKey"`
-	Amount        float64 `json:"amount"`
-	Confirmations int     `json:"confirmations"`
-	Spendable     bool    `json:"spendable"`
-	Solvable      bool    `json:"solvable"`
-	Safe          bool    `json:"safe"`
-}
-
-type RawTransaction struct {
-	Hex       string `json:"hex"`
-	BlockHash string `json:"blockhash,omitempty"`
-}
-
-type BlockData struct {
-	Height     uint64   `json:"height"`
-	Txs        []string `json:"txs"`
-	MerkleRoot string   `json:"merkleroot"`
 }
 
 func createPayload[T any](t *testing.T, body T) io.Reader {
@@ -141,188 +110,6 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 	return response
 }
 
-// PtrTo returns a pointer to the given value.
-func PtrTo[T any](v T) *T {
-	return &v
-}
-
-func getNewWalletAddress(t *testing.T) (address, privateKey string) {
-	address, err := bitcoind.GetNewAddress()
-	require.NoError(t, err)
-	t.Logf("new address: %s", address)
-
-	privateKey, err = bitcoind.DumpPrivKey(address)
-	require.NoError(t, err)
-	t.Logf("new private key: %s", privateKey)
-
-	accountName := "test-account"
-	err = bitcoind.SetAccount(address, accountName)
-	require.NoError(t, err)
-
-	t.Logf("account %s created", accountName)
-
-	return
-}
-
-func sendToAddress(t *testing.T, address string, bsv float64) (txID string) {
-	t.Helper()
-
-	txID, err := bitcoind.SendToAddress(address, bsv)
-	require.NoError(t, err)
-
-	t.Logf("sent %f to %s: %s", bsv, address, txID)
-
-	return
-}
-
-func generate(t *testing.T, amount uint64) string {
-	t.Helper()
-
-	// run command instead
-	blockHash := execCommandGenerate(t, amount)
-	time.Sleep(5 * time.Second)
-
-	t.Logf(
-		"generated %d block(s): block hash: %s",
-		amount,
-		blockHash,
-	)
-
-	return blockHash
-}
-
-func execCommandGenerate(t *testing.T, amount uint64) string {
-	t.Helper()
-	t.Logf("Amount to generate: %d", amount)
-
-	hashes, err := bitcoind.Generate(float64(amount))
-	require.NoError(t, err)
-
-	return hashes[len(hashes)-1]
-}
-
-func getUtxos(t *testing.T, address string) []NodeUnspentUtxo {
-	t.Helper()
-
-	data, err := bitcoind.ListUnspent([]string{address})
-	require.NoError(t, err)
-
-	result := make([]NodeUnspentUtxo, len(data))
-
-	for index, utxo := range data {
-		t.Logf("UTXO Txid: %s, Amount: %f, Address: %s\n", utxo.TXID, utxo.Amount, utxo.Address)
-		result[index] = NodeUnspentUtxo{
-			Txid:          utxo.TXID,
-			Vout:          utxo.Vout,
-			Address:       utxo.Address,
-			ScriptPubKey:  utxo.ScriptPubKey,
-			Amount:        utxo.Amount,
-			Confirmations: int(utxo.Confirmations),
-		}
-	}
-
-	return result
-}
-
-func getBlockRootByHeight(t *testing.T, blockHeight int) string {
-	t.Helper()
-	block, err := bitcoind.GetBlockByHeight(blockHeight)
-	require.NoError(t, err)
-
-	return block.MerkleRoot
-}
-
-func getRawTx(t *testing.T, txID string) RawTransaction {
-	t.Helper()
-
-	rawTx, err := bitcoind.GetRawTransaction(txID)
-	require.NoError(t, err)
-
-	return RawTransaction{
-		Hex:       rawTx.Hex,
-		BlockHash: rawTx.BlockHash,
-	}
-}
-
-func getBlockDataByBlockHash(t *testing.T, blockHash string) BlockData {
-	t.Helper()
-
-	block, err := bitcoind.GetBlock(blockHash)
-	require.NoError(t, err)
-
-	return BlockData{
-		Height:     block.Height,
-		Txs:        block.Tx,
-		MerkleRoot: block.MerkleRoot,
-	}
-}
-
-func createTx(privateKey string, address string, utxo NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
-	return createTxFrom(privateKey, address, []NodeUnspentUtxo{utxo}, fee...)
-}
-
-func createTxFrom(privateKey string, address string, utxos []NodeUnspentUtxo, fee ...uint64) (*sdkTx.Transaction, error) {
-	tx := sdkTx.NewTransaction()
-
-	// Add an input using the UTXOs
-	for _, utxo := range utxos {
-		utxoTxID := utxo.Txid
-		utxoVout := utxo.Vout
-		utxoSatoshis := uint64(utxo.Amount * 1e8) // Convert BTC to satoshis
-		utxoScript := utxo.ScriptPubKey
-
-		u, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
-		if err != nil {
-			return nil, fmt.Errorf("failed creating UTXO: %v", err)
-		}
-		err = tx.AddInputsFromUTXOs(u)
-		if err != nil {
-			return nil, fmt.Errorf("failed adding input: %v", err)
-		}
-	}
-	// Add an output to the address you've previously created
-	recipientAddress := address
-
-	var feeValue uint64
-	if len(fee) > 0 {
-		feeValue = fee[0]
-	} else {
-		feeValue = 20 // Set your default fee value here
-	}
-	amountToSend := tx.TotalInputSatoshis() - feeValue
-
-	err := tx.PayToAddress(recipientAddress, amountToSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pay to address: %v", err)
-	}
-
-	// Sign the input
-	wif, err := bsvutil.DecodeWIF(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode WIF: %v", err)
-	}
-
-	// Extract raw private key bytes directly from the WIF structure
-	privateKeyDecoded := wif.PrivKey.Serialize()
-	pk, _ := ec.PrivateKeyFromBytes(privateKeyDecoded)
-
-	unlockingScriptTemplate, err := p2pkh.Unlock(pk, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, input := range tx.Inputs {
-		input.UnlockingScriptTemplate = unlockingScriptTemplate
-	}
-
-	err = tx.Sign()
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, nil
-}
-
 func generateRandomString(length int) string {
 	const letterBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
 
@@ -337,7 +124,7 @@ type callbackResponseFn func(w http.ResponseWriter, rc chan *TransactionResponse
 type callbackBatchResponseFn func(w http.ResponseWriter, rc chan *CallbackBatchResponse, ec chan error, status *CallbackBatchResponse)
 
 // use buffered channels for multiple callbacks
-func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackUrl, token string, shutdownFn func()) {
+func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackURL, token string, shutdownFn func()) {
 	t.Helper()
 
 	callback := generateRandomString(16)
@@ -347,7 +134,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
-	callbackUrl = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
 	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
 		// check auth
@@ -381,7 +168,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 
 	srv := &http.Server{Addr: ":9000"}
 	shutdownFn = func() {
-		t.Logf("shutting down callback listener %s", callbackUrl)
+		t.Logf("shutting down callback listener %s", callbackURL)
 		close(receivedChan)
 		close(errChan)
 
@@ -392,7 +179,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 	}
 
 	go func(server *http.Server) {
-		t.Logf("starting callback server %s", callbackUrl)
+		t.Logf("starting callback server %s", callbackURL)
 		err := server.ListenAndServe()
 		if err != nil {
 			return
@@ -403,7 +190,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 }
 
 // use buffered channels for multiple callbacks
-func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchResponse, errChan chan error, alternativeResponseFn callbackBatchResponseFn) (callbackUrl, token string, shutdownFn func()) {
+func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchResponse, errChan chan error, alternativeResponseFn callbackBatchResponseFn) (callbackURL, token string, shutdownFn func()) {
 	t.Helper()
 
 	callback := generateRandomString(16)
@@ -413,7 +200,7 @@ func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchRespons
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
-	callbackUrl = fmt.Sprintf("http://%s:9000/%s/batch", hostname, callback)
+	callbackURL = fmt.Sprintf("http://%s:9000/%s/batch", hostname, callback)
 
 	http.HandleFunc(fmt.Sprintf("/%s/batch", callback), func(w http.ResponseWriter, req *http.Request) {
 		// check auth
@@ -447,7 +234,7 @@ func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchRespons
 
 	srv := &http.Server{Addr: ":9000"}
 	shutdownFn = func() {
-		t.Logf("shutting down callback listener %s", callbackUrl)
+		t.Logf("shutting down callback listener %s", callbackURL)
 		close(receivedChan)
 		close(errChan)
 
@@ -458,7 +245,7 @@ func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchRespons
 	}
 
 	go func(server *http.Server) {
-		t.Logf("starting callback server %s", callbackUrl)
+		t.Logf("starting callback server %s", callbackURL)
 		err := server.ListenAndServe()
 		if err != nil {
 			return
@@ -509,18 +296,7 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 	return nil
 }
 
-func fundNewWallet(t *testing.T) (addr, privKey string) {
-	t.Helper()
-
-	addr, privKey = getNewWalletAddress(t)
-	sendToAddress(t, addr, 0.001)
-	// mine a block with the transaction from above
-	generate(t, 1)
-
-	return
-}
-
-func testTxSubmission(t *testing.T, callbackUrl string, token string, callbackBatch bool, tx *sdkTx.Transaction) {
+func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBatch bool, tx *sdkTx.Transaction) {
 	t.Helper()
 
 	rawTx, err := tx.EFHex()
@@ -528,13 +304,13 @@ func testTxSubmission(t *testing.T, callbackUrl string, token string, callbackBa
 
 	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 		map[string]string{
-			"X-WaitFor":       Status_SEEN_ON_NETWORK,
-			"X-CallbackUrl":   callbackUrl,
+			"X-WaitFor":       StatusSeenOnNetwork,
+			"X-CallbackUrl":   callbackURL,
 			"X-CallbackToken": token,
 			"X-CallbackBatch": strconv.FormatBool(callbackBatch),
 			"X-MaxTimeout":    "7",
 		}, http.StatusOK)
-	require.Equal(t, Status_SEEN_ON_NETWORK, response.TxStatus)
+	require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 }
 
 func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionResponse, chan error, callbackResponseFn) {
@@ -546,7 +322,7 @@ func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionRespon
 	responseVisitMap := make(map[string]int)
 	mu := &sync.Mutex{}
 
-	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse) {
+	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, _ chan error, status *TransactionResponse) {
 		mu.Lock()
 		callbackNumber := responseVisitMap[status.Txid]
 		callbackNumber++
@@ -556,7 +332,6 @@ func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionRespon
 		respondWithSuccess := false
 		if callbackNumber < callbackNumbers {
 			respondWithSuccess = false
-
 		} else {
 			respondWithSuccess = true
 		}
@@ -580,7 +355,7 @@ func prepareBatchCallback(t *testing.T, callbackNumbers int) (chan *CallbackBatc
 	responseVisitMap := make(map[string]int)
 	mu := &sync.Mutex{}
 
-	calbackResponseFn := func(w http.ResponseWriter, rc chan *CallbackBatchResponse, ec chan error, status *CallbackBatchResponse) {
+	calbackResponseFn := func(w http.ResponseWriter, rc chan *CallbackBatchResponse, _ chan error, status *CallbackBatchResponse) {
 		mu.Lock()
 		callbackNumber := responseVisitMap[status.Callbacks[0].Txid]
 		callbackNumber++
@@ -590,7 +365,6 @@ func prepareBatchCallback(t *testing.T, callbackNumbers int) (chan *CallbackBatc
 		respondWithSuccess := false
 		if callbackNumber < callbackNumbers {
 			respondWithSuccess = false
-
 		} else {
 			respondWithSuccess = true
 		}

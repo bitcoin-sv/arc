@@ -1,4 +1,4 @@
-FROM golang:1.22.5-alpine3.20
+FROM golang:1.22.5-alpine3.20 AS build-stage
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -7,18 +7,25 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download all dependencies. Dependencies will be cached if the go.mod and the go.sum files are not changed
+COPY go.mod go.sum ./
 RUN go mod download
+RUN go mod verify
 
-COPY ./test/e2e_globals.go ./e2e_globals.go
-COPY ./test/init_test.go ./init_test.go
-COPY ./test/utils.go ./utils.go
-COPY ./test/fixtures ./fixtures
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
+COPY config/ config/
+COPY test/ test/
 
-# Copy tests to run
-COPY ./test/submit_single_test.go ./submit_01_single_test.go
-COPY ./test/submit_batch_test.go ./submit_02_batch_test.go
-COPY ./test/submit_double_spending_test.go ./submit_03_double_spending_test.go
-COPY ./test/submit_beef_test.go ./submit_04_beef_test.go
+# Build tests
+RUN go test --tags=e2e -v -failfast github.com/bitcoin-sv/arc/test -c -o /e2e.test
 
-# This will compile and run the tests
-CMD [ "go", "test", "--tags=e2e", "-v", "-failfast", "./..."]
+# Deploy the application binary into a lean image
+FROM scratch
+
+WORKDIR /test
+
+COPY --from=build-stage /e2e.test /test/e2e.test
+
+# Run tests
+CMD ["/test/e2e.test"]

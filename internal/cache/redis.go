@@ -43,8 +43,8 @@ func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
 }
 
 // Del removes a value by key.
-func (r *RedisStore) Del(key string) error {
-	result, err := r.client.Del(r.ctx, key).Result()
+func (r *RedisStore) Del(keys ...string) error {
+	result, err := r.client.Del(r.ctx, keys...).Result()
 	if err != nil {
 		return errors.Join(ErrCacheFailedToDel, err)
 	}
@@ -52,4 +52,34 @@ func (r *RedisStore) Del(key string) error {
 		return ErrCacheNotFound
 	}
 	return nil
+}
+
+// GetAllWithPrefix retrieves all key-value pairs that match a specific prefix.
+func (r *RedisStore) GetAllWithPrefix(prefix string) (map[string][]byte, error) {
+	var cursor uint64
+	results := make(map[string][]byte)
+
+	for {
+		keys, newCursor, err := r.client.Scan(r.ctx, cursor, prefix+"*", 10).Result()
+		if err != nil {
+			return nil, errors.Join(ErrCacheFailedToScan, err)
+		}
+
+		for _, key := range keys {
+			value, err := r.client.Get(r.ctx, key).Result()
+			if errors.Is(err, redis.Nil) {
+				// Key has been removed between SCAN and GET, skip it
+				continue
+			} else if err != nil {
+				return nil, errors.Join(ErrCacheFailedToGet, err)
+			}
+			results[key] = []byte(value)
+		}
+
+		cursor = newCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return results, nil
 }

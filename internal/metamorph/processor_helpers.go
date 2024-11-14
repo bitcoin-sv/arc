@@ -101,7 +101,7 @@ func (p *Processor) getAllTransactionStatuses() (StatusUpdateMap, error) {
 
 func (p *Processor) clearCache(updateStatusMap StatusUpdateMap) error {
 	keys := make([]string, len(updateStatusMap))
-	for k, _ := range updateStatusMap {
+	for k := range updateStatusMap {
 		keys = append(keys, CacheTxPrefix+k.String())
 	}
 

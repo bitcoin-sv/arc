@@ -20,7 +20,10 @@ func (s *MemoryStore) Get(key string) ([]byte, error) {
 		return nil, ErrCacheNotFound
 	}
 
-	bytes := value.([]byte)
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil, ErrCacheFailedToGet
+	}
 
 	return bytes, nil
 }
@@ -41,9 +44,16 @@ func (s *MemoryStore) Del(keys ...string) error {
 func (s *MemoryStore) GetAllWithPrefix(prefix string) (map[string][]byte, error) {
 	keys := make(map[string][]byte)
 	s.data.Range(func(k, v interface{}) bool {
-		key := k.(string)
+		key, ok := k.(string)
+		if !ok {
+			return false
+		}
 		if key[:len(prefix)] == prefix {
-			keys[key] = v.([]byte)
+			value, ok := v.([]byte)
+			if !ok {
+				return false
+			}
+			keys[key] = value
 		}
 		return true
 	})

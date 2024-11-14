@@ -6,10 +6,10 @@ import (
 	"runtime"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
@@ -42,7 +42,13 @@ func WithTracerCachedFinder(attr ...attribute.KeyValue) func(s *CachedFinder) {
 	}
 }
 
-func NewCached(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *CachedFinder)) CachedFinder {
+func WithCacheStore(store *cache.Cache) func(s *CachedFinder) {
+	return func(p *CachedFinder) {
+		p.cacheStore = store
+	}
+}
+
+func NewCached(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *CachedFinder)) CachedFinder {
 	c := CachedFinder{
 		cacheStore: cache.New(cacheExpiration, cacheCleanup),
 	}
@@ -55,23 +61,30 @@ func NewCached(th metamorph.TransactionHandler, pc *config.PeerRPCConfig, w *woc
 		finderOpts = append(finderOpts, WithTracerFinder(c.tracingAttributes...))
 	}
 
-	c.finder = New(th, pc, w, l, finderOpts...)
+	c.finder = New(th, n, w, l, finderOpts...)
 
 	return c
 }
 
-func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]validator.RawTx, error) {
+func (f CachedFinder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
+	return f.finder.GetMempoolAncestors(ctx, ids)
+}
+
+func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
 	ctx, span := tracing.StartTracing(ctx, "CachedFinder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 	defer tracing.EndTracing(span)
 
-	cachedTxs := make([]validator.RawTx, 0, len(ids))
+	cachedTxs := make([]*sdkTx.Transaction, 0, len(ids))
 	var toFindIDs []string
 
 	// check cache
 	for _, id := range ids {
 		value, found := f.cacheStore.Get(id)
 		if found {
-			cachedTxs = append(cachedTxs, value.(validator.RawTx))
+			cahchedTx, ok := value.(sdkTx.Transaction)
+			if ok {
+				cachedTxs = append(cachedTxs, &cahchedTx)
+			}
 		} else {
 			toFindIDs = append(toFindIDs, id)
 		}
@@ -89,7 +102,7 @@ func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSource
 
 	// update cache
 	for _, tx := range foundTxs {
-		f.cacheStore.Set(tx.TxID, tx, cacheExpiration)
+		f.cacheStore.Set(tx.TxID(), *tx, cacheExpiration)
 	}
 
 	return append(cachedTxs, foundTxs...), nil

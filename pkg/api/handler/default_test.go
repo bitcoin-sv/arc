@@ -17,6 +17,7 @@ import (
 	"time"
 
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
+	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -24,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -92,7 +92,7 @@ var (
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, nil, nil, nil)
+		defaultHandler, err := NewDefault(testLogger, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -101,7 +101,7 @@ func TestNewDefault(t *testing.T) {
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -138,7 +138,7 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -276,7 +276,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, nil, nil, nil, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			defaultHandler, err := NewDefault(testLogger, txHandler, nil, nil, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -307,7 +307,7 @@ func TestGETTransactionStatus(t *testing.T) {
 }
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
-	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "arc error 460: parent transaction not found")
+	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "arc error 460: failed to get raw transactions for parent")
 	errFieldMissingInputs.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
 	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
@@ -331,6 +331,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		getTx            []byte
 		submitTxResponse *metamorph.TransactionStatus
 		submitTxErr      error
+		getRawTxsErr     error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -404,13 +405,14 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "could not read varint type: EOF"),
 		},
 		{
-			name:        "valid tx - missing inputs, text/plain",
-			contentType: contentTypes[0],
-			txHexString: validTx,
+			name:         "valid tx - missing inputs, text/plain",
+			contentType:  contentTypes[0],
+			txHexString:  validTx,
+			getRawTxsErr: errors.New("failed to get raw txs"),
 
 			expectedStatus:   460,
 			expectedResponse: errFieldMissingInputs,
-			expectedError:    defaultvalidator.ErrParentNotFound,
+			expectedError:    defaultvalidator.ErrFailedToGetRawTxs,
 		},
 		{
 			name:        "valid tx - fees too low",
@@ -638,11 +640,27 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			// load default config
-			arcConfig, err := config.Load()
-			require.NoError(t, err, "error loading config")
+			tx, err := sdkTx.NewTransactionFromHex("0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000")
+			require.NoError(t, err)
+			txMap := map[string]*sdkTx.Transaction{
+				"8574e743bb64cf603dbd0e951e7287afd2a59593ff8837b3760e911f8fb38e35": tx,
+			}
+			finder := &mocks.TxFinderIMock{
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+					var rawTxs []*sdkTx.Transaction
+					for _, id := range ids {
+						rawTx, ok := txMap[id]
+						if !ok {
+							continue
+						}
+						rawTxs = append(rawTxs, rawTx)
+					}
 
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, arcConfig.PeerRPC, arcConfig.API, WithNow(func() time.Time { return now }))
+					return rawTxs, tc.getRawTxsErr
+				},
+			}
+
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, WithNow(func() time.Time { return now }))
 			require.NoError(t, err)
 
 			inputTx := strings.NewReader(tc.txHexString)
@@ -670,7 +688,15 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				err = json.Unmarshal(b, &actualError)
 				require.NoError(t, err)
 
-				assert.Equal(t, tc.expectedResponse, actualError)
+				expectedResp, ok := tc.expectedResponse.(api.ErrorFields)
+				require.True(t, ok)
+
+				assert.Equal(t, expectedResp.Txid, actualError.Txid)
+				assert.Equal(t, expectedResp.Status, actualError.Status)
+				assert.Equal(t, expectedResp.Detail, actualError.Detail)
+				assert.Equal(t, expectedResp.Title, actualError.Title)
+				assert.Equal(t, expectedResp.Instance, actualError.Instance)
+				assert.Equal(t, expectedResp.Type, actualError.Type)
 				if tc.expectedError != nil {
 					assert.ErrorContains(t, errors.New(*actualError.ExtraInfo), tc.expectedError.Error())
 				}
@@ -684,7 +710,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		// when
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -708,7 +734,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		// given
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -737,7 +763,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid mime type", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -756,7 +782,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid txs", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -807,10 +833,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		arcConfig, err := config.Load()
-		require.NoError(t, err, "could not load default config")
-
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, arcConfig.PeerRPC, arcConfig.API)
+		//arcConfig, err := config.Load()
+		//require.NoError(t, err, "could not load default config")
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
+			return nil, errors.New("error getting raw transactions")
+		}}
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, finder)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -834,8 +862,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bErr)
 
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
-			assert.Equal(t, "arc error 460: parent transaction not found", *bErr[0].ExtraInfo)
-			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrParentNotFound.Error())
+
+			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrFailedToGetRawTxs.Error())
 		}
 	})
 
@@ -863,7 +891,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -900,7 +928,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -958,7 +986,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1013,7 +1041,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 					},
 				}, nil
 			},
-
+			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
+				return txResults[0], nil
+			},
 			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var res []*metamorph.TransactionStatus
 				for _, t := range txs {
@@ -1036,8 +1066,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, nil
 			},
 		}
-
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, nil)
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
+			return nil, errors.New("error getting raw transactions")
+		}}
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{

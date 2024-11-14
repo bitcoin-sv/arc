@@ -2,39 +2,44 @@ package txfinder
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 )
 
-// Mocked data for RawTx
-var rawTx1 = validator.RawTx{TxID: "tx1"}
-var rawTx2 = validator.RawTx{TxID: "tx2"}
-
 func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 	tt := []struct {
 		name      string
-		cachedTx  []validator.RawTx
+		cachedTx  []sdkTx.Transaction
 		fetchedTx []*metamorph.Transaction
 	}{
 		{
 			name:     "all from cache",
-			cachedTx: []validator.RawTx{rawTx1, rawTx2},
+			cachedTx: []sdkTx.Transaction{*testdata.TX1Raw, *testdata.TX6Raw},
 		},
 		{
-			name:      "all from finder",
-			fetchedTx: []*metamorph.Transaction{{TxID: rawTx1.TxID}, {TxID: rawTx2.TxID}},
+			name: "all from finder",
+			fetchedTx: []*metamorph.Transaction{
+				{TxID: testdata.TX1Raw.TxID(), Bytes: testdata.TX1Raw.Bytes()},
+				{TxID: testdata.TX6Raw.TxID(), Bytes: testdata.TX6Raw.Bytes()},
+			},
 		},
 		{
-			name:      "cached and fetched mixed",
-			cachedTx:  []validator.RawTx{rawTx1},
-			fetchedTx: []*metamorph.Transaction{{TxID: rawTx2.TxID}},
+			name:     "cached and fetched mixed",
+			cachedTx: []sdkTx.Transaction{*testdata.TX1Raw},
+			fetchedTx: []*metamorph.Transaction{
+				{TxID: testdata.TX6Raw.TxID(), Bytes: testdata.TX6Raw.Bytes()},
+			},
 		},
 	}
 
@@ -49,19 +54,15 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 
 			c := cache.New(10*time.Second, 10*time.Second)
 			for _, r := range tc.cachedTx {
-				c.Set(r.TxID, r, cache.DefaultExpiration)
+				c.Set(r.TxID(), r, cache.DefaultExpiration)
 			}
 
-			sut := CachedFinder{
-				finder: &Finder{
-					transactionHandler: thMq,
-				},
-				cacheStore: c,
-			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			sut := NewCached(thMq, nil, nil, logger, WithCacheStore(c))
 
 			// when
 			// try to find in cache or with TransactionHandler only
-			res, err := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{rawTx1.TxID, rawTx2.TxID})
+			res, err := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{testdata.TX1Raw.TxID(), testdata.TX6Raw.TxID()})
 
 			// then
 			require.NoError(t, err)

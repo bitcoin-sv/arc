@@ -6,11 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/config"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/stretchr/testify/require"
 
 	transactionHandlerMock "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 )
@@ -106,19 +106,14 @@ func Test_GetRawTxs(t *testing.T) {
 				th = transactionHandler(t, tc.thResponse)
 			}
 
-			var pc *config.PeerRPCConfig
-			if tc.source.Has(validator.SourceNodes) {
-				pc = peerRPCConfig(t)
-			}
-
 			var w *woc_client.WocClient
 			if tc.source.Has(validator.SourceWoC) {
-				w = wocClient()
+				w = woc_client.New(true)
 			}
 
 			l := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			sut := New(th, pc, w, l)
+			sut := New(th, nil, w, l)
 
 			// then
 
@@ -137,12 +132,4 @@ func transactionHandler(_ *testing.T, thResponse func() ([]*metamorph.Transactio
 	}
 
 	return &mq
-}
-
-func peerRPCConfig(_ *testing.T) *config.PeerRPCConfig {
-	return &config.PeerRPCConfig{}
-}
-
-func wocClient() *woc_client.WocClient {
-	return woc_client.New(true)
 }

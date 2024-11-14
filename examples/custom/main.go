@@ -95,7 +95,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, arcConfig.PeerRPC, arcConfig.API); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil); err != nil {
 		panic(err)
 	}
 

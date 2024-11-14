@@ -25,10 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p"
@@ -36,6 +32,11 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
 
 const (
@@ -118,7 +119,7 @@ func TestBlockStatus(t *testing.T) {
 	blockMessage := &p2p.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
-			PrevBlock:  *prevBlockHash, // NON-existant in the db
+			PrevBlock:  *prevBlockHash, // NON-existent in the db
 			MerkleRoot: *merkleRoot,
 			Bits:       0x1d00ffff,
 		},

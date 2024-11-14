@@ -1,50 +1,42 @@
 package cache
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 )
 
 type MemoryStore struct {
-	data map[string][]byte
-	mu   sync.RWMutex
+	data sync.Map
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{
-		data: make(map[string][]byte),
-	}
+	return &MemoryStore{}
 }
 
 // Get retrieves a value by key. It returns an error if the key does not exist.
 func (s *MemoryStore) Get(key string) ([]byte, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	value, found := s.data[key]
+	value, found := s.data.Load(key)
 	if !found {
 		return nil, ErrCacheNotFound
 	}
-	return value, nil
+
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		return nil, ErrCacheFailedToMarshalValue
+	}
+
+	return bytes, nil
 }
 
 // Set stores a key-value pair, ignoring the ttl parameter.
 func (s *MemoryStore) Set(key string, value []byte, _ time.Duration) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.data[key] = value
+	s.data.Store(key, value)
 	return nil
 }
 
 // Del removes a key from the store.
 func (s *MemoryStore) Del(key string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, found := s.data[key]; !found {
-		return ErrCacheNotFound
-	}
-	delete(s.data, key)
+	s.data.Delete(key)
 	return nil
 }

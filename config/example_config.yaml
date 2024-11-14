@@ -48,8 +48,8 @@ broadcasting: # settings for connection to nodes
         p2p: 18335
 
 cache:
-  engine: redis
-  redis:
+  engine: redis # cache engine - in-memory/redis
+  redis: # redis cache configuration in case that engine: redis
     addr: "localhost:6379"
     password: ""
     db: 1

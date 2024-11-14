@@ -27,12 +27,9 @@ func TestMain(m *testing.M) {
 func setupSut() {
 	log.Printf("init tests")
 
-	if os.Getenv("NODE_HOST") != "" {
-		nodeHost = os.Getenv("NODE_HOST")
-	}
-
-	if os.Getenv("ARC_ENDPOINT") != "" {
-		arcEndpoint = os.Getenv("ARC_ENDPOINT")
+	if os.Getenv("TEST_LOCAL") != "" {
+		nodeHost = "localhost"
+		arcEndpoint = "http://localhost:9090/"
 		arcEndpointV1Tx = arcEndpoint + v1Tx
 		arcEndpointV1Txs = arcEndpoint + v1Txs
 	}

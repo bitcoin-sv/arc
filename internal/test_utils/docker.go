@@ -3,7 +3,10 @@ package testutils
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
 
+	"github.com/ordishs/go-bitcoin"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 
@@ -99,4 +102,69 @@ func RunNats(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 	natsURL := fmt.Sprintf("nats://localhost:%s", hostPort)
 
 	return resource, natsURL, nil
+}
+
+func RunNode(pool *dockertest.Pool, port, name string, cmds ...string) (*dockertest.Resource, string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get current directory: %v", err)
+	}
+
+	opts := dockertest.RunOptions{
+		Repository:   "bitcoinsv/bitcoin-sv",
+		Tag:          "1.1.0",
+		ExposedPorts: []string{"18332"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"18332": {
+				{HostIP: "0.0.0.0", HostPort: port},
+			},
+		},
+		Name: name,
+		Cmd:  cmds,
+	}
+
+	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
+		// set AutoRemove to true so that stopped container goes away by itself
+		config.AutoRemove = true
+		config.RestartPolicy = docker.RestartPolicy{
+			Name: "no",
+		}
+
+		config.Mounts = []docker.HostMount{
+			{
+				Target: "/data/bitcoin.conf",
+				Source: fmt.Sprintf("%s/config/bitcoin.conf", pwd),
+				Type:   "bind",
+			},
+		}
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+	}
+
+	hostPort := resource.GetPort("18332/tcp")
+
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%s", "bitcoin", "bitcoin", "localhost", port))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse node rpc url: %w", err)
+	}
+
+	err = pool.Retry(func() error {
+		var retryErr error
+		n, retryErr := bitcoin.NewFromURL(rpcURL, false)
+		if retryErr != nil {
+			return retryErr
+		}
+		_, retryErr = n.GetInfo()
+		if retryErr != nil {
+			return retryErr
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+	}
+
+	return resource, hostPort, nil
 }

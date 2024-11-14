@@ -76,10 +76,7 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]st
 		}
 
 		for _, txID := range txIDs {
-			_, found := uniqueIDs[txID]
-			if !found {
-				uniqueIDs[txID] = struct{}{}
-			}
+			uniqueIDs[txID] = struct{}{}
 		}
 	}
 

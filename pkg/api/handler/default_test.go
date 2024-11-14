@@ -833,8 +833,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		//arcConfig, err := config.Load()
-		//require.NoError(t, err, "could not load default config")
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
 			return nil, errors.New("error getting raw transactions")
 		}}

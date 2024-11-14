@@ -109,7 +109,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// get the transaction from the bitcoin node rpc
 	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create node client: %w", err)
+		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
 	}
 
 	nodeClient, err := node_client.New(bitcoinClient, nodeClientOpts...)

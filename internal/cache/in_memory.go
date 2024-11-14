@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 )
@@ -21,10 +20,7 @@ func (s *MemoryStore) Get(key string) ([]byte, error) {
 		return nil, ErrCacheNotFound
 	}
 
-	bytes, err := json.Marshal(value)
-	if err != nil {
-		return nil, ErrCacheFailedToMarshalValue
-	}
+	bytes := value.([]byte)
 
 	return bytes, nil
 }

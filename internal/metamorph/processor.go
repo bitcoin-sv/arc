@@ -434,8 +434,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 						return
 					}
 
-					fmt.Println("statusUpdatesMap: ", statusUpdatesMap)
-
 					p.checkAndUpdate(ctx, statusUpdatesMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.

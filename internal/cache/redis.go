@@ -133,3 +133,26 @@ func (r *RedisStore) MapLen(hashsetKey string) (int64, error) {
 	}
 	return count, nil
 }
+
+// GetAllForHash retrieves all key-value pairs for a specific hash.
+func (r *RedisStore) GetAllForHash(hash string) (map[string][]byte, error) {
+	values, err := r.client.HGetAll(r.ctx, hash).Result()
+	if err != nil {
+		return nil, errors.Join(ErrCacheFailedToGet, err)
+	}
+
+	result := make(map[string][]byte)
+	for field, value := range values {
+		result[field] = []byte(value)
+	}
+	return result, nil
+}
+
+// CountElementsForHash returns the number of elements in a hash.
+func (r *RedisStore) CountElementsForHash(hash string) (int64, error) {
+	count, err := r.client.HLen(r.ctx, hash).Result()
+	if err != nil {
+		return 0, errors.Join(ErrCacheFailedToGetCount, err)
+	}
+	return count, nil
+}

@@ -56,7 +56,26 @@ func (s *MemoryStore) Set(key string, value []byte, ttl time.Duration) error {
 }
 
 // Del removes a key from the store.
-func (s *MemoryStore) Del(keys ...string) error {
+func (s *MemoryStore) Del(hash *string, keys ...string) error {
+	if hash != nil {
+		hashValue, found := s.data.Load(*hash)
+		if !found {
+			return ErrCacheNotFound
+		}
+
+		hashMap, ok := hashValue.(map[string][]byte)
+		if !ok {
+			return errors.Join(ErrCacheFailedToDel, ErrCacheFailedToGet)
+		}
+
+		for _, k := range keys {
+			delete(hashMap, k)
+		}
+
+		s.data.Store(*hash, hashMap)
+		return nil
+	}
+
 	for _, k := range keys {
 		s.data.Delete(k)
 	}

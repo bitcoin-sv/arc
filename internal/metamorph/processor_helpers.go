@@ -12,10 +12,7 @@ import (
 
 type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 
-const (
-	CacheStatusUpdateKey = "status-updates"
-	CacheTxPrefix        = "tx-"
-)
+var CacheStatusUpdateHash = "status-update"
 
 var (
 	ErrFailedToSerialize   = errors.New("failed to serialize value")
@@ -52,7 +49,7 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 		return errors.Join(ErrFailedToSerialize, err)
 	}
 
-	err = p.cacheStore.Set(CacheTxPrefix+status.Hash.String(), bytes, processStatusUpdatesIntervalDefault)
+	err = p.cacheStore.Set(&CacheStatusUpdateHash, status.Hash.String(), bytes, processStatusUpdatesIntervalDefault)
 	if err != nil {
 		return err
 	}
@@ -60,7 +57,7 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 }
 
 func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStatus, error) {
-	bytes, err := p.cacheStore.Get(CacheTxPrefix + hash.String())
+	bytes, err := p.cacheStore.Get(&CacheStatusUpdateHash, hash.String())
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +73,13 @@ func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStat
 
 func (p *Processor) getAllTransactionStatuses() (StatusUpdateMap, error) {
 	statuses := make(StatusUpdateMap)
-	keys, err := p.cacheStore.GetAllWithPrefix(CacheTxPrefix)
+	keys, err := p.cacheStore.GetAllForHash(CacheStatusUpdateHash)
 	if err != nil {
 		return nil, err
 	}
 
 	for key, value := range keys {
-		hash, err := chainhash.NewHashFromStr(key[len(CacheTxPrefix):])
+		hash, err := chainhash.NewHashFromStr(key)
 		if err != nil {
 			return nil, err
 		}
@@ -102,10 +99,19 @@ func (p *Processor) getAllTransactionStatuses() (StatusUpdateMap, error) {
 func (p *Processor) clearCache(updateStatusMap StatusUpdateMap) error {
 	keys := make([]string, len(updateStatusMap))
 	for k := range updateStatusMap {
-		keys = append(keys, CacheTxPrefix+k.String())
+		keys = append(keys, k.String())
 	}
 
-	return p.cacheStore.Del(keys...)
+	return p.cacheStore.Del(&CacheStatusUpdateHash, keys...)
+}
+
+func (p *Processor) getStatusUpdateCount() (int, error) {
+	count, err := p.cacheStore.CountElementsForHash(CacheStatusUpdateHash)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {

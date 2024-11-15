@@ -420,6 +420,28 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()))
 					return
 				}
+
+				statusUpdateCount, err := p.getStatusUpdateCount()
+				if err != nil {
+					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
+					return
+				}
+
+				if statusUpdateCount >= p.processStatusUpdatesBatchSize {
+					statusUpdatesMap, err := p.getAllTransactionStatuses()
+					if err != nil {
+						p.logger.Error("failed to get all transaction statuses", slog.String("err", err.Error()))
+						return
+					}
+
+					fmt.Println("statusUpdatesMap: ", statusUpdatesMap)
+
+					p.checkAndUpdate(ctx, statusUpdatesMap)
+
+					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+					ticker.Reset(p.processStatusUpdatesInterval)
+				}
 			case <-ticker.C:
 				statusUpdatesMap, err := p.getAllTransactionStatuses()
 				if err != nil {
@@ -468,7 +490,7 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusU
 
 	err = p.clearCache(statusUpdatesMap)
 	if err != nil {
-		p.logger.Error("failed to clear status update map", slog.String("err", err.Error()))
+		p.logger.Error("failed to clear status update cache", slog.String("err", err.Error()))
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
@@ -16,33 +15,6 @@ func getHashStringNoErr(hash []byte) string {
 		return ""
 	}
 	return chash.String()
-}
-
-func createBlock(msg *p2p.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
-	hash := msg.Header.BlockHash()
-	prevHash := msg.Header.PrevBlock
-	merkleRoot := msg.Header.MerkleRoot
-	chainwork := calculateChainwork(msg.Header.Bits)
-
-	var status blocktx_api.Status
-	if prevBlock == nil {
-		if longestTipExists {
-			status = blocktx_api.Status_ORPHANED
-		} else {
-			status = blocktx_api.Status_LONGEST
-		}
-	} else {
-		status = prevBlock.Status
-	}
-
-	return &blocktx_api.Block{
-		Hash:         hash[:],
-		PreviousHash: prevHash[:],
-		MerkleRoot:   merkleRoot[:],
-		Height:       msg.Height,
-		Status:       status,
-		Chainwork:    chainwork.String(),
-	}
 }
 
 func getLowestHeight(blocks []*blocktx_api.Block) uint64 {

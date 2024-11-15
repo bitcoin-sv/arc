@@ -30,6 +30,7 @@ var (
 	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
 	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
+	ErrBlockAlreadyExists = errors.New("block already exists in the database")
 )
 
 const (
@@ -449,39 +450,36 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	blockHash := msg.Header.BlockHash()
 	blockHeight := msg.Height
 
-	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()))
-
-	var chain chain
-	var competing bool
-	var err error
+	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
 
 	// check if we've already processed that block
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 
 	if existingBlock != nil && existingBlock.Processed {
-		// if the block was already processed, check and update
-		// possible orphan children of that block
-		chain, competing, err = p.updateOrphans(ctx, existingBlock, competing)
-		if err != nil {
-			p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-			return err
-		}
-
-		if len(chain) == 1 { // this means that no orphans were found
-			p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()))
-			return nil
-		}
-	} else {
-		// if the block was not yet processed, proceed normally
-		chain, competing, err = p.verifyAndInsertBlock(ctx, msg)
-		if err != nil {
-			return err
-		}
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
+		return nil
 	}
 
-	chainTip, err := chain.getTip()
+	block, err := p.verifyAndInsertBlock(ctx, msg)
 	if err != nil {
-		p.logger.Error("unable to get chain tip", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		return err
+	}
+
+	var txsToPublish []store.TransactionBlock
+
+	switch block.Status {
+	case blocktx_api.Status_LONGEST:
+		txsToPublish, err = p.getRegisteredTransactions(ctx, block.Hash)
+	case blocktx_api.Status_STALE:
+		// TODO: handle stale and reorg in one method	
+	case blocktx_api.Status_ORPHANED:
+		// TODO: look back, accept into chain and enter the switch again
+	default:
+		// TODO: what happens here?
+	}
+
+	if err != nil {
+		// error is already logged in each method
 		return err
 	}
 
@@ -535,69 +533,90 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMessage) (chain, bool, error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMessage) (*blocktx_api.Block, error) {
 	blockHash := msg.Header.BlockHash()
 	previousBlockHash := msg.Header.PrevBlock
+	merkleRoot := msg.Header.MerkleRoot
 
-	prevBlock, err := p.getPrevBlock(ctx, &previousBlockHash)
-	if err != nil {
-		p.logger.Error("unable to get previous block from db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("prevHash", previousBlockHash.String()), slog.String("err", err.Error()))
-		return nil, false, err
+	incomingBlock := &blocktx_api.Block{
+		Hash:         blockHash[:],
+		PreviousHash: previousBlockHash[:],
+		MerkleRoot:   merkleRoot[:],
+		Height:       msg.Height,
+		Chainwork:    calculateChainwork(msg.Header.Bits).String(),
 	}
 
-	longestTipExists := true
-	if prevBlock == nil {
-		// This check is only in case there's a fresh, empty database
-		// with no blocks, to mark the first block as the LONGEST chain
-		longestTipExists, err = p.longestTipExists(ctx)
-		if err != nil {
-			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-			return nil, false, err
-		}
-	}
-
-	incomingBlock := createBlock(msg, prevBlock, longestTipExists)
-
-	competing, err := p.competingChainsExist(ctx, incomingBlock)
-	if err != nil {
-		p.logger.Error("unable to check for competing chains", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height), slog.String("err", err.Error()))
-		return nil, false, err
-	}
-
-	if competing {
-		p.logger.Info("Competing blocks found", slog.String("incoming block hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height))
-		incomingBlock.Status = blocktx_api.Status_STALE
-	}
+	err := p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
 
 	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
 	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, msg.TransactionHashes, msg.Header.MerkleRoot)
 	if err != nil {
 		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return nil, false, err
-	}
-
-	// if the block is ORPHANED, there's no need to process it any further
-	if incomingBlock.Status == blocktx_api.Status_ORPHANED {
-		return chain{incomingBlock}, false, nil
-	}
-
-	chain, competing, err := p.updateOrphans(ctx, incomingBlock, competing)
-	if err != nil {
-		p.logger.Error("unable to check and update possible orphaned child blocks", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-		return nil, false, err
-	}
-
-	return chain, competing, nil
-}
-
-func (p *Processor) getPrevBlock(ctx context.Context, prevHash *chainhash.Hash) (*blocktx_api.Block, error) {
-	prevBlock, err := p.store.GetBlock(ctx, prevHash)
-	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 		return nil, err
 	}
 
-	return prevBlock, nil
+	return incomingBlock, nil
+}
+
+func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) error {
+	prevBlock, _ := p.store.GetBlock(ctx, &prevBlockHash)
+
+	longestTipExists := true
+	var err error
+	if prevBlock == nil {
+		// This check is only in case there's a fresh, empty database
+		// with no blocks, to mark the first block as the LONGEST chain
+		longestTipExists, err = p.longestTipExists(ctx)
+		if err != nil {
+			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			return err
+		}
+
+		// if there's no longest block in the
+		// database - mark this block as LONGEST
+		// otherwise - it's an orphan
+		if !longestTipExists {
+			block.Status = blocktx_api.Status_LONGEST
+		} else {
+			block.Status = blocktx_api.Status_ORPHANED
+		}
+		return nil
+	}
+
+	// if the previous block exists in the db but is currently being
+	// processed by another instance, we don't know what the final
+	// status of that parent block will be, so mark the incoming block
+	// as ORPHANED and wait for the next block to confirm the status
+	if !prevBlock.Processed {
+		block.Status = blocktx_api.Status_ORPHANED
+		return nil
+	}
+
+	if prevBlock.Status == blocktx_api.Status_LONGEST {
+		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
+		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
+			p.logger.Error("unable to get the competing block from db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			return err
+		}
+
+		if competingBlock == nil {
+			block.Status = blocktx_api.Status_LONGEST
+			return nil
+		}
+
+		if bytes.Equal(block.Hash, competingBlock.Hash) {
+			return ErrBlockAlreadyExists
+		}
+
+		block.Status = blocktx_api.Status_STALE
+		return nil
+	}
+
+	// ORPHANED or STALE
+	block.Status = prevBlock.Status
+
+	return nil
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
@@ -613,26 +632,14 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (p *Processor) competingChainsExist(ctx context.Context, block *blocktx_api.Block) (bool, error) {
-	if block.Status == blocktx_api.Status_ORPHANED {
-		return false, nil
+func (p *Processor) getRegisteredTransactions(ctx context.Context, blockHash []byte) ([]store.TransactionBlock, error){
+	txsToPublish, err := p.store.GetRegisteredTxsByBlockHashes(ctx, [][]byte{blockHash}) // TODO: use one block instead of a chain
+	if err != nil {
+		p.logger.Error("unable to get registered transactions", slog.String("hash", getHashStringNoErr(blockHash)), slog.String("err", err.Error()))
+		return nil, err
 	}
 
-	if block.Status == blocktx_api.Status_LONGEST {
-		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
-		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
-			return false, err
-		}
-
-		if competingBlock != nil && !bytes.Equal(competingBlock.Hash, block.Hash) {
-			return true, nil
-		}
-
-		return false, nil
-	}
-
-	// If STALE status
-	return true, nil
+	return txsToPublish, nil
 }
 
 func (p *Processor) hasGreatestChainwork(ctx context.Context, competingChainTip *blocktx_api.Block) (bool, error) {

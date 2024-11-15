@@ -26,10 +26,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
-	txfinder "github.com/bitcoin-sv/arc/pkg/api/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
@@ -57,7 +57,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	apiOpts := []handler.Option{
 		handler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
-	var finderOpts []func(f *txfinder.CachedFinder)
+	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
+	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
 
 	shutdownFns := make([]func(), 0)
@@ -72,7 +73,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		mtmOpts = append(mtmOpts, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 		apiOpts = append(apiOpts, handler.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		finderOpts = append(finderOpts, txfinder.WithTracerCachedFinder(arcConfig.Tracing.KeyValueAttributes...))
+		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(arcConfig.Tracing.KeyValueAttributes...))
+		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(arcConfig.Tracing.KeyValueAttributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
@@ -106,7 +108,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
 	}
 
-	// get the transaction from the bitcoin node rpc
 	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
@@ -117,9 +118,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to create node client: %v", err)
 	}
 
-	finder := txfinder.NewCached(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
+	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
+	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, finder, apiOpts...)
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, cachedFinder, apiOpts...)
 	if err != nil {
 		return nil, err
 	}

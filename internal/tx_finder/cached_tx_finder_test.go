@@ -56,9 +56,9 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 			for _, r := range tc.cachedTx {
 				c.Set(r.TxID(), r, cache.DefaultExpiration)
 			}
-
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			sut := NewCached(thMq, nil, nil, logger, WithCacheStore(c))
+			finder := New(thMq, nil, nil, logger)
+			sut := NewCached(finder, WithCacheStore(c))
 
 			// when
 			// try to find in cache or with TransactionHandler only

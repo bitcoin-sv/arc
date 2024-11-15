@@ -25,9 +25,10 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 	// potential improvement: implement version for the rawTx with only one input
 
 	// get distinct parents
+	parentsIDs := make([]string, 0, len(rawTx.Inputs))
+
 	// map parentID with inputs collection to avoid duplication and simplify later processing
 	parentInputMap := make(map[string][]*sdkTx.TransactionInput)
-	parentsIDs := make([]string, 0, len(rawTx.Inputs))
 
 	for _, in := range rawTx.Inputs {
 		prevTxID := in.PreviousTxIDStr()
@@ -90,9 +91,8 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 	unmindedAncestorsSet := make(map[string]*sdkTx.Transaction)
 
 	// get distinct parents
-	// map parentID with inputs collection to avoid duplication and simplify later processing
-	parentInputMap := make(map[string]struct{})
 	parentsIDs := make([]string, 0, len(tx.Inputs))
+	parentInputMap := make(map[string]struct{})
 
 	for _, in := range tx.Inputs {
 		prevTxID := in.PreviousTxIDStr()
@@ -109,7 +109,8 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 
 	allTxIDs := append(parentsIDs, mempoolAncestorTxIDs...)
 
-	ancestorTxs, err := txFinder.GetRawTxs(ctx, validator.SourceNodes, allTxIDs)
+	const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
+	ancestorTxs, err := txFinder.GetRawTxs(ctx, finderSource, allTxIDs)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetRawTxs, err)
 	}

@@ -2,7 +2,6 @@ package txfinder
 
 import (
 	"context"
-	"log/slog"
 	"runtime"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
 const (
@@ -48,20 +45,15 @@ func WithCacheStore(store *cache.Cache) func(s *CachedFinder) {
 	}
 }
 
-func NewCached(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *CachedFinder)) CachedFinder {
+func NewCached(finder *Finder, opts ...func(f *CachedFinder)) CachedFinder {
 	c := CachedFinder{
 		cacheStore: cache.New(cacheExpiration, cacheCleanup),
+		finder:     finder,
 	}
 
 	for _, opt := range opts {
 		opt(&c)
 	}
-	var finderOpts []func(f *Finder)
-	if c.tracingEnabled {
-		finderOpts = append(finderOpts, WithTracerFinder(c.tracingAttributes...))
-	}
-
-	c.finder = New(th, n, w, l, finderOpts...)
 
 	return c
 }

@@ -8,6 +8,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -53,11 +55,24 @@ func TestHealth(t *testing.T) {
 func TestSendCallback(t *testing.T) {
 	t.Run("dispatches callback for each routing", func(t *testing.T) {
 		// Given
-		mockDispatcher := callbacker.NewCallbackDispatcher(
-			&callbacker.SenderIMock{
-				SendFunc: func(_, _ string, _ *callbacker.Callback) bool { return true },
+		sendOK := true
+		senderMq := &callbacker.SenderIMock{
+			SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return sendOK },
+			SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return sendOK },
+		}
+
+		storeMq := &mocks.CallbackerStoreMock{
+			SetFunc: func(_ context.Context, _ *store.CallbackData) error {
+				return nil
 			},
-			nil, // Mock store is not needed for this test
+			SetManyFunc: func(_ context.Context, _ []*store.CallbackData) error {
+				return nil
+			},
+		}
+
+		mockDispatcher := callbacker.NewCallbackDispatcher(
+			senderMq,
+			storeMq,
 			slog.Default(),
 			0, 0, 0, 0,
 		)
@@ -70,7 +85,7 @@ func TestSendCallback(t *testing.T) {
 			Status: callbacker_api.Status_SEEN_ON_NETWORK,
 			CallbackRoutings: []*callbacker_api.CallbackRouting{
 				{Url: "http://example.com/callback1", Token: "token1", AllowBatch: false},
-				{Url: "http://example.com/callback2", Token: "token2", AllowBatch: true},
+				{Url: "http://example.com/callback2", Token: "token2", AllowBatch: false},
 			},
 			BlockHash:    "abcd1234",
 			BlockHeight:  100,
@@ -85,10 +100,14 @@ func TestSendCallback(t *testing.T) {
 		// Then
 		assert.NoError(t, err)
 		assert.IsType(t, &emptypb.Empty{}, resp)
-
-		for _, routing := range request.CallbackRoutings {
-			assert.NotEmpty(t, routing.Url)
-			assert.NotEmpty(t, routing.Token)
-		}
+		time.Sleep(100 * time.Millisecond)
+		require.Equal(t, 2, len(senderMq.SendCalls()), "Expected two dispatch calls")
+		assert.Equal(t, "http://example.com/callback1", senderMq.SendCalls()[0].URL)
+		assert.Equal(t, "token1", senderMq.SendCalls()[0].Token)
+		assert.Equal(t, "1234", senderMq.SendCalls()[0].Callback.TxID)
+		assert.Equal(t, "http://example.com/callback2", senderMq.SendCalls()[1].URL)
+		assert.Equal(t, "token2", senderMq.SendCalls()[1].Token)
+		assert.Equal(t, "1234", senderMq.SendCalls()[1].Callback.TxID)
+		mockDispatcher.GracefulStop()
 	})
 }

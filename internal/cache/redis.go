@@ -79,36 +79,6 @@ func (r *RedisStore) Del(hash *string, keys ...string) error {
 	return nil
 }
 
-// GetAllWithPrefix retrieves all key-value pairs that match a specific prefix.
-func (r *RedisStore) GetAllWithPrefix(prefix string) (map[string][]byte, error) {
-	var cursor uint64
-	results := make(map[string][]byte)
-
-	for {
-		keys, newCursor, err := r.client.Scan(r.ctx, cursor, prefix+"*", 10).Result()
-		if err != nil {
-			return nil, errors.Join(ErrCacheFailedToScan, err)
-		}
-
-		for _, key := range keys {
-			value, err := r.client.Get(r.ctx, key).Result()
-			if errors.Is(err, redis.Nil) {
-				// Key has been removed between SCAN and GET, skip it
-				continue
-			} else if err != nil {
-				return nil, errors.Join(ErrCacheFailedToGet, err)
-			}
-			results[key] = []byte(value)
-		}
-
-		cursor = newCursor
-		if cursor == 0 {
-			break
-		}
-	}
-	return results, nil
-}
-
 // GetAllForHash retrieves all key-value pairs for a specific hash.
 func (r *RedisStore) GetAllForHash(hash string) (map[string][]byte, error) {
 	values, err := r.client.HGetAll(r.ctx, hash).Result()

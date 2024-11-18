@@ -3,6 +3,8 @@ package validator
 import (
 	"context"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/beef"
 )
 
@@ -27,13 +29,8 @@ func (flag FindSourceFlag) Has(v FindSourceFlag) bool {
 }
 
 type TxFinderI interface {
-	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) ([]RawTx, error)
-}
-
-type RawTx struct {
-	TxID    string
-	Bytes   []byte
-	IsMined bool
+	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error)
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
 }
 
 type MerkleVerifierI interface {

@@ -1,0 +1,166 @@
+package txfinder
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"runtime"
+
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
+)
+
+var (
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+)
+
+type Finder struct {
+	transactionHandler metamorph.TransactionHandler
+	bitcoinClient      NodeClient
+	wocClient          *woc_client.WocClient
+	logger             *slog.Logger
+	tracingEnabled     bool
+	tracingAttributes  []attribute.KeyValue
+}
+
+type NodeClient interface {
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
+	GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error)
+}
+
+func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
+	return func(p *Finder) {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
+	}
+}
+
+func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
+	l = l.With(slog.String("module", "tx-finder"))
+
+	f := &Finder{
+		transactionHandler: th,
+		bitcoinClient:      n,
+		wocClient:          w,
+		logger:             l,
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f
+}
+
+func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
+	txIDs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
+	}
+
+	return txIDs, nil
+}
+
+func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
+	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
+	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))
+	remainingIDs := map[string]struct{}{}
+
+	for _, id := range ids {
+		remainingIDs[id] = struct{}{}
+	}
+
+	// first get transactions from the handler
+	if source.Has(validator.SourceTransactionHandler) {
+		var thGetRawTxSpan trace.Span
+		ctx, thGetRawTxSpan = tracing.StartTracing(ctx, "TransactionHandler_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
+		txs, err := f.transactionHandler.GetTransactions(ctx, ids)
+		tracing.EndTracing(thGetRawTxSpan)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.Any("err", err))
+		} else {
+			for _, tx := range txs {
+				var rt *sdkTx.Transaction
+				rt, err = sdkTx.NewTransactionFromBytes(tx.Bytes)
+				if err != nil {
+					f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", tx.TxID), slog.String("err", err.Error()))
+					continue
+				}
+
+				delete(remainingIDs, tx.TxID)
+				foundTxs = append(foundTxs, rt)
+			}
+		}
+	}
+
+	ids = getKeys(remainingIDs)
+
+	// try to get remaining txs from the node
+	if source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
+		for _, id := range ids {
+			rawTx, err := f.bitcoinClient.GetRawTransaction(ctx, id)
+			if err != nil {
+				f.logger.WarnContext(ctx, "failed to get transactions from bitcoin client", slog.String("id", id), slog.Any("err", err))
+				continue
+			}
+
+			delete(remainingIDs, id)
+			foundTxs = append(foundTxs, rawTx)
+		}
+	}
+
+	ids = getKeys(remainingIDs)
+
+	// at last try the WoC
+	if source.Has(validator.SourceWoC) && len(ids) > 0 {
+		var wocSpan trace.Span
+		ctx, wocSpan = tracing.StartTracing(ctx, "WocClient_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
+		wocTxs, err := f.wocClient.GetRawTxs(ctx, ids)
+		defer tracing.EndTracing(wocSpan)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("ids", ids), slog.Any("err", err))
+		} else {
+			for _, wTx := range wocTxs {
+				if wTx.Error != "" {
+					f.logger.WarnContext(ctx, "WoC tx reports error", slog.Any("id", ids), slog.Any("err", wTx.Error))
+					continue
+				}
+				tx, err := sdkTx.NewTransactionFromHex(wTx.Hex)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse WoC hex string to transaction: %v", err)
+				}
+
+				foundTxs = append(foundTxs, tx)
+			}
+		}
+	}
+
+	return foundTxs, nil
+}
+
+func getKeys(uniqueMap map[string]struct{}) []string {
+	uniqueKeys := make([]string, len(uniqueMap))
+	counter := 0
+	for id := range uniqueMap {
+		uniqueKeys[counter] = id
+		counter++
+	}
+
+	return uniqueKeys
+}

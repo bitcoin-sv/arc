@@ -24,7 +24,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
@@ -50,11 +53,13 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	}
-
 	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []handler.Option{
 		handler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
+	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
+	var finderOpts []func(f *tx_finder.Finder)
+	var nodeClientOpts []func(client *node_client.NodeClient)
 
 	shutdownFns := make([]func(), 0)
 
@@ -68,6 +73,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		mtmOpts = append(mtmOpts, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 		apiOpts = append(apiOpts, handler.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(arcConfig.Tracing.KeyValueAttributes...))
+		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(arcConfig.Tracing.KeyValueAttributes...))
+		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 	}
 
 	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
@@ -92,7 +100,28 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		policy = arcConfig.API.DefaultPolicy
 	}
 
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, arcConfig.PeerRPC, arcConfig.API, apiOpts...)
+	wocClient := woc_client.New(arcConfig.API.WocMainnet, woc_client.WithAuth(arcConfig.API.WocAPIKey))
+
+	pc := arcConfig.PeerRPC
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
+	}
+
+	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
+	}
+
+	nodeClient, err := node_client.New(bitcoinClient, nodeClientOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
+	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
+	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
+
+	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, cachedFinder, apiOpts...)
 	if err != nil {
 		return nil, err
 	}

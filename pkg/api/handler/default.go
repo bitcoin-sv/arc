@@ -16,7 +16,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -24,10 +23,8 @@ import (
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler/internal/merkle_verifier"
-	txfinder "github.com/bitcoin-sv/arc/pkg/api/handler/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
@@ -90,17 +87,9 @@ func NewDefault(
 	transactionHandler metamorph.TransactionHandler,
 	merkleRootsVerifier blocktx.MerkleRootsVerifier,
 	policy *bitcoin.Settings,
-	peerRPCConfig *config.PeerRPCConfig,
-	apiConfig *config.APIConfig,
+	cachedFinder validator.TxFinderI,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-	var wocClient *woc_client.WocClient
-	if apiConfig != nil {
-		wocClient = woc_client.New(apiConfig.WocMainnet, woc_client.WithAuth(apiConfig.WocAPIKey))
-	} else {
-		wocClient = woc_client.New(false)
-	}
-
 	mr := merkle_verifier.New(merkleRootsVerifier)
 
 	handler := &ArcDefaultHandler{
@@ -109,18 +98,13 @@ func NewDefault(
 		logger:             logger,
 		now:                time.Now,
 		mrVerifier:         mr,
+		txFinder:           cachedFinder,
 	}
 
 	// apply options
 	for _, opt := range opts {
 		opt(handler)
 	}
-	var finderOpts []func(f *txfinder.CachedFinder)
-	if handler.tracingEnabled {
-		finderOpts = append(finderOpts, txfinder.WithTracerCachedFinder(handler.tracingAttributes...))
-	}
-
-	handler.txFinder = txfinder.NewCached(transactionHandler, peerRPCConfig, wocClient, logger, finderOpts...)
 
 	return handler, nil
 }

@@ -17,42 +17,33 @@ func getHashStringNoErr(hash []byte) string {
 	return chash.String()
 }
 
-func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
-	if len(blocks) == 0 {
-		return 0
-	}
-
-	lowest := blocks[0].Height
+func sumChainwork(blocks []*blocktx_api.Block) *big.Int {
+	sum := big.NewInt(0)
 	for _, b := range blocks {
-		if b.Height < lowest {
-			lowest = b.Height
-		}
+		chainwork := new(big.Int)
+		chainwork.SetString(b.Chainwork, 10)
+
+		sum = sum.Add(sum, chainwork)
 	}
 
-	return lowest
+	return sum
 }
 
-func findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs []store.TransactionBlock) (nowMinedTxs, nowStaleTxs []store.TransactionBlock) {
-	prevStaleMap := make(map[string]store.TransactionBlock)
+func findDistinctStaleTxs(longestTxs, staleTxs []store.TransactionBlock) []store.TransactionBlock {
+	longestTxsMap := make(map[string]struct{})
 
-	for _, tx := range prevStaleTxs {
-		prevStaleMap[string(tx.TxHash)] = tx
-		// every tx that was in previously stale blocks is to
-		// be mined regardless of whether it was also in the
-		// previously longest chain (update block info)
-		// or previously stale chain (new mined)
-		nowMinedTxs = append(nowMinedTxs, tx)
+	for _, tx := range longestTxs {
+		longestTxsMap[string(tx.TxHash)] = struct{}{}
 	}
 
-	for _, longestTx := range prevLongestTxs {
-		if _, found := prevStaleMap[string(longestTx.TxHash)]; !found {
-			// if a transaction that was previously in a longest chain is
-			// not found in the previously stale blocks - it is now stale
-			nowStaleTxs = append(nowStaleTxs, longestTx)
+	distinctStaleTxs := make([]store.TransactionBlock, 0)
+	for _, tx := range staleTxs {
+		if _, found := longestTxsMap[string(tx.TxHash)]; !found {
+			distinctStaleTxs = append(distinctStaleTxs, tx)
 		}
 	}
 
-	return
+	return distinctStaleTxs
 }
 
 // calculateChainwork calculates chainwork from the given difficulty bits

@@ -37,7 +37,7 @@ type BlocktxStore interface {
 	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 
@@ -48,13 +48,4 @@ type BlocktxStore interface {
 
 	Ping(ctx context.Context) error
 	Close() error
-
-	StartUnitOfWork(ctx context.Context) (UnitOfWork, error)
-}
-
-type UnitOfWork interface {
-	BlocktxStore
-	Commit() error
-	Rollback() error
-	WriteLockBlocksTable(ctx context.Context) error
 }

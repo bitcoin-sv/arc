@@ -145,24 +145,7 @@ func TestHandleBlock(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			batchSize := 4
-			uowMock := &storeMocks.UnitOfWorkMock{
-				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					return nil, nil
-				},
-				CommitFunc: func() error {
-					return nil
-				},
-				RollbackFunc: func() error {
-					return nil
-				},
-				WriteLockBlocksTableFunc: func(_ context.Context) error {
-					return nil
-				},
-			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
-					return uowMock, nil
-				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
 						return &blocktx_api.Block{Processed: true}, nil
@@ -398,17 +381,6 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 
 					return nil, nil
 				},
-				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
-					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
-						mtx.Lock()
-						shouldCheckUpdateStatuses = false
-						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
-						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
-						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
-						mtx.Unlock()
-					}
-					return nil
-				},
 				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 					// if this method is called from UnitOfwork, it means that reorg is happening
 					mtx.Lock()
@@ -437,9 +409,6 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				},
 			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
-					return uowMock, nil
-				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if shouldReturnNoBlock {
 						shouldReturnNoBlock = false
@@ -504,6 +473,17 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 							Chainwork: "42069",
 						},
 					}, nil
+				},
+				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
+						mtx.Lock()
+						shouldCheckUpdateStatuses = false
+						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
+						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
+						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
+						mtx.Unlock()
+					}
+					return nil
 				},
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil

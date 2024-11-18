@@ -127,6 +127,8 @@ The latest docker image of ARC can be found [here](https://hub.docker.com/r/bsvb
 
 ## Microservices
 
+The API http server as well as all gRPC servers of each service has dual-stack capability and thus listen on both IPv4 & IPv6 addresses.
+
 ### API
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.

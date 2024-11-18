@@ -100,6 +100,8 @@ blocktx:
 api:
   address: 0.0.0.0:9090
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
+  wocMainnet: false
+  requestExtendedLogs: true
   defaultPolicy:
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000
@@ -130,7 +132,6 @@ api:
     minconfconsolidationinput: 6
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
-  requestExtendedLogs: true
 
 callbacker:
   listenAddr: 0.0.0.0:8021

@@ -48,7 +48,7 @@ broadcasting: # settings for connection to nodes
         p2p: 18335
 
 cache:
-  engine: freecache # cache engine - freecache/redis
+  engine: freecache # cache engine - one of freecache | redis
   freecache: # freecache configuration
     size: 10000000 # size of cache
   redis:
@@ -111,6 +111,7 @@ api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
   wocMainnet: false # query main or test net on www.whatsonchain.com
+  requestExtendedLogs: true # if true, the logs will include request methods & headers
   defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

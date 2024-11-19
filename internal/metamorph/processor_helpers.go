@@ -96,15 +96,6 @@ func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error
 	return statuses, nil
 }
 
-func (p *Processor) clearCache(updateStatusMap StatusUpdateMap) error {
-	keys := make([]string, len(updateStatusMap))
-	for k := range updateStatusMap {
-		keys = append(keys, k.String())
-	}
-
-	return p.cacheStore.Del(&CacheStatusUpdateHash, keys...)
-}
-
 func (p *Processor) getStatusUpdateCount() (int, error) {
 	count, err := p.cacheStore.CountElementsForHash(CacheStatusUpdateHash)
 	if err != nil {

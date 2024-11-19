@@ -576,6 +576,9 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 		}
 
 		if bytes.Equal(block.Hash, competingBlock.Hash) {
+			// this means that another instance is already processing
+			// or have processed this block that we're processing here
+			// so we can throw an error and finish processing
 			return ErrBlockAlreadyExists
 		}
 
@@ -739,7 +742,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 
 		txsToPublish, err := p.performReorg(ctx, staleBlocks, longestBlocks)
 		if err != nil {
-			p.logger.Error("unable to get LONGEST blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to perform reorg", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 			return nil, err
 		}
 		return txsToPublish, nil
@@ -808,16 +811,20 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		return nil, err
 	}
 
-	if ancestor == nil || len(orphans) == 0 {
+	if ancestor == nil || !ancestor.Processed || len(orphans) == 0 {
 		return nil, nil
 	}
+
+	p.logger.Info("orphaned chain found", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("status", block.Status.String()))
 
 	if ancestor.Status == blocktx_api.Status_STALE {
 		err = p.acceptIntoChain(ctx, orphans, ancestor.Status)
 		if err != nil {
-			p.logger.Error("unable to accept ORPHANED blocks into the STALE chain", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			return nil, err
 		}
-		return nil, err
+
+		block.Status = blocktx_api.Status_STALE
+		return p.handleStaleBlock(ctx, block)
 	}
 
 	if ancestor.Status == blocktx_api.Status_LONGEST {
@@ -838,16 +845,19 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		if competingBlock != nil && !bytes.Equal(competingBlock.Hash, orphans[0].Hash) {
 			err = p.acceptIntoChain(ctx, orphans, blocktx_api.Status_STALE)
 			if err != nil {
-				p.logger.Error("unable to accept ORPHANED blocks into the STALE chain", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+				return nil, err
 			}
+
 			block.Status = blocktx_api.Status_STALE
 			return p.handleStaleBlock(ctx, block)
 		}
 
 		err = p.acceptIntoChain(ctx, orphans, ancestor.Status) // LONGEST
 		if err != nil {
-			p.logger.Error("unable to accept ORPHANED blocks into the LONGEST chain", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			return nil, err
 		}
+
+		p.logger.Info("orphaned chain accepted into LONGEST chain", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height))
 		return p.getRegisteredTransactions(ctx, orphans)
 	}
 
@@ -865,7 +875,16 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 		}
 	}
 
-	return p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	tip := blocks[len(blocks)-1]
+
+	err := p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	if err != nil {
+		p.logger.Error("unable to accept blocks into chain", slog.String("hash", getHashStringNoErr(tip.Hash)), slog.Uint64("height", tip.Height), slog.String("chain", chain.String()), slog.String("err", err.Error()))
+		return err
+	}
+
+	p.logger.Info("blocks successfully accepted into chain", slog.String("hash", getHashStringNoErr(tip.Hash)), slog.Uint64("height", tip.Height), slog.String("chain", chain.String()))
+	return nil
 }
 
 func (p *Processor) Shutdown() {

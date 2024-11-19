@@ -148,6 +148,27 @@ func (r *RedisStore) GetAllForHash(hash string) (map[string][]byte, error) {
 	return result, nil
 }
 
+// GetAllForHashAndDelete retrieves all key-value pairs for a specific hash and remove them from cache, all in one transaction.
+func (r *RedisStore) GetAllForHashAndDelete(hash string) (map[string][]byte, error) {
+	tx := r.client.TxPipeline()
+
+	getAllCmd := tx.HGetAll(r.ctx, hash)
+	tx.Del(r.ctx, hash)
+
+	_, err := tx.Exec(r.ctx)
+	if err != nil {
+		return nil, errors.Join(ErrCacheFailedToExecuteTx, err)
+	}
+
+	getAllCmdResult := getAllCmd.Val()
+
+	result := make(map[string][]byte)
+	for field, value := range getAllCmdResult {
+		result[field] = []byte(value)
+	}
+	return result, nil
+}
+
 // CountElementsForHash returns the number of elements in a hash.
 func (r *RedisStore) CountElementsForHash(hash string) (int64, error) {
 	count, err := r.client.HLen(r.ctx, hash).Result()

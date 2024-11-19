@@ -245,13 +245,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	var response *metamorph_api.TransactionStatus
 	var err error
-	// in case of error try PutTransaction until timeout expires
-
-	maxTimeout := max(time.Duration(request.MaxTimeout)*time.Second, m.maxTimeout)
-
-	retryTicker := time.NewTicker(retryInterval)
-
-	timeoutTimer := time.NewTimer(maxTimeout)
 
 	response, err = m.client.PutTransaction(ctx, request)
 	if err == nil {
@@ -266,9 +259,17 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 			Timestamp:    m.now().Unix(),
 		}, nil
 	}
-
 	m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
-forLoop:
+
+	// in case of error try PutTransaction until timeout expires
+
+	maxTimeout := max(time.Duration(request.MaxTimeout)*time.Second, m.maxTimeout)
+	retryTicker := time.NewTicker(retryInterval)
+	defer retryTicker.Stop()
+
+	timeoutTimer := time.NewTimer(maxTimeout)
+
+retryLoop:
 	for {
 		select {
 		case <-timeoutTimer.C:
@@ -277,7 +278,7 @@ forLoop:
 		case <-retryTicker.C:
 			response, err = m.client.PutTransaction(ctx, request)
 			if err == nil {
-				break forLoop
+				break retryLoop
 			}
 
 			m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
@@ -343,13 +344,6 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	var responses *metamorph_api.TransactionStatuses
 	var err error
 
-	// put all transactions together
-	maxTimeout := max(time.Duration(in.Transactions[0].MaxTimeout)*time.Second, m.maxTimeout)
-
-	retryTicker := time.NewTicker(retryInterval)
-
-	timeoutTimer := time.NewTimer(maxTimeout)
-
 	responses, err = m.client.PutTransactions(ctx, in)
 	if err == nil {
 		// parse response and return to user
@@ -369,9 +363,17 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 		return ret, nil
 	}
-
 	m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
-forLoop:
+
+	// in case of error try PutTransaction until timeout expires
+
+	maxTimeout := max(time.Duration(in.Transactions[0].MaxTimeout)*time.Second, m.maxTimeout)
+	retryTicker := time.NewTicker(retryInterval)
+	defer retryTicker.Stop()
+
+	timeoutTimer := time.NewTimer(maxTimeout)
+
+retryLoop:
 	for {
 		select {
 		case <-timeoutTimer.C:
@@ -380,7 +382,7 @@ forLoop:
 		case <-retryTicker.C:
 			responses, err = m.client.PutTransactions(ctx, in)
 			if err == nil {
-				break forLoop
+				break retryLoop
 			}
 
 			m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
@@ -396,7 +398,7 @@ forLoop:
 			for _, tx := range txs {
 				txStatus, getStatusErr := m.GetTransactionStatus(ctx, tx.TxID())
 				if getStatusErr != nil {
-					continue forLoop
+					continue retryLoop
 				}
 
 				txStatuses = append(txStatuses, txStatus)

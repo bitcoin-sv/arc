@@ -129,6 +129,9 @@ func (s *MemoryStore) GetAllForHashAndDelete(hash string) (map[string][]byte, er
 func (s *MemoryStore) CountElementsForHash(hash string) (int64, error) {
 	hashMap, err := s.GetAllForHash(hash)
 	if err != nil {
+		if errors.Is(err, ErrCacheNotFound) {
+			return 0, nil
+		}
 		return 0, err
 	}
 

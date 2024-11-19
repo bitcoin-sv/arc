@@ -383,7 +383,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					mtx.Unlock()
 					return 1, nil
 				},
-				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					if tc.hasGreaterChainwork {
 						return []*blocktx_api.Block{
 							{

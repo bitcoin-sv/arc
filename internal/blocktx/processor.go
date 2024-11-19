@@ -517,12 +517,16 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMess
 	}
 
 	err := p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
+	if err != nil {
+		p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		return nil, err
+	}
 
 	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
 	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, msg.TransactionHashes, msg.Header.MerkleRoot)
 	if err != nil {
-		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
+		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return nil, err
 	}
 
@@ -532,12 +536,10 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMess
 func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) error {
 	prevBlock, _ := p.store.GetBlock(ctx, &prevBlockHash)
 
-	longestTipExists := true
-	var err error
 	if prevBlock == nil {
 		// This check is only in case there's a fresh, empty database
 		// with no blocks, to mark the first block as the LONGEST chain
-		longestTipExists, err = p.longestTipExists(ctx)
+		longestTipExists, err := p.longestTipExists(ctx)
 		if err != nil {
 			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 			return err

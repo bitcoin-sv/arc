@@ -71,9 +71,9 @@ func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStat
 	return &status, nil
 }
 
-func (p *Processor) getAllTransactionStatuses() (StatusUpdateMap, error) {
+func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error) {
 	statuses := make(StatusUpdateMap)
-	keys, err := p.cacheStore.GetAllForHash(CacheStatusUpdateHash)
+	keys, err := p.cacheStore.GetAllForHashAndDelete(CacheStatusUpdateHash)
 	if err != nil {
 		return nil, err
 	}

@@ -428,27 +428,27 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if statusUpdateCount >= p.processStatusUpdatesBatchSize {
-					statusUpdatesMap, err := p.getAllTransactionStatuses()
+					err := p.checkAndUpdate(ctx)
 					if err != nil {
-						p.logger.Error("failed to get all transaction statuses", slog.String("err", err.Error()))
-						return
+						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
 					}
-
-					p.checkAndUpdate(ctx, statusUpdatesMap)
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
 				}
 			case <-ticker.C:
-				statusUpdatesMap, err := p.getAllTransactionStatuses()
+				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
-					p.logger.Error("failed to get all transaction statuses", slog.String("err", err.Error()))
+					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
 
-				if len(statusUpdatesMap) > 0 {
-					p.checkAndUpdate(ctx, statusUpdatesMap)
+				if statusUpdateCount > 0 {
+					err := p.checkAndUpdate(ctx)
+					if err != nil {
+						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
+					}
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -459,15 +459,20 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	}()
 }
 
-func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusUpdateMap) {
+func (p *Processor) checkAndUpdate(ctx context.Context) error {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
+	statusUpdatesMap, err := p.getAndDeleteAllTransactionStatuses()
+	if err != nil {
+		return err
+	}
+
 	if len(statusUpdatesMap) == 0 {
-		return
+		return nil
 	}
 
 	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
@@ -490,6 +495,8 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap StatusU
 	if err != nil {
 		p.logger.Error("failed to clear status update cache", slog.String("err", err.Error()))
 	}
+
+	return nil
 }
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) (err error) {

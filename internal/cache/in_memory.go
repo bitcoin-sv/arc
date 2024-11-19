@@ -110,6 +110,21 @@ func (s *MemoryStore) GetAllForHash(hash string) (map[string][]byte, error) {
 	return hashMap, nil
 }
 
+// GetAllForHashAndDelete retrieves all key-value pairs for a specific hash and deletes the hash.
+func (s *MemoryStore) GetAllForHashAndDelete(hash string) (map[string][]byte, error) {
+	hashMap, err := s.GetAllForHash(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.Del(nil, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return hashMap, nil
+}
+
 // CountElementsForHash returns the number of elements in a hash in memory.
 func (s *MemoryStore) CountElementsForHash(hash string) (int64, error) {
 	hashMap, err := s.GetAllForHash(hash)

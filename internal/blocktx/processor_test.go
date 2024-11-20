@@ -14,7 +14,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -157,31 +156,14 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			var actualInsertedBlockTransactions [][]byte
-			uowMock := &storeMocks.UnitOfWorkMock{
-				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					return nil, nil
-				},
-				CommitFunc: func() error {
-					return nil
-				},
-				RollbackFunc: func() error {
-					return nil
-				},
-				WriteLockBlocksTableFunc: func(_ context.Context) error {
-					return nil
-				},
-			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
-					return uowMock, nil
-				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
 						return &blocktx_api.Block{Processed: true}, nil
 					}
 					return nil, store.ErrBlockNotFound
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
@@ -254,25 +236,19 @@ func TestHandleBlock(t *testing.T) {
 
 func TestHandleBlockReorgAndOrphans(t *testing.T) {
 	testCases := []struct {
-		name                  string
-		blockAlreadyExists    bool
-		prevBlockStatus       blocktx_api.Status
-		hasCompetingBlock     bool
-		hasGreaterChainwork   bool
-		expectedStatus        blocktx_api.Status
-		shouldFindOrphanChain bool
+		name                     string
+		blockAlreadyExists       bool
+		prevBlockStatus          blocktx_api.Status
+		hasCompetingBlock        bool
+		hasGreaterChainwork      bool
+		shouldFindOrphanAncestor bool
+		ancestorStatus           blocktx_api.Status
+		expectedStatus           blocktx_api.Status
 	}{
 		{
-			name:                  "block already exists - no orphans - should be ingored",
-			blockAlreadyExists:    true,
-			shouldFindOrphanChain: false,
-			expectedStatus:        blocktx_api.Status_UNKNOWN,
-		},
-		{
-			name:                  "block already exists - orphans found - reorg",
-			blockAlreadyExists:    true,
-			shouldFindOrphanChain: true,
-			expectedStatus:        blocktx_api.Status_LONGEST,
+			name:               "block already exists - should be ingored",
+			blockAlreadyExists: true,
+			expectedStatus:     blocktx_api.Status_UNKNOWN,
 		},
 		{
 			name:              "previous block longest - no competing - no reorg",
@@ -295,56 +271,55 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			expectedStatus:      blocktx_api.Status_LONGEST,
 		},
 		{
-			name:                "previous block stale - competing - no reorg",
+			name:                "previous block stale - no reorg",
 			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   true,
 			hasGreaterChainwork: false,
 			expectedStatus:      blocktx_api.Status_STALE,
 		},
 		{
-			name:                "previous block stale - no competing - no reorg",
+			name:                "previous block stale - reorg",
 			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   false,
-			hasGreaterChainwork: false,
-			expectedStatus:      blocktx_api.Status_STALE,
-		},
-		{
-			name:                "previous block stale - no competing - reorg",
-			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   false,
 			hasGreaterChainwork: true,
 			expectedStatus:      blocktx_api.Status_LONGEST,
 		},
 		{
-			name:                "previous block orphaned - no competing - no reorg",
-			prevBlockStatus:     blocktx_api.Status_ORPHANED,
-			hasCompetingBlock:   false,
-			hasGreaterChainwork: false,
-			expectedStatus:      blocktx_api.Status_ORPHANED,
+			name:                     "previous block orphaned - no ancestor",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: false,
+			expectedStatus:           blocktx_api.Status_ORPHANED,
 		},
 		{
-			name:                  "previous block longest - orphaned chain - no competing - no reorg",
-			prevBlockStatus:       blocktx_api.Status_LONGEST,
-			hasCompetingBlock:     false,
-			hasGreaterChainwork:   false,
-			expectedStatus:        blocktx_api.Status_LONGEST,
-			shouldFindOrphanChain: true,
+			name:                     "previous block orphaned - stale ancestor",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_STALE,
+			expectedStatus:           blocktx_api.Status_STALE,
 		},
 		{
-			name:                  "previous block longest - orphaned chain - competing - reorg",
-			prevBlockStatus:       blocktx_api.Status_LONGEST,
-			hasCompetingBlock:     true,
-			hasGreaterChainwork:   false, // tip of orphan chain has greater chainwork
-			expectedStatus:        blocktx_api.Status_LONGEST,
-			shouldFindOrphanChain: true,
+			name:                     "previous block orphaned - longest ancestor - no competing",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        false,
+			expectedStatus:           blocktx_api.Status_LONGEST,
 		},
 		{
-			name:                  "previous block stale - orphaned chain - competing - reorg",
-			prevBlockStatus:       blocktx_api.Status_STALE,
-			hasCompetingBlock:     true,
-			hasGreaterChainwork:   false, // tip of orphan chain has greater chainwork
-			expectedStatus:        blocktx_api.Status_LONGEST,
-			shouldFindOrphanChain: true,
+			name:                     "previous block orphaned - longest ancestor - competing - no reorg",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        true,
+			hasGreaterChainwork:      false,
+			expectedStatus:           blocktx_api.Status_STALE,
+		},
+		{
+			name:                     "previous block orphaned - longest ancestor - competing - reorg",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        true,
+			hasGreaterChainwork:      true,
+			expectedStatus:           blocktx_api.Status_LONGEST,
 		},
 	}
 
@@ -353,72 +328,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			// given
 			var mtx sync.Mutex
 			insertedBlockStatus := blocktx_api.Status_UNKNOWN
-			orphanedChainTip := &blocktx_api.Block{
-				Hash:      testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")[:],
-				Status:    blocktx_api.Status_ORPHANED,
-				Chainwork: "34364008516618225545", // greatest chainwork - should cause reorg if found
-			}
-
 			shouldReturnNoBlock := !tc.blockAlreadyExists
-			shouldCheckUpdateStatuses := true
 
-			uowMock := &storeMocks.UnitOfWorkMock{
-				GetOrphanedChainUpFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					if tc.shouldFindOrphanChain {
-						return []*blocktx_api.Block{
-							{
-								Hash:      []byte("123"),
-								Status:    blocktx_api.Status_ORPHANED,
-								Chainwork: "123",
-							},
-							orphanedChainTip,
-						}, nil
-					}
-
-					return nil, nil
-				},
-				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
-					if shouldCheckUpdateStatuses && tc.shouldFindOrphanChain {
-						mtx.Lock()
-						shouldCheckUpdateStatuses = false
-						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
-						require.Equal(t, orphanedChainTip.Hash, tipStatusUpdate.Hash)
-						require.Equal(t, blocktx_api.Status_STALE, tipStatusUpdate.Status)
-						mtx.Unlock()
-					}
-					return nil
-				},
-				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-					// if this method is called from UnitOfwork, it means that reorg is happening
-					mtx.Lock()
-					insertedBlockStatus = blocktx_api.Status_LONGEST
-					if tc.shouldFindOrphanChain {
-						require.Equal(t, orphanedChainTip.Hash[:], hash)
-						orphanedChainTip.Status = blocktx_api.Status_LONGEST
-					}
-					mtx.Unlock()
-					return nil, nil
-				},
-				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
-					return nil, nil
-				},
-				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
-					return nil, nil
-				},
-				CommitFunc: func() error {
-					return nil
-				},
-				RollbackFunc: func() error {
-					return nil
-				},
-				WriteLockBlocksTableFunc: func(_ context.Context) error {
-					return nil
-				},
-			}
 			storeMock := &storeMocks.BlocktxStoreMock{
-				StartUnitOfWorkFunc: func(_ context.Context) (store.UnitOfWork, error) {
-					return uowMock, nil
-				},
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if shouldReturnNoBlock {
 						shouldReturnNoBlock = false
@@ -430,7 +342,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 						Processed: true,
 					}, nil
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					if tc.hasCompetingBlock {
 						blockHash, err := chainhash.NewHashFromStr("0000000000000000087590e1ad6360c0c491556c9af75c0d22ce9324cb5713cf")
 						require.NoError(t, err)
@@ -450,11 +362,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					mtx.Unlock()
 					return 1, nil
 				},
-				GetStaleChainBackFromHashFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-					if tc.shouldFindOrphanChain {
-						require.Equal(t, orphanedChainTip.Hash, hash)
-						return []*blocktx_api.Block{orphanedChainTip}, nil
-					}
+				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					if tc.hasGreaterChainwork {
 						return []*blocktx_api.Block{
 							{
@@ -483,6 +391,21 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 							Chainwork: "42069",
 						},
 					}, nil
+				},
+				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+					mtx.Lock()
+					tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
+					insertedBlockStatus = tipStatusUpdate.Status
+					mtx.Unlock()
+					return nil
+				},
+				GetOrphansBackToNonOrphanAncestorFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
+					if tc.shouldFindOrphanAncestor {
+						orphans := []*blocktx_api.Block{{Hash: hash}}
+						ancestor := &blocktx_api.Block{Hash: []byte("123"), Status: tc.ancestorStatus, Processed: true}
+						return orphans, ancestor, nil
+					}
+					return nil, nil, nil
 				},
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil
@@ -535,9 +458,6 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			time.Sleep(20 * time.Millisecond)
 			mtx.Lock()
 			require.Equal(t, tc.expectedStatus, insertedBlockStatus)
-			if tc.shouldFindOrphanChain {
-				require.Equal(t, tc.expectedStatus, orphanedChainTip.Status)
-			}
 			mtx.Unlock()
 		})
 	}

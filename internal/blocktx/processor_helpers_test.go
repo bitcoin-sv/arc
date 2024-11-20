@@ -4,41 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetLowestHeight(t *testing.T) {
-	// given
-	blocks := []*blocktx_api.Block{
-		{
-			Height: 123,
-		},
-		{
-			Height: 250,
-		},
-		{
-			Height: 83340,
-		},
-		{
-			Height: 4,
-		},
-		{
-			Height: 40,
-		},
-	}
-
-	// when
-	lowestHeight := getLowestHeight(blocks)
-
-	// then
-	require.Equal(t, uint64(4), lowestHeight)
-}
-
 func TestFindMinedAndStaleTxs(t *testing.T) {
 	// given
-	prevStaleTxs := []store.TransactionBlock{
+	longestTxs := []store.TransactionBlock{
 		{
 			TxHash: []byte("1"),
 		},
@@ -46,7 +18,7 @@ func TestFindMinedAndStaleTxs(t *testing.T) {
 			TxHash: []byte("2"),
 		},
 	}
-	prevLongestTxs := []store.TransactionBlock{
+	staleTxs := []store.TransactionBlock{
 		{
 			TxHash: []byte("A"),
 		},
@@ -58,14 +30,6 @@ func TestFindMinedAndStaleTxs(t *testing.T) {
 		},
 	}
 
-	expectedMinedTxs := []store.TransactionBlock{
-		{
-			TxHash: []byte("1"),
-		},
-		{
-			TxHash: []byte("2"),
-		},
-	}
 	expectedStaleTxs := []store.TransactionBlock{
 		{
 			TxHash: []byte("A"),
@@ -76,10 +40,9 @@ func TestFindMinedAndStaleTxs(t *testing.T) {
 	}
 
 	// when
-	actualMinedTxs, actualStaleTxs := findMinedAndStaleTxs(prevStaleTxs, prevLongestTxs)
+	actualStaleTxs := findDistinctStaleTxs(longestTxs, staleTxs)
 
 	// then
-	require.Equal(t, expectedMinedTxs, actualMinedTxs)
 	require.Equal(t, expectedStaleTxs, actualStaleTxs)
 }
 

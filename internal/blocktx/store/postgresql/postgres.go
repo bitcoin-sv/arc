@@ -20,24 +20,12 @@ const (
 	maxPostgresBulkInsertRows = 8192
 )
 
-type QueryAble interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	Prepare(query string) (*sql.Stmt, error)
-	Query(query string, args ...interface{}) (*sql.Rows, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	QueryRow(query string, args ...interface{}) *sql.Row
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
-}
-
 type PostgreSQL struct {
-	_db                       *sql.DB
-	_tx                       *sql.Tx
-	db                        QueryAble // this would be pointing either to _db or _tx
+	db                        *sql.DB
 	now                       func() time.Time
 	maxPostgresBulkInsertRows int
 	tracingEnabled            bool
 	tracingAttributes         []attribute.KeyValue
-	dbInfo                    string
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -72,11 +60,9 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	db.SetMaxOpenConns(maxOpenConns)
 
 	p := &PostgreSQL{
-		_db:                       db,
 		db:                        db,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
-		dbInfo:                    dbInfo,
 	}
 
 	for _, opt := range opts {
@@ -87,65 +73,14 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 }
 
 func (p *PostgreSQL) Close() error {
-	return p._db.Close()
+	return p.db.Close()
 }
 
 func (p *PostgreSQL) Ping(ctx context.Context) error {
-	r, err := p._db.QueryContext(ctx, "SELECT 1;")
+	r, err := p.db.QueryContext(ctx, "SELECT 1;")
 	if err != nil {
 		return err
 	}
 
 	return r.Close()
-}
-
-func (p *PostgreSQL) StartUnitOfWork(ctx context.Context) (store.UnitOfWork, error) {
-	tx, err := p._db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// This will create a clone of the store and use the transaction created
-	// above to avoid messing with the state of the main singleton store
-	cloneStore := &PostgreSQL{
-		_tx:                       tx,
-		db:                        tx,
-		now:                       time.Now,
-		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
-		tracingEnabled:            p.tracingEnabled,
-		tracingAttributes:         p.tracingAttributes,
-	}
-
-	return cloneStore, nil
-}
-
-// UnitOfWork methods below
-func (p *PostgreSQL) Commit() error {
-	if p._tx == nil {
-		return ErrNoTransaction
-	}
-	return p._tx.Commit()
-}
-
-func (p *PostgreSQL) Rollback() error {
-	if p._tx == nil {
-		return ErrNoTransaction
-	}
-	return p._tx.Rollback()
-}
-
-func (p *PostgreSQL) WriteLockBlocksTable(ctx context.Context) error {
-	if p._tx == nil {
-		return ErrNoTransaction
-	}
-
-	// This will lock `blocks` table for writing, when performing reorg.
-	// Any INSERT or UPDATE to the table will wait until the lock is released.
-	// Another instance wanting to acquire this lock at the same time will have
-	// to wait until the transaction holding the lock is completed and the lock
-	// is released.
-	//
-	// Reading from the table is still allowed.
-	_, err := p._tx.ExecContext(ctx, "LOCK TABLE blocktx.blocks IN EXCLUSIVE MODE")
-	return err
 }

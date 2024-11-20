@@ -41,20 +41,31 @@
   merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
   height: 822017
   size: 8630000
+  processed_at: 2023-12-15 14:40:00
   tx_count: 36724
   status: 10
   is_longest: true
   chainwork: '62209952899966'
-
-# gap
-
+- inserted_at: 2023-12-15 14:50:00
+  id: 10052
+  hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
+  prevhash: 0x76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000
+  merkleroot: 0xde0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9
+  height: 822018
+  size: 8630000
+  processed_at: 2023-12-15 14:40:00
+  tx_count: 36724
+  status: 30 # ORPHANED
+  is_longest: false
+  chainwork: '62209952899966'
 - inserted_at: 2023-12-15 14:50:00
   id: 1005
   hash: 0x00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656
-  prevhash: 0x212a7598a62295f1a520ef525a34f657bc636d9da9bda74acdf6f051cd84c353
+  prevhash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
   merkleroot: 0x51f33784f6d54f1d6414fa4d8b8d6904215cb16a3fa0a8b1fe02e456a90544d4
   height: 822019
   size: 8630000
+  processed_at: 2023-12-15 14:40:00
   tx_count: 36724
   status: 30 # ORPHANED
   is_longest: false
@@ -66,6 +77,7 @@
   merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
   height: 822020
   size: 8630000
+  processed_at: 2023-12-15 14:40:00
   tx_count: 36724
   status: 30 # ORPHANED
   is_longest: false
@@ -76,10 +88,11 @@
 - inserted_at: 2023-12-15 14:50:00
   id: 1007
   hash: 0x0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c
-  prevhash: 0x743c7dc491ae5fddd37ebf63058f9574b4db9f6a89f483a4baec31820e5df61d
+  prevhash: 0xd46bf0a189927b62c8ff785d393a545093ca01af159aed771a8d94749f06c060
   merkleroot: 0xda71199f8ed9203d8a765595e6c030a22e5ed8330b1abb467a82c97d7d21d512
   height: 822022
   size: 8630000
+  processed_at: 2023-12-15 14:40:00
   tx_count: 36724
   status: 30 # ORPHANED
   is_longest: false
@@ -91,6 +104,7 @@
   merkleroot: 0x8e3177a33d6a87785b7104f20ca345e1713ae11ec2723a41028efddabebb861b
   height: 822023
   size: 8630000
+  processed_at: 2023-12-15 14:40:00
   tx_count: 36724
   status: 30 # ORPHANED
   is_longest: false

@@ -31,7 +31,7 @@ type Stats struct {
 type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
-	GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
+	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
 	UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) error
@@ -41,7 +41,7 @@ type BlocktxStore interface {
 	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetOrphanedChainUpFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
@@ -53,13 +53,4 @@ type BlocktxStore interface {
 
 	Ping(ctx context.Context) error
 	Close() error
-
-	StartUnitOfWork(ctx context.Context) (UnitOfWork, error)
-}
-
-type UnitOfWork interface {
-	BlocktxStore
-	Commit() error
-	Rollback() error
-	WriteLockBlocksTable(ctx context.Context) error
 }

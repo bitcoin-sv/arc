@@ -92,14 +92,14 @@ func testmain(m *testing.M) int {
 func prepareDb(t *testing.T, postgres *PostgreSQL, fixture string) {
 	t.Helper()
 
-	testutils.PruneTables(t, postgres._db,
+	testutils.PruneTables(t, postgres.db,
 		"blocktx.blocks",
 		"blocktx.transactions",
 		"blocktx.block_transactions_map",
 	)
 
 	if fixture != "" {
-		testutils.LoadFixtures(t, postgres._db, fixture)
+		testutils.LoadFixtures(t, postgres.db, fixture)
 	}
 }
 
@@ -200,11 +200,11 @@ func TestPostgresDB(t *testing.T) {
 		hashAtTip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 
 		// when -> then
-		actualBlock, err := postgresDB.GetBlockByHeight(context.Background(), height)
+		actualBlock, err := postgresDB.GetLongestBlockByHeight(context.Background(), height)
 		require.NoError(t, err)
 		require.Equal(t, expectedHashAtHeightLongest[:], actualBlock.Hash)
 
-		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), heightNotFound)
+		actualBlock, err = postgresDB.GetLongestBlockByHeight(context.Background(), heightNotFound)
 		require.Nil(t, actualBlock)
 		require.Equal(t, store.ErrBlockNotFound, err)
 
@@ -303,9 +303,9 @@ func TestPostgresDB(t *testing.T) {
 		hash4Stale := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
 		expectedStaleHashes := [][]byte{
-			hash4Stale[:],
-			hash3Stale[:],
 			hash2Stale[:],
+			hash3Stale[:],
+			hash4Stale[:],
 		}
 
 		// when
@@ -319,23 +319,33 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("get orphaned chain up from hash", func(t *testing.T) {
+	t.Run("get orphans back to non-orphaned ancestor", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_orphaned_chain")
 
-		hashGapFiller := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+		newHash := testutils.RevChainhash(t, "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 		hash2Orphaned := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 		hash3Orphaned := testutils.RevChainhash(t, "00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9")
 		hash4Orphaned := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
+
+		noAncestorHash := testutils.RevChainhash(t, "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd")
+		hash6Orphaned := testutils.RevChainhash(t, "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c")
 
 		expectedOrphanedHashes := [][]byte{
 			hash2Orphaned[:],
 			hash3Orphaned[:],
 			hash4Orphaned[:],
+			newHash[:],
+		}
+		expectedAncestorHash := testutils.RevChainhash(t, "0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067")
+
+		expectedNoAncestorOrphanedHashes := [][]byte{
+			noAncestorHash[:],
+			hash6Orphaned[:],
 		}
 
 		// when
-		actualOrphanedBlocks, err := postgresDB.GetOrphanedChainUpFromHash(ctx, hashGapFiller[:])
+		actualOrphanedBlocks, actualAncestor, err := postgresDB.GetOrphansBackToNonOrphanAncestor(ctx, newHash[:])
 		require.NoError(t, err)
 
 		// then
@@ -343,6 +353,15 @@ func TestPostgresDB(t *testing.T) {
 		for i, b := range actualOrphanedBlocks {
 			require.Equal(t, expectedOrphanedHashes[i], b.Hash)
 		}
+		require.Equal(t, expectedAncestorHash[:], actualAncestor.Hash)
+
+		// when
+		actualOrphanedBlocks, actualAncestor, err = postgresDB.GetOrphansBackToNonOrphanAncestor(ctx, noAncestorHash[:])
+		require.NoError(t, err)
+
+		// then
+		require.Equal(t, len(expectedNoAncestorOrphanedHashes), len(actualOrphanedBlocks))
+		require.Nil(t, actualAncestor)
 	})
 
 	t.Run("update blocks statuses", func(t *testing.T) {
@@ -663,24 +682,6 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		assert.Equal(t, expectedUnverifiedBlockHeights, res.UnverifiedBlockHeights)
-	})
-
-	t.Run("lock blocks table", func(t *testing.T) {
-		err := postgresDB.WriteLockBlocksTable(context.Background())
-		require.Error(t, err)
-		require.Equal(t, ErrNoTransaction, err)
-
-		uow, err := postgresDB.StartUnitOfWork(context.Background())
-		require.NoError(t, err)
-
-		err = uow.WriteLockBlocksTable(context.Background())
-		require.NoError(t, err)
-
-		err = uow.Rollback()
-		require.NoError(t, err)
-
-		err = uow.Commit()
-		require.Equal(t, ErrNoTransaction, err)
 	})
 }
 

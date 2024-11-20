@@ -49,7 +49,7 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 		return errors.Join(ErrFailedToSerialize, err)
 	}
 
-	err = p.cacheStore.Set(&CacheStatusUpdateHash, status.Hash.String(), bytes, processStatusUpdatesIntervalDefault)
+	err = p.cacheStore.MapSet(CacheStatusUpdateHash, status.Hash.String(), bytes)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 }
 
 func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStatus, error) {
-	bytes, err := p.cacheStore.Get(&CacheStatusUpdateHash, hash.String())
+	bytes, err := p.cacheStore.MapGet(CacheStatusUpdateHash, hash.String())
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStat
 
 func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error) {
 	statuses := make(StatusUpdateMap)
-	keys, err := p.cacheStore.GetAllForHashAndDelete(CacheStatusUpdateHash)
+	keys, err := p.cacheStore.MapExtractAll(CacheStatusUpdateHash)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error
 }
 
 func (p *Processor) getStatusUpdateCount() (int, error) {
-	count, err := p.cacheStore.CountElementsForHash(CacheStatusUpdateHash)
+	count, err := p.cacheStore.MapLen(CacheStatusUpdateHash)
 	if err != nil {
 		return 0, err
 	}

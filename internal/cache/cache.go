@@ -16,10 +16,14 @@ var (
 )
 
 type Store interface {
-	Get(hash *string, key string) ([]byte, error)
-	GetAllForHash(hash string) (map[string][]byte, error)
-	GetAllForHashAndDelete(hash string) (map[string][]byte, error)
-	Set(hash *string, key string, value []byte, ttl time.Duration) error
-	Del(hash *string, keys ...string) error
-	CountElementsForHash(hash string) (int64, error)
+	Get(key string) ([]byte, error)
+	Set(key string, value []byte, ttl time.Duration) error
+	Del(keys ...string) error
+
+	MapGet(hash string, key string) ([]byte, error)
+	MapGetAll(hash string) (map[string][]byte, error)
+	MapSet(hash string, key string, value []byte) error
+	MapDel(hash string, keys ...string) error
+	MapLen(hash string) (int64, error)
+	MapExtractAll(hash string) (map[string][]byte, error)
 }

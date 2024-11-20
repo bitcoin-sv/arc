@@ -22,16 +22,9 @@ func NewRedisStore(ctx context.Context, c redis.UniversalClient) *RedisStore {
 	}
 }
 
-// Get retrieves a value by key and hash (if given).
-func (r *RedisStore) Get(hash *string, key string) ([]byte, error) {
-	var result string
-	var err error
-
-	if hash == nil {
-		result, err = r.client.Get(r.ctx, key).Result()
-	} else {
-		result, err = r.client.HGet(r.ctx, *hash, key).Result()
-	}
+// Get retrieves a value by key.
+func (r *RedisStore) Get(key string) ([]byte, error) {
+	result, err := r.client.Get(r.ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, ErrCacheNotFound
@@ -42,15 +35,9 @@ func (r *RedisStore) Get(hash *string, key string) ([]byte, error) {
 	return []byte(result), nil
 }
 
-// Set stores a value with a TTL for a specific hash (if given).
-func (r *RedisStore) Set(hash *string, key string, value []byte, ttl time.Duration) error {
-	var err error
-
-	if hash == nil {
-		err = r.client.Set(r.ctx, key, value, ttl).Err()
-	} else {
-		err = r.client.HSet(r.ctx, *hash, key, value).Err()
-	}
+// Set stores a value with a TTL for key.
+func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
+	err := r.client.Set(r.ctx, key, value, ttl).Err()
 
 	if err != nil {
 		return errors.Join(ErrCacheFailedToSet, err)
@@ -60,15 +47,8 @@ func (r *RedisStore) Set(hash *string, key string, value []byte, ttl time.Durati
 }
 
 // Del removes a value by key.
-func (r *RedisStore) Del(hash *string, keys ...string) error {
-	var result int64
-	var err error
-
-	if hash == nil {
-		result, err = r.client.Del(r.ctx, keys...).Result()
-	} else {
-		result, err = r.client.HDel(r.ctx, *hash, keys...).Result()
-	}
+func (r *RedisStore) Del(keys ...string) error {
+	result, err := r.client.Del(r.ctx, keys...).Result()
 
 	if err != nil {
 		return errors.Join(ErrCacheFailedToDel, err)
@@ -79,8 +59,46 @@ func (r *RedisStore) Del(hash *string, keys ...string) error {
 	return nil
 }
 
-// GetAllForHash retrieves all key-value pairs for a specific hash.
-func (r *RedisStore) GetAllForHash(hash string) (map[string][]byte, error) {
+// MapGet retrieves a value by key and hash (if given).
+func (r *RedisStore) MapGet(hash string, key string) ([]byte, error) {
+	result, err := r.client.HGet(r.ctx, hash, key).Result()
+
+	if errors.Is(err, redis.Nil) {
+		return nil, ErrCacheNotFound
+	} else if err != nil {
+		return nil, errors.Join(ErrCacheFailedToGet, err)
+	}
+
+	return []byte(result), nil
+}
+
+// MapSet stores a value for a specific hash.
+func (r *RedisStore) MapSet(hash string, key string, value []byte) error {
+	err := r.client.HSet(r.ctx, hash, key, value).Err()
+
+	if err != nil {
+		return errors.Join(ErrCacheFailedToSet, err)
+	}
+
+	return nil
+}
+
+// MapDel removes a value by key in specific hash.
+func (r *RedisStore) MapDel(hash string, keys ...string) error {
+	result, err := r.client.HDel(r.ctx, hash, keys...).Result()
+
+	if err != nil {
+		return errors.Join(ErrCacheFailedToDel, err)
+	}
+	if result == 0 {
+		return ErrCacheNotFound
+	}
+
+	return nil
+}
+
+// MapGetAll retrieves all key-value pairs for a specific hash.
+func (r *RedisStore) MapGetAll(hash string) (map[string][]byte, error) {
 	values, err := r.client.HGetAll(r.ctx, hash).Result()
 	if err != nil {
 		return nil, errors.Join(ErrCacheFailedToGet, err)
@@ -93,8 +111,8 @@ func (r *RedisStore) GetAllForHash(hash string) (map[string][]byte, error) {
 	return result, nil
 }
 
-// GetAllForHashAndDelete retrieves all key-value pairs for a specific hash and remove them from cache, all in one transaction.
-func (r *RedisStore) GetAllForHashAndDelete(hash string) (map[string][]byte, error) {
+// MapExtractAll retrieves all key-value pairs for a specific hash and remove them from cache, all in one transaction.
+func (r *RedisStore) MapExtractAll(hash string) (map[string][]byte, error) {
 	tx := r.client.TxPipeline()
 
 	getAllCmd := tx.HGetAll(r.ctx, hash)
@@ -114,8 +132,8 @@ func (r *RedisStore) GetAllForHashAndDelete(hash string) (map[string][]byte, err
 	return result, nil
 }
 
-// CountElementsForHash returns the number of elements in a hash.
-func (r *RedisStore) CountElementsForHash(hash string) (int64, error) {
+// MapLen returns the number of elements in a hash.
+func (r *RedisStore) MapLen(hash string) (int64, error) {
 	count, err := r.client.HLen(r.ctx, hash).Result()
 	if err != nil {
 		return 0, errors.Join(ErrCacheFailedToGetCount, err)

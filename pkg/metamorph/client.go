@@ -272,12 +272,13 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 			break
 		}
 
-		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
 
 		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
 			// if error is deadline exceeded, check tx status to avoid false negatives
 			txStatus, getStatusErr = m.GetTransactionStatus(ctx, tx.TxID())
 			if getStatusErr == nil {
+				m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
 				break
 			}
 		}
@@ -365,6 +366,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 				// Todo: Create and use here client.GetTransactionStatuses rpc function
 				txStatus, getStatusErr := m.GetTransactionStatus(ctx, tx.TxID())
 				if getStatusErr != nil {
+					m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
 					completedErrorFree = false
 					break
 				}

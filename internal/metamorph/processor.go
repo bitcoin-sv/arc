@@ -716,11 +716,15 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// Send GETDATA to peers to see if they have it
+	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
+	tracing.EndTracing(requestTransactionSpan, nil)
 
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+	ctx, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	tracing.EndTracing(announceTransactionSpan, nil)
 	if len(peers) == 0 {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
@@ -738,7 +742,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// Add this transaction to the map of transactions that client is listening to with open connection
+	ctx, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
 	p.responseProcessor.Add(statusResponse)
+	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {

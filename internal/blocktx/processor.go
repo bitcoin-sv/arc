@@ -413,16 +413,17 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
 	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, nil)
 
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
 func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 	ctx := p.ctx
+	var err error
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	timeStart := time.Now()
 
@@ -616,8 +617,9 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 }
 
 func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
@@ -686,7 +688,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 		}
 	}
 
-	tracing.EndTracing(iterateMerkleTree)
+	tracing.EndTracing(iterateMerkleTree, nil)
 
 	// update all remaining transactions
 	updateResp, err := p.store.UpsertBlockTransactions(ctx, blockID, txs)

@@ -110,8 +110,9 @@ func NewDefault(
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
+	var err error
 	_, span := tracing.StartTracing(ctx.Request().Context(), "GETPolicy", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
@@ -131,10 +132,11 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
 	reqCtx := ctx.Request().Context()
+	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "GETHealth", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
-	err := m.TransactionHandler.Health(reqCtx)
+	err = m.TransactionHandler.Health(reqCtx)
 	if err != nil {
 		reason := err.Error()
 		return ctx.JSON(http.StatusOK, api.Health{
@@ -169,8 +171,10 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
 	reqCtx := ctx.Request().Context()
+
+	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
@@ -225,8 +229,10 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 // GETTransactionStatus ...
 func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
 	reqCtx := ctx.Request().Context()
+
+	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "GETTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	tx, err := m.getTransactionStatus(reqCtx, id)
 	if err != nil {
@@ -267,8 +273,10 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
 	reqCtx := ctx.Request().Context()
+
+	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransactions", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
@@ -422,8 +430,9 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
 ) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransactions", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	// decode and validate txs
 	var txIDs []string
@@ -514,8 +523,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateEFTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	if options.SkipTxValidation {
 		return nil
@@ -523,7 +533,8 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	if err := txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...); err != nil {
+	err = txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
+	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 		return arcError
@@ -533,8 +544,9 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 }
 
 func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *beef.BEEF, options *metamorph.TransactionOptions) *api.ErrorFields {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateBEEFTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	if options.SkipTxValidation {
 		return nil
@@ -542,7 +554,8 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	if errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts); err != nil {
+	errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
+	if err != nil {
 		statusCode, arcError := m.handleError(ctx, errTx, err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
@@ -553,8 +566,9 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 }
 
 func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "submitTransactions", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	var submitStatuses []*metamorph.TransactionStatus
 
@@ -586,8 +600,9 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 }
 
 func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*metamorph.TransactionStatus, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "getTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, nil)
 
 	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {

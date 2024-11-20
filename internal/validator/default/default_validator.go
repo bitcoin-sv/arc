@@ -32,8 +32,15 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 }
 
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error { //nolint:funlen - mostly comments
+	var err *validator.Error
+	var spanErr error
 	ctx, span := tracing.StartTracing(ctx, "ValidateTransaction", tracingEnabled, tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		if err != nil {
+			spanErr = err.Err
+		}
+		tracing.EndTracing(span, spanErr)
+	}()
 
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
@@ -45,7 +52,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	}
 
 	// The rest of the validation steps
-	err := validator.CommonValidateTransaction(v.policy, tx)
+	err = validator.CommonValidateTransaction(v.policy, tx)
 	if err != nil {
 		return err
 	}
@@ -54,11 +61,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err := standardCheckFees(tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
+		if err = standardCheckFees(tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err := cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
+		if err = cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -115,8 +122,9 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 }
 
 func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) *validator.Error {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "cumulativeCheckFees", tracingEnabled, tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx, tracingEnabled, tracingAttributes...)
 	if err != nil {
 		e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))

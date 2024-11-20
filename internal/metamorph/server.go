@@ -122,8 +122,9 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 }
 
 func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (*metamorph_api.HealthResponse, error) {
+	var err error
 	_, span := tracing.StartTracing(ctx, "Health", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	processorMapSize := s.processor.GetProcessorMapSize()
 
@@ -148,8 +149,9 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (*metamorph_api.H
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (*metamorph_api.TransactionStatus, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	statusReceived := metamorph_api.Status_RECEIVED
@@ -160,8 +162,9 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (*metamorph_api.TransactionStatuses, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
@@ -223,6 +226,7 @@ func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req 
 	}
 }
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, timeoutSeconds int64, txID string) *metamorph_api.TransactionStatus {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransaction", s.tracingEnabled, s.tracingAttributes...)
 	returnedStatus := &metamorph_api.TransactionStatus{
 		Txid:   txID,
@@ -232,7 +236,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		if span != nil {
 			span.SetAttributes(attribute.String("final-status", returnedStatus.Status.String()), attribute.String("TxID", returnedStatus.Txid), attribute.Bool("time-out", returnedStatus.TimedOut))
 		}
-		tracing.EndTracing(span)
+		tracing.EndTracing(span, err)
 	}()
 
 	responseChannel := make(chan StatusAndError, 10)
@@ -307,8 +311,9 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 }
 
 func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.Transaction, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "GetTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -332,8 +337,9 @@ func (s *Server) GetTransaction(ctx context.Context, req *metamorph_api.Transact
 }
 
 func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (*metamorph_api.Transactions, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "GetTransactions", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	data, err := s.getTransactions(ctx, req)
 	if err != nil {
@@ -364,8 +370,9 @@ func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*metamorph_api.TransactionStatus, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	data, storedAt, err := s.getTransactionData(ctx, req)
 	if err != nil {
@@ -437,8 +444,9 @@ func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (*metamorph_api.SetUnlockedByNameResponse, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "SetUnlockedByName", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.GetName())
 	if err != nil {
@@ -454,8 +462,9 @@ func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUn
 }
 
 func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (*metamorph_api.ClearDataResponse, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "ClearData", s.tracingEnabled, s.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
 	if err != nil {

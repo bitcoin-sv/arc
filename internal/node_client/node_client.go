@@ -52,15 +52,16 @@ func New(n *bitcoin.Bitcoind, opts ...func(client *NodeClient)) (NodeClient, err
 }
 
 func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
+	var err error
 	_, span := tracing.StartTracing(ctx, "NodeClient_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	uniqueIDs := make(map[string]struct{})
 
 	for _, id := range ids {
 		_, span := tracing.StartTracing(ctx, "Bitcoind_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
 		nTx, err := n.bitcoinClient.GetMempoolAncestors(id, false)
-		tracing.EndTracing(span)
+		tracing.EndTracing(span, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "Transaction not in mempool") {
 				continue
@@ -95,8 +96,9 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]st
 }
 
 func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error) {
+	var err error
 	_, span := tracing.StartTracing(ctx, "NodeClient_GetRawTransaction", n.tracingEnabled, n.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	nTx, err := n.bitcoinClient.GetRawTransaction(id)
 

@@ -75,8 +75,9 @@ func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string
 }
 
 func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))
@@ -91,7 +92,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 		var thGetRawTxSpan trace.Span
 		ctx, thGetRawTxSpan = tracing.StartTracing(ctx, "TransactionHandler_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 		txs, err := f.transactionHandler.GetTransactions(ctx, ids)
-		tracing.EndTracing(thGetRawTxSpan)
+		tracing.EndTracing(thGetRawTxSpan, nil)
 		if err != nil {
 			f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.Any("err", err))
 		} else {
@@ -132,7 +133,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 		var wocSpan trace.Span
 		ctx, wocSpan = tracing.StartTracing(ctx, "WocClient_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 		wocTxs, err := f.wocClient.GetRawTxs(ctx, ids)
-		defer tracing.EndTracing(wocSpan)
+		defer tracing.EndTracing(wocSpan, nil)
 		if err != nil {
 			f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("ids", ids), slog.Any("err", err))
 		} else {

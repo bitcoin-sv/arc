@@ -1,17 +1,19 @@
 package nats_core_test
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
 	"testing"
 
+	"github.com/nats-io/nats.go"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/nats-io/nats.go"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -63,7 +65,7 @@ func TestPublishMarshal(t *testing.T) {
 			sut := nats_core.New(natsMock, nats_core.WithLogger(logger))
 
 			// when
-			err := sut.PublishMarshal(MinedTxsTopic, tc.txsBlock)
+			err := sut.PublishMarshal(context.TODO(), MinedTxsTopic, tc.txsBlock)
 
 			// then
 			if tc.expectedError != nil {
@@ -113,7 +115,7 @@ func TestPublish(t *testing.T) {
 			)
 
 			// when
-			err := sut.Publish(RegisterTxTopic, []byte("tx"))
+			err := sut.Publish(context.TODO(), RegisterTxTopic, []byte("tx"))
 
 			// then
 			if tc.expectedError != nil {

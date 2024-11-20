@@ -85,6 +85,9 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (*store.Data, error) {
+	ctx, span := tracing.StartTracing(ctx, "Get", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	q := `SELECT
 	    stored_at
 		,last_submitted_at

@@ -231,7 +231,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	request := transactionRequest(tx.Bytes(), options)
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
-		err := m.mqClient.PublishMarshal(SubmitTxTopic, request)
+		err := m.mqClient.PublishMarshal(ctx, SubmitTxTopic, request)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +309,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		for _, tx := range in.Transactions {
-			err := m.mqClient.PublishMarshal(SubmitTxTopic, tx)
+			err := m.mqClient.PublishMarshal(ctx, SubmitTxTopic, tx)
 			if err != nil {
 				return nil, err
 			}

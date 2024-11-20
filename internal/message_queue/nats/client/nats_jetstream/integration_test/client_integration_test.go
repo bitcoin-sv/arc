@@ -1,11 +1,17 @@
 package integration_test
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
@@ -13,10 +19,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/nats-io/nats.go"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -119,13 +121,13 @@ func TestNatsClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		t.Log("publish")
-		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
 		require.NoError(t, err)
 
 		counter := 0

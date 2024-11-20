@@ -88,6 +88,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
 
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+
 		mqClient, err = nats_jetstream.New(natsConnection, logger,
 			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
 			opts...,
@@ -97,7 +101,11 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(natsConnection, nats_core.WithLogger(logger))
+		opts := []nats_core.Option{nats_core.WithLogger(logger)}
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+		mqClient = nats_core.New(natsConnection, opts...)
 	}
 
 	processorOpts := []func(handler *blocktx.Processor){

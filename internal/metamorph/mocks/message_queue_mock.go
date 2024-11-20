@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"sync"
 )
@@ -18,7 +19,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishFunc: func(topic string, data []byte) error {
+//			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
 //			ShutdownFunc: func()  {
@@ -35,7 +36,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //	}
 type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
-	PublishFunc func(topic string, data []byte) error
+	PublishFunc func(ctx context.Context, topic string, data []byte) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -47,6 +48,8 @@ type MessageQueueClientMock struct {
 	calls struct {
 		// Publish holds details about calls to the Publish method.
 		Publish []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Topic is the topic argument value.
 			Topic string
 			// Data is the data argument value.
@@ -69,21 +72,23 @@ type MessageQueueClientMock struct {
 }
 
 // Publish calls PublishFunc.
-func (mock *MessageQueueClientMock) Publish(topic string, data []byte) error {
+func (mock *MessageQueueClientMock) Publish(ctx context.Context, topic string, data []byte) error {
 	if mock.PublishFunc == nil {
 		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
 	}
 	callInfo := struct {
+		Ctx   context.Context
 		Topic string
 		Data  []byte
 	}{
+		Ctx:   ctx,
 		Topic: topic,
 		Data:  data,
 	}
 	mock.lockPublish.Lock()
 	mock.calls.Publish = append(mock.calls.Publish, callInfo)
 	mock.lockPublish.Unlock()
-	return mock.PublishFunc(topic, data)
+	return mock.PublishFunc(ctx, topic, data)
 }
 
 // PublishCalls gets all the calls that were made to Publish.
@@ -91,10 +96,12 @@ func (mock *MessageQueueClientMock) Publish(topic string, data []byte) error {
 //
 //	len(mockedMessageQueueClient.PublishCalls())
 func (mock *MessageQueueClientMock) PublishCalls() []struct {
+	Ctx   context.Context
 	Topic string
 	Data  []byte
 } {
 	var calls []struct {
+		Ctx   context.Context
 		Topic string
 		Data  []byte
 	}

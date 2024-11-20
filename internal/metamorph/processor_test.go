@@ -239,7 +239,7 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(_ string, _ []byte) error {
+				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -658,7 +658,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(_ string, _ []byte) error {
+				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -787,7 +787,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			}
 
 			publisher := &mocks.MessageQueueClientMock{
-				PublishFunc: func(_ string, _ []byte) error {
+				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
 			}

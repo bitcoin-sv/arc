@@ -74,7 +74,7 @@ metamorph:
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m
-    notMinedTimeLimit: 20m
+    notFinalTimeLimit: 20m
 
 blocktx:
   listenAddr: 0.0.0.0:8011

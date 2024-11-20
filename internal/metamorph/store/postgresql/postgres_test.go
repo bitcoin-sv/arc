@@ -10,16 +10,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 const (
@@ -714,7 +715,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(1), res.StatusRejected)
 		require.Equal(t, int64(0), res.StatusSeenInOrphanMempool)
 		require.Equal(t, int64(1), res.StatusDoubleSpendAttempted)
-		require.Equal(t, int64(1), res.StatusNotMined)
+		require.Equal(t, int64(2), res.StatusNotFinal)
 		require.Equal(t, int64(2), res.StatusNotSeen)
 		require.Equal(t, int64(6), res.StatusMinedTotal)
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)

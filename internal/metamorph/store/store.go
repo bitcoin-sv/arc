@@ -6,9 +6,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 var ErrNotFound = errors.New("key could not be found")
@@ -56,7 +57,7 @@ type Stats struct {
 	StatusRejected             int64
 	StatusMined                int64
 	StatusNotSeen              int64
-	StatusNotMined             int64
+	StatusNotFinal             int64
 	StatusSeenOnNetworkTotal   int64
 	StatusMinedTotal           int64
 }

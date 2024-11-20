@@ -159,7 +159,7 @@ type HealthConfig struct {
 
 type StatsConfig struct {
 	NotSeenTimeLimit  time.Duration `mapstructure:"notSeenTimeLimit"`
-	NotMinedTimeLimit time.Duration `mapstructure:"notMinedTimeLimit"`
+	NotFinalTimeLimit time.Duration `mapstructure:"notFinalTimeLimit"`
 }
 
 type APIConfig struct {

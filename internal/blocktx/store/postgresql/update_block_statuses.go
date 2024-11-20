@@ -13,7 +13,10 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 	q := `
 		UPDATE blocktx.blocks b
 		SET status = updates.status, is_longest = updates.is_longest
-		FROM (SELECT * FROM UNNEST($1::BYTEA[], $2::INTEGER[], $3::BOOLEAN[]) AS u(hash, status, is_longest)) AS updates
+		FROM (
+			SELECT * FROM UNNEST($1::BYTEA[], $2::INTEGER[], $3::BOOLEAN[]) AS u(hash, status, is_longest)
+			WHERE is_longest = $4
+		) AS updates
 		WHERE b.hash = updates.hash
 	`
 
@@ -27,7 +30,27 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 		isLongest[i] = update.Status == blocktx_api.Status_LONGEST
 	}
 
-	_, err := p.db.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest))
+	tx, err := p.db.Begin()
+	if err != nil {
+		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	// first update blocks that are changing statuses to non-LONGEST
+	_, err = tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), false)
+	if err != nil {
+		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
+	}
+
+	// then update blocks that are changing statuses to LONGEST
+	_, err = tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), true)
+	if err != nil {
+		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
 	}

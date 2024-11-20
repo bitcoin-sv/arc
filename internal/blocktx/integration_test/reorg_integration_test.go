@@ -7,10 +7,10 @@ package integrationtest
 // 		Message queue sending txs to metamorph - mocked
 //
 // Flow of this test:
-// 		1. Blocks at heights 822014-822017, 822019-822020 and 822022-822023 are added to db from fixtures
+// 		1. Blocks at heights 822014-822017 (LONGEST), 822018-822020 (ORPHANED) and 822022-822023 (ORPHANED) are added to db from fixtures
 // 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
-// 		4. Registered transactions from this block that are not in the longest chain are published to metamorph message queue with blockstatus = STALE
+// 		4. Registered transactions from this block are ignored
 // 		5. Next competing block, at height 822016 is being send through the mocked PeerHandler
 // 		6. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
 // 		7. Verification of reorg - checking if statuses are correctly switched
@@ -18,13 +18,13 @@ package integrationtest
 // 			- transactions from the stale chain becoming the longest are published
 // 			- transactions that were previously in the longest chain are published with udpated block data
 // 			- transactions that were previously in the longest chain, but are not in the stale chain are published with blockstatus = STALE
-// 		9. A new block at height 822018 is being sent through the mocked PeerHandler
-// 		10. This block is extending the previously LONGEST but now STALE chain and finds orphaned chain at heights 822019, 822020
-// 		11. The tip of the orphaned chain does not have a greater chainwork than the current longest chain - entire orphaned chain becomes STALE
-// 		12. A new block at height 822021 is being sent through the mocked PeerHandler
-// 		13. This block extends the STALE chain and finds orphaned chain at height 822022, 822023
-// 		14. The tip of the orphaned chain has a greater chainwork than the current tip of longest chain
-// 			- entire STALE chain at heights 822015 - 822023 becomes LONGEST
+// 		9. A new block at height 822021 is being sent through the mocked PeerHandler
+// 		10. This block is extending the orphaned chain and finds that it's connected to the stale chain - orphans get updated to STALE
+// 		11. The new stale chain does not have a greater chainwork than the current longest chain - entire orphaned chain becomes STALE
+// 		12. A new block at height 822024 is being sent through the mocked PeerHandler
+// 		13. This block extends the orphaned chain and finds that it's connected to the stale chain - orphans get updated to STALE
+// 		14. The new stale chain has a greater chainwork than the current longest chain
+// 			- entire STALE chain at heights 822015 - 822024 becomes LONGEST
 // 			- entire LONGEST chain at height 822015 - 822016 becomes STALE
 // 		15. Verification of reorg - checking if statuses are correctly switched (for blocks and for transactions)
 
@@ -114,12 +114,13 @@ const (
 	blockHash822015Fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
 	blockHash822016Fork = "032c3688bc7536b2d787f3a196b1145a09bf33183cd1448ff6b1a9dfbb022db8"
 
-	blockHash822018       = "212a7598a62295f1a520ef525a34f657bc636d9da9bda74acdf6f051cd84c353"
+	blockHash822018Orphan = "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde"
 	blockHash822019Orphan = "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656"
 	blockHash822020Orphan = "00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076"
-	blockHash822021       = "743c7dc491ae5fddd37ebf63058f9574b4db9f6a89f483a4baec31820e5df61d"
+	blockHash822021       = "d46bf0a189927b62c8ff785d393a545093ca01af159aed771a8d94749f06c060"
 	blockHash822022Orphan = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
 	blockHash822023Orphan = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
+	blockHash822024       = "5d60cfea9a7ef96554768150716788e9643eaafd5a1979636777a6a5835b07c6"
 
 	txhash822015          = "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
 	txhash822015Competing = "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"
@@ -313,17 +314,17 @@ func testHandleReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store 
 func testHandleStaleOrphans(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store *postgresql.PostgreSQL) {
 	txHash := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
 	merkleRoot := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
-	prevhash := testutils.RevChainhash(t, blockHash822017)
+	prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 	// should become STALE
 	blockMessage := &blockchain.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
-			PrevBlock:  *prevhash, // block with status STALE at height 822017
+			PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain
 			MerkleRoot: *merkleRoot,
 			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing chain
 		},
-		Height:            uint64(822018),
+		Height:            uint64(822021),
 		TransactionHashes: []*chainhash.Hash{txHash},
 	}
 
@@ -332,9 +333,10 @@ func testHandleStaleOrphans(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler,
 	time.Sleep(1 * time.Second)
 
 	// verify that the block and orphans have STALE status
-	verifyBlock(t, store, blockHash822018, 822018, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822018Orphan, 822018, blocktx_api.Status_STALE)
 	verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_STALE)
 	verifyBlock(t, store, blockHash822020Orphan, 822020, blocktx_api.Status_STALE)
+	verifyBlock(t, store, blockHash822021, 822021, blocktx_api.Status_STALE)
 
 	// verify that the blocks after the next gap are still orphans
 	verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
@@ -344,19 +346,19 @@ func testHandleStaleOrphans(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler,
 func testHandleOrphansReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler, store *postgresql.PostgreSQL) []*blocktx_api.TransactionBlock {
 	txHash := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
 	merkleRoot := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
-	prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
+	prevhash := testutils.RevChainhash(t, blockHash822023Orphan)
 
 	// should become LONGEST
 	// reorg should happen
 	blockMessage := &blockchain.BlockMessage{
 		Header: &wire.BlockHeader{
 			Version:    541065216,
-			PrevBlock:  *prevhash, // block with status STALE at height 822020
+			PrevBlock:  *prevhash, // block with status ORPHANED at height 822023 - connected to STALE chain
 			MerkleRoot: *merkleRoot,
-			Bits:       0x1d00ffff, // chainwork: "4295032833" lower than the competing chain
-			// but the sum of orphan chain has a higher chainwork and should cause a reorg
+			Bits:       0x1d00ffff, // chainwork: "4295032833"
+			// the sum of orphan chain has a higher chainwork and should cause a reorg
 		},
-		Height:            uint64(822021),
+		Height:            uint64(822024),
 		TransactionHashes: []*chainhash.Hash{txHash},
 	}
 
@@ -369,12 +371,13 @@ func testHandleOrphansReorg(t *testing.T, p2pMsgHandler *blocktx_p2p.MsgHandler,
 	verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822016, 822016, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822017, 822017, blocktx_api.Status_LONGEST)
-	verifyBlock(t, store, blockHash822018, 822018, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822018Orphan, 822018, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822020Orphan, 822020, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822021, 822021, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_LONGEST)
 	verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_LONGEST)
+	verifyBlock(t, store, blockHash822024, 822024, blocktx_api.Status_LONGEST)
 
 	verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
 	verifyBlock(t, store, blockHash822016Fork, 822016, blocktx_api.Status_STALE)

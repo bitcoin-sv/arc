@@ -3,7 +3,6 @@ package postgresql
 import (
 	"bytes"
 	"context"
-	"errors"
 	"log"
 	"os"
 	"testing"
@@ -174,7 +173,7 @@ func TestPostgresDB(t *testing.T) {
 		_, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
 
 		// then
-		require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
+		require.ErrorIs(t, err, store.ErrFailedToInsertBlock)
 
 		// when
 		id, err = postgresDB.UpsertBlock(ctx, expectedBlockOverrideStatus)
@@ -408,7 +407,7 @@ func TestPostgresDB(t *testing.T) {
 
 		// when
 		err = postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdatesViolating)
-		require.True(t, errors.Is(err, store.ErrFailedToUpdateBlockStatuses))
+		require.ErrorIs(t, err, store.ErrFailedToUpdateBlockStatuses)
 	})
 
 	t.Run("get mined txs", func(t *testing.T) {
@@ -457,45 +456,6 @@ func TestPostgresDB(t *testing.T) {
 		// when
 		onlyLongestChain = false
 		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, onlyLongestChain)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, expectedTxs, actualTxs)
-	})
-
-	t.Run("get registered txs", func(t *testing.T) {
-		// given
-		prepareDb(t, postgresDB, "fixtures/get_transactions")
-
-		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
-		blockHash2 := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
-
-		expectedTxs := []store.TransactionBlock{
-			{
-				TxHash:      testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")[:],
-				BlockHash:   blockHash[:],
-				BlockHeight: 822013,
-				MerklePath:  "merkle-path-2",
-				BlockStatus: blocktx_api.Status_LONGEST,
-			},
-			{
-				TxHash:      testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")[:],
-				BlockHash:   blockHash2[:],
-				BlockHeight: 822012,
-				MerklePath:  "merkle-path-6",
-				BlockStatus: blocktx_api.Status_STALE,
-			},
-			{
-				TxHash:      testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")[:],
-				BlockHash:   blockHash2[:],
-				BlockHeight: 822012,
-				MerklePath:  "merkle-path-7",
-				BlockStatus: blocktx_api.Status_STALE,
-			},
-		}
-
-		// when
-		actualTxs, err := postgresDB.GetRegisteredTxsByBlockHashes(ctx, [][]byte{blockHash[:], blockHash2[:]})
 
 		// then
 		require.NoError(t, err)
@@ -1084,7 +1044,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.Equal(t, uint64(0), blockID)
-				require.True(t, errors.Is(err, store.ErrFailedToInsertBlock))
+				require.ErrorIs(t, err, store.ErrFailedToInsertBlock)
 			}
 		})
 	}

@@ -11,12 +11,12 @@ package integrationtest
 // 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
 // 		4. Registered transactions from this block are ignored
-// 		5. Next competing block, at height 822016 is being send through the mocked PeerHandler
+// 		5. Next competing block, at height 822016 is being sent through the mocked PeerHandler
 // 		6. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
 // 		7. Verification of reorg - checking if statuses are correctly switched
 // 		8. Verification of transactions
 // 			- transactions from the stale chain becoming the longest are published
-// 			- transactions that were previously in the longest chain are published with udpated block data
+// 			- transactions that were previously in the longest chain are published with updated block data
 // 			- transactions that were previously in the longest chain, but are not in the stale chain are published with blockstatus = STALE
 // 		9. A new block at height 822021 is being sent through the mocked PeerHandler
 // 		10. This block is extending the orphaned chain and finds that it's connected to the stale chain - orphans get updated to STALE
@@ -55,13 +55,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	postgresPort   = "5432"
-	migrationsPath = "file://../store/postgresql/migrations"
-	dbName         = "main_test"
-	dbUsername     = "arcuser"
-	dbPassword     = "arcpass"
-)
+const migrationsPath = "file://../store/postgresql/migrations"
 
 var (
 	dbInfo string

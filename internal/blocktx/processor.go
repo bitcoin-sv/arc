@@ -513,6 +513,9 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 }
 
 func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMessage) (*blocktx_api.Block, error) {
+	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	blockHash := msg.Header.BlockHash()
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
@@ -543,6 +546,9 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMess
 }
 
 func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) error {
+	ctx, span := tracing.StartTracing(ctx, "assignBlockStatus", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	prevBlock, _ := p.store.GetBlock(ctx, &prevBlockHash)
 
 	if prevBlock == nil {
@@ -617,6 +623,9 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 }
 
 func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) ([]store.TransactionBlock, error) {
+	ctx, span := tracing.StartTracing(ctx, "getRegisteredTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	blockHashes := make([][]byte, len(blocks))
 	for i, b := range blocks {
 		blockHashes[i] = b.Hash
@@ -633,6 +642,9 @@ func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blo
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) error {
+	ctx, span := tracing.StartTracing(ctx, "insertBlockAndStoreTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {
 		p.logger.Error("unable to insert block at given height", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
@@ -655,7 +667,7 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 }
 
 func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "storeTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -731,6 +743,9 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 }
 
 func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) ([]store.TransactionBlock, error) {
+	ctx, span := tracing.StartTracing(ctx, "handleStaleBlock", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, block.Hash)
 	if err != nil {
 		p.logger.Error("unable to get STALE blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
@@ -766,6 +781,9 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 }
 
 func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) ([]store.TransactionBlock, error) {
+	ctx, span := tracing.StartTracing(ctx, "performReorg", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	staleHashes := make([][]byte, len(staleBlocks))
 	longestHashes := make([][]byte, len(longestBlocks))
 
@@ -819,6 +837,9 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 }
 
 func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) ([]store.TransactionBlock, error) {
+	ctx, span := tracing.StartTracing(ctx, "handleOrphans", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	orphans, ancestor, err := p.store.GetOrphansBackToNonOrphanAncestor(ctx, block.Hash)
 	if err != nil {
 		p.logger.Error("unable to get ORPHANED blocks", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
@@ -879,6 +900,9 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 }
 
 func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.Block, chain blocktx_api.Status) error {
+	ctx, span := tracing.StartTracing(ctx, "acceptIntoChain", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span)
+
 	blockStatusUpdates := make([]store.BlockStatusUpdate, len(blocks))
 
 	for i, b := range blocks {

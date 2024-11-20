@@ -59,7 +59,7 @@ func (r *RedisStore) Del(keys ...string) error {
 	return nil
 }
 
-// MapGet retrieves a value by key and hash (if given).
+// MapGet retrieves a value by key and hash (if given). Return err if hash or key not found.
 func (r *RedisStore) MapGet(hash string, key string) ([]byte, error) {
 	result, err := r.client.HGet(r.ctx, hash, key).Result()
 
@@ -97,7 +97,7 @@ func (r *RedisStore) MapDel(hash string, keys ...string) error {
 	return nil
 }
 
-// MapGetAll retrieves all key-value pairs for a specific hash.
+// MapGetAll retrieves all key-value pairs for a specific hash. Return err if hash not found.
 func (r *RedisStore) MapGetAll(hash string) (map[string][]byte, error) {
 	values, err := r.client.HGetAll(r.ctx, hash).Result()
 	if err != nil {

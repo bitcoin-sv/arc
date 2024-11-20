@@ -43,7 +43,7 @@ func (s *MemoryStore) Del(keys ...string) error {
 	return nil
 }
 
-// MapGet retrieves a value by key and hash.
+// MapGet retrieves a value by key and hash. Return err if hash or key not found.
 func (s *MemoryStore) MapGet(hash string, key string) ([]byte, error) {
 	hashValue, found := s.data.Load(hash)
 	if !found {
@@ -98,7 +98,7 @@ func (s *MemoryStore) MapDel(hash string, keys ...string) error {
 	return nil
 }
 
-// MapGetAll retrieves all key-value pairs for a specific hash.
+// MapGetAll retrieves all key-value pairs for a specific hash. Return err if hash not found.
 func (s *MemoryStore) MapGetAll(hash string) (map[string][]byte, error) {
 	hashValue, found := s.data.Load(hash)
 	if !found {
@@ -113,16 +113,16 @@ func (s *MemoryStore) MapGetAll(hash string) (map[string][]byte, error) {
 	return hashMap, nil
 }
 
-// MapExtractAll retrieves all key-value pairs for a specific hash and deletes the hash.
+// MapExtractAll retrieves all key-value pairs for a specific hash and deletes the hash. Return err if hash not found.
 func (s *MemoryStore) MapExtractAll(hash string) (map[string][]byte, error) {
-	hashMap, err := s.MapGetAll(hash)
-	if err != nil {
-		return nil, err
+	hashValue, found := s.data.LoadAndDelete(hash)
+	if !found {
+		return nil, ErrCacheNotFound
 	}
 
-	err = s.Del(hash)
-	if err != nil {
-		return nil, err
+	hashMap, ok := hashValue.(map[string][]byte)
+	if !ok {
+		return nil, ErrCacheFailedToGet
 	}
 
 	return hashMap, nil

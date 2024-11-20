@@ -33,9 +33,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
-//			GetBlockByHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
-//				panic("mock out the GetBlockByHeight method")
-//			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
@@ -44,6 +41,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			},
 //			GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
 //				panic("mock out the GetChainTip method")
+//			},
+//			GetLongestBlockByHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+//				panic("mock out the GetLongestBlockByHeight method")
 //			},
 //			GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetLongestChainFromHeight method")
@@ -103,9 +103,6 @@ type BlocktxStoreMock struct {
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
-	// GetBlockByHeightFunc mocks the GetBlockByHeight method.
-	GetBlockByHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
-
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*store.BlockGap, error)
 
@@ -114,6 +111,9 @@ type BlocktxStoreMock struct {
 
 	// GetChainTipFunc mocks the GetChainTip method.
 	GetChainTipFunc func(ctx context.Context) (*blocktx_api.Block, error)
+
+	// GetLongestBlockByHeightFunc mocks the GetLongestBlockByHeight method.
+	GetLongestBlockByHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 
 	// GetLongestChainFromHeightFunc mocks the GetLongestChainFromHeight method.
 	GetLongestChainFromHeightFunc func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
@@ -184,13 +184,6 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
 		}
-		// GetBlockByHeight holds details about calls to the GetBlockByHeight method.
-		GetBlockByHeight []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Height is the height argument value.
-			Height uint64
-		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
 			// Ctx is the ctx argument value.
@@ -209,6 +202,13 @@ type BlocktxStoreMock struct {
 		GetChainTip []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// GetLongestBlockByHeight holds details about calls to the GetLongestBlockByHeight method.
+		GetLongestBlockByHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Height is the height argument value.
+			Height uint64
 		}
 		// GetLongestChainFromHeight holds details about calls to the GetLongestChainFromHeight method.
 		GetLongestChainFromHeight []struct {
@@ -316,10 +316,10 @@ type BlocktxStoreMock struct {
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
 	lockGetBlock                           sync.RWMutex
-	lockGetBlockByHeight                   sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
 	lockGetChainTip                        sync.RWMutex
+	lockGetLongestBlockByHeight            sync.RWMutex
 	lockGetLongestChainFromHeight          sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
 	lockGetOrphansBackToNonOrphanAncestor  sync.RWMutex
@@ -478,42 +478,6 @@ func (mock *BlocktxStoreMock) GetBlockCalls() []struct {
 	return calls
 }
 
-// GetBlockByHeight calls GetBlockByHeightFunc.
-func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
-	if mock.GetBlockByHeightFunc == nil {
-		panic("BlocktxStoreMock.GetBlockByHeightFunc: method is nil but BlocktxStore.GetBlockByHeight was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Height uint64
-	}{
-		Ctx:    ctx,
-		Height: height,
-	}
-	mock.lockGetBlockByHeight.Lock()
-	mock.calls.GetBlockByHeight = append(mock.calls.GetBlockByHeight, callInfo)
-	mock.lockGetBlockByHeight.Unlock()
-	return mock.GetBlockByHeightFunc(ctx, height)
-}
-
-// GetBlockByHeightCalls gets all the calls that were made to GetBlockByHeight.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetBlockByHeightCalls())
-func (mock *BlocktxStoreMock) GetBlockByHeightCalls() []struct {
-	Ctx    context.Context
-	Height uint64
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Height uint64
-	}
-	mock.lockGetBlockByHeight.RLock()
-	calls = mock.calls.GetBlockByHeight
-	mock.lockGetBlockByHeight.RUnlock()
-	return calls
-}
-
 // GetBlockGaps calls GetBlockGapsFunc.
 func (mock *BlocktxStoreMock) GetBlockGaps(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 	if mock.GetBlockGapsFunc == nil {
@@ -615,6 +579,42 @@ func (mock *BlocktxStoreMock) GetChainTipCalls() []struct {
 	mock.lockGetChainTip.RLock()
 	calls = mock.calls.GetChainTip
 	mock.lockGetChainTip.RUnlock()
+	return calls
+}
+
+// GetLongestBlockByHeight calls GetLongestBlockByHeightFunc.
+func (mock *BlocktxStoreMock) GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+	if mock.GetLongestBlockByHeightFunc == nil {
+		panic("BlocktxStoreMock.GetLongestBlockByHeightFunc: method is nil but BlocktxStore.GetLongestBlockByHeight was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Height uint64
+	}{
+		Ctx:    ctx,
+		Height: height,
+	}
+	mock.lockGetLongestBlockByHeight.Lock()
+	mock.calls.GetLongestBlockByHeight = append(mock.calls.GetLongestBlockByHeight, callInfo)
+	mock.lockGetLongestBlockByHeight.Unlock()
+	return mock.GetLongestBlockByHeightFunc(ctx, height)
+}
+
+// GetLongestBlockByHeightCalls gets all the calls that were made to GetLongestBlockByHeight.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetLongestBlockByHeightCalls())
+func (mock *BlocktxStoreMock) GetLongestBlockByHeightCalls() []struct {
+	Ctx    context.Context
+	Height uint64
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Height uint64
+	}
+	mock.lockGetLongestBlockByHeight.RLock()
+	calls = mock.calls.GetLongestBlockByHeight
+	mock.lockGetLongestBlockByHeight.RUnlock()
 	return calls
 }
 

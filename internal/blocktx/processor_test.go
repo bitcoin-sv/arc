@@ -151,7 +151,7 @@ func TestHandleBlock(t *testing.T) {
 					}
 					return nil, store.ErrBlockNotFound
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
@@ -363,7 +363,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 						Processed: true,
 					}, nil
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					if tc.hasCompetingBlock {
 						blockHash, err := chainhash.NewHashFromStr("0000000000000000087590e1ad6360c0c491556c9af75c0d22ce9324cb5713cf")
 						require.NoError(t, err)

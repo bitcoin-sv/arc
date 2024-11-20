@@ -200,11 +200,11 @@ func TestPostgresDB(t *testing.T) {
 		hashAtTip := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 
 		// when -> then
-		actualBlock, err := postgresDB.GetBlockByHeight(context.Background(), height)
+		actualBlock, err := postgresDB.GetLongestBlockByHeight(context.Background(), height)
 		require.NoError(t, err)
 		require.Equal(t, expectedHashAtHeightLongest[:], actualBlock.Hash)
 
-		actualBlock, err = postgresDB.GetBlockByHeight(context.Background(), heightNotFound)
+		actualBlock, err = postgresDB.GetLongestBlockByHeight(context.Background(), heightNotFound)
 		require.Nil(t, actualBlock)
 		require.Equal(t, store.ErrBlockNotFound, err)
 

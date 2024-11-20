@@ -27,7 +27,7 @@ var (
 type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
-	GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
+	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
 	UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) error

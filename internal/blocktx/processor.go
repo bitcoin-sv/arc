@@ -566,7 +566,7 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 	}
 
 	if prevBlock.Status == blocktx_api.Status_LONGEST {
-		competingBlock, err := p.store.GetBlockByHeight(ctx, block.Height)
+		competingBlock, err := p.store.GetLongestBlockByHeight(ctx, block.Height)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 			p.logger.Error("unable to get the competing block from db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 			return err
@@ -838,7 +838,7 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		// of the first orphan, then we can assume that
 		// there's no competing chain at all.
 
-		competingBlock, err := p.store.GetBlockByHeight(ctx, orphans[0].Height)
+		competingBlock, err := p.store.GetLongestBlockByHeight(ctx, orphans[0].Height)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 			p.logger.Error("unable to get competing block when handling orphans", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 			return nil, err

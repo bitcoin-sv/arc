@@ -16,7 +16,7 @@ func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 	return p.queryBlockByPredicate(ctx, predicate, hash[:])
 }
 
-func (p *PostgreSQL) GetBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+func (p *PostgreSQL) GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
 	predicate := "WHERE height = $1 AND is_longest = true"
 
 	return p.queryBlockByPredicate(ctx, predicate, height)

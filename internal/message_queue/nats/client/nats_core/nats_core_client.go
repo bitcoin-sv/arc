@@ -77,10 +77,11 @@ func (c Client) Shutdown() {
 }
 
 func (c Client) Publish(ctx context.Context, topic string, data []byte) error {
+	var err error
 	_, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
-	err := c.nc.Publish(topic, data)
+	err = c.nc.Publish(topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
@@ -89,8 +90,9 @@ func (c Client) Publish(ctx context.Context, topic string, data []byte) error {
 }
 
 func (c Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) error {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	data, err := proto.Marshal(m)
 	if err != nil {

@@ -9,8 +9,9 @@ import (
 )
 
 func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "MarkBlockAsDone", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer tracing.EndTracing(span, err)
 
 	q := `
 		UPDATE blocktx.blocks
@@ -20,7 +21,7 @@ func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, 
 		WHERE hash = $3
 	`
 
-	if _, err := p.db.ExecContext(ctx, q, size, txCount, hash[:], p.now()); err != nil {
+	if _, err = p.db.ExecContext(ctx, q, size, txCount, hash[:], p.now()); err != nil {
 		return err
 	}
 

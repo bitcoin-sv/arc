@@ -244,22 +244,9 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	}
 
 	var response *metamorph_api.TransactionStatus
+	var txStatus *TransactionStatus
+	var getStatusErr error
 	var err error
-
-	response, err = m.client.PutTransaction(ctx, request)
-	if err == nil {
-		return &TransactionStatus{
-			TxID:         response.GetTxid(),
-			Status:       response.GetStatus().String(),
-			ExtraInfo:    response.GetRejectReason(),
-			CompetingTxs: response.GetCompetingTxs(),
-			BlockHash:    response.GetBlockHash(),
-			BlockHeight:  response.GetBlockHeight(),
-			MerklePath:   response.GetMerklePath(),
-			Timestamp:    m.now().Unix(),
-		}, nil
-	}
-	m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
 
 	// in case of error try PutTransaction until timeout expires
 
@@ -269,44 +256,42 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	timeoutTimer := time.NewTimer(maxTimeout)
 
-retryLoop:
 	for {
+		response, err = m.client.PutTransaction(ctx, request)
+		if err == nil {
+			txStatus = &TransactionStatus{
+				TxID:         response.GetTxid(),
+				Status:       response.GetStatus().String(),
+				ExtraInfo:    response.GetRejectReason(),
+				CompetingTxs: response.GetCompetingTxs(),
+				BlockHash:    response.GetBlockHash(),
+				BlockHeight:  response.GetBlockHeight(),
+				MerklePath:   response.GetMerklePath(),
+				Timestamp:    m.now().Unix(),
+			}
+			break
+		}
+
+		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
+
+		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
+			// if error is deadline exceeded, check tx status to avoid false negatives
+			txStatus, getStatusErr = m.GetTransactionStatus(ctx, tx.TxID())
+			if getStatusErr == nil {
+				break
+			}
+		}
+
 		select {
 		case <-timeoutTimer.C:
 			return nil, err
 
 		case <-retryTicker.C:
-			response, err = m.client.PutTransaction(ctx, request)
-			if err == nil {
-				break retryLoop
-			}
-
-			m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
-
-			if status.Code(err) != codes.Code(code.Code_DEADLINE_EXCEEDED) {
-				continue
-			}
-
-			// if error is deadline exceeded, check tx status to avoid false negatives
-			txStatus, getStatusErr := m.GetTransactionStatus(ctx, tx.TxID())
-			if getStatusErr != nil {
-				continue
-			}
-
-			return txStatus, nil
+			continue
 		}
 	}
 
-	return &TransactionStatus{
-		TxID:         response.GetTxid(),
-		Status:       response.GetStatus().String(),
-		ExtraInfo:    response.GetRejectReason(),
-		CompetingTxs: response.GetCompetingTxs(),
-		BlockHash:    response.GetBlockHash(),
-		BlockHeight:  response.GetBlockHeight(),
-		MerklePath:   response.GetMerklePath(),
-		Timestamp:    m.now().Unix(),
-	}, nil
+	return txStatus, nil
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
@@ -342,28 +327,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		return ret, nil
 	}
 	var responses *metamorph_api.TransactionStatuses
+	var txStatuses []*TransactionStatus
 	var err error
-
-	responses, err = m.client.PutTransactions(ctx, in)
-	if err == nil {
-		// parse response and return to user
-		ret := make([]*TransactionStatus, 0)
-		for _, response := range responses.GetStatuses() {
-			ret = append(ret, &TransactionStatus{
-				TxID:         response.GetTxid(),
-				MerklePath:   response.GetMerklePath(),
-				Status:       response.GetStatus().String(),
-				ExtraInfo:    response.GetRejectReason(),
-				CompetingTxs: response.GetCompetingTxs(),
-				BlockHash:    response.GetBlockHash(),
-				BlockHeight:  response.GetBlockHeight(),
-				Timestamp:    m.now().Unix(),
-			})
-		}
-
-		return ret, nil
-	}
-	m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
 
 	// in case of error try PutTransaction until timeout expires
 
@@ -373,57 +338,55 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	timeoutTimer := time.NewTimer(maxTimeout)
 
-retryLoop:
 	for {
-		select {
-		case <-timeoutTimer.C:
-			return nil, err
-
-		case <-retryTicker.C:
-			responses, err = m.client.PutTransactions(ctx, in)
-			if err == nil {
-				break retryLoop
+		responses, err = m.client.PutTransactions(ctx, in)
+		if err == nil {
+			for _, response := range responses.GetStatuses() {
+				txStatuses = append(txStatuses, &TransactionStatus{
+					TxID:         response.GetTxid(),
+					MerklePath:   response.GetMerklePath(),
+					Status:       response.GetStatus().String(),
+					ExtraInfo:    response.GetRejectReason(),
+					CompetingTxs: response.GetCompetingTxs(),
+					BlockHash:    response.GetBlockHash(),
+					BlockHeight:  response.GetBlockHeight(),
+					Timestamp:    m.now().Unix(),
+				})
 			}
+			break
+		}
 
-			m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
 
-			if status.Code(err) != codes.Code(code.Code_DEADLINE_EXCEEDED) {
-				continue
-			}
-
-			// if error is deadline exceeded, check tx status to avoid false negatives
-
-			// Todo: Create and use here client.GetTransactionStatuses rpc function
-			txStatuses := make([]*TransactionStatus, 0)
+		// if error is deadline exceeded, check tx status to avoid false negatives
+		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
+			completedErrorFree := true
 			for _, tx := range txs {
+				// Todo: Create and use here client.GetTransactionStatuses rpc function
 				txStatus, getStatusErr := m.GetTransactionStatus(ctx, tx.TxID())
 				if getStatusErr != nil {
-					continue retryLoop
+					completedErrorFree = false
+					break
 				}
 
 				txStatuses = append(txStatuses, txStatus)
 			}
 
-			return txStatuses, nil
+			if completedErrorFree {
+				break
+			}
+		}
+
+		select {
+		case <-timeoutTimer.C:
+			return nil, err
+
+		case <-retryTicker.C:
+			continue
 		}
 	}
 
-	// parse response and return to user
-	ret := make([]*TransactionStatus, 0)
-	for _, response := range responses.GetStatuses() {
-		ret = append(ret, &TransactionStatus{
-			TxID:         response.GetTxid(),
-			MerklePath:   response.GetMerklePath(),
-			Status:       response.GetStatus().String(),
-			ExtraInfo:    response.GetRejectReason(),
-			CompetingTxs: response.GetCompetingTxs(),
-			BlockHash:    response.GetBlockHash(),
-			BlockHeight:  response.GetBlockHeight(),
-			Timestamp:    m.now().Unix(),
-		})
-	}
-
-	return ret, nil
+	return txStatuses, nil
 }
 
 func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, error) {

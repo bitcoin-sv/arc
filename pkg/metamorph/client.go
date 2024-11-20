@@ -276,7 +276,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 			break
 		}
 
-		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
 
 		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
 			// if error is deadline exceeded, check tx status to avoid false negatives
@@ -284,6 +284,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 			if getStatusErr == nil {
 				break
 			}
+			m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", getStatusErr.Error()))
 		}
 
 		select {

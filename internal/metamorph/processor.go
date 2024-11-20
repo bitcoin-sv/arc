@@ -559,7 +559,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.Publish(RequestTxTopic, tx.Hash[:]); err != nil {
+						if err = p.mqClient.Publish(ctx, RequestTxTopic, tx.Hash[:]); err != nil {
 							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
@@ -703,7 +703,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// register transaction in blocktx using message queue
-	if err = p.mqClient.Publish(RegisterTxTopic, req.Data.Hash[:]); err != nil {
+	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
@@ -751,7 +751,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 
 	for _, data := range sReq {
 		// register transaction in blocktx using message queue
-		err = p.mqClient.Publish(RegisterTxTopic, data.Hash[:])
+		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
 		if err != nil {
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}

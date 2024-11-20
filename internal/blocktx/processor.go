@@ -387,7 +387,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
 		}
-		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+		err = p.mqClient.PublishMarshal(p.ctx, MinedTxsTopic, txBlock)
 	}
 
 	if err != nil {
@@ -672,7 +672,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 					BlockHeight:     blockHeight,
 					MerklePath:      updResp.MerklePath,
 				}
-				err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+				err = p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
 				if err != nil {
 					p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 				}
@@ -701,7 +701,7 @@ func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64,
 			BlockHeight:     blockHeight,
 			MerklePath:      updResp.MerklePath,
 		}
-		err = p.mqClient.PublishMarshal(MinedTxsTopic, txBlock)
+		err = p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("hash", blockhash.String()), slog.Uint64("height", blockHeight), slog.String("err", err.Error()))
 		}

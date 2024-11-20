@@ -1,5 +1,7 @@
 package metamorph
 
+import "context"
+
 const (
 	SubmitTxTopic   = "submit-tx"
 	MinedTxsTopic   = "mined-txs"
@@ -8,7 +10,7 @@ const (
 )
 
 type MessageQueueClient interface {
-	Publish(topic string, data []byte) error
+	Publish(ctx context.Context, topic string, data []byte) error
 	Subscribe(topic string, msgFunc func([]byte) error) error
 	Shutdown()
 }

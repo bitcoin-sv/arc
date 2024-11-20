@@ -1,6 +1,8 @@
 package metamorph
 
 import (
+	"context"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -9,6 +11,6 @@ const (
 )
 
 type MessageQueueClient interface {
-	PublishMarshal(topic string, m proto.Message) error
+	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
 	Shutdown()
 }

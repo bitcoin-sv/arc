@@ -137,9 +137,6 @@ func TestRedisClient(t *testing.T) {
 
 		err = redisStore.MapDel("hash", "key3")
 		require.NoError(t, err)
-
-		err = redisStore.Del("hash")
-		require.NoError(t, err)
 	})
 
 	t.Run("map get all", func(t *testing.T) {

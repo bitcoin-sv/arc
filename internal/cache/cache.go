@@ -20,10 +20,10 @@ type Store interface {
 	Set(key string, value []byte, ttl time.Duration) error
 	Del(keys ...string) error
 
-	MapGet(hash string, key string) ([]byte, error)
-	MapGetAll(hash string) (map[string][]byte, error)
-	MapSet(hash string, key string, value []byte) error
-	MapDel(hash string, keys ...string) error
-	MapLen(hash string) (int64, error)
-	MapExtractAll(hash string) (map[string][]byte, error)
+	MapGet(hashsetKey string, field string) ([]byte, error)
+	MapGetAll(hashsetKey string) (map[string][]byte, error)
+	MapSet(hashsetKey string, field string, value []byte) error
+	MapDel(hashsetKey string, fields ...string) error
+	MapLen(hashsetKey string) (int64, error)
+	MapExtractAll(hashsetKey string) (map[string][]byte, error)
 }

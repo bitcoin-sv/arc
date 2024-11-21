@@ -3,6 +3,7 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
@@ -12,7 +13,7 @@ import (
 
 type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 
-var CacheStatusUpdateHash = "status-update"
+var CacheStatusUpdateHash = "mtm-tx-status-update"
 
 var (
 	ErrFailedToSerialize   = errors.New("failed to serialize value")
@@ -81,13 +82,14 @@ func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error
 	for key, value := range keys {
 		hash, err := chainhash.NewHashFromStr(key)
 		if err != nil {
-			return nil, err
+			p.logger.Error("failed to convert hash from key", slog.String("error", err.Error()), slog.String("key", key))
+			continue
 		}
 
 		var status store.UpdateStatus
 		err = json.Unmarshal(value, &status)
 		if err != nil {
-			return nil, err
+			p.logger.Error("failed to unmarshal status", slog.String("error", err.Error()), slog.String("key", key))
 		}
 
 		statuses[*hash] = status

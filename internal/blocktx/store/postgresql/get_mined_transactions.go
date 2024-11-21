@@ -10,8 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
-	var err error
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) (result []store.GetMinedTransactionResult, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -20,7 +19,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 		hashSlice = append(hashSlice, hash[:])
 	}
 
-	result := make([]store.GetMinedTransactionResult, 0, len(hashSlice))
+	result = make([]store.GetMinedTransactionResult, 0, len(hashSlice))
 
 	q := `
 		SELECT

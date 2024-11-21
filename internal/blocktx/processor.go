@@ -418,9 +418,8 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
+func (p *Processor) processBlock(msg *p2p.BlockMessage) (err error) {
 	ctx := p.ctx
-	var err error
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
@@ -481,7 +480,7 @@ func (p *Processor) processBlock(msg *p2p.BlockMessage) error {
 
 			incomingBlock.Status = blocktx_api.Status_LONGEST
 
-			err := p.performReorg(ctx, incomingBlock)
+			err = p.performReorg(ctx, incomingBlock)
 			if err != nil {
 				p.logger.Error("unable to perform reorg", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 				return err
@@ -616,8 +615,7 @@ func (p *Processor) performReorg(ctx context.Context, incomingBlock *blocktx_api
 	return err
 }
 
-func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) error {
-	var err error
+func (p *Processor) markTransactionsAsMined(ctx context.Context, blockID uint64, merkleTree []*chainhash.Hash, blockHeight uint64, blockhash *chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "markTransactionsAsMined", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 

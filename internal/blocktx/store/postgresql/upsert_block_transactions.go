@@ -12,8 +12,7 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
-	var err error
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (registeredRows []store.TxWithMerklePath, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -62,7 +61,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	}
 	defer rows.Close()
 
-	registeredRows := make([]store.TxWithMerklePath, 0)
+	registeredRows = make([]store.TxWithMerklePath, 0)
 
 	for rows.Next() {
 		var txHash []byte

@@ -109,8 +109,7 @@ func NewDefault(
 	return handler, nil
 }
 
-func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
-	var err error
+func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	_, span := tracing.StartTracing(ctx.Request().Context(), "GETPolicy", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -130,9 +129,8 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) error {
 	})
 }
 
-func (m ArcDefaultHandler) GETHealth(ctx echo.Context) error {
+func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
 	reqCtx := ctx.Request().Context()
-	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "GETHealth", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -169,10 +167,9 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 }
 
 // POSTTransaction ...
-func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
+func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
 	reqCtx := ctx.Request().Context()
 
-	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -227,10 +224,9 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 }
 
 // GETTransactionStatus ...
-func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) error {
+func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (err error) {
 	reqCtx := ctx.Request().Context()
 
-	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "GETTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -271,10 +267,9 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) err
 }
 
 // POSTTransactions ...
-func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) error {
+func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
 	reqCtx := ctx.Request().Context()
 
-	var err error
 	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -576,7 +571,8 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		tx := txs[0]
 
 		// SubmitTransaction() used to avoid performance issue
-		status, err := m.TransactionHandler.SubmitTransaction(ctx, tx, options)
+		var status *metamorph.TransactionStatus
+		status, err = m.TransactionHandler.SubmitTransaction(ctx, tx, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, tx, err)
 			m.logger.ErrorContext(ctx, "failed to submit transaction", slog.String("id", tx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
@@ -586,7 +582,6 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 
 		submitStatuses = append(submitStatuses, status)
 	} else {
-		var err error
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, nil, err)
@@ -599,12 +594,11 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 	return submitStatuses, nil
 }
 
-func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (*metamorph.TransactionStatus, error) {
-	var err error
+func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (tx *metamorph.TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "getTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, nil)
+	defer tracing.EndTracing(span, err)
 
-	tx, err := m.TransactionHandler.GetTransactionStatus(ctx, id)
+	tx, err = m.TransactionHandler.GetTransactionStatus(ctx, id)
 	if err != nil {
 		return nil, err
 	}

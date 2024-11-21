@@ -18,8 +18,7 @@ var (
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from finder")
 )
 
-func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
-	var err error
+func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "extendTx", tracingEnabled, tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -86,11 +85,10 @@ func extendInputs(tx *sdkTx.Transaction, childInputs []*sdkTx.TransactionInput) 
 }
 
 // getUnminedAncestors returns unmined ancestors with data necessary to perform cumulative fee validation
-func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (map[string]*sdkTx.Transaction, error) {
-	var err error
+func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (unmindedAncestorsSet map[string]*sdkTx.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "getUnminedAncestors", tracingEnabled, tracingAttributes...)
 	defer tracing.EndTracing(span, err)
-	unmindedAncestorsSet := make(map[string]*sdkTx.Transaction)
+	unmindedAncestorsSet = make(map[string]*sdkTx.Transaction)
 
 	// get distinct parents
 	parentsIDs := make([]string, 0, len(tx.Inputs))

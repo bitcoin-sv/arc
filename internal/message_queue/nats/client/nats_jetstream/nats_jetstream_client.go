@@ -175,8 +175,7 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 	return cons, nil
 }
 
-func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) error {
-	var err error
+func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "Publish", cl.tracingEnabled, cl.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -188,8 +187,7 @@ func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) error 
 	return nil
 }
 
-func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) error {
-	var err error
+func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "PublishMarshal", cl.tracingEnabled, cl.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 

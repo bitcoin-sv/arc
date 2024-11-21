@@ -51,17 +51,17 @@ func New(n *bitcoin.Bitcoind, opts ...func(client *NodeClient)) (NodeClient, err
 	return node, nil
 }
 
-func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
-	var err error
+func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) (allTxIDs []string, err error) {
 	_, span := tracing.StartTracing(ctx, "NodeClient_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
 	uniqueIDs := make(map[string]struct{})
 
 	for _, id := range ids {
-		_, span := tracing.StartTracing(ctx, "Bitcoind_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
-		nTx, err := n.bitcoinClient.GetMempoolAncestors(id, false)
-		tracing.EndTracing(span, nil)
+		_, getMemPoolAncSpan := tracing.StartTracing(ctx, "Bitcoind_GetMempoolAncestors", n.tracingEnabled, n.tracingAttributes...)
+		var nTx []byte
+		nTx, err = n.bitcoinClient.GetMempoolAncestors(id, false)
+		tracing.EndTracing(getMemPoolAncSpan, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "Transaction not in mempool") {
 				continue
@@ -86,7 +86,7 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]st
 		}
 	}
 
-	allTxIDs := make([]string, len(uniqueIDs))
+	allTxIDs = make([]string, len(uniqueIDs))
 	counter := 0
 	for id := range uniqueIDs {
 		allTxIDs[counter] = id
@@ -95,8 +95,7 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]st
 	return allTxIDs, nil
 }
 
-func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error) {
-	var err error
+func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx.Transaction, err error) {
 	_, span := tracing.StartTracing(ctx, "NodeClient_GetRawTransaction", n.tracingEnabled, n.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -106,7 +105,7 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (*sdkTx.Tr
 		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
 	}
 
-	rt, err := sdkTx.NewTransactionFromHex(nTx.Hex)
+	rt, err = sdkTx.NewTransactionFromHex(nTx.Hex)
 	if err != nil {
 		return nil, err
 	}

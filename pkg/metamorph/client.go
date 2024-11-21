@@ -135,8 +135,7 @@ func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tr
 }
 
 // GetTransaction gets the transaction bytes from metamorph.
-func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, error) {
-	var err error
+func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx []byte, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -156,8 +155,7 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) ([]byte, er
 }
 
 // GetTransactions gets the transactions data from metamorph.
-func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error) {
-	var err error
+func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result []*Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -172,7 +170,7 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Tra
 		return make([]*Transaction, 0), nil
 	}
 
-	result := make([]*Transaction, len(txs.Transactions))
+	result = make([]*Transaction, len(txs.Transactions))
 	for i, tx := range txs.Transactions {
 		result[i] = &Transaction{
 			TxID:        tx.Txid,
@@ -185,8 +183,7 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) ([]*Tra
 }
 
 // GetTransactionStatus gets the status of a transaction.
-func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error) {
-	var err error
+func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txStatus *TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -214,8 +211,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (*Tra
 	}, nil
 }
 
-func (m *Metamorph) Health(ctx context.Context) error {
-	var err error
+func (m *Metamorph) Health(ctx context.Context) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "Health", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -228,8 +224,7 @@ func (m *Metamorph) Health(ctx context.Context) error {
 }
 
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error) {
-	var err error
+func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (txStatus *TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SubmitTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -249,7 +244,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	}
 
 	var response *metamorph_api.TransactionStatus
-	var txStatus *TransactionStatus
 	var getStatusErr error
 
 	// in case of error try PutTransaction until timeout expires
@@ -300,8 +294,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error) {
-	var err error
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) (txStatuses []*TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -333,7 +326,6 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		return ret, nil
 	}
 	var responses *metamorph_api.TransactionStatuses
-	var txStatuses []*TransactionStatus
 
 	// in case of error try PutTransaction until timeout expires
 
@@ -395,8 +387,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	return txStatuses, nil
 }
 
-func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, error) {
-	var err error
+func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (rowsAffected int64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "ClearData", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -408,8 +399,7 @@ func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (int64, 
 	return resp.RecordsAffected, nil
 }
 
-func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (int64, error) {
-	var err error
+func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (rowsAffected int64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SetUnlockedByName", m.tracingEnabled, m.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 

@@ -74,8 +74,7 @@ func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string
 	return txIDs, nil
 }
 
-func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
-	var err error
+func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -89,22 +88,23 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 	// first get transactions from the handler
 	if source.Has(validator.SourceTransactionHandler) {
+		var thTxs []*metamorph.Transaction
 		var thGetRawTxSpan trace.Span
 		ctx, thGetRawTxSpan = tracing.StartTracing(ctx, "TransactionHandler_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-		txs, err := f.transactionHandler.GetTransactions(ctx, ids)
-		tracing.EndTracing(thGetRawTxSpan, nil)
+		thTxs, err = f.transactionHandler.GetTransactions(ctx, ids)
+		tracing.EndTracing(thGetRawTxSpan, err)
 		if err != nil {
-			f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.Any("err", err))
+			f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.String("err", err.Error()))
 		} else {
-			for _, tx := range txs {
+			for _, thTx := range thTxs {
 				var rt *sdkTx.Transaction
-				rt, err = sdkTx.NewTransactionFromBytes(tx.Bytes)
+				rt, err = sdkTx.NewTransactionFromBytes(thTx.Bytes)
 				if err != nil {
-					f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", tx.TxID), slog.String("err", err.Error()))
+					f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", thTx.TxID), slog.String("err", err.Error()))
 					continue
 				}
 
-				delete(remainingIDs, tx.TxID)
+				delete(remainingIDs, thTx.TxID)
 				foundTxs = append(foundTxs, rt)
 			}
 		}
@@ -132,8 +132,9 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	if source.Has(validator.SourceWoC) && len(ids) > 0 {
 		var wocSpan trace.Span
 		ctx, wocSpan = tracing.StartTracing(ctx, "WocClient_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-		wocTxs, err := f.wocClient.GetRawTxs(ctx, ids)
-		defer tracing.EndTracing(wocSpan, nil)
+		var wocTxs []*woc_client.WocRawTx
+		wocTxs, err = f.wocClient.GetRawTxs(ctx, ids)
+		defer tracing.EndTracing(wocSpan, err)
 		if err != nil {
 			f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("ids", ids), slog.Any("err", err))
 		} else {
@@ -142,7 +143,8 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 					f.logger.WarnContext(ctx, "WoC tx reports error", slog.Any("id", ids), slog.Any("err", wTx.Error))
 					continue
 				}
-				tx, err := sdkTx.NewTransactionFromHex(wTx.Hex)
+				var tx *sdkTx.Transaction
+				tx, err = sdkTx.NewTransactionFromHex(wTx.Hex)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse WoC hex string to transaction: %v", err)
 				}

@@ -82,7 +82,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// everything checks out
 	return nil
 }
-
 func needsExtension(tx *sdkTx.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
 	// don't need if we don't validate fee AND scripts
 	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
@@ -121,10 +120,16 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) *validator.Error {
-	var err error
+func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
+	var spanErr error
 	ctx, span := tracing.StartTracing(ctx, "cumulativeCheckFees", tracingEnabled, tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		if vErr != nil {
+			spanErr = vErr.Err
+		}
+		tracing.EndTracing(span, spanErr)
+	}()
+
 	txSet, err := getUnminedAncestors(ctx, txFinder, tx, tracingEnabled, tracingAttributes...)
 	if err != nil {
 		e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))

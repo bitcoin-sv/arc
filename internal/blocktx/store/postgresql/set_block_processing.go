@@ -38,8 +38,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	return processedBy, nil
 }
 
-func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-	var err error
+func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (rowsAffected int64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "DelBlockProcessing", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 
@@ -51,7 +50,7 @@ func (p *PostgreSQL) DelBlockProcessing(ctx context.Context, hash *chainhash.Has
 	if err != nil {
 		return 0, err
 	}
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, _ = res.RowsAffected()
 	if rowsAffected != 1 {
 		return 0, store.ErrBlockNotFound
 	}

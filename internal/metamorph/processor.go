@@ -467,8 +467,7 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 	}
 }
 
-func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
-	var err error
+func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, err)
 

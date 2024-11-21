@@ -25,12 +25,19 @@ var fixtures embed.FS
 func TestSubmitSingle(t *testing.T) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
+	node_client.SendToAddress(t, bitcoind, address, float64(10))
+
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx, err := node_client.CreateTx(privateKey, address, utxos[0])
+	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
 	require.NoError(t, err)
-	rawTx, err := tx.EFHex()
+	rawTx1, err := tx1.EFHex()
+	require.NoError(t, err)
+
+	tx2, err := node_client.CreateTx(privateKey, address, utxos[1])
+	require.NoError(t, err)
+	rawTx2, err := tx2.EFHex()
 	require.NoError(t, err)
 
 	malFormedRawTx, err := fixtures.ReadFile("fixtures/malformedTxHexString.txt")
@@ -41,14 +48,19 @@ func TestSubmitSingle(t *testing.T) {
 	}
 
 	tt := []struct {
-		name string
-		body any
+		name    string
+		body    any
+		headers map[string]string
+		tx      *sdkTx.Transaction
+		rawTx   string
 
 		expectedStatusCode int
 	}{
 		{
-			name: "post single - success",
-			body: TransactionRequest{RawTx: rawTx},
+			name:  "post single - success",
+			body:  TransactionRequest{RawTx: rawTx1},
+			tx:    tx1,
+			rawTx: rawTx1,
 
 			expectedStatusCode: http.StatusOK,
 		},
@@ -64,12 +76,24 @@ func TestSubmitSingle(t *testing.T) {
 
 			expectedStatusCode: http.StatusBadRequest,
 		},
+		{
+			name: "post single - cumulative fee validation - success",
+			body: TransactionRequest{RawTx: rawTx2},
+			headers: map[string]string{
+				"X-WaitFor":                 StatusSeenOnNetwork,
+				"X-CumulativeFeeValidation": "true",
+			},
+			tx:    tx2,
+			rawTx: rawTx2,
+
+			expectedStatusCode: http.StatusOK,
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// Send POST request
-			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, tc.body), nil, tc.expectedStatusCode)
+			response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, tc.body), tc.headers, tc.expectedStatusCode)
 
 			if tc.expectedStatusCode != http.StatusOK {
 				return
@@ -80,7 +104,7 @@ func TestSubmitSingle(t *testing.T) {
 
 			// repeat request to ensure response remains the same
 			txID := response.Txid
-			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), nil, http.StatusOK)
+			response = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: tc.rawTx}), tc.headers, http.StatusOK)
 			require.Equal(t, txID, response.Txid)
 			require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 
@@ -108,7 +132,7 @@ func TestSubmitSingle(t *testing.T) {
 			require.NoError(t, err)
 			t.Logf("BUMPjson: %s", string(jsonB))
 
-			root, err := bump.CalculateRootGivenTxid(tx.TxID())
+			root, err := bump.CalculateRootGivenTxid(tc.tx.TxID())
 			require.NoError(t, err)
 
 			require.NotNil(t, statusResponse.BlockHeight)
@@ -571,10 +595,11 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 	}
 
 	tt := []struct {
-		name      string
-		options   validationOpts
-		lastTxFee uint64
-		chainLong int
+		name           string
+		options        validationOpts
+		lastTxFee      uint64
+		chainLong      int
+		ancestorsMined bool
 
 		expectedStatusCode int
 		expectedTxStatus   string
@@ -599,7 +624,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
-			name: "post  txs chain with too low fee with cumulative fees validation",
+			name: "post txs chain with too low fee with cumulative fees validation",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
@@ -608,7 +633,17 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			expectedError:      "arc error 473: transaction fee is too low\nminimum expected cumulative fee: 84, actual fee: 1",
 		},
 		{
-			name: "post  txs chain with suficient fee with cumulative fees validation",
+			name: "post txs chain with sufficient fee with cumulative fees validation - no error if ancestors are mined",
+			options: validationOpts{
+				performCumulativeFeesValidation: true,
+			},
+			lastTxFee:          90,
+			ancestorsMined:     true,
+			expectedStatusCode: 200,
+			expectedTxStatus:   StatusSeenOnNetwork,
+		},
+		{
+			name: "post txs chain with sufficient fee with cumulative fees validation",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
@@ -617,7 +652,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			expectedTxStatus:   StatusSeenOnNetwork,
 		},
 		{
-			name: "post  txs chain with cumulative fees validation - chain too long - ignore it",
+			name: "post txs chain with cumulative fees validation - chain too long - ignore it",
 			options: validationOpts{
 				performCumulativeFeesValidation: true,
 			},
@@ -673,10 +708,15 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 						Vout:         0,
 						Address:      address,
 						ScriptPubKey: output.LockingScript.String(),
-						Amount:       float64(float64(output.Satoshis) / 1e8),
+						Amount:       float64(output.Satoshis) / 1e8,
 					}
 
-					tx, err := node_client.CreateTx(privateKey, address, utxo, zeroFee)
+					fee := zeroFee
+					if tc.ancestorsMined {
+						fee = uint64(10)
+					}
+
+					tx, err := node_client.CreateTx(privateKey, address, utxo, fee)
 					require.NoError(t, err)
 
 					chain[i] = tx
@@ -731,6 +771,10 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				}
 
 				nodeUtxos = append(nodeUtxos, utxo)
+			}
+
+			if tc.ancestorsMined {
+				node_client.Generate(t, bitcoind, 1)
 			}
 
 			lastTx, err := node_client.CreateTxFrom(privateKey, address, nodeUtxos, tc.lastTxFee)

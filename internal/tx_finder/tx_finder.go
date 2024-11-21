@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from node client")
 )
 
 type Finder struct {

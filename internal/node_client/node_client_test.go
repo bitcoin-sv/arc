@@ -155,5 +155,12 @@ func TestNodeClient(t *testing.T) {
 
 		// then
 		require.ErrorIs(t, err, node_client.ErrFailedToGetMempoolAncestors)
+
+		// when
+		actual, err := sut.GetMempoolAncestors(ctx, []string{"792bb5c0d5e4937572e6368dc713ba0b4935d27a7b7ac654c2b384d6c8b2fb89"}) // tx id not existing in the mempool
+
+		// then
+		require.NoError(t, err)
+		require.Empty(t, actual)
 	})
 }

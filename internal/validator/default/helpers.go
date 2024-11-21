@@ -15,7 +15,7 @@ import (
 var (
 	ErrParentNotFound              = errors.New("parent transaction not found")
 	ErrFailedToGetRawTxs           = errors.New("failed to get raw transactions for parent")
-	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from finder")
 )
 
 func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {

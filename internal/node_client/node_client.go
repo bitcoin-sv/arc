@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strings"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
@@ -61,6 +62,10 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) ([]st
 		nTx, err := n.bitcoinClient.GetMempoolAncestors(id, false)
 		tracing.EndTracing(span)
 		if err != nil {
+			if strings.Contains(err.Error(), "Transaction not in mempool") {
+				continue
+			}
+
 			return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 		}
 

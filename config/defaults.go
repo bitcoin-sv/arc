@@ -101,7 +101,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		RejectCallbackContaining: []string{"http://localhost", "https://localhost"},
 		Stats: &StatsConfig{
 			NotSeenTimeLimit:  10 * time.Minute,
-			NotMinedTimeLimit: 20 * time.Minute,
+			NotFinalTimeLimit: 20 * time.Minute,
 		},
 	}
 }

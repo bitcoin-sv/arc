@@ -934,7 +934,7 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 	return rows, nil
 }
 
-func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
+func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notFinalLimit time.Duration) (*store.Stats, error) {
 	q := `
 	SELECT
 	max(status_counts.status_count) FILTER (where status_counts.status = $3 )
@@ -1043,20 +1043,20 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		WHERE t.last_submitted_at > $1 AND status < $2 AND t.locked_by = $3
 		AND $4 - t.stored_at > $5
 `
-	err = p.db.QueryRowContext(ctx, qNotSeen, since, metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notSeenLimit.Seconds()).Scan(&stats.StatusNotSeen)
+	err = p.db.QueryRowContext(ctx, qNotSeen, since, metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL, p.hostname, p.now(), notSeenLimit.Seconds()).Scan(&stats.StatusNotSeen)
 	if err != nil {
 		return nil, err
 	}
 
-	qNotMined := `
+	qNotFinal := `
 	SELECT
 		count(*)
 	FROM
 		metamorph.transactions t
-		WHERE t.last_submitted_at > $1 AND status = $2 AND t.locked_by = $3
-		AND EXTRACT(EPOCH FROM ($4 - t.stored_at)) > $5
+		WHERE t.last_submitted_at > $1 AND status >= $2 AND status <$3 AND t.locked_by = $4
+		AND EXTRACT(EPOCH FROM ($5 - t.stored_at)) > $6
 `
-	err = p.db.QueryRowContext(ctx, qNotMined, since, metamorph_api.Status_SEEN_ON_NETWORK, p.hostname, p.now(), notMinedLimit.Seconds()).Scan(&stats.StatusNotMined)
+	err = p.db.QueryRowContext(ctx, qNotFinal, since, metamorph_api.Status_SEEN_ON_NETWORK, metamorph_api.Status_REJECTED, p.hostname, p.now(), notFinalLimit.Seconds()).Scan(&stats.StatusNotFinal)
 	if err != nil {
 		return nil, err
 	}

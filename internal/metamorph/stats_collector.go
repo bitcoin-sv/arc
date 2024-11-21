@@ -14,14 +14,14 @@ import (
 const (
 	statCollectionIntervalDefault = 60 * time.Second
 	notSeenLimitDefault           = 10 * time.Minute
-	notMinedLimitDefault          = 20 * time.Minute
+	notFinalLimitDefault          = 20 * time.Minute
 )
 
 var ErrFailedToRegisterStats = fmt.Errorf("failed to register stats collector")
 
 type processorStats struct {
 	notSeenLimit  time.Duration
-	notMinedLimit time.Duration
+	notFinalLimit time.Duration
 
 	mu                         sync.RWMutex
 	statusStored               prometheus.Gauge
@@ -34,16 +34,17 @@ type processorStats struct {
 	statusDoubleSpendAttempted prometheus.Gauge
 	statusRejected             prometheus.Gauge
 	statusMined                prometheus.Gauge
-	statusNotMined             prometheus.Gauge
+	statusNotMined             prometheus.Gauge // Todo: remove - is replaced by statusNotFinal
+	statusNotFinal             prometheus.Gauge
 	statusNotSeen              prometheus.Gauge
 	statusMinedTotal           prometheus.Gauge
 	statusSeenOnNetworkTotal   prometheus.Gauge
 }
 
-func WithLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*processorStats) {
+func WithLimits(notSeenLimit time.Duration, notFinalLimit time.Duration) func(*processorStats) {
 	return func(p *processorStats) {
 		p.notSeenLimit = notSeenLimit
-		p.notMinedLimit = notMinedLimit
+		p.notFinalLimit = notFinalLimit
 	}
 }
 
@@ -98,7 +99,7 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Help: "Total number of monitored transactions with status MINED",
 		}),
 		notSeenLimit:  notSeenLimitDefault,
-		notMinedLimit: notMinedLimitDefault,
+		notFinalLimit: notFinalLimitDefault,
 	}
 
 	for _, opt := range opts {
@@ -107,7 +108,11 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 
 	p.statusNotMined = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "arc_status_not_mined_count",
-		Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", p.notMinedLimit.String()),
+		Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", p.notFinalLimit.String()),
+	})
+	p.statusNotFinal = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "arc_status_not_final_count",
+		Help: fmt.Sprintf("Number of monitored transactions which are not in a final state of either MINED or rejected %s", p.notFinalLimit.String()),
 	})
 	p.statusNotSeen = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "arc_status_not_seen_count",
@@ -131,7 +136,7 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusDoubleSpendAttempted,
 		p.stats.statusRejected,
 		p.stats.statusMined,
-		p.stats.statusNotMined,
+		p.stats.statusNotFinal,
 		p.stats.statusNotSeen,
 		p.stats.statusSeenOnNetworkTotal,
 		p.stats.statusMinedTotal,
@@ -160,7 +165,7 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusDoubleSpendAttempted,
 				p.stats.statusRejected,
 				p.stats.statusMined,
-				p.stats.statusNotMined,
+				p.stats.statusNotFinal,
 				p.stats.statusNotSeen,
 				p.stats.statusSeenOnNetworkTotal,
 				p.stats.statusMinedTotal,
@@ -176,7 +181,7 @@ func (p *Processor) StartCollectStats() error {
 
 				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
 
-				collectedStats, err := p.store.GetStats(p.ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notMinedLimit)
+				collectedStats, err := p.store.GetStats(p.ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notFinalLimit)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue
@@ -193,7 +198,8 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusDoubleSpendAttempted.Set(float64(collectedStats.StatusDoubleSpendAttempted))
 				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
 				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
-				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotMined))
+				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotFinal))
+				p.stats.statusNotFinal.Set(float64(collectedStats.StatusNotFinal))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
 				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))

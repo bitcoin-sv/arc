@@ -11,9 +11,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
-func WithStatTimeLimits(notSeenLimit time.Duration, notMinedLimit time.Duration) func(*Processor) {
+func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.stats = newProcessorStats(WithLimits(notSeenLimit, notMinedLimit))
+		p.stats = newProcessorStats(WithLimits(notSeenLimit, notFinalLimit))
 	}
 }
 

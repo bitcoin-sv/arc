@@ -31,8 +31,8 @@ func StartTracing(ctx context.Context, spanName string, tracingEnabled bool, att
 
 func EndTracing(span trace.Span, err error) {
 	if span != nil {
-		span.RecordError(err)
 		if err != nil {
+			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
 		span.End()

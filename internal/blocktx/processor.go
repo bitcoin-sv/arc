@@ -413,9 +413,7 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
 	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, nil)
-	}()
+	defer tracing.EndTracing(span, nil)
 
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }

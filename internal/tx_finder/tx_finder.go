@@ -136,7 +136,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 		ctx, wocSpan = tracing.StartTracing(ctx, "WocClient_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 		var wocTxs []*woc_client.WocRawTx
 		wocTxs, err = f.wocClient.GetRawTxs(ctx, ids)
-		defer tracing.EndTracing(wocSpan, err)
+		tracing.EndTracing(wocSpan, err)
 		if err != nil {
 			f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("ids", ids), slog.Any("err", err))
 		} else {

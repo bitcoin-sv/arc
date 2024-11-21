@@ -20,7 +20,9 @@ var (
 
 func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "extendTx", tracingEnabled, tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	// potential improvement: implement version for the rawTx with only one input
 
@@ -87,7 +89,9 @@ func extendInputs(tx *sdkTx.Transaction, childInputs []*sdkTx.TransactionInput) 
 // getUnminedAncestors returns unmined ancestors with data necessary to perform cumulative fee validation
 func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (unmindedAncestorsSet map[string]*sdkTx.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "getUnminedAncestors", tracingEnabled, tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 	unmindedAncestorsSet = make(map[string]*sdkTx.Transaction)
 
 	// get distinct parents

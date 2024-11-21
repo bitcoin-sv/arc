@@ -64,7 +64,9 @@ func (f CachedFinder) GetMempoolAncestors(ctx context.Context, ids []string) ([]
 
 func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "CachedFinder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	cachedTxs := make([]*sdkTx.Transaction, 0, len(ids))
 	var toFindIDs []string

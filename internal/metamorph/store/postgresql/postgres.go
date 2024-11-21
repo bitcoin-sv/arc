@@ -86,7 +86,9 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 // If the key does not exist an error is returned, otherwise the retrieved value.
 func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "Get", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	q := `SELECT
 	    stored_at
@@ -244,7 +246,9 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 
 func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMany", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	const q = `
 	 SELECT
@@ -288,7 +292,9 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 // Set stores a single record in the transactions table.
 func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	q := `INSERT INTO metamorph.transactions (
 		 stored_at
@@ -480,7 +486,9 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 
 func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) (data []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetUnmined", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	q := `SELECT
 		stored_at
@@ -516,7 +524,9 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 
 func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeenOnNetwork", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	tx, err := p.db.Begin()
 	if err != nil {
@@ -597,7 +607,9 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 
 func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
@@ -689,7 +701,9 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 
 func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	qBulk := `
 		UPDATE metamorph.transactions
@@ -799,7 +813,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) (data []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateMined", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsBlocks)))...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	if txsBlocks == nil {
 		return nil, nil

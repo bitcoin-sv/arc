@@ -76,7 +76,9 @@ func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string
 
 func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))

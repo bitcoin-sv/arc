@@ -11,7 +11,9 @@ import (
 
 func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (blockID uint64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpsertBlock", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)

@@ -137,7 +137,9 @@ func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tr
 // GetTransaction gets the transaction bytes from metamorph.
 func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx []byte, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	var tx *metamorph_api.Transaction
 	tx, err = m.client.GetTransaction(ctx, &metamorph_api.TransactionStatusRequest{
@@ -157,7 +159,9 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx []by
 // GetTransactions gets the transactions data from metamorph.
 func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result []*Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactions", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	txs, err := m.client.GetTransactions(ctx, &metamorph_api.TransactionsStatusRequest{
 		TxIDs: txIDs[:],
@@ -185,7 +189,9 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txStatus *TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	var tx *metamorph_api.TransactionStatus
 	tx, err = m.client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
@@ -213,7 +219,9 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 
 func (m *Metamorph) Health(ctx context.Context) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "Health", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	_, err = m.client.Health(ctx, &emptypb.Empty{})
 	if err != nil {
@@ -226,7 +234,9 @@ func (m *Metamorph) Health(ctx context.Context) (err error) {
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (txStatus *TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SubmitTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	request := transactionRequest(tx.Bytes(), options)
 
@@ -296,7 +306,9 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) (txStatuses []*TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	// prepare transaction inputs
 	in := new(metamorph_api.TransactionRequests)
@@ -389,7 +401,9 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (rowsAffected int64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "ClearData", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	resp, err := m.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: retentionDays})
 	if err != nil {
@@ -401,7 +415,9 @@ func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (rowsAff
 
 func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (rowsAffected int64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "SetUnlockedByName", m.tracingEnabled, m.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	resp, err := m.client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: name})
 	if err != nil {

@@ -53,7 +53,9 @@ func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logg
 func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "SendCallback", c.tracingEnabled, c.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	if len(data.Callbacks) == 0 {
 		return

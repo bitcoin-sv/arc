@@ -300,7 +300,9 @@ func (p *Processor) StartProcessMinedCallbacks() {
 func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	updatedData, err := p.store.UpdateMined(ctx, txsBlocks)
 	if err != nil {
@@ -444,7 +446,9 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	if len(statusUpdatesMap) == 0 {
 		return
@@ -469,7 +473,9 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 
 func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	var updatedData []*store.Data
 
@@ -655,7 +661,9 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
@@ -749,7 +757,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, err)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	// store in database
 	err = p.store.SetBulk(ctx, sReq)

@@ -59,9 +59,10 @@ func TestHealth(t *testing.T) {
 
 func TestPutTransaction(t *testing.T) {
 	testCases := []struct {
-		name              string
-		processorResponse metamorph.StatusAndError
-		waitForStatus     metamorph_api.Status
+		name                string
+		processorResponse   metamorph.StatusAndError
+		waitForStatus       metamorph_api.Status
+		checkStatusInterval bool
 
 		expectedStatus         metamorph_api.Status
 		expectedRejectedReason string
@@ -86,6 +87,18 @@ func TestPutTransaction(t *testing.T) {
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
 			waitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+
+			expectedStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
+			expectedTimeout: false,
+		},
+		{
+			name: "seen on network",
+			processorResponse: metamorph.StatusAndError{
+				Hash:   testdata.TX1Hash,
+				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			waitForStatus:       metamorph_api.Status_SEEN_ON_NETWORK,
+			checkStatusInterval: true,
 
 			expectedStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
 			expectedTimeout: false,
@@ -121,7 +134,14 @@ func TestPutTransaction(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			s := &storeMocks.MetamorphStoreMock{}
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return &store.Data{
+						Hash:   testdata.TX1Hash,
+						Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					}, nil
+				},
+			}
 
 			processor := &mocks.ProcessorIMock{
 				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
@@ -130,7 +150,12 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), s, processor, nil, metamorph.WithMaxTimeoutDefault(100*time.Millisecond))
+			opts := []metamorph.ServerOption{metamorph.WithMaxTimeoutDefault(100 * time.Millisecond)}
+			if tc.checkStatusInterval {
+				opts = append(opts, metamorph.WithCheckStatusInterval(50*time.Millisecond))
+			}
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil, opts...)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -556,7 +581,13 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil, metamorph.WithMaxTimeoutDefault(5*time.Second))
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					return nil, store.ErrNotFound
+				},
+			}
+
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil, metamorph.WithMaxTimeoutDefault(5*time.Second))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

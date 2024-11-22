@@ -5,11 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 type Client struct {
@@ -20,6 +24,9 @@ type Client struct {
 	storageType jetstream.StorageType
 	ctx         context.Context
 	cancelAll   context.CancelFunc
+
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 var (
@@ -56,6 +63,20 @@ func WithSubscribedTopics(topics ...string) func(handler *Client) error {
 func WithFileStorage() func(handler *Client) error {
 	return func(c *Client) error {
 		c.storageType = jetstream.FileStorage
+		return nil
+	}
+}
+func WithTracer(attr ...attribute.KeyValue) func(*Client) error {
+	return func(p *Client) error {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
+
 		return nil
 	}
 }
@@ -154,8 +175,13 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 	return cons, nil
 }
 
-func (cl *Client) Publish(topic string, hash []byte) error {
-	_, err := cl.js.Publish(cl.ctx, topic, hash)
+func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {
+	ctx, span := tracing.StartTracing(ctx, "Publish", cl.tracingEnabled, cl.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	_, err = cl.js.Publish(ctx, topic, hash)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
@@ -163,13 +189,18 @@ func (cl *Client) Publish(topic string, hash []byte) error {
 	return nil
 }
 
-func (cl *Client) PublishMarshal(topic string, m proto.Message) error {
+func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
+	ctx, span := tracing.StartTracing(ctx, "PublishMarshal", cl.tracingEnabled, cl.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
 
-	err = cl.Publish(topic, data)
+	err = cl.Publish(ctx, topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}

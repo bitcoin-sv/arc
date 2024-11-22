@@ -221,12 +221,20 @@ func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig) (metamorph.M
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
 
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+
 		mqClient, err = nats_jetstream.New(conn, logger, []string{metamorph.SubmitTxTopic}, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(conn, nats_core.WithLogger(logger))
+		opts := []nats_core.Option{nats_core.WithLogger(logger)}
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+		mqClient = nats_core.New(conn, opts...)
 	}
 
 	return mqClient, nil

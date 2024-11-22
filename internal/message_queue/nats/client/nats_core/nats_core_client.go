@@ -1,13 +1,18 @@
 package nats_core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 var (
@@ -21,18 +26,36 @@ type NatsConnection interface {
 	Drain() error
 }
 
+func WithTracer(attr ...attribute.KeyValue) func(p *Client) {
+	return func(p *Client) {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
+	}
+}
+
 type Client struct {
 	nc     NatsConnection
 	logger *slog.Logger
+
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
-func WithLogger(logger *slog.Logger) func(handler *Client) {
+func WithLogger(logger *slog.Logger) func(p *Client) {
 	return func(m *Client) {
 		m.logger = logger
 	}
 }
 
-func New(nc NatsConnection, opts ...func(client *Client)) *Client {
+type Option func(p *Client)
+
+func New(nc NatsConnection, opts ...Option) *Client {
 	m := &Client{
 		nc:     nc,
 		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
@@ -53,8 +76,13 @@ func (c Client) Shutdown() {
 	}
 }
 
-func (c Client) Publish(topic string, data []byte) error {
-	err := c.nc.Publish(topic, data)
+func (c Client) Publish(ctx context.Context, topic string, data []byte) (err error) {
+	_, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	err = c.nc.Publish(topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
@@ -62,13 +90,18 @@ func (c Client) Publish(topic string, data []byte) error {
 	return nil
 }
 
-func (c Client) PublishMarshal(topic string, m proto.Message) error {
+func (c Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
+	ctx, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
 
-	err = c.Publish(topic, data)
+	err = c.Publish(ctx, topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}

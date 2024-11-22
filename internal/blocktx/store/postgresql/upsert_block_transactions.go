@@ -12,9 +12,11 @@ import (
 )
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
-func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (registeredRows []store.TxWithMerklePath, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	txHashesBytes := make([][]byte, len(txsWithMerklePaths))
 	merklePaths := make([]string, len(txsWithMerklePaths))
@@ -50,7 +52,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		WHERE m.blockid = $1 AND t.is_registered = TRUE AND t.hash = ANY($2)
 	`
 
-	_, err := p.db.ExecContext(ctx, qUpsertTransactions, blockID, pq.Array(txHashesBytes), pq.Array(merklePaths))
+	_, err = p.db.ExecContext(ctx, qUpsertTransactions, blockID, pq.Array(txHashesBytes), pq.Array(merklePaths))
 	if err != nil {
 		return nil, errors.Join(store.ErrFailedToExecuteTxUpdateQuery, err)
 	}
@@ -61,7 +63,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	}
 	defer rows.Close()
 
-	registeredRows := make([]store.TxWithMerklePath, 0)
+	registeredRows = make([]store.TxWithMerklePath, 0)
 
 	for rows.Next() {
 		var txHash []byte

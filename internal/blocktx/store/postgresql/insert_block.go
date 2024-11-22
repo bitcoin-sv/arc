@@ -9,9 +9,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
-func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
+func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) (blockID uint64, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpsertBlock", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork)
@@ -19,8 +21,6 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		ON CONFLICT (hash) DO UPDATE SET orphanedyn = FALSE
 		RETURNING id
 	`
-
-	var blockID uint64
 
 	row := p.db.QueryRowContext(ctx, qInsert,
 		block.GetHash(),
@@ -31,7 +31,7 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 		block.GetChainwork(),
 	)
 
-	err := row.Scan(&blockID)
+	err = row.Scan(&blockID)
 	if err != nil {
 		return 0, errors.Join(store.ErrFailedToInsertBlock, err)
 	}

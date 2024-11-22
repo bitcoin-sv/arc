@@ -298,8 +298,11 @@ func (p *Processor) StartProcessMinedCallbacks() {
 }
 
 func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "updateMined", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	updatedData, err := p.store.UpdateMined(ctx, txsBlocks)
 	if err != nil {
@@ -441,8 +444,11 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	if len(statusUpdatesMap) == 0 {
 		return
@@ -459,18 +465,19 @@ func (p *Processor) checkAndUpdate(ctx context.Context, statusUpdatesMap map[cha
 		}
 	}
 
-	err := p.statusUpdateWithCallback(ctx, statusUpdates, doubleSpendUpdates)
+	err = p.statusUpdateWithCallback(ctx, statusUpdates, doubleSpendUpdates)
 	if err != nil {
 		p.logger.Error("failed to bulk update statuses", slog.String("err", err.Error()))
 	}
 }
 
-func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) error {
+func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates, doubleSpendUpdates []store.UpdateStatus) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "statusUpdateWithCallback", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	var updatedData []*store.Data
-	var err error
 
 	if len(statusUpdates) > 0 {
 		updatedData, err = p.store.UpdateStatusBulk(ctx, statusUpdates)
@@ -559,7 +566,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.Publish(RequestTxTopic, tx.Hash[:]); err != nil {
+						if err = p.mqClient.Publish(ctx, RequestTxTopic, tx.Hash[:]); err != nil {
 							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
@@ -569,7 +576,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", totalSeenOnNetworkTxs))
 				}
 
-				tracing.EndTracing(span)
+				tracing.EndTracing(span, nil)
 			}
 		}
 	}()
@@ -640,7 +647,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnminedSince))
 				}
 
-				tracing.EndTracing(span)
+				tracing.EndTracing(span, nil)
 			}
 		}
 	}()
@@ -652,8 +659,11 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
@@ -703,7 +713,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// register transaction in blocktx using message queue
-	if err = p.mqClient.Publish(RegisterTxTopic, req.Data.Hash[:]); err != nil {
+	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
 		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
@@ -713,11 +723,15 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// Send GETDATA to peers to see if they have it
+	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
+	tracing.EndTracing(requestTransactionSpan, nil)
 
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
+	ctx, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	tracing.EndTracing(announceTransactionSpan, nil)
 	if len(peers) == 0 {
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
@@ -735,15 +749,20 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// Add this transaction to the map of transactions that client is listening to with open connection
+	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
 	p.responseProcessor.Add(statusResponse)
+	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	// store in database
-	err := p.store.SetBulk(ctx, sReq)
+	err = p.store.SetBulk(ctx, sReq)
 	if err != nil {
 		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
 		return
@@ -751,7 +770,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 
 	for _, data := range sReq {
 		// register transaction in blocktx using message queue
-		err = p.mqClient.Publish(RegisterTxTopic, data.Hash[:])
+		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
 		if err != nil {
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}

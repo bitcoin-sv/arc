@@ -9,18 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 func TestHandleBlock(t *testing.T) {
@@ -169,7 +170,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -699,7 +700,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return tc.publishMinedErr
 				},
 			}

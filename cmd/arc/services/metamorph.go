@@ -106,6 +106,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
 
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+
 		mqClient, err = nats_jetstream.New(natsClient, logger,
 			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
 			opts...,
@@ -115,7 +119,11 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}
 	} else {
-		mqClient = nats_core.New(natsClient, nats_core.WithLogger(logger))
+		opts := []nats_core.Option{nats_core.WithLogger(logger)}
+		if arcConfig.Tracing.Enabled {
+			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		}
+		mqClient = nats_core.New(natsClient, opts...)
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))

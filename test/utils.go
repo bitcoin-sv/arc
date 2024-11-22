@@ -1,5 +1,3 @@
-//go:build e2e
-
 package test
 
 import (
@@ -30,6 +28,7 @@ const (
 	StatusDoubleSpendAttempted = "DOUBLE_SPEND_ATTEMPTED"
 	StatusRejected             = "REJECTED"
 	StatusMined                = "MINED"
+	StatusMinedInStaleBlock    = "MINED_IN_STALE_BLOCK"
 )
 
 type TransactionResponseBatch []TransactionResponse

@@ -9,9 +9,11 @@ import (
 	"github.com/lib/pq"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.TransactionBlock, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	if onlyLongestChain {
 		predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"
@@ -27,7 +29,12 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 	)
 }
 
-func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) (registeredTxs []store.TransactionBlock, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
 	predicate := "WHERE b.hash = ANY($1) AND t.is_registered = TRUE"
 
 	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(blockHashes))

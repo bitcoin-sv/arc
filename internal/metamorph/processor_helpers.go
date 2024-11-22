@@ -119,11 +119,7 @@ func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	if new.Status > found.Status {
-		return true
-	}
-
-	return false
+	return new.Status > found.Status
 }
 
 // unorderedEqual checks if two string slices contain

@@ -85,13 +85,10 @@ func (r *RedisStore) MapSet(hashsetKey string, key string, value []byte) error {
 
 // MapDel removes a value by key in specific hashsetKey.
 func (r *RedisStore) MapDel(hashsetKey string, keys ...string) error {
-	result, err := r.client.HDel(r.ctx, hashsetKey, keys...).Result()
+	err := r.client.HDel(r.ctx, hashsetKey, keys...).Err()
 
 	if err != nil {
 		return errors.Join(ErrCacheFailedToDel, err)
-	}
-	if result == 0 {
-		return ErrCacheNotFound
 	}
 
 	return nil

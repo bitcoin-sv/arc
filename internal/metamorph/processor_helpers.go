@@ -92,6 +92,7 @@ func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error
 		err = json.Unmarshal(value, &status)
 		if err != nil {
 			p.logger.Error("failed to unmarshal status", slog.String("error", err.Error()), slog.String("key", key))
+			continue
 		}
 
 		statuses[*hash] = status

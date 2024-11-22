@@ -32,10 +32,11 @@ func BenchmarkUnorderedEqual(b *testing.B) {
 
 func TestShouldUpdateStatus(t *testing.T) {
 	testCases := []struct {
-		name           string
-		existingStatus store.UpdateStatus
-		newStatus      store.UpdateStatus
-		expectedResult bool
+		name                      string
+		existingStatus            store.UpdateStatus
+		newStatus                 store.UpdateStatus
+		expectedResultStatus      bool
+		expectedResultCompetingTx bool
 	}{
 		{
 			name: "new status lower than existing",
@@ -45,7 +46,8 @@ func TestShouldUpdateStatus(t *testing.T) {
 			newStatus: store.UpdateStatus{
 				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			},
-			expectedResult: false,
+			expectedResultStatus:      false,
+			expectedResultCompetingTx: false,
 		},
 		{
 			name: "new status higher than existing",
@@ -55,7 +57,8 @@ func TestShouldUpdateStatus(t *testing.T) {
 			newStatus: store.UpdateStatus{
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
-			expectedResult: true,
+			expectedResultStatus:      true,
+			expectedResultCompetingTx: false,
 		},
 		{
 			name: "new status lower than existing, unequal competing txs",
@@ -66,7 +69,8 @@ func TestShouldUpdateStatus(t *testing.T) {
 				Status:       metamorph_api.Status_ACCEPTED_BY_NETWORK,
 				CompetingTxs: []string{"1234"},
 			},
-			expectedResult: false,
+			expectedResultStatus:      false,
+			expectedResultCompetingTx: false,
 		},
 		{
 			name: "statuses equal",
@@ -76,7 +80,8 @@ func TestShouldUpdateStatus(t *testing.T) {
 			newStatus: store.UpdateStatus{
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
-			expectedResult: false,
+			expectedResultStatus:      false,
+			expectedResultCompetingTx: false,
 		},
 		{
 			name: "statuses equal, but unequal competing txs",
@@ -88,17 +93,20 @@ func TestShouldUpdateStatus(t *testing.T) {
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
 			},
-			expectedResult: true,
+			expectedResultStatus:      false,
+			expectedResultCompetingTx: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			actualResult := shouldUpdateStatus(tc.newStatus, tc.existingStatus)
+			actualResultCompetingTx := shouldUpdateCompetingTxs(tc.newStatus, tc.existingStatus)
+			actualResultStatus := shouldUpdateStatus(tc.newStatus, tc.existingStatus)
 
 			// then
-			assert.Equal(t, tc.expectedResult, actualResult)
+			assert.Equal(t, tc.expectedResultStatus, actualResultStatus)
+			assert.Equal(t, tc.expectedResultCompetingTx, actualResultCompetingTx)
 		})
 	}
 }

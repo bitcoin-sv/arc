@@ -34,14 +34,16 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		return err
 	}
 
+	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
+		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
+	}
+
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
-		if len(statusUpdate.CompetingTxs) > 0 {
-			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
-		}
+		currentStatusUpdate.Status = statusUpdate.Status
 		// TODO: combine status history
 	}
 
-	return p.setTransactionStatus(statusUpdate)
+	return p.setTransactionStatus(*currentStatusUpdate)
 }
 
 func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
@@ -107,12 +109,16 @@ func (p *Processor) getStatusUpdateCount() (int, error) {
 	return int(count), nil
 }
 
-func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	if new.Status > found.Status {
+func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
+	if new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
 		return true
 	}
 
-	if new.Status == found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
+	return false
+}
+
+func shouldUpdateStatus(new, found store.UpdateStatus) bool {
+	if new.Status > found.Status {
 		return true
 	}
 

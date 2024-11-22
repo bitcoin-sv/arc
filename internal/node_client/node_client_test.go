@@ -127,12 +127,12 @@ func TestNodeClient(t *testing.T) {
 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
 		require.NoError(t, err)
 
-		expectedTxIDs := make([]string, len(txs)-1)
+		expectedTxIDs := make([]string, len(txs))
 		for i, tx := range txs {
 			_, err := bitcoind.SendRawTransaction(tx.String())
 			require.NoError(t, err)
 
-			if i != len(txs)-1 {
+			if i != len(txs) {
 				expectedTxIDs[i] = tx.TxID()
 			}
 		}
@@ -142,7 +142,7 @@ func TestNodeClient(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, ancestorTxIDs, len(txs)-1)
+		require.Len(t, ancestorTxIDs, len(txs))
 
 		// compare expected and actual ancestor tx IDs while ignoring the order
 		less := func(a, b string) bool { return a < b }

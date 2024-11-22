@@ -106,26 +106,28 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 			parentsIDs = append(parentsIDs, prevTxID)
 		}
 	}
+
 	mempoolAncestorTxIDs, err := txFinder.GetMempoolAncestors(ctx, parentsIDs)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 	}
 
-	allTxIDs := append(parentsIDs, mempoolAncestorTxIDs...)
-
-	const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
-	ancestorTxs, err := txFinder.GetRawTxs(ctx, finderSource, allTxIDs)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToGetRawTxs, err)
+	var allMempoolTxs []*sdkTx.Transaction
+	if len(mempoolAncestorTxIDs) > 0 {
+		const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
+		allMempoolTxs, err = txFinder.GetRawTxs(ctx, finderSource, mempoolAncestorTxIDs)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetRawTxs, err)
+		}
 	}
 
-	for _, ancestorTx := range ancestorTxs {
-		err = extendTx(ctx, txFinder, ancestorTx, tracingEnabled, tracingAttributes...)
+	for _, mempoolTx := range allMempoolTxs {
+		err = extendTx(ctx, txFinder, mempoolTx, tracingEnabled, tracingAttributes...)
 		if err != nil {
 			return nil, err
 		}
 
-		unmindedAncestorsSet[ancestorTx.TxID()] = ancestorTx
+		unmindedAncestorsSet[mempoolTx.TxID()] = mempoolTx
 	}
 
 	return unmindedAncestorsSet, nil

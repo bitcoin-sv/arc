@@ -43,7 +43,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		JOIN LATERAL (
 			SELECT DISTINCT hash, merkle_path
 			FROM UNNEST($2::BYTEA[], $3::TEXT[]) AS u(hash, merkle_path)
-		) AS t ON it.hash = t.hash;
+		) AS t ON it.hash = t.hash
 		ON CONFLICT(blockid, txid) DO NOTHING;
 	`
 

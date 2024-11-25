@@ -284,7 +284,8 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
 			// if error is deadline exceeded, check tx status to avoid false negatives
-			fallbackCtx, fallbackCtxCancel := context.WithTimeout(context.Background(), time.Second)
+
+			fallbackCtx, fallbackCtxCancel := cloneCtxWithNewTimeout(ctx, time.Second)
 			txStatus, getStatusErr = m.GetTransactionStatus(fallbackCtx, tx.TxID())
 			fallbackCtxCancel()
 
@@ -375,7 +376,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 			completedErrorFree := true
 			for _, tx := range txs {
 				// Todo: Create and use here client.GetTransactionStatuses rpc function
-				fallbackCtx, fallbackCtxCancel := context.WithTimeout(context.Background(), time.Second)
+				fallbackCtx, fallbackCtxCancel := cloneCtxWithNewTimeout(ctx, time.Second)
 				txStatus, getStatusErr := m.GetTransactionStatus(fallbackCtx, tx.TxID())
 				fallbackCtxCancel()
 
@@ -443,6 +444,12 @@ func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_ap
 		FullStatusUpdates: options.FullStatusUpdates,
 		MaxTimeout:        int64(options.MaxTimeout),
 	}
+}
+
+// creates a new context with all parent data, but ignores its timing out or cancellation
+func cloneCtxWithNewTimeout(parent context.Context, timeout time.Duration) (context.Context, func()) {
+	ctx := context.WithoutCancel(parent)
+	return context.WithTimeout(ctx, timeout)
 }
 
 // TransactionOptions options passed from header when creating transactions.

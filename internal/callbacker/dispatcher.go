@@ -30,7 +30,9 @@ type CallbackDispatcher struct {
 	managers   map[string]*sendManager
 	managersMu sync.Mutex
 
-	policy            *quarantinePolicy
+	policy *quarantinePolicy
+
+	sendDelay         time.Duration
 	sleep             time.Duration
 	batchSendInterval time.Duration
 }
@@ -41,17 +43,30 @@ type CallbackEntry struct {
 	postponedUntil *time.Time
 }
 
+type SendConfig struct {
+	Delay                              time.Duration
+	PauseAfterSingleModeSuccessfulSend time.Duration
+	BatchSendInterval                  time.Duration
+}
+
+type QuarantineConfig struct {
+	BaseDuration, PermQuarantineAfterDuration time.Duration
+}
+
 func NewCallbackDispatcher(callbacker SenderI, cStore store.CallbackerStore, logger *slog.Logger,
-	singleSendPause, batchSendInterval, quarantineBaseDuration, permQuarantineAfterDuration time.Duration) *CallbackDispatcher {
+	sendingConfig *SendConfig, quarantineConfig *QuarantineConfig) *CallbackDispatcher {
 	return &CallbackDispatcher{
-		c:                 callbacker,
-		s:                 cStore,
-		l:                 logger.With(slog.String("module", "dispatcher")),
-		sleep:             singleSendPause,
-		batchSendInterval: batchSendInterval,
+		c: callbacker,
+		s: cStore,
+		l: logger.With(slog.String("module", "dispatcher")),
+
+		sendDelay:         sendingConfig.Delay,
+		sleep:             sendingConfig.PauseAfterSingleModeSuccessfulSend,
+		batchSendInterval: sendingConfig.BatchSendInterval,
+
 		policy: &quarantinePolicy{
-			baseDuration:        quarantineBaseDuration,
-			permQuarantineAfter: permQuarantineAfterDuration,
+			baseDuration:        quarantineConfig.BaseDuration,
+			permQuarantineAfter: quarantineConfig.PermQuarantineAfterDuration,
 			now:                 time.Now,
 		},
 		managers: make(map[string]*sendManager),
@@ -72,7 +87,7 @@ func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch
 	m, ok := d.managers[url]
 
 	if !ok {
-		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sleep, d.batchSendInterval)
+		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sendDelay, d.sleep, d.batchSendInterval)
 		d.managers[url] = m
 	}
 	d.managersMu.Unlock()

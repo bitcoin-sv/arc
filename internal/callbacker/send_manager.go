@@ -40,10 +40,10 @@ type sendManager struct {
 	url string
 
 	// dependencies
-	c SenderI
-	s store.CallbackerStore
-	l *slog.Logger
-	q *quarantinePolicy
+	sender     SenderI
+	s          store.CallbackerStore
+	l          *slog.Logger
+	quarantine *quarantinePolicy
 
 	// internal state
 	entriesWg    sync.WaitGroup
@@ -52,6 +52,7 @@ type sendManager struct {
 
 	stop chan struct{}
 
+	sendDelay         time.Duration
 	singleSendSleep   time.Duration
 	batchSendInterval time.Duration
 
@@ -68,20 +69,21 @@ const (
 	StoppingMode
 )
 
-func runNewSendManager(u string, c SenderI, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
-	singleSendSleep, batchSendInterval time.Duration) *sendManager {
+func runNewSendManager(url string, c SenderI, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
+	sendDelay, singleSendSleep, batchSendInterval time.Duration) *sendManager {
 	const defaultBatchSendInterval = time.Duration(5 * time.Second)
 	if batchSendInterval == 0 {
 		batchSendInterval = defaultBatchSendInterval
 	}
 
 	m := &sendManager{
-		url: u,
-		c:   c,
-		s:   s,
-		l:   l,
-		q:   q,
+		url:        url,
+		sender:     c,
+		s:          s,
+		l:          l,
+		quarantine: q,
 
+		sendDelay:         sendDelay,
 		singleSendSleep:   singleSendSleep,
 		batchSendInterval: batchSendInterval,
 
@@ -237,7 +239,10 @@ func (m *sendManager) setMode(v mode) {
 }
 
 func (m *sendManager) send(callback *CallbackEntry) {
-	if m.c.Send(m.url, callback.Token, callback.Data) {
+	// quick fix for client issue with to fast callbacks
+	time.Sleep(m.sendDelay)
+
+	if m.sender.Send(m.url, callback.Token, callback.Data) {
 		time.Sleep(m.singleSendSleep)
 		return
 	}
@@ -247,7 +252,7 @@ func (m *sendManager) send(callback *CallbackEntry) {
 }
 
 func (m *sendManager) handleQuarantine(ce *CallbackEntry) {
-	qUntil := m.q.Until(ce.Data.Timestamp)
+	qUntil := m.quarantine.Until(ce.Data.Timestamp)
 	err := m.s.Set(context.Background(), toStoreDto(m.url, ce, &qUntil, false))
 	if err != nil {
 		m.l.Error("failed to store callback in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
@@ -261,7 +266,10 @@ func (m *sendManager) sendBatch(batch []*CallbackEntry) {
 		callbacks[i] = e.Data
 	}
 
-	if m.c.SendBatch(m.url, token, callbacks) {
+	// quick fix for client issue with to fast callbacks
+	time.Sleep(m.sendDelay)
+
+	if m.sender.SendBatch(m.url, token, callbacks) {
 		return
 	}
 
@@ -270,7 +278,7 @@ func (m *sendManager) sendBatch(batch []*CallbackEntry) {
 }
 
 func (m *sendManager) handleQuarantineBatch(batch []*CallbackEntry) {
-	qUntil := m.q.Until(batch[0].Data.Timestamp)
+	qUntil := m.quarantine.Until(batch[0].Data.Timestamp)
 	err := m.s.SetMany(context.Background(), toStoreDtoCollection(m.url, &qUntil, true, batch))
 	if err != nil {
 		m.l.Error("failed to store callbacks in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
@@ -279,10 +287,10 @@ func (m *sendManager) handleQuarantineBatch(batch []*CallbackEntry) {
 
 func (m *sendManager) putInQuarantine() {
 	m.setMode(QuarantineMode)
-	m.l.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.q.baseDuration))
+	m.l.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.quarantine.baseDuration))
 
 	go func() {
-		time.Sleep(m.q.baseDuration)
+		time.Sleep(m.quarantine.baseDuration)
 		m.modeMu.Lock()
 
 		if m.mode != StoppingMode {
@@ -294,20 +302,20 @@ func (m *sendManager) putInQuarantine() {
 	}()
 }
 
-func toStoreDto(url string, s *CallbackEntry, postponedUntil *time.Time, allowBatch bool) *store.CallbackData {
+func toStoreDto(url string, entry *CallbackEntry, postponedUntil *time.Time, allowBatch bool) *store.CallbackData {
 	return &store.CallbackData{
 		URL:       url,
-		Token:     s.Token,
-		Timestamp: s.Data.Timestamp,
+		Token:     entry.Token,
+		Timestamp: entry.Data.Timestamp,
 
-		CompetingTxs: s.Data.CompetingTxs,
-		TxID:         s.Data.TxID,
-		TxStatus:     s.Data.TxStatus,
-		ExtraInfo:    s.Data.ExtraInfo,
-		MerklePath:   s.Data.MerklePath,
+		CompetingTxs: entry.Data.CompetingTxs,
+		TxID:         entry.Data.TxID,
+		TxStatus:     entry.Data.TxStatus,
+		ExtraInfo:    entry.Data.ExtraInfo,
+		MerklePath:   entry.Data.MerklePath,
 
-		BlockHash:   s.Data.BlockHash,
-		BlockHeight: s.Data.BlockHeight,
+		BlockHash:   entry.Data.BlockHash,
+		BlockHeight: entry.Data.BlockHeight,
 
 		PostponedUntil: postponedUntil,
 		AllowBatch:     allowBatch,

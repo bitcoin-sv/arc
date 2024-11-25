@@ -182,6 +182,7 @@ func getCallbackerConfig() *CallbackerConfig {
 		Health: &HealthConfig{
 			SeverDialAddr: "localhost:8025",
 		},
+		Delay:                   0,
 		Pause:                   0,
 		BatchSendInterval:       time.Duration(5 * time.Second),
 		Db:                      getDbConfig("callbacker"),

@@ -42,14 +42,14 @@ type BlockData struct {
 	MerkleRoot string   `json:"merkleroot"`
 }
 
-type RpcRequest struct {
+type RPCRequest struct {
 	Method  string      `json:"method"`
 	Params  interface{} `json:"params"`
 	ID      int64       `json:"id"`
 	JSONRpc string      `json:"jsonrpc"`
 }
 
-type RpcResponse struct {
+type RPCResponse struct {
 	ID     int64           `json:"id"`
 	Result json.RawMessage `json:"result"`
 	Err    interface{}     `json:"error"`
@@ -309,7 +309,7 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePort int, nodeUser, nodePassword string) error {
 	c := http.Client{}
 
-	rpcRequest := RpcRequest{method, params, time.Now().UnixNano(), "1.0"}
+	rpcRequest := RPCRequest{method, params, time.Now().UnixNano(), "1.0"}
 	payloadBuffer := &bytes.Buffer{}
 	jsonEncoder := json.NewEncoder(payloadBuffer)
 
@@ -332,17 +332,17 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 	req.Header.Add("Accept", "application/json")
 
 	resp, err := c.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	var rpcResponse RpcResponse
+	var rpcResponse RPCResponse
 
 	if resp.StatusCode != 200 {
 		_ = json.Unmarshal(data, &rpcResponse)
@@ -366,9 +366,8 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 		e, ok := rpcResponse.Err.(error)
 		if ok {
 			return e
-		} else {
-			return errors.New("unknown error returned from node in rpc response")
 		}
+		return errors.New("unknown error returned from node in rpc response")
 	}
 
 	return nil

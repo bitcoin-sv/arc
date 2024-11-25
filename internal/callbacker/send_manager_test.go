@@ -77,7 +77,7 @@ func TestSendManager(t *testing.T) {
 
 			sut := &sendManager{
 				url:               "",
-				c:                 cMq,
+				sender:            cMq,
 				s:                 sMq,
 				singleSendSleep:   tc.singleSendInterval,
 				batchSendInterval: 5 * time.Millisecond,
@@ -192,7 +192,7 @@ func TestSendManager_Quarantine(t *testing.T) {
 				postQuarantineCallbacks = append(postQuarantineCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
 			}
 
-			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, 0, time.Millisecond)
+			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, 0, 0, time.Millisecond)
 
 			// when
 			sendOK = false // trigger send failure - this should put the manager in quarantine

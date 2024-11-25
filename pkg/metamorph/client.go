@@ -284,7 +284,10 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
 			// if error is deadline exceeded, check tx status to avoid false negatives
-			txStatus, getStatusErr = m.GetTransactionStatus(ctx, tx.TxID())
+			fallbackCtx, fallbackCtxCancel := context.WithTimeout(context.Background(), time.Second)
+			txStatus, getStatusErr = m.GetTransactionStatus(fallbackCtx, tx.TxID())
+			fallbackCtxCancel()
+
 			if getStatusErr == nil {
 				break
 			}
@@ -372,7 +375,10 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 			completedErrorFree := true
 			for _, tx := range txs {
 				// Todo: Create and use here client.GetTransactionStatuses rpc function
-				txStatus, getStatusErr := m.GetTransactionStatus(ctx, tx.TxID())
+				fallbackCtx, fallbackCtxCancel := context.WithTimeout(context.Background(), time.Second)
+				txStatus, getStatusErr := m.GetTransactionStatus(fallbackCtx, tx.TxID())
+				fallbackCtxCancel()
+
 				if getStatusErr != nil {
 					m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", getStatusErr.Error()))
 					completedErrorFree = false

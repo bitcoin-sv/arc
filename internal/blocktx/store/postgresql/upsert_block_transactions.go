@@ -28,9 +28,10 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	qUpsertTransactions := `
 		WITH inserted_transactions AS (
 				INSERT INTO blocktx.transactions (hash)
-				SELECT DISTINCT UNNEST($2::BYTEA[])
-				ON CONFLICT (hash) DO NOTHING
-				RETURNING id, EXCLUDED.hash
+				SELECT UNNEST($2::BYTEA[])
+				ON CONFLICT (hash)
+				DO UPDATE SET hash = EXCLUDED.hash
+				RETURNING id, hash
 		)
 
 		INSERT INTO blocktx.block_transactions_map (blockid, txid, merkle_path)

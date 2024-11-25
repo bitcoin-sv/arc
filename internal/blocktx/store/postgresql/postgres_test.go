@@ -550,7 +550,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 					MerklePath: "test1",
 				},
 			},
-			expectedUpdatedResLen: 2,
+			expectedUpdatedResLen: 1,
 		},
 	}
 

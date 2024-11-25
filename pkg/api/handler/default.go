@@ -492,11 +492,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		return nil, nil, fails, nil
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(options.MaxTimeout+2)*time.Second)
-	defer cancel()
-
 	// submit valid transactions to metamorph
-	txStatuses, e := m.submitTransactions(timeoutCtx, submittedTxs, options)
+	txStatuses, e := m.submitTransactions(ctx, submittedTxs, options)
 	if e != nil {
 		return nil, nil, nil, e
 	}

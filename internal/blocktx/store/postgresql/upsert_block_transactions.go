@@ -30,7 +30,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 				INSERT INTO blocktx.transactions (hash)
 				SELECT UNNEST($2::BYTEA[])
 				ON CONFLICT (hash)
-				SET hash = EXCLUDED.hash
+				DO UPDATE SET hash = EXCLUDED.hash
 				RETURNING id, hash
 		)
 

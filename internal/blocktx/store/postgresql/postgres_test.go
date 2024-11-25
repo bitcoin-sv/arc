@@ -542,6 +542,16 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			},
 			expectedUpdatedResLen: 6,
 		},
+		{
+			name: "upsert all registered transactions cause conflict with txid and blockid",
+			txsWithMerklePaths: []store.TxWithMerklePath{
+				{
+					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					MerklePath: "test1",
+				},
+			},
+			expectedUpdatedResLen: 1,
+		},
 	}
 
 	// common setup for test cases

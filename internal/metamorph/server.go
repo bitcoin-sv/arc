@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	maxTimeoutDefault   = 5 * time.Second
-	minedDoubleSpendMsg = "previously double spend attempted"
+	maxTimeoutDefault          = 5 * time.Second
+	checkStatusIntervalDefault = 5 * time.Second
+	minedDoubleSpendMsg        = "previously double spend attempted"
 )
 
 var (
@@ -52,14 +53,15 @@ type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
 	grpc_opts.GrpcServer
 
-	logger            *slog.Logger
-	processor         ProcessorI
-	store             store.MetamorphStore
-	maxTimeoutDefault time.Duration
-	bitcoinNode       BitcoinNode
-	forceCheckUtxos   bool
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
+	logger              *slog.Logger
+	processor           ProcessorI
+	store               store.MetamorphStore
+	maxTimeoutDefault   time.Duration
+	checkStatusInterval time.Duration
+	bitcoinNode         BitcoinNode
+	forceCheckUtxos     bool
+	tracingEnabled      bool
+	tracingAttributes   []attribute.KeyValue
 }
 
 func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
@@ -72,6 +74,12 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 	return func(s *Server) {
 		s.maxTimeoutDefault = timeout
+	}
+}
+
+func WithCheckStatusInterval(d time.Duration) func(*Server) {
+	return func(s *Server) {
+		s.checkStatusInterval = d
 	}
 }
 
@@ -97,11 +105,12 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{
-		logger:            logger,
-		processor:         processor,
-		store:             store,
-		maxTimeoutDefault: maxTimeoutDefault,
-		forceCheckUtxos:   false,
+		logger:              logger,
+		processor:           processor,
+		store:               store,
+		maxTimeoutDefault:   maxTimeoutDefault,
+		checkStatusInterval: checkStatusIntervalDefault,
+		forceCheckUtxos:     false,
 	}
 
 	for _, opt := range opts {
@@ -268,8 +277,25 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		return returnedStatus
 	}
 
+	checkStatusTicker := time.NewTicker(s.checkStatusInterval)
+
 	for {
 		select {
+		case <-checkStatusTicker.C:
+
+			// Check in intervals whether the tx was seen on network & updated on DB by another metamorph instance
+			if waitForStatus != metamorph_api.Status_SEEN_ON_NETWORK {
+				continue
+			}
+
+			var tx *metamorph_api.TransactionStatus
+			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+				Txid: txID,
+			})
+			if err == nil && tx.Status == waitForStatus {
+				return tx
+			}
+
 		case <-ctx.Done():
 			// Ensure that function returns at latest when context times out
 			returnedStatus.TimedOut = true
@@ -292,7 +318,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			} else {
 				returnedStatus.RejectReason = ""
 				if res.Status == metamorph_api.Status_MINED {
-					tx, err := s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+					var tx *metamorph_api.TransactionStatus
+					tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 						Txid: txID,
 					})
 					if err != nil {

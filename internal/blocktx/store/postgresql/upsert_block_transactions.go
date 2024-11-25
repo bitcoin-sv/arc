@@ -28,8 +28,9 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	qUpsertTransactions := `
 		WITH inserted_transactions AS (
 				INSERT INTO blocktx.transactions (hash)
-				SELECT UNNEST($2::BYTEA[])
-				ON CONFLICT (hash) DO NOTHING
+				SELECT DISTINCT UNNEST($2::BYTEA[])
+				ON CONFLICT (hash)
+				DO UPDATE SET hash = EXCLUDED.hash
 				RETURNING id, hash
 		)
 

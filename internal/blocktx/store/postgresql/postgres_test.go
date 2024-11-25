@@ -547,7 +547,11 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
 					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-					MerklePath: "test1",
+					MerklePath: "test7",
+				},
+				{
+					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					MerklePath: "test8",
 				},
 			},
 			expectedUpdatedResLen: 1,

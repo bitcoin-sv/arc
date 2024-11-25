@@ -395,8 +395,6 @@ func (p *Processor) StartSendStatusUpdate() {
 					Err:          msg.Err,
 					CompetingTxs: msg.CompetingTxs,
 				})
-
-				p.logger.Debug("Status reported for tx", slog.String("status", msg.Status.String()), slog.String("hash", msg.Hash.String()))
 			}
 		}
 	}()
@@ -495,6 +493,8 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}
 
 	for _, data := range updatedData {
+		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
+
 		sendCallback := false
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL

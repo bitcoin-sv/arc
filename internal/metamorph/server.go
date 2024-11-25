@@ -237,7 +237,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 	defer func() {
 		if span != nil {
-			span.SetAttributes(attribute.String("final-status", returnedStatus.Status.String()), attribute.String("TxID", returnedStatus.Txid), attribute.Bool("time-out", returnedStatus.TimedOut))
+			span.SetAttributes(attribute.String("final-status", returnedStatus.Status.String()), attribute.String("txID", returnedStatus.Txid), attribute.Bool("time-out", returnedStatus.TimedOut))
 		}
 		tracing.EndTracing(span, err)
 	}()

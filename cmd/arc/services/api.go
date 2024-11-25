@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -71,11 +73,18 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		mtmOpts = append(mtmOpts, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		apiOpts = append(apiOpts, handler.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(arcConfig.Tracing.KeyValueAttributes...))
-		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(arcConfig.Tracing.KeyValueAttributes...))
-		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
+		attributes := arcConfig.Tracing.KeyValueAttributes
+		hostname, err := os.Hostname()
+		if err == nil {
+			hostnameAttr := attribute.String("hostname", hostname)
+			attributes = append(attributes, hostnameAttr)
+		}
+
+		mtmOpts = append(mtmOpts, metamorph.WithTracer(attributes...))
+		apiOpts = append(apiOpts, handler.WithTracer(attributes...))
+		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
+		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
+		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
 	}
 
 	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)

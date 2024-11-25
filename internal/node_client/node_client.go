@@ -86,6 +86,8 @@ func (n NodeClient) GetMempoolAncestors(ctx context.Context, ids []string) (allT
 		for _, txID := range txIDs {
 			uniqueIDs[txID] = struct{}{}
 		}
+
+		uniqueIDs[id] = struct{}{}
 	}
 
 	allTxIDs = make([]string, len(uniqueIDs))

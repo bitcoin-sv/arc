@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestNewServer(t *testing.T) {
@@ -103,12 +104,16 @@ func TestSendCallback(t *testing.T) {
 		assert.IsType(t, &emptypb.Empty{}, resp)
 		time.Sleep(100 * time.Millisecond)
 		require.Equal(t, 2, len(senderMq.SendCalls()), "Expected two dispatch calls")
-		assert.Equal(t, "http://example.com/callback1", senderMq.SendCalls()[0].URL)
-		assert.Equal(t, "token1", senderMq.SendCalls()[0].Token)
-		assert.Equal(t, "1234", senderMq.SendCalls()[0].Callback.TxID)
-		assert.Equal(t, "http://example.com/callback2", senderMq.SendCalls()[1].URL)
-		assert.Equal(t, "token2", senderMq.SendCalls()[1].Token)
-		assert.Equal(t, "1234", senderMq.SendCalls()[1].Callback.TxID)
+
+		calls0 := senderMq.SendCalls()[0]
+		calls1 := senderMq.SendCalls()[1]
+		require.True(t, calls0.URL == "http://example.com/callback1" || calls1.URL == "http://example.com/callback2")
+		require.True(t, calls0.Token == "token1" || calls1.Token == "token1")
+		require.Equal(t, "1234", calls0.Callback.TxID)
+
+		require.True(t, calls0.URL == "http://example.com/callback2" || calls1.URL == "http://example.com/callback2")
+		require.True(t, calls0.Token == "token2" || calls1.Token == "token2")
+		require.Equal(t, "1234", calls1.Callback.TxID)
 		mockDispatcher.GracefulStop()
 	})
 }

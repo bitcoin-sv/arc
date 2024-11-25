@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/pkg/callbacker"
@@ -68,9 +70,16 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		optsServer = append(optsServer, metamorph.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(arcConfig.Tracing.KeyValueAttributes...))
-		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(arcConfig.Tracing.KeyValueAttributes...))
+		attributes := arcConfig.Tracing.KeyValueAttributes
+		hostname, err := os.Hostname()
+		if err == nil {
+			hostnameAttr := attribute.String("hostname", hostname)
+			attributes = append(attributes, hostnameAttr)
+		}
+
+		optsServer = append(optsServer, metamorph.WithTracer(attributes...))
+		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
+		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
 	}
 
 	stopFn := func() {

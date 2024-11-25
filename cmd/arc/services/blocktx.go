@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/libsv/go-p2p"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
@@ -44,8 +46,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	)
 
 	shutdownFns := make([]func(), 0)
+	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
-	tracingEnabled := false
 	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing)
 		if err != nil {
@@ -54,7 +56,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		tracingEnabled = true
+		attributes := arcConfig.Tracing.KeyValueAttributes
+		hostname, err := os.Hostname()
+		if err == nil {
+			hostnameAttr := attribute.String("hostname", hostname)
+			attributes = append(attributes, hostnameAttr)
+		}
+
+		processorOpts = append(processorOpts, blocktx.WithTracer(attributes...))
 	}
 
 	stopFn := func() {
@@ -108,16 +117,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		mqClient = nats_core.New(natsConnection, opts...)
 	}
 
-	processorOpts := []func(handler *blocktx.Processor){
+	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-	}
-	if tracingEnabled {
-		processorOpts = append(processorOpts, blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-	}
+	)
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)

@@ -40,8 +40,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 				it.id,
 				t.merkle_path
 		FROM inserted_transactions it
-		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash
-		ON CONFLICT(blockid, txid) DO NOTHING;
+		JOIN LATERAL UNNEST($2::BYTEA[], $3::TEXT[]) AS t(hash, merkle_path) ON it.hash = t.hash;
 	`
 
 	qRegisteredTransactions := `

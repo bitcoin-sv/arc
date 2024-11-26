@@ -487,6 +487,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 
 		expectedErr           error
 		expectedUpdatedResLen int
+		upsertRepeat          bool
 	}{
 		{
 			name: "upsert all registered transactions (updates only)",
@@ -542,6 +543,17 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			},
 			expectedUpdatedResLen: 6,
 		},
+		{
+			name: "upsert all registered transactions cause conflict with txid and blockid",
+			txsWithMerklePaths: []store.TxWithMerklePath{
+				{
+					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					MerklePath: "test7",
+				},
+			},
+			upsertRepeat:          true,
+			expectedUpdatedResLen: 1,
+		},
 	}
 
 	// common setup for test cases
@@ -558,6 +570,10 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 
 			// when
 			res, err := sut.UpsertBlockTransactions(ctx, testBlockID, tc.txsWithMerklePaths)
+			if tc.upsertRepeat {
+				res, err = sut.UpsertBlockTransactions(ctx, testBlockID, tc.txsWithMerklePaths)
+				require.NoError(t, err)
+			}
 
 			// then
 			if tc.expectedErr != nil {

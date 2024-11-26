@@ -73,3 +73,9 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Processor) {
 		}
 	}
 }
+
+func WithMaxBlockProcessingDuration(d time.Duration) func(handler *Processor) {
+	return func(handler *Processor) {
+		handler.maxBlockProcessingDuration = d
+	}
+}

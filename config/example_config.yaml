@@ -101,6 +101,7 @@ blocktx:
       sslMode: disable
   recordRetentionDays: 28 # number of days for which data integrity is ensured
   registerTxsInterval: 10s # time interval to read from the channel registered transactions
+  maxBlockProcessingDuration: 5m # maximum time a blocktx can spend on processing a block before unlocking it to be requested again
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
@@ -149,7 +150,7 @@ callbacker:
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
-  delay: 0s # delay before the callback (or batch of callbacks) is actually sent 
+  delay: 0s # delay before the callback (or batch of callbacks) is actually sent
   pause: 0s # pause between sending next callback to the same receiver
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   db:

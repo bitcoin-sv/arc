@@ -4,10 +4,11 @@ import (
 	"errors"
 	"log/slog"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+
+	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to blockchain.BlockMessage")
@@ -33,7 +34,7 @@ func NewMsgHandler(logger *slog.Logger, blockRequestCh chan<- BlockRequest, bloc
 	}
 }
 
-// should be fire & forget
+// OnReceive should be fire & forget
 func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 

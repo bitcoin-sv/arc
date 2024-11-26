@@ -125,6 +125,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),
 	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)

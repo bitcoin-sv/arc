@@ -28,6 +28,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheNotFound) {
+			p.logger.Info("updateStatusMap - status record not found, creating new one", slog.String("hash", statusUpdate.Hash.String()))
 			// if record doesn't exist, save new one
 			return p.setTransactionStatus(statusUpdate)
 		}
@@ -35,16 +36,20 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	}
 
 	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
+		p.logger.Info("updateStatusMap - updating competing txs", slog.String("hash", statusUpdate.Hash.String()))
 		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
 	}
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
+		p.logger.Info("updateStatusMap - updating status", slog.String("hash", statusUpdate.Hash.String()), slog.String("old_status", currentStatusUpdate.Status.String()), slog.String("new_status", statusUpdate.Status.String()))
 		currentStatusUpdate.Status = statusUpdate.Status
 		statusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
 			Status:    statusUpdate.Status,
 			Timestamp: p.now(),
 		})
 	}
+
+	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", statusUpdate.Hash.String()), slog.String("status", statusUpdate.Status.String()), slog.Any("status_history", statusUpdate.StatusHistory))
 
 	return p.setTransactionStatus(*currentStatusUpdate)
 }

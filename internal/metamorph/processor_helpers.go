@@ -49,7 +49,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		currentStatusUpdate.Status = statusUpdate.Status
 	}
 
-	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", statusUpdate.Hash.String()), slog.String("status", statusUpdate.Status.String()), slog.Any("status_history", statusUpdate.StatusHistory))
+	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", currentStatusUpdate.Hash.String()), slog.String("status", currentStatusUpdate.Status.String()), slog.Any("status_history", currentStatusUpdate.StatusHistory))
 
 	return p.setTransactionStatus(*currentStatusUpdate)
 }

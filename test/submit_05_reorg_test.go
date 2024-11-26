@@ -14,8 +14,8 @@ import (
 )
 
 func TestReorg(t *testing.T) {
-	tx1 := prepareTx(t)
-	txStale := prepareTx(t)
+	tx1, txStale := prepareTxs(t)
+	// txStale := prepareTx(t)
 
 	// submit tx1
 	rawTx, err := tx1.EFHex()
@@ -75,16 +75,22 @@ func TestReorg(t *testing.T) {
 	require.Equal(t, staleHash, *statusResp.BlockHash)
 }
 
-func prepareTx(t *testing.T) *transaction.Transaction {
+func prepareTxs(t *testing.T) (tx1, tx2 *transaction.Transaction) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
+
+	node_client.SendToAddress(t, bitcoind, address, float64(0.002))
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx, err := node_client.CreateTx(privateKey, address, utxos[0])
+	var err error
+	tx1, err = node_client.CreateTx(privateKey, address, utxos[0])
 	require.NoError(t, err)
 
-	return tx
+	tx2, err = node_client.CreateTx(privateKey, address, utxos[1])
+	require.NoError(t, err)
+
+	return
 }
 
 func call(t *testing.T, method string, params []interface{}) {

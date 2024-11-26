@@ -60,6 +60,10 @@ type Processor struct {
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
 	processGuardsMap            sync.Map
+	stats                       *processorStats
+	statCollectionInterval      time.Duration
+
+	now func() time.Time
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -89,6 +93,9 @@ func NewProcessor(
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		hostname:                    hostname,
+		stats:                       newProcessorStats(),
+		statCollectionInterval:      statCollectionIntervalDefault,
+		now:                         time.Now,
 		waitGroup:                   &sync.WaitGroup{},
 	}
 

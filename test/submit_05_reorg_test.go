@@ -42,7 +42,15 @@ func TestReorg(t *testing.T) {
 	utxos = node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx2, err := node_client.CreateTx(privateKey, address, utxos[1])
+	// make sure to pick the correct UTXO
+	var utxo node_client.UnspentOutput
+	for _, u := range utxos {
+		if u.Amount == float64(0.002) {
+			utxo = u
+		}
+	}
+
+	tx2, err := node_client.CreateTx(privateKey, address, utxo)
 	require.NoError(t, err)
 
 	// submit tx2
@@ -69,7 +77,15 @@ func TestReorg(t *testing.T) {
 	utxos = node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	txStale, err := node_client.CreateTx(privateKey, address, utxos[1])
+	// make sure to pick the correct UTXO
+	var utxo node_client.UnspentOutput
+	for _, u := range utxos {
+		if u.Amount == float64(0.003) {
+			utxo = u
+		}
+	}
+
+	txStale, err := node_client.CreateTx(privateKey, address, utxo)
 	require.NoError(t, err)
 
 	// post a tx to the STALE chain

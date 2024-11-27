@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -13,7 +14,7 @@ import (
 
 // UpsertBlockTransactions upserts the transaction hashes for a given block hash and returns updated registered transactions hashes.
 func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (registeredRows []store.TxWithMerklePath, err error) {
-	ctx, span := tracing.StartTracing(ctx, "UpdateBlockTransactions", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "UpsertBlockTransactions", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsWithMerklePaths)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()

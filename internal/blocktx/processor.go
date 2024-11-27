@@ -420,15 +420,19 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 
 func (p *Processor) processBlock(msg *p2p.BlockMessage) (err error) {
 	ctx := p.ctx
-
+	var blockHash chainhash.Hash
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
+		if span != nil {
+			span.SetAttributes(attribute.String("hash", blockHash.String()))
+		}
+
 		tracing.EndTracing(span, err)
 	}()
 
 	timeStart := time.Now()
 
-	blockHash := msg.Header.BlockHash()
+	blockHash = msg.Header.BlockHash()
 	previousBlockHash := msg.Header.PrevBlock
 	merkleRoot := msg.Header.MerkleRoot
 

@@ -403,7 +403,13 @@ func (s *Server) GetTransactions(ctx context.Context, req *metamorph_api.Transac
 
 func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (returnStatus *metamorph_api.TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", s.tracingEnabled, s.tracingAttributes...)
+
+	var status metamorph_api.Status
+
 	defer func() {
+		if span != nil {
+			span.SetAttributes(attribute.String("status", status.String()))
+		}
 		tracing.EndTracing(span, err)
 	}()
 
@@ -420,6 +426,8 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	if data.BlockHash != nil {
 		blockHash = data.BlockHash.String()
 	}
+
+	status = data.Status
 
 	returnStatus = &metamorph_api.TransactionStatus{
 		Txid:         data.Hash.String(),

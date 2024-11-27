@@ -9,17 +9,17 @@ type NetworkMessanger struct {
 	pm *PeerManager
 }
 
-func NewHerald(m *PeerManager) *NetworkMessanger {
-	return &NetworkMessanger{pm: m}
+func NewNetworkMessanger(pm *PeerManager) *NetworkMessanger {
+	return &NetworkMessanger{pm: pm}
 }
 
-func (h *NetworkMessanger) CountConnectedPeers() uint {
-	return h.pm.CountConnectedPeers()
+func (m *NetworkMessanger) CountConnectedPeers() uint {
+	return m.pm.CountConnectedPeers()
 }
 
 // AnnounceTransactions will send an INV messages to the provided peers or to selected peers if peers is nil.
 // It will return the peers that the transaction was actually announced to.
-func (h *NetworkMessanger) AnnounceTransactions(txHashes []*chainhash.Hash, peers []PeerI) []PeerI {
+func (m *NetworkMessanger) AnnounceTransactions(txHashes []*chainhash.Hash, peers []PeerI) []PeerI {
 	// create INV messages
 	const batchSize = 256
 
@@ -41,7 +41,7 @@ func (h *NetworkMessanger) AnnounceTransactions(txHashes []*chainhash.Hash, peer
 
 	// choose peers to announce transactions
 	if len(peers) == 0 {
-		peers = h.pm.GetPeersForAnnouncement()
+		peers = m.pm.GetPeersForAnnouncement()
 	}
 
 	// send messages
@@ -56,13 +56,13 @@ func (h *NetworkMessanger) AnnounceTransactions(txHashes []*chainhash.Hash, peer
 
 // AnnounceTransaction will send an INV message to the provided peers or to selected peers if peers is nil.
 // It will return the peers that the transaction was actually announced to.
-func (h *NetworkMessanger) AnnounceTransaction(txHash *chainhash.Hash, peers []PeerI) []PeerI {
-	return h.AnnounceTransactions([]*chainhash.Hash{txHash}, peers)
+func (m *NetworkMessanger) AnnounceTransaction(txHash *chainhash.Hash, peers []PeerI) []PeerI {
+	return m.AnnounceTransactions([]*chainhash.Hash{txHash}, peers)
 }
 
 // RequestTransactions will send an GETDATA messages to the first connected peer.
 // It will return the peer that the message was actually sent or nil if now peers are connected.
-func (h *NetworkMessanger) RequestTransactions(txHashes []*chainhash.Hash) PeerI {
+func (m *NetworkMessanger) RequestTransactions(txHashes []*chainhash.Hash) PeerI {
 	// create GETDATA messages
 	const batchSize = 256
 
@@ -84,7 +84,7 @@ func (h *NetworkMessanger) RequestTransactions(txHashes []*chainhash.Hash) PeerI
 
 	// get first connected peer
 	var peer PeerI
-	for _, p := range h.pm.GetPeersForAnnouncement() {
+	for _, p := range m.pm.GetPeersForAnnouncement() {
 		if p.Connected() {
 			peer = p
 			break
@@ -105,13 +105,13 @@ func (h *NetworkMessanger) RequestTransactions(txHashes []*chainhash.Hash) PeerI
 
 // RequestTransaction will send an GETDATA message to the first connected peer.
 // It will return the peer that the message was actually sent or nil if now peers are connected.
-func (h *NetworkMessanger) RequestTransaction(txHash *chainhash.Hash) PeerI {
-	return h.RequestTransactions([]*chainhash.Hash{txHash})
+func (m *NetworkMessanger) RequestTransaction(txHash *chainhash.Hash) PeerI {
+	return m.RequestTransactions([]*chainhash.Hash{txHash})
 }
 
 // AnnounceBlock will send an INV message to the provided peers or to selected peers if peers is nil.
 // It will return the peers that the block was actually announced to.
-func (h *NetworkMessanger) AnnounceBlock(blockHash *chainhash.Hash, peers []PeerI) []PeerI {
+func (m *NetworkMessanger) AnnounceBlock(blockHash *chainhash.Hash, peers []PeerI) []PeerI {
 	// create INV message
 	invMsg := wire.NewMsgInvSizeHint(1)
 	iv := wire.NewInvVect(wire.InvTypeBlock, blockHash)
@@ -119,7 +119,7 @@ func (h *NetworkMessanger) AnnounceBlock(blockHash *chainhash.Hash, peers []Peer
 
 	// choose peers to announce transactions
 	if len(peers) == 0 {
-		peers = h.pm.GetPeersForAnnouncement()
+		peers = m.pm.GetPeersForAnnouncement()
 	}
 
 	// send message
@@ -132,7 +132,7 @@ func (h *NetworkMessanger) AnnounceBlock(blockHash *chainhash.Hash, peers []Peer
 
 // RequestBlock will send an GETDATA message to the first connected peer.
 // It will return the peer that the message was actually sent or nil if now peers are connected.
-func (h *NetworkMessanger) RequestBlock(blockHash *chainhash.Hash) PeerI {
+func (m *NetworkMessanger) RequestBlock(blockHash *chainhash.Hash) PeerI {
 	// create GETDATA message
 	getMsg := wire.NewMsgGetDataSizeHint(1)
 	iv := wire.NewInvVect(wire.InvTypeBlock, blockHash)
@@ -140,7 +140,7 @@ func (h *NetworkMessanger) RequestBlock(blockHash *chainhash.Hash) PeerI {
 
 	// get first connected peer
 	var peer PeerI
-	for _, p := range h.pm.GetPeersForAnnouncement() {
+	for _, p := range m.pm.GetPeersForAnnouncement() {
 		if p.Connected() {
 			peer = p
 			break

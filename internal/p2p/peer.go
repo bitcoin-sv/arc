@@ -58,7 +58,7 @@ type Peer struct {
 	isUnhealthyCh   chan struct{}
 }
 
-func NewBetterPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, network wire.BitcoinNet, options ...PeerOptions) *Peer {
+func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, network wire.BitcoinNet, options ...PeerOptions) *Peer {
 	l := logger.With(
 		slog.Group("peer",
 			slog.String("network", network.String()),
@@ -166,7 +166,7 @@ func (p *Peer) connect() bool {
 	}
 
 	p.lConn = lc
-	p.listenMessages()
+	p.listenForMessages()
 	// run message writers
 	for i := uint8(0); i < p.nWriters; i++ {
 		p.sendMessages(i)
@@ -390,7 +390,7 @@ func (p *Peer) unhealthyDisconnect() {
 	}()
 }
 
-func (p *Peer) listenMessages() {
+func (p *Peer) listenForMessages() {
 	p.execWg.Add(1)
 
 	go func() {

@@ -27,7 +27,7 @@ type PeerManager struct {
 	restartUnhealthyPeers bool
 }
 
-func NewBetterPeerManager(logger *slog.Logger, network wire.BitcoinNet, options ...PeerManagerOptions) *PeerManager {
+func NewPeerManager(logger *slog.Logger, network wire.BitcoinNet, options ...PeerManagerOptions) *PeerManager {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	m := &PeerManager{

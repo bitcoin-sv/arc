@@ -16,15 +16,10 @@ import (
 func TestReorg(t *testing.T) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-	node_client.SendToAddress(t, bitcoind, address, float64(0.002))
-
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	txStale, err := node_client.CreateTx(privateKey, address, utxos[1])
 	require.NoError(t, err)
 
 	// submit tx1
@@ -43,19 +38,11 @@ func TestReorg(t *testing.T) {
 	require.Equal(t, invHash, *statusResp.BlockHash)
 
 	// get new UTXO for tx2
-	node_client.SendToAddress(t, bitcoind, address, float64(0.003))
+	node_client.SendToAddress(t, bitcoind, address, float64(0.002))
 	utxos = node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	// make sure to pick the right UTXO
-	var utxo node_client.UnspentOutput
-	for _, u := range utxos {
-		if u.Amount == float64(0.003) {
-			utxo = u
-		}
-	}
-
-	tx2, err := node_client.CreateTx(privateKey, address, utxo)
+	tx2, err := node_client.CreateTx(privateKey, address, utxos[1])
 	require.NoError(t, err)
 
 	// submit tx2
@@ -75,6 +62,15 @@ func TestReorg(t *testing.T) {
 
 	// invalidate the chain with tx1 and tx2
 	call(t, "invalidateblock", []interface{}{invHash})
+
+	// prepare txStale
+	node_client.SendToAddress(t, bitcoind, address, float64(0.003))
+
+	utxos = node_client.GetUtxos(t, bitcoind, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	txStale, err := node_client.CreateTx(privateKey, address, utxos[1])
+	require.NoError(t, err)
 
 	// post a tx to the STALE chain
 	rawTx, err = txStale.EFHex()

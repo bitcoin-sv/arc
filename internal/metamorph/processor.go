@@ -625,7 +625,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						}
 
 						// every second time request tx, every other time announce tx
-						if tx.Retries%2 == 0 {
+						if tx.Retries%2 != 0 {
 							// Send GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
 							p.pm.RequestTransaction(tx.Hash)

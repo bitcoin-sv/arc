@@ -78,7 +78,6 @@ func TestReorg(t *testing.T) {
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	// make sure to pick the correct UTXO
-	var utxo node_client.UnspentOutput
 	for _, u := range utxos {
 		if u.Amount == float64(0.003) {
 			utxo = u

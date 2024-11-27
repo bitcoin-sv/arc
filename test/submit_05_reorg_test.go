@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
-	"github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,28 +137,6 @@ func TestReorg(t *testing.T) {
 	statusResp = getRequest[TransactionResponse](t, statusURL)
 	require.Equal(t, StatusMinedInStaleBlock, statusResp.TxStatus)
 	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
-}
-
-func prepareTxs(t *testing.T) (tx1, tx2, tx3 *transaction.Transaction) {
-	address, privateKey := node_client.FundNewWallet(t, bitcoind)
-
-	node_client.SendToAddress(t, bitcoind, address, float64(0.002))
-	node_client.SendToAddress(t, bitcoind, address, float64(0.003))
-
-	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-	var err error
-	tx1, err = node_client.CreateTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	tx2, err = node_client.CreateTx(privateKey, address, utxos[1])
-	require.NoError(t, err)
-
-	tx3, err = node_client.CreateTx(privateKey, address, utxos[2])
-	require.NoError(t, err)
-
-	return
 }
 
 func call(t *testing.T, method string, params []interface{}) {

@@ -446,7 +446,9 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 
 func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	ctx := p.ctx
-	var blockHash chainhash.Hash
+
+	blockHash := msg.Header.BlockHash()
+
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		if span != nil {
@@ -456,16 +458,13 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 		tracing.EndTracing(span, err)
 	}()
 
-	blockHash = msg.Header.BlockHash()
-	blockHeight := msg.Height
-
-	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
+	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height))
 
 	// check if we've already processed that block
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 
 	if existingBlock != nil && existingBlock.Processed {
-		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockHeight))
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height))
 		return nil
 	}
 

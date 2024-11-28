@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/p2p"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/stretchr/testify/require"
@@ -49,9 +50,9 @@ func TestStartCollectStats(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			messanger := &p2p.NetworkMessanger{}
 
-			processor, err := metamorph.NewProcessor(mtmStore, nil, pm, nil,
+			processor, err := metamorph.NewProcessor(mtmStore, nil, messanger, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 				metamorph.WithStatCollectionInterval(10*time.Millisecond),
 			)

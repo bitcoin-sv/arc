@@ -59,7 +59,7 @@ func init() {
 			}
 		}
 
-		blockMessage.Size = uint64(bytesRead)
+		blockMessage.Size = uint64(bytesRead) // #nosec G115
 		blockHash := blockMessage.Header.BlockHash()
 		blockMessage.Hash = &blockHash
 

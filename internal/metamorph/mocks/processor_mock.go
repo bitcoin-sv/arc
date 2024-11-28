@@ -6,7 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/libsv/go-p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"sync"
 )
 

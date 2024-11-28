@@ -107,13 +107,20 @@ func TestSendCallback(t *testing.T) {
 
 		calls0 := senderMq.SendCalls()[0]
 		calls1 := senderMq.SendCalls()[1]
-		require.True(t, calls0.URL == "http://example.com/callback1" || calls1.URL == "http://example.com/callback2")
-		require.True(t, calls0.Token == "token1" || calls1.Token == "token1")
-		require.Equal(t, "1234", calls0.Callback.TxID)
 
-		require.True(t, calls0.URL == "http://example.com/callback2" || calls1.URL == "http://example.com/callback2")
-		require.True(t, calls0.Token == "token2" || calls1.Token == "token2")
-		require.Equal(t, "1234", calls1.Callback.TxID)
+		switch calls0.URL {
+		case "http://example.com/callback1":
+			require.Equal(t, calls0.Token, "token1")
+			require.Equal(t, calls1.URL, "http://example.com/callback2")
+			require.Equal(t, calls1.Token, "token2")
+		case "http://example.com/callback2":
+			require.Equal(t, calls0.Token, "token2")
+			require.Equal(t, calls1.URL, "http://example.com/callback1")
+			require.Equal(t, calls1.Token, "token1")
+		default:
+			t.Fatalf("unexpected callback URL: %s", calls0.URL)
+		}
+
 		mockDispatcher.GracefulStop()
 	})
 }

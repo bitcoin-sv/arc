@@ -17,6 +17,10 @@ func (m *NetworkMessanger) CountConnectedPeers() uint {
 	return m.pm.CountConnectedPeers()
 }
 
+func (m *NetworkMessanger) GetPeers() []PeerI {
+	return m.pm.GetPeers()
+}
+
 // AnnounceTransactions will send an INV messages to the provided peers or to selected peers if peers is nil.
 // It will return the peers that the transaction was actually announced to.
 func (m *NetworkMessanger) AnnounceTransactions(txHashes []*chainhash.Hash, peers []PeerI) []PeerI {

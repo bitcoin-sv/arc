@@ -49,7 +49,7 @@ func (c *prometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	healthyConnections := 0
 
 	for _, peer := range c.processor.GetPeers() {
-		if peer.Connected() && peer.IsHealthy() {
+		if peer.Connected() {
 			healthyConnections++
 			continue
 		}

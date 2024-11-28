@@ -52,6 +52,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the IncrementRetries method")
 //			},
+//			IncrementRetriesBulkFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
+//				panic("mock out the IncrementRetriesBulk method")
+//			},
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
@@ -112,6 +115,9 @@ type MetamorphStoreMock struct {
 
 	// IncrementRetriesFunc mocks the IncrementRetries method.
 	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
+
+	// IncrementRetriesBulkFunc mocks the IncrementRetriesBulk method.
+	IncrementRetriesBulkFunc func(ctx context.Context, hashes []*chainhash.Hash) error
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -221,6 +227,13 @@ type MetamorphStoreMock struct {
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
 		}
+		// IncrementRetriesBulk holds details about calls to the IncrementRetriesBulk method.
+		IncrementRetriesBulk []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hashes is the hashes argument value.
+			Hashes []*chainhash.Hash
+		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
 			// Ctx is the ctx argument value.
@@ -278,24 +291,25 @@ type MetamorphStoreMock struct {
 			Updates []store.UpdateStatus
 		}
 	}
-	lockClearData         sync.RWMutex
-	lockClose             sync.RWMutex
-	lockDel               sync.RWMutex
-	lockGet               sync.RWMutex
-	lockGetMany           sync.RWMutex
-	lockGetRawTxs         sync.RWMutex
-	lockGetSeenOnNetwork  sync.RWMutex
-	lockGetStats          sync.RWMutex
-	lockGetUnmined        sync.RWMutex
-	lockIncrementRetries  sync.RWMutex
-	lockPing              sync.RWMutex
-	lockSet               sync.RWMutex
-	lockSetBulk           sync.RWMutex
-	lockSetLocked         sync.RWMutex
-	lockSetUnlockedByName sync.RWMutex
-	lockUpdateDoubleSpend sync.RWMutex
-	lockUpdateMined       sync.RWMutex
-	lockUpdateStatusBulk  sync.RWMutex
+	lockClearData            sync.RWMutex
+	lockClose                sync.RWMutex
+	lockDel                  sync.RWMutex
+	lockGet                  sync.RWMutex
+	lockGetMany              sync.RWMutex
+	lockGetRawTxs            sync.RWMutex
+	lockGetSeenOnNetwork     sync.RWMutex
+	lockGetStats             sync.RWMutex
+	lockGetUnmined           sync.RWMutex
+	lockIncrementRetries     sync.RWMutex
+	lockIncrementRetriesBulk sync.RWMutex
+	lockPing                 sync.RWMutex
+	lockSet                  sync.RWMutex
+	lockSetBulk              sync.RWMutex
+	lockSetLocked            sync.RWMutex
+	lockSetUnlockedByName    sync.RWMutex
+	lockUpdateDoubleSpend    sync.RWMutex
+	lockUpdateMined          sync.RWMutex
+	lockUpdateStatusBulk     sync.RWMutex
 }
 
 // ClearData calls ClearDataFunc.
@@ -679,6 +693,42 @@ func (mock *MetamorphStoreMock) IncrementRetriesCalls() []struct {
 	mock.lockIncrementRetries.RLock()
 	calls = mock.calls.IncrementRetries
 	mock.lockIncrementRetries.RUnlock()
+	return calls
+}
+
+// IncrementRetriesBulk calls IncrementRetriesBulkFunc.
+func (mock *MetamorphStoreMock) IncrementRetriesBulk(ctx context.Context, hashes []*chainhash.Hash) error {
+	if mock.IncrementRetriesBulkFunc == nil {
+		panic("MetamorphStoreMock.IncrementRetriesBulkFunc: method is nil but MetamorphStore.IncrementRetriesBulk was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}{
+		Ctx:    ctx,
+		Hashes: hashes,
+	}
+	mock.lockIncrementRetriesBulk.Lock()
+	mock.calls.IncrementRetriesBulk = append(mock.calls.IncrementRetriesBulk, callInfo)
+	mock.lockIncrementRetriesBulk.Unlock()
+	return mock.IncrementRetriesBulkFunc(ctx, hashes)
+}
+
+// IncrementRetriesBulkCalls gets all the calls that were made to IncrementRetriesBulk.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.IncrementRetriesBulkCalls())
+func (mock *MetamorphStoreMock) IncrementRetriesBulkCalls() []struct {
+	Ctx    context.Context
+	Hashes []*chainhash.Hash
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}
+	mock.lockIncrementRetriesBulk.RLock()
+	calls = mock.calls.IncrementRetriesBulk
+	mock.lockIncrementRetriesBulk.RUnlock()
 	return calls
 }
 

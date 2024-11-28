@@ -23,6 +23,10 @@ var (
 	ErrMismatchedTxsAndMerklePathLength = errors.New("mismatched transactions and merkle path length")
 )
 
+type Stats struct {
+	CurrentNumOfBlockGaps int64
+}
+
 type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
@@ -37,6 +41,7 @@ type BlocktxStore interface {
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
+	GetStats(ctx context.Context) (*Stats, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
 	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)

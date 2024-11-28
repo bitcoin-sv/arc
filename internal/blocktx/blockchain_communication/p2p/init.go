@@ -14,7 +14,6 @@ import (
 )
 
 func init() {
-
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, _ uint64, bytesRead int) (int, wire.Message, []byte, error) {
 		blockMessage := &blockchain.BlockMessage{

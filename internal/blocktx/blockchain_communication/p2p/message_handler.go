@@ -70,6 +70,6 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	}
 }
 
-func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
+func (h *MsgHandler) OnSend(_ wire.Message, _ p2p.PeerI) {
 	// ignore
 }

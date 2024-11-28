@@ -551,7 +551,8 @@ func TestStartBlockRequesting(t *testing.T) {
 
 			// simulate receiving INV BLOCK msg from node
 			invMsg := wire.NewMsgInvSizeHint(1)
-			invMsg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, blockHash))
+			err = invMsg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, blockHash))
+			require.NoError(t, err)
 			peerHandler.OnReceive(invMsg, peerMock)
 
 			time.Sleep(200 * time.Millisecond)

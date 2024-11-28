@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -290,7 +289,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Txid: testdata.TX1Hash.String(),
 			},
 			status:             metamorph_api.Status_MINED,
-			getTxMerklePathErr: blocktx.ErrMerklePathNotFoundForTransaction,
+			getTxMerklePathErr: errors.New("merkle path not found for transaction"),
 
 			want: &metamorph_api.TransactionStatus{
 				StoredAt:   timestamppb.New(testdata.Time),

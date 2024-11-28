@@ -13,8 +13,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -32,7 +32,7 @@ func TestListenAndServe(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{}
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			pm := &p2p.PeerManager{}
 
 			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)

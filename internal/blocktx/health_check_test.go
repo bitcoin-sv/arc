@@ -7,8 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/libsv/go-p2p"
-
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 func TestCheck(t *testing.T) {
@@ -27,23 +26,23 @@ func TestCheck(t *testing.T) {
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
 		{
-			name:    "liveness - peer not found",
+			name:    "liveness - serving",
+			service: "liveness",
+			pingErr: nil,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
+		},
+		{
+			name:    "readiness - peer not found",
 			service: "readiness",
 			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
-			name:    "db error - not connected",
+			name:    "readiness - db error - not connected",
 			service: "readiness",
 			pingErr: errors.New("not connected"),
-
-			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-		},
-		{
-			name:    "db error - not connected",
-			service: "readiness",
-			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
@@ -66,16 +65,7 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			pm := &mocks.PeerManagerMock{GetPeersFunc: func() []p2p.PeerI {
-				return []p2p.PeerI{&mocks.PeerMock{
-					IsHealthyFunc: func() bool {
-						return false
-					},
-					ConnectedFunc: func() bool {
-						return false
-					},
-				}}
-			}}
+			pm := &p2p.PeerManager{}
 
 			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)
@@ -107,14 +97,14 @@ func TestWatch(t *testing.T) {
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 		{
-			name:    "not ready - healthy",
+			name:    "readiness - peer not found",
 			service: "readiness",
 			pingErr: nil,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
 		{
-			name:    "not ready - healthy",
+			name:    "readiness - db error - not connected",
 			service: "readiness",
 			pingErr: errors.New("not connected"),
 
@@ -140,16 +130,7 @@ func TestWatch(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			pm := &mocks.PeerManagerMock{
-				GetPeersFunc: func() []p2p.PeerI {
-					return []p2p.PeerI{
-						&mocks.PeerMock{
-							IsHealthyFunc: func() bool { return false },
-							ConnectedFunc: func() bool { return false },
-						},
-					}
-				},
-			}
+			pm := &p2p.PeerManager{}
 
 			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
 			require.NoError(t, err)

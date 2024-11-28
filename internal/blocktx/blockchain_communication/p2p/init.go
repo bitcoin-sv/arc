@@ -1,25 +1,23 @@
-package blocktx
+package blocktx_p2p
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
-	"log/slog"
+
+	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/util"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
 
-var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to p2p.BlockMessage")
-
 func init() {
+
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, _ uint64, bytesRead int) (int, wire.Message, []byte, error) {
-		blockMessage := &p2p.BlockMessage{
+		blockMessage := &blockchain.BlockMessage{
 			Header: &wire.BlockHeader{},
 		}
 
@@ -66,60 +64,6 @@ func init() {
 
 		return bytesRead, blockMessage, nil, nil
 	})
-}
-
-type PeerHandler struct {
-	logger         *slog.Logger
-	blockRequestCh chan BlockRequest
-	blockProcessCh chan *p2p.BlockMessage
-}
-
-func NewPeerHandler(logger *slog.Logger, blockRequestCh chan BlockRequest, blockProcessCh chan *p2p.BlockMessage) *PeerHandler {
-	return &PeerHandler{
-		logger:         logger.With(slog.String("module", "peer-handler")),
-		blockRequestCh: blockRequestCh,
-		blockProcessCh: blockProcessCh,
-	}
-}
-
-func (ph *PeerHandler) HandleTransactionsGet(_ []*wire.InvVect, _ p2p.PeerI) ([][]byte, error) {
-	return nil, nil
-}
-
-func (ph *PeerHandler) HandleTransactionSent(_ *wire.MsgTx, _ p2p.PeerI) error {
-	return nil
-}
-
-func (ph *PeerHandler) HandleTransactionAnnouncement(_ *wire.InvVect, _ p2p.PeerI) error {
-	return nil
-}
-
-func (ph *PeerHandler) HandleTransactionRejection(_ *wire.MsgReject, _ p2p.PeerI) error {
-	return nil
-}
-
-func (ph *PeerHandler) HandleTransaction(_ *wire.MsgTx, _ p2p.PeerI) error {
-	return nil
-}
-
-func (ph *PeerHandler) HandleBlockAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
-	req := BlockRequest{
-		Hash: &msg.Hash,
-		Peer: peer,
-	}
-
-	ph.blockRequestCh <- req
-	return nil
-}
-
-func (ph *PeerHandler) HandleBlock(wireMsg wire.Message, _ p2p.PeerI) error {
-	msg, ok := wireMsg.(*p2p.BlockMessage)
-	if !ok {
-		return ErrUnableToCastWireMessage
-	}
-
-	ph.blockProcessCh <- msg
-	return nil
 }
 
 func extractHeightFromCoinbaseTx(tx *sdkTx.Transaction) uint64 {

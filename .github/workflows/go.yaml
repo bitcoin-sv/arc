@@ -47,7 +47,6 @@ jobs:
 
   e2e:
     name: e2e
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo

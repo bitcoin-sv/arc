@@ -45,36 +45,12 @@ jobs:
       - name: Check config
         run: make compare_config
 
-      - name: Build release
-        run: make build_release
-
-      - name: Store arc build
-        uses: actions/upload-artifact@v4
-        with:
-          name: arc-build
-          path: ./build
-          retention-days: 1
-
   e2e:
     name: e2e
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
-
-      - name: Download arc-build
-        uses: actions/download-artifact@v4
-        with:
-          name: arc-build
-          path: ./build
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: test-arc
 
       - name: e2e test
         run: |

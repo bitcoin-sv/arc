@@ -10,7 +10,7 @@ package integrationtest
 // 		1. Blocks at heights 822014-822017 (LONGEST), 822018-822020 (ORPHANED) and 822022-822023 (ORPHANED) are added to db from fixtures
 // 		2. A hardcoded msg with competing block at height 822015 is being sent through the mocked PeerHandler
 // 		3. This block has a chainwork lower than the current tip of chain - becomes STALE
-// 		4. Registered transactions from this block are ignored
+// 		4. Registered transactions from this block that are not in the longest chain are published with blockstatus = STALE
 // 		5. Next competing block, at height 822016 is being sent through the mocked PeerHandler
 // 		6. This block has a greater chainwork than the current tip of longest chain - it becomes LONGEST despite not being the highest
 // 		7. Verification of reorg - checking if statuses are correctly switched
@@ -179,10 +179,18 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
 		verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_LONGEST)
 
+		expectedTxs := []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       blockHash[:],
+				BlockHeight:     822015,
+				TransactionHash: testutils.RevChainhash(t, txhash822015)[:],
+				BlockStatus:     blocktx_api.Status_STALE,
+			},
+		}
+
 		publishedTxs := getPublishedTxs(publishedTxsCh)
 
-		// verify the no transaction was published to metamorph
-		require.Len(t, publishedTxs, 0)
+		verifyTxs(t, expectedTxs, publishedTxs)
 	})
 
 	t.Run("reorg", func(t *testing.T) {
@@ -295,6 +303,8 @@ func TestReorg(t *testing.T) {
 			blockHash822021        = "d46bf0a189927b62c8ff785d393a545093ca01af159aed771a8d94749f06c060"
 			blockHash822022Orphan  = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
 			blockHash822023Orphan  = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
+
+			txhash822019 = "71fbb8fb5c0f978e3c221bc6ac235587f3c26fa10e231b54fce972d4a5c30e5e"
 		)
 
 		//blockHash := testutils.RevChainhash(t, blockHash822021)
@@ -336,10 +346,19 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
 		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_ORPHANED)
 
+		bh := testutils.RevChainhash(t, blockHash822019Orphan)
+		expectedTxs := []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       bh[:],
+				BlockHeight:     822019,
+				TransactionHash: testutils.RevChainhash(t, txhash822019)[:],
+				BlockStatus:     blocktx_api.Status_STALE,
+			},
+		}
+
 		publishedTxs := getPublishedTxs(publishedTxsCh)
 
-		// verify no transaction was published
-		require.Len(t, publishedTxs, 0)
+		verifyTxs(t, expectedTxs, publishedTxs)
 	})
 
 	t.Run("reorg orphans", func(t *testing.T) {

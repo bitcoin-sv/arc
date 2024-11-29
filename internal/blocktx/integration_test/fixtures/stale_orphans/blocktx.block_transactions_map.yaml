@@ -6,3 +6,7 @@
   txid: 1000005
   merkle_path: merkle-path-5
   inserted_at: 2023-12-10 14:00:00
+- blockid: 1007 # in ORPHANED block
+  txid: 1000007
+  merkle_path: merkle-path-7
+  inserted_at: 2023-12-10 14:00:00

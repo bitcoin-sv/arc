@@ -10,3 +10,7 @@
   hash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6
   inserted_at: 2023-12-10 14:00:00
   is_registered: true
+- id: 1000007
+  hash: 0x71fbb8fb5c0f978e3c221bc6ac235587f3c26fa10e231b54fce972d4a5c30e5e
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: true

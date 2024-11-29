@@ -359,6 +359,10 @@ func TestPostgresDB(t *testing.T) {
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 			{
+				Hash:   *testutils.RevChainhash(t, "fe3ae78226a8a1c78039a7d10590a42dc4b691acaa8cbc6831b464da49e8ba08"), // update expected - old status = MINED_IN_STALE_BLOCK
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+			},
+			{
 				Hash:   *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
@@ -367,7 +371,7 @@ func TestPostgresDB(t *testing.T) {
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
 		}
-		updatedStatuses := 3
+		updatedStatuses := 4
 
 		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
 		require.NoError(t, err)
@@ -382,6 +386,9 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[2].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
+
+		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[3].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "fe3ae78226a8a1c78039a7d10590a42dc4b691acaa8cbc6831b464da49e8ba08"), *statusUpdates[3].Hash)
 
 		returnedDataRequested, err := postgresDB.Get(ctx, testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
 		require.NoError(t, err)
@@ -424,6 +431,11 @@ func TestPostgresDB(t *testing.T) {
 				Error:        errors.New("double spend attempted"),
 			},
 			{
+				Hash:         *testutils.RevChainhash(t, "fe3ae78226a8a1c78039a7d10590a42dc4b691acaa8cbc6831b464da49e8ba08"), // update expected - old status = MINED_IN_STALE_BLOCK
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"1234"},
+			},
+			{
 				Hash:         *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
@@ -434,7 +446,7 @@ func TestPostgresDB(t *testing.T) {
 				CompetingTxs: []string{"1234"},
 			},
 		}
-		updatedStatuses := 4
+		updatedStatuses := 5
 
 		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates)
 		require.NoError(t, err)
@@ -456,6 +468,10 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
 		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
 		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
+
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[4].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "fe3ae78226a8a1c78039a7d10590a42dc4b691acaa8cbc6831b464da49e8ba08"), *statusUpdates[4].Hash)
+		require.Equal(t, []string{"1234"}, statusUpdates[4].CompetingTxs)
 
 		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
 		require.NoError(t, err)

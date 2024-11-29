@@ -40,26 +40,26 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
-	config := appConfig.Callbacker
+	cfg := appConfig.Callbacker
 
 	var (
-		store        store.CallbackerStore
-		sender       *callbacker.CallbackSender
-		dispatcher   *callbacker.CallbackDispatcher
-		workers      *callbacker.BackgroundWorkers
-		server       *callbacker.Server
-		healthServer *grpc_opts.GrpcServer
+		callbackerStore store.CallbackerStore
+		sender          *callbacker.CallbackSender
+		dispatcher      *callbacker.CallbackDispatcher
+		workers         *callbacker.BackgroundWorkers
+		server          *callbacker.Server
+		healthServer    *grpc_opts.GrpcServer
 
 		err error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		dispose(logger, server, workers, dispatcher, sender, store, healthServer)
+		dispose(logger, server, workers, dispatcher, sender, callbackerStore, healthServer)
 		logger.Info("Shutdown complete")
 	}
 
-	store, err = newStore(config.Db)
+	callbackerStore, err = newStore(cfg.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
@@ -71,25 +71,25 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	}
 
 	sendConfig := callbacker.SendConfig{
-		Delay:                              config.Delay,
-		PauseAfterSingleModeSuccessfulSend: config.Pause,
-		BatchSendInterval:                  config.BatchSendInterval,
+		Delay:                              cfg.Delay,
+		PauseAfterSingleModeSuccessfulSend: cfg.Pause,
+		BatchSendInterval:                  cfg.BatchSendInterval,
 	}
 	quarantineConfig := callbacker.QuarantineConfig{
-		BaseDuration:                config.QuarantinePolicy.BaseDuration,
-		PermQuarantineAfterDuration: config.QuarantinePolicy.PermQuarantineAfter,
+		BaseDuration:                cfg.QuarantinePolicy.BaseDuration,
+		PermQuarantineAfterDuration: cfg.QuarantinePolicy.PermQuarantineAfter,
 	}
 
-	dispatcher = callbacker.NewCallbackDispatcher(sender, store, logger, &sendConfig, &quarantineConfig)
-	err = dispatchPersistedCallbacks(store, dispatcher, logger)
+	dispatcher = callbacker.NewCallbackDispatcher(sender, callbackerStore, logger, &sendConfig, &quarantineConfig)
+	err = dispatchPersistedCallbacks(callbackerStore, dispatcher, logger)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to dispatch previously persisted callbacks: %v", err)
 	}
 
-	workers = callbacker.NewBackgroundWorkers(store, dispatcher, logger)
-	workers.StartCallbackStoreCleanup(config.PruneInterval, config.PruneOlderThan)
-	workers.StartQuarantineCallbacksDispatch(config.QuarantineCheckInterval)
+	workers = callbacker.NewBackgroundWorkers(callbackerStore, dispatcher, logger)
+	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
+	workers.StartQuarantineCallbacksDispatch(cfg.QuarantineCheckInterval)
 
 	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, nil)
 	if err != nil {
@@ -97,13 +97,13 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
 
-	err = server.ListenAndServe(config.ListenAddr)
+	err = server.ListenAndServe(cfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, config.Health.SeverDialAddr)
+	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, cfg.Health.SeverDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -116,13 +116,13 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 func newStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
-		config := dbConfig.Postgres
+		cfg := dbConfig.Postgres
 
 		dbInfo := fmt.Sprintf(
 			"user=%s password=%s dbname=%s host=%s port=%d sslmode=%s",
-			config.User, config.Password, config.Name, config.Host, config.Port, config.SslMode,
+			cfg.User, cfg.Password, cfg.Name, cfg.Host, cfg.Port, cfg.SslMode,
 		)
-		s, err = postgresql.New(dbInfo, config.MaxIdleConns, config.MaxOpenConns)
+		s, err = postgresql.New(dbInfo, cfg.MaxIdleConns, cfg.MaxOpenConns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
 		}

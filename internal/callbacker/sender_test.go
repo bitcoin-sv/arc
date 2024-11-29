@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker"
 )
 
 func TestCallbackSender_Send(t *testing.T) {

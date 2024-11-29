@@ -40,10 +40,10 @@ type sendManager struct {
 	url string
 
 	// dependencies
-	sender     SenderI
-	s          store.CallbackerStore
-	l          *slog.Logger
-	quarantine *quarantinePolicy
+	sender           SenderI
+	store            store.CallbackerStore
+	logger           *slog.Logger
+	quarantinePolicy *quarantinePolicy
 
 	// internal state
 	entriesWg    sync.WaitGroup
@@ -69,7 +69,7 @@ const (
 	StoppingMode
 )
 
-func runNewSendManager(url string, c SenderI, s store.CallbackerStore, l *slog.Logger, q *quarantinePolicy,
+func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, quarantinePolicy *quarantinePolicy,
 	sendDelay, singleSendSleep, batchSendInterval time.Duration) *sendManager {
 	const defaultBatchSendInterval = time.Duration(5 * time.Second)
 	if batchSendInterval == 0 {
@@ -77,11 +77,11 @@ func runNewSendManager(url string, c SenderI, s store.CallbackerStore, l *slog.L
 	}
 
 	m := &sendManager{
-		url:        url,
-		sender:     c,
-		s:          s,
-		l:          l,
-		quarantine: q,
+		url:              url,
+		sender:           sender,
+		store:            store,
+		logger:           logger,
+		quarantinePolicy: quarantinePolicy,
 
 		sendDelay:         sendDelay,
 		singleSendSleep:   singleSendSleep,
@@ -143,7 +143,7 @@ func (m *sendManager) run() {
 		runWg.Wait()
 
 		// store unsent callbacks
-		_ = m.s.SetMany(context.Background(), append(danglingCallbacks, danglingBatchedCallbacks...))
+		_ = m.store.SetMany(context.Background(), append(danglingCallbacks, danglingBatchedCallbacks...))
 		m.stop <- struct{}{}
 	}()
 }
@@ -252,10 +252,10 @@ func (m *sendManager) send(callback *CallbackEntry) {
 }
 
 func (m *sendManager) handleQuarantine(ce *CallbackEntry) {
-	qUntil := m.quarantine.Until(ce.Data.Timestamp)
-	err := m.s.Set(context.Background(), toStoreDto(m.url, ce, &qUntil, false))
+	qUntil := m.quarantinePolicy.Until(ce.Data.Timestamp)
+	err := m.store.Set(context.Background(), toStoreDto(m.url, ce, &qUntil, false))
 	if err != nil {
-		m.l.Error("failed to store callback in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
+		m.logger.Error("failed to store callback in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
 	}
 }
 
@@ -278,24 +278,24 @@ func (m *sendManager) sendBatch(batch []*CallbackEntry) {
 }
 
 func (m *sendManager) handleQuarantineBatch(batch []*CallbackEntry) {
-	qUntil := m.quarantine.Until(batch[0].Data.Timestamp)
-	err := m.s.SetMany(context.Background(), toStoreDtoCollection(m.url, &qUntil, true, batch))
+	qUntil := m.quarantinePolicy.Until(batch[0].Data.Timestamp)
+	err := m.store.SetMany(context.Background(), toStoreDtoCollection(m.url, &qUntil, true, batch))
 	if err != nil {
-		m.l.Error("failed to store callbacks in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
+		m.logger.Error("failed to store callbacks in quarantine", slog.String("url", m.url), slog.String("err", err.Error()))
 	}
 }
 
 func (m *sendManager) putInQuarantine() {
 	m.setMode(QuarantineMode)
-	m.l.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.quarantine.baseDuration))
+	m.logger.Warn("send callback failed - putting receiver in quarantine", slog.String("url", m.url), slog.Duration("approx. duration", m.quarantinePolicy.baseDuration))
 
 	go func() {
-		time.Sleep(m.quarantine.baseDuration)
+		time.Sleep(m.quarantinePolicy.baseDuration)
 		m.modeMu.Lock()
 
 		if m.mode != StoppingMode {
 			m.mode = ActiveMode
-			m.l.Info("receiver is active again after quarantine", slog.String("url", m.url))
+			m.logger.Info("receiver is active again after quarantine", slog.String("url", m.url))
 		}
 
 		m.modeMu.Unlock()

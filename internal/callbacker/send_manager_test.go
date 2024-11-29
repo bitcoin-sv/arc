@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSendManager(t *testing.T) {
@@ -78,7 +79,7 @@ func TestSendManager(t *testing.T) {
 			sut := &sendManager{
 				url:               "",
 				sender:            cMq,
-				s:                 sMq,
+				store:             sMq,
 				singleSendSleep:   tc.singleSendInterval,
 				batchSendInterval: 5 * time.Millisecond,
 

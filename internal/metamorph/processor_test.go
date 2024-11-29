@@ -507,7 +507,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					}
 					return nil, tc.updateErr
 				},
-				UpdateStatusHistoryBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					return nil, nil
 				},
 				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
@@ -677,7 +677,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					}
 					return nil, nil
 				},
-				UpdateStatusHistoryBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					return nil, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },

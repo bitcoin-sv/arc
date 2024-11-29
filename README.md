@@ -187,6 +187,7 @@ The following statuses are available:
 | `DOUBLE_SPEND_ATTEMPTED` | The transaction is a double spend attempt. Competing transaction(s) will be returned with this status.                                                                                                   |
 | `REJECTED`               | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
 | `MINED`                  | The transaction has been mined into a block by a mining node.                                                                                                                                            |
+| `MINED_IN_STALE_BLOCK`   | The transaction has been mined into a block that became stale after a reorganisation of chain (reorg).                                                                                                   |
 
 The statuses have a difference between the codes in order to make it possible to add more statuses in between the existing ones without creating a breaking change.
 

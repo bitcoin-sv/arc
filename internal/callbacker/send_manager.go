@@ -67,6 +67,8 @@ const (
 	ActiveMode
 	QuarantineMode
 	StoppingMode
+
+	entriesBufferSize = 10000
 )
 
 func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, quarantinePolicy *quarantinePolicy,
@@ -87,8 +89,8 @@ func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, 
 		singleSendSleep:   singleSendSleep,
 		batchSendInterval: batchSendInterval,
 
-		entries:      make(chan *CallbackEntry),
-		batchEntries: make(chan *CallbackEntry),
+		entries:      make(chan *CallbackEntry, entriesBufferSize),
+		batchEntries: make(chan *CallbackEntry, entriesBufferSize),
 		stop:         make(chan struct{}),
 	}
 
@@ -97,16 +99,41 @@ func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, 
 }
 
 func (m *sendManager) Add(entry *CallbackEntry, batch bool) {
-	m.entriesWg.Add(1) // count the callbacks accepted for processing
-	go func() {
-		defer m.entriesWg.Done()
-
-		if batch {
-			m.batchEntries <- entry
-		} else {
-			m.entries <- entry
+	if batch {
+		select {
+		case m.batchEntries <- entry:
+		default:
+			m.logger.Warn("Batch entry buffer is full - storing entry on DB",
+				slog.String("url", m.url),
+				slog.String("token", entry.Token),
+				slog.String("hash", entry.Data.TxID),
+			)
+			m.storeToDB(entry, ptrTo(time.Now()))
 		}
-	}()
+		return
+	}
+
+	select {
+	case m.entries <- entry:
+	default:
+		m.logger.Warn("Single entry buffer is full - storing entry on DB",
+			slog.String("url", m.url),
+			slog.String("token", entry.Token),
+			slog.String("hash", entry.Data.TxID),
+		)
+		m.storeToDB(entry, ptrTo(time.Now()))
+	}
+}
+
+func (m *sendManager) storeToDB(entry *CallbackEntry, postponeUntil *time.Time) {
+	if entry == nil {
+		return
+	}
+	callbackData := toStoreDto(m.url, entry, postponeUntil, false)
+	err := m.store.Set(context.Background(), callbackData)
+	if err != nil {
+		m.logger.Error("Failed to set callback data", slog.String("hash", callbackData.TxID), slog.String("status", callbackData.TxStatus), slog.String("err", err.Error()))
+	}
 }
 
 func (m *sendManager) GracefulStop() {

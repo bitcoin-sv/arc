@@ -114,10 +114,16 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 			slog.String("err", err.Error()))
 		return false
 	}
-
-	ok = p.sendCallbackWithRetries(url, token, payload)
+	var retries int
+	ok, retries = p.sendCallbackWithRetries(url, token, payload)
 
 	if ok {
+		p.logger.Info("Callback sent",
+			slog.String("url", url),
+			slog.String("token", token),
+			slog.String("hash", dto.TxID),
+			slog.Int("retries", retries))
+
 		p.updateSuccessStats(dto.TxStatus)
 		return
 	}
@@ -148,11 +154,17 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 
 		return false
 	}
-
-	ok = p.sendCallbackWithRetries(url, token, payload)
+	var retries int
+	ok, retries = p.sendCallbackWithRetries(url, token, payload)
 	p.stats.callbackBatchCount.Inc()
 	if ok {
 		for _, c := range dtos {
+			p.logger.Info("Callback sent",
+				slog.String("url", url),
+				slog.String("token", token),
+				slog.String("hash", c.TxID),
+				slog.Int("retries", retries))
+
 			p.updateSuccessStats(c.TxStatus)
 		}
 		return
@@ -168,10 +180,12 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 	return
 }
 
-func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) bool {
+func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (ok bool, nrOfRetries int) {
 	retrySleep := p.initRetrySleepDuration
 	ok, retry := false, false
+	counter := 0
 	for range p.retries {
+		counter++
 		ok, retry = p.sendCallback(url, token, jsonPayload)
 
 		// break on success or on non-retryable error (e.g., invalid URL)
@@ -183,7 +197,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 		// increase intervals on each failure
 		retrySleep *= 2
 	}
-	return ok
+	return ok, counter
 }
 
 func (p *CallbackSender) sendCallback(url, token string, payload []byte) (ok, retry bool) {

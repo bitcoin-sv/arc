@@ -188,7 +188,7 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result
 
 // GetTransactionStatus gets the status of a transaction.
 func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txStatus *TransactionStatus, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txID", txID))...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()

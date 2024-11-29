@@ -750,6 +750,161 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, &unmined, updatedTx)
 	})
 
+	t.Run("update status history - status bigger than actual with history", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+
+		unmined := *unminedData
+		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
+		err = postgresDB.Set(ctx, &unmined)
+		require.NoError(t, err)
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_MINED,
+				StatusHistory: []store.StatusWithTimestamp{
+					{
+						Status:    metamorph_api.Status_STORED,
+						Timestamp: postgresDB.now(),
+					},
+				},
+			},
+		}
+
+		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+			Status:    metamorph_api.Status_STORED,
+			Timestamp: postgresDB.now(),
+		})
+		unmined.LastModified = postgresDB.now()
+		require.Equal(t, &unmined, updatedTx)
+	})
+
+	t.Run("update status history - status equal than actual with history", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+
+		unmined := *unminedData
+		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
+		err = postgresDB.Set(ctx, &unmined)
+		require.NoError(t, err)
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				StatusHistory: []store.StatusWithTimestamp{
+					{
+						Status:    metamorph_api.Status_STORED,
+						Timestamp: postgresDB.now(),
+					},
+					{
+						Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+						Timestamp: postgresDB.now(),
+					},
+				},
+			},
+		}
+
+		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+			Status:    metamorph_api.Status_STORED,
+			Timestamp: postgresDB.now(),
+		}, &store.Status{
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Timestamp: postgresDB.now(),
+		})
+		unmined.LastModified = postgresDB.now()
+		require.Equal(t, &unmined, updatedTx)
+	})
+
+	t.Run("update status history - status lower than actual with history", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+
+		unmined := *unminedData
+		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
+		err = postgresDB.Set(ctx, &unmined)
+		require.NoError(t, err)
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				StatusHistory: []store.StatusWithTimestamp{
+					{
+						Status:    metamorph_api.Status_STORED,
+						Timestamp: postgresDB.now(),
+					},
+					{
+						Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+						Timestamp: postgresDB.now(),
+					},
+				},
+			},
+		}
+
+		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+			Status:    metamorph_api.Status_STORED,
+			Timestamp: postgresDB.now(),
+		}, &store.Status{
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Timestamp: postgresDB.now(),
+		}, &store.Status{
+			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			Timestamp: postgresDB.now(),
+		})
+		unmined.LastModified = postgresDB.now()
+		require.Equal(t, &unmined, updatedTx)
+	})
+
+	t.Run("update status history - status lower than actual without history", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+
+		unmined := *unminedData
+		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
+		err = postgresDB.Set(ctx, &unmined)
+		require.NoError(t, err)
+
+		updates := []store.UpdateStatus{
+			{
+				Hash:   *unminedHash,
+				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			},
+		}
+
+		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		require.NoError(t, err)
+		require.Len(t, statusUpdates, 1)
+
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
+			Timestamp: postgresDB.now(),
+		})
+		unmined.LastModified = postgresDB.now()
+		require.Equal(t, &unmined, updatedTx)
+	})
+
 	t.Run("clear data", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures")

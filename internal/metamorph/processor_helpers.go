@@ -171,3 +171,20 @@ func mergeUnique(arr1, arr2 []string) []string {
 
 	return uniqueSlice
 }
+
+func filterUpdates(unprocessed []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
+	var result []store.UpdateStatus
+	for _, unproc := range unprocessed {
+		isProcessed := false
+		for _, proc := range processed {
+			if unproc.Hash == *proc.Hash {
+				isProcessed = true
+				break
+			}
+		}
+		if !isProcessed {
+			result = append(result, unproc)
+		}
+	}
+	return result
+}

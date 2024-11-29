@@ -622,9 +622,6 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
@@ -640,7 +637,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.Status = metamorph_api.Status_RECEIVED
 		unmined.LastModified = postgresDB.now()
 
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 
 		// Update tx with status RECEIVED to ACCEPTED_BY_NETWORK without additional history
 		updates = []store.UpdateStatus{
@@ -654,9 +651,6 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    metamorph_api.Status_RECEIVED,
 			Timestamp: postgresDB.now(),
@@ -664,7 +658,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
 		unmined.LastModified = postgresDB.now()
 
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 
 		// Second update - UpdateDoubleSpend
 		updates = []store.UpdateStatus{
@@ -679,9 +673,6 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.CompetingTxs = []string{"5678"}
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    unmined.Status,
@@ -689,7 +680,7 @@ func TestPostgresDB(t *testing.T) {
 		})
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 
 		// Third update - UpdateMined
 		txBlocks := []*blocktx_api.TransactionBlock{
@@ -706,7 +697,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, updated, 1)
 
-		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
+		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
 
 		unmined.BlockHeight = 100
@@ -775,15 +766,12 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
 		})
 		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 	})
 
 	t.Run("update status history - status equal than actual with history", func(t *testing.T) {
@@ -815,9 +803,6 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
@@ -826,7 +811,7 @@ func TestPostgresDB(t *testing.T) {
 			Timestamp: postgresDB.now(),
 		})
 		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 	})
 
 	t.Run("update status history - status lower than actual with history", func(t *testing.T) {
@@ -858,9 +843,6 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
@@ -872,7 +854,7 @@ func TestPostgresDB(t *testing.T) {
 			Timestamp: postgresDB.now(),
 		})
 		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 	})
 
 	t.Run("update status history - status lower than actual without history", func(t *testing.T) {
@@ -894,15 +876,12 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		updatedTx, err := postgresDB.Get(ctx, unminedHash[:])
-		require.NoError(t, err)
-
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
 			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
 		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, updatedTx)
+		require.Equal(t, &unmined, statusUpdates[0])
 	})
 
 	t.Run("clear data", func(t *testing.T) {

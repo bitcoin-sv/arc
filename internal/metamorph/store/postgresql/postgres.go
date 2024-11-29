@@ -641,7 +641,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				status = bulk_query.status,
 				reject_reason = bulk_query.reject_reason,
 				last_modified = $1,
-				status_history = status_history 
+				status_history = status_history
 					|| COALESCE(
 						json_build_object(
 							'status', metamorph.transactions.status,
@@ -691,6 +691,123 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	}
 
 	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories))
+	if err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	res, err = getStoreDataFromRows(rows)
+	if err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "UpdateStatusHistoryBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	txHashes := make([][]byte, len(updates))
+	statuses := make([]metamorph_api.Status, len(updates))
+	statusHistories := make([]*string, len(updates))
+
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+
+		// Marshal the StatusHistory to JSON
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := json.Marshal(update.StatusHistory)
+			if err != nil {
+				return nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
+	}
+
+	qBulk := `
+    UPDATE metamorph.transactions
+    SET
+        status_history = status_history || (
+            SELECT jsonb_agg(new_status)
+            FROM (
+                SELECT jsonb_build_object(
+                    'status', (new_status->>'status')::INT,
+                    'timestamp', (new_status->>'timestamp')::TIMESTAMP WITH TIME ZONE
+                ) AS new_status
+                FROM jsonb_array_elements(bulk_query.history_update) AS new_status
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(metamorph.transactions.status_history) AS existing_status
+                    WHERE existing_status->>'status' = new_status->>'status'
+                )
+                UNION ALL
+                SELECT jsonb_build_object(
+                    'status', bulk_query.status,
+                    'timestamp', $4::TIMESTAMP WITH TIME ZONE
+                ) AS new_status
+                WHERE bulk_query.status < metamorph.transactions.status
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM jsonb_array_elements(metamorph.transactions.status_history) AS existing_status
+                      WHERE existing_status->>'status' = bulk_query.status::text
+                  )
+            ) AS valid_statuses
+        )
+    FROM (
+        SELECT t.hash, t.status, t.history_update
+        FROM UNNEST($1::BYTEA[], $2::INT[], $3::JSONB[]) AS t(hash, status, history_update)
+    ) AS bulk_query
+    WHERE metamorph.transactions.hash = bulk_query.hash
+    RETURNING metamorph.transactions.stored_at
+    ,metamorph.transactions.hash
+    ,metamorph.transactions.status
+    ,metamorph.transactions.block_height
+    ,metamorph.transactions.block_hash
+    ,metamorph.transactions.callbacks
+    ,metamorph.transactions.full_status_updates
+    ,metamorph.transactions.reject_reason
+    ,metamorph.transactions.competing_txs
+    ,metamorph.transactions.raw_tx
+    ,metamorph.transactions.locked_by
+    ,metamorph.transactions.merkle_path
+    ,metamorph.transactions.retries
+    ,metamorph.transactions.status_history
+    ,metamorph.transactions.last_modified
+    ;
+`
+
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
+	if err != nil {
+		if rollBackErr := tx.Rollback(); rollBackErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+		}
+		return nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(statusHistories), p.now())
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

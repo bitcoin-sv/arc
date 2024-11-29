@@ -549,8 +549,19 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		updatedData = append(updatedData, updatedDoubleSpendData...)
 	}
 
+	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
+	shUpdatedData, err := p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
+	if err != nil {
+		return err
+	}
+
+	// TODO: remove this
+	for _, data := range shUpdatedData {
+		p.logger.Info("Status history updated for tx", slog.String("hash", data.Hash.String()), slog.Any("status_history", data.StatusHistory))
+	}
+
 	for _, data := range updatedData {
-		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
+		p.logger.Info("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()), slog.Any("status_history", data.StatusHistory))
 
 		sendCallback := false
 		if data.FullStatusUpdates {

@@ -9,6 +9,8 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -119,15 +121,11 @@ func (p *Processor) getStatusUpdateCount() (int, error) {
 }
 
 func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
-	if new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
-		return true
-	}
-
-	return false
+	return new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs)
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	return new.Status > found.Status
+	return new.Status > found.Status || found.Status == metamorph_api.Status_MINED_IN_STALE_BLOCK
 }
 
 // unorderedEqual checks if two string slices contain

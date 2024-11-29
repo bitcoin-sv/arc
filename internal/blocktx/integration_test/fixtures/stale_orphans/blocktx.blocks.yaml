@@ -34,6 +34,7 @@
   status: 10
   is_longest: true
   chainwork: '12301577519373468' # Higher chainwork
+# Competing
 - inserted_at: 2023-12-15 14:50:00
   id: 1005
   hash: 0x76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000
@@ -46,6 +47,7 @@
   status: 20 # STALE
   is_longest: false
   chainwork: '62209952899966'
+# Orphans
 - inserted_at: 2023-12-15 14:50:00
   id: 1006
   hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde

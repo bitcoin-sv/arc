@@ -15,6 +15,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -74,7 +75,7 @@ type Processor struct {
 	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
-	statusMessageCh   chan *TxStatusMessage
+	statusMessageCh   chan *metamorph_p2p.PeerTxMessage
 
 	waitGroup *sync.WaitGroup
 
@@ -111,7 +112,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessanger, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessanger, statusMessageChannel chan *metamorph_p2p.PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -507,7 +509,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+			statusMessageChannel := make(chan *metamorph_p2p.PeerTxMessage, 10)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
@@ -523,7 +525,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			assert.Equal(t, 0, sut.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
-				statusMessageChannel <- &metamorph.TxStatusMessage{
+				statusMessageChannel <- &metamorph_p2p.PeerTxMessage{
 					Hash:         testInput.hash,
 					Status:       testInput.newStatus,
 					Err:          testInput.statusErr,

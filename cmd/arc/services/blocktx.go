@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/libsv/go-p2p"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -17,8 +16,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 )
 
@@ -37,7 +39,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blockStore   store.BlocktxStore
 		mqClient     blocktx.MessageQueueClient
 		processor    *blocktx.Processor
-		pm           p2p.PeerManagerI
+		pm           *p2p.PeerManager
 		server       *blocktx.Server
 		healthServer *grpc_opts.GrpcServer
 		workers      *blocktx.BackgroundWorkers
@@ -125,8 +127,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithMessageQueueClient(mqClient),
 	)
 
-	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)
+	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
+	blockProcessCh := make(chan *blockchain.BlockMessage, blockProcessingBuffer)
 
 	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
@@ -140,17 +142,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
 	}
 
-	peerOpts := []p2p.PeerOptions{
-		p2p.WithMaximumMessageSize(maximumBlockSize),
-		p2p.WithRetryReadWriteMessageInterval(5 * time.Second),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
-	}
+	// p2p global setting
+	p2p.SetExcessiveBlockSize(maximumBlockSize)
 
-	if version.Version != "" {
-		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	pmOpts := []p2p.PeerManagerOptions{p2p.WithExcessiveBlockSize(maximumBlockSize)}
+	pmOpts := []p2p.PeerManagerOptions{}
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
@@ -158,7 +153,16 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+	peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
+
+	peerOpts := []p2p.PeerOptions{
+		p2p.WithMaximumMessageSize(maximumBlockSize),
+		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+	}
+
+	if version.Version != "" {
+		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+	}
 
 	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
@@ -167,11 +171,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
-		peer, err := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
-		if err != nil {
+		peer := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerHandler, peerURL, network, peerOpts...)
+		ok := peer.Connect()
+		if !ok {
 			stopFn()
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
+
 		err = pm.AddPeer(peer)
 		if err != nil {
 			stopFn()
@@ -238,7 +244,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
+	pm *p2p.PeerManager, mqClient blocktx.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {

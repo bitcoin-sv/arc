@@ -13,12 +13,13 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -44,8 +45,8 @@ const (
 
 type Processor struct {
 	hostname                    string
-	blockRequestCh              chan BlockRequest
-	blockProcessCh              chan *p2p.BlockMessage
+	blockRequestCh              chan blocktx_p2p.BlockRequest
+	blockProcessCh              chan *blockchain.BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -73,8 +74,8 @@ type Processor struct {
 func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
-	blockRequestCh chan BlockRequest,
-	blockProcessCh chan *p2p.BlockMessage,
+	blockRequestCh chan blocktx_p2p.BlockRequest,
+	blockProcessCh chan *blockchain.BlockMessage,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -140,6 +141,7 @@ func (p *Processor) StartBlockRequesting() {
 
 	waitUntilFree := func(ctx context.Context) bool {
 		t := time.NewTicker(time.Second)
+		defer t.Stop()
 
 		for {
 			bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
@@ -187,16 +189,10 @@ func (p *Processor) StartBlockRequesting() {
 					continue
 				}
 
-				msg := wire.NewMsgGetData()
-				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
-
 				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
-				if err = peer.WriteMsg(msg); err != nil {
-					p.logger.Error("failed to write block request message to peer", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, hash)
-
-					continue
-				}
+				msg := wire.NewMsgGetDataSizeHint(1)
+				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
+				peer.WriteMsg(msg)
 
 				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
@@ -425,7 +421,7 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(msg *p2p.BlockMessage) (err error) {
+func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	ctx := p.ctx
 	var blockHash chainhash.Hash
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
@@ -742,9 +738,4 @@ func (p *Processor) Shutdown() {
 			p.logger.Error("unlocking unprocessed block on shutdown failed", slog.String("hash", bh.String()), slog.Any("err", err))
 		}
 	}
-}
-
-// GetBlockRequestCh is for testing purposes only
-func (p *Processor) GetBlockRequestCh() chan BlockRequest {
-	return p.blockRequestCh
 }

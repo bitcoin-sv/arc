@@ -31,13 +31,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 		}
 
 		// verify we have at least 1 node connected to blocktx
-		healthy := false
-		for _, peer := range s.pm.GetPeers() {
-			if peer.IsHealthy() && peer.Connected() {
-				healthy = true
-				break
-			}
-		}
+		healthy := s.pm.CountConnectedPeers() > 0
 
 		if !healthy {
 			s.logger.Error("healthy peer not found")
@@ -66,13 +60,7 @@ func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_healt
 		}
 
 		// verify we have at least 1 node connected to blocktx
-		healthy := false
-		for _, peer := range s.pm.GetPeers() {
-			if peer.IsHealthy() && peer.Connected() {
-				healthy = true
-				break
-			}
-		}
+		healthy := s.pm.CountConnectedPeers() > 0
 
 		if !healthy {
 			s.logger.Error("healthy peer not found")

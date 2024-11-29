@@ -1,4 +1,4 @@
-package blocktx
+package blocktx_p2p
 
 import (
 	"testing"

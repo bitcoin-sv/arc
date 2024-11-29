@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,6 +65,9 @@ func TestStartFillGaps(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+			const fillGapsInterval = 50 * time.Millisecond
+
+			blockRequestingCh := make(chan blocktx_p2p.BlockRequest, 10)
 			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
@@ -78,30 +82,21 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			}
 
-			peerMock := &mocks.PeerMock{
-				StringFunc: func() string {
-					return ""
-				},
-			}
+			peerMock := &p2pMocks.PeerIMock{StringFunc: func() string { return "peer" }}
 			peers := []p2p.PeerI{peerMock}
 
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			blockRequestCh := make(chan blocktx.BlockRequest, 10)
-
-			sut := blocktx.NewBackgroundWorkers(storeMock, logger)
-
-			interval := 50 * time.Millisecond
+			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
 
 			// when
-			sut.StartFillGaps(peers, interval, 28, blockRequestCh)
+			sut.StartFillGaps(peers, fillGapsInterval, 28, blockRequestingCh)
 
 			// then
 			select {
-			case hashPeer := <-blockRequestCh:
+			case hashPeer := <-blockRequestingCh:
 				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
 			case err = <-getBlockErrCh:
 				require.ErrorIs(t, err, tc.getBlockGapsErr)
-			case <-time.After(time.Duration(3.5 * float64(interval))):
+			case <-time.After(time.Duration(3.5 * float64(fillGapsInterval))):
 			}
 
 			sut.GracefulStop()

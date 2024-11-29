@@ -8,7 +8,3 @@ package blocktx
 
 // from nats_core_client.go
 //go:generate moq -pkg mocks -out ./mocks/mq_client_mock.go . MessageQueueClient
-
-// from interface.go
-//go:generate moq -pkg mocks -out ./mocks/peer_mock.go . Peer
-//go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager

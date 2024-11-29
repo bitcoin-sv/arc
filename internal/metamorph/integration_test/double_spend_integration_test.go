@@ -33,6 +33,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
@@ -103,7 +104,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+	statusMessageChannel := make(chan *metamorph_p2p.PeerTxMessage, 10)
 	minedTxChannel := make(chan *blocktx_api.TransactionBlock, 10)
 
 	mockedZMQ := &mocks.ZMQIMock{

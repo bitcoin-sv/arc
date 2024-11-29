@@ -12,12 +12,6 @@ package metamorph
 // from processor.go
 //go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
 
-// from peer_manager.go
-//go:generate moq -pkg mocks -out ./mocks/peer_manager_mock.go . PeerManager
-
-// from peer.go
-//go:generate moq -pkg mocks -out ./mocks/peer_mock.go . PeerI
-
 // from zmq.go
 //go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI
 

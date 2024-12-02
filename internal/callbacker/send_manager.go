@@ -46,7 +46,6 @@ type sendManager struct {
 	quarantinePolicy *quarantinePolicy
 
 	// internal state
-	entriesWg    sync.WaitGroup
 	entries      chan *CallbackEntry
 	batchEntries chan *CallbackEntry
 
@@ -150,7 +149,6 @@ func (m *sendManager) storeToDB(entry *CallbackEntry, postponeUntil *time.Time) 
 
 func (m *sendManager) GracefulStop() {
 	m.setMode(StoppingMode) // signal the `run` goroutine to stop sending callbacks
-	m.entriesWg.Wait()      // wait for all accepted callbacks to be consumed
 
 	// signal the `run` goroutine to exit
 	close(m.entries)

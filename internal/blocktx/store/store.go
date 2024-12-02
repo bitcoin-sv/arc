@@ -16,7 +16,7 @@ var (
 	ErrUnableToDeleteRows               = errors.New("unable to delete rows")
 	ErrFailedToInsertBlock              = errors.New("failed to insert block")
 	ErrFailedToOpenDB                   = errors.New("failed to open postgres database")
-	ErrFailedToInsertTransactions       = errors.New("failed to bulk insert transactions")
+	ErrFailedToUpsertTransactions       = errors.New("failed to register and get mined transactions")
 	ErrFailedToGetRows                  = errors.New("failed to get rows")
 	ErrFailedToSetBlockProcessing       = errors.New("failed to set block processing")
 	ErrFailedToExecuteTxUpdateQuery     = errors.New("failed to execute transaction update query")

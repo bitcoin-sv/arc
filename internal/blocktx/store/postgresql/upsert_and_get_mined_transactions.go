@@ -39,7 +39,7 @@ func (p *PostgreSQL) UpsertAndGetMinedTransactions(ctx context.Context, txHashes
 
 	rows, err := p.db.QueryContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
-		return nil, errors.Join(store.ErrFailedToInsertTransactions, err)
+		return nil, errors.Join(store.ErrFailedToUpsertTransactions, err)
 	}
 	defer rows.Close()
 

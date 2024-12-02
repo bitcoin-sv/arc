@@ -386,6 +386,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					Status:       msg.Status,
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
+					Timestamp:    msg.Start,
 				}
 
 				// if we receive new update check if we have client connection waiting for status and send it
@@ -789,8 +790,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:   *req.Data.Hash,
-		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Hash:      *req.Data.Hash,
+		Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Timestamp: p.now(),
 	}
 
 	// Add this transaction to the map of transactions that client is listening to with open connection
@@ -829,8 +831,9 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:   *data.Hash,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Hash:      *data.Hash,
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Timestamp: p.now(),
 		}
 	}
 }

@@ -44,9 +44,10 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		p.logger.Info("updateStatusMap - updating status", slog.String("hash", statusUpdate.Hash.String()), slog.String("old_status", currentStatusUpdate.Status.String()), slog.String("new_status", statusUpdate.Status.String()))
 		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
 			Status:    currentStatusUpdate.Status,
-			Timestamp: p.now(),
+			Timestamp: currentStatusUpdate.Timestamp,
 		})
 		currentStatusUpdate.Status = statusUpdate.Status
+		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
 
 	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", currentStatusUpdate.Hash.String()), slog.String("status", currentStatusUpdate.Status.String()), slog.Any("status_history", currentStatusUpdate.StatusHistory))

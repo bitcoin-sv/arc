@@ -412,6 +412,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					Status:       msg.Status,
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
+					Timestamp:    msg.Start,
 				}
 
 				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
@@ -831,8 +832,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:   *req.Data.Hash,
-		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Hash:      *req.Data.Hash,
+		Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Timestamp: p.now(),
 	}
 }
 
@@ -871,8 +873,9 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:   *data.Hash,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Hash:      *data.Hash,
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Timestamp: p.now(),
 		}
 	}
 }

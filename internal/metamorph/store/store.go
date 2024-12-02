@@ -92,6 +92,7 @@ type UpdateStatus struct {
 	Error         error                 `json:"-"`
 	CompetingTxs  []string              `json:"competing_txs"`
 	StatusHistory []StatusWithTimestamp `json:"status_history"`
+	Timestamp     time.Time             `json:"timestamp"`
 	// Fields for marshalling
 	HashStr  string `json:"hash"`
 	ErrorStr string `json:"error"`

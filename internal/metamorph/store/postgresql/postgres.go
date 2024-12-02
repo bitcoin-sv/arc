@@ -614,10 +614,15 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))
 	statusHistories := make([]*string, len(updates))
+	timestamps := make([]time.Time, len(updates))
 
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
+		timestamps[i] = update.Timestamp
+		if timestamps[i].IsZero() {
+			timestamps[i] = p.now()
+		}
 
 		if update.Error != nil {
 			rejectReasons[i] = update.Error.Error()
@@ -645,17 +650,17 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 					|| COALESCE(
 						json_build_object(
 							'status', metamorph.transactions.status,
-							'timestamp', last_modified
+							'timestamp', bulk_query.timestamp
 						)::JSONB || bulk_query.history_update,
 						json_build_object(
 							'status', metamorph.transactions.status,
-							'timestamp', last_modified
+							'timestamp', bulk_query.timestamp
 						)::JSONB
 					)
 			FROM
 			(
-				SELECT t.hash, t.status, t.reject_reason, t.history_update
-				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::JSONB[]) AS t(hash, status, reject_reason, history_update)
+				SELECT t.hash, t.status, t.reject_reason, t.history_update, t.timestamp
+				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::JSONB[], $6::TIMESTAMP WITH TIME ZONE[]) AS t(hash, status, reject_reason, history_update, timestamp)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash = bulk_query.hash
 				AND metamorph.transactions.status < bulk_query.status
@@ -690,7 +695,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories))
+	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories), pq.Array(timestamps))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -724,10 +729,15 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	statusHistories := make([]*string, len(updates))
+	timestamps := make([]time.Time, len(updates))
 
 	for i, update := range updates {
 		txHashes[i] = update.Hash.CloneBytes()
 		statuses[i] = update.Status
+		timestamps[i] = update.Timestamp
+		if timestamps[i].IsZero() {
+			timestamps[i] = p.now()
+		}
 
 		// Marshal the StatusHistory to JSON
 		var historyDataStr *string
@@ -761,7 +771,7 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
                 UNION ALL
                 SELECT jsonb_build_object(
                     'status', bulk_query.status,
-                    'timestamp', $4::TIMESTAMP WITH TIME ZONE
+                    'timestamp', bulk_query.timestamp
                 ) AS new_status
                 WHERE bulk_query.status < metamorph.transactions.status
                   AND NOT EXISTS (
@@ -772,8 +782,8 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
             ) AS valid_statuses
         )
     FROM (
-        SELECT t.hash, t.status, t.history_update
-        FROM UNNEST($1::BYTEA[], $2::INT[], $3::JSONB[]) AS t(hash, status, history_update)
+        SELECT t.hash, t.status, t.history_update, t.timestamp
+        FROM UNNEST($1::BYTEA[], $2::INT[], $3::JSONB[], $4::TIMESTAMP WITH TIME ZONE[]) AS t(hash, status, history_update, timestamp)
     ) AS bulk_query
     WHERE metamorph.transactions.hash = bulk_query.hash
     RETURNING metamorph.transactions.stored_at
@@ -807,7 +817,7 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(statusHistories), p.now())
+	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(statusHistories), pq.Array(timestamps))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

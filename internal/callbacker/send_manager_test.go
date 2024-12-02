@@ -106,12 +106,12 @@ func TestSendManager(t *testing.T) {
 				BatchSendInterval:                  time.Millisecond,
 			}
 
-			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig)
-
+			var opts []func(manager *sendManager)
 			if tc.setEntriesBufferSize > 0 {
-				sut.entries = make(chan *CallbackEntry, tc.setEntriesBufferSize)
-				sut.batchEntries = make(chan *CallbackEntry, tc.setEntriesBufferSize)
+				opts = append(opts, WithBufferSize(tc.setEntriesBufferSize))
 			}
+
+			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig, opts...)
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {

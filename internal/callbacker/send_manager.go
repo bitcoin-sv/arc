@@ -71,7 +71,14 @@ const (
 	entriesBufferSize = 10000
 )
 
-func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, quarantinePolicy *quarantinePolicy, sendingConfig *SendConfig) *sendManager {
+func WithBufferSize(size int) func(*sendManager) {
+	return func(m *sendManager) {
+		m.entries = make(chan *CallbackEntry, size)
+		m.batchEntries = make(chan *CallbackEntry, size)
+	}
+}
+
+func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, quarantinePolicy *quarantinePolicy, sendingConfig *SendConfig, opts ...func(*sendManager)) *sendManager {
 	const defaultBatchSendInterval = 5 * time.Second
 
 	batchSendInterval := defaultBatchSendInterval
@@ -93,6 +100,10 @@ func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, 
 		entries:      make(chan *CallbackEntry, entriesBufferSize),
 		batchEntries: make(chan *CallbackEntry, entriesBufferSize),
 		stop:         make(chan struct{}),
+	}
+
+	for _, opt := range opts {
+		opt(m)
 	}
 
 	m.run()

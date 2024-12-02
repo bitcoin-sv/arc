@@ -735,8 +735,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		retries       int
 		getUnminedErr error
 
-		expectedRequests      int
-		expectedAnnouncements int
+		expectedRequests      int32
+		expectedAnnouncements int32
 	}{
 		{
 			name:    "expired txs",
@@ -799,14 +799,14 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			announceMsgCounter := 0
-			requestMsgCounter := 0
+			var announceMsgCounter atomic.Int32
+			var requestMsgCounter atomic.Int32
 			peer := &p2pMocks.PeerIMock{
 				WriteMsgFunc: func(msg wire.Message) {
 					if msg.Command() == wire.CmdInv {
-						announceMsgCounter++
+						announceMsgCounter.Add(1)
 					} else if msg.Command() == wire.CmdGetData {
-						requestMsgCounter++
+						requestMsgCounter.Add(1)
 					}
 				},
 				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
@@ -846,8 +846,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			// then
-			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter)
-			require.Equal(t, tc.expectedRequests, requestMsgCounter)
+			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter.Load())
+			require.Equal(t, tc.expectedRequests, requestMsgCounter.Load())
 		})
 	}
 }

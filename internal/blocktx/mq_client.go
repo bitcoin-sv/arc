@@ -7,9 +7,8 @@ import (
 )
 
 const (
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
+	MinedTxsTopic  = "mined-txs"
+	RequestTxTopic = "request-tx"
 )
 
 type MessageQueueClient interface {

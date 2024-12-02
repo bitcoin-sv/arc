@@ -390,71 +390,6 @@ func TestHandleBlockReorg(t *testing.T) {
 	}
 }
 
-func TestStartProcessRegisterTxs(t *testing.T) {
-	tt := []struct {
-		name        string
-		registerErr error
-
-		expectedRegisterTxsCalls int
-	}{
-		{
-			name: "success",
-
-			expectedRegisterTxsCalls: 2,
-		},
-		{
-			name:        "error",
-			registerErr: errors.New("failed to register"),
-
-			expectedRegisterTxsCalls: 2,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			registerErrTest := tc.registerErr
-			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) ([]*chainhash.Hash, error) {
-					return nil, registerErrTest
-				},
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
-			}
-
-			txChan := make(chan []byte, 10)
-
-			txChan <- testdata.TX1Hash[:]
-			txChan <- testdata.TX2Hash[:]
-			txChan <- testdata.TX3Hash[:]
-			txChan <- testdata.TX4Hash[:]
-
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-			// when
-			sut, err := blocktx.NewProcessor(
-				logger,
-				storeMock,
-				nil,
-				nil,
-				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
-				blocktx.WithRegisterTxsChan(txChan),
-				blocktx.WithRegisterTxsBatchSize(3),
-			)
-			require.NoError(t, err)
-
-			sut.StartProcessRegisterTxs()
-
-			time.Sleep(120 * time.Millisecond)
-			sut.Shutdown()
-
-			// then
-			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
-		})
-	}
-}
-
 func TestStartBlockRequesting(t *testing.T) {
 	blockHash, err := chainhash.NewHashFromStr("00000000000007b1f872a8abe664223d65acd22a500b1b8eb5db3fe09a9837ff")
 	require.NoError(t, err)
@@ -635,13 +570,13 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(_ context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+				UpsertAndGetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte) ([]store.GetMinedTransactionResult, error) {
 					for _, hash := range hashes {
-						require.Equal(t, testdata.TX1Hash, hash)
+						require.Equal(t, tc.requestedTx, hash)
 					}
 
 					return []store.GetMinedTransactionResult{{
-						TxHash:      testdata.TX1Hash[:],
+						TxHash:      tc.requestedTx,
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,
 					}}, tc.getMinedErr
@@ -664,8 +599,8 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			// when
 			sut, err := blocktx.NewProcessor(logger, storeMock,
 				nil, nil,
-				blocktx.WithRegisterRequestTxsInterval(15*time.Millisecond),
-				blocktx.WithRegisterRequestTxsBatchSize(3),
+				blocktx.WithRequestTxsInterval(15*time.Millisecond),
+				blocktx.WithRequestTxsBatchSize(3),
 				blocktx.WithRequestTxChan(requestTxChannel),
 				blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
@@ -680,7 +615,7 @@ func TestStartProcessRequestTxs(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
+			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.UpsertAndGetMinedTransactionsCalls()))
 			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
 		})
 	}
@@ -695,12 +630,6 @@ func TestStart(t *testing.T) {
 	}{
 		{
 			name: "success",
-		},
-		{
-			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
-
-			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},
 		{
 			name:     "error - subscribe submit txs",

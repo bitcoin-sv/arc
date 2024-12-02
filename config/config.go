@@ -113,7 +113,7 @@ type BlocktxConfig struct {
 	HealthServerDialAddr          string              `mapstructure:"healthServerDialAddr"`
 	Db                            *DbConfig           `mapstructure:"db"`
 	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
-	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
+	RequestTxsInterval            time.Duration       `mapstructure:"requestTxsInterval"`
 	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
 	FillGapsInterval              time.Duration       `mapstructure:"fillGapsInterval"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`

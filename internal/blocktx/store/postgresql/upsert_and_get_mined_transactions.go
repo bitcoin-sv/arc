@@ -2,28 +2,30 @@ package postgresql
 
 import (
 	"context"
-
-	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"errors"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/lib/pq"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) (result []store.GetMinedTransactionResult, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
+func (p *PostgreSQL) UpsertAndGetMinedTransactions(ctx context.Context, txHashes [][]byte) (result []store.GetMinedTransactionResult, err error) {
+	ctx, span := tracing.StartTracing(ctx, "UpsertAndGetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	var hashSlice [][]byte
-	for _, hash := range hashes {
-		hashSlice = append(hashSlice, hash[:])
-	}
+	const q = `
+		WITH inserted_transactions AS (
+			INSERT INTO blocktx.transactions (hash, is_registered)
+				SELECT hash, TRUE
+				FROM UNNEST ($1::BYTEA[]) as hash
+			ON CONFLICT (hash) DO UPDATE
+				SET is_registered = TRUE
+			RETURNING hash
+		)
 
-	result = make([]store.GetMinedTransactionResult, 0, len(hashSlice))
-
-	q := `
 		SELECT
 			t.hash,
 			b.hash,
@@ -32,15 +34,16 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes []*chainha
 	  FROM blocktx.transactions AS t
 	  	JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
 	  	JOIN blocktx.blocks AS b ON m.blockid = b.id
-	  WHERE t.hash = ANY($1)
+	  WHERE t.hash = ANY(SELECT hash FROM inserted_transactions)
 	`
 
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashSlice))
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(store.ErrFailedToInsertTransactions, err)
 	}
 	defer rows.Close()
 
+	result = make([]store.GetMinedTransactionResult, 0, len(txHashes))
 	for rows.Next() {
 		var txHash []byte
 		var blockHash []byte

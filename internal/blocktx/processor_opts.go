@@ -25,21 +25,9 @@ func WithRetentionDays(dataRetentionDays int) func(handler *Processor) {
 	}
 }
 
-func WithRegisterTxsInterval(d time.Duration) func(handler *Processor) {
+func WithRequestTxsInterval(d time.Duration) func(handler *Processor) {
 	return func(p *Processor) {
-		p.registerTxsInterval = d
-	}
-}
-
-func WithRegisterRequestTxsInterval(d time.Duration) func(handler *Processor) {
-	return func(p *Processor) {
-		p.registerRequestTxsInterval = d
-	}
-}
-
-func WithRegisterTxsChan(registerTxsChan chan []byte) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.registerTxsChan = registerTxsChan
+		p.requestTxsInterval = d
 	}
 }
 
@@ -49,15 +37,9 @@ func WithRequestTxChan(requestTxChannel chan []byte) func(handler *Processor) {
 	}
 }
 
-func WithRegisterTxsBatchSize(size int) func(handler *Processor) {
+func WithRequestTxsBatchSize(size int) func(handler *Processor) {
 	return func(handler *Processor) {
-		handler.registerTxsBatchSize = size
-	}
-}
-
-func WithRegisterRequestTxsBatchSize(size int) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.registerRequestTxsBatchSize = size
+		handler.requestTxsBatchSize = size
 	}
 }
 

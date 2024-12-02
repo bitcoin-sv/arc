@@ -26,20 +26,19 @@ import (
 )
 
 var (
-	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
+	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to request-tx topic")
 	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
 	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
 	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
+	ErrFailedToPublishMinedTransaction = errors.New("failed to publish mined transactions")
 )
 
 const (
 	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
-	registerTxsIntervalDefault         = time.Second * 10
-	registerRequestTxsIntervalDefault  = time.Second * 5
-	registerTxsBatchSizeDefault        = 100
-	registerRequestTxBatchSizeDefault  = 100
+	requestTxsIntervalDefault          = time.Second * 5
+	requestTxBatchSizeDefault          = 100
 	waitForBlockProcessing             = 5 * time.Minute
 )
 
@@ -52,12 +51,9 @@ type Processor struct {
 	transactionStorageBatchSize int
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
-	registerTxsChan             chan []byte
 	requestTxChannel            chan []byte
-	registerTxsInterval         time.Duration
-	registerRequestTxsInterval  time.Duration
-	registerTxsBatchSize        int
-	registerRequestTxsBatchSize int
+	requestTxsInterval          time.Duration
+	requestTxsBatchSize         int
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
 	processGuardsMap            sync.Map
@@ -89,10 +85,8 @@ func NewProcessor(
 		blockRequestCh:              blockRequestCh,
 		blockProcessCh:              blockProcessCh,
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
-		registerTxsInterval:         registerTxsIntervalDefault,
-		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
-		registerTxsBatchSize:        registerTxsBatchSizeDefault,
-		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
+		requestTxsInterval:          requestTxsIntervalDefault,
+		requestTxsBatchSize:         requestTxBatchSizeDefault,
 		hostname:                    hostname,
 		stats:                       newProcessorStats(),
 		statCollectionInterval:      statCollectionIntervalDefault,
@@ -112,15 +106,7 @@ func NewProcessor(
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
-		p.registerTxsChan <- msg
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RegisterTxTopic), err)
-	}
-
-	err = p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
+	err := p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
 		p.requestTxChannel <- msg
 		return nil
 	})
@@ -130,7 +116,6 @@ func (p *Processor) Start() error {
 
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
-	p.StartProcessRegisterTxs()
 	p.StartProcessRequestTxs()
 
 	return nil
@@ -287,47 +272,12 @@ func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
 	}
 }
 
-func (p *Processor) StartProcessRegisterTxs() {
-	p.waitGroup.Add(1)
-	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
-
-	ticker := time.NewTicker(p.registerTxsInterval)
-	go func() {
-		defer p.waitGroup.Done()
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case txHash := <-p.registerTxsChan:
-				txHashes = append(txHashes, txHash)
-
-				if len(txHashes) < p.registerTxsBatchSize {
-					continue
-				}
-
-				p.registerTransactions(txHashes[:])
-				txHashes = txHashes[:0]
-				ticker.Reset(p.registerTxsInterval)
-
-			case <-ticker.C:
-				if len(txHashes) == 0 {
-					continue
-				}
-
-				p.registerTransactions(txHashes[:])
-				txHashes = txHashes[:0]
-				ticker.Reset(p.registerTxsInterval)
-			}
-		}
-	}()
-}
-
 func (p *Processor) StartProcessRequestTxs() {
 	p.waitGroup.Add(1)
 
-	txHashes := make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+	txHashes := make([][]byte, 0, p.requestTxsBatchSize)
 
-	ticker := time.NewTicker(p.registerRequestTxsInterval)
+	ticker := time.NewTicker(p.requestTxsInterval)
 
 	go func() {
 		defer p.waitGroup.Done()
@@ -337,15 +287,15 @@ func (p *Processor) StartProcessRequestTxs() {
 			case <-p.ctx.Done():
 				return
 			case txHash := <-p.requestTxChannel:
-				tx, err := chainhash.NewHash(txHash)
+				_, err := chainhash.NewHash(txHash)
 				if err != nil {
 					p.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
 					continue
 				}
 
-				txHashes = append(txHashes, tx)
+				txHashes = append(txHashes, txHash)
 
-				if len(txHashes) < p.registerRequestTxsBatchSize || len(txHashes) == 0 {
+				if len(txHashes) < p.requestTxsBatchSize {
 					continue
 				}
 
@@ -355,8 +305,8 @@ func (p *Processor) StartProcessRequestTxs() {
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
-				ticker.Reset(p.registerRequestTxsInterval)
+				txHashes = make([][]byte, 0, p.requestTxsBatchSize)
+				ticker.Reset(p.requestTxsInterval)
 
 			case <-ticker.C:
 				if len(txHashes) == 0 {
@@ -366,22 +316,24 @@ func (p *Processor) StartProcessRequestTxs() {
 				err := p.publishMinedTxs(txHashes)
 				if err != nil {
 					p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					ticker.Reset(p.registerRequestTxsInterval)
+					ticker.Reset(p.requestTxsInterval)
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
-				ticker.Reset(p.registerRequestTxsInterval)
+				txHashes = make([][]byte, 0, p.requestTxsBatchSize)
+				ticker.Reset(p.requestTxsInterval)
 			}
 		}
 	}()
 }
 
-func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
+func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
+	minedTxs, err := p.store.UpsertAndGetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
+
+	var publishErr error
 
 	for _, minedTx := range minedTxs {
 		txBlock := &blocktx_api.TransactionBlock{
@@ -390,28 +342,19 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 			BlockHeight:     minedTx.BlockHeight,
 			MerklePath:      minedTx.MerklePath,
 		}
+
 		err = p.mqClient.PublishMarshal(p.ctx, MinedTxsTopic, txBlock)
+		if err != nil {
+			p.logger.Error("failed to publish mined transaction", slog.String("err", err.Error()))
+			publishErr = err
+		}
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to publish mined transactions: %v", err)
+	if publishErr != nil {
+		return ErrFailedToPublishMinedTransaction
 	}
 
 	return nil
-}
-
-func (p *Processor) registerTransactions(txHashes [][]byte) {
-	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
-	if err != nil {
-		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-	}
-
-	if len(updatedTxs) > 0 {
-		err = p.publishMinedTxs(updatedTxs)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-		}
-	}
 }
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {

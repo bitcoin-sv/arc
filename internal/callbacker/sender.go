@@ -111,6 +111,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 			slog.String("url", url),
 			slog.String("token", token),
 			slog.String("hash", dto.TxID),
+			slog.String("status", dto.TxStatus),
 			slog.String("err", err.Error()))
 		return false
 	}
@@ -122,6 +123,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 			slog.String("url", url),
 			slog.String("token", token),
 			slog.String("hash", dto.TxID),
+			slog.String("status", dto.TxStatus),
 			slog.Int("retries", retries))
 
 		p.updateSuccessStats(dto.TxStatus)
@@ -132,7 +134,8 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.String("hash", dto.TxID),
-		slog.Int("retries", p.retries))
+		slog.String("status", dto.TxStatus),
+		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
 	return
@@ -163,6 +166,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 				slog.String("url", url),
 				slog.String("token", token),
 				slog.String("hash", c.TxID),
+				slog.String("status", c.TxStatus),
 				slog.Int("retries", retries))
 
 			p.updateSuccessStats(c.TxStatus)
@@ -174,7 +178,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.Bool("batch", true),
-		slog.Int("retries", p.retries))
+		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
 	return

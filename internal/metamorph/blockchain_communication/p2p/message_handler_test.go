@@ -187,38 +187,9 @@ func Test_MessageHandlerOnSend(t *testing.T) {
 					t.Fatal("test timed out or error while executing goroutine")
 				}
 			}
-
 		})
 	}
 }
-
-// func Test_MessageHandler(t *testing.T) {
-
-// 	t.Run("HandleTransaction", func(t *testing.T) {
-// 		// given
-// 		msgTx := wire.NewMsgTx(70001)
-// 		hash := msgTx.TxHash()
-
-// 		expectedMsg := &metamorph.PeerTxMessage{
-// 			Hash:   &hash,
-// 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
-// 			Peer:   "mock_peer",
-// 		}
-
-// 		// when
-// 		go func() {
-// 			_ = peerHandler.HandleTransaction(msgTx, peer)
-// 		}()
-
-// 		// then
-// 		select {
-// 		case msg := <-messageCh:
-// 			assert.Equal(t, expectedMsg, msg)
-// 		case <-time.After(time.Second):
-// 			t.Fatal("test timed out or error while executing goroutine")
-// 		}
-// 	})
-// }
 
 func ptrTo[T any](v T) *T {
 	return &v

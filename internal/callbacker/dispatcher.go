@@ -30,11 +30,8 @@ type CallbackDispatcher struct {
 	managers   map[string]*sendManager
 	managersMu sync.Mutex
 
-	policy *quarantinePolicy
-
-	sendDelay         time.Duration
-	sleep             time.Duration
-	batchSendInterval time.Duration
+	quarantinePolicy *quarantinePolicy
+	sendConfig       *SendConfig
 }
 
 type CallbackEntry struct {
@@ -60,11 +57,9 @@ func NewCallbackDispatcher(callbacker SenderI, cStore store.CallbackerStore, log
 		store:  cStore,
 		logger: logger.With(slog.String("module", "dispatcher")),
 
-		sendDelay:         sendingConfig.Delay,
-		sleep:             sendingConfig.PauseAfterSingleModeSuccessfulSend,
-		batchSendInterval: sendingConfig.BatchSendInterval,
+		sendConfig: sendingConfig,
 
-		policy: &quarantinePolicy{
+		quarantinePolicy: &quarantinePolicy{
 			baseDuration:        quarantineConfig.BaseDuration,
 			permQuarantineAfter: quarantineConfig.PermQuarantineAfterDuration,
 			now:                 time.Now,
@@ -87,7 +82,7 @@ func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch
 	manager, ok := d.managers[url]
 
 	if !ok {
-		manager = runNewSendManager(url, d.sender, d.store, d.logger, d.policy, d.sendDelay, d.sleep, d.batchSendInterval)
+		manager = runNewSendManager(url, d.sender, d.store, d.logger, d.quarantinePolicy, d.sendConfig)
 		d.managers[url] = manager
 	}
 	d.managersMu.Unlock()

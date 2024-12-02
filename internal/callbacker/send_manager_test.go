@@ -76,17 +76,13 @@ func TestSendManager(t *testing.T) {
 				},
 			}
 
-			sut := &sendManager{
-				url:               "",
-				sender:            cMq,
-				store:             sMq,
-				singleSendSleep:   tc.singleSendInterval,
-				batchSendInterval: 5 * time.Millisecond,
-
-				entries:      make(chan *CallbackEntry),
-				batchEntries: make(chan *CallbackEntry),
-				stop:         make(chan struct{}),
+			sendConfig := &SendConfig{
+				Delay:                              0,
+				PauseAfterSingleModeSuccessfulSend: 0,
+				BatchSendInterval:                  time.Millisecond,
 			}
+
+			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig)
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {
@@ -95,9 +91,6 @@ func TestSendManager(t *testing.T) {
 			for range tc.numOfBatchedCallbacks {
 				sut.Add(&CallbackEntry{Data: &Callback{}}, true)
 			}
-
-			// when
-			sut.run()
 
 			if tc.stopManager {
 				sut.GracefulStop()
@@ -193,7 +186,13 @@ func TestSendManager_Quarantine(t *testing.T) {
 				postQuarantineCallbacks = append(postQuarantineCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
 			}
 
-			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, 0, 0, time.Millisecond)
+			sendConfig := &SendConfig{
+				Delay:                              0,
+				PauseAfterSingleModeSuccessfulSend: 0,
+				BatchSendInterval:                  time.Millisecond,
+			}
+
+			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, sendConfig)
 
 			// when
 			sendOK = false // trigger send failure - this should put the manager in quarantine

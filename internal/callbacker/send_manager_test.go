@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,7 +112,7 @@ func TestSendManager(t *testing.T) {
 				opts = append(opts, WithBufferSize(tc.setEntriesBufferSize))
 			}
 
-			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig, opts...)
+			sut := runNewSendManager("", cMq, sMq, slog.Default(), sendConfig, opts...)
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {
@@ -159,13 +160,13 @@ func TestSendManager(t *testing.T) {
 	}
 }
 
-func TestSendManager_Quarantine(t *testing.T) {
-	/* Quarantine scenario
+func TestSendManager_FailedCallbacks(t *testing.T) {
+	/* Failure scenario
 	1. sending failed
-	2. put manager in quarantine for a specified duration
-	3. store all callbacks during the quarantine period
-	4. switch manager to active mode once quarantine is over
-	5. send new callbacks after quarantine
+	2. put manager in failed state for a specified duration
+	3. store all callbacks during the failure period
+	4. switch manager to active mode once failure duration is over
+	5. send new callbacks again
 	*/
 
 	tt := []struct {
@@ -184,10 +185,10 @@ func TestSendManager_Quarantine(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			sendOK := true
+			var sendOK int32
 			senderMq := &SenderIMock{
-				SendFunc:      func(_, _ string, _ *Callback) bool { return sendOK },
-				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return sendOK },
+				SendFunc:      func(_, _ string, _ *Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
+				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
 			}
 
 			storeMq := &mocks.CallbackerStoreMock{
@@ -199,20 +200,14 @@ func TestSendManager_Quarantine(t *testing.T) {
 				},
 			}
 
-			policy := quarantinePolicy{
-				baseDuration:        200 * time.Millisecond,
-				permQuarantineAfter: time.Hour,
-				now:                 time.Now,
+			var preFailureCallbacks []*CallbackEntry
+			for i := range 10 {
+				preFailureCallbacks = append(preFailureCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("q %d", i)}})
 			}
 
-			var preQuarantineCallbacks []*CallbackEntry
+			var postFailureCallbacks []*CallbackEntry
 			for i := range 10 {
-				preQuarantineCallbacks = append(preQuarantineCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("q %d", i)}})
-			}
-
-			var postQuarantineCallbacks []*CallbackEntry
-			for i := range 10 {
-				postQuarantineCallbacks = append(postQuarantineCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
+				postFailureCallbacks = append(postFailureCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
 			}
 
 			sendConfig := &SendConfig{
@@ -221,33 +216,30 @@ func TestSendManager_Quarantine(t *testing.T) {
 				BatchSendInterval:                  time.Millisecond,
 			}
 
-			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, sendConfig)
+			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), sendConfig)
 
 			// when
-			sendOK = false // trigger send failure - this should put the manager in quarantine
+			atomic.StoreInt32(&sendOK, 0) // trigger send failure - this should put the manager in failed state
 
 			// add a few callbacks to send - all should be stored
-			for _, c := range preQuarantineCallbacks {
+			for _, c := range preFailureCallbacks {
 				sut.Add(c, tc.batch)
-				// wait to make sure first callback is processed as first
-				time.Sleep(10 * time.Millisecond)
 			}
-			require.Equal(t, QuarantineMode, sut.getMode())
 
-			time.Sleep(policy.baseDuration + 20*time.Millisecond) // wait for the quarantine period to complete
+			time.Sleep(500 * time.Millisecond) // wait for the failure period to complete
 			require.Equal(t, ActiveMode, sut.getMode())
 
-			sendOK = true // now all sends should complete successfully
+			atomic.StoreInt32(&sendOK, 1) // now all sends should complete successfully
 			// add a few callbacks to send - all should be sent
-			for _, c := range postQuarantineCallbacks {
+			for _, c := range postFailureCallbacks {
 				sut.Add(c, tc.batch)
 			}
 
 			// give a chance to process
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 
 			// then
-			// check stored callbacks during quarantine
+			// check stored callbacks during failure
 			var storedCallbacks []*store.CallbackData
 			if tc.batch {
 				for _, c := range storeMq.SetManyCalls() {
@@ -259,8 +251,8 @@ func TestSendManager_Quarantine(t *testing.T) {
 				}
 			}
 
-			require.Equal(t, len(preQuarantineCallbacks), len(storedCallbacks), "all callbacks sent during quarantine should be stored")
-			for _, c := range preQuarantineCallbacks {
+			require.Equal(t, len(preFailureCallbacks), len(storedCallbacks), "all callbacks sent during failure should be stored")
+			for _, c := range preFailureCallbacks {
 				_, ok := find(storedCallbacks, func(e *store.CallbackData) bool {
 					return e.TxID == c.Data.TxID
 				})
@@ -280,15 +272,15 @@ func TestSendManager_Quarantine(t *testing.T) {
 				}
 			}
 
-			require.Equal(t, len(postQuarantineCallbacks)+1, len(sendCallbacks), "manager should attempt to send the callback that caused quarantine (first call) and all callbacks sent after quarantine")
+			require.Equal(t, len(postFailureCallbacks)+len(preFailureCallbacks), len(sendCallbacks), "manager should attempt to send the callback that caused failure (first call) and all callbacks sent after failure")
 
 			_, ok := find(sendCallbacks, func(e *Callback) bool {
-				return e.TxID == preQuarantineCallbacks[0].Data.TxID
+				return e.TxID == preFailureCallbacks[0].Data.TxID
 			})
 
 			require.True(t, ok)
 
-			for _, c := range postQuarantineCallbacks {
+			for _, c := range postFailureCallbacks {
 				_, ok := find(sendCallbacks, func(e *Callback) bool {
 					return e.TxID == c.Data.TxID
 				})

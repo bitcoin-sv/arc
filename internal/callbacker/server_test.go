@@ -75,8 +75,7 @@ func TestSendCallback(t *testing.T) {
 			senderMq,
 			storeMq,
 			slog.Default(),
-			&callbacker.SendConfig{},
-			&callbacker.QuarantineConfig{},
+			&callbacker.SendConfig{Expiration: time.Duration(24 * time.Hour)},
 		)
 
 		server, err := callbacker.NewServer("", 0, slog.Default(), mockDispatcher, nil)

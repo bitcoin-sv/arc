@@ -182,17 +182,14 @@ func getCallbackerConfig() *CallbackerConfig {
 		Health: &HealthConfig{
 			SeverDialAddr: "localhost:8025",
 		},
-		Delay:                   0,
-		Pause:                   0,
-		BatchSendInterval:       time.Duration(5 * time.Second),
-		Db:                      getDbConfig("callbacker"),
-		PruneInterval:           24 * time.Hour,
-		PruneOlderThan:          14 * 24 * time.Hour,
-		QuarantineCheckInterval: time.Minute,
-		QuarantinePolicy: &CallbackerQuarantinePolicy{
-			BaseDuration:        10 * time.Minute,
-			PermQuarantineAfter: 24 * time.Hour,
-		},
+		Delay:                       0,
+		Pause:                       0,
+		BatchSendInterval:           time.Duration(5 * time.Second),
+		Db:                          getDbConfig("callbacker"),
+		PruneInterval:               24 * time.Hour,
+		PruneOlderThan:              14 * 24 * time.Hour,
+		FailedCallbackCheckInterval: time.Minute,
+		Expiration:                  24 * time.Hour,
 	}
 }
 

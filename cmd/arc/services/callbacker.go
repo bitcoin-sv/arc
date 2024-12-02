@@ -12,7 +12,7 @@ Key components:
 - callback sender: responsible for sending callbacks
 - background tasks:
   - periodically cleans up old, unsent callbacks from storage
-  - periodically checks the storage for callbacks in quarantine (temporary ban) and re-attempts dispatch after the quarantine period
+  - periodically checks the storage for callbacks in delayed state (temporary ban) and re-attempts dispatch after the delay period
 - gRPC server with endpoints:
   - Health: provides a health check endpoint for the service
   - SendCallback: receives and processes new callback requests
@@ -71,16 +71,14 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	}
 
 	sendConfig := callbacker.SendConfig{
+		Expiration:                         cfg.Expiration,
 		Delay:                              cfg.Delay,
+		DelayDuration:                      cfg.DelayDuration,
 		PauseAfterSingleModeSuccessfulSend: cfg.Pause,
 		BatchSendInterval:                  cfg.BatchSendInterval,
 	}
-	quarantineConfig := callbacker.QuarantineConfig{
-		BaseDuration:                cfg.QuarantinePolicy.BaseDuration,
-		PermQuarantineAfterDuration: cfg.QuarantinePolicy.PermQuarantineAfter,
-	}
 
-	dispatcher = callbacker.NewCallbackDispatcher(sender, callbackerStore, logger, &sendConfig, &quarantineConfig)
+	dispatcher = callbacker.NewCallbackDispatcher(sender, callbackerStore, logger, &sendConfig)
 	err = dispatchPersistedCallbacks(callbackerStore, dispatcher, logger)
 	if err != nil {
 		stopFn()
@@ -89,7 +87,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 
 	workers = callbacker.NewBackgroundWorkers(callbackerStore, dispatcher, logger)
 	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
-	workers.StartQuarantineCallbacksDispatch(cfg.QuarantineCheckInterval)
+	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
 
 	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, nil)
 	if err != nil {

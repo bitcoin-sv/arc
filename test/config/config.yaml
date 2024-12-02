@@ -149,3 +149,6 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
+  failedCallbackCheckInterval: 1m # interval at which the store is checked for failed callbacks to be re-sent
+  delayDuration: 5s # we try callbacks a few times with this delay after which if it fails consistently we store them in db
+  expiration: 24h # maximum time a callback can remain unsent before it's put as permanently failed

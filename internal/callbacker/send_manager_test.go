@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -20,6 +21,8 @@ func TestSendManager(t *testing.T) {
 		numOfSingleCallbacks  int
 		numOfBatchedCallbacks int
 		stopManager           bool
+		setEntriesBufferSize  int
+		setErr                error
 	}{
 		{
 			name:                  "send only single callbacks when run",
@@ -52,6 +55,23 @@ func TestSendManager(t *testing.T) {
 			numOfBatchedCallbacks: 501,
 		},
 		{
+			name:                  "entry buffer size exceeds limit",
+			singleSendInterval:    0,
+			numOfSingleCallbacks:  10,
+			numOfBatchedCallbacks: 10,
+			setEntriesBufferSize:  5,
+			stopManager:           true,
+		},
+		{
+			name:                  "entry buffer size exceeds limit - set error",
+			singleSendInterval:    0,
+			numOfSingleCallbacks:  10,
+			numOfBatchedCallbacks: 10,
+			setEntriesBufferSize:  5,
+			setErr:                errors.New("failed to set entry"),
+			stopManager:           true,
+		},
+		{
 			name:                  "save callbacks on stopping (mixed callbacks)",
 			singleSendInterval:    time.Millisecond, // set interval to give time to call stop function
 			numOfSingleCallbacks:  10,
@@ -74,6 +94,10 @@ func TestSendManager(t *testing.T) {
 					savedCallbacks = append(savedCallbacks, data...)
 					return nil
 				},
+				SetFunc: func(_ context.Context, data *store.CallbackData) error {
+					savedCallbacks = append(savedCallbacks, data)
+					return tc.setErr
+				},
 			}
 
 			sendConfig := &SendConfig{
@@ -83,6 +107,11 @@ func TestSendManager(t *testing.T) {
 			}
 
 			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig)
+
+			if tc.setEntriesBufferSize > 0 {
+				sut.entries = make(chan *CallbackEntry, tc.setEntriesBufferSize)
+				sut.batchEntries = make(chan *CallbackEntry, tc.setEntriesBufferSize)
+			}
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {

@@ -608,6 +608,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
+// Periodically read transactions with status lower then SEEN_ON_NETWORK from database and announce them again
 func (p *Processor) StartProcessExpiredTransactions() {
 	p.waitGroup.Add(1)
 
@@ -618,90 +619,46 @@ func (p *Processor) StartProcessExpiredTransactions() {
 		defer ticker.Stop()
 
 		const (
-			bufforSize = 512 // 20 KB pinned memory
-			maxBufCap  = 1024
+			buffSize  = 512
+			maxBufCap = 1024
 		)
 
-		toAnnounceBuffer := make([]*chainhash.Hash, 0, bufforSize)
-		toRequestBuffer := make([]*chainhash.Hash, 0, maxBufCap)
+		toAnnounceBuffer := make([]*chainhash.Hash, 0, buffSize)
+		toRequestBuffer := make([]*chainhash.Hash, 0, buffSize)
 
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
-			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
+			case <-ticker.C:
 				ctx, span := tracing.StartTracing(p.ctx, "StartProcessExpiredTransactions", p.tracingEnabled, p.tracingAttributes...)
 
 				// define from what point in time we are interested in unmined transactions
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
-				var offset int64
 
 				requested := 0
 				announced := 0
-				for {
-					// get all transactions since then chunk by chunk
-					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
-					if err != nil {
-						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
+
+				token := newContinuationToken(getUnminedSince, loadUnminedLimit)
+				for token.next {
+					token, toRequestBuffer, toAnnounceBuffer = p.getTxsToReprocess(ctx, token, toRequestBuffer, toAnnounceBuffer)
+					if token.err != nil {
+						p.logger.Error("Failed to get unmined transactions", slog.Time("since", getUnminedSince), slog.String("err", token.err.Error()))
 						break
 					}
 
-					offset += loadUnminedLimit
-					if len(unminedTxs) == 0 {
-						break
-					}
+					requested += p.retryRequestTransactions(ctx, toRequestBuffer)
+					toRequestBuffer = renewHashSlice(toRequestBuffer, maxBufCap, buffSize)
 
-					for _, tx := range unminedTxs {
-						if tx.Retries > p.maxRetries {
-							continue
-						}
-
-						// every second time request tx, every other time announce tx
-						if tx.Retries%2 != 0 {
-							toRequestBuffer = append(toRequestBuffer, tx.Hash)
-						} else {
-							toAnnounceBuffer = append(toAnnounceBuffer, tx.Hash)
-						}
-					}
-
-					if len(toRequestBuffer) > 0 {
-						sentPeer := p.messenger.RequestTransactions(toRequestBuffer[:])
-
-						if sentPeer != nil {
-							// mark that we retried processing this transaction once more
-							if err = p.store.IncrementRetriesBulk(ctx, toRequestBuffer); err != nil {
-								p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-							}
-
-							requested += len(toRequestBuffer)
-
-						} else {
-							p.logger.Warn("transactions was not requested to any peer during rebroadcast", slog.Int("count", len(toRequestBuffer)))
-						}
-
-						toRequestBuffer = renewHashSlice(toRequestBuffer, maxBufCap, bufforSize)
-					}
-
-					if len(toAnnounceBuffer) > 0 {
-						sentPeers := p.messenger.AnnounceTransactions(toAnnounceBuffer[:], nil)
-
-						if len(sentPeers) > 0 {
-							// mark that we retried processing this transaction once more
-							if err = p.store.IncrementRetriesBulk(ctx, toAnnounceBuffer); err != nil {
-								p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-							}
-
-							announced += len(toAnnounceBuffer)
-						} else {
-							p.logger.Warn("transactions was not announced to any peer during rebroadcast", slog.Int("count", len(toAnnounceBuffer)))
-						}
-
-						toAnnounceBuffer = renewHashSlice(toAnnounceBuffer, maxBufCap, bufforSize)
-					}
+					announced += p.retryAnnounceTransactions(ctx, toAnnounceBuffer)
+					toAnnounceBuffer = renewHashSlice(toAnnounceBuffer, maxBufCap, buffSize)
 				}
 
 				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnminedSince))
+					p.logger.Info("Retried unmined transactions",
+						slog.Int("announced", announced),
+						slog.Int("requested", requested),
+						slog.Time("since", getUnminedSince))
 				}
 
 				tracing.EndTracing(span, nil)
@@ -853,7 +810,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 }
 
 func (p *Processor) Health() error {
-	healthyConnections := int(p.messenger.CountConnectedPeers())
+	healthyConnections := int(p.messenger.CountConnectedPeers()) // #nosec G115
 
 	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))
@@ -866,6 +823,68 @@ func (p *Processor) Health() error {
 func (p *Processor) storeData(ctx context.Context, data *store.Data) error {
 	data.LastSubmittedAt = p.now()
 	return p.store.Set(ctx, data)
+}
+
+func (p *Processor) getTxsToReprocess(ctx context.Context, cToken *continuationToken, toRequestBuffer, toAnnounceBuffer []*chainhash.Hash) (token *continuationToken, toReques, toAnnounce []*chainhash.Hash) {
+	unminedTxs, err := p.store.GetUnmined(ctx, cToken.since, loadUnminedLimit, cToken.offset)
+	cToken.Set(unminedTxs, err)
+
+	if err != nil {
+		return cToken, toRequestBuffer, toAnnounceBuffer
+	}
+
+	for _, tx := range unminedTxs {
+		if tx.Retries > p.maxRetries {
+			continue
+		}
+
+		// every second time request tx, every other time announce tx
+		if tx.Retries%2 != 0 {
+			toRequestBuffer = append(toRequestBuffer, tx.Hash)
+		} else {
+			toAnnounceBuffer = append(toAnnounceBuffer, tx.Hash)
+		}
+	}
+
+	return cToken, toRequestBuffer, toAnnounceBuffer
+}
+
+func (p *Processor) retryRequestTransactions(ctx context.Context, txs []*chainhash.Hash) int {
+	if len(txs) == 0 {
+		return 0
+	}
+
+	sentPeer := p.messenger.RequestTransactions(txs[:])
+	if sentPeer != nil {
+		// mark that we retried processing this transaction once more
+		if err := p.store.IncrementRetriesBulk(ctx, txs); err != nil {
+			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+		}
+
+		return len(txs)
+	}
+
+	p.logger.Warn("transactions was not requested to any peer during rebroadcast", slog.Int("count", len(txs)))
+	return 0
+}
+
+func (p *Processor) retryAnnounceTransactions(ctx context.Context, txs []*chainhash.Hash) int {
+	if len(txs) == 0 {
+		return 0
+	}
+
+	sentPeers := p.messenger.AnnounceTransactions(txs[:], nil)
+	if len(sentPeers) > 0 {
+		// mark that we retried processing this transaction once more
+		if err := p.store.IncrementRetriesBulk(ctx, txs); err != nil {
+			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+		}
+
+		return len(txs)
+	}
+
+	p.logger.Warn("transactions was not announced to any peer during rebroadcast", slog.Int("count", len(txs)))
+	return 0
 }
 
 func addNewCallback(data, reqData *store.Data) {
@@ -887,10 +906,32 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 	return false
 }
 
+type continuationToken struct {
+	since         time.Time
+	limit, offset int64
+
+	next bool
+	err  error
+}
+
+func newContinuationToken(since time.Time, limit int64) *continuationToken {
+	return &continuationToken{
+		next:  true,
+		since: since,
+		limit: limit,
+	}
+}
+
+func (t *continuationToken) Set(res []*store.Data, err error) {
+	t.err = err
+	t.offset += int64(len(res))
+	t.next = len(res) >= int(t.limit)
+}
+
 func renewHashSlice(s []*chainhash.Hash, maxCap, newBufSize int) []*chainhash.Hash {
 	if cap(s) > maxCap {
 		return make([]*chainhash.Hash, 0, newBufSize) // allocate new smaller buffor and free old items
 	}
 
-	return s[:0] // "clean" slice withour reallocation
+	return s[:0] // "clean" slice without reallocation
 }

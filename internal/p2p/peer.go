@@ -18,7 +18,7 @@ import (
 const (
 	defaultMaximumMessageSize = 32 * 1024 * 1024
 
-	defaultPingInterval   = 2 * time.Minute
+	defaultPingInterval   = time.Minute
 	defaultHealthTreshold = 3 * time.Minute
 
 	commandKey = "cmd"
@@ -329,18 +329,17 @@ func (p *Peer) keepAlive() {
 		defer t.Stop()
 
 		for {
-			nonce, err := wire.RandomUint64()
-			if err != nil {
-				p.l.Error("KeepAlive: failed to generate nonce for PING message", slog.String(errKey, err.Error()))
-				continue
-			}
-
-			p.writeCh <- wire.NewMsgPing(nonce)
-
 			select {
 			case <-p.execCtx.Done():
 				return
 			case <-t.C:
+				nonce, err := wire.RandomUint64()
+				if err != nil {
+					p.l.Error("KeepAlive: failed to generate nonce for PING message", slog.String(errKey, err.Error()))
+					continue
+				}
+
+				p.writeCh <- wire.NewMsgPing(nonce)
 			}
 		}
 	}()

@@ -38,13 +38,13 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 	}
 
-	nMessenger := &p2p.NetworkMessanger{}
+	nMessenger := &p2p.NetworkMessenger{}
 	cStore := cache.NewMemoryStore()
 
 	tt := []struct {
 		name      string
 		store     store.MetamorphStore
-		messenger *p2p.NetworkMessanger
+		messenger *p2p.NetworkMessenger
 
 		expectedError           error
 		expectedNonNilProcessor bool
@@ -126,7 +126,7 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			messenger := &p2p.NetworkMessanger{}
+			messenger := &p2p.NetworkMessenger{}
 			cStore := cache.NewMemoryStore()
 
 			// when
@@ -250,7 +250,7 @@ func TestProcessTransaction(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			messenger := p2p.NewNetworkMessanger(pm)
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -499,8 +499,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			messenger := &p2p.NetworkMessanger{}
-
+			messenger := &p2p.NetworkMessenger{}
 			cStore := cache.NewMemoryStore()
 
 			callbackSender := &mocks.CallbackSenderMock{
@@ -681,7 +680,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			messenger := p2p.NewNetworkMessanger(pm)
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -820,7 +819,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			messenger := p2p.NewNetworkMessanger(pm)
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -904,7 +903,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &p2p.NetworkMessanger{}
+			pm := &p2p.NetworkMessenger{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
@@ -997,7 +996,7 @@ func TestProcessorHealth(t *testing.T) {
 			}
 			cStore := cache.NewMemoryStore()
 
-			messanger := p2p.NewNetworkMessanger(pm)
+			messanger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messanger, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
@@ -1051,7 +1050,7 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
-			pm := &p2p.NetworkMessanger{}
+			pm := &p2p.NetworkMessenger{}
 
 			cStore := cache.NewMemoryStore()
 

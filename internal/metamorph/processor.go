@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
@@ -62,7 +63,7 @@ type Processor struct {
 	store                     store.MetamorphStore
 	cacheStore                cache.Store
 	hostname                  string
-	messenger                 *p2p.NetworkMessanger
+	messenger                 *p2p.NetworkMessenger
 	mqClient                  MessageQueueClient
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
@@ -112,7 +113,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessanger, statusMessageChannel chan *metamorph_p2p.PeerTxMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessenger, statusMessageChannel chan *metamorph_p2p.PeerTxMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
@@ -318,6 +319,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
+// start processing txs submitted to message queue
 func (p *Processor) StartProcessSubmittedTxs() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
@@ -737,19 +739,10 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// Send GETDATA to peers to see if they have it
-	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
-	p.messenger.RequestTransaction(req.Data.Hash)
-	tracing.EndTracing(requestTransactionSpan, nil)
+	p.messenger.RequestWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
 
 	// Announce transaction to network peers
-	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	ctx, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
-	peers := p.messenger.AnnounceTransaction(req.Data.Hash, nil)
-	tracing.EndTracing(announceTransactionSpan, nil)
-	if len(peers) == 0 {
-		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
-		return
-	}
+	p.messenger.AnnounceWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -768,6 +761,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
+// process txs submitted to message queue
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)

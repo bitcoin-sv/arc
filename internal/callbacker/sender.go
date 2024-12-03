@@ -24,6 +24,11 @@ type CallbackSender struct {
 
 type SenderOption func(s *CallbackSender)
 
+const (
+	retriesDefault                = 5
+	initRetrySleepDurationDefault = 5 * time.Second
+)
+
 func WithInitRetrySleepDuration(d time.Duration) func(*CallbackSender) {
 	return func(s *CallbackSender) {
 		s.initRetrySleepDuration = d
@@ -56,8 +61,8 @@ func NewSender(httpClient *http.Client, logger *slog.Logger, opts ...SenderOptio
 		httpClient:             httpClient,
 		stats:                  stats,
 		logger:                 logger.With(slog.String("module", "sender")),
-		retries:                5,
-		initRetrySleepDuration: 5 * time.Second,
+		retries:                retriesDefault,
+		initRetrySleepDuration: initRetrySleepDurationDefault,
 	}
 
 	// apply options to processor

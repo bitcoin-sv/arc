@@ -23,18 +23,15 @@ import (
 )
 
 type CallbackDispatcher struct {
-	c SenderI
-	s store.CallbackerStore
-	l *slog.Logger
+	sender SenderI
+	store  store.CallbackerStore
+	logger *slog.Logger
 
 	managers   map[string]*sendManager
 	managersMu sync.Mutex
 
-	policy *quarantinePolicy
-
-	sendDelay         time.Duration
-	sleep             time.Duration
-	batchSendInterval time.Duration
+	quarantinePolicy *quarantinePolicy
+	sendConfig       *SendConfig
 }
 
 type CallbackEntry struct {
@@ -56,15 +53,13 @@ type QuarantineConfig struct {
 func NewCallbackDispatcher(callbacker SenderI, cStore store.CallbackerStore, logger *slog.Logger,
 	sendingConfig *SendConfig, quarantineConfig *QuarantineConfig) *CallbackDispatcher {
 	return &CallbackDispatcher{
-		c: callbacker,
-		s: cStore,
-		l: logger.With(slog.String("module", "dispatcher")),
+		sender: callbacker,
+		store:  cStore,
+		logger: logger.With(slog.String("module", "dispatcher")),
 
-		sendDelay:         sendingConfig.Delay,
-		sleep:             sendingConfig.PauseAfterSingleModeSuccessfulSend,
-		batchSendInterval: sendingConfig.BatchSendInterval,
+		sendConfig: sendingConfig,
 
-		policy: &quarantinePolicy{
+		quarantinePolicy: &quarantinePolicy{
 			baseDuration:        quarantineConfig.BaseDuration,
 			permQuarantineAfter: quarantineConfig.PermQuarantineAfterDuration,
 			now:                 time.Now,
@@ -77,20 +72,20 @@ func (d *CallbackDispatcher) GracefulStop() {
 	d.managersMu.Lock()
 	defer d.managersMu.Unlock()
 
-	for _, m := range d.managers {
-		m.GracefulStop()
+	for _, manager := range d.managers {
+		manager.GracefulStop()
 	}
 }
 
 func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch bool) {
 	d.managersMu.Lock()
-	m, ok := d.managers[url]
+	manager, ok := d.managers[url]
 
 	if !ok {
-		m = runNewSendManager(url, d.c, d.s, d.l, d.policy, d.sendDelay, d.sleep, d.batchSendInterval)
-		d.managers[url] = m
+		manager = runNewSendManager(url, d.sender, d.store, d.logger, d.quarantinePolicy, d.sendConfig)
+		d.managers[url] = manager
 	}
 	d.managersMu.Unlock()
 
-	m.Add(dto, allowBatch)
+	manager.Add(dto, allowBatch)
 }

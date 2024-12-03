@@ -2,14 +2,16 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSendManager(t *testing.T) {
@@ -19,6 +21,8 @@ func TestSendManager(t *testing.T) {
 		numOfSingleCallbacks  int
 		numOfBatchedCallbacks int
 		stopManager           bool
+		setEntriesBufferSize  int
+		setErr                error
 	}{
 		{
 			name:                  "send only single callbacks when run",
@@ -51,6 +55,23 @@ func TestSendManager(t *testing.T) {
 			numOfBatchedCallbacks: 501,
 		},
 		{
+			name:                  "entry buffer size exceeds limit",
+			singleSendInterval:    0,
+			numOfSingleCallbacks:  10,
+			numOfBatchedCallbacks: 10,
+			setEntriesBufferSize:  5,
+			stopManager:           true,
+		},
+		{
+			name:                  "entry buffer size exceeds limit - set error",
+			singleSendInterval:    0,
+			numOfSingleCallbacks:  10,
+			numOfBatchedCallbacks: 10,
+			setEntriesBufferSize:  5,
+			setErr:                errors.New("failed to set entry"),
+			stopManager:           true,
+		},
+		{
 			name:                  "save callbacks on stopping (mixed callbacks)",
 			singleSendInterval:    time.Millisecond, // set interval to give time to call stop function
 			numOfSingleCallbacks:  10,
@@ -73,19 +94,24 @@ func TestSendManager(t *testing.T) {
 					savedCallbacks = append(savedCallbacks, data...)
 					return nil
 				},
+				SetFunc: func(_ context.Context, data *store.CallbackData) error {
+					savedCallbacks = append(savedCallbacks, data)
+					return tc.setErr
+				},
 			}
 
-			sut := &sendManager{
-				url:               "",
-				sender:            cMq,
-				s:                 sMq,
-				singleSendSleep:   tc.singleSendInterval,
-				batchSendInterval: 5 * time.Millisecond,
-
-				entries:      make(chan *CallbackEntry),
-				batchEntries: make(chan *CallbackEntry),
-				stop:         make(chan struct{}),
+			sendConfig := &SendConfig{
+				Delay:                              0,
+				PauseAfterSingleModeSuccessfulSend: 0,
+				BatchSendInterval:                  time.Millisecond,
 			}
+
+			var opts []func(manager *sendManager)
+			if tc.setEntriesBufferSize > 0 {
+				opts = append(opts, WithBufferSize(tc.setEntriesBufferSize))
+			}
+
+			sut := runNewSendManager("", cMq, sMq, slog.Default(), nil, sendConfig, opts...)
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {
@@ -94,9 +120,6 @@ func TestSendManager(t *testing.T) {
 			for range tc.numOfBatchedCallbacks {
 				sut.Add(&CallbackEntry{Data: &Callback{}}, true)
 			}
-
-			// when
-			sut.run()
 
 			if tc.stopManager {
 				sut.GracefulStop()
@@ -192,7 +215,13 @@ func TestSendManager_Quarantine(t *testing.T) {
 				postQuarantineCallbacks = append(postQuarantineCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
 			}
 
-			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, 0, 0, time.Millisecond)
+			sendConfig := &SendConfig{
+				Delay:                              0,
+				PauseAfterSingleModeSuccessfulSend: 0,
+				BatchSendInterval:                  time.Millisecond,
+			}
+
+			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), &policy, sendConfig)
 
 			// when
 			sendOK = false // trigger send failure - this should put the manager in quarantine

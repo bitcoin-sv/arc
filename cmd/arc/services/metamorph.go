@@ -291,7 +291,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	msgHandler := metamorph_p2p.NewMsgHandler(logger.With(slog.String("module", "peer-msg-handler")), s, messageCh)
 
-	peerOpts := []p2p.PeerOptions{p2p.WithPingInterval(30*time.Second, 1*time.Minute)}
+	peerOpts := []p2p.PeerOptions{p2p.WithPingInterval(30*time.Second, 2*time.Minute)}
 	if version.Version != "" {
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}

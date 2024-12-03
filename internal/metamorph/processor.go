@@ -553,7 +553,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
 	shUpdatedData, err := p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
 	if err != nil {
-		return err
+		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
 
 	// TODO: remove this
@@ -777,6 +777,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// store in database
+	// set tx status to Stored
+	sh := &store.Status{Status: req.Data.Status, Timestamp: p.now()}
+	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
+	req.Data.Status = metamorph_api.Status_STORED
+
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return

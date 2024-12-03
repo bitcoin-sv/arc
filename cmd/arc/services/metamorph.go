@@ -163,7 +163,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
-		p2p.NewNetworkMessanger(pm),
+		p2p.NewNetworkMessenger(logger, pm),
 		statusMessageCh,
 		processorOpts...,
 	)

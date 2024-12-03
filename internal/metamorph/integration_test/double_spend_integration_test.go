@@ -127,7 +127,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	cStore := cache.NewMemoryStore()
 
-	pm := &p2p.NetworkMessanger{}
+	pm := &p2p.NetworkMessenger{}
 
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),

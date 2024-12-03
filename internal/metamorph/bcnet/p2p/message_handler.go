@@ -30,15 +30,15 @@ type PeerTxMessage struct {
 var _ general_p2p.MessageHandlerI = (*MsgHandler)(nil)
 
 type MsgHandler struct {
-	l         *slog.Logger
-	s         store.MetamorphStore
+	logger    *slog.Logger
+	store     store.MetamorphStore
 	messageCh chan<- *PeerTxMessage
 }
 
 func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *PeerTxMessage) *MsgHandler {
 	ph := &MsgHandler{
-		l:         l,
-		s:         s,
+		logger:    l,
+		store:     s,
 		messageCh: messageCh,
 	}
 
@@ -154,16 +154,16 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer general_p2
 			// ignore other INV types
 		}
 
-		rtx, err := h.s.GetRawTxs(context.Background(), txRequests)
+		rtx, err := h.store.GetRawTxs(context.Background(), txRequests)
 		if err != nil {
-			h.l.Error("Unable to fetch txs from store", slog.Int("count", len(txRequests)), slog.String("err", err.Error()))
+			h.logger.Error("Unable to fetch txs from store", slog.Int("count", len(txRequests)), slog.String("err", err.Error()))
 			return
 		}
 
 		for _, txBytes := range rtx {
 			tx, err := bsvutil.NewTxFromBytes(txBytes)
 			if err != nil {
-				h.l.Error("failed to parse tx", slog.String("rawHex", hex.EncodeToString(txBytes)), slog.String("err", err.Error()))
+				h.logger.Error("failed to parse tx", slog.String("rawHex", hex.EncodeToString(txBytes)), slog.String("err", err.Error()))
 				continue
 			}
 

@@ -44,6 +44,7 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 				,b.status
 				,b.chainwork
 			FROM blocktx.blocks b JOIN orphans o ON o.prevhash = b.hash AND b.status = $2
+			WHERE b.processed_at IS NOT NULL
 		)
 		SELECT
 			hash

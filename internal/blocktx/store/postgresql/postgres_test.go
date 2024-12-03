@@ -144,6 +144,7 @@ func TestPostgresDB(t *testing.T) {
 			MerkleRoot:   merkleRoot[:],
 			Height:       100,
 			Status:       blocktx_api.Status_LONGEST,
+			Processed:    true,
 		}
 		expectedBlockViolatingUniqueIndex := &blocktx_api.Block{
 			Hash:         blockHashViolating[:],
@@ -158,13 +159,18 @@ func TestPostgresDB(t *testing.T) {
 			MerkleRoot:   merkleRoot[:],
 			Height:       100,
 			Status:       blocktx_api.Status_ORPHANED,
+			Processed:    true,
 		}
 
-		// when -> then
+		// when
 		id, err := postgresDB.UpsertBlock(ctx, expectedBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint64(1), id)
 
+		err = postgresDB.MarkBlockAsDone(ctx, blockHash2, uint64(1000), uint64(1))
+		require.NoError(t, err)
+
+		// then
 		actualBlockResp, err := postgresDB.GetBlock(ctx, blockHash2)
 		require.NoError(t, err)
 		require.Equal(t, expectedBlock, actualBlockResp)

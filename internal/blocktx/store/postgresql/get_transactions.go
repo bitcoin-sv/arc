@@ -20,7 +20,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
 	}
 
-	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3)"
+	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
 
 	return p.getTransactionBlocksByPredicate(ctx, predicate,
 		pq.Array(hashes),

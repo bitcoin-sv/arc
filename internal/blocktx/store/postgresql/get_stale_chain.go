@@ -48,6 +48,7 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,b.status
 				,b.chainwork
 			FROM blocktx.blocks b JOIN prevBlocks p ON b.hash = p.prevhash AND b.status = $2
+			WHERE b.processed_at IS NOT NULL
 		)
 		SELECT
 			hash

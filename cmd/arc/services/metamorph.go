@@ -25,7 +25,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/blockchain_communication/p2p"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"

@@ -780,7 +780,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 							StoredAt: time.Now(),
 							Hash:     testdata.TX4Hash,
 							Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-							Retries:  retries,
+							Retries:  retries + 1,
 						},
 						{
 							StoredAt: time.Now(),
@@ -792,7 +792,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 					return unminedData, tc.getUnminedErr
 				},
-				IncrementRetriesBulkFunc: func(_ context.Context, _ []*chainhash.Hash) error {
+				IncrementRetriesFunc: func(_ context.Context, _ *chainhash.Hash) error {
 					retries++
 					return nil
 				},
@@ -842,7 +842,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
 
 			// then
 			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter.Load())

@@ -1,11 +1,11 @@
-package blocktx_p2p
+package p2p
 
 import (
 	"errors"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
-	"github.com/bitcoin-sv/arc/internal/p2p"
+	general_p2p "github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
@@ -14,10 +14,10 @@ var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to bloc
 
 type BlockRequest struct {
 	Hash *chainhash.Hash
-	Peer p2p.PeerI
+	Peer general_p2p.PeerI
 }
 
-var _ p2p.MessageHandlerI = (*MsgHandler)(nil)
+var _ general_p2p.MessageHandlerI = (*MsgHandler)(nil)
 
 type MsgHandler struct {
 	logger            *slog.Logger
@@ -34,7 +34,7 @@ func NewMsgHandler(logger *slog.Logger, blockRequestCh chan<- BlockRequest, bloc
 }
 
 // OnReceive should be fire & forget
-func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
+func (h *MsgHandler) OnReceive(msg wire.Message, peer general_p2p.PeerI) {
 	cmd := msg.Command()
 
 	switch cmd {
@@ -70,6 +70,6 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	}
 }
 
-func (h *MsgHandler) OnSend(_ wire.Message, _ p2p.PeerI) {
+func (h *MsgHandler) OnSend(_ wire.Message, _ general_p2p.PeerI) {
 	// ignore
 }

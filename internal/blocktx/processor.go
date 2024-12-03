@@ -442,36 +442,35 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
-	blockHash := msg.Header.BlockHash()
 
 	// release guardian
-	defer p.stopBlockProcessGuard(&blockHash)
+	defer p.stopBlockProcessGuard(blockMsg.Hash)
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		if span != nil {
-			span.SetAttributes(attribute.String("hash", blockHash.String()))
+			span.SetAttributes(attribute.String("hash", blockMsg.Hash.String()))
 			span.SetAttributes(attribute.String("status", block.Status.String()))
 		}
 
 		tracing.EndTracing(span, err)
 	}()
 
-	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height))
+	p.logger.Info("processing incoming block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", blockMsg.Height))
 
 	// check if we've already processed that block
-	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
+	existingBlock, _ := p.store.GetBlock(ctx, blockMsg.Hash)
 
 	if existingBlock != nil {
-		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height))
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", blockMsg.Height))
 		return nil
 	}
 
-	block, err = p.verifyAndInsertBlock(ctx, msg)
+	block, err = p.verifyAndInsertBlock(ctx, blockMsg)
 	if err != nil {
 		return err
 	}
@@ -501,35 +500,34 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, msg *p2p.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *blockchain.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	blockHash := msg.Header.BlockHash()
-	previousBlockHash := msg.Header.PrevBlock
-	merkleRoot := msg.Header.MerkleRoot
+	previousBlockHash := blockMsg.Header.PrevBlock
+	merkleRoot := blockMsg.Header.MerkleRoot
 
 	incomingBlock = &blocktx_api.Block{
-		Hash:         blockHash[:],
+		Hash:         blockMsg.Hash[:],
 		PreviousHash: previousBlockHash[:],
 		MerkleRoot:   merkleRoot[:],
-		Height:       msg.Height,
-		Chainwork:    calculateChainwork(msg.Header.Bits).String(),
+		Height:       blockMsg.Height,
+		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
 	}
 
 	err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
 	if err != nil {
-		p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to assign block status", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return nil, err
 	}
 
-	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+	p.logger.Info("Inserting block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
-	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, msg.TransactionHashes, msg.Header.MerkleRoot)
+	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, blockMsg.TransactionHashes, blockMsg.Header.MerkleRoot)
 	if err != nil {
-		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return nil, err
 	}
 

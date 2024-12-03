@@ -264,7 +264,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get stats for block geps", func(t *testing.T) {
 		// given
-		prepareDb(t, postgresDB.db, "fixtures/get_block_gaps")
+		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
 
 		// when
 		actualBlockGaps, err := postgresDB.GetStats(ctx)

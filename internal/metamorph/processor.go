@@ -319,7 +319,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
-// start processing txs submitted to message queue
+// StartProcessSubmittedTxs starts processing txs submitted to message queue
 func (p *Processor) StartProcessSubmittedTxs() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
@@ -610,7 +610,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
-// Periodically read transactions with status lower then SEEN_ON_NETWORK from database and announce them again
+// StartProcessExpiredTransactions periodically reads transactions with status lower then SEEN_ON_NETWORK from database and announce them again
 func (p *Processor) StartProcessExpiredTransactions() {
 	p.waitGroup.Add(1)
 
@@ -619,14 +619,6 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 		ticker := time.NewTicker(p.processExpiredTxsInterval)
 		defer ticker.Stop()
-
-		const (
-			buffSize  = 512
-			maxBufCap = 1024
-		)
-
-		toAnnounceBuffer := make([]*chainhash.Hash, 0, buffSize)
-		toRequestBuffer := make([]*chainhash.Hash, 0, buffSize)
 
 		for {
 			select {
@@ -637,30 +629,50 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 				// define from what point in time we are interested in unmined transactions
 				getUnminedSince := p.now().Add(-1 * p.mapExpiryTime)
+				var offset int64
 
 				requested := 0
 				announced := 0
-
-				token := newContinuationToken(getUnminedSince, loadUnminedLimit)
-				for token.next {
-					token, toRequestBuffer, toAnnounceBuffer = p.getTxsToReprocess(ctx, token, toRequestBuffer, toAnnounceBuffer)
-					if token.err != nil {
-						p.logger.Error("Failed to get unmined transactions", slog.Time("since", getUnminedSince), slog.String("err", token.err.Error()))
+				for {
+					// get all transactions since then chunk by chunk
+					unminedTxs, err := p.store.GetUnmined(ctx, getUnminedSince, loadUnminedLimit, offset)
+					if err != nil {
+						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 						break
 					}
 
-					requested += p.retryRequestTransactions(ctx, toRequestBuffer)
-					toRequestBuffer = renewHashSlice(toRequestBuffer, maxBufCap, buffSize)
+					offset += loadUnminedLimit
+					if len(unminedTxs) == 0 {
+						break
+					}
 
-					announced += p.retryAnnounceTransactions(ctx, toAnnounceBuffer)
-					toAnnounceBuffer = renewHashSlice(toAnnounceBuffer, maxBufCap, buffSize)
+					for _, tx := range unminedTxs {
+						if tx.Retries > p.maxRetries {
+							continue
+						}
+
+						// mark that we retried processing this transaction once more
+						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
+							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+						}
+
+						// every second time request tx, every other time announce tx
+						if tx.Retries%2 != 0 {
+							// Send GETDATA to peers to see if they have it
+							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
+							p.messenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
+							requested++
+							continue
+						}
+
+						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
+						p.messenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
+						announced++
+					}
 				}
 
 				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unmined transactions",
-						slog.Int("announced", announced),
-						slog.Int("requested", requested),
-						slog.Time("since", getUnminedSince))
+					p.logger.Info("Retried unmined transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnminedSince))
 				}
 
 				tracing.EndTracing(span, nil)
@@ -761,7 +773,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
-// process txs submitted to message queue
+// ProcessTransactions processes txs submitted to message queue
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
@@ -776,11 +788,6 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 		return
 	}
 
-	// potential improvements:
-	// 1. modify RegisterTxTopic to accept an array of hashes instead of a single hash (default max size of a NATS message is 1MB == ~32k hashes)
-	// 2. use messenger.AnnounceTransactionS(), which will send fewer messages to peers
-	// 3. update storageStatusUpdateCh to accept a structure containing an array of hashes
-
 	for _, data := range sReq {
 		// register transaction in blocktx using message queue
 		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
@@ -789,11 +796,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 		}
 
 		// Announce transaction to network and save peers
-		peers := p.messenger.AnnounceTransaction(data.Hash, nil)
-		if len(peers) == 0 {
-			p.logger.Warn("transaction was not announced to any peer", slog.String("hash", data.Hash.String()))
-			continue
-		}
+		p.messenger.AnnounceWithAutoBatch(data.Hash, wire.InvTypeTx)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
@@ -819,68 +822,6 @@ func (p *Processor) storeData(ctx context.Context, data *store.Data) error {
 	return p.store.Set(ctx, data)
 }
 
-func (p *Processor) getTxsToReprocess(ctx context.Context, cToken *continuationToken, toRequestBuffer, toAnnounceBuffer []*chainhash.Hash) (token *continuationToken, toReques, toAnnounce []*chainhash.Hash) {
-	unminedTxs, err := p.store.GetUnmined(ctx, cToken.since, loadUnminedLimit, cToken.offset)
-	cToken.Set(unminedTxs, err)
-
-	if err != nil {
-		return cToken, toRequestBuffer, toAnnounceBuffer
-	}
-
-	for _, tx := range unminedTxs {
-		if tx.Retries > p.maxRetries {
-			continue
-		}
-
-		// every second time request tx, every other time announce tx
-		if tx.Retries%2 != 0 {
-			toRequestBuffer = append(toRequestBuffer, tx.Hash)
-		} else {
-			toAnnounceBuffer = append(toAnnounceBuffer, tx.Hash)
-		}
-	}
-
-	return cToken, toRequestBuffer, toAnnounceBuffer
-}
-
-func (p *Processor) retryRequestTransactions(ctx context.Context, txs []*chainhash.Hash) int {
-	if len(txs) == 0 {
-		return 0
-	}
-
-	sentPeer := p.messenger.RequestTransactions(txs[:])
-	if sentPeer != nil {
-		// mark that we retried processing this transaction once more
-		if err := p.store.IncrementRetriesBulk(ctx, txs); err != nil {
-			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-		}
-
-		return len(txs)
-	}
-
-	p.logger.Warn("transactions was not requested to any peer during rebroadcast", slog.Int("count", len(txs)))
-	return 0
-}
-
-func (p *Processor) retryAnnounceTransactions(ctx context.Context, txs []*chainhash.Hash) int {
-	if len(txs) == 0 {
-		return 0
-	}
-
-	sentPeers := p.messenger.AnnounceTransactions(txs[:], nil)
-	if len(sentPeers) > 0 {
-		// mark that we retried processing this transaction once more
-		if err := p.store.IncrementRetriesBulk(ctx, txs); err != nil {
-			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-		}
-
-		return len(txs)
-	}
-
-	p.logger.Warn("transactions was not announced to any peer during rebroadcast", slog.Int("count", len(txs)))
-	return 0
-}
-
 func addNewCallback(data, reqData *store.Data) {
 	if reqData.Callbacks == nil {
 		return
@@ -898,34 +839,4 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 		}
 	}
 	return false
-}
-
-type continuationToken struct {
-	since         time.Time
-	limit, offset int64
-
-	next bool
-	err  error
-}
-
-func newContinuationToken(since time.Time, limit int64) *continuationToken {
-	return &continuationToken{
-		next:  true,
-		since: since,
-		limit: limit,
-	}
-}
-
-func (t *continuationToken) Set(res []*store.Data, err error) {
-	t.err = err
-	t.offset += int64(len(res))
-	t.next = len(res) >= int(t.limit)
-}
-
-func renewHashSlice(s []*chainhash.Hash, maxCap, newBufSize int) []*chainhash.Hash {
-	if cap(s) > maxCap {
-		return make([]*chainhash.Hash, 0, newBufSize) // allocate new smaller buffor and free old items
-	}
-
-	return s[:0] // "clean" slice without reallocation
 }

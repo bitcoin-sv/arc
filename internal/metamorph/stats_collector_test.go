@@ -50,7 +50,7 @@ func TestStartCollectStats(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			messanger := &p2p.NetworkMessanger{}
+			messanger := &p2p.NetworkMessenger{}
 
 			processor, err := metamorph.NewProcessor(mtmStore, nil, messanger, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),

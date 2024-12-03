@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFindMinedAndStaleTxs(t *testing.T) {
+func TestExlusiveRightTxs(t *testing.T) {
 	// given
-	longestTxs := []store.TransactionBlock{
+	leftTxs := []store.TransactionBlock{
 		{
 			TxHash: []byte("1"),
 		},
@@ -18,7 +18,7 @@ func TestFindMinedAndStaleTxs(t *testing.T) {
 			TxHash: []byte("2"),
 		},
 	}
-	staleTxs := []store.TransactionBlock{
+	rightTxs := []store.TransactionBlock{
 		{
 			TxHash: []byte("A"),
 		},
@@ -40,7 +40,7 @@ func TestFindMinedAndStaleTxs(t *testing.T) {
 	}
 
 	// when
-	actualStaleTxs := findDistinctStaleTxs(longestTxs, staleTxs)
+	actualStaleTxs := exclusiveRightTxs(leftTxs, rightTxs)
 
 	// then
 	require.Equal(t, expectedStaleTxs, actualStaleTxs)

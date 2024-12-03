@@ -32,6 +32,7 @@ var (
 	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
 	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
 	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
+	ErrFailedToProcessBlock            = errors.New("failed to process block")
 )
 
 const (
@@ -224,7 +225,6 @@ func (p *Processor) StartBlockProcessing() {
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
 					p.unlockBlock(p.ctx, &blockHash)
-					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
 				}
 
@@ -232,13 +232,11 @@ func (p *Processor) StartBlockProcessing() {
 				if storeErr != nil {
 					p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", storeErr.Error()))
 					p.unlockBlock(p.ctx, &blockHash)
-					p.stopBlockProcessGuard(&blockHash) // release guardian
 					continue
 				}
 
 				// add the total block processing time to the stats
 				p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
-				p.stopBlockProcessGuard(&blockHash) // release guardian
 			}
 		}
 	}()
@@ -265,7 +263,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 			// check if block was processed successfully
 			block, _ := p.store.GetBlock(execCtx, hash)
 
-			if block != nil && block.Processed {
+			if block != nil {
 				return // success
 			}
 
@@ -447,12 +445,17 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	ctx := p.ctx
 
+	var block *blocktx_api.Block
 	blockHash := msg.Header.BlockHash()
+
+	// release guardian
+	defer p.stopBlockProcessGuard(&blockHash)
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		if span != nil {
 			span.SetAttributes(attribute.String("hash", blockHash.String()))
+			span.SetAttributes(attribute.String("status", block.Status.String()))
 		}
 
 		tracing.EndTracing(span, err)
@@ -463,50 +466,37 @@ func (p *Processor) processBlock(msg *blockchain.BlockMessage) (err error) {
 	// check if we've already processed that block
 	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 
-	if existingBlock != nil && existingBlock.Processed {
+	if existingBlock != nil {
 		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", msg.Height))
 		return nil
 	}
 
-	block, err := p.verifyAndInsertBlock(ctx, msg)
+	block, err = p.verifyAndInsertBlock(ctx, msg)
 	if err != nil {
 		return err
 	}
 
-	var txsToPublish []store.TransactionBlock
+	var longestTxs, staleTxs []store.TransactionBlock
+	var ok bool
 
 	switch block.Status {
 	case blocktx_api.Status_LONGEST:
-		txsToPublish, err = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
+		longestTxs, ok = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
 	case blocktx_api.Status_STALE:
-		txsToPublish, err = p.handleStaleBlock(ctx, block)
+		longestTxs, staleTxs, ok = p.handleStaleBlock(ctx, block)
 	case blocktx_api.Status_ORPHANED:
-		txsToPublish, err = p.handleOrphans(ctx, block)
+		longestTxs, staleTxs, ok = p.handleOrphans(ctx, block)
 	default:
 		return ErrUnexpectedBlockStatus
 	}
 
-	if err != nil {
+	if !ok {
 		// error is already logged in each method above
-		return err
+		return ErrFailedToProcessBlock
 	}
 
-	for _, tx := range txsToPublish {
-		txBlock := &blocktx_api.TransactionBlock{
-			BlockHash:       tx.BlockHash,
-			BlockHeight:     tx.BlockHeight,
-			TransactionHash: tx.TxHash,
-			MerklePath:      tx.MerklePath,
-			BlockStatus:     tx.BlockStatus,
-		}
-
-		p.logger.Info("publishing tx", slog.String("txHash", getHashStringNoErr(tx.TxHash)))
-
-		err = p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
-		}
-	}
+	p.publishTxsToMetamorph(ctx, longestTxs)
+	p.publishTxsToMetamorph(ctx, staleTxs)
 
 	return nil
 }
@@ -575,15 +565,6 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 		return nil
 	}
 
-	// if the previous block exists in the db but is currently being
-	// processed by another instance, we don't know what the final
-	// status of that parent block will be, so mark the incoming block
-	// as ORPHANED and wait for the next block to confirm the status
-	if !prevBlock.Processed {
-		block.Status = blocktx_api.Status_ORPHANED
-		return nil
-	}
-
 	if prevBlock.Status == blocktx_api.Status_LONGEST {
 		var competingBlock *blocktx_api.Block
 		competingBlock, err = p.store.GetLongestBlockByHeight(ctx, block.Height)
@@ -628,7 +609,8 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, err error) {
+func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, ok bool) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "getRegisteredTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -643,10 +625,10 @@ func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blo
 	if err != nil {
 		block := blocks[len(blocks)-1]
 		p.logger.Error("unable to get registered transactions", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return nil, err
+		return nil, false
 	}
 
-	return txsToPublish, nil
+	return txsToPublish, true
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) (err error) {
@@ -655,16 +637,15 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		tracing.EndTracing(span, err)
 	}()
 
-	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
-	if err != nil {
-		p.logger.Error("unable to insert block at given height", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
+	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
+		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
 		return err
 	}
 
-	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
-
-	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
+	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
+	if err != nil {
+		p.logger.Error("unable to insert block at given height", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return err
 	}
 
@@ -752,7 +733,8 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	return nil
 }
 
-func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (txsToPublish []store.TransactionBlock, err error) {
+func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleStaleBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -761,7 +743,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, block.Hash)
 	if err != nil {
 		p.logger.Error("unable to get STALE blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return nil, err
+		return nil, nil, false
 	}
 
 	lowestHeight := block.Height
@@ -772,7 +754,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
 	if err != nil {
 		p.logger.Error("unable to get LONGEST blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return nil, err
+		return nil, nil, false
 	}
 
 	staleChainwork := sumChainwork(staleBlocks)
@@ -781,18 +763,18 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	if longestChainwork.Cmp(staleChainwork) < 0 {
 		p.logger.Info("chain reorg detected", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height))
 
-		txsToPublish, err = p.performReorg(ctx, staleBlocks, longestBlocks)
+		longestTxs, staleTxs, err = p.performReorg(ctx, staleBlocks, longestBlocks)
 		if err != nil {
 			p.logger.Error("unable to perform reorg", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-			return nil, err
+			return nil, nil, false
 		}
-		return txsToPublish, nil
+		return longestTxs, staleTxs, true
 	}
 
-	return nil, nil
+	return nil, nil, true
 }
 
-func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, err error) {
+func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, err error) {
 	ctx, span := tracing.StartTracing(ctx, "performReorg", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -821,36 +803,32 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	p.logger.Info("reorg performed successfully")
 
-	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, append(staleHashes, longestHashes...))
+	// now the previously stale chain is the longest,
+	// so longestTxs are from previously stale block hashes
+	longestTxs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, staleHashes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	longestTxs := make([]store.TransactionBlock, 0)
-	staleTxs := make([]store.TransactionBlock, 0)
-
-	for _, tx := range registeredTxs {
-		switch tx.BlockStatus {
-		case blocktx_api.Status_LONGEST:
-			longestTxs = append(longestTxs, tx)
-		case blocktx_api.Status_STALE:
-			staleTxs = append(staleTxs, tx)
-		default:
-			// do nothing - ignore txs from ORPHANED or UNKNOWN blocks
-		}
+	// now the previously longest chain is stale,
+	// so staleTxs are from previously longest block hashes
+	staleTxs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, longestHashes)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	staleTxs = findDistinctStaleTxs(longestTxs, staleTxs)
+	staleTxs = exclusiveRightTxs(longestTxs, staleTxs)
 
-	return append(longestTxs, staleTxs...), nil
+	return longestTxs, staleTxs, nil
 }
 
-func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (txsToPublis []store.TransactionBlock, err error) {
+func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleOrphans", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -859,19 +837,19 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 	orphans, ancestor, err := p.store.GetOrphansBackToNonOrphanAncestor(ctx, block.Hash)
 	if err != nil {
 		p.logger.Error("unable to get ORPHANED blocks", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return nil, err
+		return nil, nil, false
 	}
 
-	if ancestor == nil || !ancestor.Processed || len(orphans) == 0 {
-		return nil, nil
+	if ancestor == nil || len(orphans) == 0 {
+		return nil, nil, true
 	}
 
 	p.logger.Info("orphaned chain found", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("status", block.Status.String()))
 
 	if ancestor.Status == blocktx_api.Status_STALE {
-		err = p.acceptIntoChain(ctx, orphans, ancestor.Status)
-		if err != nil {
-			return nil, err
+		ok = p.acceptIntoChain(ctx, orphans, ancestor.Status)
+		if !ok {
+			return nil, nil, false
 		}
 
 		block.Status = blocktx_api.Status_STALE
@@ -891,32 +869,34 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		competingBlock, err = p.store.GetLongestBlockByHeight(ctx, orphans[0].Height)
 		if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 			p.logger.Error("unable to get competing block when handling orphans", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-			return nil, err
+			return nil, nil, false
 		}
 
 		if competingBlock != nil && !bytes.Equal(competingBlock.Hash, orphans[0].Hash) {
-			err = p.acceptIntoChain(ctx, orphans, blocktx_api.Status_STALE)
-			if err != nil {
-				return nil, err
+			ok = p.acceptIntoChain(ctx, orphans, blocktx_api.Status_STALE)
+			if !ok {
+				return nil, nil, false
 			}
 
 			block.Status = blocktx_api.Status_STALE
 			return p.handleStaleBlock(ctx, block)
 		}
 
-		err = p.acceptIntoChain(ctx, orphans, ancestor.Status) // LONGEST
-		if err != nil {
-			return nil, err
+		ok = p.acceptIntoChain(ctx, orphans, ancestor.Status) // LONGEST
+		if !ok {
+			return nil, nil, false
 		}
 
 		p.logger.Info("orphaned chain accepted into LONGEST chain", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height))
-		return p.getRegisteredTransactions(ctx, orphans)
+		longestTxs, ok = p.getRegisteredTransactions(ctx, orphans)
+		return longestTxs, nil, ok
 	}
 
-	return nil, nil
+	return nil, nil, true
 }
 
-func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.Block, chain blocktx_api.Status) (err error) {
+func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.Block, chain blocktx_api.Status) (ok bool) {
+	var err error
 	ctx, span := tracing.StartTracing(ctx, "acceptIntoChain", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -937,11 +917,35 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		p.logger.Error("unable to accept blocks into chain", slog.String("hash", getHashStringNoErr(tip.Hash)), slog.Uint64("height", tip.Height), slog.String("chain", chain.String()), slog.String("err", err.Error()))
-		return err
+		return false
 	}
 
 	p.logger.Info("blocks successfully accepted into chain", slog.String("hash", getHashStringNoErr(tip.Hash)), slog.Uint64("height", tip.Height), slog.String("chain", chain.String()))
-	return nil
+	return true
+}
+
+func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.TransactionBlock) {
+	var publishErr error
+	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, publishErr)
+	}()
+
+	for _, tx := range txs {
+		txBlock := &blocktx_api.TransactionBlock{
+			BlockHash:       tx.BlockHash,
+			BlockHeight:     tx.BlockHeight,
+			TransactionHash: tx.TxHash,
+			MerklePath:      tx.MerklePath,
+			BlockStatus:     tx.BlockStatus,
+		}
+
+		err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
+		if err != nil {
+			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
+			publishErr = err
+		}
+	}
 }
 
 func (p *Processor) Shutdown() {

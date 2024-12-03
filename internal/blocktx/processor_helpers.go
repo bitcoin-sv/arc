@@ -29,21 +29,21 @@ func sumChainwork(blocks []*blocktx_api.Block) *big.Int {
 	return sum
 }
 
-func findDistinctStaleTxs(longestTxs, staleTxs []store.TransactionBlock) []store.TransactionBlock {
-	longestTxsMap := make(map[string]struct{})
+func exclusiveRightTxs(leftTxs, rightTxs []store.TransactionBlock) []store.TransactionBlock {
+	leftTxsMap := make(map[string]struct{})
 
-	for _, tx := range longestTxs {
-		longestTxsMap[string(tx.TxHash)] = struct{}{}
+	for _, tx := range leftTxs {
+		leftTxsMap[string(tx.TxHash)] = struct{}{}
 	}
 
-	distinctStaleTxs := make([]store.TransactionBlock, 0)
-	for _, tx := range staleTxs {
-		if _, found := longestTxsMap[string(tx.TxHash)]; !found {
-			distinctStaleTxs = append(distinctStaleTxs, tx)
+	exclusiveRightTxs := make([]store.TransactionBlock, 0)
+	for _, tx := range rightTxs {
+		if _, found := leftTxsMap[string(tx.TxHash)]; !found {
+			exclusiveRightTxs = append(exclusiveRightTxs, tx)
 		}
 	}
 
-	return distinctStaleTxs
+	return exclusiveRightTxs
 }
 
 // calculateChainwork calculates chainwork from the given difficulty bits

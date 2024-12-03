@@ -41,7 +41,7 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		FROM blocktx.blocks
 	`
 
-	q += " " + predicate
+	q += " " + predicate + " AND processed_at IS NOT NULL"
 
 	var block blocktx_api.Block
 

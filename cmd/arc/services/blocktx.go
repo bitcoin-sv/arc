@@ -158,7 +158,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+		p2p.WithPingInterval(30*time.Second, 2*time.Minute),
 	}
 
 	if version.Version != "" {

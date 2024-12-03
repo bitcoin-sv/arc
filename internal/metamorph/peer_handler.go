@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -41,6 +42,7 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 		Hash:   &hash,
 		Status: metamorph_api.Status_SENT_TO_NETWORK,
 		Peer:   peer.String(),
+		Start:  time.Now(),
 	}
 
 	return nil
@@ -53,6 +55,7 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 		Hash:   &msg.Hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
+		Start:  time.Now(),
 	}:
 	default: // Ensure that writing to channel is non-blocking
 	}
@@ -66,6 +69,7 @@ func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2
 		Hash:   &rejMsg.Hash,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
+		Start:  time.Now(),
 		Err:    errors.Join(ErrTxRejectedByPeer, fmt.Errorf("peer: %s reason: %s", peer.String(), rejMsg.Reason)),
 	}
 
@@ -81,6 +85,7 @@ func (m *PeerHandler) HandleTransactionsGet(msgs []*wire.InvVect, peer p2p.PeerI
 			Hash:   &msg.Hash,
 			Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 			Peer:   peer.String(),
+			Start:  time.Now(),
 		}
 
 		hashes[i] = msg.Hash[:]
@@ -97,6 +102,7 @@ func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 		Hash:   &hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
+		Start:  time.Now(),
 	}
 
 	return nil

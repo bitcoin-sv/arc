@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -50,7 +50,7 @@ const (
 type Processor struct {
 	hostname                    string
 	blockRequestCh              chan blocktx_p2p.BlockRequest
-	blockProcessCh              chan *blockchain.BlockMessage
+	blockProcessCh              chan *bcnet.BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -80,7 +80,7 @@ func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
 	blockRequestCh chan blocktx_p2p.BlockRequest,
-	blockProcessCh chan *blockchain.BlockMessage,
+	blockProcessCh chan *bcnet.BlockMessage,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -450,7 +450,7 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
@@ -510,7 +510,7 @@ func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) 
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *blockchain.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)

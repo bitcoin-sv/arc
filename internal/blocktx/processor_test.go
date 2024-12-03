@@ -21,8 +21,8 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 )
 
@@ -201,13 +201,13 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *blockchain.BlockMessage, 1)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
-			blockMessage := &blockchain.BlockMessage{
+			blockMessage := &bcnet.BlockMessage{
 				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
@@ -429,7 +429,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			// build peer manager and processor
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *blockchain.BlockMessage, 10)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh)
@@ -440,7 +440,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			merkleRoot, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 			require.NoError(t, err)
 
-			blockMessage := &blockchain.BlockMessage{
+			blockMessage := &bcnet.BlockMessage{
 				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
@@ -615,7 +615,7 @@ func TestStartBlockRequesting(t *testing.T) {
 			logger := slog.Default()
 
 			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
-			blockProcessCh := make(chan *blockchain.BlockMessage, 10)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 
 			peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
 

@@ -1,4 +1,4 @@
-package blockchaincommunication
+package bcnet
 
 import (
 	"io"

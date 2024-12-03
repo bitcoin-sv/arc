@@ -20,7 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/blockchain_communication/p2p"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"

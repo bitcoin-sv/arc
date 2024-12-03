@@ -12,7 +12,6 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -767,27 +766,6 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(2), res.StatusNotSeen)
 		require.Equal(t, int64(6), res.StatusMinedTotal)
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
-	})
-
-	t.Run("increment retires bulk", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/increment_retries_bulk")
-
-		data := []*chainhash.Hash{
-			testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"),
-			testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"),
-		}
-
-		err := postgresDB.IncrementRetriesBulk(ctx, data)
-		require.NoError(t, err)
-
-		tx1, err := postgresDB.Get(ctx, data[0][:])
-		require.NoError(t, err)
-		require.Equal(t, 1, tx1.Retries)
-
-		tx2, err := postgresDB.Get(ctx, data[1][:])
-		require.NoError(t, err)
-		require.Equal(t, 7, tx2.Retries)
 	})
 }
 

@@ -173,7 +173,7 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
 		verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_LONGEST)
 
-		publishedTxs := getPublishedTxs(t, publishedTxsCh)
+		publishedTxs := getPublishedTxs(publishedTxsCh)
 
 		// verify the no transaction was published to metamorph
 		require.Len(t, publishedTxs, 0)
@@ -268,7 +268,7 @@ func TestReorg(t *testing.T) {
 			},
 		}
 
-		publishedTxs := getPublishedTxs(t, publishedTxsCh)
+		publishedTxs := getPublishedTxs(publishedTxsCh)
 
 		verifyTxs(t, expectedTxs, publishedTxs)
 	})
@@ -327,7 +327,7 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
 		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_ORPHANED)
 
-		publishedTxs := getPublishedTxs(t, publishedTxsCh)
+		publishedTxs := getPublishedTxs(publishedTxsCh)
 
 		// verify no transaction was published
 		require.Len(t, publishedTxs, 0)
@@ -434,7 +434,7 @@ func TestReorg(t *testing.T) {
 			},
 		}
 
-		publishedTxs := getPublishedTxs(t, publishedTxsCh)
+		publishedTxs := getPublishedTxs(publishedTxsCh)
 
 		verifyTxs(t, expectedTxs, publishedTxs)
 	})

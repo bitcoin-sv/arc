@@ -20,6 +20,8 @@ import (
 )
 
 func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan *blocktx_api.TransactionBlock) {
+	t.Helper()
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	blockProcessCh := make(chan *blockchain.BlockMessage, 10)
@@ -54,7 +56,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 	return processor, p2pMsgHandler, store, publishedTxsCh
 }
 
-func getPublishedTxs(t *testing.T, publishedTxsCh chan *blocktx_api.TransactionBlock) []*blocktx_api.TransactionBlock {
+func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlock) []*blocktx_api.TransactionBlock {
 	publishedTxs := make([]*blocktx_api.TransactionBlock, 0)
 
 	for {
@@ -68,12 +70,14 @@ func getPublishedTxs(t *testing.T, publishedTxsCh chan *blocktx_api.TransactionB
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
+	t.Helper()
 	testutils.PruneTables(t, db, "blocktx.blocks")
 	testutils.PruneTables(t, db, "blocktx.transactions")
 	testutils.PruneTables(t, db, "blocktx.block_transactions_map")
 }
 
 func verifyBlock(t *testing.T, store *postgresql.PostgreSQL, hashStr string, height uint64, status blocktx_api.Status) {
+	t.Helper()
 	hash := testutils.RevChainhash(t, hashStr)
 	block, err := store.GetBlock(context.Background(), hash)
 	require.NoError(t, err)
@@ -82,6 +86,8 @@ func verifyBlock(t *testing.T, store *postgresql.PostgreSQL, hashStr string, hei
 }
 
 func verifyTxs(t *testing.T, expectedTxs []*blocktx_api.TransactionBlock, publishedTxs []*blocktx_api.TransactionBlock) {
+	t.Helper()
+
 	strippedTxs := make([]*blocktx_api.TransactionBlock, len(publishedTxs))
 	for i, tx := range publishedTxs {
 		strippedTxs[i] = &blocktx_api.TransactionBlock{

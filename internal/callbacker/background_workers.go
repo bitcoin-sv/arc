@@ -33,13 +33,11 @@ func NewBackgroundWorkers(s store.CallbackerStore, dispatcher *CallbackDispatche
 }
 
 func (w *BackgroundWorkers) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
-
 	ctx := context.Background()
 	ticker := time.NewTicker(interval)
 
 	w.workersWg.Add(1)
 	go func() {
-
 		for {
 			select {
 			case <-ticker.C:
@@ -84,7 +82,13 @@ func (w *BackgroundWorkers) StartFailedCallbacksDispatch(interval time.Duration)
 				w.logger.Info("Loaded callbacks from store", slog.Any("count", len(callbacks)))
 
 				for _, c := range callbacks {
-					w.dispatcher.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
+					callbackEntry := &CallbackEntry{
+						Token:          c.Token,
+						Data:           toCallback(c),
+						postponedUntil: c.PostponedUntil,
+					}
+
+					w.dispatcher.Dispatch(c.URL, callbackEntry, c.AllowBatch)
 				}
 
 			case <-w.ctx.Done():
@@ -95,6 +99,28 @@ func (w *BackgroundWorkers) StartFailedCallbacksDispatch(interval time.Duration)
 	}()
 }
 
+func (w *BackgroundWorkers) DispatchPersistedCallbacks() error {
+	w.logger.Info("Load and dispatch stored callbacks")
+
+	const batchSize = 100
+	ctx := context.Background()
+
+	for {
+		callbacks, err := w.callbackerStore.PopMany(ctx, batchSize)
+		if err != nil || len(callbacks) == 0 {
+			return err
+		}
+
+		for _, c := range callbacks {
+			callbackEntry := &CallbackEntry{
+				Token: c.Token,
+				Data:  toCallback(c),
+			}
+
+			w.dispatcher.Dispatch(c.URL, callbackEntry, c.AllowBatch)
+		}
+	}
+}
 func (w *BackgroundWorkers) GracefulStop() {
 	w.logger.Info("Shutting down")
 
@@ -104,7 +130,7 @@ func (w *BackgroundWorkers) GracefulStop() {
 	w.logger.Info("Shutdown complete")
 }
 
-func toCallbackEntry(dto *store.CallbackData) *CallbackEntry {
+func toCallback(dto *store.CallbackData) *Callback {
 	d := &Callback{
 		Timestamp: dto.Timestamp,
 
@@ -118,9 +144,5 @@ func toCallbackEntry(dto *store.CallbackData) *CallbackEntry {
 		BlockHeight: dto.BlockHeight,
 	}
 
-	return &CallbackEntry{
-		Token:          dto.Token,
-		Data:           d,
-		postponedUntil: dto.PostponedUntil,
-	}
+	return d
 }

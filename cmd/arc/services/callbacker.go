@@ -23,7 +23,6 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 */
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -79,13 +78,13 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	}
 
 	dispatcher = callbacker.NewCallbackDispatcher(sender, callbackerStore, logger, &sendConfig)
-	err = dispatchPersistedCallbacks(callbackerStore, dispatcher, logger)
+	workers = callbacker.NewBackgroundWorkers(callbackerStore, dispatcher, logger)
+	err = workers.DispatchPersistedCallbacks()
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to dispatch previously persisted callbacks: %v", err)
 	}
 
-	workers = callbacker.NewBackgroundWorkers(callbackerStore, dispatcher, logger)
 	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
 	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
 
@@ -131,24 +130,6 @@ func newStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
 	return s, err
 }
 
-func dispatchPersistedCallbacks(s store.CallbackerStore, d *callbacker.CallbackDispatcher, l *slog.Logger) error {
-	l.Info("Dispatch persited callbacks")
-
-	const batchSize = 100
-	ctx := context.Background()
-
-	for {
-		callbacks, err := s.PopMany(ctx, batchSize)
-		if err != nil || len(callbacks) == 0 {
-			return err
-		}
-
-		for _, c := range callbacks {
-			d.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
-		}
-	}
-}
-
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
 	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer) {
@@ -181,25 +162,5 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 
 	if healthServer != nil {
 		healthServer.GracefulStop()
-	}
-}
-
-func toCallbackEntry(dto *store.CallbackData) *callbacker.CallbackEntry {
-	d := &callbacker.Callback{
-		Timestamp: dto.Timestamp,
-
-		CompetingTxs: dto.CompetingTxs,
-		TxID:         dto.TxID,
-		TxStatus:     dto.TxStatus,
-		ExtraInfo:    dto.ExtraInfo,
-		MerklePath:   dto.MerklePath,
-
-		BlockHash:   dto.BlockHash,
-		BlockHeight: dto.BlockHeight,
-	}
-
-	return &callbacker.CallbackEntry{
-		Token: dto.Token,
-		Data:  d,
 	}
 }

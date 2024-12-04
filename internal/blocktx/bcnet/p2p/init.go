@@ -39,7 +39,7 @@ func init() {
 		var tx *sdkTx.Transaction
 		var hash *chainhash.Hash
 		var txBytes []byte
-		for i := 0; i < int(txCount); i++ {
+		for i := uint64(0); i < uint64(txCount); i++ {
 			tx = sdkTx.NewTransaction()
 			read, err = tx.ReadFrom(reader)
 			if err != nil {

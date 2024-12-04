@@ -120,7 +120,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		mqClient, err = nats_jetstream.New(natsClient, logger,
-			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
+			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RequestTxTopic},
 			opts...,
 		)
 		if err != nil {
@@ -196,7 +196,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
 		metamorphStore, processor, arcConfig.Tracing, optsServer...)
-
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

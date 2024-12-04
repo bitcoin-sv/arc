@@ -93,7 +93,7 @@ blocktx:
       sslMode: disable
   recordRetentionDays: 28
   profilerAddr: localhost:9993
-  registerTxsInterval: 200ms
+  requestTxsInterval: 200ms
   fillGapsInterval: 15m
   maxAllowedBlockHeightMismatch: 3
 

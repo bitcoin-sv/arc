@@ -84,7 +84,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	registerTxsChan := make(chan []byte, chanBufferSize)
 	requestTxChannel := make(chan []byte, chanBufferSize)
 
 	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
@@ -94,7 +93,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RequestTxTopic)}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
@@ -104,7 +103,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		}
 
 		mqClient, err = nats_jetstream.New(natsConnection, logger,
-			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
+			[]string{blocktx.MinedTxsTopic, blocktx.RequestTxTopic},
 			opts...,
 		)
 		if err != nil {
@@ -121,9 +120,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
-		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRequestTxChan(requestTxChannel),
-		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
+		blocktx.WithRequestTxsInterval(btxConfig.RequestTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 	)
 

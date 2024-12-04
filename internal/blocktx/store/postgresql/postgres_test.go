@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/testdata"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -337,7 +335,7 @@ func TestPostgresDB(t *testing.T) {
 
 		// when
 		// get mined transaction and corresponding block
-		minedTxs, err := postgresDB.GetMinedTransactions(ctx, []*chainhash.Hash{txHash1, txHash2, txHash3, txHash4})
+		minedTxs, err := postgresDB.UpsertAndGetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:], txHash4[:]})
 		require.NoError(t, err)
 
 		// then
@@ -681,92 +679,8 @@ func TestPostgresStore_UpsertBlockTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, []*chainhash.Hash{txHash})
+	actual, err := sut.UpsertAndGetMinedTransactions(ctx, [][]byte{txHash[:]})
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)
-}
-
-func TestPostgresStore_RegisterTransactions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
-	tcs := []struct {
-		name string
-		txs  [][]byte
-	}{
-		{
-			name: "register new transactions",
-			txs: [][]byte{
-				testdata.TX1Hash[:],
-				testdata.TX2Hash[:],
-				testdata.TX3Hash[:],
-				testdata.TX4Hash[:],
-			},
-		},
-		{
-			name: "register already known, not registered transactions",
-			txs: [][]byte{
-				testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
-				testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
-				testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-				testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
-			},
-		},
-		{
-			name: "register already registered transactions",
-			txs: [][]byte{
-				testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
-				testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
-				testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
-				testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
-			},
-		},
-	}
-
-	// common setup for test cases
-	ctx, now, sut := setupPostgresTest(t)
-	defer sut.Close()
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			prepareDb(t, sut.db, "fixtures/register_transactions")
-
-			// when
-			result, err := sut.RegisterTransactions(ctx, tc.txs)
-			require.NoError(t, err)
-			require.NotNil(t, result)
-
-			resultmap := make(map[chainhash.Hash]bool)
-			for _, h := range result {
-				resultmap[*h] = false
-			}
-
-			// then
-			// assert data are correctly saved in the store
-			d, err := sqlx.Open("postgres", dbInfo)
-			require.NoError(t, err)
-
-			updatedCounter := 0
-			for _, hash := range tc.txs {
-				var storedtx Transaction
-				err = d.Get(&storedtx, "SELECT hash, is_registered from blocktx.transactions WHERE hash=$1", hash)
-				require.NoError(t, err)
-
-				require.NotNil(t, storedtx)
-				require.True(t, storedtx.IsRegistered)
-
-				if _, found := resultmap[chainhash.Hash(storedtx.Hash)]; found {
-					require.Greater(t, storedtx.InsertedAt, now)
-					updatedCounter++
-				} else {
-					require.Less(t, storedtx.InsertedAt, now)
-				}
-			}
-
-			require.Equal(t, len(result), updatedCounter)
-		})
-	}
 }

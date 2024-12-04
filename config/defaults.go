@@ -113,7 +113,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		HealthServerDialAddr:          "localhost:8006",
 		Db:                            getDbConfig("blocktx"),
 		RecordRetentionDays:           28,
-		RegisterTxsInterval:           10 * time.Second,
+		RequestTxsInterval:            10 * time.Second,
 		MonitorPeers:                  false,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,

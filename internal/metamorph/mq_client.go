@@ -3,10 +3,9 @@ package metamorph
 import "context"
 
 const (
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
+	SubmitTxTopic  = "submit-tx"
+	MinedTxsTopic  = "mined-txs"
+	RequestTxTopic = "request-tx"
 )
 
 type MessageQueueClient interface {

@@ -182,8 +182,14 @@ func (m *sendManager) run() {
 
 		runWg.Wait()
 
+		totalCallbacks := append(danglingCallbacks, danglingBatchedCallbacks...)
+		m.logger.Info("Storing pending callbacks", slog.Int("count", len(totalCallbacks)))
+
 		// store unsent callbacks
-		_ = m.store.SetMany(context.Background(), append(danglingCallbacks, danglingBatchedCallbacks...))
+		err := m.store.SetMany(context.Background(), totalCallbacks)
+		if err != nil {
+			m.logger.Error("Failed to store pending callbacks", slog.Int("count", len(totalCallbacks)))
+		}
 		m.stop <- struct{}{}
 	}()
 }

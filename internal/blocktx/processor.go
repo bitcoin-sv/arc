@@ -216,27 +216,26 @@ func (p *Processor) StartBlockProcessing() {
 				return
 			case blockMsg := <-p.blockProcessCh:
 				var err error
-				blockHash := blockMsg.Header.BlockHash()
 				timeStart := time.Now()
 
-				p.logger.Info("received block", slog.String("hash", blockHash.String()))
+				p.logger.Info("received block", slog.String("hash", blockMsg.Hash.String()))
 
 				err = p.processBlock(blockMsg)
 				if err != nil {
-					p.logger.Error("block processing failed", slog.String("hash", blockHash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, &blockHash)
+					p.logger.Error("block processing failed", slog.String("hash", blockMsg.Hash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, blockMsg.Hash)
 					continue
 				}
 
-				storeErr := p.store.MarkBlockAsDone(p.ctx, &blockHash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
+				storeErr := p.store.MarkBlockAsDone(p.ctx, blockMsg.Hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
 				if storeErr != nil {
-					p.logger.Error("unable to mark block as processed", slog.String("hash", blockHash.String()), slog.String("err", storeErr.Error()))
-					p.unlockBlock(p.ctx, &blockHash)
+					p.logger.Error("unable to mark block as processed", slog.String("hash", blockMsg.Hash.String()), slog.String("err", storeErr.Error()))
+					p.unlockBlock(p.ctx, blockMsg.Hash)
 					continue
 				}
 
 				// add the total block processing time to the stats
-				p.logger.Info("Processed block", slog.String("hash", blockHash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+				p.logger.Info("Processed block", slog.String("hash", blockMsg.Hash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 			}
 		}
 	}()

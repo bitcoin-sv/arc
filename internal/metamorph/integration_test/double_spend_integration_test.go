@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coocood/freecache"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -124,9 +123,8 @@ func TestDoubleSpendDetection(t *testing.T) {
 	require.NoError(t, err)
 	defer metamorphStore.Close(context.Background())
 
-	cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+	cStore := cache.NewMemoryStore()
 
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),

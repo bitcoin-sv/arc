@@ -1,11 +1,13 @@
 package testutils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -161,6 +163,52 @@ func RunNode(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 		}
 
 		return nil
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+	}
+
+	return resource, hostPort, nil
+}
+
+func RunRedis(pool *dockertest.Pool, port, name string, cmds ...string) (*dockertest.Resource, string, error) {
+	opts := dockertest.RunOptions{
+		Repository:   "redis",
+		Tag:          "7.4.1",
+		ExposedPorts: []string{"6379"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"6379": {
+				{HostIP: "0.0.0.0", HostPort: port},
+			},
+		},
+		Name: name,
+		Cmd:  cmds,
+	}
+
+	resource, err := pool.RunWithOptions(&opts, func(config *docker.HostConfig) {
+		// set AutoRemove to true so that stopped container goes away by itself
+		config.AutoRemove = true
+		config.RestartPolicy = docker.RestartPolicy{
+			Name: "no",
+		}
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+	}
+
+	hostPort := resource.GetPort("6379/tcp")
+
+	err = pool.Retry(func() error {
+		c := redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       1,
+		})
+
+		ctx := context.Background()
+		status := c.Ping(ctx)
+		_, err := status.Result()
+		return err
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create resource: %v", err)

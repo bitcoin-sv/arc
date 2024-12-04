@@ -14,8 +14,6 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 )
 
-const baseCacheSize = 100 * 1024 * 1024
-
 func TestCheck(t *testing.T) {
 	tt := []struct {
 		name               string

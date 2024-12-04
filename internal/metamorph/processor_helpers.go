@@ -3,15 +3,17 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
-//lint:file-ignore U1000 Ignore all unused code, functions are temporarily not used
+type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 
-const CacheStatusUpdateKey = "status-updates"
+var CacheStatusUpdateHash = "mtm-tx-status-update"
 
 var (
 	ErrFailedToSerialize   = errors.New("failed to serialize value")
@@ -22,76 +24,102 @@ func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
 }
 
-func updateStatusMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus, statusUpdate store.UpdateStatus) {
-	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-
-	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
-		if len(statusUpdate.CompetingTxs) > 0 {
-			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
-		}
-
-		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-	}
-}
-
-func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
-	statusUpdatesMap := p.getStatusUpdateMap()
-
-	foundStatusUpdate, found := statusUpdatesMap[statusUpdate.Hash]
-
-	if !found || shouldUpdateStatus(statusUpdate, foundStatusUpdate) {
-		if len(statusUpdate.CompetingTxs) > 0 {
-			statusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, foundStatusUpdate.CompetingTxs)
-		}
-
-		statusUpdatesMap[statusUpdate.Hash] = statusUpdate
-	}
-
-	err := p.setStatusUpdateMap(statusUpdatesMap)
+func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
+	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
-		return nil, err
-	}
-
-	return statusUpdatesMap, nil
-}
-
-func (p *Processor) setStatusUpdateMap(statusUpdatesMap map[chainhash.Hash]store.UpdateStatus) error { //nolint:unused
-	bytes, err := serializeStatusMap(statusUpdatesMap)
-	if err != nil {
+		if errors.Is(err, cache.ErrCacheNotFound) {
+			// if record doesn't exist, save new one
+			return p.setTransactionStatus(statusUpdate)
+		}
 		return err
 	}
 
-	err = p.cacheStore.Set(CacheStatusUpdateKey, bytes, processStatusUpdatesIntervalDefault)
+	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
+		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
+	}
+
+	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
+		currentStatusUpdate.Status = statusUpdate.Status
+		// TODO: combine status history
+	}
+
+	return p.setTransactionStatus(*currentStatusUpdate)
+}
+
+func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
+	bytes, err := json.Marshal(status)
+	if err != nil {
+		return errors.Join(ErrFailedToSerialize, err)
+	}
+
+	err = p.cacheStore.MapSet(CacheStatusUpdateHash, status.Hash.String(), bytes)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *Processor) getStatusUpdateMap() map[chainhash.Hash]store.UpdateStatus { //nolint:unused
-	existingMap, err := p.cacheStore.Get(CacheStatusUpdateKey)
-
-	if err == nil {
-		statusUpdatesMap, err := deserializeStatusMap(existingMap)
-		if err == nil {
-			return statusUpdatesMap
-		}
+func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStatus, error) {
+	bytes, err := p.cacheStore.MapGet(CacheStatusUpdateHash, hash.String())
+	if err != nil {
+		return nil, err
 	}
 
-	// If the key doesn't exist or there was an error unmarshalling the value return new map
-	return make(map[chainhash.Hash]store.UpdateStatus)
+	var status store.UpdateStatus
+	err = json.Unmarshal(bytes, &status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &status, nil
 }
 
-func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	if new.Status > found.Status {
-		return true
+func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error) {
+	statuses := make(StatusUpdateMap)
+	keys, err := p.cacheStore.MapExtractAll(CacheStatusUpdateHash)
+	if err != nil {
+		return nil, err
 	}
 
-	if new.Status == found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
+	for key, value := range keys {
+		hash, err := chainhash.NewHashFromStr(key)
+		if err != nil {
+			p.logger.Error("failed to convert hash from key", slog.String("error", err.Error()), slog.String("key", key))
+			continue
+		}
+
+		var status store.UpdateStatus
+		err = json.Unmarshal(value, &status)
+		if err != nil {
+			p.logger.Error("failed to unmarshal status", slog.String("error", err.Error()), slog.String("key", key))
+			continue
+		}
+
+		statuses[*hash] = status
+	}
+
+	return statuses, nil
+}
+
+func (p *Processor) getStatusUpdateCount() (int, error) {
+	count, err := p.cacheStore.MapLen(CacheStatusUpdateHash)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
+}
+
+func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
+	if new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
 		return true
 	}
 
 	return false
+}
+
+func shouldUpdateStatus(new, found store.UpdateStatus) bool {
+	return new.Status > found.Status
 }
 
 // unorderedEqual checks if two string slices contain
@@ -134,37 +162,4 @@ func mergeUnique(arr1, arr2 []string) []string {
 	}
 
 	return uniqueSlice
-}
-
-func serializeStatusMap(updateStatusMap map[chainhash.Hash]store.UpdateStatus) ([]byte, error) { //nolint:unused
-	serializeMap := make(map[string]store.UpdateStatus)
-	for k, v := range updateStatusMap {
-		serializeMap[k.String()] = v
-	}
-
-	bytes, err := json.Marshal(serializeMap)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToSerialize, err)
-	}
-	return bytes, nil
-}
-
-func deserializeStatusMap(data []byte) (map[chainhash.Hash]store.UpdateStatus, error) { //nolint:unused
-	serializeMap := make(map[string]store.UpdateStatus)
-	updateStatusMap := make(map[chainhash.Hash]store.UpdateStatus)
-
-	err := json.Unmarshal(data, &serializeMap)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToDeserialize, err)
-	}
-
-	for k, v := range serializeMap {
-		hash, err := chainhash.NewHashFromStr(k)
-		if err != nil {
-			return nil, errors.Join(ErrFailedToDeserialize, err)
-		}
-		updateStatusMap[*hash] = v
-	}
-
-	return updateStatusMap, nil
 }

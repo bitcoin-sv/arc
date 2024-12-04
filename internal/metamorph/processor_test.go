@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coocood/freecache"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
@@ -37,8 +36,7 @@ func TestNewProcessor(t *testing.T) {
 	}
 
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-
-	cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+	cStore := cache.NewMemoryStore()
 
 	tt := []struct {
 		name  string
@@ -125,9 +123,9 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+
+			cStore := cache.NewMemoryStore()
 
 			// when
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
@@ -228,8 +226,6 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
 					require.True(t, testdata.TX1Hash.IsEqual(txHash))
@@ -237,6 +233,8 @@ func TestProcessTransaction(t *testing.T) {
 				},
 				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI { return nil },
 			}
+
+			cStore := cache.NewMemoryStore()
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -490,9 +488,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+
+			cStore := cache.NewMemoryStore()
 
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {
@@ -641,7 +639,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
 			counter := 0
 			pm := &mocks.PeerManagerMock{
 				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
@@ -656,6 +653,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 				ShutdownFunc: func() {},
 			}
+
+			cStore := cache.NewMemoryStore()
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -774,8 +773,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{
 				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI {
 					return nil
@@ -785,6 +782,8 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 				ShutdownFunc: func() {},
 			}
+
+			cStore := cache.NewMemoryStore()
 
 			publisher := &mocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -873,7 +872,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
 			}
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
+			cStore := cache.NewMemoryStore()
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
@@ -950,8 +949,6 @@ func TestProcessorHealth(t *testing.T) {
 				},
 			}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{
 				AddPeerFunc: func(_ p2p.PeerI) error {
 					return nil
@@ -966,6 +963,7 @@ func TestProcessorHealth(t *testing.T) {
 				},
 				ShutdownFunc: func() {},
 			}
+			cStore := cache.NewMemoryStore()
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
@@ -1019,9 +1017,9 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
-			cStore := cache.NewFreecacheStore(freecache.NewCache(baseCacheSize))
-
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+
+			cStore := cache.NewMemoryStore()
 
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error

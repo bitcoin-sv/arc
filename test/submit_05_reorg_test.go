@@ -37,14 +37,14 @@ func TestReorg(t *testing.T) {
 	require.Equal(t, invHash, *statusResp.BlockHash)
 
 	// get new UTXO for tx2
-	node_client.SendToAddress(t, bitcoind, address, float64(0.002))
+	txID := node_client.SendToAddress(t, bitcoind, address, float64(0.002))
 	utxos = node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	// make sure to pick the correct UTXO
 	var utxo node_client.UnspentOutput
 	for _, u := range utxos {
-		if u.Amount == float64(0.002) {
+		if u.Txid == txID {
 			utxo = u
 		}
 	}
@@ -52,10 +52,21 @@ func TestReorg(t *testing.T) {
 	tx2, err := node_client.CreateTx(privateKey, address, utxo)
 	require.NoError(t, err)
 
+	// prepare a callback server for tx2
+	callbackReceivedChan := make(chan *TransactionResponse)
+	callbackErrChan := make(chan error)
+	callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
+	defer shutdown()
+
 	// submit tx2
 	rawTx, err = tx2.EFHex()
 	require.NoError(t, err)
-	resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusSeenOnNetwork}, http.StatusOK)
+	resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
+		map[string]string{
+			"X-WaitFor":       StatusSeenOnNetwork,
+			"X-CallbackUrl":   callbackURL,
+			"X-CallbackToken": token,
+		}, http.StatusOK)
 	require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 
 	// mine tx2
@@ -67,18 +78,27 @@ func TestReorg(t *testing.T) {
 	require.Equal(t, StatusMined, statusResp.TxStatus)
 	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
 
+	select {
+	case status := <-callbackReceivedChan:
+		require.Equal(t, rawTx.TxID, status.Txid)
+		require.Equal(t, StatusMined, status.TxStatus)
+	case err := <-callbackErrChan:
+		t.Fatalf("callback error: %v", err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("callback exceeded timeout")
+	}
+
 	// invalidate the chain with tx1 and tx2
 	call(t, "invalidateblock", []interface{}{invHash})
 
 	// prepare txStale
-	node_client.SendToAddress(t, bitcoind, address, float64(0.003))
-
+	txID = node_client.SendToAddress(t, bitcoind, address, float64(0.003))
 	utxos = node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	// make sure to pick the correct UTXO
 	for _, u := range utxos {
-		if u.Amount == float64(0.003) {
+		if u.Txid == txID {
 			utxo = u
 		}
 	}
@@ -137,6 +157,17 @@ func TestReorg(t *testing.T) {
 	statusResp = getRequest[TransactionResponse](t, statusURL)
 	require.Equal(t, StatusMinedInStaleBlock, statusResp.TxStatus)
 	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
+
+	// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
+	select {
+	case status := <-callbackReceivedChan:
+		require.Equal(t, rawTx.TxID, status.Txid)
+		require.Equal(t, StatusMinedInStaleBlock, status.TxStatus)
+	case err := <-callbackErrChan:
+		t.Fatalf("callback error: %v", err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("callback exceeded timeout")
+	}
 }
 
 func call(t *testing.T, method string, params []interface{}) {

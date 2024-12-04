@@ -751,10 +751,14 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// Send GETDATA to peers to see if they have it
+	_, requestTransactionSpan := tracing.StartTracing(ctx, "RequestWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
 	p.messenger.RequestWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
+	tracing.EndTracing(requestTransactionSpan, nil)
 
 	// Announce transaction to network peers
+	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
 	p.messenger.AnnounceWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
+	tracing.EndTracing(announceTransactionSpan, nil)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{

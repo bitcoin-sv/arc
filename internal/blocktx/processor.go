@@ -547,7 +547,7 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 		var longestTipExists bool
 		longestTipExists, err = p.longestTipExists(ctx)
 		if err != nil {
-			p.logger.Error("unable to verify the longest tip existance in db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+			p.logger.Error("unable to verify the longest tip existence in db", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 			return err
 		}
 

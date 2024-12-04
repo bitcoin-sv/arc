@@ -518,14 +518,14 @@ Expected outcome
 
 ### Chain reorg
 
-A chain reorganization (chain reorg) occurs when the blockchain switches its primary chain of blocks, usually because a previously stale chain (fork) has grown to surpass the current longest chain. This process can affect transaction statuses based on their presence in the involved chains.
+A chain reorganization (chain reorg) occurs when the blockchain switches its primary chain of blocks to a different branch, typically because a previously stale chain (fork) has accumulated more chainwork than the current longest chain. Chainwork, which represents the cumulative computational effort used to build a chain, is the deciding factor in determining the longest and most valid chain. This process can impact transaction statuses based on their presence in the affected chains.
 
 #### Transaction in both chains
 This is the most common scenario. If a transaction is included in both the original longest chain and the stale chain (which becomes the longest), the transition to the new longest chain does not disrupt the transaction's confirmation status.
 
 A new `MINED` callback will be send for that transaction with updated block data (block hash, block height, Merkle path).
 
-#### Transaction in the longest chain, but not in the stale chain that becomes longest
+#### Transaction in the previously longest chain, but not in the stale chain that becomes longest
 When a transaction exists in the original longest chain but not in the stale chain that subsequently becomes the longest, the transaction is effectively removed from the confirmed state of the blockchain.
 
 A callback with status `MINED_IN_STALE_BLOCK` will be sent for that transaction and ARC will rebroadcast that transaction. Because of that process, the transaction may cycle through statuses, such as `SEEN_ON_NETWORK`, again. User should keep in mind that the status `MINED_IN_STALE_BLOCK` **is not final**.

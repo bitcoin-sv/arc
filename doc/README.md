@@ -107,7 +107,7 @@ To prevent DDoS attacks on callback receivers, each Callbacker service instance 
 
 >NOTE: Typically, there are several instances of Callbacker, and each one operates independently.
 
-The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in quarantine for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service for later retries.
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in failed state for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service for later retries.
 
 >NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 

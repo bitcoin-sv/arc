@@ -53,10 +53,10 @@ func TestCallbackDispatcher(t *testing.T) {
 
 			sendingConfig := SendConfig{
 				PauseAfterSingleModeSuccessfulSend: tc.sendInterval,
+				Expiration:                         time.Duration(24 * time.Hour),
 			}
-			quarantineConfig := QuarantineConfig{}
 
-			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), &sendingConfig, &quarantineConfig)
+			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), &sendingConfig)
 
 			var receivers []string
 			for i := range tc.numOfReceivers {

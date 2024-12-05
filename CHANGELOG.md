@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.12](#1312---2024-12-05)
 - [1.3.2](#132---2024-10-30)
 - [1.3.0](#130---2024-08-21)
 - [1.2.0](#120---2024-08-13)
@@ -18,6 +19,13 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.12] - 2024-12-05
+
+### Changed
+- The Callbacker service handles unsuccessful callback attempts by delaying individual callbacks and retrying them again instead of putting an unsuccessful receiver in quarantine
+
+### Added
 
 ## [1.3.2] - 2024-10-30
 

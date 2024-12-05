@@ -37,9 +37,9 @@ func (w *BackgroundWorkers) StartCallbackStoreCleanup(interval, olderThanDuratio
 	go w.pruneCallbacks(interval, olderThanDuration)
 }
 
-func (w *BackgroundWorkers) StartQuarantineCallbacksDispatch(interval time.Duration) {
+func (w *BackgroundWorkers) StartFailedCallbacksDispatch(interval time.Duration) {
 	w.workersWg.Add(1)
-	go w.dispatchQuarantineCallbacks(interval)
+	go w.dispatchFailedCallbacks(interval)
 }
 
 func (w *BackgroundWorkers) GracefulStop() {
@@ -64,7 +64,7 @@ func (w *BackgroundWorkers) pruneCallbacks(interval, olderThanDuration time.Dura
 
 			err := w.s.DeleteFailedOlderThan(ctx, olderThan)
 			if err != nil {
-				w.l.Error("failed to delete old callbacks in quarantine", slog.String("err", err.Error()))
+				w.l.Error("failed to delete old callbacks in delay", slog.String("err", err.Error()))
 			}
 
 		case <-w.ctx.Done():
@@ -74,7 +74,7 @@ func (w *BackgroundWorkers) pruneCallbacks(interval, olderThanDuration time.Dura
 	}
 }
 
-func (w *BackgroundWorkers) dispatchQuarantineCallbacks(interval time.Duration) {
+func (w *BackgroundWorkers) dispatchFailedCallbacks(interval time.Duration) {
 	const batchSize = 100
 
 	ctx := context.Background()

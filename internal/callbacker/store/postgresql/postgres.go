@@ -56,7 +56,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	blockHashes := make([]*string, len(data))
 	blockHeights := make([]sql.NullInt64, len(data))
 	competingTxs := make([]*string, len(data))
-	quarantineUntils := make([]sql.NullTime, len(data))
+	delayUntils := make([]sql.NullTime, len(data))
 	allowBatches := make([]bool, len(data))
 
 	for i, d := range data {
@@ -79,7 +79,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		}
 
 		if d.PostponedUntil != nil {
-			quarantineUntils[i] = sql.NullTime{Time: d.PostponedUntil.UTC(), Valid: true}
+			delayUntils[i] = sql.NullTime{Time: d.PostponedUntil.UTC(), Valid: true}
 		}
 	}
 
@@ -122,7 +122,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(blockHeights),
 		pq.Array(timestamps),
 		pq.Array(competingTxs),
-		pq.Array(quarantineUntils),
+		pq.Array(delayUntils),
 		pq.Array(allowBatches),
 	)
 

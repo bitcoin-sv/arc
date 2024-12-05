@@ -13,13 +13,13 @@ import (
 )
 
 type CallbackSender struct {
-	httpClient             *http.Client
-	mu                     sync.Mutex
-	disposed               bool
-	stats                  *stats
-	logger                 *slog.Logger
-	retries                int
-	initRetrySleepDuration time.Duration
+	httpClient         *http.Client
+	mu                 sync.Mutex
+	disposed           bool
+	stats              *stats
+	logger             *slog.Logger
+	retries            int
+	retrySleepDuration time.Duration
 }
 
 type SenderOption func(s *CallbackSender)
@@ -31,7 +31,7 @@ const (
 
 func WithInitRetrySleepDuration(d time.Duration) func(*CallbackSender) {
 	return func(s *CallbackSender) {
-		s.initRetrySleepDuration = d
+		s.retrySleepDuration = d
 	}
 }
 
@@ -58,11 +58,11 @@ func NewSender(httpClient *http.Client, logger *slog.Logger, opts ...SenderOptio
 	}
 
 	callbacker := &CallbackSender{
-		httpClient:             httpClient,
-		stats:                  stats,
-		logger:                 logger.With(slog.String("module", "sender")),
-		retries:                retriesDefault,
-		initRetrySleepDuration: initRetrySleepDurationDefault,
+		httpClient:         httpClient,
+		stats:              stats,
+		logger:             logger.With(slog.String("module", "sender")),
+		retries:            retriesDefault,
+		retrySleepDuration: 5 * time.Second,
 	}
 
 	// apply options to processor
@@ -190,7 +190,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 }
 
 func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (ok bool, nrOfRetries int) {
-	retrySleep := p.initRetrySleepDuration
+	retrySleep := p.retrySleepDuration
 	ok, retry := false, false
 	counter := 0
 	for range p.retries {
@@ -203,8 +203,6 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 		}
 
 		time.Sleep(retrySleep)
-		// increase intervals on each failure
-		retrySleep *= 2
 	}
 	return ok, counter
 }

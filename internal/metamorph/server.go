@@ -440,6 +440,14 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		MerklePath:   data.MerklePath,
 	}
 
+	for _, cb := range data.Callbacks {
+		returnStatus.Callbacks = append(returnStatus.Callbacks, &metamorph_api.Callback{
+			CallbackUrl:   cb.CallbackURL,
+			CallbackToken: cb.CallbackToken,
+			AllowBatch:    cb.AllowBatch,
+		})
+	}
+
 	if returnStatus.Status == metamorph_api.Status_MINED && len(returnStatus.CompetingTxs) > 0 {
 		returnStatus.CompetingTxs = []string{}
 		returnStatus.RejectReason = minedDoubleSpendMsg

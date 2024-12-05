@@ -35,7 +35,7 @@ import (
 	"testing"
 	"time"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -109,7 +109,7 @@ func TestReorg(t *testing.T) {
 		require.NoError(t, err)
 
 		// should become LONGEST
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -152,7 +152,7 @@ func TestReorg(t *testing.T) {
 		merkleRoot := treeStore[len(treeStore)-1]
 
 		// should become STALE
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -210,7 +210,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		// reorg should happen
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -296,7 +296,7 @@ func TestReorg(t *testing.T) {
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 		// should become STALE
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -368,7 +368,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		// reorg should happen
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,

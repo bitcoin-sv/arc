@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
@@ -24,7 +24,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	blockProcessCh := make(chan *blockchain.BlockMessage, 10)
+	blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 
 	publishedTxsCh := make(chan *blocktx_api.TransactionBlock, 10)
 

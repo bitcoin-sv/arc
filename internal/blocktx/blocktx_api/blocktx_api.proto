@@ -49,10 +49,9 @@ message Block {
   bytes previous_hash = 2; // Little endian
   bytes merkle_root = 3; // Little endian
   uint64 height = 4;
-  bool orphaned = 5;
-  bool processed = 6;
-	Status status = 7;
-	string chainwork = 8;
+  bool processed = 5;
+  Status status = 6;
+  string chainwork = 7;
 }
 
 // swagger:model Transactions
@@ -65,6 +64,7 @@ message TransactionBlock {
   uint64 block_height = 2;
   bytes transaction_hash = 3; // Little endian
   string merklePath = 4;
+  Status block_status = 5;
 }
 
 message TransactionBlocks {

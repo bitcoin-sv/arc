@@ -15,6 +15,7 @@ var (
 	ErrUnableToPrepareStatement         = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows               = errors.New("unable to delete rows")
 	ErrFailedToInsertBlock              = errors.New("failed to insert block")
+	ErrFailedToUpdateBlockStatuses      = errors.New("failed to update block statuses")
 	ErrFailedToOpenDB                   = errors.New("failed to open postgres database")
 	ErrFailedToInsertTransactions       = errors.New("failed to bulk insert transactions")
 	ErrFailedToGetRows                  = errors.New("failed to get rows")
@@ -30,16 +31,18 @@ type Stats struct {
 type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
-	GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
+	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
 	UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
-	UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) (registeredTxs []TxWithMerklePath, err error)
+	UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
-	GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]GetMinedTransactionResult, error)
+	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
+	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
 

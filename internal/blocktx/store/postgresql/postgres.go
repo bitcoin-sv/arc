@@ -13,6 +13,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
+var ErrNoTransaction = errors.New("sql: transaction has already been committed or rolled back")
+
 const (
 	postgresDriverName        = "postgres"
 	maxPostgresBulkInsertRows = 8192

@@ -2,7 +2,6 @@ package postgresql
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
@@ -15,43 +14,17 @@ func (p *PostgreSQL) GetLongestChainFromHeight(ctx context.Context, height uint6
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM blocktx.blocks
-		WHERE height >= $1 AND status = $2
+		WHERE height >= $1 AND is_longest = true AND processed_at IS NOT NULL
 	`
 
-	longestBlocks := make([]*blocktx_api.Block, 0)
-
-	rows, err := p.db.QueryContext(ctx, q, height, blocktx_api.Status_LONGEST)
+	rows, err := p.db.QueryContext(ctx, q, height)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var block blocktx_api.Block
-		var processedAt sql.NullString
-
-		err := rows.Scan(
-			&block.Hash,
-			&block.PreviousHash,
-			&block.MerkleRoot,
-			&block.Height,
-			&processedAt,
-			&block.Orphaned,
-			&block.Status,
-			&block.Chainwork,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		block.Processed = processedAt.Valid
-
-		longestBlocks = append(longestBlocks, &block)
-	}
-
-	return longestBlocks, nil
+	return p.parseBlocks(rows)
 }

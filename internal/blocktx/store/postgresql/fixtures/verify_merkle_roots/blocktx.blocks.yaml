@@ -4,9 +4,9 @@
   prevhash: 0x3dc8a25238765c58a9fccbcf83fba59bf93894bcaaee8e040000000000000000
   merkleroot: 0x4f3d1594808f485303ba8a1ed4f7c15f8087e5da1b7ebd25fa266630a8a6d880
   height: 812010
+  processed_at: 2023-12-10 14:10:00
   size: 244000000
   tx_count: 4437
-  orphanedyn: false
 - inserted_at: 2023-12-10 14:00:00
   id: 1
   hash: 0x72ad227eaaf73d36bc86f46347310c9b21a360b277c3000a0000000000000000
@@ -16,7 +16,6 @@
   processed_at: 2023-12-10 14:10:00
   size: 244000000
   tx_count: 4437
-  orphanedyn: false
 - inserted_at: 2023-12-10 14:00:00
   id: 2
   hash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
@@ -26,7 +25,6 @@
   processed_at: 2023-12-10 14:10:00
   size: 3030000
   tx_count: 856
-  orphanedyn: false
 - inserted_at: 2023-12-15 14:00:00
   id: 3
   hash: 0xf97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000
@@ -36,7 +34,6 @@
   processed_at: 2023-12-15 14:10:00
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
 - inserted_at: 2023-12-15 14:30:00
   id: 4
   hash: 0xc9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000
@@ -46,7 +43,6 @@
   processed_at: 2023-12-15 14:30:00
   size: 20160000
   tx_count: 6523
-  orphanedyn: false
 - inserted_at: 2023-12-15 14:40:00
   id: 5
   hash: 0xe1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000
@@ -56,16 +52,15 @@
   processed_at: 2023-12-15 14:40:00
   size: 299650000
   tx_count: 62162
-  orphanedyn: false
 - inserted_at: 2023-12-15 14:50:00
   id: 6
   hash: 0x76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000
   prevhash: 0x5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000
   merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
   height: 822020
+  processed_at: 2023-12-10 14:10:00
   size: 8630000
   tx_count: 36724
-  orphanedyn: false
 - inserted_at: 2023-12-15 15:00:00
   id: 7
   hash: 0x1d5fc8020fd68baea5c0cad654f04eb791a81100c51045090000000000000000
@@ -75,4 +70,3 @@
   processed_at: 2023-12-15 15:00:00
   size: 1620000
   tx_count: 5578
-  orphanedyn: false

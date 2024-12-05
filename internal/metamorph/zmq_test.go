@@ -70,7 +70,7 @@ func TestZMQ(t *testing.T) {
 			},
 		}
 
-		statuses := make(chan *metamorph.PeerTxMessage, tc.expectedStatusesCount)
+		statuses := make(chan *metamorph.TxStatusMessage, tc.expectedStatusesCount)
 
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestZMQ(t *testing.T) {
 		require.NoError(t, err)
 
 		// then
-		var status *metamorph.PeerTxMessage
+		var status *metamorph.TxStatusMessage
 		sCounter := 0
 		for i := 0; i < tc.expectedStatusesCount; i++ {
 			select {
@@ -118,7 +118,7 @@ func TestZMQDoubleSpend(t *testing.T) {
 	numberOfMsgs := 2
 	hashes := []string{"8e75ae10f86d8a43044a54c3c57d660d20cdb74e233be4b5c90ba752ebdc7e88", "d64adfce6b105dc6bdf475494925bf06802a41a0582586f33c2b16d537a0b7b6"}
 
-	statuses := make(chan *metamorph.PeerTxMessage, numberOfMsgs)
+	statuses := make(chan *metamorph.TxStatusMessage, numberOfMsgs)
 
 	zmqURL, err := url.Parse("https://some-url.com")
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	var status *metamorph.PeerTxMessage
+	var status *metamorph.TxStatusMessage
 	sCounter := 0
 	for i := 0; i < numberOfMsgs; i++ {
 		select {

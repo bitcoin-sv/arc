@@ -87,7 +87,7 @@ func (b *UTXORateBroadcaster) Start() error {
 	if math.Abs(float64(unconfirmed)) > 0 {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
-	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()), slog.String("op return", b.opReturn))
+	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()), slog.String("op return", b.opReturn), slog.Bool("full status updates", b.fullStatusUpdates), slog.String("callback URL", b.callbackURL), slog.String("callback token", b.callbackToken))
 
 	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {

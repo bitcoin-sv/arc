@@ -633,7 +633,13 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
-	_, err := p.store.GetChainTip(ctx)
+	const (
+		hoursPerDay   = 24
+		blocksPerHour = 6
+	)
+	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
+
+	_, err := p.store.GetChainTip(ctx, heightRange)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 		return false, err
 	}

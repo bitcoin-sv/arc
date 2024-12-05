@@ -453,7 +453,9 @@ func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) 
 	defer func() {
 		if span != nil {
 			span.SetAttributes(attribute.String("hash", blockMsg.Hash.String()))
-			span.SetAttributes(attribute.String("status", block.Status.String()))
+			if block != nil {
+				span.SetAttributes(attribute.String("status", block.Status.String()))
+			}
 		}
 
 		tracing.EndTracing(span, err)

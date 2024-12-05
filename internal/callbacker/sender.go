@@ -203,7 +203,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 		}
 
 		if err != nil {
-			if errors.Is(err, ErrCreateHttpRequestFailed) {
+			if errors.Is(err, ErrCreateHTTPRequestFailed) {
 				p.logger.Error("Failed to create HTTP request",
 					slog.String("url", url),
 					slog.String("token", token),
@@ -219,7 +219,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 				return false, nrOfRetries
 			}
 
-			if errors.Is(err, ErrHttpSendFailed) {
+			if errors.Is(err, ErrHTTPSendFailed) {
 				p.logger.Warn("Failed to send callback",
 					slog.String("url", url),
 					slog.String("token", token),
@@ -243,14 +243,14 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 
 var (
 	ErrHostNonExistent         = errors.New("host non existent")
-	ErrCreateHttpRequestFailed = errors.New("failed to create http request")
-	ErrHttpSendFailed          = errors.New("failed to send http request")
+	ErrCreateHTTPRequestFailed = errors.New("failed to create http request")
+	ErrHTTPSendFailed          = errors.New("failed to send http request")
 )
 
 func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, err error) {
 	request, err := httpRequest(url, token, payload)
 	if err != nil {
-		return 0, errors.Join(ErrCreateHttpRequestFailed, err)
+		return 0, errors.Join(ErrCreateHTTPRequestFailed, err)
 	}
 
 	response, err := p.httpClient.Do(request)
@@ -258,7 +258,7 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 		if strings.Contains(err.Error(), "no such host") {
 			return 0, errors.Join(ErrHostNonExistent, err)
 		}
-		return 0, errors.Join(ErrHttpSendFailed, err)
+		return 0, errors.Join(ErrHTTPSendFailed, err)
 	}
 	defer response.Body.Close()
 

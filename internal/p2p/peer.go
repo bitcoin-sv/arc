@@ -59,16 +59,9 @@ type Peer struct {
 }
 
 func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, network wire.BitcoinNet, options ...PeerOptions) *Peer {
-	l := logger.With(
-		slog.Group("peer",
-			slog.String("network", network.String()),
-			slog.String("address", address),
-		),
-	)
-
 	p := &Peer{
 		dial: net.Dial,
-		l:    l,
+		l:    logger,
 		mh:   msgHandler,
 
 		address:      address,
@@ -87,6 +80,13 @@ func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, ne
 	for _, opt := range options {
 		opt(p)
 	}
+
+	p.l = p.l.With(
+		slog.Group("peer",
+			slog.String("network", network.String()),
+			slog.String("address", address),
+		),
+	)
 
 	if p.writeCh == nil {
 		p.writeCh = make(chan wire.Message, 128)

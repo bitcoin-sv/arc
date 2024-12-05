@@ -1,6 +1,7 @@
 ---
-logLevel: INFO
 logFormat: tint
+logLevel: INFO
+peerLogLevel: INFO
 profilerAddr: localhost:9999
 prometheusEndpoint: /metrics
 prometheusAddr: :2112

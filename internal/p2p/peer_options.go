@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/libsv/go-p2p/wire"
 )
 
@@ -44,5 +45,15 @@ func WithServiceFlag(flag wire.ServiceFlag) PeerOptions {
 func WithDialer(dial func(network, address string) (net.Conn, error)) PeerOptions {
 	return func(p *Peer) {
 		p.dial = dial
+	}
+}
+
+func WithLogLevel(level, logFormat string) PeerOptions {
+	return func(p *Peer) {
+		l, err := logger.NewLogger(level, logFormat)
+		if err != nil {
+			l, _ = logger.NewLogger("DEBUG", "json")
+		}
+		p.l = l
 	}
 }

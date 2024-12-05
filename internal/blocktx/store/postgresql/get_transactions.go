@@ -11,16 +11,11 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.BlockTransaction, err error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) (minedTransactions []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
-	if onlyLongestChain {
-		predicate := "WHERE bt.hash = ANY($1) AND b.is_longest = true"
-		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
-	}
 
 	predicate := "WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
 

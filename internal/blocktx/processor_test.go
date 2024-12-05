@@ -165,13 +165,13 @@ func TestHandleBlock(t *testing.T) {
 				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
-				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
+				GetChainTipFunc: func(_ context.Context, _ int) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
@@ -367,7 +367,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 					return nil, store.ErrBlockNotFound
 				},
-				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
+				GetChainTipFunc: func(_ context.Context, _ int) (*blocktx_api.Block, error) {
 					return &blocktx_api.Block{}, nil
 				},
 				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {

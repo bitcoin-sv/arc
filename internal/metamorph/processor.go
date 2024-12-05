@@ -346,7 +346,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 }
 
 func (p *Processor) rebroadcastStaleTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
-	ctx, span := tracing.StartTracing(ctx, "rebroadcastStaleTxs", p.tracingEnabled, p.tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "rebroadcastStaleTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer tracing.EndTracing(span, nil)
 
 	for _, tx := range txsBlocks {

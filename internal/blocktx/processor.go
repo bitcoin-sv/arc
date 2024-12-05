@@ -288,7 +288,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 
 	p.logger.Info("registered tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes, false)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined txs: %v", err)
 	}
@@ -480,7 +480,13 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
-	_, err := p.store.GetChainTip(ctx)
+	const (
+		hoursPerDay   = 24
+		blocksPerHour = 6
+	)
+	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
+
+	_, err := p.store.GetChainTip(ctx, heightRange)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 		return false, err
 	}

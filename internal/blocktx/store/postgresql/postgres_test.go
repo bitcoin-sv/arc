@@ -212,10 +212,14 @@ func TestPostgresDB(t *testing.T) {
 		require.Nil(t, actualBlock)
 		require.Equal(t, store.ErrBlockNotFound, err)
 
-		actualBlock, err = postgresDB.GetChainTip(context.Background())
+		actualBlock, err = postgresDB.GetChainTip(context.Background(), 10)
 		require.NoError(t, err)
 		require.Equal(t, hashAtTip[:], actualBlock.Hash)
 		require.Equal(t, expectedTipHeight, actualBlock.Height)
+
+		actualBlock, err = postgresDB.GetChainTip(context.Background(), 2)
+		require.Nil(t, actualBlock)
+		require.Equal(t, store.ErrBlockNotFound, err)
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {
@@ -461,14 +465,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, true)
-
-		// then
-		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
-
-		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, false)
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
@@ -905,6 +902,13 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 			MerkleTreeIndex: int64(1),
 			MerkleRoot:      testutils.HexDecodeString(t, "0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb"),
 		},
+		{
+			TxHash:      txHash[:],
+			BlockHash:   testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
+			BlockHeight: uint64(826481),
+			MerklePath:  "merkle-path-2",
+			BlockStatus: blocktx_api.Status_STALE,
+		},
 	}
 
 	// when
@@ -915,7 +919,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
+	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]})
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)

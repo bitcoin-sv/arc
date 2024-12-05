@@ -407,7 +407,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		hashesBytes[i] = h[:]
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, false)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -613,7 +613,13 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 
 //lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
-	_, err := p.store.GetChainTip(ctx)
+	const (
+		hoursPerDay   = 24
+		blocksPerHour = 6
+	)
+	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
+
+	_, err := p.store.GetChainTip(ctx, heightRange)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 		return false, err
 	}

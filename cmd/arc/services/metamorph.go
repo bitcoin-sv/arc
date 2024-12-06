@@ -296,6 +296,10 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
 
+	if arcConfig.LogLevel != arcConfig.PeerLogLevel {
+		peerOpts = append(peerOpts, p2p.WithLogLevel(arcConfig.PeerLogLevel, arcConfig.LogFormat))
+	}
+
 	l := logger.With(slog.String("module", "peer"))
 	for _, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()

@@ -419,13 +419,17 @@ func (p *Peer) listenForMessages() {
 		for {
 			msg, err := readWireMsg(p.execCtx, reader, wire.ProtocolVersion, p.network)
 			if err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) {
-					l.Debug("Context canceled or EOF", slog.String("err", err.Error()))
+				if errors.Is(err, context.Canceled) {
 					return
 				}
 
-				l.Warn("Read issue - ignore msg", slog.String("err", err.Error()))
-				continue
+				l.Error("Failed to read message",
+					slog.String("err", err.Error()),
+				)
+
+				// stop peer
+				p.unhealthyDisconnect()
+				return
 			}
 
 			cmd := msg.Command()
@@ -509,20 +513,45 @@ type readResult struct {
 }
 
 func readWireMsg(ctx context.Context, r io.Reader, pver uint32, bsvnet wire.BitcoinNet) (wire.Message, error) {
-	readMessageFinished := make(chan readResult, 1)
+	readMsg := make(chan readResult, 1)
 
-	go func() {
-		msg, _, err := wire.ReadMessage(r, pver, bsvnet)
-		readMessageFinished <- readResult{msg, err}
-	}()
+	go handleRead(r, pver, bsvnet, readMsg)
 
 	// block until read complete or context is canceled
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 
-	case readMsg := <-readMessageFinished:
+	case readMsg := <-readMsg:
 		return readMsg.msg, readMsg.err
+	}
+}
+
+func handleRead(r io.Reader, pver uint32, bsvnet wire.BitcoinNet, result chan<- readResult) {
+	const maxSubsequentEOF = 10
+
+	for {
+		nEOF := 0
+
+		msg, _, err := wire.ReadMessage(r, pver, bsvnet)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// some nodes send EOF if has nothing to say
+				// tolerate it, but have limits
+				nEOF++
+				if nEOF < maxSubsequentEOF {
+					continue // some nodes send EOF if has nothing to say
+				}
+
+			} else if strings.Contains(err.Error(), "unhandled command [") { // TODO: change it with new go-p2p version
+				// ignore unknown msg
+				nEOF = 0
+				continue
+			}
+		}
+
+		result <- readResult{msg, err}
+		return
 	}
 }
 

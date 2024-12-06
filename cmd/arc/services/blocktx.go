@@ -165,6 +165,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
 
+	if arcConfig.LogLevel != arcConfig.PeerLogLevel {
+		peerOpts = append(peerOpts, p2p.WithLogLevel(arcConfig.PeerLogLevel, arcConfig.LogFormat))
+	}
+
 	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {

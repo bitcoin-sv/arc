@@ -77,7 +77,7 @@ func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, ne
 
 		pingInterval:    defaultPingInterval,
 		healthThreshold: defaultHealthTreshold,
-		aliveCh:         make(chan struct{}, 1),
+		aliveCh:         make(chan struct{}, 10),
 		isUnhealthyCh:   make(chan struct{}),
 
 		maxMsgSize: defaultMaximumMessageSize,
@@ -96,13 +96,13 @@ func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, ne
 }
 
 func (p *Peer) Connect() bool {
+	p.startMu.Lock()
+	defer p.startMu.Unlock()
+
 	if p.connected.Load() {
 		p.l.Warn("Unexpected Connect() call. Peer is connected already.")
 		return true
 	}
-
-	p.startMu.Lock()
-	defer p.startMu.Unlock()
 
 	return p.connect()
 }
@@ -320,10 +320,9 @@ func (p *Peer) keepAlive() {
 	p.execWg.Add(1)
 
 	go func() {
-		defer p.execWg.Done()
-
 		p.l.Debug("Start keep-alive")
 		defer p.l.Debug("Stop keep-alive")
+		defer p.execWg.Done()
 
 		t := time.NewTicker(p.pingInterval)
 		defer t.Stop()
@@ -349,10 +348,10 @@ func (p *Peer) healthMonitor() {
 	p.execWg.Add(1)
 
 	go func() {
-		defer p.execWg.Done()
-
 		p.l.Debug("Start health monitor")
 		defer p.l.Debug("Stop health monitor")
+		defer p.execWg.Done()
+
 		// if no ping/pong signal is received for certain amount of time, mark peer as unhealthy and disconnect
 		t := time.NewTicker(p.healthThreshold)
 		defer t.Stop()
@@ -365,6 +364,7 @@ func (p *Peer) healthMonitor() {
 			case <-p.aliveCh:
 				// ping-pong received so reset ticker
 				t.Reset(p.healthThreshold)
+				p.l.Log(context.Background(), slogLvlTrace, "Connection is healthy - reset ticker", slog.Duration("interval", p.healthThreshold))
 
 			case <-t.C:
 				// no ping or pong for too long
@@ -394,7 +394,6 @@ func (p *Peer) disconnect() {
 func (p *Peer) unhealthyDisconnect() {
 	go func() {
 		// execute in new goroutine to avoid deadlock
-
 		p.disconnect()
 
 		select {
@@ -421,12 +420,20 @@ func (p *Peer) listenForMessages() {
 					return
 				}
 
-				l.Warn("Read issue - ignore msg", slog.String("err", err.Error()))
-				continue
+				l.Error("Failed to read message", slog.String("err", err.Error()))
+				// stop peer
+				p.unhealthyDisconnect()
+				return
 			}
 
 			cmd := msg.Command()
+			l.Log(context.Background(), slogLvlTrace, "Received", slogUpperString(commandKey, cmd))
+
 			switch cmd {
+			// micro optimization - INV is the most frequently received message
+			case wire.CmdInv:
+				p.mh.OnReceive(msg, p)
+
 			// ignore handshake type messages
 			case wire.CmdVersion:
 				fallthrough
@@ -441,17 +448,14 @@ func (p *Peer) listenForMessages() {
 					continue
 				}
 
-				l.Log(context.Background(), slogLvlTrace, "Received", slogUpperString(commandKey, cmd))
 				p.aliveCh <- struct{}{}
 				p.writeCh <- wire.NewMsgPong(ping.Nonce) // are we sure it should go with write channel not beside?
 
 			case wire.CmdPong:
-				l.Log(context.Background(), slogLvlTrace, "Received", slogUpperString(commandKey, cmd))
 				p.aliveCh <- struct{}{}
 
 			// pass message to client
 			default:
-				l.Log(context.Background(), slogLvlTrace, "Received", slogUpperString(commandKey, cmd))
 				p.mh.OnReceive(msg, p)
 			}
 		}
@@ -474,7 +478,6 @@ func (p *Peer) sendMessages(n uint8) {
 				return
 
 			case msg := <-p.writeCh:
-
 				// do not retry || TODO: rethink retry
 				err := wire.WriteMessage(p.lConn, msg, wire.ProtocolVersion, p.network)
 				if err != nil {
@@ -482,7 +485,6 @@ func (p *Peer) sendMessages(n uint8) {
 						slogUpperString(commandKey, msg.Command()),
 						slog.String("err", err.Error()),
 					)
-
 					// stop peer
 					p.unhealthyDisconnect()
 					return
@@ -502,20 +504,45 @@ type readResult struct {
 }
 
 func readWireMsg(ctx context.Context, r io.Reader, pver uint32, bsvnet wire.BitcoinNet) (wire.Message, error) {
-	readMessageFinished := make(chan readResult, 1)
+	readMsg := make(chan readResult, 1)
 
-	go func() {
-		msg, _, err := wire.ReadMessage(r, pver, bsvnet)
-		readMessageFinished <- readResult{msg, err}
-	}()
+	go handleRead(r, pver, bsvnet, readMsg)
 
 	// block until read complete or context is canceled
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 
-	case readMsg := <-readMessageFinished:
+	case readMsg := <-readMsg:
 		return readMsg.msg, readMsg.err
+	}
+}
+
+func handleRead(r io.Reader, pver uint32, bsvnet wire.BitcoinNet, result chan<- readResult) {
+	const maxSubsequentEOF = 10
+
+	for {
+		eofCounter := 0
+
+		msg, _, err := wire.ReadMessage(r, pver, bsvnet)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// some nodes send EOF if has nothing to say
+				// tolerate it, but have limits
+				eofCounter++
+				if eofCounter < maxSubsequentEOF {
+					time.Sleep(time.Second)
+					continue
+				}
+			} else if strings.Contains(err.Error(), "unhandled command [") { // TODO: change it with new go-p2p version
+				// ignore unknown msg
+				eofCounter = 0
+				continue
+			}
+		}
+
+		result <- readResult{msg, err}
+		return
 	}
 }
 

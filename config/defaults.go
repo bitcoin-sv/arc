@@ -8,8 +8,9 @@ import (
 
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
-		LogLevel:           "DEBUG",
 		LogFormat:          "text",
+		LogLevel:           "DEBUG",
+		PeerLogLevel:       "DEBUG",
 		ProfilerAddr:       "", // optional
 		PrometheusEndpoint: "", // optional
 		PrometheusAddr:     "", // optional

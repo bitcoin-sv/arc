@@ -755,14 +755,14 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
 	qBulk := `
     UPDATE metamorph.transactions
     SET
-        status_history = status_history || (
+        status_history = status_history || COALESCE((
             SELECT jsonb_agg(new_status)
             FROM (
                 SELECT jsonb_build_object(
                     'status', (new_status->>'status')::INT,
                     'timestamp', (new_status->>'timestamp')::TIMESTAMP WITH TIME ZONE
                 ) AS new_status
-                FROM jsonb_array_elements(bulk_query.history_update) AS new_status
+                FROM jsonb_array_elements(COALESCE(bulk_query.history_update, '[]'::JSONB)) AS new_status
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements(metamorph.transactions.status_history) AS existing_status
@@ -780,7 +780,7 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
                       WHERE existing_status->>'status' = bulk_query.status::text
                   )
             ) AS valid_statuses
-        )
+        ), '[]'::JSONB)
     FROM (
         SELECT t.hash, t.status, t.history_update, t.timestamp
         FROM UNNEST($1::BYTEA[], $2::INT[], $3::JSONB[], $4::TIMESTAMP WITH TIME ZONE[]) AS t(hash, status, history_update, timestamp)

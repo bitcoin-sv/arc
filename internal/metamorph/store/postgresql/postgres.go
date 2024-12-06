@@ -589,7 +589,6 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
-
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
@@ -795,7 +794,6 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
-
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
@@ -825,22 +823,27 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	blockHashes := make([][]byte, len(txsBlocks))
 	blockHeights := make([]uint64, len(txsBlocks))
 	merklePaths := make([]string, len(txsBlocks))
+	statuses := make([]metamorph_api.Status, len(txsBlocks))
 
 	for i, tx := range txsBlocks {
 		txHashes[i] = tx.TransactionHash
 		blockHashes[i] = tx.BlockHash
 		blockHeights[i] = tx.BlockHeight
 		merklePaths[i] = tx.MerklePath
+		statuses[i] = metamorph_api.Status_MINED
+		if tx.BlockStatus == blocktx_api.Status_STALE {
+			statuses[i] = metamorph_api.Status_MINED_IN_STALE_BLOCK
+		}
 	}
 
 	qBulkUpdate := `
 		UPDATE metamorph.transactions t
 			SET
-			    status=$1,
+			    status=bulk_query.mined_status,
 			    block_hash=bulk_query.block_hash,
 			    block_height=bulk_query.block_height,
 			  	merkle_path=bulk_query.merkle_path,
-			  	last_modified=$2,
+			  	last_modified=$1,
 				status_history=status_history || json_build_object(
 					'status', status,
 					'timestamp', last_modified
@@ -849,8 +852,8 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 			  (
 				SELECT *
 				FROM
-				  UNNEST($3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[])
-				  AS t(hash, block_hash, block_height, merkle_path)
+					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[])
+					AS t(mined_status, hash, block_hash, block_height, merkle_path)
 			  ) AS bulk_query
 			WHERE
 			  t.hash=bulk_query.hash
@@ -889,7 +892,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	competingTxsData := getCompetingTxsFromRows(rows)
 	rejectedResponses := updateDoubleSpendRejected(ctx, competingTxsData, tx)
 
-	rows, err = tx.QueryContext(ctx, qBulkUpdate, metamorph_api.Status_MINED, p.now(), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
+	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))

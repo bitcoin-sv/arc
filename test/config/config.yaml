@@ -94,7 +94,7 @@ blocktx:
   recordRetentionDays: 28
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
-  fillGapsInterval: 15m
+  fillGapsInterval: 1s # this is needed, becuase during init, peers don't send us some blocks
   maxAllowedBlockHeightMismatch: 3
 
 api:

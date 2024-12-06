@@ -262,6 +262,19 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 		return ctx.JSON(e.Status, e)
 	}
 
+	callbacks := make([]api.CallbackDetails, 0)
+	for _, cb := range tx.Callbacks {
+		if cb.CallbackUrl != "" {
+			callbacks = append(callbacks, api.CallbackDetails{
+				Token: cb.CallbackToken,
+				Url:   cb.CallbackUrl,
+			})
+		}
+	}
+	if len(callbacks) == 0 {
+		callbacks = nil
+	}
+
 	return ctx.JSON(http.StatusOK, api.TransactionStatus{
 		BlockHash:    &tx.BlockHash,
 		BlockHeight:  &tx.BlockHeight,
@@ -271,6 +284,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 		MerklePath:   &tx.MerklePath,
 		ExtraInfo:    &tx.ExtraInfo,
 		CompetingTxs: &tx.CompetingTxs,
+		Callbacks:    &callbacks,
 	})
 }
 
@@ -509,6 +523,20 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		if txID == "" {
 			txID = submittedTxs[idx].TxID()
 		}
+
+		callbacks := make([]api.CallbackDetails, 0)
+		for _, cb := range tx.Callbacks {
+			if cb.CallbackUrl != "" {
+				callbacks = append(callbacks, api.CallbackDetails{
+					Token: cb.CallbackToken,
+					Url:   cb.CallbackUrl,
+				})
+			}
+		}
+		if len(callbacks) == 0 {
+			callbacks = nil
+		}
+
 		successes = append(successes, &api.TransactionResponse{
 			Status:       int(api.StatusOK),
 			Title:        "OK",
@@ -517,6 +545,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
 			ExtraInfo:    &tx.ExtraInfo,
 			CompetingTxs: &tx.CompetingTxs,
+			Callbacks:    &callbacks,
 			Timestamp:    now,
 			Txid:         txID,
 			MerklePath:   &tx.MerklePath,

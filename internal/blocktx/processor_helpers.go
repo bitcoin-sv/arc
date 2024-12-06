@@ -4,50 +4,46 @@ import (
 	"math"
 	"math/big"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func createBlock(msg *blockchain.BlockMessage, prevBlock *blocktx_api.Block, longestTipExists bool) *blocktx_api.Block {
-	hash := msg.Header.BlockHash()
-	prevHash := msg.Header.PrevBlock
-	merkleRoot := msg.Header.MerkleRoot
-	chainwork := calculateChainwork(msg.Header.Bits)
-
-	var status blocktx_api.Status
-	if prevBlock == nil {
-		if longestTipExists {
-			status = blocktx_api.Status_ORPHANED
-		} else {
-			status = blocktx_api.Status_LONGEST
-		}
-	} else {
-		status = prevBlock.Status
+func getHashStringNoErr(hash []byte) string {
+	chash, err := chainhash.NewHash(hash)
+	if err != nil {
+		return ""
 	}
-
-	return &blocktx_api.Block{
-		Hash:         hash[:],
-		PreviousHash: prevHash[:],
-		MerkleRoot:   merkleRoot[:],
-		Height:       msg.Height,
-		Status:       status,
-		Chainwork:    chainwork.String(),
-	}
+	return chash.String()
 }
 
-func getLowestHeight(blocks []*blocktx_api.Block) uint64 {
-	if len(blocks) == 0 {
-		return 0
+func sumChainwork(blocks []*blocktx_api.Block) *big.Int {
+	sum := big.NewInt(0)
+	for _, b := range blocks {
+		chainwork := new(big.Int)
+		chainwork.SetString(b.Chainwork, 10)
+
+		sum = sum.Add(sum, chainwork)
 	}
 
-	lowest := blocks[0].Height
-	for _, b := range blocks {
-		if b.Height < lowest {
-			lowest = b.Height
+	return sum
+}
+
+func exclusiveRightTxs(leftTxs, rightTxs []store.TransactionBlock) []store.TransactionBlock {
+	leftTxsMap := make(map[string]struct{})
+
+	for _, tx := range leftTxs {
+		leftTxsMap[string(tx.TxHash)] = struct{}{}
+	}
+
+	exclusiveRightTxs := make([]store.TransactionBlock, 0)
+	for _, tx := range rightTxs {
+		if _, found := leftTxsMap[string(tx.TxHash)]; !found {
+			exclusiveRightTxs = append(exclusiveRightTxs, tx)
 		}
 	}
 
-	return lowest
+	return exclusiveRightTxs
 }
 
 // calculateChainwork calculates chainwork from the given difficulty bits

@@ -60,6 +60,8 @@ func init() {
 		}
 
 		blockMessage.Size = uint64(bytesRead)
+		blockHash := blockMessage.Header.BlockHash()
+		blockMessage.Hash = &blockHash
 
 		return bytesRead, blockMessage, nil, nil
 	})

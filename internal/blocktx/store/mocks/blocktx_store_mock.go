@@ -33,9 +33,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
-//			GetBlockByHeightFunc: func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
-//				panic("mock out the GetBlockByHeight method")
-//			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
 //			},
@@ -45,11 +42,20 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
 //				panic("mock out the GetChainTip method")
 //			},
+//			GetLongestBlockByHeightFunc: func(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+//				panic("mock out the GetLongestBlockByHeight method")
+//			},
 //			GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetLongestChainFromHeight method")
 //			},
-//			GetMinedTransactionsFunc: func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+//			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 //				panic("mock out the GetMinedTransactions method")
+//			},
+//			GetOrphansBackToNonOrphanAncestorFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
+//				panic("mock out the GetOrphansBackToNonOrphanAncestor method")
+//			},
+//			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+//				panic("mock out the GetRegisteredTxsByBlockHashes method")
 //			},
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetStaleChainBackFromHash method")
@@ -75,7 +81,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the UpsertBlock method")
 //			},
-//			UpsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+//			UpsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 //				panic("mock out the UpsertBlockTransactions method")
 //			},
 //			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error) {
@@ -100,9 +106,6 @@ type BlocktxStoreMock struct {
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
-	// GetBlockByHeightFunc mocks the GetBlockByHeight method.
-	GetBlockByHeightFunc func(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error)
-
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*store.BlockGap, error)
 
@@ -112,11 +115,20 @@ type BlocktxStoreMock struct {
 	// GetChainTipFunc mocks the GetChainTip method.
 	GetChainTipFunc func(ctx context.Context) (*blocktx_api.Block, error)
 
+	// GetLongestBlockByHeightFunc mocks the GetLongestBlockByHeight method.
+	GetLongestBlockByHeightFunc func(ctx context.Context, height uint64) (*blocktx_api.Block, error)
+
 	// GetLongestChainFromHeightFunc mocks the GetLongestChainFromHeight method.
 	GetLongestChainFromHeightFunc func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 
 	// GetMinedTransactionsFunc mocks the GetMinedTransactions method.
-	GetMinedTransactionsFunc func(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error)
+	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error)
+
+	// GetOrphansBackToNonOrphanAncestorFunc mocks the GetOrphansBackToNonOrphanAncestor method.
+	GetOrphansBackToNonOrphanAncestorFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error)
+
+	// GetRegisteredTxsByBlockHashesFunc mocks the GetRegisteredTxsByBlockHashes method.
+	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error)
 
 	// GetStaleChainBackFromHashFunc mocks the GetStaleChainBackFromHash method.
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
@@ -143,7 +155,7 @@ type BlocktxStoreMock struct {
 	UpsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 
 	// UpsertBlockTransactionsFunc mocks the UpsertBlockTransactions method.
-	UpsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error)
+	UpsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error
 
 	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
 	VerifyMerkleRootsFunc func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
@@ -178,15 +190,6 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
 		}
-		// GetBlockByHeight holds details about calls to the GetBlockByHeight method.
-		GetBlockByHeight []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Height is the height argument value.
-			Height uint64
-			// Status is the status argument value.
-			Status blocktx_api.Status
-		}
 		// GetBlockGaps holds details about calls to the GetBlockGaps method.
 		GetBlockGaps []struct {
 			// Ctx is the ctx argument value.
@@ -206,6 +209,13 @@ type BlocktxStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// GetLongestBlockByHeight holds details about calls to the GetLongestBlockByHeight method.
+		GetLongestBlockByHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Height is the height argument value.
+			Height uint64
+		}
 		// GetLongestChainFromHeight holds details about calls to the GetLongestChainFromHeight method.
 		GetLongestChainFromHeight []struct {
 			// Ctx is the ctx argument value.
@@ -218,7 +228,23 @@ type BlocktxStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Hashes is the hashes argument value.
-			Hashes []*chainhash.Hash
+			Hashes [][]byte
+			// OnlyLongestChain is the onlyLongestChain argument value.
+			OnlyLongestChain bool
+		}
+		// GetOrphansBackToNonOrphanAncestor holds details about calls to the GetOrphansBackToNonOrphanAncestor method.
+		GetOrphansBackToNonOrphanAncestor []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
+		}
+		// GetRegisteredTxsByBlockHashes holds details about calls to the GetRegisteredTxsByBlockHashes method.
+		GetRegisteredTxsByBlockHashes []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// BlockHashes is the blockHashes argument value.
+			BlockHashes [][]byte
 		}
 		// GetStaleChainBackFromHash holds details about calls to the GetStaleChainBackFromHash method.
 		GetStaleChainBackFromHash []struct {
@@ -301,12 +327,14 @@ type BlocktxStoreMock struct {
 	lockClose                              sync.RWMutex
 	lockDelBlockProcessing                 sync.RWMutex
 	lockGetBlock                           sync.RWMutex
-	lockGetBlockByHeight                   sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
 	lockGetChainTip                        sync.RWMutex
+	lockGetLongestBlockByHeight            sync.RWMutex
 	lockGetLongestChainFromHeight          sync.RWMutex
 	lockGetMinedTransactions               sync.RWMutex
+	lockGetOrphansBackToNonOrphanAncestor  sync.RWMutex
+	lockGetRegisteredTxsByBlockHashes      sync.RWMutex
 	lockGetStaleChainBackFromHash          sync.RWMutex
 	lockGetStats                           sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
@@ -462,46 +490,6 @@ func (mock *BlocktxStoreMock) GetBlockCalls() []struct {
 	return calls
 }
 
-// GetBlockByHeight calls GetBlockByHeightFunc.
-func (mock *BlocktxStoreMock) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
-	if mock.GetBlockByHeightFunc == nil {
-		panic("BlocktxStoreMock.GetBlockByHeightFunc: method is nil but BlocktxStore.GetBlockByHeight was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		Height uint64
-		Status blocktx_api.Status
-	}{
-		Ctx:    ctx,
-		Height: height,
-		Status: status,
-	}
-	mock.lockGetBlockByHeight.Lock()
-	mock.calls.GetBlockByHeight = append(mock.calls.GetBlockByHeight, callInfo)
-	mock.lockGetBlockByHeight.Unlock()
-	return mock.GetBlockByHeightFunc(ctx, height, status)
-}
-
-// GetBlockByHeightCalls gets all the calls that were made to GetBlockByHeight.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetBlockByHeightCalls())
-func (mock *BlocktxStoreMock) GetBlockByHeightCalls() []struct {
-	Ctx    context.Context
-	Height uint64
-	Status blocktx_api.Status
-} {
-	var calls []struct {
-		Ctx    context.Context
-		Height uint64
-		Status blocktx_api.Status
-	}
-	mock.lockGetBlockByHeight.RLock()
-	calls = mock.calls.GetBlockByHeight
-	mock.lockGetBlockByHeight.RUnlock()
-	return calls
-}
-
 // GetBlockGaps calls GetBlockGapsFunc.
 func (mock *BlocktxStoreMock) GetBlockGaps(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 	if mock.GetBlockGapsFunc == nil {
@@ -606,6 +594,42 @@ func (mock *BlocktxStoreMock) GetChainTipCalls() []struct {
 	return calls
 }
 
+// GetLongestBlockByHeight calls GetLongestBlockByHeightFunc.
+func (mock *BlocktxStoreMock) GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+	if mock.GetLongestBlockByHeightFunc == nil {
+		panic("BlocktxStoreMock.GetLongestBlockByHeightFunc: method is nil but BlocktxStore.GetLongestBlockByHeight was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Height uint64
+	}{
+		Ctx:    ctx,
+		Height: height,
+	}
+	mock.lockGetLongestBlockByHeight.Lock()
+	mock.calls.GetLongestBlockByHeight = append(mock.calls.GetLongestBlockByHeight, callInfo)
+	mock.lockGetLongestBlockByHeight.Unlock()
+	return mock.GetLongestBlockByHeightFunc(ctx, height)
+}
+
+// GetLongestBlockByHeightCalls gets all the calls that were made to GetLongestBlockByHeight.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetLongestBlockByHeightCalls())
+func (mock *BlocktxStoreMock) GetLongestBlockByHeightCalls() []struct {
+	Ctx    context.Context
+	Height uint64
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Height uint64
+	}
+	mock.lockGetLongestBlockByHeight.RLock()
+	calls = mock.calls.GetLongestBlockByHeight
+	mock.lockGetLongestBlockByHeight.RUnlock()
+	return calls
+}
+
 // GetLongestChainFromHeight calls GetLongestChainFromHeightFunc.
 func (mock *BlocktxStoreMock) GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 	if mock.GetLongestChainFromHeightFunc == nil {
@@ -643,21 +667,23 @@ func (mock *BlocktxStoreMock) GetLongestChainFromHeightCalls() []struct {
 }
 
 // GetMinedTransactions calls GetMinedTransactionsFunc.
-func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
 	if mock.GetMinedTransactionsFunc == nil {
 		panic("BlocktxStoreMock.GetMinedTransactionsFunc: method is nil but BlocktxStore.GetMinedTransactions was just called")
 	}
 	callInfo := struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
+		Ctx              context.Context
+		Hashes           [][]byte
+		OnlyLongestChain bool
 	}{
-		Ctx:    ctx,
-		Hashes: hashes,
+		Ctx:              ctx,
+		Hashes:           hashes,
+		OnlyLongestChain: onlyLongestChain,
 	}
 	mock.lockGetMinedTransactions.Lock()
 	mock.calls.GetMinedTransactions = append(mock.calls.GetMinedTransactions, callInfo)
 	mock.lockGetMinedTransactions.Unlock()
-	return mock.GetMinedTransactionsFunc(ctx, hashes)
+	return mock.GetMinedTransactionsFunc(ctx, hashes, onlyLongestChain)
 }
 
 // GetMinedTransactionsCalls gets all the calls that were made to GetMinedTransactions.
@@ -665,16 +691,90 @@ func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [
 //
 //	len(mockedBlocktxStore.GetMinedTransactionsCalls())
 func (mock *BlocktxStoreMock) GetMinedTransactionsCalls() []struct {
-	Ctx    context.Context
-	Hashes []*chainhash.Hash
+	Ctx              context.Context
+	Hashes           [][]byte
+	OnlyLongestChain bool
 } {
 	var calls []struct {
-		Ctx    context.Context
-		Hashes []*chainhash.Hash
+		Ctx              context.Context
+		Hashes           [][]byte
+		OnlyLongestChain bool
 	}
 	mock.lockGetMinedTransactions.RLock()
 	calls = mock.calls.GetMinedTransactions
 	mock.lockGetMinedTransactions.RUnlock()
+	return calls
+}
+
+// GetOrphansBackToNonOrphanAncestor calls GetOrphansBackToNonOrphanAncestorFunc.
+func (mock *BlocktxStoreMock) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
+	if mock.GetOrphansBackToNonOrphanAncestorFunc == nil {
+		panic("BlocktxStoreMock.GetOrphansBackToNonOrphanAncestorFunc: method is nil but BlocktxStore.GetOrphansBackToNonOrphanAncestor was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetOrphansBackToNonOrphanAncestor.Lock()
+	mock.calls.GetOrphansBackToNonOrphanAncestor = append(mock.calls.GetOrphansBackToNonOrphanAncestor, callInfo)
+	mock.lockGetOrphansBackToNonOrphanAncestor.Unlock()
+	return mock.GetOrphansBackToNonOrphanAncestorFunc(ctx, hash)
+}
+
+// GetOrphansBackToNonOrphanAncestorCalls gets all the calls that were made to GetOrphansBackToNonOrphanAncestor.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetOrphansBackToNonOrphanAncestorCalls())
+func (mock *BlocktxStoreMock) GetOrphansBackToNonOrphanAncestorCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockGetOrphansBackToNonOrphanAncestor.RLock()
+	calls = mock.calls.GetOrphansBackToNonOrphanAncestor
+	mock.lockGetOrphansBackToNonOrphanAncestor.RUnlock()
+	return calls
+}
+
+// GetRegisteredTxsByBlockHashes calls GetRegisteredTxsByBlockHashesFunc.
+func (mock *BlocktxStoreMock) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+	if mock.GetRegisteredTxsByBlockHashesFunc == nil {
+		panic("BlocktxStoreMock.GetRegisteredTxsByBlockHashesFunc: method is nil but BlocktxStore.GetRegisteredTxsByBlockHashes was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		BlockHashes [][]byte
+	}{
+		Ctx:         ctx,
+		BlockHashes: blockHashes,
+	}
+	mock.lockGetRegisteredTxsByBlockHashes.Lock()
+	mock.calls.GetRegisteredTxsByBlockHashes = append(mock.calls.GetRegisteredTxsByBlockHashes, callInfo)
+	mock.lockGetRegisteredTxsByBlockHashes.Unlock()
+	return mock.GetRegisteredTxsByBlockHashesFunc(ctx, blockHashes)
+}
+
+// GetRegisteredTxsByBlockHashesCalls gets all the calls that were made to GetRegisteredTxsByBlockHashes.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetRegisteredTxsByBlockHashesCalls())
+func (mock *BlocktxStoreMock) GetRegisteredTxsByBlockHashesCalls() []struct {
+	Ctx         context.Context
+	BlockHashes [][]byte
+} {
+	var calls []struct {
+		Ctx         context.Context
+		BlockHashes [][]byte
+	}
+	mock.lockGetRegisteredTxsByBlockHashes.RLock()
+	calls = mock.calls.GetRegisteredTxsByBlockHashes
+	mock.lockGetRegisteredTxsByBlockHashes.RUnlock()
 	return calls
 }
 
@@ -971,7 +1071,7 @@ func (mock *BlocktxStoreMock) UpsertBlockCalls() []struct {
 }
 
 // UpsertBlockTransactions calls UpsertBlockTransactionsFunc.
-func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	if mock.UpsertBlockTransactionsFunc == nil {
 		panic("BlocktxStoreMock.UpsertBlockTransactionsFunc: method is nil but BlocktxStore.UpsertBlockTransactions was just called")
 	}

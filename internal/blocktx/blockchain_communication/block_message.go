@@ -9,6 +9,7 @@ import (
 
 // BlockMessage only stores the transaction IDs of the block, not the full transactions
 type BlockMessage struct {
+	Hash              *chainhash.Hash
 	Header            *wire.BlockHeader
 	Height            uint64
 	TransactionHashes []*chainhash.Hash

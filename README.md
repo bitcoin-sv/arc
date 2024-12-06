@@ -185,6 +185,7 @@ The following statuses are available:
 | `SEEN_IN_ORPHAN_MEMPOOL` | The transaction has been sent to at least 1 Bitcoin node but parent transaction was not found.                                                                                                           |
 | `SEEN_ON_NETWORK`        | The transaction has been seen on the Bitcoin network and propagated to other nodes. This status is set when metamorph receives an INV message for the transaction from another node than it was sent to. |
 | `DOUBLE_SPEND_ATTEMPTED` | The transaction is a double spend attempt. Competing transaction(s) will be returned with this status.                                                                                                   |
+| `MINED_IN_STALE_BLOCK`   | The transaction has been mined into a block that became stale after a reorganisation of chain (reorg).                                                                                                   |
 | `REJECTED`               | The transaction has been rejected by the Bitcoin network.                                                                                                                                                |
 | `MINED`                  | The transaction has been mined into a block by a mining node.                                                                                                                                            |
 

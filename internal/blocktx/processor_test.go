@@ -9,20 +9,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 func TestHandleBlock(t *testing.T) {
@@ -156,7 +156,6 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			var actualInsertedBlockTransactions [][]byte
-
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
@@ -164,7 +163,7 @@ func TestHandleBlock(t *testing.T) {
 					}
 					return nil, store.ErrBlockNotFound
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64, _ blocktx_api.Status) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					return nil, store.ErrBlockNotFound
 				},
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
@@ -173,11 +172,17 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
 				MarkBlockAsDoneFunc:                    func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) { return nil, nil },
 			}
 
-			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
+			storeMock.UpsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 				require.LessOrEqual(t, len(txsWithMerklePaths), batchSize)
 
 				for _, txWithMr := range txsWithMerklePaths {
@@ -187,7 +192,7 @@ func TestHandleBlock(t *testing.T) {
 					actualInsertedBlockTransactions = append(actualInsertedBlockTransactions, tx[:])
 				}
 
-				return txsWithMerklePaths, nil
+				return nil
 			}
 
 			mq := &mocks.MessageQueueClientMock{
@@ -202,6 +207,7 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &blockchain.BlockMessage{
+				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					PrevBlock:  tc.prevBlockHash,
@@ -229,14 +235,22 @@ func TestHandleBlock(t *testing.T) {
 	}
 }
 
-func TestHandleBlockReorg(t *testing.T) {
+func TestHandleBlockReorgAndOrphans(t *testing.T) {
 	testCases := []struct {
-		name                string
-		prevBlockStatus     blocktx_api.Status
-		hasCompetingBlock   bool
-		hasGreaterChainwork bool
-		expectedStatus      blocktx_api.Status
+		name                     string
+		blockAlreadyExists       bool
+		prevBlockStatus          blocktx_api.Status
+		hasCompetingBlock        bool
+		hasGreaterChainwork      bool
+		shouldFindOrphanAncestor bool
+		ancestorStatus           blocktx_api.Status
+		expectedStatus           blocktx_api.Status
 	}{
+		{
+			name:               "block already exists - should be ingored",
+			blockAlreadyExists: true,
+			expectedStatus:     blocktx_api.Status_UNKNOWN,
+		},
 		{
 			name:              "previous block longest - no competing - no reorg",
 			prevBlockStatus:   blocktx_api.Status_LONGEST,
@@ -258,32 +272,55 @@ func TestHandleBlockReorg(t *testing.T) {
 			expectedStatus:      blocktx_api.Status_LONGEST,
 		},
 		{
-			name:                "previous block stale - competing - no reorg",
+			name:                "previous block stale - no reorg",
 			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   true,
 			hasGreaterChainwork: false,
 			expectedStatus:      blocktx_api.Status_STALE,
 		},
 		{
-			name:                "previous block stale - no competing - no reorg",
+			name:                "previous block stale - reorg",
 			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   false,
-			hasGreaterChainwork: false,
-			expectedStatus:      blocktx_api.Status_STALE,
-		},
-		{
-			name:                "previous block stale - no competing - reorg",
-			prevBlockStatus:     blocktx_api.Status_STALE,
-			hasCompetingBlock:   false,
 			hasGreaterChainwork: true,
 			expectedStatus:      blocktx_api.Status_LONGEST,
 		},
 		{
-			name:                "previous block orphaned - no competing - no reorg",
-			prevBlockStatus:     blocktx_api.Status_ORPHANED,
-			hasCompetingBlock:   false,
-			hasGreaterChainwork: false,
-			expectedStatus:      blocktx_api.Status_ORPHANED,
+			name:                     "previous block orphaned - no ancestor",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: false,
+			expectedStatus:           blocktx_api.Status_ORPHANED,
+		},
+		{
+			name:                     "previous block orphaned - stale ancestor",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_STALE,
+			expectedStatus:           blocktx_api.Status_STALE,
+		},
+		{
+			name:                     "previous block orphaned - longest ancestor - no competing",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        false,
+			expectedStatus:           blocktx_api.Status_LONGEST,
+		},
+		{
+			name:                     "previous block orphaned - longest ancestor - competing - no reorg",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        true,
+			hasGreaterChainwork:      false,
+			expectedStatus:           blocktx_api.Status_STALE,
+		},
+		{
+			name:                     "previous block orphaned - longest ancestor - competing - reorg",
+			prevBlockStatus:          blocktx_api.Status_ORPHANED,
+			shouldFindOrphanAncestor: true,
+			ancestorStatus:           blocktx_api.Status_LONGEST,
+			hasCompetingBlock:        true,
+			hasGreaterChainwork:      true,
+			expectedStatus:           blocktx_api.Status_LONGEST,
 		},
 	}
 
@@ -291,9 +328,8 @@ func TestHandleBlockReorg(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			var mtx sync.Mutex
-			var insertedBlock *blocktx_api.Block
-
-			shouldReturnNoBlock := true
+			insertedBlockStatus := blocktx_api.Status_UNKNOWN
+			shouldReturnNoBlock := !tc.blockAlreadyExists
 
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
@@ -303,10 +339,11 @@ func TestHandleBlockReorg(t *testing.T) {
 					}
 
 					return &blocktx_api.Block{
-						Status: tc.prevBlockStatus,
+						Status:    tc.prevBlockStatus,
+						Processed: true,
 					}, nil
 				},
-				GetBlockByHeightFunc: func(_ context.Context, _ uint64, _ blocktx_api.Status) (*blocktx_api.Block, error) {
+				GetLongestBlockByHeightFunc: func(_ context.Context, _ uint64) (*blocktx_api.Block, error) {
 					if tc.hasCompetingBlock {
 						blockHash, err := chainhash.NewHashFromStr("0000000000000000087590e1ad6360c0c491556c9af75c0d22ce9324cb5713cf")
 						require.NoError(t, err)
@@ -318,36 +355,73 @@ func TestHandleBlockReorg(t *testing.T) {
 					return nil, store.ErrBlockNotFound
 				},
 				GetChainTipFunc: func(_ context.Context) (*blocktx_api.Block, error) {
-					if tc.hasGreaterChainwork {
-						return &blocktx_api.Block{
-							Chainwork: "42069",
-						}, nil
-					}
-
-					return &blocktx_api.Block{
-						Chainwork: "62209952899966",
-					}, nil
-				},
-				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
-					return nil, nil
-				},
-				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
-					return nil, nil
-				},
-				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error {
-					return nil
+					return &blocktx_api.Block{}, nil
 				},
 				UpsertBlockFunc: func(_ context.Context, block *blocktx_api.Block) (uint64, error) {
 					mtx.Lock()
-					insertedBlock = block
+					insertedBlockStatus = block.Status
 					mtx.Unlock()
 					return 1, nil
 				},
-				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error {
+				GetStaleChainBackFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+					if tc.hasGreaterChainwork {
+						return []*blocktx_api.Block{
+							{
+								Chainwork: "62209952899966",
+							},
+							{
+								Chainwork: "42069",
+							},
+							{
+								Chainwork: "42069",
+							},
+						}, nil
+					}
+					return []*blocktx_api.Block{
+						{
+							Chainwork: "62209952899966",
+						},
+					}, nil
+				},
+				GetLongestChainFromHeightFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
+					return []*blocktx_api.Block{
+						{
+							Chainwork: "62209952899966",
+						},
+						{
+							Chainwork: "42069",
+						},
+					}, nil
+				},
+				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
+					mtx.Lock()
+					tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
+					insertedBlockStatus = tipStatusUpdate.Status
+					mtx.Unlock()
 					return nil
 				},
-				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) ([]store.TxWithMerklePath, error) {
-					return []store.TxWithMerklePath{}, nil
+				GetOrphansBackToNonOrphanAncestorFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
+					if tc.shouldFindOrphanAncestor {
+						orphans := []*blocktx_api.Block{{Hash: hash}}
+						ancestor := &blocktx_api.Block{Hash: []byte("123"), Status: tc.ancestorStatus, Processed: true}
+						return orphans, ancestor, nil
+					}
+					return nil, nil, nil
+				},
+				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
+					return nil
+				},
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
+					return nil
+				},
+				DelBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
+					return 0, nil
 				},
 			}
 
@@ -366,6 +440,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &blockchain.BlockMessage{
+				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					MerkleRoot: *merkleRoot,
@@ -384,7 +459,7 @@ func TestHandleBlockReorg(t *testing.T) {
 			// then
 			time.Sleep(20 * time.Millisecond)
 			mtx.Lock()
-			require.Equal(t, tc.expectedStatus, insertedBlock.Status)
+			require.Equal(t, tc.expectedStatus, insertedBlockStatus)
 			mtx.Unlock()
 		})
 	}
@@ -635,12 +710,12 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(_ context.Context, hashes []*chainhash.Hash) ([]store.GetMinedTransactionResult, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					for _, hash := range hashes {
-						require.Equal(t, testdata.TX1Hash, hash)
+						require.Equal(t, testdata.TX1Hash[:], hash)
 					}
 
-					return []store.GetMinedTransactionResult{{
+					return []store.TransactionBlock{{
 						TxHash:      testdata.TX1Hash[:],
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,

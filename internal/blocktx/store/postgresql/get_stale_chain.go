@@ -2,7 +2,6 @@ package postgresql
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
@@ -36,7 +35,6 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,merkleroot
 				,height
 				,processed_at
-				,orphanedyn
 				,status
 				,chainwork
 			FROM blocktx.blocks WHERE hash = $1
@@ -47,10 +45,10 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,b.merkleroot
 				,b.height
 				,b.processed_at
-				,b.orphanedyn
 				,b.status
 				,b.chainwork
 			FROM blocktx.blocks b JOIN prevBlocks p ON b.hash = p.prevhash AND b.status = $2
+			WHERE b.processed_at IS NOT NULL
 		)
 		SELECT
 			hash
@@ -58,12 +56,11 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM prevBlocks
+		ORDER BY height
 	`
-	staleBlocks := make([]*blocktx_api.Block, 0)
 
 	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_STALE)
 	if err != nil {
@@ -71,28 +68,5 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var block blocktx_api.Block
-		var processedAt sql.NullString
-
-		err := rows.Scan(
-			&block.Hash,
-			&block.PreviousHash,
-			&block.MerkleRoot,
-			&block.Height,
-			&processedAt,
-			&block.Orphaned,
-			&block.Status,
-			&block.Chainwork,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		block.Processed = processedAt.Valid
-
-		staleBlocks = append(staleBlocks, &block)
-	}
-
-	return staleBlocks, nil
+	return p.parseBlocks(rows)
 }

@@ -1,10 +1,10 @@
-package blocktx_p2p
+package p2p
 
 import (
 	"encoding/binary"
 	"io"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
@@ -16,7 +16,7 @@ import (
 func init() {
 	// override the default wire block handler with our own that streams and stores only the transaction ids
 	wire.SetExternalHandler(wire.CmdBlock, func(reader io.Reader, _ uint64, bytesRead int) (int, wire.Message, []byte, error) {
-		blockMessage := &blockchain.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			Header: &wire.BlockHeader{},
 		}
 
@@ -39,7 +39,7 @@ func init() {
 		var tx *sdkTx.Transaction
 		var hash *chainhash.Hash
 		var txBytes []byte
-		for i := 0; i < int(txCount); i++ {
+		for i := uint64(0); i < uint64(txCount); i++ {
 			tx = sdkTx.NewTransaction()
 			read, err = tx.ReadFrom(reader)
 			if err != nil {
@@ -59,7 +59,7 @@ func init() {
 			}
 		}
 
-		blockMessage.Size = uint64(bytesRead)
+		blockMessage.Size = uint64(bytesRead) // #nosec G115
 		blockHash := blockMessage.Header.BlockHash()
 		blockMessage.Hash = &blockHash
 

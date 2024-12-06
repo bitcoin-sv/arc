@@ -47,6 +47,8 @@ func getSlogLevel(logLevel string) (slog.Level, error) {
 		return slog.LevelError, nil
 	case "DEBUG":
 		return slog.LevelDebug, nil
+	case "TRACE":
+		return slog.LevelDebug - 4, nil // simulate trace level
 	}
 
 	return slog.LevelInfo, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))

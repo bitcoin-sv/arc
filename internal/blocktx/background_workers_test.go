@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
+	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"

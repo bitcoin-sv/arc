@@ -16,16 +16,16 @@ func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*block
 	return p.queryBlockByPredicate(ctx, predicate, hash[:])
 }
 
-func (p *PostgreSQL) GetBlockByHeight(ctx context.Context, height uint64, status blocktx_api.Status) (*blocktx_api.Block, error) {
-	predicate := "WHERE height = $1 AND status = $2"
+func (p *PostgreSQL) GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error) {
+	predicate := "WHERE height = $1 AND is_longest = true"
 
-	return p.queryBlockByPredicate(ctx, predicate, height, status)
+	return p.queryBlockByPredicate(ctx, predicate, height)
 }
 
 func (p *PostgreSQL) GetChainTip(ctx context.Context) (*blocktx_api.Block, error) {
-	predicate := "WHERE height = (SELECT MAX(height) FROM blocktx.blocks blks WHERE blks.status = $1)"
+	predicate := "WHERE height = (SELECT MAX(height) FROM blocktx.blocks blks WHERE blks.is_longest = true)"
 
-	return p.queryBlockByPredicate(ctx, predicate, blocktx_api.Status_LONGEST)
+	return p.queryBlockByPredicate(ctx, predicate)
 }
 
 func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string, predicateParams ...any) (*blocktx_api.Block, error) {
@@ -36,13 +36,12 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		 ,merkleroot
 		 ,height
 		 ,processed_at
-		 ,orphanedyn
 		 ,status
 		 ,chainwork
 		FROM blocktx.blocks
 	`
 
-	q += " " + predicate
+	q += " " + predicate + " AND processed_at IS NOT NULL"
 
 	var block blocktx_api.Block
 
@@ -54,7 +53,6 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		&block.MerkleRoot,
 		&block.Height,
 		&processedAt,
-		&block.Orphaned,
 		&block.Status,
 		&block.Chainwork,
 	); err != nil {

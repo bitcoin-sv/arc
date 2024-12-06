@@ -6,7 +6,6 @@
   height: 822013
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
 - inserted_at: 2023-12-15 14:00:00
   id: 2
   hash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
@@ -16,4 +15,3 @@
   processed_at: 2023-12-15 14:10:00
   size: 3030000
   tx_count: 856
-  orphanedyn: false

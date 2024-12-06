@@ -102,7 +102,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	statusMessageChannel := make(chan *metamorph.PeerTxMessage, 10)
+	statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
 	minedTxChannel := make(chan *blocktx_api.TransactionBlock, 10)
 
 	mockedZMQ := &mocks.ZMQIMock{

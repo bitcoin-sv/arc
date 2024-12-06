@@ -4,35 +4,46 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetLowestHeight(t *testing.T) {
+func TestExlusiveRightTxs(t *testing.T) {
 	// given
-	blocks := []*blocktx_api.Block{
+	leftTxs := []store.TransactionBlock{
 		{
-			Height: 123,
+			TxHash: []byte("1"),
 		},
 		{
-			Height: 250,
+			TxHash: []byte("2"),
+		},
+	}
+	rightTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("A"),
 		},
 		{
-			Height: 83340,
+			TxHash: []byte("B"),
 		},
 		{
-			Height: 4,
+			TxHash: []byte("1"),
+		},
+	}
+
+	expectedStaleTxs := []store.TransactionBlock{
+		{
+			TxHash: []byte("A"),
 		},
 		{
-			Height: 40,
+			TxHash: []byte("B"),
 		},
 	}
 
 	// when
-	lowestHeight := getLowestHeight(blocks)
+	actualStaleTxs := exclusiveRightTxs(leftTxs, rightTxs)
 
 	// then
-	require.Equal(t, uint64(4), lowestHeight)
+	require.Equal(t, expectedStaleTxs, actualStaleTxs)
 }
 
 func TestChainWork(t *testing.T) {

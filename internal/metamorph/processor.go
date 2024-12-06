@@ -74,7 +74,7 @@ type Processor struct {
 	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
-	statusMessageCh   chan *PeerTxMessage
+	statusMessageCh   chan *TxStatusMessage
 
 	waitGroup *sync.WaitGroup
 
@@ -111,7 +111,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *PeerTxMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}

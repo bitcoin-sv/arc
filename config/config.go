@@ -15,7 +15,7 @@ const (
 type ArcConfig struct {
 	LogFormat          string              `mapstructure:"logFormat"`
 	LogLevel           string              `mapstructure:"logLevel"`
-	PeerLogLevel       string              `mapstructure:"peeLogFormat"`
+	PeerLogLevel       string              `mapstructure:"peerLogLevel"`
 	ProfilerAddr       string              `mapstructure:"profilerAddr"`
 	PrometheusEndpoint string              `mapstructure:"prometheusEndpoint"`
 	PrometheusAddr     string              `mapstructure:"prometheusAddr"`

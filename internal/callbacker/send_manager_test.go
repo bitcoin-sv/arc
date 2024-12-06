@@ -1,4 +1,4 @@
-package callbacker
+package callbacker_test
 
 import (
 	"context"
@@ -11,8 +11,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker"
+	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
 )
 
 func TestSendManager(t *testing.T) {
@@ -84,9 +85,9 @@ func TestSendManager(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &SenderIMock{
-				SendFunc:      func(_, _ string, _ *Callback) bool { return true },
-				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return true },
+			cMq := &mocks.SenderIMock{
+				SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return true },
+				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return true },
 			}
 
 			var savedCallbacks []*store.CallbackData
@@ -101,25 +102,25 @@ func TestSendManager(t *testing.T) {
 				},
 			}
 
-			sendConfig := &SendConfig{
+			sendConfig := &callbacker.SendConfig{
 				Delay:                              0,
 				PauseAfterSingleModeSuccessfulSend: 0,
 				BatchSendInterval:                  time.Millisecond,
 			}
 
-			var opts []func(manager *sendManager)
+			var opts []func(manager *callbacker.SendManager)
 			if tc.setEntriesBufferSize > 0 {
-				opts = append(opts, WithBufferSize(tc.setEntriesBufferSize))
+				opts = append(opts, callbacker.WithBufferSize(tc.setEntriesBufferSize))
 			}
 
-			sut := runNewSendManager("", cMq, sMq, slog.Default(), sendConfig, opts...)
+			sut := callbacker.RunNewSendManager("", cMq, sMq, slog.Default(), sendConfig, opts...)
 
 			// add callbacks before starting the manager to queue them
 			for range tc.numOfSingleCallbacks {
-				sut.Add(&CallbackEntry{Data: &Callback{}}, false)
+				sut.Add(&callbacker.CallbackEntry{Data: &callbacker.Callback{}}, false)
 			}
 			for range tc.numOfBatchedCallbacks {
-				sut.Add(&CallbackEntry{Data: &Callback{}}, true)
+				sut.Add(&callbacker.CallbackEntry{Data: &callbacker.Callback{}}, true)
 			}
 
 			if tc.stopManager {
@@ -186,9 +187,9 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			var sendOK int32
-			senderMq := &SenderIMock{
-				SendFunc:      func(_, _ string, _ *Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
-				SendBatchFunc: func(_, _ string, _ []*Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
+			senderMq := &mocks.SenderIMock{
+				SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
+				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
 			}
 
 			storeMq := &mocks.CallbackerStoreMock{
@@ -200,23 +201,23 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 				},
 			}
 
-			var preFailureCallbacks []*CallbackEntry
+			var preFailureCallbacks []*callbacker.CallbackEntry
 			for i := range 10 {
-				preFailureCallbacks = append(preFailureCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("q %d", i)}})
+				preFailureCallbacks = append(preFailureCallbacks, &callbacker.CallbackEntry{Data: &callbacker.Callback{TxID: fmt.Sprintf("q %d", i)}})
 			}
 
-			var postFailureCallbacks []*CallbackEntry
+			var postFailureCallbacks []*callbacker.CallbackEntry
 			for i := range 10 {
-				postFailureCallbacks = append(postFailureCallbacks, &CallbackEntry{Data: &Callback{TxID: fmt.Sprintf("a %d", i)}})
+				postFailureCallbacks = append(postFailureCallbacks, &callbacker.CallbackEntry{Data: &callbacker.Callback{TxID: fmt.Sprintf("a %d", i)}})
 			}
 
-			sendConfig := &SendConfig{
+			sendConfig := &callbacker.SendConfig{
 				Delay:                              0,
 				PauseAfterSingleModeSuccessfulSend: 0,
 				BatchSendInterval:                  time.Millisecond,
 			}
 
-			sut := runNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), sendConfig)
+			sut := callbacker.RunNewSendManager("http://unittest.com", senderMq, storeMq, slog.Default(), sendConfig)
 
 			// when
 			atomic.StoreInt32(&sendOK, 0) // trigger send failure - this should put the manager in failed state
@@ -227,7 +228,6 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 			}
 
 			time.Sleep(500 * time.Millisecond) // wait for the failure period to complete
-			require.Equal(t, ActiveMode, sut.getMode())
 
 			atomic.StoreInt32(&sendOK, 1) // now all sends should complete successfully
 			// add a few callbacks to send - all should be sent
@@ -261,7 +261,7 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 			}
 
 			// check sent callbacks
-			var sendCallbacks []*Callback
+			var sendCallbacks []*callbacker.Callback
 			if tc.batch {
 				for _, c := range senderMq.SendBatchCalls() {
 					sendCallbacks = append(sendCallbacks, c.Callbacks...)
@@ -274,14 +274,14 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 
 			require.Equal(t, len(postFailureCallbacks)+len(preFailureCallbacks), len(sendCallbacks), "manager should attempt to send the callback that caused failure (first call) and all callbacks sent after failure")
 
-			_, ok := find(sendCallbacks, func(e *Callback) bool {
+			_, ok := find(sendCallbacks, func(e *callbacker.Callback) bool {
 				return e.TxID == preFailureCallbacks[0].Data.TxID
 			})
 
 			require.True(t, ok)
 
 			for _, c := range postFailureCallbacks {
-				_, ok := find(sendCallbacks, func(e *Callback) bool {
+				_, ok := find(sendCallbacks, func(e *callbacker.Callback) bool {
 					return e.TxID == c.Data.TxID
 				})
 

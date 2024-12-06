@@ -1,4 +1,4 @@
-package callbacker
+package callbacker_test
 
 import (
 	"context"
@@ -8,9 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker"
+	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 func TestCallbackDispatcher(t *testing.T) {
@@ -39,8 +41,8 @@ func TestCallbackDispatcher(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			cMq := &SenderIMock{
-				SendFunc: func(_, _ string, _ *Callback) bool { return true },
+			cMq := &mocks.SenderIMock{
+				SendFunc: func(_, _ string, _ *callbacker.Callback) bool { return true },
 			}
 
 			var savedCallbacks []*store.CallbackData
@@ -51,12 +53,12 @@ func TestCallbackDispatcher(t *testing.T) {
 				},
 			}
 
-			sendingConfig := SendConfig{
+			sendingConfig := callbacker.SendConfig{
 				PauseAfterSingleModeSuccessfulSend: tc.sendInterval,
 				Expiration:                         time.Duration(24 * time.Hour),
 			}
 
-			sut := NewCallbackDispatcher(cMq, sMq, slog.Default(), &sendingConfig)
+			sut := callbacker.NewCallbackDispatcher(cMq, sMq, slog.Default(), &sendingConfig)
 
 			var receivers []string
 			for i := range tc.numOfReceivers {
@@ -70,7 +72,7 @@ func TestCallbackDispatcher(t *testing.T) {
 			for range tc.numOfSendPerReceiver {
 				go func() {
 					for _, url := range receivers {
-						sut.Dispatch(url, &CallbackEntry{Token: "", Data: &Callback{}}, false)
+						sut.Dispatch(url, &callbacker.CallbackEntry{Token: "", Data: &callbacker.Callback{}}, false)
 					}
 					wg.Done()
 				}()
@@ -85,7 +87,7 @@ func TestCallbackDispatcher(t *testing.T) {
 			}
 
 			// then
-			require.Equal(t, tc.numOfReceivers, len(sut.managers))
+			require.Equal(t, tc.numOfReceivers, sut.GetLenMangers())
 			if tc.stopDispatcher {
 				require.NotEmpty(t, savedCallbacks)
 				require.Equal(t, tc.numOfReceivers*tc.numOfSendPerReceiver, len(cMq.SendCalls())+len(savedCallbacks))

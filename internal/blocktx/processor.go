@@ -67,7 +67,8 @@ type Processor struct {
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
 
-	now func() time.Time
+	now                        func() time.Time
+	maxBlockProcessingDuration time.Duration
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -96,6 +97,7 @@ func NewProcessor(
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
+		maxBlockProcessingDuration:  waitForBlockProcessing,
 		hostname:                    hostname,
 		stats:                       newProcessorStats(),
 		statCollectionInterval:      statCollectionIntervalDefault,
@@ -258,7 +260,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 			// 2. processor is shutting down – all unprocessed blocks are released in the Shutdown func
 			return
 
-		case <-time.After(waitForBlockProcessing):
+		case <-time.After(p.maxBlockProcessingDuration):
 			// check if block was processed successfully
 			block, _ := p.store.GetBlock(execCtx, hash)
 

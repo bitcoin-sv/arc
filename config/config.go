@@ -114,6 +114,7 @@ type BlocktxConfig struct {
 	Db                            *DbConfig           `mapstructure:"db"`
 	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
+	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
 	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
 	FillGapsInterval              time.Duration       `mapstructure:"fillGapsInterval"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`

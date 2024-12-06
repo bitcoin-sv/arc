@@ -347,9 +347,11 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					CallbackToken: submittedTx.GetCallbackToken(),
 				}
 				sReq := &store.Data{
-					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
-					Status:            metamorph_api.Status_STORED,
-					Callbacks:         []store.Callback{callback},
+					Hash:   PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
+					Status: metamorph_api.Status_STORED,
+					Callbacks: []store.Callback{
+						callback,
+					},
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
 					StoredAt:          now,

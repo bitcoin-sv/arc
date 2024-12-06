@@ -1,6 +1,6 @@
 package callbacker
 
-/* sendManager */
+/* SendManager */
 /*
 
 The SendManager is responsible for managing the sequential sending of callbacks to a specified URL.
@@ -20,7 +20,7 @@ Sending logic: callbacks are sent to the designated URL one at a time, ensuring 
 Failure handling: if a URL fails to respond with a success status, the URL is placed in failed state (based on a defined policy).
 	During this period, all callbacks for the failed URL are stored with a failed timestamp, preventing further dispatch attempts until the we retry again.
 
-Graceful Shutdown: on service termination, the sendManager ensures that any unsent callbacks are safely persisted in the store, ensuring no loss of data during shutdown.
+Graceful Shutdown: on service termination, the SendManager ensures that any unsent callbacks are safely persisted in the store, ensuring no loss of data during shutdown.
 
 */
 
@@ -34,7 +34,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-type sendManager struct {
+type SendManager struct {
 	url string
 
 	// dependencies
@@ -71,14 +71,14 @@ const (
 	entriesBufferSize = 10000
 )
 
-func WithBufferSize(size int) func(*sendManager) {
-	return func(m *sendManager) {
+func WithBufferSize(size int) func(*SendManager) {
+	return func(m *SendManager) {
 		m.entries = make(chan *CallbackEntry, size)
 		m.batchEntries = make(chan *CallbackEntry, size)
 	}
 }
 
-func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, sendingConfig *SendConfig, opts ...func(*sendManager)) *sendManager {
+func RunNewSendManager(url string, sender SenderI, store store.CallbackerStore, logger *slog.Logger, sendingConfig *SendConfig, opts ...func(*SendManager)) *SendManager {
 	const defaultBatchSendInterval = 5 * time.Second
 
 	batchSendInterval := defaultBatchSendInterval
@@ -86,7 +86,7 @@ func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, 
 		batchSendInterval = sendingConfig.BatchSendInterval
 	}
 
-	m := &sendManager{
+	m := &SendManager{
 		url:    url,
 		sender: sender,
 		store:  store,
@@ -111,7 +111,7 @@ func runNewSendManager(url string, sender SenderI, store store.CallbackerStore, 
 	return m
 }
 
-func (m *sendManager) Add(entry *CallbackEntry, batch bool) {
+func (m *SendManager) Add(entry *CallbackEntry, batch bool) {
 	if batch {
 		select {
 		case m.batchEntries <- entry:
@@ -138,7 +138,7 @@ func (m *sendManager) Add(entry *CallbackEntry, batch bool) {
 	}
 }
 
-func (m *sendManager) storeToDB(entry *CallbackEntry, postponeUntil *time.Time) {
+func (m *SendManager) storeToDB(entry *CallbackEntry, postponeUntil *time.Time) {
 	if entry == nil {
 		return
 	}
@@ -149,7 +149,7 @@ func (m *sendManager) storeToDB(entry *CallbackEntry, postponeUntil *time.Time) 
 	}
 }
 
-func (m *sendManager) GracefulStop() {
+func (m *SendManager) GracefulStop() {
 	m.setMode(StoppingMode) // signal the `run` goroutine to stop sending callbacks
 
 	// signal the `run` goroutine to exit
@@ -160,7 +160,7 @@ func (m *sendManager) GracefulStop() {
 	close(m.stop)
 }
 
-func (m *sendManager) run() {
+func (m *SendManager) run() {
 	m.setMode(ActiveMode)
 
 	go func() {
@@ -182,13 +182,19 @@ func (m *sendManager) run() {
 
 		runWg.Wait()
 
+		totalCallbacks := append(danglingCallbacks, danglingBatchedCallbacks...)
+		m.logger.Info("Storing pending callbacks", slog.Int("count", len(totalCallbacks)))
+
 		// store unsent callbacks
-		_ = m.store.SetMany(context.Background(), append(danglingCallbacks, danglingBatchedCallbacks...))
+		err := m.store.SetMany(context.Background(), totalCallbacks)
+		if err != nil {
+			m.logger.Error("Failed to store pending callbacks", slog.Int("count", len(totalCallbacks)))
+		}
 		m.stop <- struct{}{}
 	}()
 }
 
-func (m *sendManager) consumeSingleCallbacks() []*store.CallbackData {
+func (m *SendManager) consumeSingleCallbacks() []*store.CallbackData {
 	var danglingCallbacks []*store.CallbackData
 
 	for {
@@ -209,7 +215,7 @@ func (m *sendManager) consumeSingleCallbacks() []*store.CallbackData {
 	return danglingCallbacks
 }
 
-func (m *sendManager) consumeBatchedCallbacks() []*store.CallbackData {
+func (m *SendManager) consumeBatchedCallbacks() []*store.CallbackData {
 	const batchSize = 50
 	var danglingCallbacks []*store.CallbackData
 
@@ -259,20 +265,20 @@ runLoop:
 	return danglingCallbacks
 }
 
-func (m *sendManager) getMode() mode {
+func (m *SendManager) getMode() mode {
 	m.modeMu.Lock()
 	defer m.modeMu.Unlock()
 
 	return m.mode
 }
 
-func (m *sendManager) setMode(v mode) {
+func (m *SendManager) setMode(v mode) {
 	m.modeMu.Lock()
 	m.mode = v
 	m.modeMu.Unlock()
 }
 
-func (m *sendManager) send(callback *CallbackEntry) {
+func (m *SendManager) send(callback *CallbackEntry) {
 	// quick fix for client issue with to fast callbacks
 	time.Sleep(m.sendDelay)
 
@@ -292,7 +298,7 @@ func (m *sendManager) send(callback *CallbackEntry) {
 	}
 }
 
-func (m *sendManager) sendBatch(batch []*CallbackEntry) {
+func (m *SendManager) sendBatch(batch []*CallbackEntry) {
 	token := batch[0].Token
 	callbacks := make([]*Callback, len(batch))
 	for i, e := range batch {

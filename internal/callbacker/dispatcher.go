@@ -3,13 +3,13 @@ package callbacker
 /* CallbackDispatcher */
 /*
 
-The CallbackDispatcher is responsible for routing and dispatching callbacks to appropriate sendManager based on the callback URL.
+The CallbackDispatcher is responsible for routing and dispatching callbacks to appropriate SendManager based on the callback URL.
 
 Key components:
 - SenderI Interface: the CallbackDispatcher decorates this interface, enhancing its functionality by managing the actual dispatch logic
-- sendManager: each sendManager handles specific types of callbacks, determined by the URL
+- SendManager: each SendManager handles specific types of callbacks, determined by the URL
 
-Dispatch Logic: the CallbackDispatcher ensures that callbacks are sent to the correct sendManager, maintaining efficient processing and delivery.
+Dispatch Logic: the CallbackDispatcher ensures that callbacks are sent to the correct SendManager, maintaining efficient processing and delivery.
 Graceful Shutdown: on service termination, the CallbackDispatcher ensures all active sendManagers are gracefully stopped, allowing in-progress callbacks to complete and safely shutting down the dispatch process.
 
 */
@@ -27,7 +27,7 @@ type CallbackDispatcher struct {
 	store  store.CallbackerStore
 	logger *slog.Logger
 
-	managers   map[string]*sendManager
+	managers   map[string]*SendManager
 	managersMu sync.Mutex
 
 	sendConfig *SendConfig
@@ -55,8 +55,12 @@ func NewCallbackDispatcher(callbacker SenderI, cStore store.CallbackerStore, log
 		logger: logger.With(slog.String("module", "dispatcher")),
 
 		sendConfig: sendingConfig,
-		managers:   make(map[string]*sendManager),
+		managers:   make(map[string]*SendManager),
 	}
+}
+
+func (d *CallbackDispatcher) GetLenMangers() int {
+	return len(d.managers)
 }
 
 func (d *CallbackDispatcher) GracefulStop() {
@@ -73,7 +77,7 @@ func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch
 	manager, ok := d.managers[url]
 
 	if !ok {
-		manager = runNewSendManager(url, d.sender, d.store, d.logger, d.sendConfig)
+		manager = RunNewSendManager(url, d.sender, d.store, d.logger, d.sendConfig)
 		d.managers[url] = manager
 	}
 	d.managersMu.Unlock()

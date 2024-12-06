@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -9,10 +10,14 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
+var (
+	ErrFailedPopMany = errors.New("failed to pop many")
+)
+
 type BackgroundWorkers struct {
-	s store.CallbackerStore
-	l *slog.Logger
-	d *CallbackDispatcher
+	callbackerStore store.CallbackerStore
+	logger          *slog.Logger
+	dispatcher      *CallbackDispatcher
 
 	workersWg sync.WaitGroup
 	ctx       context.Context
@@ -23,9 +28,9 @@ func NewBackgroundWorkers(s store.CallbackerStore, dispatcher *CallbackDispatche
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BackgroundWorkers{
-		s: s,
-		d: dispatcher,
-		l: logger.With(slog.String("module", "background workers")),
+		callbackerStore: s,
+		dispatcher:      dispatcher,
+		logger:          logger.With(slog.String("module", "background workers")),
 
 		ctx:       ctx,
 		cancelAll: cancel,
@@ -33,78 +38,111 @@ func NewBackgroundWorkers(s store.CallbackerStore, dispatcher *CallbackDispatche
 }
 
 func (w *BackgroundWorkers) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
+	ctx := context.Background()
+	ticker := time.NewTicker(interval)
+
 	w.workersWg.Add(1)
-	go w.pruneCallbacks(interval, olderThanDuration)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				n := time.Now()
+				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
+				olderThan := midnight.Add(-1 * olderThanDuration)
+
+				err := w.callbackerStore.DeleteFailedOlderThan(ctx, olderThan)
+				if err != nil {
+					w.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
+				}
+
+			case <-w.ctx.Done():
+				w.workersWg.Done()
+				return
+			}
+		}
+	}()
 }
 
 func (w *BackgroundWorkers) StartFailedCallbacksDispatch(interval time.Duration) {
+	const batchSize = 100
+
+	ctx := context.Background()
+	ticker := time.NewTicker(interval)
+
 	w.workersWg.Add(1)
-	go w.dispatchFailedCallbacks(interval)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+
+				callbacks, err := w.callbackerStore.PopFailedMany(ctx, time.Now(), batchSize)
+				if err != nil {
+					w.logger.Error("Failed to load callbacks from store", slog.String("err", err.Error()))
+					continue
+				}
+
+				if len(callbacks) == 0 {
+					continue
+				}
+				w.logger.Info("Loaded callbacks from store", slog.Any("count", len(callbacks)))
+
+				for _, c := range callbacks {
+					callbackEntry := &CallbackEntry{
+						Token:          c.Token,
+						Data:           toCallback(c),
+						postponedUntil: c.PostponedUntil,
+					}
+
+					w.dispatcher.Dispatch(c.URL, callbackEntry, c.AllowBatch)
+				}
+
+			case <-w.ctx.Done():
+				w.workersWg.Done()
+				return
+			}
+		}
+	}()
+}
+
+func (w *BackgroundWorkers) DispatchPersistedCallbacks() error {
+	w.logger.Info("Load and dispatch stored callbacks")
+
+	const batchSize = 100
+	ctx := context.Background()
+
+	for {
+		callbacks, err := w.callbackerStore.PopMany(ctx, batchSize)
+		if err != nil {
+			return ErrFailedPopMany
+		}
+
+		if len(callbacks) == 0 {
+			return nil
+		}
+
+		for _, c := range callbacks {
+			callbackEntry := &CallbackEntry{
+				Token: c.Token,
+				Data:  toCallback(c),
+			}
+
+			w.dispatcher.Dispatch(c.URL, callbackEntry, c.AllowBatch)
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (w *BackgroundWorkers) GracefulStop() {
-	w.l.Info("Shutting down")
+	w.logger.Info("Shutting down")
 
 	w.cancelAll()
 	w.workersWg.Wait()
 
-	w.l.Info("Shutdown complete")
+	w.logger.Info("Shutdown complete")
 }
 
-func (w *BackgroundWorkers) pruneCallbacks(interval, olderThanDuration time.Duration) {
-	ctx := context.Background()
-	t := time.NewTicker(interval)
-
-	for {
-		select {
-		case <-t.C:
-			n := time.Now()
-			midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
-			olderThan := midnight.Add(-1 * olderThanDuration)
-
-			err := w.s.DeleteFailedOlderThan(ctx, olderThan)
-			if err != nil {
-				w.l.Error("failed to delete old callbacks in delay", slog.String("err", err.Error()))
-			}
-
-		case <-w.ctx.Done():
-			w.workersWg.Done()
-			return
-		}
-	}
-}
-
-func (w *BackgroundWorkers) dispatchFailedCallbacks(interval time.Duration) {
-	const batchSize = 100
-
-	ctx := context.Background()
-	t := time.NewTicker(interval)
-
-	for {
-		select {
-		case <-t.C:
-			callbacks, err := w.s.PopFailedMany(ctx, time.Now(), batchSize)
-			if err != nil {
-				w.l.Error("reading callbacks from store failed", slog.String("err", err.Error()))
-				continue
-			}
-
-			if len(callbacks) == 0 {
-				continue
-			}
-
-			for _, c := range callbacks {
-				w.d.Dispatch(c.URL, toCallbackEntry(c), c.AllowBatch)
-			}
-
-		case <-w.ctx.Done():
-			w.workersWg.Done()
-			return
-		}
-	}
-}
-
-func toCallbackEntry(dto *store.CallbackData) *CallbackEntry {
+func toCallback(dto *store.CallbackData) *Callback {
 	d := &Callback{
 		Timestamp: dto.Timestamp,
 
@@ -118,9 +156,5 @@ func toCallbackEntry(dto *store.CallbackData) *CallbackEntry {
 		BlockHeight: dto.BlockHeight,
 	}
 
-	return &CallbackEntry{
-		Token:          dto.Token,
-		Data:           d,
-		postponedUntil: dto.PostponedUntil,
-	}
+	return d
 }

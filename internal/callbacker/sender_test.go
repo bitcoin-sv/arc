@@ -16,22 +16,33 @@ import (
 
 func TestCallbackSender_Send(t *testing.T) {
 	tests := []struct {
-		name            string
-		responseStatus  int
+		name           string
+		responseStatus int
+		useWrongURL    bool
+
 		expectedSuccess bool
 		expectedRetries int
 	}{
 		{
-			name:            "success - callback sent",
-			responseStatus:  http.StatusOK,
+			name:           "success - callback sent",
+			responseStatus: http.StatusOK,
+
 			expectedSuccess: true,
 			expectedRetries: 1,
 		},
 		{
-			name:            "retry - server error and fails after retries",
-			responseStatus:  http.StatusInternalServerError,
-			expectedSuccess: true,
-			expectedRetries: 3, // Adjust based on your retry logic in `Send`
+			name:           "retry - server error and fails after retries",
+			responseStatus: http.StatusInternalServerError,
+
+			expectedSuccess: false,
+			expectedRetries: 5, // Adjust based on your retry logic in `Send`
+		},
+		{
+			name:        "retry - server error and fails after retries",
+			useWrongURL: true,
+
+			expectedSuccess: false,
+			expectedRetries: 0, // Adjust based on your retry logic in `Send`
 		},
 	}
 
@@ -42,11 +53,7 @@ func TestCallbackSender_Send(t *testing.T) {
 
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				if retries < tc.expectedRetries-1 {
-					w.WriteHeader(tc.responseStatus)
-				} else {
-					w.WriteHeader(http.StatusOK)
-				}
+				w.WriteHeader(tc.responseStatus)
 				retries++
 				time.Sleep(1 * time.Millisecond)
 			}))
@@ -58,14 +65,20 @@ func TestCallbackSender_Send(t *testing.T) {
 
 			defer sut.GracefulStop()
 
+			url := server.URL
+			if tc.useWrongURL {
+				url = "https://abc.not-existing.abc"
+			}
+
 			//When
-			success := sut.Send(server.URL, "test-token", &callbacker.Callback{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"})
+			success := sut.Send(url, "test-token", &callbacker.Callback{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"})
 			//Then
 			require.Equal(t, tc.expectedSuccess, success, "Expected success to be %v, but got %v", tc.expectedSuccess, success)
 			require.Equal(t, tc.expectedRetries, retries, "Expected retries to be %d, but got %d", tc.expectedRetries, retries)
 		})
 	}
 }
+
 func TestCallbackSender_GracefulStop(t *testing.T) {
 	// Given
 	logger := slog.Default()
@@ -103,31 +116,34 @@ func TestCallbackSender_Health(t *testing.T) {
 
 func TestCallbackSender_SendBatch(t *testing.T) {
 	tests := []struct {
-		name            string
-		url             string
-		token           string
-		dtos            []*callbacker.Callback
-		responseStatus  int
+		name           string
+		url            string
+		token          string
+		dtos           []*callbacker.Callback
+		responseStatus int
+
 		expectedSuccess bool
 		expectedRetries int
 	}{
 		{
-			name:            "success - batch sent with retries",
-			url:             "/batch",
-			token:           "test-token",
-			dtos:            []*callbacker.Callback{{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"}, {TxID: "5678", TxStatus: "MINED"}},
-			responseStatus:  http.StatusOK,
+			name:           "success - batch sent with retries",
+			url:            "/batch",
+			token:          "test-token",
+			dtos:           []*callbacker.Callback{{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"}, {TxID: "5678", TxStatus: "MINED"}},
+			responseStatus: http.StatusOK,
+
 			expectedSuccess: true,
 			expectedRetries: 1,
 		},
 		{
-			name:            "failure - server error on batch with retries",
-			url:             "/batch",
-			token:           "test-token",
-			dtos:            []*callbacker.Callback{{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"}, {TxID: "5678", TxStatus: "MINED"}},
-			responseStatus:  http.StatusInternalServerError,
-			expectedSuccess: true,
-			expectedRetries: 3,
+			name:           "failure - server error on batch with retries",
+			url:            "/batch",
+			token:          "test-token",
+			dtos:           []*callbacker.Callback{{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"}, {TxID: "5678", TxStatus: "MINED"}},
+			responseStatus: http.StatusInternalServerError,
+
+			expectedSuccess: false,
+			expectedRetries: 5,
 		},
 	}
 
@@ -142,11 +158,8 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, len(tc.dtos), batch.Count)
 
-				if retries < tc.expectedRetries-1 {
-					w.WriteHeader(tc.responseStatus)
-				} else {
-					w.WriteHeader(http.StatusOK)
-				}
+				w.WriteHeader(tc.responseStatus)
+
 				retries++
 				time.Sleep(5 * time.Millisecond)
 			}))

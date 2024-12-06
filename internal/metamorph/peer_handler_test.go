@@ -175,7 +175,7 @@ func TestPeerHandler(t *testing.T) {
 	})
 }
 
-func assertEqualMsg(t *testing.T, expected, actual *metamorph.PeerTxMessage) {
+func assertEqualMsg(t *testing.T, expected, actual *metamorph.TxStatusMessage) {
 	assert.Equal(t, expected.Hash, actual.Hash)
 	assert.Equal(t, expected.Status, actual.Status)
 	assert.Equal(t, expected.Peer, actual.Peer)

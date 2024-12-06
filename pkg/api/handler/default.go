@@ -509,6 +509,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		if txID == "" {
 			txID = submittedTxs[idx].TxID()
 		}
+
 		successes = append(successes, &api.TransactionResponse{
 			Status:       int(api.StatusOK),
 			Title:        "OK",

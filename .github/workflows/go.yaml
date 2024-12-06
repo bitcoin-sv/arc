@@ -7,7 +7,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "reorg-support"] # TODO: to be removed before merge to main
 
 jobs:
   build:

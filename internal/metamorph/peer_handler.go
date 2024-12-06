@@ -15,13 +15,13 @@ var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
 
 type PeerHandler struct {
 	store     store.MetamorphStore
-	messageCh chan *PeerTxMessage
+	messageCh chan *TxStatusMessage
 
 	cancelAll context.CancelFunc
 	ctx       context.Context
 }
 
-func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) *PeerHandler {
+func NewPeerHandler(s store.MetamorphStore, messageCh chan *TxStatusMessage) *PeerHandler {
 	ph := &PeerHandler{
 		store:     s,
 		messageCh: messageCh,
@@ -37,7 +37,7 @@ func NewPeerHandler(s store.MetamorphStore, messageCh chan *PeerTxMessage) *Peer
 // HandleTransactionSent is called when a transaction is sent to a peer.
 func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) error {
 	hash := msg.TxHash()
-	m.messageCh <- &PeerTxMessage{
+	m.messageCh <- &TxStatusMessage{
 		Hash:   &hash,
 		Status: metamorph_api.Status_SENT_TO_NETWORK,
 		Peer:   peer.String(),
@@ -49,7 +49,7 @@ func (m *PeerHandler) HandleTransactionSent(msg *wire.MsgTx, peer p2p.PeerI) err
 // HandleTransactionAnnouncement is a message sent to the PeerHandler when a transaction INV message is received from a peer.
 func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.PeerI) error {
 	select {
-	case m.messageCh <- &PeerTxMessage{
+	case m.messageCh <- &TxStatusMessage{
 		Hash:   &msg.Hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
@@ -62,7 +62,7 @@ func (m *PeerHandler) HandleTransactionAnnouncement(msg *wire.InvVect, peer p2p.
 
 // HandleTransactionRejection is called when a transaction is rejected by a peer.
 func (m *PeerHandler) HandleTransactionRejection(rejMsg *wire.MsgReject, peer p2p.PeerI) error {
-	m.messageCh <- &PeerTxMessage{
+	m.messageCh <- &TxStatusMessage{
 		Hash:   &rejMsg.Hash,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
@@ -77,7 +77,7 @@ func (m *PeerHandler) HandleTransactionsGet(msgs []*wire.InvVect, peer p2p.PeerI
 	hashes := make([][]byte, len(msgs))
 
 	for i, msg := range msgs {
-		m.messageCh <- &PeerTxMessage{
+		m.messageCh <- &TxStatusMessage{
 			Hash:   &msg.Hash,
 			Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 			Peer:   peer.String(),
@@ -93,7 +93,7 @@ func (m *PeerHandler) HandleTransactionsGet(msgs []*wire.InvVect, peer p2p.PeerI
 func (m *PeerHandler) HandleTransaction(msg *wire.MsgTx, peer p2p.PeerI) error {
 	hash := msg.TxHash()
 
-	m.messageCh <- &PeerTxMessage{
+	m.messageCh <- &TxStatusMessage{
 		Hash:   &hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),

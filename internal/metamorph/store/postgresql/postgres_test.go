@@ -473,6 +473,7 @@ func TestPostgresDB(t *testing.T) {
 		chainHash2 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
 		chainHash3 := testutils.RevChainhash(t, "a7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7")
 		competingHash := testutils.RevChainhash(t, "67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff")
+		chainhash4 := testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
 
 		txBlocks := []*blocktx_api.TransactionBlock{
 			{
@@ -480,27 +481,38 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight:     100,
 				TransactionHash: unminedHash[:],
 				MerklePath:      "merkle-path-1",
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
 				TransactionHash: chainHash2[:],
 				MerklePath:      "merkle-path-2",
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
 				TransactionHash: testdata.TX3Hash[:], // hash non-existent in db
 				MerklePath:      "merkle-path-3",
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
 				BlockHash:       testdata.Block1Hash[:],
 				BlockHeight:     100,
 				TransactionHash: chainHash3[:], // this one has competing transactions
 				MerklePath:      "merkle-path-4",
+				BlockStatus:     blocktx_api.Status_LONGEST,
+			},
+			{
+				BlockHash:       testdata.Block2Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainhash4[:],
+				MerklePath:      "merkle-path-5",
+				BlockStatus:     blocktx_api.Status_STALE, // should have status MINED_IN_STALE_BLOCK
 			},
 		}
-		expectedUpdates := 4 // 3 for updates + 1 for rejected competing tx
+		expectedUpdates := 5 // 4 for updates + 1 for rejected competing tx
 
 		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
@@ -516,14 +528,19 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "merkle-path-4", updated[1].MerklePath)
 		require.Equal(t, metamorph_api.Status_MINED, updated[1].Status)
 
-		require.True(t, unminedHash.IsEqual(updated[2].Hash))
-		require.True(t, testdata.Block1Hash.IsEqual(updated[2].BlockHash))
-		require.Equal(t, "merkle-path-1", updated[2].MerklePath)
-		require.Equal(t, metamorph_api.Status_MINED, updated[2].Status)
+		require.True(t, chainhash4.IsEqual(updated[2].Hash))
+		require.True(t, testdata.Block2Hash.IsEqual(updated[2].BlockHash))
+		require.Equal(t, "merkle-path-5", updated[2].MerklePath)
+		require.Equal(t, metamorph_api.Status_MINED_IN_STALE_BLOCK, updated[2].Status)
 
-		require.True(t, competingHash.IsEqual(updated[3].Hash))
-		require.Equal(t, metamorph_api.Status_REJECTED, updated[3].Status)
-		require.Equal(t, "double spend attempted", updated[3].RejectReason)
+		require.True(t, unminedHash.IsEqual(updated[3].Hash))
+		require.True(t, testdata.Block1Hash.IsEqual(updated[3].BlockHash))
+		require.Equal(t, "merkle-path-1", updated[3].MerklePath)
+		require.Equal(t, metamorph_api.Status_MINED, updated[3].Status)
+
+		require.True(t, competingHash.IsEqual(updated[4].Hash))
+		require.Equal(t, metamorph_api.Status_REJECTED, updated[4].Status)
+		require.Equal(t, "double spend attempted", updated[4].RejectReason)
 
 		minedReturned, err := postgresDB.Get(ctx, unminedHash[:])
 		require.NoError(t, err)
@@ -647,6 +664,7 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight:     100,
 				TransactionHash: unminedHash[:],
 				MerklePath:      "merkle-path-1",
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 		}
 
@@ -666,6 +684,35 @@ func TestPostgresDB(t *testing.T) {
 		})
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED
+		require.Equal(t, &unmined, updatedTx)
+
+		// Fourth update - UpdateMined - MINED_IN_STALE_BLOCK
+		txBlocks = []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testdata.Block2Hash[:],
+				BlockHeight:     100,
+				TransactionHash: unminedHash[:],
+				MerklePath:      "merkle-path-1",
+				BlockStatus:     blocktx_api.Status_STALE,
+			},
+		}
+
+		updated, err = postgresDB.UpdateMined(ctx, txBlocks)
+		require.NoError(t, err)
+		require.Len(t, updated, 1)
+
+		updatedTx, err = postgresDB.Get(ctx, unminedHash[:])
+		require.NoError(t, err)
+
+		unmined.BlockHeight = 100
+		unmined.BlockHash = testdata.Block2Hash
+		unmined.MerklePath = "merkle-path-1"
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+			Status:    unmined.Status,
+			Timestamp: unmined.LastModified,
+		})
+		unmined.LastModified = postgresDB.now()
+		unmined.Status = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		require.Equal(t, &unmined, updatedTx)
 	})
 

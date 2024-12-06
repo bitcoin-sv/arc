@@ -21,8 +21,9 @@ enum Status {
   ACCEPTED_BY_NETWORK = 70;
   SEEN_IN_ORPHAN_MEMPOOL = 80;
   SEEN_ON_NETWORK = 90;
-	DOUBLE_SPEND_ATTEMPTED = 100;
+  DOUBLE_SPEND_ATTEMPTED = 100;
   REJECTED = 110;
+  MINED_IN_STALE_BLOCK = 115;
   MINED = 120;
 }
 
@@ -100,7 +101,8 @@ message TransactionStatus {
   uint64 block_height = 7;
   string block_hash = 8;
   string merkle_path = 9;
-  repeated callback callbacks = 10;
+  google.protobuf.Timestamp last_submitted = 10;
+  repeated callback callbacks = 11;
 }
 
 // swagger:model TransactionStatuses

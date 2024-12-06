@@ -20,7 +20,7 @@ type StatusAndError struct {
 	CompetingTxs []string
 }
 
-type PeerTxMessage struct {
+type TxStatusMessage struct {
 	Start        time.Time
 	Hash         *chainhash.Hash
 	Status       metamorph_api.Status

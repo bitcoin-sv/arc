@@ -4,17 +4,19 @@
   prevhash:  0x000000000000000001a7aa3999410ca53fb645851531ec0a7a5cb9ce2d4ae313
   merkleroot:  0x0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb
   height:  826481
+  status: 10 # STALE
+  is_longest: true
   processed_at:  2024-01-10 13:06:06.122
   size:  108689370
   tx_count:  799
-  orphanedyn: FALSE
 - inserted_at:  2024-01-10 13:06:03.375
   id:  9737
   hash:  0x7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000
   prevhash:  0x000000000000000001a7aa3999410ca53fb645851531ec0a7a5cb9ce2d4ae313
   merkleroot:  0x0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb
   height:  826481
+  status: 20 # STALE
+  is_longest: false
   processed_at:  2024-01-10 13:06:06.122
   size:  108689370
   tx_count:  799
-  orphanedyn: FALSE

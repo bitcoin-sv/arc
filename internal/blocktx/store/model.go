@@ -15,11 +15,12 @@ type TxWithMerklePath struct {
 	MerklePath string
 }
 
-type GetMinedTransactionResult struct {
+type TransactionBlock struct {
 	TxHash      []byte
 	BlockHash   []byte
 	BlockHeight uint64
 	MerklePath  string
+	BlockStatus blocktx_api.Status
 }
 
 type BlockStatusUpdate struct {

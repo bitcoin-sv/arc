@@ -52,6 +52,7 @@ type TransactionStatus struct {
 	BlockHeight  uint64
 	Status       string
 	ExtraInfo    string
+	Callbacks    []*metamorph_api.Callback
 	CompetingTxs []string
 	Timestamp    int64
 }
@@ -213,6 +214,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 		BlockHeight:  tx.GetBlockHeight(),
 		ExtraInfo:    tx.GetRejectReason(),
 		CompetingTxs: tx.GetCompetingTxs(),
+		Callbacks:    tx.GetCallbacks(),
 		Timestamp:    m.now().Unix(),
 	}, nil
 }
@@ -275,6 +277,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 				BlockHash:    response.GetBlockHash(),
 				BlockHeight:  response.GetBlockHeight(),
 				MerklePath:   response.GetMerklePath(),
+				Callbacks:    response.GetCallbacks(),
 				Timestamp:    m.now().Unix(),
 			}
 			break
@@ -363,6 +366,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 					CompetingTxs: response.GetCompetingTxs(),
 					BlockHash:    response.GetBlockHash(),
 					BlockHeight:  response.GetBlockHeight(),
+					Callbacks:    response.GetCallbacks(),
 					Timestamp:    m.now().Unix(),
 				})
 			}

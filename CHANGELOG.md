@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.13](#1313---2024-12-05)
 - [1.3.12](#1312---2024-12-05)
 - [1.3.2](#132---2024-10-30)
 - [1.3.0](#130---2024-08-21)
@@ -19,6 +20,11 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.13] - 2024-12-04
+
+### Added
+- [Reorg Support](https://bitcoin-sv.github.io/arc/#/?id=chain-reorg) - adapting ARC to handle chain reorganisations. Whenever reorg happens, ARC will update the block info for each transaction affected and rebroadcast those that are not seen in the newest longest chain.
 
 ## [1.3.12] - 2024-12-05
 

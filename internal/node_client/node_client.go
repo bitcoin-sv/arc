@@ -106,7 +106,6 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx
 	}()
 
 	nTx, err := n.bitcoinClient.GetRawTransaction(id)
-
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
 	}

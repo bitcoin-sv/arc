@@ -41,6 +41,7 @@ stateDiagram-v2
     state SEEN_ON_NETWORK
     state REJECTED
     state MINED
+    state MINED_IN_STALE_BLOCK
 
     [*] --> UNKNOWN
     UNKNOWN --> ERROR: Transaction validation failed
@@ -61,6 +62,7 @@ stateDiagram-v2
     SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: A competing transactions entered the mempool
     DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
     DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
+    MINED --> MINED_IN_STALE_BLOCK: This transaction was mined in a block that became stale after reorg
     MINED --> [*]
 ```
 
@@ -113,7 +115,7 @@ The Callbacker handles request retries and treats any HTTP status code outside t
 
 ### BlockTx
 
-BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
+BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, handling chain reorganisations ([reorgs](#chain-reorg)) and for propagating
 the status of transactions to each Metamorph that has subscribed to this service.
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, Metamorph is notified about mined transactions by means of a message queue. BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which they were mined. Metamorph is responsible for storing the transaction data.
@@ -514,15 +516,32 @@ Expected outcome
 * ARC responds with status `ANNOUNCED_TO_NETWORK` or `SEEN_ON_NETWORK`
 * At latest a couple of minutes later the status will switch to `SEEN_ON_NETWORK`
 
-### Block reorg
+### Chain reorg
 
-A block reorg happens and two different blocks get announced at the same block height
+A chain reorganization (chain reorg) occurs when the blockchain switches its primary chain of blocks to a different branch, typically because a previously stale chain (fork) has accumulated more chainwork than the current longest chain. Chainwork, which represents the cumulative computational effort used to build a chain, is the deciding factor in determining the longest and most valid chain. This process can impact transaction statuses based on their presence in the affected chains.
 
-Expected outcome:
-* ARC does not update the transaction statuses according to the block in the longest chain.
-* Information and Merkle path of the block received first will be persisted in the transaction record and not overwritten
+#### Transaction in both chains
+This is the most common scenario. If a transaction is included in both the original longest chain and the stale chain (which becomes the longest), the transition to the new longest chain does not disrupt the transaction's confirmation status.
 
-The planned feature [Update of transactions in case of block reorgs](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#update-of-transactions-in-case-of-block-reorgs) will ensure that ARC updates the statuses of transactions. Transactions which are not in the block of the longest chain will be updated to `REJECTED` status and transactions which are included in the block of the longest chain are updated to `MINED` status.
+A new `MINED` callback will be send for that transaction with updated block data (block hash, block height, Merkle path).
+
+#### Transaction in the previously longest chain, but not in the stale chain that becomes longest
+When a transaction exists in the original longest chain but not in the stale chain that subsequently becomes the longest, the transaction is effectively removed from the confirmed state of the blockchain.
+
+A callback with status `MINED_IN_STALE_BLOCK` will be sent for that transaction and ARC will rebroadcast that transaction. Because of that process, the transaction may cycle through statuses, such as `SEEN_ON_NETWORK`, again. User should keep in mind that the status `MINED_IN_STALE_BLOCK` **is not final**.
+
+#### Transaction in the stale chain only (without reorg)
+When a transaction is present only in the stale chain and not in the original longest chain, it remains unconfirmed, in the `MINED_IN_STALE_BLOCK` state, until the stale chain becomes the longest or the transaction is found in the longest chain.
+
+A callback with status `MINED_IN_STALE_BLOCK` will be sent for that transaction and ARC will rebroadcast that transaction. Because of that process, the transaction may cycle through statuses, such as `SEEN_ON_NETWORK`, again. User should keep in mind that the status `MINED_IN_STALE_BLOCK` **is not final**.
+
+#### Summary table
+| Transaction Scenario                 | Callback status after reorg | Extra info / Action                                                                                    |
+|--------------------------------------|-----------------------------|--------------------------------------------------------------------------------------------------------|
+| In both chains                       | `MINED`                     | Block data (hash, height, Merkle path) will be updated in the callback                                 |
+| In longest chain, not in stale chain | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
+| In stale chain only (no reorg)       | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
+
 
 ## Cumulative fees validation
 

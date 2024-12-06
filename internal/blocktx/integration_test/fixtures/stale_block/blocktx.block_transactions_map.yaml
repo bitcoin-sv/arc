@@ -1,0 +1,4 @@
+- blockid: 1002
+  txid: 1000003
+  merkle_path: merkle-path-3
+  inserted_at: 2023-12-10 14:00:00

@@ -7,7 +7,6 @@
   processed_at: 2023-12-15 14:10:00
   size: 86840000
   tx_count: 23477
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:30:00
@@ -19,7 +18,6 @@
   processed_at: 2023-12-15 14:30:00
   size: 20160000
   tx_count: 6523
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:30:00
@@ -31,9 +29,9 @@
   processed_at: 2023-12-15 14:30:00
   size: 20160000
   tx_count: 6523
-  orphanedyn: false
   status: 20 # STALE - competing block
   chainwork: '123456'
+  is_longest: false
 - inserted_at: 2023-12-15 14:40:00
   id: 3
   hash: 0xe1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000
@@ -43,7 +41,6 @@
   processed_at: 2023-12-15 14:40:00
   size: 299650000
   tx_count: 62162
-  orphanedyn: false
   status: 10
   chainwork: '123456'
 - inserted_at: 2023-12-15 14:50:00
@@ -52,8 +49,8 @@
   prevhash: 0x5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000
   merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
   height: 822020
+  processed_at: 2023-12-15 14:40:00
   size: 8630000
   tx_count: 36724
-  orphanedyn: false
   status: 10
   chainwork: '123456'

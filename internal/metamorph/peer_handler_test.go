@@ -17,7 +17,7 @@ import (
 )
 
 func TestPeerHandler(t *testing.T) {
-	messageCh := make(chan *metamorph.PeerTxMessage, 100)
+	messageCh := make(chan *metamorph.TxStatusMessage, 100)
 	mtmStore := &storeMocks.MetamorphStoreMock{
 		GetRawTxsFunc: func(_ context.Context, _ [][]byte) ([][]byte, error) {
 			rawTx := []byte("1234")
@@ -36,7 +36,7 @@ func TestPeerHandler(t *testing.T) {
 		msgTx := wire.NewMsgTx(70001)
 		hash := msgTx.TxHash()
 
-		expectedMsg := &metamorph.PeerTxMessage{
+		expectedMsg := &metamorph.TxStatusMessage{
 			Hash:   &hash,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   "mock_peer",
@@ -64,7 +64,7 @@ func TestPeerHandler(t *testing.T) {
 		msgInv := wire.NewInvVect(wire.InvTypeBlock, hash)
 		require.NoError(t, err)
 
-		expectedMsg := &metamorph.PeerTxMessage{
+		expectedMsg := &metamorph.TxStatusMessage{
 			Hash:   &msgInv.Hash,
 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			Peer:   "mock_peer",
@@ -88,7 +88,7 @@ func TestPeerHandler(t *testing.T) {
 		// given
 		msgReject := wire.NewMsgReject("command", wire.RejectMalformed, "malformed")
 
-		expectedMsg := &metamorph.PeerTxMessage{
+		expectedMsg := &metamorph.TxStatusMessage{
 			Hash:   &msgReject.Hash,
 			Status: metamorph_api.Status_REJECTED,
 			Peer:   "mock_peer",
@@ -113,7 +113,7 @@ func TestPeerHandler(t *testing.T) {
 		// given
 		txsCount := 2
 		invMsgs := make([]*wire.InvVect, txsCount)
-		expectedMsgs := make([]*metamorph.PeerTxMessage, txsCount)
+		expectedMsgs := make([]*metamorph.TxStatusMessage, txsCount)
 
 		for i := 0; i < txsCount; i++ {
 			hash, err := chainhash.NewHashFromStr("1234")
@@ -124,7 +124,7 @@ func TestPeerHandler(t *testing.T) {
 
 			invMsgs[i] = msgInv
 
-			expectedMsgs[i] = &metamorph.PeerTxMessage{
+			expectedMsgs[i] = &metamorph.TxStatusMessage{
 				Hash:   hash,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   "mock_peer",
@@ -154,7 +154,7 @@ func TestPeerHandler(t *testing.T) {
 		msgTx := wire.NewMsgTx(70001)
 		hash := msgTx.TxHash()
 
-		expectedMsg := &metamorph.PeerTxMessage{
+		expectedMsg := &metamorph.TxStatusMessage{
 			Hash:   &hash,
 			Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			Peer:   "mock_peer",

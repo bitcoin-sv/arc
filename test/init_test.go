@@ -71,5 +71,7 @@ func setupSut() {
 				break
 			}
 		}
+
+		time.Sleep(5 * time.Second) // wait for fillGaps to fill eventual gaps
 	}
 }

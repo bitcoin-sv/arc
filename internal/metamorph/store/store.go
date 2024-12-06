@@ -75,6 +75,7 @@ type MetamorphStore interface {
 	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
 	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*Data, error)
 	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
+	UpdateStatusHistoryBulk(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	Close(ctx context.Context) error
@@ -86,10 +87,12 @@ type MetamorphStore interface {
 }
 
 type UpdateStatus struct {
-	Hash         chainhash.Hash       `json:"-"`
-	Status       metamorph_api.Status `json:"status"`
-	Error        error                `json:"-"`
-	CompetingTxs []string             `json:"competing_txs"`
+	Hash          chainhash.Hash        `json:"-"`
+	Status        metamorph_api.Status  `json:"status"`
+	Error         error                 `json:"-"`
+	CompetingTxs  []string              `json:"competing_txs"`
+	StatusHistory []StatusWithTimestamp `json:"status_history"`
+	Timestamp     time.Time             `json:"timestamp"`
 	// Fields for marshalling
 	HashStr  string `json:"hash"`
 	ErrorStr string `json:"error"`
@@ -134,4 +137,9 @@ func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
+}
+
+type StatusWithTimestamp struct {
+	Status    metamorph_api.Status `json:"status"`
+	Timestamp time.Time            `json:"timestamp"`
 }

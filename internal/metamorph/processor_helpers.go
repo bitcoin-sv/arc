@@ -28,6 +28,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheNotFound) {
+			p.logger.Info("updateStatusMap - status record not found, creating new one", slog.String("hash", statusUpdate.Hash.String()))
 			// if record doesn't exist, save new one
 			return p.setTransactionStatus(statusUpdate)
 		}
@@ -35,13 +36,21 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	}
 
 	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
+		p.logger.Info("updateStatusMap - updating competing txs", slog.String("hash", statusUpdate.Hash.String()))
 		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
 	}
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
+		p.logger.Info("updateStatusMap - updating status", slog.String("hash", statusUpdate.Hash.String()), slog.String("old_status", currentStatusUpdate.Status.String()), slog.String("new_status", statusUpdate.Status.String()))
+		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
+			Status:    currentStatusUpdate.Status,
+			Timestamp: currentStatusUpdate.Timestamp,
+		})
 		currentStatusUpdate.Status = statusUpdate.Status
-		// TODO: combine status history
+		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
+
+	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", currentStatusUpdate.Hash.String()), slog.String("status", currentStatusUpdate.Status.String()), slog.Any("status_history", currentStatusUpdate.StatusHistory))
 
 	return p.setTransactionStatus(*currentStatusUpdate)
 }
@@ -162,4 +171,21 @@ func mergeUnique(arr1, arr2 []string) []string {
 	}
 
 	return uniqueSlice
+}
+
+func filterUpdates(unprocessed []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
+	var result []store.UpdateStatus
+	for _, unproc := range unprocessed {
+		isProcessed := false
+		for _, proc := range processed {
+			if unproc.Hash == *proc.Hash {
+				isProcessed = true
+				break
+			}
+		}
+		if !isProcessed {
+			result = append(result, unproc)
+		}
+	}
+	return result
 }

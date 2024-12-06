@@ -17,7 +17,6 @@ var (
 
 type Store interface {
 	Get(key string) ([]byte, error)
-	GetAllWithPrefix(prefix string) (map[string][]byte, error)
 	Set(key string, value []byte, ttl time.Duration) error
 	Del(keys ...string) error
 

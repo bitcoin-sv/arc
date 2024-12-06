@@ -2,8 +2,10 @@
 logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on (optional)
-prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
-prometheusAddr: :2112 # port for serving prometheus metrics
+prometheus:
+  enabled: false # if true, then prometheus metrics are enabled
+  endpoint: /metrics # endpoint for prometheus metrics (optional)
+  addr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 messageQueue:
@@ -149,7 +151,7 @@ callbacker:
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
-  delay: 0s # delay before the callback (or batch of callbacks) is actually sent 
+  delay: 0s # delay before the callback (or batch of callbacks) is actually sent
   pause: 0s # pause between sending next callback to the same receiver
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   db:

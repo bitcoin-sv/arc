@@ -136,7 +136,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	err = processor.Start()
+	err = processor.Start(arcConfig.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
@@ -190,7 +190,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	workers = blocktx.NewBackgroundWorkers(blockStore, logger)
 	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
 
-	server, err = blocktx.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
+	server, err = blocktx.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
 		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, arcConfig.Tracing)
 	if err != nil {
 		stopFn()

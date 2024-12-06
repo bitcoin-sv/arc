@@ -1051,7 +1051,7 @@ func TestStart(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			actualError := sut.Start()
+			actualError := sut.Start(false)
 
 			// then
 			if tc.expectedError != nil {

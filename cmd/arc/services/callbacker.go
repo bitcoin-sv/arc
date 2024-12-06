@@ -89,7 +89,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
 	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
 
-	server, err = callbacker.NewServer(appConfig.PrometheusEndpoint, appConfig.GrpcMessageSize, logger, dispatcher, nil)
+	server, err = callbacker.NewServer(appConfig.Prometheus.Endpoint, appConfig.GrpcMessageSize, logger, dispatcher, nil)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

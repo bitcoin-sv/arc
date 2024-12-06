@@ -2,8 +2,10 @@
 logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on (optional)
-prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
-prometheusAddr: :2112 # port for serving prometheus metrics
+prometheus:
+  enabled: false # if true, then prometheus metrics are enabled
+  endpoint: /metrics # endpoint for prometheus metrics (optional)
+  addr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 messageQueue:

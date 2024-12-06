@@ -87,7 +87,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
 	}
 
-	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -97,7 +97,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		mtmOpts...,
 	)
 
-	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}

@@ -33,6 +33,7 @@ var (
 	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
 	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
 	ErrFailedToProcessBlock            = errors.New("failed to process block")
+	ErrFailedToStartCollectingStats    = errors.New("failed to start collecting stats")
 )
 
 const (
@@ -116,7 +117,7 @@ func NewProcessor(
 	return p, nil
 }
 
-func (p *Processor) Start() error {
+func (p *Processor) Start(statsEnabled bool) error {
 	err := p.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
@@ -133,6 +134,12 @@ func (p *Processor) Start() error {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RequestTxTopic), err)
 	}
 
+	if statsEnabled {
+		err = p.StartCollectStats()
+		if err != nil {
+			return errors.Join(ErrFailedToStartCollectingStats, err)
+		}
+	}
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()

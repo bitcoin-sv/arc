@@ -16,7 +16,7 @@ import (
 func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	mtmConn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, nil)
+	mtmConn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
@@ -28,7 +28,7 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
-	blocktxConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, nil)
+	blocktxConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to block-tx server: %v", err)
 	}

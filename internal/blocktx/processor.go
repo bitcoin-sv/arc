@@ -399,7 +399,7 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		hashesBytes[i] = h[:]
 	}
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, false)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
@@ -598,7 +598,13 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 }
 
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
-	_, err := p.store.GetChainTip(ctx)
+	const (
+		hoursPerDay   = 24
+		blocksPerHour = 6
+	)
+	heightRange := p.dataRetentionDays * hoursPerDay * blocksPerHour
+
+	_, err := p.store.GetChainTip(ctx, heightRange)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {
 		return false, err
 	}
@@ -610,7 +616,7 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, ok bool) {
+func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txs []store.TransactionBlock, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "getRegisteredTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -622,14 +628,14 @@ func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blo
 		blockHashes[i] = b.Hash
 	}
 
-	txsToPublish, err = p.store.GetRegisteredTxsByBlockHashes(ctx, blockHashes)
+	txs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, blockHashes)
 	if err != nil {
 		block := blocks[len(blocks)-1]
 		p.logger.Error("unable to get registered transactions", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return nil, false
 	}
 
-	return txsToPublish, true
+	return txs, true
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) (err error) {
@@ -734,7 +740,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	return nil
 }
 
-func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block, orphans ...*blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleStaleBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -772,7 +778,21 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 		return longestTxs, staleTxs, true
 	}
 
-	return nil, nil, true
+	if len(orphans) > 0 {
+		staleTxs, ok = p.getRegisteredTransactions(ctx, orphans)
+	} else {
+		staleTxs, ok = p.getRegisteredTransactions(ctx, staleBlocks)
+	}
+	if !ok {
+		return nil, nil, false
+	}
+
+	longestTxs, ok = p.getRegisteredTransactions(ctx, longestBlocks)
+	if !ok {
+		return nil, nil, false
+	}
+
+	return nil, exclusiveRightTxs(longestTxs, staleTxs), true
 }
 
 func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, err error) {
@@ -854,7 +874,7 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		}
 
 		block.Status = blocktx_api.Status_STALE
-		return p.handleStaleBlock(ctx, block)
+		return p.handleStaleBlock(ctx, block, orphans...)
 	}
 
 	if ancestor.Status == blocktx_api.Status_LONGEST {

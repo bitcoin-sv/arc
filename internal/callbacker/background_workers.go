@@ -2,11 +2,16 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+)
+
+var (
+	ErrFailedPopMany = errors.New("failed to pop many")
 )
 
 type BackgroundWorkers struct {
@@ -107,8 +112,12 @@ func (w *BackgroundWorkers) DispatchPersistedCallbacks() error {
 
 	for {
 		callbacks, err := w.callbackerStore.PopMany(ctx, batchSize)
-		if err != nil || len(callbacks) == 0 {
-			return err
+		if err != nil {
+			return ErrFailedPopMany
+		}
+
+		if len(callbacks) == 0 {
+			return nil
 		}
 
 		for _, c := range callbacks {
@@ -119,8 +128,11 @@ func (w *BackgroundWorkers) DispatchPersistedCallbacks() error {
 
 			w.dispatcher.Dispatch(c.URL, callbackEntry, c.AllowBatch)
 		}
+
+		time.Sleep(500 * time.Millisecond)
 	}
 }
+
 func (w *BackgroundWorkers) GracefulStop() {
 	w.logger.Info("Shutting down")
 

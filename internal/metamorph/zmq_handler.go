@@ -111,8 +111,7 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 					zmqHandler.logger.Info("ZMQ: Connection observed", slog.String("address", zmqHandler.address))
 				}
 
-				topic := string(msg.Frames[0])
-				subscribers := zmqHandler.subscriptions[topic]
+				subscribers := zmqHandler.subscriptions[string(msg.Frames[0])]
 
 				sequence := "N/A"
 

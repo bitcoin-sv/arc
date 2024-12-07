@@ -143,8 +143,9 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	zmq, err := metamorph.NewZMQ(zmqURL, statusMessageChannel, mockedZMQ, logger)
 	require.NoError(t, err)
-	err = zmq.Start()
+	cleanup, err := zmq.Start()
 	require.NoError(t, err)
+	defer cleanup()
 
 	// give metamorph time to parse ZMQ message
 	time.Sleep(500 * time.Millisecond)

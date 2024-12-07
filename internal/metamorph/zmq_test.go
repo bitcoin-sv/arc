@@ -79,8 +79,9 @@ func TestZMQ(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		err = sut.Start()
+		cleanup, err := sut.Start()
 		require.NoError(t, err)
+		defer cleanup()
 
 		// then
 		var status *metamorph.TxStatusMessage
@@ -128,8 +129,9 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	err = sut.Start()
+	cleanup, err := sut.Start()
 	require.NoError(t, err)
+	defer cleanup()
 
 	// then
 	var status *metamorph.TxStatusMessage

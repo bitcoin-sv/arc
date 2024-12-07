@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/go-zeromq/zmq4"
 	"log/slog"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/go-zeromq/zmq4"
 )
 
 type ZMQHandler struct {
@@ -103,24 +104,24 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 					}
 					zmqHandler.logger.Error("zmqHandler.socket.Recv()", slog.String("error", err.Error()))
 					break OUT
-				} else {
-					if !zmqHandler.connected {
-						zmqHandler.connected = true
-						zmqHandler.logger.Info("ZMQ: Connection observed", slog.String("address", zmqHandler.address))
-					}
+				}
 
-					subscribers := zmqHandler.subscriptions[string(msg.Frames[0])]
+				if !zmqHandler.connected {
+					zmqHandler.connected = true
+					zmqHandler.logger.Info("ZMQ: Connection observed", slog.String("address", zmqHandler.address))
+				}
 
-					sequence := "N/A"
+				subscribers := zmqHandler.subscriptions[string(msg.Frames[0])]
 
-					if len(msg.Frames) > 2 && len(msg.Frames[2]) == 4 {
-						s := binary.LittleEndian.Uint32(msg.Frames[2])
-						sequence = strconv.FormatInt(int64(s), 10)
-					}
+				sequence := "N/A"
 
-					for _, subscriber := range subscribers {
-						subscriber <- []string{string(msg.Frames[0]), hex.EncodeToString(msg.Frames[1]), sequence}
-					}
+				if len(msg.Frames) > 2 && len(msg.Frames[2]) == 4 {
+					s := binary.LittleEndian.Uint32(msg.Frames[2])
+					sequence = strconv.FormatInt(int64(s), 10)
+				}
+
+				for _, subscriber := range subscribers {
+					subscriber <- []string{string(msg.Frames[0]), hex.EncodeToString(msg.Frames[1]), sequence}
 				}
 			}
 		}

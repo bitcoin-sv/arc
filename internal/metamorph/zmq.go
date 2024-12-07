@@ -97,8 +97,12 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *TxStatusMessage, zmqHandler
 	return z, nil
 }
 
-func (z *ZMQ) Start() error {
-	ch := make(chan []string)
+func (z *ZMQ) Start() (func(), error) {
+	ch := make(chan []string, 100)
+
+	cleanup := func() {
+		close(ch)
+	}
 
 	const hashtxTopic = "hashtx2"
 	const invalidTxTopic = "invalidtx"
@@ -168,18 +172,18 @@ func (z *ZMQ) Start() error {
 	}()
 
 	if err := z.handler.Subscribe(hashtxTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
 	if err := z.handler.Subscribe(invalidTxTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
 	if err := z.handler.Subscribe(discardedFromMempoolTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
-	return nil
+	return cleanup, nil
 }
 
 func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamorph_api.Status, txErr error, competingTxs []string, err error) {

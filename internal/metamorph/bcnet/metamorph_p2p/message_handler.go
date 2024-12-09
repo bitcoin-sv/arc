@@ -93,19 +93,21 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 		return
 	}
 
-	for _, iv := range msg.InvList {
-		if iv.Type == wire.InvTypeTx {
-			select {
-			case h.messageCh <- &PeerTxMessage{
-				Hash:   &iv.Hash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-				Peer:   peer.String(),
-			}:
-			default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
+	go func() {
+		for _, iv := range msg.InvList {
+			if iv.Type == wire.InvTypeTx {
+				select {
+				case h.messageCh <- &PeerTxMessage{
+					Hash:   &iv.Hash,
+					Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					Peer:   peer.String(),
+				}:
+				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
+				}
 			}
+			// ignore INV with block or error
 		}
-		// ignore INV with block or error
-	}
+	}()
 }
 
 func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {

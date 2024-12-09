@@ -225,7 +225,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
-		err = zmq.Start()
+		cleanup, err := zmq.Start()
+		shutdownFns = append(shutdownFns, cleanup)
 		if err != nil {
 			stopFn()
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)

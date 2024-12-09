@@ -1,4 +1,4 @@
-package callbacker
+package callbacker_test
 
 import (
 	"context"
@@ -6,13 +6,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/pkg/callbacker"
 )
 
 func TestSendCallback(t *testing.T) {
@@ -62,12 +65,12 @@ func TestSendCallback(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &callbacker_api.CallbackerAPIClientMock{
+			apiClient := &mocks.CallbackerAPIClientMock{
 				SendCallbackFunc: func(_ context.Context, _ *callbacker_api.SendCallbackRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
 					return nil, nil
 				},
 			}
-			grpcCallbacker := NewGrpcCallbacker(apiClient, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			grpcCallbacker := callbacker.NewGrpcCallbacker(apiClient, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 			grpcCallbacker.SendCallback(context.Background(), tc.data)
 			require.Equal(t, tc.expectedCalls, len(apiClient.SendCallbackCalls()))
 		})

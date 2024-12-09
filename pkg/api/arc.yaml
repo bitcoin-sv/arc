@@ -572,6 +572,24 @@ components:
           example: "Added to mempool"
           nullable: false
 
+    CallbackDetails:
+      type: object
+      required:
+        - url
+        - token
+      description: callback parameters
+      properties:
+        url:
+          type: string
+          description: url
+          example: "some_url"
+          nullable: false
+        token:
+          type: string
+          description: token
+          example: "some_token"
+          nullable: false
+
     TransactionDetails:
       type: object
       description: Transaction details
@@ -609,6 +627,11 @@ components:
           description: Transaction status
           example: "ACCEPTED_BY_NETWORK"
           nullable: false
+        callbacks:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/CallbackDetails'
         extraInfo:
           type: string
           description: Extra information about the transaction

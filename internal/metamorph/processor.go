@@ -137,7 +137,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
-		responseProcessor: NewResponseProcessor(c),
+		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
@@ -318,7 +318,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		}
 
 		// remove tx from cache - we don't expect any more status updates
-		p.responseProcessor.delFromCache(data.Hash)
+		p.delTxFromCache(data.Hash)
 	}
 }
 
@@ -396,6 +396,10 @@ func (p *Processor) StartSendStatusUpdate() {
 				})
 
 				if !found {
+					found = p.txFoundInCache(msg.Hash)
+				}
+
+				if !found {
 					continue
 				}
 
@@ -405,6 +409,11 @@ func (p *Processor) StartSendStatusUpdate() {
 					Status:       msg.Status,
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
+				}
+
+				// if tx is rejected, we don't expect any more status updates - remove from cache
+				if msg.Status == metamorph_api.Status_REJECTED {
+					p.delTxFromCache(msg.Hash)
 				}
 			}
 		}
@@ -763,6 +772,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	p.responseProcessor.Add(statusResponse)
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
+	// Add this transaction to shared cache
+	p.saveTxToCache(statusResponse.Hash)
+
 	// Send GETDATA to peers to see if they have it
 	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -865,4 +877,26 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 		}
 	}
 	return false
+}
+
+func (p *Processor) saveTxToCache(hash *chainhash.Hash) {
+	if p.cacheStore.IsShared() {
+		_ = p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
+	}
+}
+
+func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
+	if p.cacheStore.IsShared() {
+		value, _ := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
+		return value != nil
+	}
+
+	// if we don't have a shared cache running, treat all transactions as found
+	return true
+}
+
+func (p *Processor) delTxFromCache(hash *chainhash.Hash) {
+	if p.cacheStore.IsShared() {
+		_ = p.cacheStore.MapDel(CacheRegisteredTxsHash, hash.String())
+	}
 }

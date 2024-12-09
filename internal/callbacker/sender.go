@@ -262,7 +262,6 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 	}
 	defer response.Body.Close()
 
-	//success = response.StatusCode >= http.StatusOK && response.StatusCode < 300
 	return response.StatusCode, nil
 }
 

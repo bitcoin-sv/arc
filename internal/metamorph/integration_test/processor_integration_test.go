@@ -42,6 +42,7 @@ func TestProcessor(t *testing.T) {
 			metamorph.WithMessageQueueClient(natsQueue),
 		)
 		require.NoError(t, err)
+		defer sut.Shutdown()
 
 		sut.StartSendStatusUpdate()
 		sut.StartProcessStatusUpdatesInStorage()

@@ -45,7 +45,7 @@ func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *Pee
 	return ph
 }
 
-// should be fire & forget
+// OnReceive handles incoming messages depending on command type
 func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 	switch cmd {
@@ -66,7 +66,7 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	}
 }
 
-// should be fire & forget
+// OnSend handles outgoing messages depending on command type
 func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 	switch cmd {

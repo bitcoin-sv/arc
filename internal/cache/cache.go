@@ -26,4 +26,6 @@ type Store interface {
 	MapDel(hashsetKey string, fields ...string) error
 	MapLen(hashsetKey string) (int64, error)
 	MapExtractAll(hashsetKey string) (map[string][]byte, error)
+
+	IsShared() bool
 }

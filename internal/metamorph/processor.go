@@ -137,7 +137,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 		maxRetries:                maxRetriesDefault,
 		minimumHealthyConnections: minimumHealthyConnectionsDefault,
 
-		responseProcessor: NewResponseProcessor(),
+		responseProcessor: NewResponseProcessor(c),
 		statusMessageCh:   statusMessageChannel,
 
 		processExpiredTxsInterval:       unseenTransactionRebroadcastingInterval,
@@ -316,6 +316,9 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			p.callbackSender.SendCallback(ctx, data)
 		}
+
+		// remove tx from cache - we don't expect any more status updates
+		p.responseProcessor.delFromCache(data.Hash)
 	}
 }
 
@@ -384,6 +387,18 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				// if we receive new update check if we have client connection waiting for status and send it
+				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+					Hash:         msg.Hash,
+					Status:       msg.Status,
+					Err:          msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				})
+
+				if !found {
+					continue
+				}
+
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -391,14 +406,6 @@ func (p *Processor) StartSendStatusUpdate() {
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
 				}
-
-				// if we receive new update check if we have client connection waiting for status and send it
-				p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
-					Hash:         msg.Hash,
-					Status:       msg.Status,
-					Err:          msg.Err,
-					CompetingTxs: msg.CompetingTxs,
-				})
 			}
 		}
 	}()
@@ -751,6 +758,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Status: metamorph_api.Status_STORED,
 	})
 
+	// Add this transaction to the map of transactions that client is listening to with open connection
+	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
+	p.responseProcessor.Add(statusResponse)
+	tracing.EndTracing(responseProcessorAddSpan, nil)
+
 	// Send GETDATA to peers to see if they have it
 	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -776,11 +788,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Hash:   *req.Data.Hash,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
-
-	// Add this transaction to the map of transactions that client is listening to with open connection
-	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
-	p.responseProcessor.Add(statusResponse)
-	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {

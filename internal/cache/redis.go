@@ -38,7 +38,6 @@ func (r *RedisStore) Get(key string) ([]byte, error) {
 // Set stores a value with a TTL for key.
 func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
 	err := r.client.Set(r.ctx, key, value, ttl).Err()
-
 	if err != nil {
 		return errors.Join(ErrCacheFailedToSet, err)
 	}
@@ -49,7 +48,6 @@ func (r *RedisStore) Set(key string, value []byte, ttl time.Duration) error {
 // Del removes a value by key.
 func (r *RedisStore) Del(keys ...string) error {
 	result, err := r.client.Del(r.ctx, keys...).Result()
-
 	if err != nil {
 		return errors.Join(ErrCacheFailedToDel, err)
 	}
@@ -75,7 +73,6 @@ func (r *RedisStore) MapGet(hashsetKey string, key string) ([]byte, error) {
 // MapSet stores a value for a specific hashsetKey.
 func (r *RedisStore) MapSet(hashsetKey string, key string, value []byte) error {
 	err := r.client.HSet(r.ctx, hashsetKey, key, value).Err()
-
 	if err != nil {
 		return errors.Join(ErrCacheFailedToSet, err)
 	}
@@ -86,7 +83,6 @@ func (r *RedisStore) MapSet(hashsetKey string, key string, value []byte) error {
 // MapDel removes a value by key in specific hashsetKey.
 func (r *RedisStore) MapDel(hashsetKey string, keys ...string) error {
 	err := r.client.HDel(r.ctx, hashsetKey, keys...).Err()
-
 	if err != nil {
 		return errors.Join(ErrCacheFailedToDel, err)
 	}
@@ -136,4 +132,9 @@ func (r *RedisStore) MapLen(hashsetKey string) (int64, error) {
 		return 0, errors.Join(ErrCacheFailedToGetCount, err)
 	}
 	return count, nil
+}
+
+// IsShared returns whether this cache is shared between instances
+func (r *RedisStore) IsShared() bool {
+	return true
 }

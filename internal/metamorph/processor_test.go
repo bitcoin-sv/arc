@@ -160,7 +160,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
 			},
-			expectedResponseMapItems: 0,
+			expectedResponseMapItems: 1,
 			expectedSetCalls:         1,
 			expectedAnnounceCalls:    1,
 			expectedRequestCalls:     1,
@@ -177,9 +177,10 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_REJECTED,
 			},
-			expectedSetCalls:      1,
-			expectedAnnounceCalls: 0,
-			expectedRequestCalls:  0,
+			expectedResponseMapItems: 0,
+			expectedSetCalls:         1,
+			expectedAnnounceCalls:    0,
+			expectedRequestCalls:     0,
 		},
 		{
 			name:            "store unavailable",
@@ -189,9 +190,10 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_RECEIVED,
 			},
-			expectedSetCalls:      0,
-			expectedAnnounceCalls: 0,
-			expectedRequestCalls:  0,
+			expectedResponseMapItems: 0,
+			expectedSetCalls:         0,
+			expectedAnnounceCalls:    0,
+			expectedRequestCalls:     0,
 		},
 	}
 

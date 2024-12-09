@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -78,7 +79,8 @@ func TestResponseProcessor(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		sut := NewResponseProcessor()
+		cStore := cache.NewMemoryStore()
+		sut := NewResponseProcessor(cStore)
 
 		dummyStatus := NewStatusResponse(ctx, testdata.TX1Hash, nil)
 
@@ -93,7 +95,8 @@ func TestResponseProcessor(t *testing.T) {
 
 	t.Run("add and update status", func(t *testing.T) {
 		// given
-		sut := NewResponseProcessor()
+		cStore := cache.NewMemoryStore()
+		sut := NewResponseProcessor(cStore)
 
 		tx1Ch := make(chan StatusAndError, 1)
 		tx2Ch := make(chan StatusAndError, 1)

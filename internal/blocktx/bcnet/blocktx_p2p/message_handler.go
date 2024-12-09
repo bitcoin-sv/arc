@@ -33,7 +33,7 @@ func NewMsgHandler(logger *slog.Logger, blockRequestCh chan<- BlockRequest, bloc
 	}
 }
 
-// OnReceive should be fire & forget
+// OnReceive handles incoming messages depending on command type
 func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 
@@ -72,6 +72,7 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	}
 }
 
+// OnSend handles outgoing messages depending on command type
 func (h *MsgHandler) OnSend(_ wire.Message, _ p2p.PeerI) {
 	// ignore
 }

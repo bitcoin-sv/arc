@@ -20,7 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -67,7 +67,7 @@ func TestNewProcessor(t *testing.T) {
 			store:     mtmStore,
 			messenger: nil,
 
-			expectedError: metamorph.ErrPeerMessangerNil,
+			expectedError: metamorph.ErrPeerMessengerNil,
 		},
 	}
 
@@ -996,9 +996,9 @@ func TestProcessorHealth(t *testing.T) {
 			}
 			cStore := cache.NewMemoryStore()
 
-			messanger := p2p.NewNetworkMessenger(slog.Default(), pm)
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messanger, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

@@ -1,4 +1,4 @@
-package p2p
+package metamorph_p2p
 
 import (
 	"context"

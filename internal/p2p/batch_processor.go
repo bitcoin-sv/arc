@@ -73,11 +73,13 @@ func (b *batchProcessor) start() {
 
 				if len(b.batch) >= b.batchSize {
 					b.runFunction()
+					runTicker.Reset(b.runInterval)
 				}
 
 			case <-runTicker.C:
 				if len(b.batch) > 0 {
 					b.runFunction()
+					runTicker.Reset(b.runInterval)
 				}
 			}
 		}

@@ -200,7 +200,7 @@ func RunRedis(pool *dockertest.Pool, port, name string, cmds ...string) (*docker
 
 	err = pool.Retry(func() error {
 		c := redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
+			Addr:     fmt.Sprintf("localhost:%s", hostPort),
 			Password: "",
 			DB:       1,
 		})

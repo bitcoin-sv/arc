@@ -439,7 +439,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
 				// Ensure no duplicate statuses
-				p.logger.Info("Status update received", slog.String("hash", statusUpdate.Hash.String()), slog.String("status", statusUpdate.Status.String()))
 				err := p.updateStatusMap(statusUpdate)
 				if err != nil {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
@@ -453,7 +452,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				}
 
 				if statusUpdateCount >= p.processStatusUpdatesBatchSize {
-					p.logger.Info("Status update count is greater than batch size", slog.Int("count", statusUpdateCount), slog.Int("batch_size", p.processStatusUpdatesBatchSize))
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
 						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
@@ -462,8 +460,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.processStatusUpdatesInterval)
-				} else {
-					p.logger.Debug("Status update count is less than batch size", slog.Int("count", statusUpdateCount), slog.Int("batch_size", p.processStatusUpdatesBatchSize))
 				}
 			case <-ticker.C:
 				statusUpdateCount, err := p.getStatusUpdateCount()
@@ -494,15 +490,12 @@ func (p *Processor) checkAndUpdate(ctx context.Context) error {
 		tracing.EndTracing(span, err)
 	}()
 
-	p.logger.Info("checkAndUpdate - Checking and updating statuses")
-
 	statusUpdatesMap, err := p.getAndDeleteAllTransactionStatuses()
 	if err != nil {
 		return err
 	}
 
 	if len(statusUpdatesMap) == 0 {
-		p.logger.Info("checkAndUpdate - No statuses to update")
 		return nil
 	}
 
@@ -511,10 +504,8 @@ func (p *Processor) checkAndUpdate(ctx context.Context) error {
 
 	for _, status := range statusUpdatesMap {
 		if len(status.CompetingTxs) > 0 {
-			p.logger.Info("checkAndUpdate - Double spend detected", slog.String("hash", status.Hash.String()))
 			doubleSpendUpdates = append(doubleSpendUpdates, status)
 		} else {
-			p.logger.Info("checkAndUpdate - Status update", slog.String("hash", status.Hash.String()), slog.String("status", status.Status.String()))
 			statusUpdates = append(statusUpdates, status)
 		}
 	}
@@ -551,19 +542,12 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}
 
 	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
-	shUpdatedData, err := p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
+	_, err = p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
 
-	// TODO: remove this
-	for _, data := range shUpdatedData {
-		p.logger.Info("Status history updated for tx", slog.String("hash", data.Hash.String()), slog.Any("status_history", data.StatusHistory))
-	}
-
 	for _, data := range updatedData {
-		p.logger.Info("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()), slog.Any("status_history", data.StatusHistory))
-
 		sendCallback := false
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL

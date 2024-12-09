@@ -3,8 +3,6 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
-	"log/slog"
-
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -28,7 +26,6 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheNotFound) {
-			p.logger.Info("updateStatusMap - status record not found, creating new one", slog.String("hash", statusUpdate.Hash.String()))
 			// if record doesn't exist, save new one
 			return p.setTransactionStatus(statusUpdate)
 		}
@@ -36,12 +33,10 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	}
 
 	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
-		p.logger.Info("updateStatusMap - updating competing txs", slog.String("hash", statusUpdate.Hash.String()))
 		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
 	}
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
-		p.logger.Info("updateStatusMap - updating status", slog.String("hash", statusUpdate.Hash.String()), slog.String("old_status", currentStatusUpdate.Status.String()), slog.String("new_status", statusUpdate.Status.String()))
 		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
 			Status:    currentStatusUpdate.Status,
 			Timestamp: currentStatusUpdate.Timestamp,
@@ -49,8 +44,6 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		currentStatusUpdate.Status = statusUpdate.Status
 		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
-
-	p.logger.Info("updateStatusMap - updating status in cache", slog.String("hash", currentStatusUpdate.Hash.String()), slog.String("status", currentStatusUpdate.Status.String()), slog.Any("status_history", currentStatusUpdate.StatusHistory))
 
 	return p.setTransactionStatus(*currentStatusUpdate)
 }
@@ -93,14 +86,12 @@ func (p *Processor) getAndDeleteAllTransactionStatuses() (StatusUpdateMap, error
 	for key, value := range keys {
 		hash, err := chainhash.NewHashFromStr(key)
 		if err != nil {
-			p.logger.Error("failed to convert hash from key", slog.String("error", err.Error()), slog.String("key", key))
 			continue
 		}
 
 		var status store.UpdateStatus
 		err = json.Unmarshal(value, &status)
 		if err != nil {
-			p.logger.Error("failed to unmarshal status", slog.String("error", err.Error()), slog.String("key", key))
 			continue
 		}
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )

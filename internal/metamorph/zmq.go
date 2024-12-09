@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )

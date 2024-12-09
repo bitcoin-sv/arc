@@ -30,13 +30,13 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 	tt := []struct {
 		name                 string
 		wireMsg              wire.Message
-		expectedOnChannelMsg *PeerTxMessage
+		expectedOnChannelMsg *TxStatusMessage
 		ignore               bool
 	}{
 		{
 			name:    wire.CmdTx,
 			wireMsg: wire.NewMsgTx(70001),
-			expectedOnChannelMsg: &PeerTxMessage{
+			expectedOnChannelMsg: &TxStatusMessage{
 				Hash:   ptrTo(wire.NewMsgTx(70001).TxHash()),
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Peer:   peerAddr,
@@ -50,7 +50,7 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 				return msg
 			}(),
 
-			expectedOnChannelMsg: &PeerTxMessage{
+			expectedOnChannelMsg: &TxStatusMessage{
 				Hash:   testdata.TX1Hash,
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 				Peer:   peerAddr,
@@ -68,7 +68,7 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 		{
 			name:    wire.CmdReject,
 			wireMsg: wire.NewMsgReject("command", wire.RejectMalformed, "malformed"),
-			expectedOnChannelMsg: &PeerTxMessage{
+			expectedOnChannelMsg: &TxStatusMessage{
 				Hash:   ptrTo(wire.NewMsgReject("command", wire.RejectMalformed, "malformed").Hash),
 				Status: metamorph_api.Status_REJECTED,
 				Peer:   peerAddr,
@@ -86,7 +86,7 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 
 				return msg
 			}(),
-			expectedOnChannelMsg: &PeerTxMessage{
+			expectedOnChannelMsg: &TxStatusMessage{
 				Hash:   txHash,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   peerAddr,
@@ -97,7 +97,7 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(fmt.Sprintf("Received %s", tc.name), func(t *testing.T) {
 			// given
-			messageCh := make(chan *PeerTxMessage, 10)
+			messageCh := make(chan *TxStatusMessage, 10)
 			store := &storeMocks.MetamorphStoreMock{
 				GetRawTxsFunc: func(_ context.Context, _ [][]byte) ([][]byte, error) {
 					return [][]byte{
@@ -137,13 +137,13 @@ func Test_MessageHandlerOnSend(t *testing.T) {
 	tt := []struct {
 		name                 string
 		wireMsg              wire.Message
-		expectedOnChannelMsg *PeerTxMessage
+		expectedOnChannelMsg *TxStatusMessage
 		ignore               bool
 	}{
 		{
 			name:    wire.CmdTx,
 			wireMsg: wire.NewMsgTx(70001),
-			expectedOnChannelMsg: &PeerTxMessage{
+			expectedOnChannelMsg: &TxStatusMessage{
 				Hash:   ptrTo(wire.NewMsgTx(70001).TxHash()),
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 				Peer:   peerAddr,
@@ -162,7 +162,7 @@ func Test_MessageHandlerOnSend(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			messageCh := make(chan *PeerTxMessage, 10)
+			messageCh := make(chan *TxStatusMessage, 10)
 			store := &storeMocks.MetamorphStoreMock{}
 			peer := &p2pMocks.PeerIMock{
 				StringFunc: func() string { return peerAddr },

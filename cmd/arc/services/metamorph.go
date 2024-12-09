@@ -48,7 +48,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	var (
 		metamorphStore  store.MetamorphStore
 		pm              *p2p.PeerManager
-		statusMessageCh chan *metamorph_p2p.PeerTxMessage
+		statusMessageCh chan *metamorph_p2p.TxStatusMessage
 		mqClient        metamorph.MessageQueueClient
 		processor       *metamorph.Processor
 		server          *metamorph.Server
@@ -274,7 +274,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 	return s, err
 }
 
-func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (*p2p.PeerManager, chan *metamorph_p2p.PeerTxMessage, error) {
+func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (*p2p.PeerManager, chan *metamorph_p2p.TxStatusMessage, error) {
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get network: %v", err)
@@ -282,7 +282,7 @@ func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *con
 
 	logger.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph_p2p.PeerTxMessage, 10000)
+	messageCh := make(chan *metamorph_p2p.TxStatusMessage, 10000)
 	var pmOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())

@@ -18,7 +18,7 @@ import (
 
 var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
 
-type PeerTxMessage struct {
+type TxStatusMessage struct {
 	Start        time.Time
 	Hash         *chainhash.Hash
 	Status       metamorph_api.Status
@@ -32,10 +32,10 @@ var _ p2p.MessageHandlerI = (*MsgHandler)(nil)
 type MsgHandler struct {
 	logger    *slog.Logger
 	store     store.MetamorphStore
-	messageCh chan<- *PeerTxMessage
+	messageCh chan<- *TxStatusMessage
 }
 
-func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *PeerTxMessage) *MsgHandler {
+func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *TxStatusMessage) *MsgHandler {
 	ph := &MsgHandler{
 		logger:    l,
 		store:     s,
@@ -77,7 +77,7 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 		}
 
 		hash := txMsg.TxHash()
-		h.messageCh <- &PeerTxMessage{
+		h.messageCh <- &TxStatusMessage{
 			Hash:   &hash,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   peer.String(),
@@ -97,7 +97,7 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 		for _, iv := range msg.InvList {
 			if iv.Type == wire.InvTypeTx {
 				select {
-				case h.messageCh <- &PeerTxMessage{
+				case h.messageCh <- &TxStatusMessage{
 					Hash:   &iv.Hash,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
@@ -117,7 +117,7 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 	}
 
 	hash := msg.TxHash()
-	h.messageCh <- &PeerTxMessage{
+	h.messageCh <- &TxStatusMessage{
 		Hash:   &hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
@@ -130,7 +130,7 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) 
 		return
 	}
 
-	h.messageCh <- &PeerTxMessage{
+	h.messageCh <- &TxStatusMessage{
 		Hash:   &msg.Hash,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
@@ -169,7 +169,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 				continue
 			}
 
-			h.messageCh <- &PeerTxMessage{
+			h.messageCh <- &TxStatusMessage{
 				Hash:   tx.Hash(),
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   peer.String(),

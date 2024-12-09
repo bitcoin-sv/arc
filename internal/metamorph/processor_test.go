@@ -508,7 +508,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			statusMessageChannel := make(chan *metamorph_p2p.PeerTxMessage, 10)
+			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
@@ -524,7 +524,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			assert.Equal(t, 0, sut.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
-				statusMessageChannel <- &metamorph_p2p.PeerTxMessage{
+				statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 					Hash:         testInput.hash,
 					Status:       testInput.newStatus,
 					Err:          testInput.statusErr,

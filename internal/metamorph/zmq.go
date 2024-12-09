@@ -41,7 +41,7 @@ type subscriptionRequest struct {
 
 type ZMQ struct {
 	url             *url.URL
-	statusMessageCh chan<- *metamorph_p2p.PeerTxMessage
+	statusMessageCh chan<- *metamorph_p2p.TxStatusMessage
 	handler         ZMQI
 	logger          *slog.Logger
 }
@@ -86,7 +86,7 @@ type ZMQI interface {
 	Subscribe(string, chan []string) error
 }
 
-func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *metamorph_p2p.PeerTxMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
+func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *metamorph_p2p.TxStatusMessage, zmqHandler ZMQI, logger *slog.Logger) (*ZMQ, error) {
 	if zmqHandler == nil {
 		return nil, ErrNilZMQHandler
 	}
@@ -122,7 +122,7 @@ func (z *ZMQ) Start() (func(), error) {
 					continue
 				}
 
-				z.statusMessageCh <- &metamorph_p2p.PeerTxMessage{
+				z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
@@ -138,7 +138,7 @@ func (z *ZMQ) Start() (func(), error) {
 				}
 
 				if len(competingTxs) == 0 {
-					z.statusMessageCh <- &metamorph_p2p.PeerTxMessage{
+					z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 						Start:        time.Now(),
 						Hash:         hash,
 						Status:       status,
@@ -161,7 +161,7 @@ func (z *ZMQ) Start() (func(), error) {
 					continue
 				}
 
-				z.statusMessageCh <- &metamorph_p2p.PeerTxMessage{
+				z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
 					Hash:   hash,
 					Status: metamorph_api.Status_REJECTED,
@@ -249,8 +249,8 @@ func (z *ZMQ) parseTxInfo(c []string) (*ZMQTxInfo, error) {
 	return &txInfo, nil
 }
 
-func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*metamorph_p2p.PeerTxMessage {
-	msgs := []*metamorph_p2p.PeerTxMessage{{
+func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string) []*metamorph_p2p.TxStatusMessage {
+	msgs := []*metamorph_p2p.TxStatusMessage{{
 		Start:        time.Now(),
 		Hash:         hash,
 		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
@@ -275,7 +275,7 @@ func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string
 		// and return a copy of the slice
 		txsWithoutSelf := removeCompetingSelf(allCompetingTxs, tx)
 
-		msgs = append(msgs, &metamorph_p2p.PeerTxMessage{
+		msgs = append(msgs, &metamorph_p2p.TxStatusMessage{
 			Start:        time.Now(),
 			Hash:         competingHash,
 			Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,

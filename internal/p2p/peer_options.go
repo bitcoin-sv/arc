@@ -29,6 +29,12 @@ func WithNrOfWriteHandlers(n uint8) PeerOptions {
 	}
 }
 
+func WithWriteChannelSize(n uint16) PeerOptions {
+	return func(p *Peer) {
+		p.writeCh = make(chan wire.Message, n)
+	}
+}
+
 func WithPingInterval(interval time.Duration, connectionHealthThreshold time.Duration) PeerOptions {
 	return func(p *Peer) {
 		p.pingInterval = interval

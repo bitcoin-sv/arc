@@ -174,7 +174,7 @@ func (p *Peer) connect() bool {
 	p.lConn = lc
 	p.listenForMessages()
 	// run message writers
-	for i := uint8(0); i < p.nWriters; i++ {
+	for i := range p.nWriters {
 		p.sendMessages(i)
 	}
 

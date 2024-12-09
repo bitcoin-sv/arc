@@ -76,6 +76,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 //				panic("mock out the UpdateStatusBulk method")
 //			},
+//			UpdateStatusHistoryBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+//				panic("mock out the UpdateStatusHistoryBulk method")
+//			},
 //		}
 //
 //		// use mockedMetamorphStore in code that requires store.MetamorphStore
@@ -136,6 +139,9 @@ type MetamorphStoreMock struct {
 
 	// UpdateStatusBulkFunc mocks the UpdateStatusBulk method.
 	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
+
+	// UpdateStatusHistoryBulkFunc mocks the UpdateStatusHistoryBulk method.
+	UpdateStatusHistoryBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -277,25 +283,33 @@ type MetamorphStoreMock struct {
 			// Updates is the updates argument value.
 			Updates []store.UpdateStatus
 		}
+		// UpdateStatusHistoryBulk holds details about calls to the UpdateStatusHistoryBulk method.
+		UpdateStatusHistoryBulk []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Updates is the updates argument value.
+			Updates []store.UpdateStatus
+		}
 	}
-	lockClearData         sync.RWMutex
-	lockClose             sync.RWMutex
-	lockDel               sync.RWMutex
-	lockGet               sync.RWMutex
-	lockGetMany           sync.RWMutex
-	lockGetRawTxs         sync.RWMutex
-	lockGetSeenOnNetwork  sync.RWMutex
-	lockGetStats          sync.RWMutex
-	lockGetUnmined        sync.RWMutex
-	lockIncrementRetries  sync.RWMutex
-	lockPing              sync.RWMutex
-	lockSet               sync.RWMutex
-	lockSetBulk           sync.RWMutex
-	lockSetLocked         sync.RWMutex
-	lockSetUnlockedByName sync.RWMutex
-	lockUpdateDoubleSpend sync.RWMutex
-	lockUpdateMined       sync.RWMutex
-	lockUpdateStatusBulk  sync.RWMutex
+	lockClearData               sync.RWMutex
+	lockClose                   sync.RWMutex
+	lockDel                     sync.RWMutex
+	lockGet                     sync.RWMutex
+	lockGetMany                 sync.RWMutex
+	lockGetRawTxs               sync.RWMutex
+	lockGetSeenOnNetwork        sync.RWMutex
+	lockGetStats                sync.RWMutex
+	lockGetUnmined              sync.RWMutex
+	lockIncrementRetries        sync.RWMutex
+	lockPing                    sync.RWMutex
+	lockSet                     sync.RWMutex
+	lockSetBulk                 sync.RWMutex
+	lockSetLocked               sync.RWMutex
+	lockSetUnlockedByName       sync.RWMutex
+	lockUpdateDoubleSpend       sync.RWMutex
+	lockUpdateMined             sync.RWMutex
+	lockUpdateStatusBulk        sync.RWMutex
+	lockUpdateStatusHistoryBulk sync.RWMutex
 }
 
 // ClearData calls ClearDataFunc.
@@ -967,5 +981,41 @@ func (mock *MetamorphStoreMock) UpdateStatusBulkCalls() []struct {
 	mock.lockUpdateStatusBulk.RLock()
 	calls = mock.calls.UpdateStatusBulk
 	mock.lockUpdateStatusBulk.RUnlock()
+	return calls
+}
+
+// UpdateStatusHistoryBulk calls UpdateStatusHistoryBulkFunc.
+func (mock *MetamorphStoreMock) UpdateStatusHistoryBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+	if mock.UpdateStatusHistoryBulkFunc == nil {
+		panic("MetamorphStoreMock.UpdateStatusHistoryBulkFunc: method is nil but MetamorphStore.UpdateStatusHistoryBulk was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		Updates []store.UpdateStatus
+	}{
+		Ctx:     ctx,
+		Updates: updates,
+	}
+	mock.lockUpdateStatusHistoryBulk.Lock()
+	mock.calls.UpdateStatusHistoryBulk = append(mock.calls.UpdateStatusHistoryBulk, callInfo)
+	mock.lockUpdateStatusHistoryBulk.Unlock()
+	return mock.UpdateStatusHistoryBulkFunc(ctx, updates)
+}
+
+// UpdateStatusHistoryBulkCalls gets all the calls that were made to UpdateStatusHistoryBulk.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.UpdateStatusHistoryBulkCalls())
+func (mock *MetamorphStoreMock) UpdateStatusHistoryBulkCalls() []struct {
+	Ctx     context.Context
+	Updates []store.UpdateStatus
+} {
+	var calls []struct {
+		Ctx     context.Context
+		Updates []store.UpdateStatus
+	}
+	mock.lockUpdateStatusHistoryBulk.RLock()
+	calls = mock.calls.UpdateStatusHistoryBulk
+	mock.lockUpdateStatusHistoryBulk.RUnlock()
 	return calls
 }

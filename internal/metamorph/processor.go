@@ -46,6 +46,8 @@ const (
 
 	processMinedBatchSizeDefault = 200
 	processMinedIntervalDefault  = 1 * time.Second
+
+	CacheRegisteredTxsHash = "mtm-registered-txs"
 )
 
 var (
@@ -768,7 +770,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// Add this transaction to the map of transactions that client is listening to with open connection
-	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
+	ctx, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
 	p.responseProcessor.Add(statusResponse)
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
@@ -782,7 +784,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	ctx, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
+	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 	tracing.EndTracing(announceTransactionSpan, nil)
 	if len(peers) == 0 {

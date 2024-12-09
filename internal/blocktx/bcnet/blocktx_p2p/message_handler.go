@@ -44,17 +44,19 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 			return
 		}
 
-		for _, iv := range invMsg.InvList {
-			if iv.Type == wire.InvTypeBlock {
-				req := BlockRequest{
-					Hash: &iv.Hash,
-					Peer: peer,
-				}
+		go func() {
+			for _, iv := range invMsg.InvList {
+				if iv.Type == wire.InvTypeBlock {
+					req := BlockRequest{
+						Hash: &iv.Hash,
+						Peer: peer,
+					}
 
-				h.blockRequestingCh <- req
+					h.blockRequestingCh <- req
+				}
+				// ignore INV with transaction or error
 			}
-			// ignore INV with transaction or error
-		}
+		}()
 
 	case wire.CmdBlock:
 		blockMsg, ok := msg.(*bcnet.BlockMessage)

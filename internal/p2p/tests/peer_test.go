@@ -283,7 +283,7 @@ func Test_listenMessages(t *testing.T) {
 }
 
 func Test_ErrorOnRead(t *testing.T) {
-	t.Run("Error while reading message from node - should not disconnect", func(t *testing.T) {
+	t.Run("Error while reading message from node - should disconnect", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := connectedPeer(t, mhMq)
@@ -307,9 +307,9 @@ func Test_ErrorOnRead(t *testing.T) {
 		require.NoError(t, writeErr)
 		require.Equal(t, len(invalidPayload), n)
 
-		// peer should not disconnect on invalid message or signal it's unhealthy
-		require.True(t, sut.Connected(), "Peer disconnect on error on reading message")
-		require.False(t, sutUnhealthy.Load(), "Peer send signal it's unhealthy on error on reading message")
+		// peer should disconnect on invalid message and signal it's unhealthy
+		require.False(t, sut.Connected(), "Peer didn't disconnect on error on reading message")
+		require.True(t, sutUnhealthy.Load(), "Peer didn't signal it's unhealthy on error on reading message")
 	})
 }
 

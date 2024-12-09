@@ -7,8 +7,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-const CacheRegisteredTxsHash = "mtm-registered-txs"
-
 type StatusResponse struct {
 	ctx      context.Context
 	statusCh chan StatusAndError

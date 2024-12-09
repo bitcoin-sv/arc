@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"

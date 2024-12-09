@@ -1,4 +1,4 @@
-package p2p
+package blocktx_p2p
 
 import (
 	"encoding/binary"

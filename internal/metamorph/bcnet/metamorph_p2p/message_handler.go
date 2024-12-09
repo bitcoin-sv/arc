@@ -1,4 +1,4 @@
-package p2p
+package metamorph_p2p
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	general_p2p "github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -27,7 +27,7 @@ type PeerTxMessage struct {
 	CompetingTxs []string
 }
 
-var _ general_p2p.MessageHandlerI = (*MsgHandler)(nil)
+var _ p2p.MessageHandlerI = (*MsgHandler)(nil)
 
 type MsgHandler struct {
 	logger    *slog.Logger
@@ -46,7 +46,7 @@ func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *Pee
 }
 
 // should be fire & forget
-func (h *MsgHandler) OnReceive(msg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 	switch cmd {
 	case wire.CmdInv:
@@ -67,7 +67,7 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer general_p2p.PeerI) {
 }
 
 // should be fire & forget
-func (h *MsgHandler) OnSend(msg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 	switch cmd {
 	case wire.CmdTx:
@@ -87,7 +87,7 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer general_p2p.PeerI) {
 	}
 }
 
-func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 	msg, ok := wireMsg.(*wire.MsgInv)
 	if !ok {
 		return
@@ -108,7 +108,7 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer general_p2p.Pe
 	}
 }
 
-func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 	msg, ok := wireMsg.(*wire.MsgTx)
 	if !ok {
 		return
@@ -122,7 +122,7 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer general_p2p.Pee
 	}
 }
 
-func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) {
 	msg, ok := wireMsg.(*wire.MsgReject)
 	if !ok {
 		return
@@ -136,14 +136,14 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer general_p2p
 	}
 }
 
-func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer general_p2p.PeerI) {
+func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI) {
 	msg, ok := wireMsg.(*wire.MsgGetData)
 	if !ok {
 		return
 	}
 
 	// do not block main goroutine
-	go func(msg *wire.MsgGetData, peer general_p2p.PeerI) {
+	go func(msg *wire.MsgGetData, peer p2p.PeerI) {
 		// handle tx INV
 		txRequests := make([][]byte, 0, len(msg.InvList))
 

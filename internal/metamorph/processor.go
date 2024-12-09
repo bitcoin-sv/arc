@@ -16,7 +16,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/p2p"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -52,7 +52,7 @@ const (
 
 var (
 	ErrStoreNil                     = errors.New("store cannot be nil")
-	ErrPeerMessangerNil             = errors.New("p2p messenger cannot be nil")
+	ErrPeerMessengerNil             = errors.New("p2p messenger cannot be nil")
 	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
 	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
@@ -119,7 +119,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkM
 	}
 
 	if messenger == nil {
-		return nil, ErrPeerMessangerNil
+		return nil, ErrPeerMessengerNil
 	}
 
 	hostname, err := os.Hostname()

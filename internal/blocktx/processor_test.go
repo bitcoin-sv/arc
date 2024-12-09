@@ -22,7 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/bcnet/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 )
 

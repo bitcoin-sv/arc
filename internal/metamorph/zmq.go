@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,8 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 var allowedTopics = []string{
@@ -111,8 +114,7 @@ func (z *ZMQ) Start() (func(), error) {
 		for c := range ch {
 			switch c[0] {
 			case hashtxTopic:
-				z.logger.Debug(hashtxTopic, slog.String("hash", c[1]))
-
+				z.logger.Log(context.Background(), logger.LevelTrace, hashtxTopic, slog.String("hash", c[1]))
 				hash, err := chainhash.NewHashFromStr(c[1])
 				if err != nil {
 					z.logger.Error("failed to get hash from string", slog.String("topic", hashtxTopic), slog.String("err", err.Error()))
@@ -261,7 +263,7 @@ func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string
 	for _, tx := range competingTxs {
 		competingHash, err := chainhash.NewHashFromStr(tx)
 		if err != nil {
-			z.logger.Debug("could not parse competing tx hash",
+			z.logger.Warn("could not parse competing tx hash",
 				slog.String("reportingTxHash", hash.String()),
 				slog.String("err", err.Error()),
 				slog.String("competingTxID", tx))

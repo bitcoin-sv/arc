@@ -179,7 +179,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 	return p, nil
 }
 
-func (p *Processor) Start() error {
+func (p *Processor) Start(statsEnabled bool) error {
 	err := p.mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlock{}
 		err := proto.Unmarshal(msg, serialized)
@@ -215,9 +215,11 @@ func (p *Processor) Start() error {
 	p.StartRequestingSeenOnNetworkTxs()
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
-	err = p.StartCollectStats()
-	if err != nil {
-		return errors.Join(ErrFailedToStartCollectingStats, err)
+	if statsEnabled {
+		err = p.StartCollectStats()
+		if err != nil {
+			return errors.Join(ErrFailedToStartCollectingStats, err)
+		}
 	}
 	p.StartSendStatusUpdate()
 	p.StartProcessSubmittedTxs()

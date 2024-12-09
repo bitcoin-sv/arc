@@ -78,7 +78,7 @@ func replaceAttr(_ []string, a slog.Attr) slog.Attr {
 
 	// Customize the name of the level key
 	if a.Key == slog.LevelKey {
-		level := a.Value.Any().(slog.Level)
+		level := a.Value.Any().(slog.Level) //nolint:errcheck,revive
 		if level == LevelTrace {
 			a.Value = slog.StringValue("TRACE")
 		}

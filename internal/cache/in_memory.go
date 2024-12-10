@@ -140,8 +140,3 @@ func (s *MemoryStore) MapLen(hashsetKey string) (int64, error) {
 
 	return int64(len(hashMap)), nil
 }
-
-// IsShared returns whether this cache is shared between instances
-func (s *MemoryStore) IsShared() bool {
-	return false
-}

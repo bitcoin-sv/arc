@@ -149,7 +149,7 @@ func TestPutTransaction(t *testing.T) {
 				},
 			}
 
-			opts := []metamorph.ServerOption{metamorph.WithMaxTimeoutDefault(100 * time.Millisecond)}
+			opts := []metamorph.ServerOption{metamorph.WithServerMaxTimeoutDefault(100 * time.Millisecond)}
 			if tc.checkStatusInterval {
 				opts = append(opts, metamorph.WithCheckStatusInterval(50*time.Millisecond))
 			}
@@ -586,7 +586,7 @@ func TestPutTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil, metamorph.WithMaxTimeoutDefault(5*time.Second))
+			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil, metamorph.WithServerMaxTimeoutDefault(5*time.Second))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

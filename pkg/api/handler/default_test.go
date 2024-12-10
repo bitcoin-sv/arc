@@ -27,11 +27,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 )
 
 var (

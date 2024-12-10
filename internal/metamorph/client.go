@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"log/slog"
 	"os"
 	"runtime"
@@ -19,13 +20,11 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
 
 const retryInterval = 300 * time.Millisecond
-const maxTimeoutDefault = 5 * time.Second
 
 var (
 	ErrTransactionNotFound = errors.New("transaction not found")
@@ -59,7 +58,7 @@ type TransactionStatus struct {
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
 	client            metamorph_api.MetaMorphAPIClient
-	mqClient          MessageQueueClient
+	mqClient          metamorph.MessageQueueClient
 	logger            *slog.Logger
 	now               func() time.Time
 	tracingEnabled    bool
@@ -67,19 +66,19 @@ type Metamorph struct {
 	maxTimeout        time.Duration
 }
 
-func WithMaxTimeoutDefault(d time.Duration) func(*Metamorph) {
+func WithClientMaxTimeoutDefault(d time.Duration) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.maxTimeout = d
 	}
 }
 
-func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
+func WithMqClient(mqClient metamorph.MessageQueueClient) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.mqClient = mqClient
 	}
 }
 
-func WithNow(nowFunc func() time.Time) func(*Metamorph) {
+func WithClientNow(nowFunc func() time.Time) func(*Metamorph) {
 	return func(p *Metamorph) {
 		p.now = nowFunc
 	}
@@ -91,7 +90,7 @@ func WithLogger(logger *slog.Logger) func(*Metamorph) {
 	}
 }
 
-func WithTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
+func WithClientTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
 	return func(m *Metamorph) {
 		m.tracingEnabled = true
 		if len(attr) > 0 {
@@ -197,7 +196,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	tx, err = m.client.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 		Txid: txID,
 	})
-	if err != nil && !strings.Contains(err.Error(), metamorph.ErrNotFound.Error()) {
+	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
 		return nil, err
 	}
 
@@ -241,7 +240,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	request := transactionRequest(tx.Bytes(), options)
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
-		err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, request)
+		err = m.mqClient.PublishMarshal(ctx, metamorph.SubmitTxTopic, request)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +322,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		for _, tx := range in.Transactions {
-			err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, tx)
+			err = m.mqClient.PublishMarshal(ctx, metamorph.SubmitTxTopic, tx)
 			if err != nil {
 				return nil, err
 			}

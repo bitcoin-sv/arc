@@ -5,7 +5,7 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"sync"
 )

@@ -18,6 +18,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -26,7 +27,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler/internal/merkle_verifier"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
 const (

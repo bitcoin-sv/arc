@@ -26,13 +26,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
@@ -80,7 +80,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			attributes = append(attributes, hostnameAttr)
 		}
 
-		mtmOpts = append(mtmOpts, metamorph.WithTracer(attributes...))
+		mtmOpts = append(mtmOpts, metamorph.WithClientTracer(attributes...))
 		apiOpts = append(apiOpts, handler.WithTracer(attributes...))
 		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
 		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))

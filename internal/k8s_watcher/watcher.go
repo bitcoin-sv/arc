@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 const (

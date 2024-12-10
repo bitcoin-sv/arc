@@ -3,12 +3,13 @@ package handler
 import (
 	"log"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	middleware "github.com/oapi-codegen/echo-middleware"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/api/dictionary"
 )
 
 // CheckSwagger validates the request against the swagger definition.

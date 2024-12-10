@@ -17,10 +17,10 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
 // This example does not use the configuration files or env variables,

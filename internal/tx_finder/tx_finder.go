@@ -11,9 +11,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 

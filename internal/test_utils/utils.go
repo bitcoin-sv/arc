@@ -69,7 +69,7 @@ func Retry(op func() error) error {
 	return nil
 }
 
-func LoadFixtures(t *testing.T, db *sql.DB, path string) {
+func LoadFixtures(t testing.TB, db *sql.DB, path string) {
 	t.Helper()
 
 	fixtures, err := testfixtures.New(
@@ -87,7 +87,7 @@ func LoadFixtures(t *testing.T, db *sql.DB, path string) {
 	}
 }
 
-func PruneTables(t *testing.T, db *sql.DB, tables ...string) {
+func PruneTables(t testing.TB, db *sql.DB, tables ...string) {
 	t.Helper()
 
 	for _, tab := range tables {

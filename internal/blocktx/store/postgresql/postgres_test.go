@@ -3,6 +3,8 @@ package postgresql
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"log"
 	"os"
 	"testing"
@@ -10,8 +12,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -19,6 +19,9 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
@@ -88,7 +91,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func prepareDb(t *testing.T, postgres *PostgreSQL, fixture string) {
+func prepareDb(t testing.TB, postgres *PostgreSQL, fixture string) {
 	t.Helper()
 
 	testutils.PruneTables(t, postgres.db,
@@ -784,6 +787,91 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 
 				require.Equal(t, tx.MerklePath, mp.MerklePath)
 				require.Equal(t, testBlockID, uint64(mp.BlockID))
+			}
+		})
+	}
+}
+
+func NewHash(length int) ([]byte, error) {
+	hash := make([]byte, length)
+	_, err := rand.Read(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash, nil
+}
+
+func BenchmarkUpsertBlockTransactions(b *testing.B) {
+	ctx, _, sut := setupPostgresTest(b)
+	defer sut.Close()
+
+	const totalRows = 80000
+	tt := []struct {
+		name       string
+		batch      int
+		iterations int
+	}{
+		{
+			name:       "UpsertBlockTransactions - 80000, 1 batch",
+			batch:      totalRows,
+			iterations: 1,
+		},
+		{
+			name:       "UpsertBlockTransactions - 20000, 4 batches",
+			batch:      20000,
+			iterations: 4,
+		},
+		{
+			name:       "UpsertBlockTransactions - 10000, 8 batches",
+			batch:      10000,
+			iterations: 8,
+		},
+		{
+			name:       "UpsertBlockTransactions - 8000, 10 batches",
+			batch:      8000,
+			iterations: 10,
+		},
+		{
+			name:       "UpsertBlockTransactions - 5000, 16 batches",
+			batch:      5000,
+			iterations: 16,
+		},
+		{
+			name:       "UpsertBlockTransactions - 2000, 40 batches",
+			batch:      2000,
+			iterations: 40,
+		},
+	}
+
+	for _, tc := range tt {
+		b.Run(tc.name, func(b *testing.B) {
+			b.StopTimer()
+
+			testBlockID := uint64(9736)
+			txsWithMerklePaths := make([]store.TxWithMerklePath, totalRows)
+
+			counter := 0
+			for range totalRows {
+				hash, err := NewHash(32)
+				require.NoError(b, err)
+				merklePath, err := NewHash(100)
+				require.NoError(b, err)
+				hex.EncodeToString(merklePath)
+
+				txsWithMerklePaths[counter] = store.TxWithMerklePath{
+					Hash:       hash,
+					MerklePath: hex.EncodeToString(merklePath),
+				}
+
+				counter++
+			}
+
+			b.StartTimer()
+
+			for i := 0; i < tc.iterations; i++ {
+				err := sut.UpsertBlockTransactions(ctx, testBlockID, txsWithMerklePaths[i*tc.batch:(i+1)*tc.batch-1])
+				require.NoError(b, err)
 			}
 		})
 	}

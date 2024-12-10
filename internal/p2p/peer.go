@@ -412,9 +412,8 @@ func (p *Peer) listenForMessages() {
 		defer l.Debug("Shutting down read handler")
 		defer p.execWg.Done()
 
-		reader := bufio.NewReader(&io.LimitedReader{R: p.lConn, N: p.maxMsgSize})
 		for {
-			msg, err := readWireMsg(p.execCtx, reader, wire.ProtocolVersion, p.network)
+			msg, err := p.readWireMsg(wire.ProtocolVersion)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
@@ -498,47 +497,33 @@ func (p *Peer) sendMessages(n uint8) {
 	}()
 }
 
+func (p *Peer) readWireMsg(pver uint32) (wire.Message, error) {
+	reader := bufio.NewReader(&io.LimitedReader{R: p.lConn, N: p.maxMsgSize})
+	result := make(chan readResult, 1)
+
+	go handleRead(reader, pver, p.network, result)
+
+	// block until read complete or context is canceled
+	select {
+	case <-p.execCtx.Done():
+		return nil, p.execCtx.Err()
+
+	case readMsg := <-result:
+		return readMsg.msg, readMsg.err
+	}
+}
+
 type readResult struct {
 	msg wire.Message
 	err error
 }
 
-func readWireMsg(ctx context.Context, r io.Reader, pver uint32, bsvnet wire.BitcoinNet) (wire.Message, error) {
-	readMsg := make(chan readResult, 1)
-
-	go handleRead(r, pver, bsvnet, readMsg)
-
-	// block until read complete or context is canceled
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-
-	case readMsg := <-readMsg:
-		return readMsg.msg, readMsg.err
-	}
-}
-
 func handleRead(r io.Reader, pver uint32, bsvnet wire.BitcoinNet, result chan<- readResult) {
-	const maxSubsequentEOF = 10
-
 	for {
-		eofCounter := 0
-
 		msg, _, err := wire.ReadMessage(r, pver, bsvnet)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				// some nodes send EOF if has nothing to say
-				// tolerate it, but have limits
-				eofCounter++
-				if eofCounter < maxSubsequentEOF {
-					time.Sleep(time.Second)
-					continue
-				}
-			} else if strings.Contains(err.Error(), "unhandled command [") { // TODO: change it with new go-p2p version
-				// ignore unknown msg
-				eofCounter = 0
-				continue
-			}
+		if err != nil && strings.Contains(err.Error(), "unhandled command [") { // TODO: change it with new go-p2p version
+			// ignore unknown msg
+			continue
 		}
 
 		result <- readResult{msg, err}

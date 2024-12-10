@@ -4,10 +4,11 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
+
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 )

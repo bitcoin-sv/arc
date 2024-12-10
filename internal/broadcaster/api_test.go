@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"testing"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
+	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/mocks"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +36,7 @@ func TestBroadcastTransactions(t *testing.T) {
 	}{
 		{
 			name:            "error marlformed",
-			httpStatusCode:  int(api.ErrStatusMalformed),
+			httpStatusCode:  int(internalApi.ErrStatusMalformed),
 			postTxResponses: nil,
 			postTxError: &api.ErrorFields{
 				Detail: "Transaction is malformed and cannot be processed",
@@ -44,7 +46,7 @@ func TestBroadcastTransactions(t *testing.T) {
 		},
 		{
 			name:           "valid tx",
-			httpStatusCode: int(api.StatusOK),
+			httpStatusCode: int(internalApi.StatusOK),
 			postTxResponses: []*api.TransactionResponse{
 				{
 					BlockHash:   ptrTo("0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd"),
@@ -122,7 +124,7 @@ func TestBroadcastTransaction(t *testing.T) {
 	}{
 		{
 			name:           "error marlformed",
-			httpStatusCode: int(api.ErrStatusMalformed),
+			httpStatusCode: int(internalApi.ErrStatusMalformed),
 			postTxResponse: nil,
 			postTxError: &api.ErrorFields{
 				Detail: "Transaction is malformed and cannot be processed",
@@ -132,7 +134,7 @@ func TestBroadcastTransaction(t *testing.T) {
 		},
 		{
 			name:           "valid tx",
-			httpStatusCode: int(api.StatusOK),
+			httpStatusCode: int(internalApi.StatusOK),
 			postTxResponse: &api.TransactionResponse{
 				BlockHash:   ptrTo("0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd"),
 				BlockHeight: ptrTo(uint64(736228)),

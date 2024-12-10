@@ -9,7 +9,7 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/internal/api"
 )
 
 // maxBlockSize is set dynamically in a node, and should be gotten from the policy

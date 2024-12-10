@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
-	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
-
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
+
+	"github.com/bitcoin-sv/arc/internal/api/handler"
+	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 // CustomHandler is our custom arc handler

@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
+	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
@@ -32,7 +33,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
@@ -44,7 +44,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
 	// check the swagger definition against our requests
-	handler.CheckSwagger(e)
+	apiHandler.CheckSwagger(e)
 
 	mqClient, err := natsMqClient(logger, arcConfig)
 	if err != nil {
@@ -56,8 +56,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithLogger(logger),
 	}
 	// TODO: WithSecurityConfig(appConfig.Security)
-	apiOpts := []handler.Option{
-		handler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+	apiOpts := []apiHandler.Option{
+		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 	}
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)
@@ -81,7 +81,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		}
 
 		mtmOpts = append(mtmOpts, metamorph.WithClientTracer(attributes...))
-		apiOpts = append(apiOpts, handler.WithTracer(attributes...))
+		apiOpts = append(apiOpts, apiHandler.WithTracer(attributes...))
 		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
 		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
@@ -130,7 +130,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
 	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	apiHandler, err := handler.NewDefault(logger, metamorphClient, blockTxClient, policy, cachedFinder, apiOpts...)
+	apiHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, policy, cachedFinder, apiOpts...)
 	if err != nil {
 		return nil, err
 	}

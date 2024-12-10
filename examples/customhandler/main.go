@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler"
-	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	middleware "github.com/oapi-codegen/echo-middleware"
+
+	"github.com/bitcoin-sv/arc/internal/api/handler"
+	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/getkin/kin-openapi/openapi3filter"
 )
 
 // This example does not use the configuration files or env variables,

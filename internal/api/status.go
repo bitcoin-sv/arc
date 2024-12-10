@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/bitcoin-sv/arc/pkg/api"
 	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -31,7 +32,7 @@ const (
 	ErrStatusTxSize                 StatusCode = 474
 )
 
-func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
+func (e *api.ErrorFields) GetSpanAttributes() []attribute.KeyValue {
 	attr := []attribute.KeyValue{attribute.Int("code", e.Status)}
 	if e.ExtraInfo != nil {
 		attr = append(attr, attribute.String("extraInfo", *e.ExtraInfo))
@@ -39,9 +40,9 @@ func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
 	return attr
 }
 
-func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
+func NewErrorFields(status StatusCode, extraInfo string) *api.ErrorFields {
 	emptyString := ""
-	errFields := ErrorFields{
+	errFields := api.ErrorFields{
 		Status:    int(status),
 		ExtraInfo: &emptyString,
 	}

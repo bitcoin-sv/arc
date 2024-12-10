@@ -3,7 +3,7 @@ package validator
 import (
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/internal/api"
 )
 
 type Error struct {

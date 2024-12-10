@@ -244,6 +244,16 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		Txid:   txID,
 		Status: metamorph_api.Status_RECEIVED,
 	}
+
+	for _, cb := range data.Callbacks {
+		if cb.CallbackURL != "" {
+			returnedStatus.Callbacks = append(returnedStatus.Callbacks, &metamorph_api.Callback{
+				CallbackUrl:   cb.CallbackURL,
+				CallbackToken: cb.CallbackToken,
+			})
+		}
+	}
+
 	defer func() {
 		if span != nil {
 			span.SetAttributes(attribute.String("finalStatus", returnedStatus.Status.String()), attribute.String("txID", returnedStatus.Txid), attribute.Bool("timeout", returnedStatus.TimedOut), attribute.String("waitFor", waitForStatus.String()))
@@ -438,6 +448,17 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 		RejectReason: data.RejectReason,
 		CompetingTxs: data.CompetingTxs,
 		MerklePath:   data.MerklePath,
+		Timestamp:    timestamppb.New(data.StoredAt),
+	}
+
+	for _, cb := range data.Callbacks {
+		if cb.CallbackURL != "" {
+			returnStatus.Callbacks = append(returnStatus.Callbacks, &metamorph_api.Callback{
+				CallbackUrl:   cb.CallbackURL,
+				CallbackToken: cb.CallbackToken,
+				AllowBatch:    cb.AllowBatch,
+			})
+		}
 	}
 
 	if returnStatus.Status == metamorph_api.Status_MINED && len(returnStatus.CompetingTxs) > 0 {

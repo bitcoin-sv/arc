@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	api2 "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"log/slog"
 	"net/http"
@@ -182,13 +181,13 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
-		e := api2.NewErrorFields(api2.ErrStatusBadRequest, err.Error())
+		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		return ctx.JSON(e.Status, e)
 	}
 
 	txHex, err := parseTransactionFromRequest(ctx.Request())
 	if err != nil {
-		e := api2.NewErrorFields(api2.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -242,11 +241,11 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 	tx, err := m.getTransactionStatus(reqCtx, id)
 	if err != nil {
 		if errors.Is(err, metamorph.ErrTransactionNotFound) {
-			e := api2.NewErrorFields(api2.ErrStatusNotFound, err.Error())
+			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
 			return ctx.JSON(e.Status, e)
 		}
 
-		e := api2.NewErrorFields(api2.ErrStatusGeneric, err.Error())
+		e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -255,7 +254,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 	}
 
 	if tx == nil {
-		e := api2.NewErrorFields(api2.ErrStatusNotFound, "failed to find transaction")
+		e := api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction")
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -287,7 +286,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	// set the globals for all transactions in this request
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
-		e := api2.NewErrorFields(api2.ErrStatusBadRequest, err.Error())
+		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -297,7 +296,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 	txsHex, err := parseTransactionsFromRequest(ctx.Request())
 	if err != nil {
-		e := api2.NewErrorFields(api2.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -328,7 +327,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		responses = append(responses, fo)
 	}
 
-	return ctx.JSON(int(api2.StatusOK), responses)
+	return ctx.JSON(int(api.StatusOK), responses)
 }
 
 func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
@@ -452,7 +451,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
 			if err != nil {
 				errStr := errors.Join(ErrDecodingBeef, err).Error()
-				return nil, nil, nil, api2.NewErrorFields(api2.ErrStatusMalformed, errStr)
+				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 
 			txsHex = remainingBytes
@@ -473,7 +472,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
-				return nil, nil, nil, api2.NewErrorFields(api2.ErrStatusBadRequest, err.Error())
+				return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
 
 			txsHex = txsHex[bytesUsed:]
@@ -511,7 +510,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txID = submittedTxs[idx].TxID()
 		}
 		successes = append(successes, &api.TransactionResponse{
-			Status:       int(api2.StatusOK),
+			Status:       int(api.StatusOK),
 			Title:        "OK",
 			BlockHash:    &tx.BlockHash,
 			BlockHeight:  &tx.BlockHeight,
@@ -624,12 +623,12 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	return tx, nil
 }
 
-func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Transaction, submitErr error) (api2.StatusCode, *api.ErrorFields) {
+func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Transaction, submitErr error) (api.StatusCode, *api.ErrorFields) {
 	if submitErr == nil {
-		return api2.StatusOK, nil
+		return api.StatusOK, nil
 	}
 
-	status := api2.ErrStatusGeneric
+	status := api.ErrStatusGeneric
 
 	var validatorErr *validator.Error
 	ok := errors.As(submitErr, &validatorErr)
@@ -638,7 +637,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	}
 
 	// enrich the response with the error details
-	arcError := api2.NewErrorFields(status, submitErr.Error())
+	arcError := api.NewErrorFields(status, submitErr.Error())
 
 	if transaction != nil {
 		arcError.Txid = PtrTo(transaction.TxID())

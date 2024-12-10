@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/bitcoin-sv/arc/pkg/api"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -9,93 +10,93 @@ import (
 func TestNewErrorFields(t *testing.T) {
 	tt := []struct {
 		name   string
-		status StatusCode
+		status api.StatusCode
 
-		expectedStatus StatusCode
+		expectedStatus api.StatusCode
 	}{
 		{
 			name:   "ErrStatusBadRequest",
-			status: ErrStatusBadRequest,
+			status: api.ErrStatusBadRequest,
 
-			expectedStatus: ErrStatusBadRequest,
+			expectedStatus: api.ErrStatusBadRequest,
 		},
 		{
 			name:   "ErrStatusNotFound",
-			status: ErrStatusNotFound,
+			status: api.ErrStatusNotFound,
 
-			expectedStatus: ErrStatusNotFound,
+			expectedStatus: api.ErrStatusNotFound,
 		},
 		{
 			name:   "ErrStatusGeneric",
-			status: ErrStatusGeneric,
+			status: api.ErrStatusGeneric,
 
-			expectedStatus: ErrStatusGeneric,
+			expectedStatus: api.ErrStatusGeneric,
 		},
 		{
 			name:   "ErrStatusTxFormat",
-			status: ErrStatusTxFormat,
+			status: api.ErrStatusTxFormat,
 
-			expectedStatus: ErrStatusTxFormat,
+			expectedStatus: api.ErrStatusTxFormat,
 		},
 		{
 			name:   "ErrStatusUnlockingScripts",
-			status: ErrStatusUnlockingScripts,
+			status: api.ErrStatusUnlockingScripts,
 
-			expectedStatus: ErrStatusUnlockingScripts,
+			expectedStatus: api.ErrStatusUnlockingScripts,
 		},
 		{
 			name:   "ErrStatusInputs",
-			status: ErrStatusInputs,
+			status: api.ErrStatusInputs,
 
-			expectedStatus: ErrStatusInputs,
+			expectedStatus: api.ErrStatusInputs,
 		},
 		{
 			name:   "ErrStatusOutputs",
-			status: ErrStatusOutputs,
+			status: api.ErrStatusOutputs,
 
-			expectedStatus: ErrStatusOutputs,
+			expectedStatus: api.ErrStatusOutputs,
 		},
 		{
 			name:   "ErrStatusMalformed",
-			status: ErrStatusMalformed,
+			status: api.ErrStatusMalformed,
 
-			expectedStatus: ErrStatusMalformed,
+			expectedStatus: api.ErrStatusMalformed,
 		},
 		{
 			name:   "ErrStatusFees",
-			status: ErrStatusFees,
+			status: api.ErrStatusFees,
 
-			expectedStatus: ErrStatusFees,
+			expectedStatus: api.ErrStatusFees,
 		},
 		{
 			name:   "ErrStatusConflict",
-			status: ErrStatusConflict,
+			status: api.ErrStatusConflict,
 
-			expectedStatus: ErrStatusConflict,
+			expectedStatus: api.ErrStatusConflict,
 		},
 		{
 			name:   "ErrStatusFrozenPolicy",
-			status: ErrStatusFrozenPolicy,
+			status: api.ErrStatusFrozenPolicy,
 
-			expectedStatus: ErrStatusFrozenPolicy,
+			expectedStatus: api.ErrStatusFrozenPolicy,
 		},
 		{
 			name:   "ErrStatusFrozenConsensus",
-			status: ErrStatusFrozenConsensus,
+			status: api.ErrStatusFrozenConsensus,
 
-			expectedStatus: ErrStatusFrozenConsensus,
+			expectedStatus: api.ErrStatusFrozenConsensus,
 		},
 		{
 			name:   "non existent status",
 			status: 1000,
 
-			expectedStatus: ErrStatusGeneric,
+			expectedStatus: api.ErrStatusGeneric,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			errFields := NewErrorFields(tc.status, "some extra info")
+			errFields := api.NewErrorFields(tc.status, "some extra info")
 
 			require.Equal(t, int(tc.expectedStatus), errFields.Status)
 			require.Equal(t, "some extra info", *errFields.ExtraInfo)

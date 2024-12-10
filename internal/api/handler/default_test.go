@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	api2 "github.com/bitcoin-sv/arc/internal/api"
 	"io"
 	"log/slog"
 	"net/http"
@@ -198,7 +197,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		txHandlerStatusFound *metamorph.TransactionStatus
 		txHandlerErr         error
 
-		expectedStatus   api2.StatusCode
+		expectedStatus   api.StatusCode
 		expectedResponse any
 	}{
 		{
@@ -209,7 +208,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
 			},
 
-			expectedStatus: api2.StatusOK,
+			expectedStatus: api.StatusOK,
 			expectedResponse: api.TransactionStatus{
 				MerklePath:  PtrTo(""),
 				BlockHeight: PtrTo(uint64(0)),
@@ -229,7 +228,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				CompetingTxs: []string{"1234"},
 			},
 
-			expectedStatus: api2.StatusOK,
+			expectedStatus: api.StatusOK,
 			expectedResponse: api.TransactionStatus{
 				MerklePath:   PtrTo(""),
 				BlockHeight:  PtrTo(uint64(0)),
@@ -246,24 +245,24 @@ func TestGETTransactionStatus(t *testing.T) {
 			txHandlerStatusFound: nil,
 			txHandlerErr:         metamorph.ErrTransactionNotFound,
 
-			expectedStatus:   api2.ErrStatusNotFound,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusNotFound, "transaction not found"),
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
 		},
 		{
 			name:                 "error - generic",
 			txHandlerStatusFound: nil,
 			txHandlerErr:         errors.New("some error"),
 
-			expectedStatus:   api2.ErrStatusGeneric,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusGeneric, "some error"),
+			expectedStatus:   api.ErrStatusGeneric,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusGeneric, "some error"),
 		},
 		{
 			name:                 "error - no tx",
 			txHandlerStatusFound: nil,
 			txHandlerErr:         nil,
 
-			expectedStatus:   api2.ErrStatusNotFound,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusNotFound, "failed to find transaction"),
+			expectedStatus:   api.ErrStatusNotFound,
+			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction"),
 		},
 	}
 
@@ -308,19 +307,19 @@ func TestGETTransactionStatus(t *testing.T) {
 }
 
 func TestPOSTTransaction(t *testing.T) { //nolint:funlen
-	errFieldMissingInputs := *api2.NewErrorFields(api2.ErrStatusTxFormat, "arc error 460: failed to get raw transactions for parent")
+	errFieldMissingInputs := *api.NewErrorFields(api.ErrStatusTxFormat, "arc error 460: failed to get raw transactions for parent")
 	errFieldMissingInputs.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errFieldSubmitTx := *api2.NewErrorFields(api2.ErrStatusGeneric, "failed to submit tx")
+	errFieldSubmitTx := *api.NewErrorFields(api.ErrStatusGeneric, "failed to submit tx")
 	errFieldSubmitTx.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errFieldValidation := *api2.NewErrorFields(api2.ErrStatusFees, "arc error 465: transaction fee is too low\nminimum expected fee: 22500000000, actual fee: 12")
+	errFieldValidation := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee is too low\nminimum expected fee: 22500000000, actual fee: 12")
 	errFieldValidation.Txid = PtrTo("a147cc3c71cc13b29f18273cf50ffeb59fc9758152e2b33e21a8092f0b049118")
 
-	errBEEFDecode := *api2.NewErrorFields(api2.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
-	errBEEFLowFees := *api2.NewErrorFields(api2.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
+	errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
+	errBEEFLowFees := *api.NewErrorFields(api.ErrStatusFees, "arc error 465: transaction fee of 0 sat is too low - minimum expected fee is 1 sat")
 	errBEEFLowFees.Txid = PtrTo("8184849de6af441c7de088428073c2a9131b08f7d878d9f49c3faf6d941eb168")
-	errBEEFInvalidScripts := *api2.NewErrorFields(api2.ErrStatusUnlockingScripts, "arc error 461: invalid script")
+	errBEEFInvalidScripts := *api.NewErrorFields(api.ErrStatusUnlockingScripts, "arc error 461: invalid script")
 	errBEEFInvalidScripts.Txid = PtrTo("ea2924da32c47b9942cda5ad30d3c01610ca554ca3a9ca01b2ccfe72bf0667be")
 
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
@@ -334,7 +333,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		submitTxErr      error
 		getRawTxsErr     error
 
-		expectedStatus   api2.StatusCode
+		expectedStatus   api.StatusCode
 		expectedResponse any
 		expectedError    error
 
@@ -345,7 +344,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[0],
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -353,7 +352,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[1],
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -361,7 +360,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[2],
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -370,7 +369,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: given content-type application/xml does not match any of the allowed content-types"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: given content-type application/xml does not match any of the allowed content-types"),
 		},
 		{
 			name:        "invalid tx - text/plain",
@@ -378,7 +377,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'"),
 		},
 		{
 			name:        "invalid json - application/json",
@@ -386,7 +385,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')"),
 		},
 		{
 			name:        "invalid tx - incorrect json field, application/json",
@@ -394,7 +393,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: fmt.Sprintf("{\"txHex\": \"%s\"}", validTx),
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -403,7 +402,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api2.NewErrorFields(api2.ErrStatusBadRequest, "could not read varint type: EOF"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "could not read varint type: EOF"),
 		},
 		{
 			name:         "valid tx - missing inputs, text/plain",
@@ -727,7 +726,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			// then
 			require.NoError(t, actualError)
 			// multiple txs post always returns 200, the error code is given per tx
-			assert.Equal(t, api2.ErrStatusBadRequest, api2.StatusCode(rec.Code))
+			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
 		}
 	})
 
@@ -752,7 +751,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, int(api2.ErrStatusBadRequest), rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 		b := rec.Body.Bytes()
 		var bErr api.ErrorMalformed
@@ -778,7 +777,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		// then
 		require.NoError(t, actualError)
-		assert.Equal(t, int(api2.ErrStatusBadRequest), rec.Code)
+		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 	})
 
 	t.Run("invalid txs", func(t *testing.T) {
@@ -799,14 +798,14 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, int(api2.ErrStatusBadRequest), rec.Code)
+			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bErr api.ErrorBadRequest
 			err = json.Unmarshal(b, &bErr)
 			require.NoError(t, err)
 
-			errBadRequest := api2.NewErrorFields(api2.ErrStatusBadRequest, "")
+			errBadRequest := api.NewErrorFields(api.ErrStatusBadRequest, "")
 
 			assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
 			assert.Equal(t, errBadRequest.Title, bErr.Title)
@@ -854,13 +853,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, api2.StatusOK, api2.StatusCode(rec.Code))
+			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
 
 			b := rec.Body.Bytes()
 			var bErr []api.ErrorFields
 			_ = json.Unmarshal(b, &bErr)
 
-			assert.Equal(t, int(api2.ErrStatusTxFormat), bErr[0].Status)
+			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
 
 			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrFailedToGetRawTxs.Error())
 		}
@@ -919,7 +918,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid tx - beef", func(t *testing.T) {
 		// given
-		errBEEFDecode := *api2.NewErrorFields(api2.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
+		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
@@ -944,7 +943,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			// then
 			require.NoError(t, err)
-			assert.Equal(t, int(api2.ErrStatusMalformed), rec.Code)
+			assert.Equal(t, int(api.ErrStatusMalformed), rec.Code)
 
 			b := rec.Body.Bytes()
 			var bResponse api.ErrorFields
@@ -1334,20 +1333,20 @@ func Test_handleError(t *testing.T) {
 		name        string
 		submitError error
 
-		expectedStatus api2.StatusCode
+		expectedStatus api.StatusCode
 		expectedArcErr *api.ErrorFields
 	}{
 		{
 			name: "no error",
 
-			expectedStatus: api2.StatusOK,
+			expectedStatus: api.StatusOK,
 			expectedArcErr: nil,
 		},
 		{
 			name:        "generic error",
 			submitError: errors.New("some error"),
 
-			expectedStatus: api2.ErrStatusGeneric,
+			expectedStatus: api.ErrStatusGeneric,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Transaction could not be processed",
 				ExtraInfo: PtrTo("some error"),
@@ -1360,11 +1359,11 @@ func Test_handleError(t *testing.T) {
 		{
 			name: "validator error",
 			submitError: &validator.Error{
-				ArcErrorStatus: api2.ErrStatusBadRequest,
+				ArcErrorStatus: api.ErrStatusBadRequest,
 				Err:            errors.New("validation failed"),
 			},
 
-			expectedStatus: api2.ErrStatusBadRequest,
+			expectedStatus: api.ErrStatusBadRequest,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "The request seems to be malformed and cannot be processed",
 				ExtraInfo: PtrTo("arc error 400: validation failed"),
@@ -1377,11 +1376,11 @@ func Test_handleError(t *testing.T) {
 		{
 			name: "parent not found error",
 			submitError: &validator.Error{
-				ArcErrorStatus: api2.ErrStatusTxFormat,
+				ArcErrorStatus: api.ErrStatusTxFormat,
 				Err:            errors.New("parent transaction not found"),
 			},
 
-			expectedStatus: api2.ErrStatusTxFormat,
+			expectedStatus: api.ErrStatusTxFormat,
 			expectedArcErr: &api.ErrorFields{
 				Detail:    "Missing input scripts: Transaction could not be transformed to extended format",
 				ExtraInfo: PtrTo("arc error 460: parent transaction not found"),

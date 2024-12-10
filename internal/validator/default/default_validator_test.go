@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 var validLockingScript = &script.Script{

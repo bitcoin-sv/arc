@@ -9,10 +9,11 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/api"
+	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 var (
@@ -61,11 +62,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err = standardCheckFees(tx, api.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
+		if err = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err = cumulativeCheckFees(ctx, v.txFinder, tx, api.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
+		if err = cumulativeCheckFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:

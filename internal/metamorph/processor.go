@@ -318,9 +318,6 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			p.callbackSender.SendCallback(ctx, data)
 		}
-
-		// remove tx from cache - we don't expect any more status updates
-		p.delTxFromCache(data.Hash)
 	}
 }
 
@@ -405,6 +402,8 @@ func (p *Processor) StartSendStatusUpdate() {
 					continue
 				}
 
+				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
+
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -413,8 +412,8 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 				}
 
-				// if tx is rejected, we don't expect any more status updates - remove from cache
-				if msg.Status == metamorph_api.Status_REJECTED {
+				// if tx is seen on network or rejected, we don't expect any more status updates on this channel - remove from cache
+				if msg.Status == metamorph_api.Status_SEEN_ON_NETWORK || msg.Status == metamorph_api.Status_REJECTED {
 					p.delTxFromCache(msg.Hash)
 				}
 			}
@@ -666,6 +665,13 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							continue
 						}
 
+						// save the tx to cache again, in case it was removed or expired
+						err := p.saveTxToCache(tx.Hash)
+						if err != nil {
+							p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+							continue
+						}
+
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
@@ -775,7 +781,12 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
 	// Add this transaction to shared cache
-	p.saveTxToCache(statusResponse.Hash)
+	err = p.saveTxToCache(statusResponse.Hash)
+	if err != nil {
+		p.logger.Error("failed to store tx in cache", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
+		// NOTE: or do return and show the client status STORED + Err?
+	}
 
 	// Send GETDATA to peers to see if they have it
 	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
@@ -881,15 +892,22 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 	return false
 }
 
-func (p *Processor) saveTxToCache(hash *chainhash.Hash) {
+func (p *Processor) saveTxToCache(hash *chainhash.Hash) error {
 	if p.cacheStore.IsShared() {
-		_ = p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
+		return p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
 	}
+	return nil
 }
 
 func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
 	if p.cacheStore.IsShared() {
-		value, _ := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
+		value, err := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
+		if err != nil {
+			p.logger.Error("count not get the transaction from hash", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+			// respond as if the tx is found just in case this transaction is registered
+			return true
+		}
+
 		return value != nil
 	}
 

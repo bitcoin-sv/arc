@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 func TestCheckSwagger(t *testing.T) {

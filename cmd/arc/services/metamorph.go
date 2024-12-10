@@ -12,14 +12,13 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/bitcoin-sv/arc/pkg/callbacker"
-
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
@@ -48,7 +47,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		peerHandler     *metamorph.PeerHandler
 		pm              metamorph.PeerManager
 		statusMessageCh chan *metamorph.TxStatusMessage
-		mqClient        metamorph.MessageQueueClient
+		mqClient        metamorph.MessageQueue
 		processor       *metamorph.Processor
 		server          *metamorph.Server
 		healthServer    *grpc_opts.GrpcServer
@@ -77,7 +76,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			attributes = append(attributes, hostnameAttr)
 		}
 
-		optsServer = append(optsServer, metamorph.WithTracer(attributes...))
+		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
 		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
 		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
 	}
@@ -333,7 +332,7 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int,
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
-	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueueClient,
+	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueue,
 	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
 	shutdownFns []func(),
 ) {

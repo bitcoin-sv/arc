@@ -71,7 +71,7 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 	}
 }
 
-func WithMaxTimeoutDefault(timeout time.Duration) func(*Server) {
+func WithServerMaxTimeoutDefault(timeout time.Duration) func(*Server) {
 	return func(s *Server) {
 		s.maxTimeoutDefault = timeout
 	}
@@ -83,8 +83,8 @@ func WithCheckStatusInterval(d time.Duration) func(*Server) {
 	}
 }
 
-// WithTracer sets the tracer to be used for tracing
-func WithTracer(attr ...attribute.KeyValue) func(s *Server) {
+// WithServerTracer sets the tracer to be used for tracing
+func WithServerTracer(attr ...attribute.KeyValue) func(s *Server) {
 	return func(s *Server) {
 		s.tracingEnabled = true
 		if len(attr) > 0 {

@@ -8,3 +8,9 @@ package blocktx
 
 // from nats_core_client.go
 //go:generate moq -pkg mocks -out ./mocks/mq_client_mock.go . MessageQueueClient
+
+// from client.go
+//go:generate moq -pkg mocks -out ./mocks/merkle_roots_verifier_mock.go . MerkleRootsVerifier
+
+// from client.go
+//go:generate moq -pkg mocks -out ./mocks/blocktx_client_mock.go . Watcher

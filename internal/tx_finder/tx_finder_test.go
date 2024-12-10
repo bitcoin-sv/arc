@@ -8,11 +8,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	transactionHandlerMock "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-
-	transactionHandlerMock "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
 func Test_GetRawTxs(t *testing.T) {

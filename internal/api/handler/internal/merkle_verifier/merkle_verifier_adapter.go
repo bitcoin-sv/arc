@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 )
 
 type MerkleVerifier struct {

@@ -9,16 +9,16 @@ import (
 	"sync"
 )
 
-// Ensure, that MessageQueueClientMock does implement metamorph.MessageQueueClient.
+// Ensure, that MessageQueueMock does implement metamorph.MessageQueue.
 // If this is not the case, regenerate this file with moq.
-var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
+var _ metamorph.MessageQueue = &MessageQueueMock{}
 
-// MessageQueueClientMock is a mock implementation of metamorph.MessageQueueClient.
+// MessageQueueMock is a mock implementation of metamorph.MessageQueue.
 //
-//	func TestSomethingThatUsesMessageQueueClient(t *testing.T) {
+//	func TestSomethingThatUsesMessageQueue(t *testing.T) {
 //
-//		// make and configure a mocked metamorph.MessageQueueClient
-//		mockedMessageQueueClient := &MessageQueueClientMock{
+//		// make and configure a mocked metamorph.MessageQueue
+//		mockedMessageQueue := &MessageQueueMock{
 //			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
@@ -30,11 +30,11 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //			},
 //		}
 //
-//		// use mockedMessageQueueClient in code that requires metamorph.MessageQueueClient
+//		// use mockedMessageQueue in code that requires metamorph.MessageQueue
 //		// and then make assertions.
 //
 //	}
-type MessageQueueClientMock struct {
+type MessageQueueMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(ctx context.Context, topic string, data []byte) error
 
@@ -72,9 +72,9 @@ type MessageQueueClientMock struct {
 }
 
 // Publish calls PublishFunc.
-func (mock *MessageQueueClientMock) Publish(ctx context.Context, topic string, data []byte) error {
+func (mock *MessageQueueMock) Publish(ctx context.Context, topic string, data []byte) error {
 	if mock.PublishFunc == nil {
-		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
+		panic("MessageQueueMock.PublishFunc: method is nil but MessageQueue.Publish was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
@@ -94,8 +94,8 @@ func (mock *MessageQueueClientMock) Publish(ctx context.Context, topic string, d
 // PublishCalls gets all the calls that were made to Publish.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.PublishCalls())
-func (mock *MessageQueueClientMock) PublishCalls() []struct {
+//	len(mockedMessageQueue.PublishCalls())
+func (mock *MessageQueueMock) PublishCalls() []struct {
 	Ctx   context.Context
 	Topic string
 	Data  []byte
@@ -112,9 +112,9 @@ func (mock *MessageQueueClientMock) PublishCalls() []struct {
 }
 
 // Shutdown calls ShutdownFunc.
-func (mock *MessageQueueClientMock) Shutdown() {
+func (mock *MessageQueueMock) Shutdown() {
 	if mock.ShutdownFunc == nil {
-		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
+		panic("MessageQueueMock.ShutdownFunc: method is nil but MessageQueue.Shutdown was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -127,8 +127,8 @@ func (mock *MessageQueueClientMock) Shutdown() {
 // ShutdownCalls gets all the calls that were made to Shutdown.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.ShutdownCalls())
-func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
+//	len(mockedMessageQueue.ShutdownCalls())
+func (mock *MessageQueueMock) ShutdownCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -139,9 +139,9 @@ func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
 }
 
 // Subscribe calls SubscribeFunc.
-func (mock *MessageQueueClientMock) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (mock *MessageQueueMock) Subscribe(topic string, msgFunc func([]byte) error) error {
 	if mock.SubscribeFunc == nil {
-		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
+		panic("MessageQueueMock.SubscribeFunc: method is nil but MessageQueue.Subscribe was just called")
 	}
 	callInfo := struct {
 		Topic   string
@@ -159,8 +159,8 @@ func (mock *MessageQueueClientMock) Subscribe(topic string, msgFunc func([]byte)
 // SubscribeCalls gets all the calls that were made to Subscribe.
 // Check the length with:
 //
-//	len(mockedMessageQueueClient.SubscribeCalls())
-func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
+//	len(mockedMessageQueue.SubscribeCalls())
+func (mock *MessageQueueMock) SubscribeCalls() []struct {
 	Topic   string
 	MsgFunc func([]byte) error
 } {

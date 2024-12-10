@@ -101,7 +101,7 @@ func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	}
 }
 
-func WithMessageQueueClient(mqClient MessageQueueClient) func(processor *Processor) {
+func WithMessageQueueClient(mqClient MessageQueue) func(processor *Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient
 	}

@@ -1,6 +1,7 @@
 ---
-logLevel: INFO
 logFormat: tint
+logLevel: INFO
+peerLogLevel: DEBUG
 profilerAddr: localhost:9999
 prometheus:
   enabled: true

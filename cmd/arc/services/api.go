@@ -29,11 +29,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
 func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {

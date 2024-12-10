@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/internal/woc_client"
 	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/woc_client"
 
 	transactionHandlerMock "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 )

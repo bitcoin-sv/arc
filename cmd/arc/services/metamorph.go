@@ -12,14 +12,13 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/bitcoin-sv/arc/pkg/callbacker"
-
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"

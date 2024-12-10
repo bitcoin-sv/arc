@@ -37,7 +37,7 @@ var (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 10000
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
 	registerTxsIntervalDefault         = time.Second * 10

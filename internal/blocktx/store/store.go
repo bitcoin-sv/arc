@@ -4,24 +4,26 @@ import (
 	"context"
 	"errors"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
 var (
-	ErrNotFound                         = errors.New("not found")
-	ErrBlockProcessingDuplicateKey      = errors.New("block hash already exists")
-	ErrBlockNotFound                    = errors.New("block not found")
-	ErrUnableToPrepareStatement         = errors.New("unable to prepare statement")
-	ErrUnableToDeleteRows               = errors.New("unable to delete rows")
-	ErrFailedToInsertBlock              = errors.New("failed to insert block")
-	ErrFailedToUpdateBlockStatuses      = errors.New("failed to update block statuses")
-	ErrFailedToOpenDB                   = errors.New("failed to open postgres database")
-	ErrFailedToInsertTransactions       = errors.New("failed to bulk insert transactions")
-	ErrFailedToGetRows                  = errors.New("failed to get rows")
-	ErrFailedToSetBlockProcessing       = errors.New("failed to set block processing")
-	ErrFailedToExecuteTxUpdateQuery     = errors.New("failed to execute transaction update query")
-	ErrMismatchedTxsAndMerklePathLength = errors.New("mismatched transactions and merkle path length")
+	ErrNotFound                           = errors.New("not found")
+	ErrBlockProcessingDuplicateKey        = errors.New("block hash already exists")
+	ErrBlockNotFound                      = errors.New("block not found")
+	ErrUnableToPrepareStatement           = errors.New("unable to prepare statement")
+	ErrUnableToDeleteRows                 = errors.New("unable to delete rows")
+	ErrFailedToInsertBlock                = errors.New("failed to insert block")
+	ErrFailedToUpdateBlockStatuses        = errors.New("failed to update block statuses")
+	ErrFailedToOpenDB                     = errors.New("failed to open postgres database")
+	ErrFailedToInsertTransactions         = errors.New("failed to bulk insert transactions")
+	ErrFailedToGetRows                    = errors.New("failed to get rows")
+	ErrFailedToSetBlockProcessing         = errors.New("failed to set block processing")
+	ErrFailedToUpsertTransactions         = errors.New("failed to upsert transactions")
+	ErrFailedToUpsertBlockTransactionsMap = errors.New("failed to upsert block transactions map")
+	ErrMismatchedTxIDsAndMerklePathLength = errors.New("mismatched tx IDs and merkle path length")
 )
 
 type Stats struct {

@@ -58,12 +58,13 @@ stateDiagram-v2
     ACCEPTED_BY_NETWORK --> SEEN_ON_NETWORK: ARC has received Transaction ID\n announcement from another peer
     ACCEPTED_BY_NETWORK --> SEEN_IN_ORPHAN_MEMPOOL: Peer has sent a 'missing inputs' message
     SEEN_IN_ORPHAN_MEMPOOL --> SEEN_ON_NETWORK: All parent transactions\n have been received by peer
-    SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
     SEEN_ON_NETWORK --> DOUBLE_SPEND_ATTEMPTED: A competing transactions entered the mempool
-    DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
     DOUBLE_SPEND_ATTEMPTED --> REJECTED: This transaction was rejected in favor\n of one of the competing transactions
-    MINED --> MINED_IN_STALE_BLOCK: This transaction was mined in a block that became stale after reorg
+    DOUBLE_SPEND_ATTEMPTED --> MINED: This transaction was accepted and mined
+    SEEN_ON_NETWORK --> MINED: Transaction ID was included in a BLOCK message
+    MINED_IN_STALE_BLOCK --> SEEN_ON_NETWORK: Transaction gets re-broadcasted
     MINED --> [*]
+    MINED --> MINED_IN_STALE_BLOCK: This transaction was mined in a block that became stale after reorg
 ```
 
 ## Microservices

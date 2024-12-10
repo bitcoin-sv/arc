@@ -780,12 +780,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	p.responseProcessor.Add(statusResponse)
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
-	// Add this transaction to shared cache
+	// Add this transaction to cache
 	err = p.saveTxToCache(statusResponse.Hash)
 	if err != nil {
 		p.logger.Error("failed to store tx in cache", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
-		// NOTE: or do return and show the client status STORED + Err?
 	}
 
 	// Send GETDATA to peers to see if they have it
@@ -893,30 +892,23 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 }
 
 func (p *Processor) saveTxToCache(hash *chainhash.Hash) error {
-	if p.cacheStore.IsShared() {
-		return p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
-	}
-	return nil
+	return p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
 }
 
 func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
-	if p.cacheStore.IsShared() {
-		value, err := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
-		if err != nil {
-			p.logger.Error("count not get the transaction from hash", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-			// respond as if the tx is found just in case this transaction is registered
-			return true
-		}
-
-		return value != nil
+	value, err := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
+	if err != nil {
+		p.logger.Error("count not get the transaction from hash", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		// respond as if the tx is found just in case this transaction is registered
+		return true
 	}
 
-	// if we don't have a shared cache running, treat all transactions as found
-	return true
+	return value != nil
 }
 
 func (p *Processor) delTxFromCache(hash *chainhash.Hash) {
-	if p.cacheStore.IsShared() {
-		_ = p.cacheStore.MapDel(CacheRegisteredTxsHash, hash.String())
+	err := p.cacheStore.MapDel(CacheRegisteredTxsHash, hash.String())
+	if err != nil {
+		p.logger.Error("unable to delete transaction from cache", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
 }

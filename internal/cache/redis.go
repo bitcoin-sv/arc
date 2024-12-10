@@ -133,8 +133,3 @@ func (r *RedisStore) MapLen(hashsetKey string) (int64, error) {
 	}
 	return count, nil
 }
-
-// IsShared returns whether this cache is shared between instances
-func (r *RedisStore) IsShared() bool {
-	return true
-}

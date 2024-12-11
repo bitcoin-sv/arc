@@ -1,9 +1,11 @@
 ---
-logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
+logLevel: DEBUG # mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on (optional)
-prometheusEndpoint: /metrics # endpoint for prometheus metrics (optional)
-prometheusAddr: :2112 # port for serving prometheus metrics
+prometheus:
+  enabled: false # if true, then prometheus metrics are enabled
+  endpoint: /metrics # endpoint for prometheus metrics (optional)
+  addr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 messageQueue:
@@ -48,7 +50,7 @@ broadcasting: # settings for connection to nodes
         p2p: 18335
 
 cache:
-  engine: redis # cache engine - in-memory/redis
+  engine: redis # cache engine - one of in-memory | redis
   redis: # redis cache configuration in case that engine: redis
     addr: "localhost:6379"
     password: ""
@@ -101,6 +103,7 @@ blocktx:
       sslMode: disable
   recordRetentionDays: 28 # number of days for which data integrity is ensured
   registerTxsInterval: 10s # time interval to read from the channel registered transactions
+  maxBlockProcessingDuration: 5m # maximum time a blocktx can spend on processing a block before unlocking it to be requested again
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   fillGapsInterval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
@@ -149,7 +152,7 @@ callbacker:
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
-  delay: 0s # delay before the callback (or batch of callbacks) is actually sent 
+  delay: 0s # delay before the callback (or batch of callbacks) is actually sent
   pause: 0s # pause between sending next callback to the same receiver
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   db:

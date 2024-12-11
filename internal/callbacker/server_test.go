@@ -12,8 +12,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
 )
 
 func TestNewServer(t *testing.T) {
@@ -57,7 +57,7 @@ func TestSendCallback(t *testing.T) {
 	t.Run("dispatches callback for each routing", func(t *testing.T) {
 		// Given
 		sendOK := true
-		senderMq := &callbacker.SenderIMock{
+		senderMq := &mocks.SenderIMock{
 			SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return sendOK },
 			SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return sendOK },
 		}

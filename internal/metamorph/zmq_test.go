@@ -3,16 +3,16 @@ package metamorph_test
 import (
 	"log/slog"
 	"net/url"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -52,8 +52,6 @@ func TestZMQ(t *testing.T) {
 		},
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
 	for _, tc := range testCases {
 		// given
 		mockedZMQ := &mocks.ZMQIMock{
@@ -75,12 +73,13 @@ func TestZMQ(t *testing.T) {
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
 
-		sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+		sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, slog.Default())
 		require.NoError(t, err)
 
 		// when
-		err = sut.Start()
+		cleanup, err := sut.Start()
 		require.NoError(t, err)
+		defer cleanup()
 
 		// then
 		var status *metamorph.TxStatusMessage
@@ -123,13 +122,13 @@ func TestZMQDoubleSpend(t *testing.T) {
 	zmqURL, err := url.Parse("https://some-url.com")
 	require.NoError(t, err)
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, logger)
+	sut, err := metamorph.NewZMQ(zmqURL, statuses, mockedZMQ, slog.Default())
 	require.NoError(t, err)
 
 	// when
-	err = sut.Start()
+	cleanup, err := sut.Start()
 	require.NoError(t, err)
+	defer cleanup()
 
 	// then
 	var status *metamorph.TxStatusMessage

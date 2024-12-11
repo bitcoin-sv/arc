@@ -9,16 +9,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/libsv/go-p2p/wire"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/libsv/go-p2p/wire"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
 	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
@@ -808,7 +809,7 @@ func TestStart(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			err = sut.Start()
+			err = sut.Start(false)
 
 			// then
 			if tc.expectedError != nil {

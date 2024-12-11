@@ -8,23 +8,30 @@ import (
 
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
-		LogLevel:           "DEBUG",
-		LogFormat:          "text",
-		ProfilerAddr:       "", // optional
-		PrometheusEndpoint: "", // optional
-		PrometheusAddr:     "", // optional
-		GrpcMessageSize:    100000000,
-		Network:            "regtest",
-		MessageQueue:       getDefaultMessageQueueConfig(),
-		Tracing:            getDefaultTracingConfig(),
-		PeerRPC:            getDefaultPeerRPCConfig(),
-		Broadcasting:       getBroadcastingConfig(),
-		Metamorph:          getMetamorphConfig(),
-		Blocktx:            getBlocktxConfig(),
-		API:                getAPIConfig(),
-		K8sWatcher:         nil, // optional
-		Callbacker:         getCallbackerConfig(),
-		Cache:              getCacheConfig(),
+		LogLevel:        "DEBUG",
+		LogFormat:       "text",
+		ProfilerAddr:    "", // optional
+		Prometheus:      getDefaultPrometheusConfig(),
+		GrpcMessageSize: 100000000,
+		Network:         "regtest",
+		MessageQueue:    getDefaultMessageQueueConfig(),
+		Tracing:         getDefaultTracingConfig(),
+		PeerRPC:         getDefaultPeerRPCConfig(),
+		Broadcasting:    getBroadcastingConfig(),
+		Metamorph:       getMetamorphConfig(),
+		Blocktx:         getBlocktxConfig(),
+		API:             getAPIConfig(),
+		K8sWatcher:      nil, // optional
+		Callbacker:      getCallbackerConfig(),
+		Cache:           getCacheConfig(),
+	}
+}
+
+func getDefaultPrometheusConfig() *PrometheusConfig {
+	return &PrometheusConfig{
+		Enabled:  false,
+		Endpoint: "/metrics", // optional
+		Addr:     ":2112",    // optional
 	}
 }
 
@@ -117,6 +124,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		MonitorPeers:                  false,
 		FillGapsInterval:              15 * time.Minute,
 		MaxAllowedBlockHeightMismatch: 3,
+		MaxBlockProcessingDuration:    5 * time.Minute,
 		MessageQueue:                  &MessageQueueConfig{},
 	}
 }

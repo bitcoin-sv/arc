@@ -2,8 +2,10 @@
 logLevel: INFO
 logFormat: tint
 profilerAddr: localhost:9999
-prometheusEndpoint: /metrics
-prometheusAddr: :2112
+prometheus:
+  enabled: true
+  endpoint: /metrics
+  addr: :2112
 grpcMessageSize: 100000000
 network: regtest
 messageQueue:
@@ -22,10 +24,10 @@ peerRpc:
   host: node1
   port: 18332
 
-broadcasting: # settings for connection to nodes
-  mode: unicast # one of unicast | multicast
+broadcasting:
+  mode: unicast
   unicast:
-    peers: # list of bitcoin node peers to connect to
+    peers:
     - host: node1
       port:
         p2p: 18333
@@ -94,7 +96,7 @@ blocktx:
   recordRetentionDays: 28
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
-  fillGapsInterval: 1s # this is needed, becuase during init, peers don't send us some blocks
+  fillGapsInterval: 1s
   maxAllowedBlockHeightMismatch: 3
 
 api:
@@ -149,6 +151,6 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  failedCallbackCheckInterval: 1m # interval at which the store is checked for failed callbacks to be re-sent
-  delayDuration: 5s # we try callbacks a few times with this delay after which if it fails consistently we store them in db
-  expiration: 24h # maximum time a callback can remain unsent before it's put as permanently failed
+  failedCallbackCheckInterval: 1m
+  delayDuration: 5s
+  expiration: 24h

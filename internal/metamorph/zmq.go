@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,8 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 var allowedTopics = []string{
@@ -97,8 +100,12 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *TxStatusMessage, zmqHandler
 	return z, nil
 }
 
-func (z *ZMQ) Start() error {
-	ch := make(chan []string)
+func (z *ZMQ) Start() (func(), error) {
+	ch := make(chan []string, 100)
+
+	cleanup := func() {
+		close(ch)
+	}
 
 	const hashtxTopic = "hashtx2"
 	const invalidTxTopic = "invalidtx"
@@ -107,8 +114,7 @@ func (z *ZMQ) Start() error {
 		for c := range ch {
 			switch c[0] {
 			case hashtxTopic:
-				z.logger.Debug(hashtxTopic, slog.String("hash", c[1]))
-
+				z.logger.Log(context.Background(), logger.LevelTrace, hashtxTopic, slog.String("hash", c[1]))
 				hash, err := chainhash.NewHashFromStr(c[1])
 				if err != nil {
 					z.logger.Error("failed to get hash from string", slog.String("topic", hashtxTopic), slog.String("err", err.Error()))
@@ -168,18 +174,18 @@ func (z *ZMQ) Start() error {
 	}()
 
 	if err := z.handler.Subscribe(hashtxTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
 	if err := z.handler.Subscribe(invalidTxTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
 	if err := z.handler.Subscribe(discardedFromMempoolTopic, ch); err != nil {
-		return err
+		return cleanup, err
 	}
 
-	return nil
+	return cleanup, nil
 }
 
 func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamorph_api.Status, txErr error, competingTxs []string, err error) {
@@ -257,7 +263,7 @@ func (z *ZMQ) prepareCompetingTxMsgs(hash *chainhash.Hash, competingTxs []string
 	for _, tx := range competingTxs {
 		competingHash, err := chainhash.NewHashFromStr(tx)
 		if err != nil {
-			z.logger.Debug("could not parse competing tx hash",
+			z.logger.Warn("could not parse competing tx hash",
 				slog.String("reportingTxHash", hash.String()),
 				slog.String("err", err.Error()),
 				slog.String("competingTxID", tx))

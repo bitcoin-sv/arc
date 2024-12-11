@@ -33,10 +33,11 @@ var (
 	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
 	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
 	ErrFailedToProcessBlock            = errors.New("failed to process block")
+	ErrFailedToStartCollectingStats    = errors.New("failed to start collecting stats")
 )
 
 const (
-	transactionStoringBatchsizeDefault = 8192 // power of 2 for easier memory allocation
+	transactionStoringBatchsizeDefault = 10000
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
 	registerTxsIntervalDefault         = time.Second * 10
@@ -67,7 +68,8 @@ type Processor struct {
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
 
-	now func() time.Time
+	now                        func() time.Time
+	maxBlockProcessingDuration time.Duration
 
 	waitGroup *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -96,6 +98,7 @@ func NewProcessor(
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
+		maxBlockProcessingDuration:  waitForBlockProcessing,
 		hostname:                    hostname,
 		stats:                       newProcessorStats(),
 		statCollectionInterval:      statCollectionIntervalDefault,
@@ -114,7 +117,7 @@ func NewProcessor(
 	return p, nil
 }
 
-func (p *Processor) Start() error {
+func (p *Processor) Start(statsEnabled bool) error {
 	err := p.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
@@ -131,6 +134,12 @@ func (p *Processor) Start() error {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RequestTxTopic), err)
 	}
 
+	if statsEnabled {
+		err = p.StartCollectStats()
+		if err != nil {
+			return errors.Join(ErrFailedToStartCollectingStats, err)
+		}
+	}
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
@@ -258,7 +267,7 @@ func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.
 			// 2. processor is shutting down – all unprocessed blocks are released in the Shutdown func
 			return
 
-		case <-time.After(waitForBlockProcessing):
+		case <-time.After(p.maxBlockProcessingDuration):
 			// check if block was processed successfully
 			block, _ := p.store.GetBlock(execCtx, hash)
 

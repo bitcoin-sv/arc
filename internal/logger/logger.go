@@ -17,7 +17,30 @@ var (
 
 const (
 	EventIDField = "arc-event"
+
+	LevelTrace   = slog.LevelDebug - 4
+	LevelDebug   = slog.LevelDebug
+	LevelInfo    = slog.LevelInfo
+	LevelWarning = slog.LevelWarn
+	LevelError   = slog.LevelError
 )
+
+func getSlogLevel(logLevel string) (slog.Level, error) {
+	switch logLevel {
+	case "INFO":
+		return LevelInfo, nil
+	case "WARN":
+		return LevelWarning, nil
+	case "ERROR":
+		return LevelError, nil
+	case "DEBUG":
+		return LevelDebug, nil
+	case "TRACE":
+		return LevelTrace, nil // simulate trace level
+	}
+
+	return 0, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))
+}
 
 func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 	slogLevel, err := getSlogLevel(logLevel)
@@ -27,29 +50,41 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 
 	switch logFormat {
 	case "json":
-		return slog.New(&ArcContextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel})}), nil
+		return slog.New(&ArcContextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level:       slogLevel,
+			ReplaceAttr: replaceAttr,
+		},
+		)}), nil
 	case "text":
-		return slog.New(&ArcContextHandler{slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel})}), nil
+		return slog.New(&ArcContextHandler{slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level:       slogLevel,
+			ReplaceAttr: replaceAttr,
+		})}), nil
 	case "tint":
-		return slog.New(&ArcContextHandler{tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel})}), nil
+		return slog.New(&ArcContextHandler{tint.NewHandler(os.Stdout, &tint.Options{
+			Level:       slogLevel,
+			ReplaceAttr: replaceAttr,
+		})}), nil
 	}
 
 	return nil, errors.Join(ErrLoggerInvalidLogFormat, fmt.Errorf("log format: %s", logFormat))
 }
 
-func getSlogLevel(logLevel string) (slog.Level, error) {
-	switch logLevel {
-	case "INFO":
-		return slog.LevelInfo, nil
-	case "WARN":
-		return slog.LevelWarn, nil
-	case "ERROR":
-		return slog.LevelError, nil
-	case "DEBUG":
-		return slog.LevelDebug, nil
+// replaceAttr inspired by https://go.dev/src/log/slog/example_custom_levels_test.go
+func replaceAttr(_ []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		return slog.Attr{}
 	}
 
-	return slog.LevelInfo, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))
+	// Customize the name of the level key
+	if a.Key == slog.LevelKey {
+		level := a.Value.Any().(slog.Level) //nolint:errcheck,revive
+		if level == LevelTrace {
+			a.Value = slog.StringValue("TRACE")
+		}
+	}
+
+	return a
 }
 
 type ArcContextHandler struct {

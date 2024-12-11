@@ -13,23 +13,32 @@ const (
 )
 
 type ArcConfig struct {
-	LogLevel           string              `mapstructure:"logLevel"`
-	LogFormat          string              `mapstructure:"logFormat"`
-	ProfilerAddr       string              `mapstructure:"profilerAddr"`
-	PrometheusEndpoint string              `mapstructure:"prometheusEndpoint"`
-	PrometheusAddr     string              `mapstructure:"prometheusAddr"`
-	GrpcMessageSize    int                 `mapstructure:"grpcMessageSize"`
-	Network            string              `mapstructure:"network"`
-	MessageQueue       *MessageQueueConfig `mapstructure:"messageQueue"`
-	Tracing            *TracingConfig      `mapstructure:"tracing"`
-	PeerRPC            *PeerRPCConfig      `mapstructure:"peerRpc"`
-	Broadcasting       *BroadcastingConfig `mapstructure:"broadcasting"`
-	Metamorph          *MetamorphConfig    `mapstructure:"metamorph"`
-	Blocktx            *BlocktxConfig      `mapstructure:"blocktx"`
-	API                *APIConfig          `mapstructure:"api"`
-	K8sWatcher         *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
-	Callbacker         *CallbackerConfig   `mapstructure:"callbacker"`
-	Cache              *CacheConfig        `mapstructure:"cache"`
+	LogLevel        string              `mapstructure:"logLevel"`
+	LogFormat       string              `mapstructure:"logFormat"`
+	ProfilerAddr    string              `mapstructure:"profilerAddr"`
+	Prometheus      *PrometheusConfig   `mapstructure:"prometheus"`
+	GrpcMessageSize int                 `mapstructure:"grpcMessageSize"`
+	Network         string              `mapstructure:"network"`
+	MessageQueue    *MessageQueueConfig `mapstructure:"messageQueue"`
+	Tracing         *TracingConfig      `mapstructure:"tracing"`
+	PeerRPC         *PeerRPCConfig      `mapstructure:"peerRpc"`
+	Broadcasting    *BroadcastingConfig `mapstructure:"broadcasting"`
+	Metamorph       *MetamorphConfig    `mapstructure:"metamorph"`
+	Blocktx         *BlocktxConfig      `mapstructure:"blocktx"`
+	API             *APIConfig          `mapstructure:"api"`
+	K8sWatcher      *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
+	Callbacker      *CallbackerConfig   `mapstructure:"callbacker"`
+	Cache           *CacheConfig        `mapstructure:"cache"`
+}
+
+type PrometheusConfig struct {
+	Endpoint string `mapstructure:"endpoint"`
+	Addr     string `mapstructure:"addr"`
+	Enabled  bool   `mapstructure:"enabled"`
+}
+
+func (p *PrometheusConfig) IsEnabled() bool {
+	return p.Enabled && p.Addr != "" && p.Endpoint != ""
 }
 
 type BroadcastingConfig struct {
@@ -114,6 +123,7 @@ type BlocktxConfig struct {
 	Db                            *DbConfig           `mapstructure:"db"`
 	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
+	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
 	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
 	FillGapsInterval              time.Duration       `mapstructure:"fillGapsInterval"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`

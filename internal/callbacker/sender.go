@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,16 +43,16 @@ func WithRetries(d int) func(*CallbackSender) {
 }
 
 func NewSender(httpClient *http.Client, logger *slog.Logger, opts ...SenderOption) (*CallbackSender, error) {
-	stats := newCallbackerStats()
+	cbStats := newCallbackerStats()
 
 	err := registerStats(
-		stats.callbackSeenOnNetworkCount,
-		stats.callbackSeenInOrphanMempoolCount,
-		stats.callbackDoubleSpendAttemptedCount,
-		stats.callbackRejectedCount,
-		stats.callbackMinedCount,
-		stats.callbackFailedCount,
-		stats.callbackBatchCount,
+		cbStats.callbackSeenOnNetworkCount,
+		cbStats.callbackSeenInOrphanMempoolCount,
+		cbStats.callbackDoubleSpendAttemptedCount,
+		cbStats.callbackRejectedCount,
+		cbStats.callbackMinedCount,
+		cbStats.callbackFailedCount,
+		cbStats.callbackBatchCount,
 	)
 	if err != nil {
 		return nil, err
@@ -59,7 +60,7 @@ func NewSender(httpClient *http.Client, logger *slog.Logger, opts ...SenderOptio
 
 	callbacker := &CallbackSender{
 		httpClient:         httpClient,
-		stats:              stats,
+		stats:              cbStats,
 		logger:             logger.With(slog.String("module", "sender")),
 		retries:            retriesDefault,
 		retrySleepDuration: 5 * time.Second,
@@ -112,7 +113,7 @@ func (p *CallbackSender) Health() error {
 func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 	payload, err := json.Marshal(dto)
 	if err != nil {
-		p.logger.Error("Couldn't marshal callback",
+		p.logger.Error("Failed to marshal callback",
 			slog.String("url", url),
 			slog.String("token", token),
 			slog.String("hash", dto.TxID),
@@ -135,7 +136,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 		return
 	}
 
-	p.logger.Warn("Couldn't send transaction callback after retries",
+	p.logger.Warn("Failed to send callback with retries",
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.String("hash", dto.TxID),
@@ -154,7 +155,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 
 	payload, err := json.Marshal(batch)
 	if err != nil {
-		p.logger.Error("Couldn't marshal callback",
+		p.logger.Error("Failed to marshal callback",
 			slog.String("url", url),
 			slog.String("token", token),
 			slog.Bool("batch", true),
@@ -179,7 +180,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 		return
 	}
 
-	p.logger.Warn("Couldn't send transaction callback after retries",
+	p.logger.Warn("Failed to send callback with retries",
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.Bool("batch", true),
@@ -189,47 +190,79 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 	return
 }
 
-func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (ok bool, nrOfRetries int) {
+func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (success bool, nrOfRetries int) {
 	retrySleep := p.retrySleepDuration
-	ok, retry := false, false
-	counter := 0
+	var err error
+	var statusCode int
 	for range p.retries {
-		counter++
-		ok, retry = p.sendCallback(url, token, jsonPayload)
-
-		// break on success or on non-retryable error (e.g., invalid URL)
-		if ok || !retry {
+		nrOfRetries++
+		statusCode, err = p.sendCallback(url, token, jsonPayload)
+		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
+			success = true
 			break
 		}
 
-		time.Sleep(retrySleep)
-	}
-	return ok, counter
-}
+		if err != nil {
+			if errors.Is(err, ErrCreateHTTPRequestFailed) {
+				p.logger.Error("Failed to create HTTP request",
+					slog.String("url", url),
+					slog.String("token", token),
+					slog.String("err", err.Error()))
+				return false, nrOfRetries
+			}
 
-func (p *CallbackSender) sendCallback(url, token string, payload []byte) (ok, retry bool) {
-	request, err := httpRequest(url, token, payload)
-	if err != nil {
-		p.logger.Error("Couldn't create HTTP request",
+			if errors.Is(err, ErrHostNonExistent) {
+				p.logger.Warn("Host does not exist",
+					slog.String("url", url),
+					slog.String("token", token),
+					slog.String("err", err.Error()))
+				return false, nrOfRetries
+			}
+
+			if errors.Is(err, ErrHTTPSendFailed) {
+				p.logger.Warn("Failed to send callback",
+					slog.String("url", url),
+					slog.String("token", token),
+					slog.String("err", err.Error()))
+
+				time.Sleep(retrySleep)
+				continue
+			}
+		}
+
+		p.logger.Warn("Callback response not successful",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("err", err.Error()))
-		return false, false
+			slog.Int("status", statusCode))
+
+		time.Sleep(retrySleep)
+	}
+
+	return success, nrOfRetries
+}
+
+var (
+	ErrHostNonExistent         = errors.New("host non existent")
+	ErrCreateHTTPRequestFailed = errors.New("failed to create http request")
+	ErrHTTPSendFailed          = errors.New("failed to send http request")
+)
+
+func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, err error) {
+	request, err := httpRequest(url, token, payload)
+	if err != nil {
+		return 0, errors.Join(ErrCreateHTTPRequestFailed, err)
 	}
 
 	response, err := p.httpClient.Do(request)
 	if err != nil {
-		p.logger.Warn("Couldn't send transaction callback",
-			slog.String("url", url),
-			slog.String("token", token),
-			slog.String("err", err.Error()))
-		return false, true
+		if strings.Contains(err.Error(), "no such host") {
+			return 0, errors.Join(ErrHostNonExistent, err)
+		}
+		return 0, errors.Join(ErrHTTPSendFailed, err)
 	}
 	defer response.Body.Close()
 
-	ok = response.StatusCode >= http.StatusOK && response.StatusCode < 300
-	retry = !ok
-	return
+	return response.StatusCode, nil
 }
 
 func (p *CallbackSender) updateSuccessStats(txStatus string) {

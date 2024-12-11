@@ -137,7 +137,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -170,7 +170,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, err
 	}
-	err = processor.Start()
+	err = processor.Start(arcConfig.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
@@ -194,7 +194,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
-	server, err = metamorph.NewServer(arcConfig.PrometheusEndpoint, arcConfig.GrpcMessageSize, logger,
+	server, err = metamorph.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
 		metamorphStore, processor, arcConfig.Tracing, optsServer...)
 	if err != nil {
 		stopFn()
@@ -225,7 +225,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
-		err = zmq.Start()
+		cleanup, err := zmq.Start()
+		shutdownFns = append(shutdownFns, cleanup)
 		if err != nil {
 			stopFn()
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)

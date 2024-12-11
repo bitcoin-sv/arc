@@ -415,17 +415,14 @@ func (p *Peer) listenForMessages() {
 
 		reader := bufio.NewReader(&io.LimitedReader{R: p.lConn, N: p.maxMsgSize})
 		for {
-			// do not retry
 			msg, err := readWireMsg(p.execCtx, reader, wire.ProtocolVersion, p.network)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
 				}
 
-				l.Error("Read failed", slog.String(errKey, err.Error()))
-				// stop peer
-				p.unhealthyDisconnect()
-				return
+				l.Warn("Read issue - ignore msg", slog.String("err", err.Error()))
+				continue
 			}
 
 			cmd := msg.Command()

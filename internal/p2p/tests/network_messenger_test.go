@@ -37,7 +37,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceTransactions(txHashes, []p2p.PeerI{peer1, peer2})
@@ -69,7 +69,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceTransactions(txHashes, nil)
@@ -127,7 +127,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			sut := p2p.NewNetworkMessanger(pm)
+			sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			// when
 			peers := sut.AnnounceTransactions(txHashes, nil)
@@ -156,7 +156,7 @@ func Test_RequestTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestTransactions(txHashes)
@@ -181,7 +181,7 @@ func Test_RequestTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestTransactions(txHashes)
@@ -238,7 +238,7 @@ func Test_RequestTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			sut := p2p.NewNetworkMessanger(pm)
+			sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			// when
 			sentPeer := sut.RequestTransactions(txHashes)
@@ -268,7 +268,7 @@ func Test_AnnounceBlock(t *testing.T) {
 		err := pm.AddPeer(peer2)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceBlock(blockHash, []p2p.PeerI{peer1})
@@ -296,7 +296,7 @@ func Test_RequestBlock(t *testing.T) {
 		err := pm.AddPeer(peer)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestBlock(blockHash)
@@ -319,7 +319,7 @@ func Test_RequestBlock(t *testing.T) {
 		err := pm.AddPeer(notConnectedPeer)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestBlock(blockHash)

@@ -9,6 +9,7 @@ import (
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
 		LogLevel:        "DEBUG",
+		PeerLogLevel:    "DEBUG",
 		LogFormat:       "text",
 		ProfilerAddr:    "", // optional
 		Prometheus:      getDefaultPrometheusConfig(),

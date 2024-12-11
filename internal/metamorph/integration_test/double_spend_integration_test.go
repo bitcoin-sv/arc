@@ -33,9 +33,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
 
@@ -102,7 +104,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 	minedTxChannel := make(chan *blocktx_api.TransactionBlock, 10)
 
 	mockedZMQ := &mocks.ZMQIMock{
@@ -123,8 +125,9 @@ func TestDoubleSpendDetection(t *testing.T) {
 	require.NoError(t, err)
 	defer metamorphStore.Close(context.Background())
 
-	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 	cStore := cache.NewMemoryStore()
+
+	pm := &p2p.NetworkMessenger{}
 
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),

@@ -16,8 +16,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -129,7 +129,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *blockchain.BlockMessage, blockProcessingBuffer)
+	blockProcessCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
 
 	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
@@ -158,11 +158,15 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+		p2p.WithPingInterval(30*time.Second, 2*time.Minute),
 	}
 
 	if version.Version != "" {
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
+	if arcConfig.LogLevel != arcConfig.PeerLogLevel {
+		peerOpts = append(peerOpts, p2p.WithLogLevel(arcConfig.PeerLogLevel, arcConfig.LogFormat))
 	}
 
 	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {

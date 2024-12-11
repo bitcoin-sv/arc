@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -68,7 +69,7 @@ func TestZMQ(t *testing.T) {
 			},
 		}
 
-		statuses := make(chan *metamorph.TxStatusMessage, tc.expectedStatusesCount)
+		statuses := make(chan *metamorph_p2p.TxStatusMessage, tc.expectedStatusesCount)
 
 		zmqURL, err := url.Parse("https://some-url.com")
 		require.NoError(t, err)
@@ -82,7 +83,7 @@ func TestZMQ(t *testing.T) {
 		defer cleanup()
 
 		// then
-		var status *metamorph.TxStatusMessage
+		var status *metamorph_p2p.TxStatusMessage
 		sCounter := 0
 		for i := 0; i < tc.expectedStatusesCount; i++ {
 			select {
@@ -117,7 +118,7 @@ func TestZMQDoubleSpend(t *testing.T) {
 	numberOfMsgs := 2
 	hashes := []string{"8e75ae10f86d8a43044a54c3c57d660d20cdb74e233be4b5c90ba752ebdc7e88", "d64adfce6b105dc6bdf475494925bf06802a41a0582586f33c2b16d537a0b7b6"}
 
-	statuses := make(chan *metamorph.TxStatusMessage, numberOfMsgs)
+	statuses := make(chan *metamorph_p2p.TxStatusMessage, numberOfMsgs)
 
 	zmqURL, err := url.Parse("https://some-url.com")
 	require.NoError(t, err)
@@ -131,7 +132,7 @@ func TestZMQDoubleSpend(t *testing.T) {
 	defer cleanup()
 
 	// then
-	var status *metamorph.TxStatusMessage
+	var status *metamorph_p2p.TxStatusMessage
 	sCounter := 0
 	for i := 0; i < numberOfMsgs; i++ {
 		select {

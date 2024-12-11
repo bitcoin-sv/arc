@@ -10,7 +10,7 @@ import (
 	"time"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/libsv/go-p2p"
+
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -39,9 +40,7 @@ func TestHealth(t *testing.T) {
 		// given
 		processor := &mocks.ProcessorIMock{}
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
-		processor.GetPeersFunc = func() []p2p.PeerI {
-			return []p2p.PeerI{}
-		}
+		processor.GetPeersFunc = func() []p2p.PeerI { return []p2p.PeerI{} }
 
 		sut, err := metamorph.NewServer("", 0, slog.Default(), nil, processor, nil)
 		require.NoError(t, err)

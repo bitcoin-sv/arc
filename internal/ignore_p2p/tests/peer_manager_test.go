@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/bitcoin-sv/arc/internal/p2p/mocks"
+	p2p "github.com/bitcoin-sv/arc/internal/ignore_p2p"
+	"github.com/bitcoin-sv/arc/internal/ignore_p2p/mocks"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 )

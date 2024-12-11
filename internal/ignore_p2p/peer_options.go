@@ -1,4 +1,4 @@
-package p2p
+package ignore_p2p
 
 import (
 	"net"

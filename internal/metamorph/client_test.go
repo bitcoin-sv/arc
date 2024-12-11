@@ -3,6 +3,7 @@ package metamorph_test
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"testing"
 	"time"
 
@@ -14,9 +15,6 @@ import (
 
 	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
-
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -205,11 +203,11 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			}
 
 			opts := []func(client *metamorph.Metamorph){
-				metamorph.WithNow(func() time.Time { return now }),
-				metamorph.WithMaxTimeoutDefault(1 * time.Second),
+				metamorph.WithClientNow(func() time.Time { return now }),
+				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
-				mqClient := &mocks.MessageQueueClientMock{
+				mqClient := &apiMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
 				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
@@ -446,11 +444,11 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			}
 
 			opts := []func(client *metamorph.Metamorph){
-				metamorph.WithNow(func() time.Time { return now }),
-				metamorph.WithMaxTimeoutDefault(1 * time.Second),
+				metamorph.WithClientNow(func() time.Time { return now }),
+				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
-				mqClient := &mocks.MessageQueueClientMock{
+				mqClient := &apiMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 						return tc.publishSubmitTxErr
 					},
@@ -682,7 +680,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 			}
 
 			now := time.Now().Unix()
-			client := metamorph.NewClient(mockClient, metamorph.WithNow(func() time.Time { return time.Unix(now, 0) }))
+			client := metamorph.NewClient(mockClient, metamorph.WithClientNow(func() time.Time { return time.Unix(now, 0) }))
 
 			// When
 			status, err := client.GetTransactionStatus(context.Background(), tc.txID)

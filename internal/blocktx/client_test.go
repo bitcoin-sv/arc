@@ -3,11 +3,11 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )

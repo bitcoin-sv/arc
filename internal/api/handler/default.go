@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -17,6 +18,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -24,9 +27,6 @@ import (
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/api/handler/internal/merkle_verifier"
-	"github.com/bitcoin-sv/arc/pkg/blocktx"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
 )
 
 const (

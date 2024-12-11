@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
-	btxMocks "github.com/bitcoin-sv/arc/pkg/blocktx/mocks"
-	mtmMocks "github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
+	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/lmittmann/tint"
 	"github.com/stretchr/testify/require"
 )

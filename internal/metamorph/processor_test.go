@@ -236,7 +236,7 @@ func TestProcessTransaction(t *testing.T) {
 
 			cStore := cache.NewMemoryStore()
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -656,7 +656,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			cStore := cache.NewMemoryStore()
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -785,7 +785,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			cStore := cache.NewMemoryStore()
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -1023,7 +1023,7 @@ func TestStart(t *testing.T) {
 
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mocks.MessageQueueMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 					switch topic {
 					case metamorph.MinedTxsTopic:

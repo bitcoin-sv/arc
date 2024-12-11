@@ -8,10 +8,10 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/bitcoin-sv/arc/config"
+	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
+	"github.com/bitcoin-sv/arc/internal/api/merkle_roots_verifier"
+	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	apiHandler "github.com/bitcoin-sv/arc/pkg/api/handler"
-	merklerootsverifier "github.com/bitcoin-sv/arc/pkg/api/merkle_roots_verifier"
-	"github.com/bitcoin-sv/arc/pkg/api/transaction_handler"
 )
 
 func main() {

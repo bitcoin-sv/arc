@@ -62,7 +62,7 @@ type Processor struct {
 	cacheStore                cache.Store
 	hostname                  string
 	pm                        p2p.PeerManagerI
-	mqClient                  MessageQueueClient
+	mqClient                  MessageQueue
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
 	seenOnNetworkTxTime       time.Duration

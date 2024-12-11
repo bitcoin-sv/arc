@@ -7,7 +7,7 @@ package metamorph
 //go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go . HealthWatchServer
 
 // from nats_core_client.go
-//go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueueClient
+//go:generate moq -pkg mocks -out ./mocks/message_queue_mock.go . MessageQueue
 
 // from processor.go
 //go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
@@ -24,3 +24,8 @@ package metamorph
 // from server.go
 //go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
 //go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode
+
+// from client.go
+//go:generate moq -pkg mocks -out ./mocks/transaction_handler_mock.go . TransactionHandler
+//go:generate moq -pkg mocks -out ./mocks/metamorph_client_mock.go . TransactionMaintainer
+//go:generate moq -pkg mocks -out ./mocks/message_queue_client_mock.go . MessageQueueClient

@@ -84,6 +84,12 @@ message Transaction {
   bytes raw_tx = 11;
 }
 
+message callback {
+  string callback_url = 1;
+  string callback_token = 2;
+  bool allow_batch = 3;
+}
+
 // swagger:model TransactionStatus
 message TransactionStatus {
   bool timed_out = 1;
@@ -95,6 +101,8 @@ message TransactionStatus {
   uint64 block_height = 7;
   string block_hash = 8;
   string merkle_path = 9;
+  google.protobuf.Timestamp last_submitted = 10;
+  repeated callback callbacks = 11;
 }
 
 // swagger:model TransactionStatuses

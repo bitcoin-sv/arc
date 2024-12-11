@@ -19,8 +19,12 @@ func TestInMemoryCache(t *testing.T) {
 		ttl2 := 50 * time.Millisecond
 
 		// when
-		cStore.Set(key1, []byte("1"), ttl1)
-		cStore.Set(key2, []byte("1"), ttl2)
+		err := cStore.Set(key1, []byte("1"), ttl1)
+		require.NoError(t, err)
+
+		err = cStore.Set(key2, []byte("1"), ttl2)
+		require.NoError(t, err)
+
 		time.Sleep(60 * time.Millisecond)
 
 		// then

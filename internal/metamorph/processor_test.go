@@ -524,7 +524,8 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			cStore := cache.NewMemoryStore()
 			for _, i := range tc.inputs {
 				if i.registered {
-					cStore.Set(i.hash.String(), []byte("1"), 10*time.Minute)
+					err := cStore.Set(i.hash.String(), []byte("1"), 10*time.Minute)
+					require.NoError(t, err)
 				}
 			}
 

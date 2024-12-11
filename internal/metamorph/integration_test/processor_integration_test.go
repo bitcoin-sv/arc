@@ -61,8 +61,6 @@ func TestProcessor(t *testing.T) {
 		sut.StartSendStatusUpdate()
 		sut.StartProcessStatusUpdatesInStorage()
 
-		const numberOfCacheTxs = 2
-
 		tx1 := testutils.RevChainhash(t, "830b8424653d2e2eaedfd802d37696821ee5f538a0837dd27ae817a20804b4c5")
 		tx2 := testutils.RevChainhash(t, "f00bf349d23b14ab23931e668312f2fe8e58024b462e3d038332581c1433e4a2")
 		txNotRegistered := testutils.RevChainhash(t, "acd4d7bf340e420abe925a63f0d6cf9310292106a8f396ac738a19ad5b9b3b63")

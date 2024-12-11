@@ -78,7 +78,8 @@ func TestDoubleSpendDetection(t *testing.T) {
 	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 	cStore := cache.NewMemoryStore()
 	for _, h := range hashes {
-		cStore.Set(h, []byte("1"), 10*time.Minute) // make sure txs are registered
+		err := cStore.Set(h, []byte("1"), 10*time.Minute) // make sure txs are registered
+		require.NoError(t, err)
 	}
 
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,

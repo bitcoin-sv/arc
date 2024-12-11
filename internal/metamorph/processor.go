@@ -34,6 +34,8 @@ const (
 	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
 	LogLevelDefault                 = slog.LevelInfo
 
+	txCacheTTL = 10 * time.Minute
+
 	loadUnminedLimit                 = int64(5000)
 	loadSeenOnNetworkLimit           = int64(5000)
 	minimumHealthyConnectionsDefault = 2
@@ -46,8 +48,6 @@ const (
 
 	processMinedBatchSizeDefault = 200
 	processMinedIntervalDefault  = 1 * time.Second
-
-	CacheRegisteredTxsHash = "mtm-registered-txs"
 )
 
 var (
@@ -892,12 +892,12 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 }
 
 func (p *Processor) saveTxToCache(hash *chainhash.Hash) error {
-	return p.cacheStore.MapSet(CacheRegisteredTxsHash, hash.String(), []byte("1"))
+	return p.cacheStore.Set(hash.String(), []byte("1"), txCacheTTL)
 }
 
 func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
-	value, err := p.cacheStore.MapGet(CacheRegisteredTxsHash, hash.String())
-	if err != nil {
+	value, err := p.cacheStore.Get(hash.String())
+	if err != nil && !errors.Is(err, cache.ErrCacheNotFound) {
 		p.logger.Error("count not get the transaction from hash", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 		// respond as if the tx is found just in case this transaction is registered
 		return true
@@ -907,8 +907,8 @@ func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
 }
 
 func (p *Processor) delTxFromCache(hash *chainhash.Hash) {
-	err := p.cacheStore.MapDel(CacheRegisteredTxsHash, hash.String())
-	if err != nil {
+	err := p.cacheStore.Del(hash.String())
+	if err != nil && !errors.Is(err, cache.ErrCacheNotFound) {
 		p.logger.Error("unable to delete transaction from cache", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
 }

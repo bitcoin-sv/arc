@@ -10,8 +10,19 @@ type MemoryStore struct {
 	data sync.Map
 }
 
+type cacheItem struct {
+	expiration time.Time
+	value      []byte
+}
+
+const clearCacheInterval = 10 * time.Second
+
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{}
+	mStore := &MemoryStore{}
+
+	mStore.startClearCache(clearCacheInterval)
+
+	return mStore
 }
 
 // Get retrieves a value by key.
@@ -21,17 +32,26 @@ func (s *MemoryStore) Get(key string) ([]byte, error) {
 		return nil, ErrCacheNotFound
 	}
 
-	bytes, ok := value.([]byte)
+	cacheItem, ok := value.(cacheItem)
 	if !ok {
 		return nil, ErrCacheFailedToGet
 	}
 
-	return bytes, nil
+	if time.Now().After(cacheItem.expiration) {
+		s.data.Delete(key)
+		return nil, ErrCacheNotFound
+	}
+
+	return cacheItem.value, nil
 }
 
 // Set stores a key-value pair, ignoring the ttl parameter.
-func (s *MemoryStore) Set(key string, value []byte, _ time.Duration) error {
-	s.data.Store(key, value)
+func (s *MemoryStore) Set(key string, value []byte, ttl time.Duration) error {
+	expiration := time.Now().Add(ttl)
+	s.data.Store(key, cacheItem{
+		expiration: expiration,
+		value:      value,
+	})
 	return nil
 }
 
@@ -41,6 +61,23 @@ func (s *MemoryStore) Del(keys ...string) error {
 		s.data.Delete(k)
 	}
 	return nil
+}
+
+func (s *MemoryStore) startClearCache(interval time.Duration) {
+	go func() {
+		for now := range time.Tick(interval) {
+			s.data.Range(func(key, value any) bool {
+				cacheItem, ok := value.(cacheItem)
+				if !ok {
+					return true // continue iteration
+				}
+				if now.After(cacheItem.expiration) {
+					s.data.Delete(key.(string))
+				}
+				return true // continue iteration
+			})
+		}
+	}()
 }
 
 // MapGet retrieves a value by key and hashsetKey. Return err if hashsetKey or key not found.

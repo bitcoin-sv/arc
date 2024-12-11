@@ -292,6 +292,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 		newStatus    metamorph_api.Status
 		statusErr    error
 		competingTxs []string
+		registered   bool
 	}
 
 	tt := []struct {
@@ -308,9 +309,10 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			name: "new status ANNOUNCED_TO_NETWORK -  updates",
 			inputs: []input{
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-					statusErr: nil,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					statusErr:  nil,
+					registered: true,
 				},
 			},
 
@@ -320,9 +322,10 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			name: "new status SEEN_ON_NETWORK - updates",
 			inputs: []input{
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_SEEN_ON_NETWORK,
-					statusErr: nil,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
+					statusErr:  nil,
+					registered: true,
 				},
 			},
 
@@ -332,8 +335,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			name: "new status MINED - update error",
 			inputs: []input{
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_MINED,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_MINED,
+					registered: true,
 				},
 			},
 			updateErr: errors.New("failed to update status"),
@@ -344,31 +348,37 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			name: "status update - success",
 			inputs: []input{
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-					statusErr: nil,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					statusErr:  nil,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX2Hash,
-					newStatus: metamorph_api.Status_REJECTED,
-					statusErr: errors.New("missing inputs"),
+					hash:       testdata.TX2Hash,
+					newStatus:  metamorph_api.Status_REJECTED,
+					statusErr:  errors.New("missing inputs"),
+					registered: true,
 				},
 				{
-					hash:      testdata.TX3Hash,
-					newStatus: metamorph_api.Status_SENT_TO_NETWORK,
+					hash:       testdata.TX3Hash,
+					newStatus:  metamorph_api.Status_SENT_TO_NETWORK,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX4Hash,
-					newStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					hash:       testdata.TX4Hash,
+					newStatus:  metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX5Hash,
-					newStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+					hash:       testdata.TX5Hash,
+					newStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
+					registered: true,
 				},
 				{
 					hash:         testdata.TX6Hash,
 					newStatus:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 					competingTxs: []string{"1234"},
+					registered:   true,
 				},
 			},
 			updateResp: [][]*store.Data{
@@ -408,30 +418,36 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			name: "multiple updates - with duplicates",
 			inputs: []input{
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_REQUESTED_BY_NETWORK,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_REQUESTED_BY_NETWORK,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_SEEN_ON_NETWORK,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_SEEN_ON_NETWORK,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_SENT_TO_NETWORK,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_SENT_TO_NETWORK,
+					registered: true,
 				},
 				{
-					hash:      testdata.TX1Hash,
-					newStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_ACCEPTED_BY_NETWORK,
+					registered: true,
 				},
 				{
 					hash:         testdata.TX2Hash,
 					newStatus:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 					competingTxs: []string{"1234"},
+					registered:   true,
 				},
 				{
 					hash:         testdata.TX2Hash,
 					newStatus:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 					competingTxs: []string{"different_competing_tx"},
+					registered:   true,
 				},
 			},
 			updateResp: [][]*store.Data{
@@ -457,6 +473,19 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			expectedUpdateStatusCalls: 1,
 			expectedDoubleSpendCalls:  1,
 			expectedCallbacks:         2,
+		},
+		{
+			name: "not registered in cache",
+			inputs: []input{
+				{
+					hash:       testdata.TX1Hash,
+					newStatus:  metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+					statusErr:  nil,
+					registered: false,
+				},
+			},
+
+			expectedUpdateStatusCalls: 0,
 		},
 	}
 
@@ -493,6 +522,11 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 
 			cStore := cache.NewMemoryStore()
+			for _, i := range tc.inputs {
+				if i.registered {
+					cStore.Set(i.hash.String(), []byte("1"), 10*time.Minute)
+				}
+			}
 
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {

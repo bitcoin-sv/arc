@@ -94,11 +94,17 @@ func TestProcessor(t *testing.T) {
 		sut.ProcessTransaction(ctx, req2)
 
 		// then
-		cacheTxs, err := cacheStore.MapGetAll(metamorph.CacheRegisteredTxsHash)
+		cacheTxs, err := cacheStore.Get(tx1.String())
 		require.NoError(t, err)
-		require.NotNil(t, cacheTxs[tx1.String()])
-		require.NotNil(t, cacheTxs[tx2.String()])
-		require.Equal(t, numberOfCacheTxs, len(cacheTxs))
+		require.NotNil(t, cacheTxs)
+
+		cacheTxs, err = cacheStore.Get(tx2.String())
+		require.NoError(t, err)
+		require.NotNil(t, cacheTxs)
+
+		cacheTxs, err = cacheStore.Get(txNotRegistered.String())
+		require.Nil(t, cacheTxs)
+		require.ErrorIs(t, err, cache.ErrCacheNotFound)
 
 	consumeStatuses:
 		for {
@@ -142,11 +148,16 @@ func TestProcessor(t *testing.T) {
 			t.Fatal("did not receive update on the status channel")
 		}
 
-		cacheTxs, err = cacheStore.MapGetAll(metamorph.CacheRegisteredTxsHash)
+		cacheTxs, err = cacheStore.Get(tx1.String())
 		require.NoError(t, err)
-		require.NotNil(t, cacheTxs[tx1.String()])
-		require.Nil(t, cacheTxs[tx2.String()])
-		require.Nil(t, cacheTxs[txNotRegistered.String()])
-		require.Equal(t, numberOfCacheTxs-1, len(cacheTxs))
+		require.NotNil(t, cacheTxs)
+
+		cacheTxs, err = cacheStore.Get(tx2.String())
+		require.Nil(t, cacheTxs)
+		require.ErrorIs(t, err, cache.ErrCacheNotFound)
+
+		cacheTxs, err = cacheStore.Get(txNotRegistered.String())
+		require.Nil(t, cacheTxs)
+		require.ErrorIs(t, err, cache.ErrCacheNotFound)
 	})
 }

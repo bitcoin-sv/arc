@@ -11,10 +11,10 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/metamorph/mocks"
 )
 
 func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {

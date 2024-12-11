@@ -8,6 +8,7 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 
+	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -27,7 +28,7 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *Valida
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
-	feeModel := api.FeesToFeeModel(v.policy.MinMiningTxFee)
+	feeModel := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
 
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions

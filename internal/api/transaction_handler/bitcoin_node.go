@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 // BitcoinNode is a real Bitcoin node.

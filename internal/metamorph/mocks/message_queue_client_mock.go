@@ -5,7 +5,7 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/pkg/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )

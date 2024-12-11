@@ -1,6 +1,10 @@
 package metamorph
 
-import "context"
+import (
+	"context"
+
+	"google.golang.org/protobuf/proto"
+)
 
 const (
 	SubmitTxTopic   = "submit-tx"
@@ -9,8 +13,13 @@ const (
 	RequestTxTopic  = "request-tx"
 )
 
-type MessageQueueClient interface {
+type MessageQueue interface {
 	Publish(ctx context.Context, topic string, data []byte) error
 	Subscribe(topic string, msgFunc func([]byte) error) error
+	Shutdown()
+}
+
+type MessageQueueClient interface {
+	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
 	Shutdown()
 }

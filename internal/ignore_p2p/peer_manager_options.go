@@ -1,4 +1,4 @@
-package p2p
+package ignore_p2p
 
 import "github.com/libsv/go-p2p/wire"
 

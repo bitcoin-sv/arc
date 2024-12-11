@@ -8,23 +8,22 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	nats_mock "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
-func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan *blocktx_api.TransactionBlock) {
+func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHandler, *postgresql.PostgreSQL, chan *blocktx_api.TransactionBlock) {
 	t.Helper()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	blockProcessCh := make(chan *blockchain.BlockMessage, 10)
+	blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
 	publishedTxsCh := make(chan *blocktx_api.TransactionBlock, 10)
 
@@ -43,7 +42,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 	}
 	mqClient := nats_core.New(mockNatsConn, nats_core.WithLogger(logger))
 
-	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
+	p2pMsgHandler := blocktx.NewPeerHandler(logger, nil, blockProcessCh)
 	processor, err := blocktx.NewProcessor(
 		logger,
 		store,

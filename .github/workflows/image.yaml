@@ -3,7 +3,7 @@ name: Build and push OCI image to Docker Hub
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
 
 jobs:
   check-current-branch:

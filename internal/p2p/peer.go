@@ -412,8 +412,9 @@ func (p *Peer) listenForMessages() {
 		defer l.Debug("Shutting down read handler")
 		defer p.execWg.Done()
 
+		reader := new(bufio.Reader)
 		for {
-			msg, err := p.readWireMsg(wire.ProtocolVersion)
+			msg, err := p.readWireMsg(reader, wire.ProtocolVersion)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
@@ -497,8 +498,8 @@ func (p *Peer) sendMessages(n uint8) {
 	}()
 }
 
-func (p *Peer) readWireMsg(pver uint32) (wire.Message, error) {
-	reader := bufio.NewReader(&io.LimitedReader{R: p.lConn, N: p.maxMsgSize})
+func (p *Peer) readWireMsg(reader *bufio.Reader, pver uint32) (wire.Message, error) {
+	reader.Reset(io.LimitReader(p.lConn, p.maxMsgSize))
 	result := make(chan readResult, 1)
 
 	go handleRead(reader, pver, p.network, result)

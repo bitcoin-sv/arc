@@ -640,7 +640,7 @@ func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blo
 }
 
 func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomingBlock *blocktx_api.Block, txHashes []*chainhash.Hash, merkleRoot chainhash.Hash) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "insertBlockAndStoreTransactions", p.tracingEnabled, p.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "insertBlockAndStoreTransactions", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("txs", len(txHashes)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()

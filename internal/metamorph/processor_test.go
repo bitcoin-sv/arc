@@ -897,9 +897,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
 					return []*store.Data{
-						{Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
-						{Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
-						{},
+						{Hash: testdata.TX1Hash, Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
+						{Hash: testdata.TX1Hash, Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
+						{Hash: testdata.TX1Hash},
 					}, tc.updateMinedErr
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },

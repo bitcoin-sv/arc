@@ -318,6 +318,8 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			p.callbackSender.SendCallback(ctx, data)
 		}
+
+		p.delTxFromCache(data.Hash)
 	}
 }
 
@@ -412,8 +414,8 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 				}
 
-				// if tx is seen on network or rejected, we don't expect any more status updates on this channel - remove from cache
-				if msg.Status == metamorph_api.Status_SEEN_ON_NETWORK || msg.Status == metamorph_api.Status_REJECTED {
+				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
+				if msg.Status == metamorph_api.Status_REJECTED {
 					p.delTxFromCache(msg.Hash)
 				}
 			}
@@ -829,6 +831,11 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 	}
 
 	for _, data := range sReq {
+		err = p.saveTxToCache(data.Hash)
+		if err != nil {
+			p.logger.Error("Failed to save tx in cache", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+		}
+
 		// register transaction in blocktx using message queue
 		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
 		if err != nil {

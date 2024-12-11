@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 func TestCheck(t *testing.T) {

@@ -12,13 +12,12 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
+	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	blockchain "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication"
-	blocktx_p2p "github.com/bitcoin-sv/arc/internal/blocktx/blockchain_communication/p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -49,8 +48,8 @@ const (
 
 type Processor struct {
 	hostname                    string
-	blockRequestCh              chan blocktx_p2p.BlockRequest
-	blockProcessCh              chan *blockchain.BlockMessage
+	blockRequestCh              chan BlockRequest
+	blockProcessCh              chan *p2p.BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -79,8 +78,8 @@ type Processor struct {
 func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
-	blockRequestCh chan blocktx_p2p.BlockRequest,
-	blockProcessCh chan *blockchain.BlockMessage,
+	blockRequestCh chan BlockRequest,
+	blockProcessCh chan *p2p.BlockMessage,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -204,7 +203,7 @@ func (p *Processor) StartBlockRequesting() {
 				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
 				msg := wire.NewMsgGetDataSizeHint(1)
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
-				peer.WriteMsg(msg)
+				_ = peer.WriteMsg(msg)
 
 				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
@@ -227,24 +226,26 @@ func (p *Processor) StartBlockProcessing() {
 				var err error
 				timeStart := time.Now()
 
-				p.logger.Info("received block", slog.String("hash", blockMsg.Hash.String()))
+				hash := blockMsg.Header.BlockHash()
+
+				p.logger.Info("received block", slog.String("hash", hash.String()))
 
 				err = p.processBlock(blockMsg)
 				if err != nil {
-					p.logger.Error("block processing failed", slog.String("hash", blockMsg.Hash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, blockMsg.Hash)
+					p.logger.Error("block processing failed", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.unlockBlock(p.ctx, &hash)
 					continue
 				}
 
-				storeErr := p.store.MarkBlockAsDone(p.ctx, blockMsg.Hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
+				storeErr := p.store.MarkBlockAsDone(p.ctx, &hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
 				if storeErr != nil {
-					p.logger.Error("unable to mark block as processed", slog.String("hash", blockMsg.Hash.String()), slog.String("err", storeErr.Error()))
-					p.unlockBlock(p.ctx, blockMsg.Hash)
+					p.logger.Error("unable to mark block as processed", slog.String("hash", hash.String()), slog.String("err", storeErr.Error()))
+					p.unlockBlock(p.ctx, &hash)
 					continue
 				}
 
 				// add the total block processing time to the stats
-				p.logger.Info("Processed block", slog.String("hash", blockMsg.Hash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+				p.logger.Info("Processed block", slog.String("hash", hash.String()), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
 			}
 		}
 	}()
@@ -450,18 +451,19 @@ func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*
 	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
-func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
+	blockHash := blockMsg.Header.BlockHash()
 
 	// release guardian
-	defer p.stopBlockProcessGuard(blockMsg.Hash)
+	defer p.stopBlockProcessGuard(&blockHash)
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		if span != nil {
-			span.SetAttributes(attribute.String("hash", blockMsg.Hash.String()))
+			span.SetAttributes(attribute.String("hash", blockHash.String()))
 			if block != nil {
 				span.SetAttributes(attribute.String("status", block.Status.String()))
 			}
@@ -470,13 +472,13 @@ func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) 
 		tracing.EndTracing(span, err)
 	}()
 
-	p.logger.Info("processing incoming block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", blockMsg.Height))
+	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockMsg.Height))
 
 	// check if we've already processed that block
-	existingBlock, _ := p.store.GetBlock(ctx, blockMsg.Hash)
+	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
 
 	if existingBlock != nil {
-		p.logger.Warn("ignoring already existing block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", blockMsg.Height))
+		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockMsg.Height))
 		return nil
 	}
 
@@ -510,17 +512,19 @@ func (p *Processor) processBlock(blockMsg *blockchain.BlockMessage) (err error) 
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *blockchain.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
+	blockHash := blockMsg.Header.BlockHash()
+
 	previousBlockHash := blockMsg.Header.PrevBlock
 	merkleRoot := blockMsg.Header.MerkleRoot
 
 	incomingBlock = &blocktx_api.Block{
-		Hash:         blockMsg.Hash[:],
+		Hash:         blockHash[:],
 		PreviousHash: previousBlockHash[:],
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
@@ -529,15 +533,15 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *blockcha
 
 	err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
 	if err != nil {
-		p.logger.Error("unable to assign block status", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return nil, err
 	}
 
-	p.logger.Info("Inserting block", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
+	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
 	err = p.insertBlockAndStoreTransactions(ctx, incomingBlock, blockMsg.TransactionHashes, blockMsg.Header.MerkleRoot)
 	if err != nil {
-		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockMsg.Hash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to insert block and store its transactions", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 		return nil, err
 	}
 

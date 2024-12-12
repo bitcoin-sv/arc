@@ -520,6 +520,23 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedTxs, actualTxs)
 	})
 
+	t.Run("get unmined registered txs", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB, "fixtures/get_unmined_registered_txs")
+
+		expectedTxs := [][]byte{
+			testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")[:],
+			testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")[:],
+		}
+
+		// when
+		txHashes, err := postgresDB.GetUnminedRegisteredTxsHashes(ctx)
+		require.NoError(t, err)
+
+		// then
+		require.ElementsMatch(t, expectedTxs, txHashes)
+	})
+
 	t.Run("clear data", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/clear_data")
 

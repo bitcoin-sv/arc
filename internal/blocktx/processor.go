@@ -24,15 +24,16 @@ import (
 )
 
 var (
-	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
-	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
-	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
-	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
-	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
-	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
-	ErrFailedToProcessBlock            = errors.New("failed to process block")
-	ErrFailedToStartCollectingStats    = errors.New("failed to start collecting stats")
+	ErrFailedToSubscribeToTopic          = errors.New("failed to subscribe to register topic")
+	ErrFailedToCreateBUMP                = errors.New("failed to create new bump for tx hash from merkle tree and index")
+	ErrFailedToGetStringFromBUMPHex      = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToGetRegisteredTransactions = errors.New("failed to get reigstered transactions")
+	ErrFailedToParseBlockHash            = errors.New("failed to parse block hash")
+	ErrFailedToInsertBlockTransactions   = errors.New("failed to insert block transactions")
+	ErrBlockAlreadyExists                = errors.New("block already exists in the database")
+	ErrUnexpectedBlockStatus             = errors.New("unexpected block status")
+	ErrFailedToProcessBlock              = errors.New("failed to process block")
+	ErrFailedToStartCollectingStats      = errors.New("failed to start collecting stats")
 )
 
 const (
@@ -679,6 +680,17 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		tracing.EndTracing(span, err)
 	}()
 
+	// get registered transcations that don't have any block associated - registered but unmined
+	registeredTxsHashes, err := p.store.GetUnminedRegisteredTxsHashes(ctx)
+	if err != nil {
+		return errors.Join(ErrFailedToGetRegisteredTransactions, fmt.Errorf("block height: %d", block.Height), err)
+	}
+
+	registeredTxsMap := make(map[string]struct{})
+	for _, txHash := range registeredTxsHashes {
+		registeredTxsMap[string(txHash)] = struct{}{}
+	}
+
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
@@ -707,20 +719,29 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
-		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
-		}
-
-		bumpHex, err := bump.String()
-		if err != nil {
-			return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
-		}
-
-		txs = append(txs, store.TxWithMerklePath{
+		tx := store.TxWithMerklePath{
 			Hash:       hash[:],
-			MerklePath: bumpHex,
-		})
+			MerklePath: "",
+		}
+
+		_, found := registeredTxsMap[string(hash[:])]
+
+		// only calculate merklePath for transactions that are registered
+		if found {
+			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
+			if err != nil {
+				return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
+			}
+
+			bumpHex, err := bump.String()
+			if err != nil {
+				return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
+			}
+
+			tx.MerklePath = bumpHex
+		}
+
+		txs = append(txs, tx)
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
 			err := p.store.UpsertBlockTransactions(ctx, blockID, txs)

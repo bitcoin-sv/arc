@@ -1,0 +1,11 @@
+- inserted_at: 2023-12-10 14:00:00
+  id: 1
+  hash: 0x000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9
+  prevhash: 0x0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7
+  merkleroot: 0x7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483
+  height: 822013
+  processed_at: 2023-12-10 14:10:00
+  size: 86840000
+  tx_count: 23477
+  status: 10 # LONGEST
+  is_longest: true

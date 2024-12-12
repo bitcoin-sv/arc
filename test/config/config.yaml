@@ -96,7 +96,9 @@ blocktx:
   recordRetentionDays: 28
   profilerAddr: localhost:9993
   registerTxsInterval: 200ms
-  fillGapsInterval: 1s
+  fillGaps:
+    enabled: true
+    interval: 1s
   maxAllowedBlockHeightMismatch: 3
 
 api:

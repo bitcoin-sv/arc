@@ -32,7 +32,7 @@ headingLevel: 2
 
 Base URLs:
 
-* <a href="https://tapi.taal.com/arc">https://tapi.taal.com/arc</a>
+* <a href="https://arc.taal.com">https://arc.taal.com</a>
 
 License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Licence</a>
 
@@ -49,7 +49,7 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 > Code samples
 
 ```http
-GET https://tapi.taal.com/arc/v1/policy HTTP/1.1
+GET https://arc.taal.com/v1/policy HTTP/1.1
 Host: tapi.taal.com
 Accept: application/json
 
@@ -62,7 +62,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('https://tapi.taal.com/arc/v1/policy',
+fetch('https://arc.taal.com/v1/policy',
 {
   method: 'GET',
 
@@ -77,7 +77,7 @@ fetch('https://tapi.taal.com/arc/v1/policy',
 ```
 
 ```java
-URL obj = new URL("https://tapi.taal.com/arc/v1/policy");
+URL obj = new URL("https://arc.taal.com/v1/policy");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -109,7 +109,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "https://tapi.taal.com/arc/v1/policy", data)
+    req, err := http.NewRequest("GET", "https://arc.taal.com/v1/policy", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -128,7 +128,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get 'https://tapi.taal.com/arc/v1/policy',
+result = RestClient.get 'https://arc.taal.com/v1/policy',
   params: {
   }, headers: headers
 
@@ -143,7 +143,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('https://tapi.taal.com/arc/v1/policy', headers = headers)
+r = requests.get('https://arc.taal.com/v1/policy', headers = headers)
 
 print(r.json())
 
@@ -151,7 +151,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET https://tapi.taal.com/arc/v1/policy \
+curl -X GET https://arc.taal.com/v1/policy \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
@@ -199,7 +199,7 @@ BearerAuth, None, None
 > Code samples
 
 ```http
-GET https://tapi.taal.com/arc/v1/health HTTP/1.1
+GET https://arc.taal.com/v1/health HTTP/1.1
 Host: tapi.taal.com
 Accept: application/json
 
@@ -212,7 +212,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('https://tapi.taal.com/arc/v1/health',
+fetch('https://arc.taal.com/v1/health',
 {
   method: 'GET',
 
@@ -227,7 +227,7 @@ fetch('https://tapi.taal.com/arc/v1/health',
 ```
 
 ```java
-URL obj = new URL("https://tapi.taal.com/arc/v1/health");
+URL obj = new URL("https://arc.taal.com/v1/health");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -259,7 +259,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "https://tapi.taal.com/arc/v1/health", data)
+    req, err := http.NewRequest("GET", "https://arc.taal.com/v1/health", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -278,7 +278,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get 'https://tapi.taal.com/arc/v1/health',
+result = RestClient.get 'https://arc.taal.com/v1/health',
   params: {
   }, headers: headers
 
@@ -293,7 +293,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('https://tapi.taal.com/arc/v1/health', headers = headers)
+r = requests.get('https://arc.taal.com/v1/health', headers = headers)
 
 print(r.json())
 
@@ -301,7 +301,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET https://tapi.taal.com/arc/v1/health \
+curl -X GET https://arc.taal.com/v1/health \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
@@ -342,7 +342,7 @@ BearerAuth, None, None
 > Code samples
 
 ```http
-GET https://tapi.taal.com/arc/v1/tx/{txid} HTTP/1.1
+GET https://arc.taal.com/v1/tx/{txid} HTTP/1.1
 Host: tapi.taal.com
 Accept: application/json
 
@@ -355,7 +355,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('https://tapi.taal.com/arc/v1/tx/{txid}',
+fetch('https://arc.taal.com/v1/tx/{txid}',
 {
   method: 'GET',
 
@@ -370,7 +370,7 @@ fetch('https://tapi.taal.com/arc/v1/tx/{txid}',
 ```
 
 ```java
-URL obj = new URL("https://tapi.taal.com/arc/v1/tx/{txid}");
+URL obj = new URL("https://arc.taal.com/v1/tx/{txid}");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -402,7 +402,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("GET", "https://tapi.taal.com/arc/v1/tx/{txid}", data)
+    req, err := http.NewRequest("GET", "https://arc.taal.com/v1/tx/{txid}", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -421,7 +421,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.get 'https://tapi.taal.com/arc/v1/tx/{txid}',
+result = RestClient.get 'https://arc.taal.com/v1/tx/{txid}',
   params: {
   }, headers: headers
 
@@ -436,7 +436,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.get('https://tapi.taal.com/arc/v1/tx/{txid}', headers = headers)
+r = requests.get('https://arc.taal.com/v1/tx/{txid}', headers = headers)
 
 print(r.json())
 
@@ -444,7 +444,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X GET https://tapi.taal.com/arc/v1/tx/{txid} \
+curl -X GET https://arc.taal.com/v1/tx/{txid} \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
@@ -502,7 +502,7 @@ BearerAuth, None, None
 > Code samples
 
 ```http
-POST https://tapi.taal.com/arc/v1/tx HTTP/1.1
+POST https://arc.taal.com/v1/tx HTTP/1.1
 Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
@@ -539,7 +539,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('https://tapi.taal.com/arc/v1/tx',
+fetch('https://arc.taal.com/v1/tx',
 {
   method: 'POST',
   body: inputBody,
@@ -554,7 +554,7 @@ fetch('https://tapi.taal.com/arc/v1/tx',
 ```
 
 ```java
-URL obj = new URL("https://tapi.taal.com/arc/v1/tx");
+URL obj = new URL("https://arc.taal.com/v1/tx");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("POST");
 int responseCode = con.getResponseCode();
@@ -598,7 +598,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("POST", "https://tapi.taal.com/arc/v1/tx", data)
+    req, err := http.NewRequest("POST", "https://arc.taal.com/v1/tx", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -629,7 +629,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.post 'https://tapi.taal.com/arc/v1/tx',
+result = RestClient.post 'https://arc.taal.com/v1/tx',
   params: {
   }, headers: headers
 
@@ -656,7 +656,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.post('https://tapi.taal.com/arc/v1/tx', headers = headers)
+r = requests.post('https://arc.taal.com/v1/tx', headers = headers)
 
 print(r.json())
 
@@ -664,7 +664,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X POST https://tapi.taal.com/arc/v1/tx \
+curl -X POST https://arc.taal.com/v1/tx \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \
@@ -809,7 +809,7 @@ BearerAuth, None, None
 > Code samples
 
 ```http
-POST https://tapi.taal.com/arc/v1/txs HTTP/1.1
+POST https://arc.taal.com/v1/txs HTTP/1.1
 Host: tapi.taal.com
 Content-Type: text/plain
 Accept: application/json
@@ -847,7 +847,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('https://tapi.taal.com/arc/v1/txs',
+fetch('https://arc.taal.com/v1/txs',
 {
   method: 'POST',
   body: inputBody,
@@ -862,7 +862,7 @@ fetch('https://tapi.taal.com/arc/v1/txs',
 ```
 
 ```java
-URL obj = new URL("https://tapi.taal.com/arc/v1/txs");
+URL obj = new URL("https://arc.taal.com/v1/txs");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("POST");
 int responseCode = con.getResponseCode();
@@ -906,7 +906,7 @@ func main() {
     }
 
     data := bytes.NewBuffer([]byte{jsonReq})
-    req, err := http.NewRequest("POST", "https://tapi.taal.com/arc/v1/txs", data)
+    req, err := http.NewRequest("POST", "https://arc.taal.com/v1/txs", data)
     req.Header = headers
 
     client := &http.Client{}
@@ -937,7 +937,7 @@ headers = {
   'Authorization' => 'Bearer {access-token}'
 }
 
-result = RestClient.post 'https://tapi.taal.com/arc/v1/txs',
+result = RestClient.post 'https://arc.taal.com/v1/txs',
   params: {
   }, headers: headers
 
@@ -964,7 +964,7 @@ headers = {
   'Authorization': 'Bearer {access-token}'
 }
 
-r = requests.post('https://tapi.taal.com/arc/v1/txs', headers = headers)
+r = requests.post('https://arc.taal.com/v1/txs', headers = headers)
 
 print(r.json())
 
@@ -972,7 +972,7 @@ print(r.json())
 
 ```shell
 # You can also use wget
-curl -X POST https://tapi.taal.com/arc/v1/txs \
+curl -X POST https://arc.taal.com/v1/txs \
   -H 'Content-Type: text/plain' \
   -H 'Accept: application/json' \
   -H 'X-CallbackUrl: string' \

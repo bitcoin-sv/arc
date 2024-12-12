@@ -6,7 +6,7 @@ info:
     name: Open BSV Licence
     url: https://bitcoinassociation.net/open-bsv-license/
 servers:
-  - url: https://tapi.taal.com/arc
+  - url: https://arc.taal.com
 paths:
 
   # Get Policy

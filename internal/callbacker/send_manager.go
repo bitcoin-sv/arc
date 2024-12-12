@@ -282,7 +282,8 @@ func (m *SendManager) send(callback *CallbackEntry) {
 	// quick fix for client issue with to fast callbacks
 	time.Sleep(m.sendDelay)
 
-	if m.sender.Send(m.url, callback.Token, callback.Data) {
+	success, retry := m.sender.Send(m.url, callback.Token, callback.Data)
+	if !retry || success {
 		time.Sleep(m.singleSendSleep)
 		return
 	}
@@ -308,7 +309,8 @@ func (m *SendManager) sendBatch(batch []*CallbackEntry) {
 	// quick fix for client issue with to fast callbacks
 	time.Sleep(m.sendDelay)
 
-	if m.sender.SendBatch(m.url, token, callbacks) {
+	success, retry := m.sender.SendBatch(m.url, token, callbacks)
+	if !retry || success {
 		return
 	}
 

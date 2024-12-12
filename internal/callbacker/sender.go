@@ -110,7 +110,7 @@ func (p *CallbackSender) Health() error {
 	return nil
 }
 
-func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
+func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry bool) {
 	payload, err := json.Marshal(dto)
 	if err != nil {
 		p.logger.Error("Failed to marshal callback",
@@ -119,12 +119,12 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 			slog.String("hash", dto.TxID),
 			slog.String("status", dto.TxStatus),
 			slog.String("err", err.Error()))
-		return false
+		return false, false
 	}
 	var retries int
-	ok, retries = p.sendCallbackWithRetries(url, token, payload)
+	success, retry, retries = p.sendCallbackWithRetries(url, token, payload)
 
-	if ok {
+	if success {
 		p.logger.Info("Callback sent",
 			slog.String("url", url),
 			slog.String("token", token),
@@ -133,7 +133,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 			slog.Int("retries", retries))
 
 		p.updateSuccessStats(dto.TxStatus)
-		return
+		return success, retry
 	}
 
 	p.logger.Warn("Failed to send callback with retries",
@@ -144,10 +144,10 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (ok bool) {
 		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
-	return
+	return success, retry
 }
 
-func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool) {
+func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success, retry bool) {
 	batch := BatchCallback{
 		Count:     len(dtos),
 		Callbacks: dtos,
@@ -161,12 +161,12 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 			slog.Bool("batch", true),
 			slog.String("err", err.Error()))
 
-		return false
+		return false, false
 	}
 	var retries int
-	ok, retries = p.sendCallbackWithRetries(url, token, payload)
+	success, retry, retries = p.sendCallbackWithRetries(url, token, payload)
 	p.stats.callbackBatchCount.Inc()
-	if ok {
+	if success {
 		for _, c := range dtos {
 			p.logger.Info("Callback sent",
 				slog.String("url", url),
@@ -177,7 +177,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 
 			p.updateSuccessStats(c.TxStatus)
 		}
-		return
+		return success, retry
 	}
 
 	p.logger.Warn("Failed to send callback with retries",
@@ -187,18 +187,21 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (ok bool
 		slog.Int("retries", retries))
 
 	p.stats.callbackFailedCount.Inc()
-	return
+	return success, retry
 }
 
-func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (success bool, nrOfRetries int) {
+func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (success bool, retry bool, nrOfRetries int) {
 	retrySleep := p.retrySleepDuration
 	var err error
 	var statusCode int
+
+	retry = true
 	for range p.retries {
 		nrOfRetries++
 		statusCode, err = p.sendCallback(url, token, jsonPayload)
 		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 			success = true
+			retry = false
 			break
 		}
 
@@ -208,7 +211,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 					slog.String("url", url),
 					slog.String("token", token),
 					slog.String("err", err.Error()))
-				return false, nrOfRetries
+				return false, true, nrOfRetries
 			}
 
 			if errors.Is(err, ErrHostNonExistent) {
@@ -216,7 +219,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 					slog.String("url", url),
 					slog.String("token", token),
 					slog.String("err", err.Error()))
-				return false, nrOfRetries
+				return false, false, nrOfRetries
 			}
 
 			if errors.Is(err, ErrHTTPSendFailed) {
@@ -238,7 +241,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 		time.Sleep(retrySleep)
 	}
 
-	return success, nrOfRetries
+	return success, retry, nrOfRetries
 }
 
 var (

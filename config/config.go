@@ -125,7 +125,7 @@ type BlocktxConfig struct {
 	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
 	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
 	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
-	FillGapsInterval              time.Duration       `mapstructure:"fillGapsInterval"`
+	FillGaps                      *FillGapsConfig     `mapstructure:"fillGaps"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
 }
@@ -169,6 +169,11 @@ type HealthConfig struct {
 type StatsConfig struct {
 	NotSeenTimeLimit  time.Duration `mapstructure:"notSeenTimeLimit"`
 	NotFinalTimeLimit time.Duration `mapstructure:"notFinalTimeLimit"`
+}
+
+type FillGapsConfig struct {
+	Enabled  bool          `mapstructure:"enabled"`
+	Interval time.Duration `mapstructure:"interval"`
 }
 
 type APIConfig struct {

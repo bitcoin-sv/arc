@@ -183,8 +183,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		peers[i] = peer
 	}
 
-	workers = blocktx.NewBackgroundWorkers(blockStore, logger)
-	workers.StartFillGaps(peers, btxConfig.FillGapsInterval, btxConfig.RecordRetentionDays, blockRequestCh)
+	if btxConfig.FillGaps != nil && btxConfig.FillGaps.Enabled {
+		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
+		workers.StartFillGaps(peers, btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
+	}
 
 	server, err = blocktx.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
 		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, arcConfig.Tracing)

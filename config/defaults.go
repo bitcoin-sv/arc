@@ -122,7 +122,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
 		MonitorPeers:                  false,
-		FillGapsInterval:              15 * time.Minute,
+		FillGaps:                      getFillGapsConfig(),
 		MaxAllowedBlockHeightMismatch: 3,
 		MaxBlockProcessingDuration:    5 * time.Minute,
 		MessageQueue:                  &MessageQueueConfig{},
@@ -198,6 +198,13 @@ func getCallbackerConfig() *CallbackerConfig {
 		PruneOlderThan:              14 * 24 * time.Hour,
 		FailedCallbackCheckInterval: time.Minute,
 		Expiration:                  24 * time.Hour,
+	}
+}
+
+func getFillGapsConfig() *FillGapsConfig {
+	return &FillGapsConfig{
+		Enabled:  true,
+		Interval: 15 * time.Minute,
 	}
 }
 

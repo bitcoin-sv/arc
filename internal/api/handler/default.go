@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -32,6 +33,7 @@ import (
 const (
 	maxTimeout               = 30
 	maxTimeoutSecondsDefault = 5
+	mapExpiryTimeDefault     = 24 * time.Hour
 )
 
 var (
@@ -50,6 +52,7 @@ type ArcDefaultHandler struct {
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
+	mapExpiryTime                 time.Duration
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
@@ -64,6 +67,12 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.rejectedCallbackURLSubstrings = rejectedCallbackURLSubstrings
+	}
+}
+
+func WithCacheExpiryTime(d time.Duration) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.mapExpiryTime = d
 	}
 }
 
@@ -99,6 +108,7 @@ func NewDefault(
 		now:                time.Now,
 		mrVerifier:         mr,
 		txFinder:           cachedFinder,
+		mapExpiryTime:      mapExpiryTimeDefault,
 	}
 
 	// apply options
@@ -196,8 +206,56 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		return ctx.JSON(e.Status, e)
 	}
 
-	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
+	// Now we check if we have the transaction present in db, if so we skip validation (as we must have already validated it)
+	// if LastSubmitted is not too old and callbacks are the same then we just stop processing transaction as there is nothing new
+	txIDs, e := m.getTxIDs(txHex)
+	if e != nil {
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
+		// if an error is returned, the processing failed
+		return ctx.JSON(e.Status, e)
+	}
 
+	// check if we already have the transaction in db (so no need to validate)
+	tx, err := m.getTransactionStatus(reqCtx, txIDs[0])
+	if err != nil {
+		// if we have error which is NOT ErrTransactionNotFound, return err
+		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+			return ctx.JSON(e.Status, e)
+		}
+	} else {
+		// if we have found transaction skip the validation
+		transactionOptions.SkipTxValidation = true
+
+		// now check if we need to skip the processing of the transaction
+		callbackAlreadyExists := false
+		for _, cb := range tx.Callbacks {
+			if cb.CallbackUrl == transactionOptions.CallbackURL {
+				callbackAlreadyExists = true
+			}
+		}
+
+		// if LastSubmitted doesn't need to be updated and we already have provided callbacks - skip everything and return current status
+		if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
+			return ctx.JSON(int(api.StatusOK), &api.TransactionResponse{
+				Status:       int(api.StatusOK),
+				Title:        "OK",
+				BlockHash:    &tx.BlockHash,
+				BlockHeight:  &tx.BlockHeight,
+				TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+				ExtraInfo:    &tx.ExtraInfo,
+				CompetingTxs: &tx.CompetingTxs,
+				Timestamp:    m.now(),
+				Txid:         txIDs[0],
+				MerklePath:   &tx.MerklePath,
+			})
+		}
+	}
+
+	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 	if e != nil {
 		if span != nil {
 			attr := e.GetSpanAttributes()
@@ -302,6 +360,76 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			span.SetAttributes(attr...)
 		}
 		return ctx.JSON(e.Status, e)
+	}
+
+	// Now we check if we have the transactions present in db, if so we skip validation (as we must have already validated them)
+	// if LastSubmitted is not too old and callbacks are the same then we just stop processing transactions as there is nothing new
+	txIDs, e := m.getTxIDs(txsHex)
+	if e != nil {
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
+		// if an error is returned, the processing failed
+		return ctx.JSON(e.Status, e)
+	}
+
+	// check if we already have the transactions in db (so no need to validate)
+	txStatuses, err := m.getTransactionStatuses(reqCtx, txIDs)
+	allTransactionsProcessed := false
+	if err != nil {
+		// if we have error which is NOT ErrTransactionNotFound, return err
+		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+			return ctx.JSON(e.Status, e)
+		}
+	} else {
+		if len(txStatuses) == len(txIDs) {
+			// if we have found all the transactions, skip the validation
+			transactionOptions.SkipTxValidation = true
+
+			// now check if we need to skip the processing of the transaction
+			allProcessed := true
+			for _, tx := range txStatuses {
+				exists := false
+				for _, cb := range tx.Callbacks {
+					if cb.CallbackUrl == transactionOptions.CallbackURL {
+						exists = true
+						break
+					}
+				}
+				if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
+					allProcessed = false
+					break
+				}
+			}
+			allTransactionsProcessed = allProcessed
+		}
+	}
+
+	// if nothing to update return
+	var successes []*api.TransactionResponse
+	if allTransactionsProcessed {
+		for _, tx := range txStatuses {
+			successes = append(successes, &api.TransactionResponse{
+				Status:       int(api.StatusOK),
+				Title:        "OK",
+				BlockHash:    &tx.BlockHash,
+				BlockHeight:  &tx.BlockHeight,
+				TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+				ExtraInfo:    &tx.ExtraInfo,
+				CompetingTxs: &tx.CompetingTxs,
+				Timestamp:    m.now(),
+				Txid:         tx.TxID,
+				MerklePath:   &tx.MerklePath,
+			})
+		}
+		// merge success and fail results
+		responses := make([]any, 0, len(successes))
+		for _, o := range successes {
+			responses = append(responses, o)
+		}
+		return ctx.JSON(int(api.StatusOK), responses)
 	}
 
 	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
@@ -431,6 +559,31 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	return transactionOptions, nil
 }
 
+func (m ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields) {
+	var txIDs []string
+	for len(txsHex) != 0 {
+		hexFormat := validator.GetHexFormat(txsHex)
+		if hexFormat == validator.BeefHex {
+			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
+			if err != nil {
+				errStr := errors.Join(ErrDecodingBeef, err).Error()
+				return nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
+			}
+			txsHex = remainingBytes
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID())
+		} else {
+			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
+			if err != nil {
+				return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			}
+			txsHex = txsHex[bytesUsed:]
+			txIDs = append(txIDs, transaction.TxID())
+		}
+	}
+
+	return txIDs, nil
+}
+
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
 func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
 	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
@@ -443,7 +596,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 	// decode and validate txs
 	var txIDs []string
-
 	for len(txsHex) != 0 {
 		hexFormat := validator.GetHexFormat(txsHex)
 
@@ -617,6 +769,20 @@ func (m ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) 
 	}()
 
 	tx, err = m.TransactionHandler.GetTransactionStatus(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (m ArcDefaultHandler) getTransactionStatuses(ctx context.Context, txIDs []string) (tx []*metamorph.TransactionStatus, err error) {
+	ctx, span := tracing.StartTracing(ctx, "getTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	tx, err = m.TransactionHandler.GetTransactionStatuses(ctx, txIDs)
 	if err != nil {
 		return nil, err
 	}

@@ -18,6 +18,7 @@ import (
 
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -625,6 +626,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, nil
 				},
 
+				GetTransactionStatusFunc: func(_ context.Context, _ string) (*metamorph.TransactionStatus, error) {
+					return nil, metamorph.ErrTransactionNotFound
+				},
+
 				SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 					return tc.submitTxResponse, tc.submitTxErr
 				},
@@ -828,6 +833,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, metamorph.ErrTransactionNotFound
 			},
 
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
+			},
+
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
@@ -884,6 +893,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return txStatuses, nil
 			},
 
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
+			},
+
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
@@ -923,6 +936,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return nil
+			},
+
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
 			},
 		}
 
@@ -971,6 +988,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
+			},
+
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
 			},
 
 			HealthFunc: func(_ context.Context) error {
@@ -1054,6 +1075,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return res, nil
 			},
 
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
+			},
+
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
@@ -1064,6 +1089,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, nil
 			},
 		}
+
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
 			return nil, errors.New("error getting raw transactions")
 		}}
@@ -1092,6 +1118,74 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			require.Equal(t, validBeefTxID, bResponse[0].Txid)
 			require.Equal(t, validTxID, bResponse[1].Txid)
 		}
+	})
+
+	t.Run("skip processing transactions", func(t *testing.T) {
+		// given
+		txResults := []*metamorph.TransactionStatus{
+			{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+				Callbacks: []*metamorph_api.Callback{
+					{
+						CallbackUrl: "https://callback.example.com",
+					},
+				},
+				LastSubmitted: *timestamppb.New(time.Now()),
+			},
+			{
+				TxID:        validTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+				Callbacks: []*metamorph_api.Callback{
+					{
+						CallbackUrl: "https://callback.example.com",
+					},
+				},
+				LastSubmitted: *timestamppb.New(time.Now()),
+			},
+		}
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mtmMocks.TransactionHandlerMock{
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return txResults, nil
+			},
+		}
+
+		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
+			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+				return nil, nil
+			},
+		}
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
+			return nil, errors.New("error getting raw transactions")
+		}}
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
+		require.NoError(t, err)
+
+		// when
+		callbackURL := "https://callback.example.com"
+		rec, ctx := createEchoPostRequest(strings.NewReader("[{\"rawTx\":\""+validBeef+"\"}, {\"rawTx\":\""+validTx+"\"}]"), echo.MIMEApplicationJSON, "/v1/txs")
+		err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{
+			XCallbackUrl: &callbackURL,
+		})
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, len(txHandler.SubmitTransactionsCalls()), 0)
+
+		b := rec.Body.Bytes()
+		var bResponse []api.TransactionResponse
+		_ = json.Unmarshal(b, &bResponse)
+
+		require.Equal(t, validBeefTxID, bResponse[0].Txid)
+		require.Equal(t, validTxID, bResponse[1].Txid)
 	})
 }
 

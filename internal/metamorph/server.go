@@ -469,6 +469,63 @@ func (s *Server) GetTransactionStatus(ctx context.Context, req *metamorph_api.Tr
 	return returnStatus, nil
 }
 
+func (s *Server) GetTransactionStatuses(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) (returnStatus *metamorph_api.TransactionStatuses, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatuses", s.tracingEnabled, s.tracingAttributes...)
+
+	var status metamorph_api.Status
+
+	defer func() {
+		if span != nil {
+			span.SetAttributes(attribute.String("status", status.String()))
+		}
+		tracing.EndTracing(span, err)
+	}()
+	statuses, err := s.getTransactions(ctx, req)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		s.logger.ErrorContext(ctx, "failed to get transaction status", slog.String("err", err.Error()))
+		return nil, err
+	}
+	returnStatus = &metamorph_api.TransactionStatuses{
+		Statuses: make([]*metamorph_api.TransactionStatus, 0),
+	}
+	for _, status := range statuses {
+		var storedAt *timestamppb.Timestamp
+		if !status.StoredAt.IsZero() {
+			storedAt = timestamppb.New(status.StoredAt)
+		}
+		txStatus := &metamorph_api.TransactionStatus{
+			Txid:          status.Hash.String(),
+			StoredAt:      storedAt,
+			Status:        status.Status,
+			BlockHeight:   status.BlockHeight,
+			RejectReason:  status.RejectReason,
+			CompetingTxs:  status.CompetingTxs,
+			MerklePath:    status.MerklePath,
+			LastSubmitted: timestamppb.New(status.LastSubmittedAt),
+		}
+		if status.BlockHash != nil {
+			txStatus.BlockHash = status.BlockHash.String()
+		}
+		for _, cb := range status.Callbacks {
+			if cb.CallbackURL != "" {
+				if txStatus.Callbacks == nil {
+					txStatus.Callbacks = make([]*metamorph_api.Callback, 0)
+				}
+				txStatus.Callbacks = append(txStatus.Callbacks, &metamorph_api.Callback{
+					CallbackUrl:   cb.CallbackURL,
+					CallbackToken: cb.CallbackToken,
+					AllowBatch:    cb.AllowBatch,
+				})
+			}
+		}
+		returnStatus.Statuses = append(returnStatus.Statuses, txStatus)
+	}
+	return returnStatus, nil
+}
+
 func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.Data, *timestamppb.Timestamp, error) {
 	txBytes, err := hex.DecodeString(req.GetTxid())
 	if err != nil {

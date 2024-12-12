@@ -172,11 +172,13 @@ type StatsConfig struct {
 }
 
 type APIConfig struct {
-	Address             string            `mapstructure:"address"`
-	WocAPIKey           string            `mapstructure:"wocApiKey"`
-	WocMainnet          bool              `mapstructure:"wocMainnet"`
-	DefaultPolicy       *bitcoin.Settings `mapstructure:"defaultPolicy"`
-	RequestExtendedLogs bool              `mapstructure:"requestExtendedLogs"`
+	Address                  string            `mapstructure:"address"`
+	WocAPIKey                string            `mapstructure:"wocApiKey"`
+	WocMainnet               bool              `mapstructure:"wocMainnet"`
+	DefaultPolicy            *bitcoin.Settings `mapstructure:"defaultPolicy"`
+	ProcessorCacheExpiryTime time.Duration     `mapstructure:"processorCacheExpiryTime"`
+
+	RequestExtendedLogs bool `mapstructure:"requestExtendedLogs"`
 }
 
 type K8sWatcherConfig struct {

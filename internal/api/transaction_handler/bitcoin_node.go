@@ -95,6 +95,10 @@ func (b *BitcoinNode) GetTransactionStatus(_ context.Context, txID string) (stat
 	}, nil
 }
 
+func (b *BitcoinNode) GetTransactionStatuses(_ context.Context, _ []string) (statuses []*metamorph.TransactionStatus, err error) {
+	return make([]*metamorph.TransactionStatus, 0), nil
+}
+
 // SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
 func (b *BitcoinNode) SubmitTransaction(_ context.Context, tx *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
 	txID, err := b.Node.SendRawTransaction(hex.EncodeToString(tx.Bytes()))

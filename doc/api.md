@@ -50,7 +50,7 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 
 ```http
 GET https://arc.taal.com/v1/policy HTTP/1.1
-Host: tapi.taal.com
+Host: arc.taal.com
 Accept: application/json
 
 ```
@@ -200,7 +200,7 @@ BearerAuth, None, None
 
 ```http
 GET https://arc.taal.com/v1/health HTTP/1.1
-Host: tapi.taal.com
+Host: arc.taal.com
 Accept: application/json
 
 ```
@@ -343,7 +343,7 @@ BearerAuth, None, None
 
 ```http
 GET https://arc.taal.com/v1/tx/{txid} HTTP/1.1
-Host: tapi.taal.com
+Host: arc.taal.com
 Accept: application/json
 
 ```
@@ -503,7 +503,7 @@ BearerAuth, None, None
 
 ```http
 POST https://arc.taal.com/v1/tx HTTP/1.1
-Host: tapi.taal.com
+Host: arc.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string
@@ -810,7 +810,7 @@ BearerAuth, None, None
 
 ```http
 POST https://arc.taal.com/v1/txs HTTP/1.1
-Host: tapi.taal.com
+Host: arc.taal.com
 Content-Type: text/plain
 Accept: application/json
 X-CallbackUrl: string

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -303,6 +304,92 @@ func TestPostgresDBt(t *testing.T) {
 
 		// then
 		require.Equal(t, countAll-countToDelete, tutils.CountCallbacks(t, postgresDB.db))
+	})
+
+	t.Run("set URL mapping", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+
+		// when
+		ctx := context.Background()
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/",
+			Instance: "host1",
+		})
+
+		// then
+		require.NoError(t, err)
+
+		// when
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/",
+			Instance: "host2",
+		})
+
+		// then
+		require.ErrorIs(t, err, store.ErrURLMappingDuplicateKey)
+	})
+
+	t.Run("delete URL mapping", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+
+		ctx := context.Background()
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/",
+			Instance: "host1",
+		})
+		require.NoError(t, err)
+
+		// when
+		err = postgresDB.DeleteURLMapping(ctx, "host1")
+		require.NoError(t, err)
+
+		// then
+		mappings, err := postgresDB.GetURLMappings(ctx)
+		require.NoError(t, err)
+
+		require.Len(t, mappings, 0)
+	})
+
+	t.Run("get URL mappings", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+
+		ctx := context.Background()
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/1",
+			Instance: "host1",
+		})
+		require.NoError(t, err)
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/2",
+			Instance: "host2",
+		})
+		require.NoError(t, err)
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/3",
+			Instance: "host3",
+		})
+		require.NoError(t, err)
+		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
+			URL:      "https://callback-receiver.com/4",
+			Instance: "host4",
+		})
+		require.NoError(t, err)
+
+		// when
+		actual, err := postgresDB.GetURLMappings(ctx)
+
+		// then
+		require.NoError(t, err)
+		expected := map[string]string{
+			"https://callback-receiver.com/1": "host1",
+			"https://callback-receiver.com/2": "host2",
+			"https://callback-receiver.com/3": "host3",
+			"https://callback-receiver.com/4": "host4",
+		}
+		require.True(t, reflect.DeepEqual(expected, actual))
 	})
 }
 

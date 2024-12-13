@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
@@ -16,9 +15,23 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
+type Dispatcher interface {
+	Dispatch(url string, dto *CallbackEntry, allowBatch bool)
+}
+
+const (
+	syncInterval = 5 * time.Second
+)
+
+var (
+	ErrUnmarshal  = errors.New("failed to unmarshal message")
+	ErrNak        = errors.New("failed to nak message")
+	ErrSetMapping = errors.New("failed to set mapping")
+)
+
 type Processor struct {
 	mqClient   MessageQueueClient
-	dispatcher *CallbackDispatcher
+	dispatcher Dispatcher
 	store      store.ProcessorStore
 	logger     *slog.Logger
 
@@ -31,12 +44,7 @@ type Processor struct {
 	urlMapping map[string]string
 }
 
-func NewProcessor(dispatcher *CallbackDispatcher, processorStore store.ProcessorStore, mqClient MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
-	hostName, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-
+func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
 		hostName:   hostName,
 		urlMapping: make(map[string]string),
@@ -57,33 +65,6 @@ func NewProcessor(dispatcher *CallbackDispatcher, processorStore store.Processor
 	return p, nil
 }
 
-func sendRequestToDto(r *callbacker_api.SendRequest) *Callback {
-	dto := Callback{
-		TxID:      r.Txid,
-		TxStatus:  r.Status.String(),
-		Timestamp: time.Now().UTC(),
-	}
-
-	if r.BlockHash != "" {
-		dto.BlockHash = ptrTo(r.BlockHash)
-		dto.BlockHeight = ptrTo(r.BlockHeight)
-	}
-
-	if r.MerklePath != "" {
-		dto.MerklePath = ptrTo(r.MerklePath)
-	}
-
-	if r.ExtraInfo != "" {
-		dto.ExtraInfo = ptrTo(r.ExtraInfo)
-	}
-
-	if len(r.CompetingTxs) > 0 {
-		dto.CompetingTxs = r.CompetingTxs
-	}
-
-	return &dto
-}
-
 func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 	p.logger.Debug("message received", "instance", p.hostName)
 
@@ -93,9 +74,9 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 		nakErr := msg.Nak()
 		if nakErr != nil {
 			p.logger.Error("failed to nak message", nakErr)
-			return errors.Join(fmt.Errorf("failed to unmarshal message"), nakErr)
+			return errors.Join(errors.Join(ErrUnmarshal, err), errors.Join(ErrNak, nakErr))
 		}
-		return fmt.Errorf("failed to unmarshal message")
+		return errors.Join(ErrUnmarshal, err)
 	}
 
 	// check if this processor the first URL of this request is mapped to this instance
@@ -123,12 +104,12 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 			p.logger.Error("failed to set URL mapping", slog.String("err", err.Error()))
 
-			err = msg.Nak()
-			if err != nil {
-				p.logger.Error("failed to nak message", slog.String("err", err.Error()))
-				return err
+			nakErr := msg.Nak()
+			if nakErr != nil {
+				p.logger.Error("failed to nak message", slog.String("err", nakErr.Error()))
+				return errors.Join(errors.Join(ErrSetMapping, err), errors.Join(ErrNak, nakErr))
 			}
-			return err
+			return errors.Join(ErrSetMapping, err)
 		}
 
 		p.mu.Lock()
@@ -156,41 +137,39 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 }
 
 func (p *Processor) Start() error {
+	p.startSyncURLMapping()
+
 	err := p.mqClient.SubscribeMsg(CallbackTopic, p.handleCallbackMessage)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe on %s topic: %v", CallbackTopic, err)
 	}
-
-	p.startSyncURLMapping()
-
 	return nil
 }
 
 func (p *Processor) startSyncURLMapping() {
 	p.waitGroup.Add(1)
 	go func() {
-		timer := time.NewTimer(time.Second * 5)
+		timer := time.NewTimer(syncInterval)
 		defer func() {
 			timer.Stop()
 			p.waitGroup.Done()
 		}()
 		for {
+			mappings, err := p.store.GetURLMappings(p.ctx)
+			if err != nil {
+				p.logger.Error("failed to get URL mappings", slog.String("err", err.Error()))
+				continue
+			}
+
+			p.logger.Debug("mapping updated", "mappings", mappings)
+
+			p.mu.Lock()
+			p.urlMapping = mappings
+			p.mu.Unlock()
 			select {
 			case <-p.ctx.Done():
 				return
 			case <-timer.C:
-
-				mappings, err := p.store.GetURLMappings(p.ctx)
-				if err != nil {
-					p.logger.Error("failed to get URL mappings", slog.String("err", err.Error()))
-					continue
-				}
-
-				p.logger.Info("mapping updated", "mappings", mappings)
-
-				p.mu.Lock()
-				p.urlMapping = mappings
-				p.mu.Unlock()
 			}
 		}
 	}()

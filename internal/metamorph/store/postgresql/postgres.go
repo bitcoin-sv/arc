@@ -686,29 +686,23 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 
 	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories), pq.Array(timestamps))
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 
@@ -808,29 +802,23 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 
 	rows, err := tx.QueryContext(ctx, qBulk, pq.Array(txHashes), pq.Array(statuses), pq.Array(statusHistories), pq.Array(timestamps))
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
 

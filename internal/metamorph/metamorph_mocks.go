@@ -23,7 +23,7 @@ package metamorph
 
 // from server.go
 //go:generate moq -pkg mocks -out ./mocks/processor_mock.go . ProcessorI
-//go:generate moq -pkg mocks -out ./mocks/bitcon_mock.go . BitcoinNode
+//go:generate moq -pkg mocks -out ./mocks/bitcoin_mock.go . BitcoinNode
 
 // from client.go
 //go:generate moq -pkg mocks -out ./mocks/transaction_handler_mock.go . TransactionHandler

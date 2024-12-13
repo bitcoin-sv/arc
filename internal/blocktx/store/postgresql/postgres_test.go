@@ -51,10 +51,11 @@ type Transaction struct {
 }
 
 type BlockTransactionMap struct {
-	BlockID       int64     `db:"blockid"`
-	TransactionID int64     `db:"txid"`
-	MerklePath    string    `db:"merkle_path"`
-	InsertedAt    time.Time `db:"inserted_at"`
+	BlockID         int64     `db:"blockid"`
+	TransactionID   int64     `db:"txid"`
+	MerklePath      string    `db:"merkle_path"`
+	MerkleTreeIndex int64     `db:"merkle_tree_index"`
+	InsertedAt      time.Time `db:"inserted_at"`
 }
 
 const (
@@ -437,25 +438,28 @@ func TestPostgresDB(t *testing.T) {
 
 		expectedTxs := []store.TransactionBlock{
 			{
-				TxHash:      txHash1[:],
-				BlockHash:   blockHash[:],
-				BlockHeight: 822013,
-				MerklePath:  "merkle-path-1",
-				BlockStatus: blocktx_api.Status_LONGEST,
+				TxHash:          txHash1[:],
+				BlockHash:       blockHash[:],
+				BlockHeight:     822013,
+				MerklePath:      "merkle-path-1",
+				MerkleTreeIndex: int64(1),
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
-				TxHash:      txHash2[:],
-				BlockHash:   blockHash[:],
-				BlockHeight: 822013,
-				MerklePath:  "merkle-path-2",
-				BlockStatus: blocktx_api.Status_LONGEST,
+				TxHash:          txHash2[:],
+				BlockHash:       blockHash[:],
+				BlockHeight:     822013,
+				MerklePath:      "merkle-path-2",
+				MerkleTreeIndex: int64(2),
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
-				TxHash:      txHash3[:],
-				BlockHash:   blockHash2[:],
-				BlockHeight: 822012,
-				MerklePath:  "merkle-path-6",
-				BlockStatus: blocktx_api.Status_STALE,
+				TxHash:          txHash3[:],
+				BlockHash:       blockHash2[:],
+				BlockHeight:     822012,
+				MerklePath:      "merkle-path-6",
+				MerkleTreeIndex: int64(6),
+				BlockStatus:     blocktx_api.Status_STALE,
 			},
 		}
 
@@ -490,25 +494,28 @@ func TestPostgresDB(t *testing.T) {
 
 		expectedTxs := []store.TransactionBlock{
 			{
-				TxHash:      testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")[:],
-				BlockHash:   blockHashLongest[:],
-				BlockHeight: 822013,
-				MerklePath:  "merkle-path-2",
-				BlockStatus: blocktx_api.Status_LONGEST,
+				TxHash:          testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")[:],
+				BlockHash:       blockHashLongest[:],
+				BlockHeight:     822013,
+				MerklePath:      "merkle-path-2",
+				MerkleTreeIndex: int64(2),
+				BlockStatus:     blocktx_api.Status_LONGEST,
 			},
 			{
-				TxHash:      testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")[:],
-				BlockHash:   blockHashStale[:],
-				BlockHeight: 822012,
-				MerklePath:  "merkle-path-6",
-				BlockStatus: blocktx_api.Status_STALE,
+				TxHash:          testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0")[:],
+				BlockHash:       blockHashStale[:],
+				BlockHeight:     822012,
+				MerklePath:      "merkle-path-6",
+				MerkleTreeIndex: int64(6),
+				BlockStatus:     blocktx_api.Status_STALE,
 			},
 			{
-				TxHash:      testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")[:],
-				BlockHash:   blockHashStale[:],
-				BlockHeight: 822012,
-				MerklePath:  "merkle-path-7",
-				BlockStatus: blocktx_api.Status_STALE,
+				TxHash:          testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")[:],
+				BlockHash:       blockHashStale[:],
+				BlockHeight:     822012,
+				MerklePath:      "merkle-path-7",
+				MerkleTreeIndex: int64(7),
+				BlockStatus:     blocktx_api.Status_STALE,
 			},
 		}
 
@@ -535,6 +542,28 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		require.ElementsMatch(t, expectedTxs, txHashes)
+	})
+
+	t.Run("get block transactions hashes", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB, "fixtures/get_block_transactions")
+
+		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")[:]
+
+		expectedTxsHashes := []*chainhash.Hash{
+			testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"),
+			testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"),
+			testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"),
+			testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"),
+			testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"),
+		}
+
+		// when
+		actualTxsHashes, err := postgresDB.GetBlockTransactionsHashes(ctx, blockHash)
+		require.NoError(t, err)
+
+		// then
+		require.ElementsMatch(t, expectedTxsHashes, actualTxsHashes)
 	})
 
 	t.Run("clear data", func(t *testing.T) {
@@ -692,12 +721,14 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "upsert all registered transactions (updates only)",
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
-					Hash:       testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
-					MerklePath: "test1",
+					Hash:            testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
+					MerklePath:      "test1",
+					MerkleTreeIndex: int64(1),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
-					MerklePath: "test2",
+					Hash:            testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
+					MerklePath:      "test2",
+					MerkleTreeIndex: int64(2),
 				},
 			},
 			expectedUpdatedResLen: 2,
@@ -706,8 +737,9 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "upsert all non-registered transactions (inserts only)",
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
-					Hash:       testutils.RevChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
-					MerklePath: "test1",
+					Hash:            testutils.RevChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
+					MerklePath:      "test1",
+					MerkleTreeIndex: int64(1),
 				},
 			},
 			expectedUpdatedResLen: 0,
@@ -716,28 +748,34 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "update exceeds max batch size (more txs than 5)",
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
-					Hash:       testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
-					MerklePath: "test1",
+					Hash:            testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
+					MerklePath:      "test1",
+					MerkleTreeIndex: int64(1),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
-					MerklePath: "test2",
+					Hash:            testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
+					MerklePath:      "test2",
+					MerkleTreeIndex: int64(2),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
-					MerklePath: "test3",
+					Hash:            testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
+					MerklePath:      "test3",
+					MerkleTreeIndex: int64(3),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
-					MerklePath: "test4",
+					Hash:            testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
+					MerklePath:      "test4",
+					MerkleTreeIndex: int64(4),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
-					MerklePath: "test5",
+					Hash:            testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
+					MerklePath:      "test5",
+					MerkleTreeIndex: int64(5),
 				},
 				{
-					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-					MerklePath: "test6",
+					Hash:            testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					MerklePath:      "test6",
+					MerkleTreeIndex: int64(6),
 				},
 			},
 			expectedUpdatedResLen: 6,
@@ -746,8 +784,9 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			name: "upsert all registered transactions cause conflict with txid and blockid",
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
-					Hash:       testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-					MerklePath: "test7",
+					Hash:            testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
+					MerklePath:      "test7",
+					MerkleTreeIndex: int64(7),
 				},
 			},
 			upsertRepeat:          true,
@@ -803,10 +842,11 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
 
 				var mp BlockTransactionMap
-				err = d.Get(&mp, "SELECT blockid, txid, merkle_path from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
+				err = d.Get(&mp, "SELECT blockid, txid, merkle_path, merkle_tree_index from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
 				require.NoError(t, err, "error during getting block transactions map")
 
 				require.Equal(t, tx.MerklePath, mp.MerklePath)
+				require.Equal(t, tx.MerkleTreeIndex, mp.MerkleTreeIndex)
 				require.Equal(t, testBlockID, uint64(mp.BlockID))
 			}
 		})

@@ -21,10 +21,12 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	txHashes := make([][]byte, len(txsWithMerklePaths))
 	blockIDs := make([]uint64, len(txsWithMerklePaths))
 	merklePaths := make([]string, len(txsWithMerklePaths))
+	merkleTreeIndexes := make([]int64, len(txsWithMerklePaths))
 	for pos, tx := range txsWithMerklePaths {
 		txHashes[pos] = tx.Hash
 		merklePaths[pos] = tx.MerklePath
 		blockIDs[pos] = blockID
+		merkleTreeIndexes[pos] = tx.MerkleTreeIndex
 	}
 
 	qBulkUpsert := `
@@ -61,11 +63,12 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 			 blockid
 			,txid
 			,merkle_path
+			,merkle_tree_index
 			)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[])
+		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[], $4::INT[])
 		ON CONFLICT DO NOTHING
 		`
-	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths))
+	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths), pq.Array(merkleTreeIndexes))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpsertBlockTransactionsMap, err)
 	}

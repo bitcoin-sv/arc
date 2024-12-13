@@ -39,6 +39,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetBlockHashesProcessingInProgress method")
 //			},
+//			GetBlockTransactionsHashesFunc: func(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error) {
+//				panic("mock out the GetBlockTransactionsHashes method")
+//			},
 //			GetChainTipFunc: func(ctx context.Context) (*blocktx_api.Block, error) {
 //				panic("mock out the GetChainTip method")
 //			},
@@ -62,6 +65,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			},
 //			GetStatsFunc: func(ctx context.Context) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
+//			},
+//			GetUnminedRegisteredTxsHashesFunc: func(ctx context.Context) ([][]byte, error) {
+//				panic("mock out the GetUnminedRegisteredTxsHashes method")
 //			},
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
@@ -112,6 +118,9 @@ type BlocktxStoreMock struct {
 	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
 	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 
+	// GetBlockTransactionsHashesFunc mocks the GetBlockTransactionsHashes method.
+	GetBlockTransactionsHashesFunc func(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
+
 	// GetChainTipFunc mocks the GetChainTip method.
 	GetChainTipFunc func(ctx context.Context) (*blocktx_api.Block, error)
 
@@ -135,6 +144,9 @@ type BlocktxStoreMock struct {
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context) (*store.Stats, error)
+
+	// GetUnminedRegisteredTxsHashesFunc mocks the GetUnminedRegisteredTxsHashes method.
+	GetUnminedRegisteredTxsHashesFunc func(ctx context.Context) ([][]byte, error)
 
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
@@ -204,6 +216,13 @@ type BlocktxStoreMock struct {
 			// ProcessedBy is the processedBy argument value.
 			ProcessedBy string
 		}
+		// GetBlockTransactionsHashes holds details about calls to the GetBlockTransactionsHashes method.
+		GetBlockTransactionsHashes []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// BlockHash is the blockHash argument value.
+			BlockHash []byte
+		}
 		// GetChainTip holds details about calls to the GetChainTip method.
 		GetChainTip []struct {
 			// Ctx is the ctx argument value.
@@ -255,6 +274,11 @@ type BlocktxStoreMock struct {
 		}
 		// GetStats holds details about calls to the GetStats method.
 		GetStats []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
+		// GetUnminedRegisteredTxsHashes holds details about calls to the GetUnminedRegisteredTxsHashes method.
+		GetUnminedRegisteredTxsHashes []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
@@ -329,6 +353,7 @@ type BlocktxStoreMock struct {
 	lockGetBlock                           sync.RWMutex
 	lockGetBlockGaps                       sync.RWMutex
 	lockGetBlockHashesProcessingInProgress sync.RWMutex
+	lockGetBlockTransactionsHashes         sync.RWMutex
 	lockGetChainTip                        sync.RWMutex
 	lockGetLongestBlockByHeight            sync.RWMutex
 	lockGetLongestChainFromHeight          sync.RWMutex
@@ -337,6 +362,7 @@ type BlocktxStoreMock struct {
 	lockGetRegisteredTxsByBlockHashes      sync.RWMutex
 	lockGetStaleChainBackFromHash          sync.RWMutex
 	lockGetStats                           sync.RWMutex
+	lockGetUnminedRegisteredTxsHashes      sync.RWMutex
 	lockMarkBlockAsDone                    sync.RWMutex
 	lockPing                               sync.RWMutex
 	lockRegisterTransactions               sync.RWMutex
@@ -559,6 +585,42 @@ func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgressCalls() []struct
 	mock.lockGetBlockHashesProcessingInProgress.RLock()
 	calls = mock.calls.GetBlockHashesProcessingInProgress
 	mock.lockGetBlockHashesProcessingInProgress.RUnlock()
+	return calls
+}
+
+// GetBlockTransactionsHashes calls GetBlockTransactionsHashesFunc.
+func (mock *BlocktxStoreMock) GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error) {
+	if mock.GetBlockTransactionsHashesFunc == nil {
+		panic("BlocktxStoreMock.GetBlockTransactionsHashesFunc: method is nil but BlocktxStore.GetBlockTransactionsHashes was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		BlockHash []byte
+	}{
+		Ctx:       ctx,
+		BlockHash: blockHash,
+	}
+	mock.lockGetBlockTransactionsHashes.Lock()
+	mock.calls.GetBlockTransactionsHashes = append(mock.calls.GetBlockTransactionsHashes, callInfo)
+	mock.lockGetBlockTransactionsHashes.Unlock()
+	return mock.GetBlockTransactionsHashesFunc(ctx, blockHash)
+}
+
+// GetBlockTransactionsHashesCalls gets all the calls that were made to GetBlockTransactionsHashes.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetBlockTransactionsHashesCalls())
+func (mock *BlocktxStoreMock) GetBlockTransactionsHashesCalls() []struct {
+	Ctx       context.Context
+	BlockHash []byte
+} {
+	var calls []struct {
+		Ctx       context.Context
+		BlockHash []byte
+	}
+	mock.lockGetBlockTransactionsHashes.RLock()
+	calls = mock.calls.GetBlockTransactionsHashes
+	mock.lockGetBlockTransactionsHashes.RUnlock()
 	return calls
 }
 
@@ -843,6 +905,38 @@ func (mock *BlocktxStoreMock) GetStatsCalls() []struct {
 	mock.lockGetStats.RLock()
 	calls = mock.calls.GetStats
 	mock.lockGetStats.RUnlock()
+	return calls
+}
+
+// GetUnminedRegisteredTxsHashes calls GetUnminedRegisteredTxsHashesFunc.
+func (mock *BlocktxStoreMock) GetUnminedRegisteredTxsHashes(ctx context.Context) ([][]byte, error) {
+	if mock.GetUnminedRegisteredTxsHashesFunc == nil {
+		panic("BlocktxStoreMock.GetUnminedRegisteredTxsHashesFunc: method is nil but BlocktxStore.GetUnminedRegisteredTxsHashes was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockGetUnminedRegisteredTxsHashes.Lock()
+	mock.calls.GetUnminedRegisteredTxsHashes = append(mock.calls.GetUnminedRegisteredTxsHashes, callInfo)
+	mock.lockGetUnminedRegisteredTxsHashes.Unlock()
+	return mock.GetUnminedRegisteredTxsHashesFunc(ctx)
+}
+
+// GetUnminedRegisteredTxsHashesCalls gets all the calls that were made to GetUnminedRegisteredTxsHashes.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetUnminedRegisteredTxsHashesCalls())
+func (mock *BlocktxStoreMock) GetUnminedRegisteredTxsHashesCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockGetUnminedRegisteredTxsHashes.RLock()
+	calls = mock.calls.GetUnminedRegisteredTxsHashes
+	mock.lockGetUnminedRegisteredTxsHashes.RUnlock()
 	return calls
 }
 

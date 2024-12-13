@@ -167,19 +167,17 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func filterUpdates(unprocessed []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
-	var result []store.UpdateStatus
-	for _, unproc := range unprocessed {
-		isProcessed := false
-		for _, proc := range processed {
-			if unproc.Hash == *proc.Hash {
-				isProcessed = true
-				break
-			}
-		}
-		if !isProcessed {
-			result = append(result, unproc)
+func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
+	processedMap := make(map[string]struct{}, len(processed))
+	unprocessed := make([]store.UpdateStatus, 0)
+	for _, p := range processed {
+		processedMap[string(p.Hash[:])] = struct{}{}
+	}
+	for _, s := range all {
+		_, found := processedMap[string(s.Hash[:])]
+		if !found {
+			unprocessed = append(unprocessed, s)
 		}
 	}
-	return result
+	return unprocessed
 }

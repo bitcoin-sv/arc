@@ -143,7 +143,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	pmOpts := []p2p.PeerManagerOptions{p2p.WithExcessiveBlockSize(maximumBlockSize)}
-	if arcConfig.Metamorph.MonitorPeers {
+	if arcConfig.Blocktx.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
@@ -155,6 +155,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
 		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+		p2p.WithReadBufferSize(arcConfig.Blocktx.P2pReadBufferSize),
 	}
 
 	if version.Version != "" {

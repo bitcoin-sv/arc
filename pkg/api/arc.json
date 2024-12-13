@@ -10,7 +10,7 @@
   },
   "servers": [
     {
-      "url": "https://tapi.taal.com/arc"
+      "url": "https://arc.taal.com"
     }
   ],
   "paths": {

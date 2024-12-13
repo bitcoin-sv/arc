@@ -101,7 +101,7 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("publish", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(SubmitTxTopic))
 		require.NoError(t, err)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		txRequest := &metamorph_api.TransactionRequest{
@@ -154,7 +154,7 @@ func TestNatsClient(t *testing.T) {
 
 	t.Run("subscribe", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(MinedTxsTopic))
 		require.NoError(t, err)
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
@@ -165,7 +165,7 @@ func TestNatsClient(t *testing.T) {
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
 
 		// subscribe with initialized consumer
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, nats_jetstream.WithSubscribedTopics(MinedTxsTopic))
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(MinedTxsTopic))
 		require.NoError(t, err)
 
 		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
@@ -211,7 +211,7 @@ func TestNatsClient(t *testing.T) {
 	})
 
 	t.Run("shutdown", func(t *testing.T) {
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(SubmitTxTopic))
 		require.NoError(t, err)
 		mqClient.Shutdown()
 	})

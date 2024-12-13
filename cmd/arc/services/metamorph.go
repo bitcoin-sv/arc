@@ -10,11 +10,12 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/libsv/go-p2p"
 	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
+
+	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/tracing"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -110,6 +111,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
 		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic)}
+		opts := []nats_jetstream.Option{
+			nats_jetstream.WithWorkQueuePolicy(metamorph.RegisterTxTopic, metamorph.RequestTxTopic),
+			nats_jetstream.WithInterestPolicy(metamorph.CallbackTopic),
+		}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
@@ -119,7 +124,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 
 		mqClient, err = nats_jetstream.New(natsClient, logger,
-			[]string{metamorph.MinedTxsTopic, metamorph.SubmitTxTopic, metamorph.RegisterTxTopic, metamorph.RequestTxTopic},
 			opts...,
 		)
 		if err != nil {

@@ -225,7 +225,9 @@ func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig) (metamorph.M
 
 	var mqClient metamorph.MessageQueueClient
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		var opts []nats_jetstream.Option
+		opts := []nats_jetstream.Option{
+			nats_jetstream.WithWorkQueuePolicy(metamorph.SubmitTxTopic),
+		}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
@@ -234,7 +236,7 @@ func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig) (metamorph.M
 			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
 		}
 
-		mqClient, err = nats_jetstream.New(conn, logger, []string{metamorph.SubmitTxTopic}, opts...)
+		mqClient, err = nats_jetstream.New(conn, logger, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nats client: %v", err)
 		}

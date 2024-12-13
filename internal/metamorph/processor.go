@@ -34,6 +34,8 @@ const (
 	seenOnNetworkTxTimeUntilDefault = 2 * time.Hour
 	LogLevelDefault                 = slog.LevelInfo
 
+	txCacheTTL = 10 * time.Minute
+
 	loadUnminedLimit                 = int64(5000)
 	loadSeenOnNetworkLimit           = int64(5000)
 	minimumHealthyConnectionsDefault = 2
@@ -316,6 +318,8 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			p.callbackSender.SendCallback(ctx, data)
 		}
+
+		p.delTxFromCache(data.Hash)
 	}
 }
 
@@ -384,6 +388,24 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				// if we receive new update check if we have client connection waiting for status and send it
+				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+					Hash:         msg.Hash,
+					Status:       msg.Status,
+					Err:          msg.Err,
+					CompetingTxs: msg.CompetingTxs,
+				})
+
+				if !found {
+					found = p.txFoundInCache(msg.Hash)
+				}
+
+				if !found {
+					continue
+				}
+
+				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
+
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -392,13 +414,10 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 				}
 
-				// if we receive new update check if we have client connection waiting for status and send it
-				p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
-					Hash:         msg.Hash,
-					Status:       msg.Status,
-					Err:          msg.Err,
-					CompetingTxs: msg.CompetingTxs,
-				})
+				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
+				if msg.Status == metamorph_api.Status_REJECTED {
+					p.delTxFromCache(msg.Hash)
+				}
 			}
 		}
 	}()
@@ -648,6 +667,13 @@ func (p *Processor) StartProcessExpiredTransactions() {
 							continue
 						}
 
+						// save the tx to cache again, in case it was removed or expired
+						err := p.saveTxToCache(tx.Hash)
+						if err != nil {
+							p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+							continue
+						}
+
 						// mark that we retried processing this transaction once more
 						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
 							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
@@ -751,6 +777,18 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Status: metamorph_api.Status_STORED,
 	})
 
+	// Add this transaction to the map of transactions that client is listening to with open connection
+	ctx, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
+	p.responseProcessor.Add(statusResponse)
+	tracing.EndTracing(responseProcessorAddSpan, nil)
+
+	// Add this transaction to cache
+	err = p.saveTxToCache(statusResponse.Hash)
+	if err != nil {
+		p.logger.Error("failed to store tx in cache", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
+	}
+
 	// Send GETDATA to peers to see if they have it
 	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -758,7 +796,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// Announce transaction to network peers
 	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	ctx, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
+	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
 	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
 	tracing.EndTracing(announceTransactionSpan, nil)
 	if len(peers) == 0 {
@@ -776,11 +814,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Hash:   *req.Data.Hash,
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 	}
-
-	// Add this transaction to the map of transactions that client is listening to with open connection
-	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
-	p.responseProcessor.Add(statusResponse)
-	tracing.EndTracing(responseProcessorAddSpan, nil)
 }
 
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
@@ -798,6 +831,11 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 	}
 
 	for _, data := range sReq {
+		err = p.saveTxToCache(data.Hash)
+		if err != nil {
+			p.logger.Error("Failed to save tx in cache", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+		}
+
 		// register transaction in blocktx using message queue
 		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
 		if err != nil {
@@ -858,4 +896,26 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 		}
 	}
 	return false
+}
+
+func (p *Processor) saveTxToCache(hash *chainhash.Hash) error {
+	return p.cacheStore.Set(hash.String(), []byte("1"), txCacheTTL)
+}
+
+func (p *Processor) txFoundInCache(hash *chainhash.Hash) (found bool) {
+	value, err := p.cacheStore.Get(hash.String())
+	if err != nil && !errors.Is(err, cache.ErrCacheNotFound) {
+		p.logger.Error("count not get the transaction from hash", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+		// respond as if the tx is found just in case this transaction is registered
+		return true
+	}
+
+	return value != nil
+}
+
+func (p *Processor) delTxFromCache(hash *chainhash.Hash) {
+	err := p.cacheStore.Del(hash.String())
+	if err != nil && !errors.Is(err, cache.ErrCacheNotFound) {
+		p.logger.Error("unable to delete transaction from cache", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+	}
 }

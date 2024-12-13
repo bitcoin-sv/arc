@@ -65,18 +65,19 @@ func (p *ResponseProcessor) Add(statusResponse *StatusResponse) {
 	}()
 }
 
-func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) {
+func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) (found bool) {
 	val, ok := p.resMap.Load(*hash)
 	if !ok {
-		return
+		return false
 	}
 
 	statusResponse, ok := val.(*StatusResponse)
 	if !ok {
-		return
+		return false
 	}
 
-	statusResponse.UpdateStatus(statusAndError)
+	go statusResponse.UpdateStatus(statusAndError)
+	return true
 }
 
 // use for tests only

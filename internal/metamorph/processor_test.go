@@ -932,7 +932,10 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			pm := &bcnet.Mediator{}
-			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
+			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
+			callbackSender := &mocks.CallbackSenderMock{
+				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			mqClient := &mocks.MessageQueueMock{
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
@@ -947,16 +950,17 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
+				metamorph.WithCallbackSender(callbackSender),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
-			minedTxsChan <- &blocktx_api.TransactionBlock{}
-			minedTxsChan <- &blocktx_api.TransactionBlock{}
-			minedTxsChan <- &blocktx_api.TransactionBlock{}
-			minedTxsChan <- &blocktx_api.TransactionBlock{}
+			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}}}
+			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}}}
+			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}}}
+			minedTxsChan <- &blocktx_api.TransactionBlocks{TransactionBlocks: []*blocktx_api.TransactionBlock{{}}}
 			minedTxsChan <- nil
 
 			// when
@@ -1106,7 +1110,7 @@ func TestStart(t *testing.T) {
 			}
 
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 2)
-			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 2)
+			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 2)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
 				metamorph.WithMessageQueueClient(mqClient),

@@ -162,19 +162,19 @@ func TestProcessorStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			dispatcher := &mocks.DispatcherMock{
-				DispatchFunc: func(url string, dto *callbacker.CallbackEntry, allowBatch bool) {},
+				DispatchFunc: func(_ string, _ *callbacker.CallbackEntry, _ bool) {},
 			}
 			processorStore := &mocks.ProcessorStoreMock{
-				SetURLMappingFunc:    func(ctx context.Context, m store.URLMapping) error { return tc.setURLMappingErr },
-				DeleteURLMappingFunc: func(ctx context.Context, instance string) error { return nil },
-				GetURLMappingsFunc: func(ctx context.Context) (map[string]string, error) {
+				SetURLMappingFunc:    func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
+				DeleteURLMappingFunc: func(_ context.Context, _ string) error { return nil },
+				GetURLMappingsFunc: func(_ context.Context) (map[string]string, error) {
 					return tc.mappings, nil
 				},
 			}
 
 			var handleMsgFunction func(msg jetstream.Msg) error
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeMsgFunc: func(topic string, msgFunc func(msg jetstream.Msg) error) error {
+				SubscribeMsgFunc: func(_ string, msgFunc func(msg jetstream.Msg) error) error {
 					handleMsgFunction = msgFunc
 					return nil
 				},

@@ -113,7 +113,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create nats client: %v", err)
 	}
 
-	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, logger)
+	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
 	if err != nil {
 		stopFn()
 		return nil, err

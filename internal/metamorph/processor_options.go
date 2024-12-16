@@ -107,7 +107,7 @@ func WithMessageQueueClient(mqClient MessageQueue) func(processor *Processor) {
 	}
 }
 
-func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlock) func(processor *Processor) {
+func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
 	return func(p *Processor) {
 		p.minedTxsChan = minedTxsChan
 	}

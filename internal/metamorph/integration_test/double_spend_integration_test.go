@@ -55,7 +55,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
-	minedTxChannel := make(chan *blocktx_api.TransactionBlock, 10)
+	minedTxChannel := make(chan *blocktx_api.TransactionBlocks, 10)
 
 	mockedZMQ := &mocks.ZMQIMock{
 		SubscribeFunc: func(s string, stringsCh chan []string) error {
@@ -120,12 +120,18 @@ func TestDoubleSpendDetection(t *testing.T) {
 	minedTxHash, err := chainhash.NewHashFromStr(hashes[0])
 	require.NoError(t, err)
 
-	minedTxChannel <- &blocktx_api.TransactionBlock{
-		BlockHash:       testutils.RevChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
-		BlockHeight:     888888,
-		TransactionHash: minedTxHash[:],
-		MerklePath:      "merkle-path-1",
+	minedMsg := &blocktx_api.TransactionBlocks{
+		TransactionBlocks: []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testutils.RevChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
+				BlockHeight:     888888,
+				TransactionHash: minedTxHash[:],
+				MerklePath:      "merkle-path-1",
+			},
+		},
 	}
+
+	minedTxChannel <- minedMsg
 
 	// give metamorph time to parse mined msg
 	time.Sleep(500 * time.Millisecond)

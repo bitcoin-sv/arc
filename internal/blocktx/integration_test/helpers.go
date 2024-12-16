@@ -18,21 +18,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHandler, *postgresql.PostgreSQL, chan *blocktx_api.TransactionBlock) {
+func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHandler, *postgresql.PostgreSQL, chan *blocktx_api.TransactionBlocks) {
 	t.Helper()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
-	publishedTxsCh := make(chan *blocktx_api.TransactionBlock, 10)
+	publishedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
 
 	store, err := postgresql.New(dbInfo, 10, 80)
 	require.NoError(t, err)
 
 	mockNatsConn := &nats_mock.NatsConnectionMock{
 		PublishFunc: func(_ string, data []byte) error {
-			serialized := &blocktx_api.TransactionBlock{}
+			serialized := &blocktx_api.TransactionBlocks{}
 			err := proto.Unmarshal(data, serialized)
 			require.NoError(t, err)
 
@@ -55,13 +55,13 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHan
 	return processor, p2pMsgHandler, store, publishedTxsCh
 }
 
-func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlock) []*blocktx_api.TransactionBlock {
+func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlocks) []*blocktx_api.TransactionBlock {
 	publishedTxs := make([]*blocktx_api.TransactionBlock, 0)
 
 	for {
 		select {
 		case tx := <-publishedTxsCh:
-			publishedTxs = append(publishedTxs, tx)
+			publishedTxs = append(publishedTxs, tx.TransactionBlocks...)
 		default:
 			return publishedTxs
 		}

@@ -91,7 +91,7 @@ func (c Client) Publish(ctx context.Context, topic string, data []byte) (err err
 }
 
 func (c Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "PublishMarshal", c.tracingEnabled, c.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -113,7 +113,7 @@ func (c Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	_, err := c.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
 		err := msgFunc(msg.Data)
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic))
+			c.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic), slog.String("err", err.Error()))
 		}
 	})
 	if err != nil {

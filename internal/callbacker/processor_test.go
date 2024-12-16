@@ -61,6 +61,7 @@ func TestProcessorStart(t *testing.T) {
 			messageData: data,
 			ackErr:      errors.New("ack failed"),
 
+			expectedError:              callbacker.ErrAckMessage,
 			expectedMessageAckCalls:    1,
 			expectedMessageNakCalls:    0,
 			expectedSetURLMappingCalls: 0,
@@ -127,6 +128,7 @@ func TestProcessorStart(t *testing.T) {
 			messageData:      data,
 			ackErr:           errors.New("ack failed"),
 
+			expectedError:              callbacker.ErrAckMessage,
 			expectedMessageAckCalls:    1,
 			expectedMessageNakCalls:    0,
 			expectedSetURLMappingCalls: 1,

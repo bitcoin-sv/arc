@@ -892,13 +892,8 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
 					return []*store.Data{
-						{
-							Hash:      testdata.TX1Hash,
-							Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}},
-						},
-						{
-							Hash:      testdata.TX2Hash,
-							Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}}},
+						{Hash: testdata.TX1Hash, Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}}},
+						{Hash: testdata.TX2Hash, Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}}},
 						{Hash: testdata.TX1Hash},
 					}, tc.updateMinedErr
 				},

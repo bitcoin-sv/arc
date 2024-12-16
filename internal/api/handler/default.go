@@ -383,28 +383,26 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			return ctx.JSON(e.Status, e)
 		}
-	} else {
-		if len(txStatuses) == len(txIDs) {
-			// if we have found all the transactions, skip the validation
-			transactionOptions.SkipTxValidation = true
+	} else if len(txStatuses) == len(txIDs) {
+		// if we have found all the transactions, skip the validation
+		transactionOptions.SkipTxValidation = true
 
-			// now check if we need to skip the processing of the transaction
-			allProcessed := true
-			for _, tx := range txStatuses {
-				exists := false
-				for _, cb := range tx.Callbacks {
-					if cb.CallbackUrl == transactionOptions.CallbackURL {
-						exists = true
-						break
-					}
-				}
-				if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
-					allProcessed = false
+		// now check if we need to skip the processing of the transaction
+		allProcessed := true
+		for _, tx := range txStatuses {
+			exists := false
+			for _, cb := range tx.Callbacks {
+				if cb.CallbackUrl == transactionOptions.CallbackURL {
+					exists = true
 					break
 				}
 			}
-			allTransactionsProcessed = allProcessed
+			if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
+				allProcessed = false
+				break
+			}
 		}
+		allTransactionsProcessed = allProcessed
 	}
 
 	// if nothing to update return

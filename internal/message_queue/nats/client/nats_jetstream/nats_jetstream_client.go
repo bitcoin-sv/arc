@@ -218,7 +218,7 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	_, err := consumer.Consume(func(msg jetstream.Msg) {
 		msgErr := msgFunc(msg.Data())
 		if msgErr != nil {
-			cl.logger.Error(fmt.Sprintf("failed to consume message on %s topic: %s", topic, string(msg.Data())))
+			cl.logger.Error(fmt.Sprintf("failed to consume message on %s topic: %s", topic, string(msg.Data())), slog.String("err", msgErr.Error()))
 			return
 		}
 

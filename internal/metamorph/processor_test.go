@@ -13,9 +13,9 @@ import (
 
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -493,7 +493,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			counter := 0
-			callbackSent := make(chan struct{}, tc.expectedCallbacks)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
@@ -529,22 +528,31 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
-			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(_ context.Context, _ *store.Data) {
-					callbackSent <- struct{}{}
+			statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+
+			mqClient := &mocks.MessageQueueMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
 				},
 			}
 
-			statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
-
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel, metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }), metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond), metamorph.WithProcessStatusUpdatesBatchSize(3), metamorph.WithCallbackSender(callbackSender))
+			sut, err := metamorph.NewProcessor(
+				metamorphStore,
+				cStore,
+				pm,
+				statusMessageChannel,
+				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
+				metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
+				metamorph.WithProcessStatusUpdatesBatchSize(3),
+				metamorph.WithMessageQueueClient(mqClient),
+			)
 			require.NoError(t, err)
 
 			// when
 			sut.StartProcessStatusUpdatesInStorage()
 			sut.StartSendStatusUpdate()
 
-			assert.Equal(t, 0, sut.GetProcessorMapSize())
+			require.Equal(t, 0, sut.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
 				statusMessageChannel <- &metamorph.TxStatusMessage{
 					Hash:         testInput.hash,
@@ -554,25 +562,12 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
-			timeoutTimer := time.NewTimer(time.Second * 5)
-			callbackCounter := 0
-			if tc.expectedCallbacks > 0 {
-				select {
-				case <-callbackSent:
-					callbackCounter++
-					if callbackCounter == tc.expectedCallbacks {
-						break
-					}
-				case <-timeoutTimer.C:
-					t.Fatal("expected callbacks never sent")
-				}
-			}
 			time.Sleep(time.Millisecond * 300)
 
 			// then
-			assert.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
-			assert.Equal(t, tc.expectedDoubleSpendCalls, len(metamorphStore.UpdateDoubleSpendCalls()))
-			assert.Equal(t, tc.expectedCallbacks, len(callbackSender.SendCallbackCalls()))
+			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
+			require.Equal(t, tc.expectedDoubleSpendCalls, len(metamorphStore.UpdateDoubleSpendCalls()))
+			require.Equal(t, tc.expectedCallbacks, len(mqClient.PublishMarshalCalls()))
 			sut.Shutdown()
 		})
 	}
@@ -897,8 +892,13 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					require.Len(t, txsBlocks, tc.expectedTxsBlocks)
 
 					return []*store.Data{
-						{Hash: testdata.TX1Hash, Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
-						{Hash: testdata.TX1Hash, Callbacks: []store.Callback{{CallbackURL: "http://callback.com"}}},
+						{
+							Hash:      testdata.TX1Hash,
+							Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}},
+						},
+						{
+							Hash:      testdata.TX2Hash,
+							Callbacks: []store.Callback{{CallbackURL: "https://callback.com"}}},
 						{Hash: testdata.TX1Hash},
 					}, tc.updateMinedErr
 				},
@@ -906,9 +906,13 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			}
 			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
-			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
+
+			mqClient := &mocks.MessageQueueMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
+
 			cStore := cache.NewMemoryStore()
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
@@ -916,9 +920,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
-				metamorph.WithCallbackSender(callbackSender),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
+				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -935,7 +939,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedSendCallbackCalls, len(callbackSender.SendCallbackCalls()))
+			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }

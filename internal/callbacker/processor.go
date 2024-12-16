@@ -25,7 +25,8 @@ const (
 
 var (
 	ErrUnmarshal  = errors.New("failed to unmarshal message")
-	ErrNak        = errors.New("failed to nak message")
+	ErrNakMessage = errors.New("failed to nak message")
+	ErrAckMessage = errors.New("failed to ack message")
 	ErrSetMapping = errors.New("failed to set mapping")
 )
 
@@ -73,8 +74,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 	if err != nil {
 		nakErr := msg.Nak()
 		if nakErr != nil {
-			p.logger.Error("failed to nak message", nakErr)
-			return errors.Join(errors.Join(ErrUnmarshal, err), errors.Join(ErrNak, nakErr))
+			return errors.Join(errors.Join(ErrUnmarshal, err), errors.Join(ErrNakMessage, nakErr))
 		}
 		return errors.Join(ErrUnmarshal, err)
 	}
@@ -95,8 +95,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 				errAck := msg.Ack()
 				if errAck != nil {
-					p.logger.Error("failed to ack message", slog.String("err", errAck.Error()))
-					return errAck
+					return errors.Join(ErrAckMessage, errAck)
 				}
 
 				return nil
@@ -106,8 +105,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 			nakErr := msg.Nak()
 			if nakErr != nil {
-				p.logger.Error("failed to nak message", slog.String("err", nakErr.Error()))
-				return errors.Join(errors.Join(ErrSetMapping, err), errors.Join(ErrNak, nakErr))
+				return errors.Join(errors.Join(ErrSetMapping, err), errors.Join(ErrNakMessage, nakErr))
 			}
 			return errors.Join(ErrSetMapping, err)
 		}
@@ -129,7 +127,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 	err = msg.Ack()
 	if err != nil {
-		p.logger.Error("failed to ack message", slog.String("err", err.Error()))
+		return errors.Join(ErrAckMessage, err)
 	}
 
 	p.logger.Debug("message acked", "instance", p.hostName, "url", request.CallbackRouting.Url)

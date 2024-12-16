@@ -395,4 +395,5 @@ func TestPostgresDBt(t *testing.T) {
 
 func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.callbacks")
+	testutils.PruneTables(t, db, "callbacker.url_mapping")
 }

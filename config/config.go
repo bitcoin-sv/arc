@@ -128,6 +128,7 @@ type BlocktxConfig struct {
 	FillGaps                      *FillGapsConfig     `mapstructure:"fillGaps"`
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
+	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
 }
 
 type DbConfig struct {

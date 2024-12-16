@@ -109,7 +109,8 @@ blocktx:
     enabled: true
     interval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
-
+  p2pReadBufferSize: 8388608 # size of read buffer for p2p messeges
+  
 api:
   address: localhost:9090 # address to start api server on
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com

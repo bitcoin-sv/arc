@@ -550,6 +550,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 	return incomingBlock, nil
 }
 
+//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "assignBlockStatus", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -610,6 +611,7 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 	return nil
 }
 
+//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	_, err := p.store.GetChainTip(ctx)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {

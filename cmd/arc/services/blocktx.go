@@ -93,7 +93,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{nats_jetstream.WithSubscribedTopics(blocktx.RegisterTxTopic, blocktx.RequestTxTopic)}
+		opts := []nats_jetstream.Option{
+			nats_jetstream.WithSubscribedWorkQueuePolicy(blocktx.RegisterTxTopic, blocktx.RequestTxTopic),
+			nats_jetstream.WithWorkQueuePolicy(blocktx.MinedTxsTopic),
+		}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
 			opts = append(opts, nats_jetstream.WithFileStorage())
 		}
@@ -103,7 +106,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		}
 
 		mqClient, err = nats_jetstream.New(natsConnection, logger,
-			[]string{blocktx.MinedTxsTopic, blocktx.RegisterTxTopic, blocktx.RequestTxTopic},
 			opts...,
 		)
 		if err != nil {

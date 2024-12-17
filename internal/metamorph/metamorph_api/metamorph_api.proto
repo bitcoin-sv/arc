@@ -34,6 +34,7 @@ service MetaMorphAPI {
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
   rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
+  rpc GetTransactionStatuses (TransactionsStatusRequest) returns (TransactionStatuses) {}
   rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
   rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
 }

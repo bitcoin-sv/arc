@@ -106,6 +106,7 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   wocMainnet: false
   requestExtendedLogs: true
+  processorCacheExpiryTime: 24h
   defaultPolicy:
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

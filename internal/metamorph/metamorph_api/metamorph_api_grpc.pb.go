@@ -20,14 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MetaMorphAPI_Health_FullMethodName               = "/metamorph_api.MetaMorphAPI/Health"
-	MetaMorphAPI_PutTransaction_FullMethodName       = "/metamorph_api.MetaMorphAPI/PutTransaction"
-	MetaMorphAPI_PutTransactions_FullMethodName      = "/metamorph_api.MetaMorphAPI/PutTransactions"
-	MetaMorphAPI_GetTransaction_FullMethodName       = "/metamorph_api.MetaMorphAPI/GetTransaction"
-	MetaMorphAPI_GetTransactions_FullMethodName      = "/metamorph_api.MetaMorphAPI/GetTransactions"
-	MetaMorphAPI_GetTransactionStatus_FullMethodName = "/metamorph_api.MetaMorphAPI/GetTransactionStatus"
-	MetaMorphAPI_SetUnlockedByName_FullMethodName    = "/metamorph_api.MetaMorphAPI/SetUnlockedByName"
-	MetaMorphAPI_ClearData_FullMethodName            = "/metamorph_api.MetaMorphAPI/ClearData"
+	MetaMorphAPI_Health_FullMethodName                 = "/metamorph_api.MetaMorphAPI/Health"
+	MetaMorphAPI_PutTransaction_FullMethodName         = "/metamorph_api.MetaMorphAPI/PutTransaction"
+	MetaMorphAPI_PutTransactions_FullMethodName        = "/metamorph_api.MetaMorphAPI/PutTransactions"
+	MetaMorphAPI_GetTransaction_FullMethodName         = "/metamorph_api.MetaMorphAPI/GetTransaction"
+	MetaMorphAPI_GetTransactions_FullMethodName        = "/metamorph_api.MetaMorphAPI/GetTransactions"
+	MetaMorphAPI_GetTransactionStatus_FullMethodName   = "/metamorph_api.MetaMorphAPI/GetTransactionStatus"
+	MetaMorphAPI_GetTransactionStatuses_FullMethodName = "/metamorph_api.MetaMorphAPI/GetTransactionStatuses"
+	MetaMorphAPI_SetUnlockedByName_FullMethodName      = "/metamorph_api.MetaMorphAPI/SetUnlockedByName"
+	MetaMorphAPI_ClearData_FullMethodName              = "/metamorph_api.MetaMorphAPI/ClearData"
 )
 
 // MetaMorphAPIClient is the client API for MetaMorphAPI service.
@@ -40,6 +41,7 @@ type MetaMorphAPIClient interface {
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
 	GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
+	GetTransactionStatuses(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*TransactionStatuses, error)
 	SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error)
 	ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error)
 }
@@ -112,6 +114,16 @@ func (c *metaMorphAPIClient) GetTransactionStatus(ctx context.Context, in *Trans
 	return out, nil
 }
 
+func (c *metaMorphAPIClient) GetTransactionStatuses(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*TransactionStatuses, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TransactionStatuses)
+	err := c.cc.Invoke(ctx, MetaMorphAPI_GetTransactionStatuses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *metaMorphAPIClient) SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetUnlockedByNameResponse)
@@ -142,6 +154,7 @@ type MetaMorphAPIServer interface {
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
 	GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
+	GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error)
 	SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error)
 	ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
@@ -171,6 +184,9 @@ func (UnimplementedMetaMorphAPIServer) GetTransactions(context.Context, *Transac
 }
 func (UnimplementedMetaMorphAPIServer) GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionStatus not implemented")
+}
+func (UnimplementedMetaMorphAPIServer) GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionStatuses not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetUnlockedByName not implemented")
@@ -307,6 +323,24 @@ func _MetaMorphAPI_GetTransactionStatus_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaMorphAPI_GetTransactionStatuses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionsStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaMorphAPIServer).GetTransactionStatuses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MetaMorphAPI_GetTransactionStatuses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaMorphAPIServer).GetTransactionStatuses(ctx, req.(*TransactionsStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MetaMorphAPI_SetUnlockedByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetUnlockedByNameRequest)
 	if err := dec(in); err != nil {
@@ -373,6 +407,10 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionStatus",
 			Handler:    _MetaMorphAPI_GetTransactionStatus_Handler,
+		},
+		{
+			MethodName: "GetTransactionStatuses",
+			Handler:    _MetaMorphAPI_GetTransactionStatuses_Handler,
 		},
 		{
 			MethodName: "SetUnlockedByName",

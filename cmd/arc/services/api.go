@@ -82,6 +82,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		mtmOpts = append(mtmOpts, metamorph.WithClientTracer(attributes...))
 		apiOpts = append(apiOpts, apiHandler.WithTracer(attributes...))
+		apiOpts = append(apiOpts, apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime))
 		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
 		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))

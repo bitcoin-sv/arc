@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -33,6 +34,7 @@ type TransactionHandler interface {
 	Health(ctx context.Context) error
 	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
+	GetTransactionStatuses(ctx context.Context, txIDs []string) ([]*TransactionStatus, error)
 	SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error)
 	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
 }
@@ -44,15 +46,16 @@ type TransactionMaintainer interface {
 
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
-	TxID         string
-	MerklePath   string
-	BlockHash    string
-	BlockHeight  uint64
-	Status       string
-	ExtraInfo    string
-	Callbacks    []*metamorph_api.Callback
-	CompetingTxs []string
-	Timestamp    int64
+	TxID          string
+	MerklePath    string
+	BlockHash     string
+	BlockHeight   uint64
+	Status        string
+	ExtraInfo     string
+	Callbacks     []*metamorph_api.Callback
+	CompetingTxs  []string
+	LastSubmitted timestamppb.Timestamp
+	Timestamp     int64
 }
 
 // Metamorph is the connector to a metamorph server.
@@ -204,7 +207,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 		return nil, ErrTransactionNotFound
 	}
 
-	return &TransactionStatus{
+	txStatus = &TransactionStatus{
 		TxID:         txID,
 		MerklePath:   tx.GetMerklePath(),
 		Status:       tx.GetStatus().String(),
@@ -214,7 +217,46 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 		CompetingTxs: tx.GetCompetingTxs(),
 		Callbacks:    tx.GetCallbacks(),
 		Timestamp:    m.now().Unix(),
-	}, nil
+	}
+
+	if tx.GetLastSubmitted() != nil {
+		txStatus.LastSubmitted = *tx.GetLastSubmitted()
+	}
+	return txStatus, nil
+}
+
+// GetTransactionStatusეს gets the statusეს of all transactions.
+func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) (txStatus []*TransactionStatus, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txIDs", txIDs[0]))...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	var txStatuses *metamorph_api.TransactionStatuses
+	var txs []*TransactionStatus
+	var transactionStatusRequests metamorph_api.TransactionsStatusRequest
+	transactionStatusRequests.TxIDs = append(transactionStatusRequests.TxIDs, txIDs...)
+	txStatuses, err = m.client.GetTransactionStatuses(ctx, &transactionStatusRequests)
+	if err != nil && !strings.Contains(err.Error(), ErrNotFound.Error()) {
+		return nil, err
+	}
+
+	for _, tx := range txStatuses.Statuses {
+		txs = append(txs, &TransactionStatus{
+			TxID:          tx.Txid,
+			MerklePath:    tx.GetMerklePath(),
+			Status:        tx.GetStatus().String(),
+			BlockHash:     tx.GetBlockHash(),
+			BlockHeight:   tx.GetBlockHeight(),
+			ExtraInfo:     tx.GetRejectReason(),
+			CompetingTxs:  tx.GetCompetingTxs(),
+			Callbacks:     tx.GetCallbacks(),
+			LastSubmitted: *tx.GetLastSubmitted(),
+			Timestamp:     m.now().Unix(),
+		})
+	}
+
+	return txs, nil
 }
 
 func (m *Metamorph) Health(ctx context.Context) (err error) {

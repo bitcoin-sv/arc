@@ -116,6 +116,7 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
   wocMainnet: false # query main or test net on www.whatsonchain.com
   requestExtendedLogs: true # if true, the logs will include request methods & headers
+  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

@@ -529,13 +529,15 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
+		Status:       blocktx_api.Status_LONGEST, // temporary fix (!), TODO: remove this when gaps are filling quickly again
 	}
 
-	err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
-	if err != nil {
-		p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-		return nil, err
-	}
+	// TODO: uncomment when gaps are filling quickly again
+	// err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
+	// if err != nil {
+	// 	p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+	// 	return nil, err
+	// }
 
 	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 

@@ -6,6 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
 
@@ -22,6 +23,9 @@ var _ metamorph.MessageQueue = &MessageQueueMock{}
 //			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
+//			PublishMarshalFunc: func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
+//				panic("mock out the PublishMarshal method")
+//			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
@@ -37,6 +41,9 @@ var _ metamorph.MessageQueue = &MessageQueueMock{}
 type MessageQueueMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(ctx context.Context, topic string, data []byte) error
+
+	// PublishMarshalFunc mocks the PublishMarshal method.
+	PublishMarshalFunc func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -55,6 +62,15 @@ type MessageQueueMock struct {
 			// Data is the data argument value.
 			Data []byte
 		}
+		// PublishMarshal holds details about calls to the PublishMarshal method.
+		PublishMarshal []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Topic is the topic argument value.
+			Topic string
+			// M is the m argument value.
+			M protoreflect.ProtoMessage
+		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
@@ -66,9 +82,10 @@ type MessageQueueMock struct {
 			MsgFunc func([]byte) error
 		}
 	}
-	lockPublish   sync.RWMutex
-	lockShutdown  sync.RWMutex
-	lockSubscribe sync.RWMutex
+	lockPublish        sync.RWMutex
+	lockPublishMarshal sync.RWMutex
+	lockShutdown       sync.RWMutex
+	lockSubscribe      sync.RWMutex
 }
 
 // Publish calls PublishFunc.
@@ -108,6 +125,46 @@ func (mock *MessageQueueMock) PublishCalls() []struct {
 	mock.lockPublish.RLock()
 	calls = mock.calls.Publish
 	mock.lockPublish.RUnlock()
+	return calls
+}
+
+// PublishMarshal calls PublishMarshalFunc.
+func (mock *MessageQueueMock) PublishMarshal(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
+	if mock.PublishMarshalFunc == nil {
+		panic("MessageQueueMock.PublishMarshalFunc: method is nil but MessageQueue.PublishMarshal was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Topic string
+		M     protoreflect.ProtoMessage
+	}{
+		Ctx:   ctx,
+		Topic: topic,
+		M:     m,
+	}
+	mock.lockPublishMarshal.Lock()
+	mock.calls.PublishMarshal = append(mock.calls.PublishMarshal, callInfo)
+	mock.lockPublishMarshal.Unlock()
+	return mock.PublishMarshalFunc(ctx, topic, m)
+}
+
+// PublishMarshalCalls gets all the calls that were made to PublishMarshal.
+// Check the length with:
+//
+//	len(mockedMessageQueue.PublishMarshalCalls())
+func (mock *MessageQueueMock) PublishMarshalCalls() []struct {
+	Ctx   context.Context
+	Topic string
+	M     protoreflect.ProtoMessage
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Topic string
+		M     protoreflect.ProtoMessage
+	}
+	mock.lockPublishMarshal.RLock()
+	calls = mock.calls.PublishMarshal
+	mock.lockPublishMarshal.RUnlock()
 	return calls
 }
 

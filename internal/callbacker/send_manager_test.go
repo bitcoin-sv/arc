@@ -86,8 +86,8 @@ func TestSendManager(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			cMq := &mocks.SenderIMock{
-				SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return true },
-				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return true },
+				SendFunc:      func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
+				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) (bool, bool) { return true, false },
 			}
 
 			var savedCallbacks []*store.CallbackData
@@ -188,8 +188,12 @@ func TestSendManager_FailedCallbacks(t *testing.T) {
 			// given
 			var sendOK int32
 			senderMq := &mocks.SenderIMock{
-				SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
-				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return atomic.LoadInt32(&sendOK) == 1 },
+				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) {
+					return atomic.LoadInt32(&sendOK) == 1, atomic.LoadInt32(&sendOK) != 1
+				},
+				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) (bool, bool) {
+					return atomic.LoadInt32(&sendOK) == 1, atomic.LoadInt32(&sendOK) != 1
+				},
 			}
 
 			storeMq := &mocks.CallbackerStoreMock{

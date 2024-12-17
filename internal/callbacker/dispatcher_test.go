@@ -42,7 +42,7 @@ func TestCallbackDispatcher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			cMq := &mocks.SenderIMock{
-				SendFunc: func(_, _ string, _ *callbacker.Callback) bool { return true },
+				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
 			}
 
 			var savedCallbacks []*store.CallbackData
@@ -51,11 +51,14 @@ func TestCallbackDispatcher(t *testing.T) {
 					savedCallbacks = append(savedCallbacks, data...)
 					return nil
 				},
+				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
+					return nil
+				},
 			}
 
 			sendingConfig := callbacker.SendConfig{
 				PauseAfterSingleModeSuccessfulSend: tc.sendInterval,
-				Expiration:                         time.Duration(24 * time.Hour),
+				Expiration:                         24 * time.Hour,
 			}
 
 			sut := callbacker.NewCallbackDispatcher(cMq, sMq, slog.Default(), &sendingConfig)

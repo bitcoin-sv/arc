@@ -18,10 +18,10 @@ var _ callbacker.SenderI = &SenderIMock{}
 //
 //		// make and configure a mocked callbacker.SenderI
 //		mockedSenderI := &SenderIMock{
-//			SendFunc: func(url string, token string, callback *callbacker.Callback) bool {
+//			SendFunc: func(url string, token string, callback *callbacker.Callback) (bool, bool) {
 //				panic("mock out the Send method")
 //			},
-//			SendBatchFunc: func(url string, token string, callbacks []*callbacker.Callback) bool {
+//			SendBatchFunc: func(url string, token string, callbacks []*callbacker.Callback) (bool, bool) {
 //				panic("mock out the SendBatch method")
 //			},
 //		}
@@ -32,10 +32,10 @@ var _ callbacker.SenderI = &SenderIMock{}
 //	}
 type SenderIMock struct {
 	// SendFunc mocks the Send method.
-	SendFunc func(url string, token string, callback *callbacker.Callback) bool
+	SendFunc func(url string, token string, callback *callbacker.Callback) (bool, bool)
 
 	// SendBatchFunc mocks the SendBatch method.
-	SendBatchFunc func(url string, token string, callbacks []*callbacker.Callback) bool
+	SendBatchFunc func(url string, token string, callbacks []*callbacker.Callback) (bool, bool)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -63,7 +63,7 @@ type SenderIMock struct {
 }
 
 // Send calls SendFunc.
-func (mock *SenderIMock) Send(url string, token string, callback *callbacker.Callback) bool {
+func (mock *SenderIMock) Send(url string, token string, callback *callbacker.Callback) (bool, bool) {
 	if mock.SendFunc == nil {
 		panic("SenderIMock.SendFunc: method is nil but SenderI.Send was just called")
 	}
@@ -103,7 +103,7 @@ func (mock *SenderIMock) SendCalls() []struct {
 }
 
 // SendBatch calls SendBatchFunc.
-func (mock *SenderIMock) SendBatch(url string, token string, callbacks []*callbacker.Callback) bool {
+func (mock *SenderIMock) SendBatch(url string, token string, callbacks []*callbacker.Callback) (bool, bool) {
 	if mock.SendBatchFunc == nil {
 		panic("SenderIMock.SendBatchFunc: method is nil but SenderI.SendBatch was just called")
 	}

@@ -22,12 +22,14 @@ func TestCallbackSender_Send(t *testing.T) {
 
 		expectedSuccess bool
 		expectedRetries int
+		expectedRetry   bool
 	}{
 		{
 			name:           "success - callback sent",
 			responseStatus: http.StatusOK,
 
 			expectedSuccess: true,
+			expectedRetry:   false,
 			expectedRetries: 1,
 		},
 		{
@@ -35,6 +37,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			responseStatus: http.StatusInternalServerError,
 
 			expectedSuccess: false,
+			expectedRetry:   true,
 			expectedRetries: 5, // Adjust based on your retry logic in `Send`
 		},
 		{
@@ -42,6 +45,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			useWrongURL: true,
 
 			expectedSuccess: false,
+			expectedRetry:   false,
 			expectedRetries: 0, // Adjust based on your retry logic in `Send`
 		},
 	}
@@ -71,9 +75,10 @@ func TestCallbackSender_Send(t *testing.T) {
 			}
 
 			//When
-			success := sut.Send(url, "test-token", &callbacker.Callback{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"})
+			success, retry := sut.Send(url, "test-token", &callbacker.Callback{TxID: "1234", TxStatus: "SEEN_ON_NETWORK"})
 			//Then
 			require.Equal(t, tc.expectedSuccess, success, "Expected success to be %v, but got %v", tc.expectedSuccess, success)
+			require.Equal(t, tc.expectedRetry, retry, "Expected retry to be %v, but got %v", tc.expectedRetry, retry)
 			require.Equal(t, tc.expectedRetries, retries, "Expected retries to be %d, but got %d", tc.expectedRetries, retries)
 		})
 	}
@@ -172,7 +177,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			defer sut.GracefulStop()
 
 			// When
-			success := sut.SendBatch(server.URL+tc.url, tc.token, tc.dtos)
+			success, _ := sut.SendBatch(server.URL+tc.url, tc.token, tc.dtos)
 
 			// Then
 			require.Equal(t, tc.expectedSuccess, success, "Expected success to be %v, but got %v", tc.expectedSuccess, success)
@@ -199,8 +204,9 @@ func TestCallbackSender_Send_WithRetries(t *testing.T) {
 
 	// When
 	callback := &callbacker.Callback{TxID: "test-txid", TxStatus: "SEEN_ON_NETWORK"}
-	ok := sut.Send(server.URL, "test-token", callback)
+	ok, retry := sut.Send(server.URL, "test-token", callback)
 
 	// Then
 	assert.True(t, ok)
+	assert.False(t, retry)
 }

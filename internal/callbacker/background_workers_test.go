@@ -14,7 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-func TestStartCallbackStoreClenaup(t *testing.T) {
+func TestStartCallbackStoreCleanup(t *testing.T) {
 	tt := []struct {
 		name                     string
 		deleteFailedOlderThanErr error
@@ -98,10 +98,13 @@ func TestStartFailedCallbacksDispatch(t *testing.T) {
 					require.Equal(t, 100, limit)
 					return tc.storedCallbacks, tc.popFailedManyErr
 				},
+				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
+					return nil
+				},
 			}
 			sender := &mocks.SenderIMock{
-				SendFunc: func(_ string, _ string, _ *callbacker.Callback) bool {
-					return true
+				SendFunc: func(_ string, _ string, _ *callbacker.Callback) (bool, bool) {
+					return true, false
 				},
 			}
 			logger := slog.Default()
@@ -169,10 +172,13 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 
 					return tc.storedCallbacks, tc.popManyErr
 				},
+				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
+					return nil
+				},
 			}
 			sender := &mocks.SenderIMock{
-				SendFunc: func(_ string, _ string, _ *callbacker.Callback) bool {
-					return true
+				SendFunc: func(_ string, _ string, _ *callbacker.Callback) (bool, bool) {
+					return true, false
 				},
 			}
 			logger := slog.Default()

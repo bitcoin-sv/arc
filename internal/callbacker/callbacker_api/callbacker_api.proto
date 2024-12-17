@@ -37,6 +37,18 @@ message HealthResponse {
   google.protobuf.Timestamp timestamp = 1;
 }
 
+// swagger:model SendRequest
+message SendRequest {
+  CallbackRouting callback_routing = 1;
+  string txid = 2;
+  Status status = 3;
+  string merkle_path = 4;
+  string extra_info = 5;
+  repeated string competing_txs = 6;
+  string block_hash = 7;
+  uint64 block_height = 8;
+}
+
 // swagger:model SendCallbackRequest
 message SendCallbackRequest {
   repeated CallbackRouting callback_routings = 1;

@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -33,28 +34,31 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 )
 
-func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), error) {
+func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
-	cfg := appConfig.Callbacker
+	cfg := arcConfig.Callbacker
 
 	var (
-		callbackerStore store.CallbackerStore
+		callbackerStore *postgresql.PostgreSQL
 		sender          *callbacker.CallbackSender
 		dispatcher      *callbacker.CallbackDispatcher
 		workers         *callbacker.BackgroundWorkers
 		server          *callbacker.Server
 		healthServer    *grpc_opts.GrpcServer
-
-		err error
+		mqClient        callbacker.MessageQueueClient
+		processor       *callbacker.Processor
+		err             error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		dispose(logger, server, workers, dispatcher, sender, callbackerStore, healthServer)
+		dispose(logger, server, workers, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
 		logger.Info("Shutdown complete")
 	}
 
@@ -88,7 +92,41 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
 	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
 
-	server, err = callbacker.NewServer(appConfig.Prometheus.Endpoint, appConfig.GrpcMessageSize, logger, dispatcher, nil)
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to get hostname: %v", err)
+	}
+
+	opts := []nats_jetstream.Option{
+		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{callbacker.CallbackTopic}, true),
+	}
+	mqClient, err = nats_jetstream.New(natsConnection, logger, opts...)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create nats client: %v", err)
+	}
+
+	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+
+	err = processor.Start()
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+
+	// Todo: remove as callbacks are being published asynchronously using message queue
+	server, err = callbacker.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger, dispatcher, nil)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -110,7 +148,7 @@ func StartCallbacker(logger *slog.Logger, appConfig *config.ArcConfig) (func(), 
 	return stopFn, nil
 }
 
-func newStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
+func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
 		cfg := dbConfig.Postgres
@@ -132,7 +170,7 @@ func newStore(dbConfig *config.DbConfig) (s store.CallbackerStore, err error) {
 
 func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer) {
+	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. background workers - ensure no callbacks from background will be accepted
@@ -151,6 +189,14 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 	}
 	if sender != nil {
 		sender.GracefulStop()
+	}
+
+	if processor != nil {
+		processor.GracefulStop()
+	}
+
+	if mqClient != nil {
+		mqClient.Shutdown()
 	}
 
 	if store != nil {

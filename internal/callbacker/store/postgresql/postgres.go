@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/lib/pq"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 const (
@@ -243,6 +244,63 @@ func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) err
 
 	_, err := p.db.ExecContext(ctx, q, t)
 	return err
+}
+
+func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) error {
+	const q = `INSERT INTO callbacker.url_mapping (
+		 url
+		,instance
+	) VALUES (
+		 $1
+		,$2
+	)`
+
+	var pqErr *pq.Error
+	_, err := p.db.ExecContext(ctx, q, m.URL, m.Instance)
+	// Error 23505 is: "duplicate key violates unique constraint"
+	if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
+		return store.ErrURLMappingDuplicateKey
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) error {
+	const q = `DELETE FROM callbacker.url_mapping
+			WHERE instance=$1`
+
+	_, err := p.db.ExecContext(ctx, q, instance)
+	if err != nil {
+		return store.ErrURLMappingDeleteFailed
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) GetURLMappings(ctx context.Context) (map[string]string, error) {
+	const q = `SELECT url, instance FROM callbacker.url_mapping`
+
+	rows, err := p.db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urlMappings := map[string]string{}
+
+	for rows.Next() {
+		var url string
+		var instance string
+
+		err = rows.Scan(&url, &instance)
+		if err != nil {
+			return nil, err
+		}
+
+		urlMappings[url] = instance
+	}
+
+	return urlMappings, nil
 }
 
 func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, error) {

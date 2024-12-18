@@ -3,9 +3,8 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
-	"log/slog"
-
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -39,8 +38,12 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	}
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
+		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
+			Status:    currentStatusUpdate.Status,
+			Timestamp: currentStatusUpdate.Timestamp,
+		})
 		currentStatusUpdate.Status = statusUpdate.Status
-		// TODO: combine status history
+		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
 
 	return p.setTransactionStatus(*currentStatusUpdate)
@@ -162,4 +165,19 @@ func mergeUnique(arr1, arr2 []string) []string {
 	}
 
 	return uniqueSlice
+}
+
+func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
+	processedMap := make(map[string]struct{}, len(processed))
+	unprocessed := make([]store.UpdateStatus, 0)
+	for _, p := range processed {
+		processedMap[string(p.Hash[:])] = struct{}{}
+	}
+	for _, s := range all {
+		_, found := processedMap[string(s.Hash[:])]
+		if !found {
+			unprocessed = append(unprocessed, s)
+		}
+	}
+	return unprocessed
 }

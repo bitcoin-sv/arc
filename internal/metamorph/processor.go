@@ -412,6 +412,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					Status:       msg.Status,
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
+					Timestamp:    msg.Start,
 				}
 
 				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
@@ -440,7 +441,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 				// Ensure no duplicate statuses
 				err := p.updateStatusMap(statusUpdate)
 				if err != nil {
-					p.logger.Error("failed to update status", slog.String("err", err.Error()))
+					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
 					return
 				}
 
@@ -540,9 +541,14 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		updatedData = append(updatedData, updatedDoubleSpendData...)
 	}
 
+	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
+	_, err = p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
+	if err != nil {
+		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
+	}
+
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
-
 		sendCallback := false
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
@@ -756,6 +762,11 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// store in database
+	// set tx status to Stored
+	sh := &store.Status{Status: req.Data.Status, Timestamp: p.now()}
+	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
+	req.Data.Status = metamorph_api.Status_STORED
+
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
@@ -811,8 +822,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// update status in storage
 	p.storageStatusUpdateCh <- store.UpdateStatus{
-		Hash:   *req.Data.Hash,
-		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Hash:      *req.Data.Hash,
+		Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		Timestamp: p.now(),
 	}
 }
 
@@ -851,8 +863,9 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
-			Hash:   *data.Hash,
-			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Hash:      *data.Hash,
+			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			Timestamp: p.now(),
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -43,6 +44,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 	for rows.Next() {
 		data := &store.Data{}
 
+		var storedAt time.Time
 		var status sql.NullInt32
 
 		var txHash []byte
@@ -58,7 +60,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 		var lastModified sql.NullTime
 
 		err := rows.Scan(
-			&data.StoredAt,
+			&storedAt,
 			&txHash,
 			&status,
 			&blockHeight,
@@ -77,6 +79,8 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		data.StoredAt = storedAt.UTC()
 
 		if len(txHash) > 0 {
 			data.Hash, err = chainhash.NewHash(txHash)
@@ -106,6 +110,14 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 				return nil, err
 			}
 			data.Callbacks = callbacks
+		}
+
+		if len(statusHistory) > 0 {
+			sHistory, err := readStatusHistoryFromDB(statusHistory)
+			if err != nil {
+				return nil, err
+			}
+			data.StatusHistory = sHistory
 		}
 
 		if retries.Valid {

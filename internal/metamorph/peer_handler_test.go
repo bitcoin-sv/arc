@@ -50,7 +50,7 @@ func TestPeerHandler(t *testing.T) {
 		// then
 		select {
 		case msg := <-messageCh:
-			assert.Equal(t, expectedMsg, msg)
+			assertEqualMsg(t, expectedMsg, msg)
 		case <-time.After(time.Second):
 			t.Fatal("test timed out or error while executing goroutine")
 		}
@@ -78,7 +78,7 @@ func TestPeerHandler(t *testing.T) {
 		// then
 		select {
 		case msg := <-messageCh:
-			assert.Equal(t, expectedMsg, msg)
+			assertEqualMsg(t, expectedMsg, msg)
 		case <-time.After(time.Second):
 			t.Fatal("test timed out or error while executing goroutine")
 		}
@@ -103,7 +103,7 @@ func TestPeerHandler(t *testing.T) {
 		// then
 		select {
 		case msg := <-messageCh:
-			assert.Equal(t, expectedMsg, msg)
+			assertEqualMsg(t, expectedMsg, msg)
 		case <-time.After(time.Second):
 			t.Fatal("test timed out or error while executing goroutine")
 		}
@@ -141,7 +141,7 @@ func TestPeerHandler(t *testing.T) {
 		for i := 0; i < txsCount; i++ {
 			select {
 			case msg := <-messageCh:
-				assert.Equal(t, expectedMsgs[counter], msg)
+				assertEqualMsg(t, expectedMsgs[counter], msg)
 				counter++
 			case <-time.After(5 * time.Second):
 				t.Fatal("test timed out or error while executing goroutine")
@@ -168,9 +168,17 @@ func TestPeerHandler(t *testing.T) {
 		// then
 		select {
 		case msg := <-messageCh:
-			assert.Equal(t, expectedMsg, msg)
+			assertEqualMsg(t, expectedMsg, msg)
 		case <-time.After(time.Second):
 			t.Fatal("test timed out or error while executing goroutine")
 		}
 	})
+}
+
+func assertEqualMsg(t *testing.T, expected, actual *metamorph.TxStatusMessage) {
+	assert.Equal(t, expected.Hash, actual.Hash)
+	assert.Equal(t, expected.Status, actual.Status)
+	assert.Equal(t, expected.Peer, actual.Peer)
+	assert.WithinDuration(t, time.Now(), actual.Start, time.Second)
+	assert.Equal(t, expected.Err, actual.Err)
 }

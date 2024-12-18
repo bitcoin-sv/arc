@@ -507,6 +507,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					}
 					return nil, tc.updateErr
 				},
+				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+					return nil, nil
+				},
 				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
@@ -672,6 +675,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 					if updateBulkCounter >= tc.expectedSetBulkCalls {
 						wg.Done()
 					}
+					return nil, nil
+				},
+				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					return nil, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },

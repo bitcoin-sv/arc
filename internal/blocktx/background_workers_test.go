@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/libsv/go-p2p"
 
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/stretchr/testify/require"
 )
@@ -67,7 +68,7 @@ func TestStartFillGaps(t *testing.T) {
 			// given
 			const fillGapsInterval = 50 * time.Millisecond
 
-			blockRequestingCh := make(chan blocktx.BlockRequest, 10)
+			blockRequestingCh := make(chan blocktx_p2p.BlockRequest, 10)
 			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
@@ -82,7 +83,7 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			}
 
-			peerMock := &mocks.PeerMock{
+			peerMock := &p2pMocks.PeerIMock{
 				StringFunc: func() string {
 					return ""
 				},

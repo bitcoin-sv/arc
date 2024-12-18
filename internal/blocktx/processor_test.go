@@ -9,17 +9,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -198,14 +200,14 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *p2p.BlockMessage, 1)
-			p2pMsgHandler := blocktx.NewPeerHandler(logger, nil, blockProcessCh)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 1)
+			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
 			require.NoError(t, err)
 
-			blockMessage := &p2p.BlockMessage{
-				// Hash: testdata.Block1Hash,
+			blockMessage := &bcnet.BlockMessage{
+				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					PrevBlock:  tc.prevBlockHash,
@@ -222,8 +224,7 @@ func TestHandleBlock(t *testing.T) {
 			sut.StartBlockProcessing()
 
 			// simulate receiving block from node
-			err = p2pMsgHandler.HandleBlock(blockMessage, &mocks.PeerMock{StringFunc: func() string { return "peer" }})
-			require.NoError(t, err)
+			p2pMsgHandler.OnReceive(blockMessage, &p2p_mocks.PeerIMock{StringFunc: func() string { return "peer" }})
 
 			time.Sleep(20 * time.Millisecond)
 			sut.Shutdown()
@@ -430,8 +431,8 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			// build peer manager and processor
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *p2p.BlockMessage, 10)
-			p2pMsgHandler := blocktx.NewPeerHandler(logger, nil, blockProcessCh)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
+			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh)
 			require.NoError(t, err)
@@ -441,8 +442,8 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			merkleRoot, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 			require.NoError(t, err)
 
-			blockMessage := &p2p.BlockMessage{
-				// Hash: testdata.Block1Hash,
+			blockMessage := &bcnet.BlockMessage{
+				Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					MerkleRoot: *merkleRoot,
@@ -456,8 +457,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			sut.StartBlockProcessing()
 
 			// simulate receiving block from node
-			err = p2pMsgHandler.HandleBlock(blockMessage, nil)
-			require.NoError(t, err)
+			p2pMsgHandler.OnReceive(blockMessage, nil)
 
 			// then
 			time.Sleep(20 * time.Millisecond)
@@ -608,18 +608,18 @@ func TestStartBlockRequesting(t *testing.T) {
 				return 1, nil
 			}
 
-			peerMock := &mocks.PeerMock{
-				WriteMsgFunc: func(_ wire.Message) error { return nil },
+			peerMock := &p2p_mocks.PeerIMock{
+				WriteMsgFunc: func(_ wire.Message) {},
 				StringFunc:   func() string { return "peer" },
 			}
 
 			// build peer manager
 			logger := slog.Default()
 
-			blockRequestCh := make(chan blocktx.BlockRequest, 10)
-			blockProcessCh := make(chan *p2p.BlockMessage, 10)
+			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
+			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 
-			peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+			peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
 			require.NoError(t, err)
@@ -631,8 +631,7 @@ func TestStartBlockRequesting(t *testing.T) {
 			invMsg := wire.NewMsgInvSizeHint(1)
 			err = invMsg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, blockHash))
 			require.NoError(t, err)
-			err = peerHandler.HandleBlockAnnouncement(invMsg.InvList[0], peerMock)
-			require.NoError(t, err)
+			peerHandler.OnReceive(invMsg, peerMock)
 
 			time.Sleep(200 * time.Millisecond)
 

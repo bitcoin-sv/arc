@@ -34,7 +34,6 @@ type processorStats struct {
 	statusDoubleSpendAttempted prometheus.Gauge
 	statusRejected             prometheus.Gauge
 	statusMined                prometheus.Gauge
-	statusNotMined             prometheus.Gauge // Todo: remove - is replaced by statusNotFinal
 	statusNotFinal             prometheus.Gauge
 	statusNotSeen              prometheus.Gauge
 	statusMinedTotal           prometheus.Gauge
@@ -106,10 +105,6 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 		opt(p)
 	}
 
-	p.statusNotMined = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "arc_status_not_mined_count",
-		Help: fmt.Sprintf("Number of monitored transactions which are SEEN_ON_NETWORK but haven reached status MINED for more than %s", p.notFinalLimit.String()),
-	})
 	p.statusNotFinal = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "arc_status_not_final_count",
 		Help: fmt.Sprintf("Number of monitored transactions which are not in a final state of either MINED or rejected %s", p.notFinalLimit.String()),
@@ -198,7 +193,6 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusDoubleSpendAttempted.Set(float64(collectedStats.StatusDoubleSpendAttempted))
 				p.stats.statusRejected.Set(float64(collectedStats.StatusRejected))
 				p.stats.statusMined.Set(float64(collectedStats.StatusMined))
-				p.stats.statusNotMined.Set(float64(collectedStats.StatusNotFinal))
 				p.stats.statusNotFinal.Set(float64(collectedStats.StatusNotFinal))
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))

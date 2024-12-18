@@ -4,39 +4,39 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/ignore_p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/wire"
 	"sync"
 )
 
-// Ensure, that MessageHandlerIMock does implement ignore_p2p.MessageHandlerI.
+// Ensure, that MessageHandlerIMock does implement p2p.MessageHandlerI.
 // If this is not the case, regenerate this file with moq.
-var _ ignore_p2p.MessageHandlerI = &MessageHandlerIMock{}
+var _ p2p.MessageHandlerI = &MessageHandlerIMock{}
 
-// MessageHandlerIMock is a mock implementation of ignore_p2p.MessageHandlerI.
+// MessageHandlerIMock is a mock implementation of p2p.MessageHandlerI.
 //
 //	func TestSomethingThatUsesMessageHandlerI(t *testing.T) {
 //
-//		// make and configure a mocked ignore_p2p.MessageHandlerI
+//		// make and configure a mocked p2p.MessageHandlerI
 //		mockedMessageHandlerI := &MessageHandlerIMock{
-//			OnReceiveFunc: func(msg wire.Message, peer ignore_p2p.PeerI)  {
+//			OnReceiveFunc: func(msg wire.Message, peer p2p.PeerI)  {
 //				panic("mock out the OnReceive method")
 //			},
-//			OnSendFunc: func(msg wire.Message, peer ignore_p2p.PeerI)  {
+//			OnSendFunc: func(msg wire.Message, peer p2p.PeerI)  {
 //				panic("mock out the OnSend method")
 //			},
 //		}
 //
-//		// use mockedMessageHandlerI in code that requires ignore_p2p.MessageHandlerI
+//		// use mockedMessageHandlerI in code that requires p2p.MessageHandlerI
 //		// and then make assertions.
 //
 //	}
 type MessageHandlerIMock struct {
 	// OnReceiveFunc mocks the OnReceive method.
-	OnReceiveFunc func(msg wire.Message, peer ignore_p2p.PeerI)
+	OnReceiveFunc func(msg wire.Message, peer p2p.PeerI)
 
 	// OnSendFunc mocks the OnSend method.
-	OnSendFunc func(msg wire.Message, peer ignore_p2p.PeerI)
+	OnSendFunc func(msg wire.Message, peer p2p.PeerI)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -45,14 +45,14 @@ type MessageHandlerIMock struct {
 			// Msg is the msg argument value.
 			Msg wire.Message
 			// Peer is the peer argument value.
-			Peer ignore_p2p.PeerI
+			Peer p2p.PeerI
 		}
 		// OnSend holds details about calls to the OnSend method.
 		OnSend []struct {
 			// Msg is the msg argument value.
 			Msg wire.Message
 			// Peer is the peer argument value.
-			Peer ignore_p2p.PeerI
+			Peer p2p.PeerI
 		}
 	}
 	lockOnReceive sync.RWMutex
@@ -60,13 +60,13 @@ type MessageHandlerIMock struct {
 }
 
 // OnReceive calls OnReceiveFunc.
-func (mock *MessageHandlerIMock) OnReceive(msg wire.Message, peer ignore_p2p.PeerI) {
+func (mock *MessageHandlerIMock) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	if mock.OnReceiveFunc == nil {
 		panic("MessageHandlerIMock.OnReceiveFunc: method is nil but MessageHandlerI.OnReceive was just called")
 	}
 	callInfo := struct {
 		Msg  wire.Message
-		Peer ignore_p2p.PeerI
+		Peer p2p.PeerI
 	}{
 		Msg:  msg,
 		Peer: peer,
@@ -83,11 +83,11 @@ func (mock *MessageHandlerIMock) OnReceive(msg wire.Message, peer ignore_p2p.Pee
 //	len(mockedMessageHandlerI.OnReceiveCalls())
 func (mock *MessageHandlerIMock) OnReceiveCalls() []struct {
 	Msg  wire.Message
-	Peer ignore_p2p.PeerI
+	Peer p2p.PeerI
 } {
 	var calls []struct {
 		Msg  wire.Message
-		Peer ignore_p2p.PeerI
+		Peer p2p.PeerI
 	}
 	mock.lockOnReceive.RLock()
 	calls = mock.calls.OnReceive
@@ -96,13 +96,13 @@ func (mock *MessageHandlerIMock) OnReceiveCalls() []struct {
 }
 
 // OnSend calls OnSendFunc.
-func (mock *MessageHandlerIMock) OnSend(msg wire.Message, peer ignore_p2p.PeerI) {
+func (mock *MessageHandlerIMock) OnSend(msg wire.Message, peer p2p.PeerI) {
 	if mock.OnSendFunc == nil {
 		panic("MessageHandlerIMock.OnSendFunc: method is nil but MessageHandlerI.OnSend was just called")
 	}
 	callInfo := struct {
 		Msg  wire.Message
-		Peer ignore_p2p.PeerI
+		Peer p2p.PeerI
 	}{
 		Msg:  msg,
 		Peer: peer,
@@ -119,11 +119,11 @@ func (mock *MessageHandlerIMock) OnSend(msg wire.Message, peer ignore_p2p.PeerI)
 //	len(mockedMessageHandlerI.OnSendCalls())
 func (mock *MessageHandlerIMock) OnSendCalls() []struct {
 	Msg  wire.Message
-	Peer ignore_p2p.PeerI
+	Peer p2p.PeerI
 } {
 	var calls []struct {
 		Msg  wire.Message
-		Peer ignore_p2p.PeerI
+		Peer p2p.PeerI
 	}
 	mock.lockOnSend.RLock()
 	calls = mock.calls.OnSend

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	p2p "github.com/bitcoin-sv/arc/internal/ignore_p2p"
-	"github.com/bitcoin-sv/arc/internal/ignore_p2p/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/cbeuw/connutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"

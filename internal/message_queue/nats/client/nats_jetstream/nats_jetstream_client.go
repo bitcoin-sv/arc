@@ -17,13 +17,14 @@ import (
 )
 
 type Client struct {
-	js          jetstream.JetStream
-	nc          *nats.Conn
-	logger      *slog.Logger
-	consumers   map[string]jetstream.Consumer
-	storageType jetstream.StorageType
-	ctx         context.Context
-	cancelAll   context.CancelFunc
+	js                             jetstream.JetStream
+	nc                             *nats.Conn
+	logger                         *slog.Logger
+	consumers                      map[string]jetstream.Consumer
+	storageType                    jetstream.StorageType
+	ctx                            context.Context
+	cancelAll                      context.CancelFunc
+	removableStreamConsumerMapping map[string]string
 
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
@@ -40,15 +41,15 @@ var (
 	ErrFailedToSubscribe      = errors.New("failed to subscribe")
 )
 
-func WithSubscribedTopics(topics ...string) func(handler *Client) error {
+func WithSubscribedWorkQueuePolicy(topics ...string) func(handler *Client) error {
 	return func(c *Client) error {
 		for _, topic := range topics {
-			streamMinedTxs, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic))
+			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
 			if err != nil {
 				return errors.Join(ErrFailedToGetStream, err)
 			}
 
-			cons, err := c.getConsumer(streamMinedTxs, fmt.Sprintf("%s-cons", topic))
+			cons, err := c.getConsumer(stream, fmt.Sprintf("%s-cons", topic))
 			if err != nil {
 				return errors.Join(ErrFailedToGetConsumer, err)
 			}
@@ -56,6 +57,57 @@ func WithSubscribedTopics(topics ...string) func(handler *Client) error {
 			c.consumers[topic] = cons
 		}
 
+		return nil
+	}
+}
+
+func WithWorkQueuePolicy(topics ...string) func(handler *Client) error {
+	return func(c *Client) error {
+		for _, topic := range topics {
+			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
+			if err != nil {
+				return errors.Join(ErrFailedToGetStream, err)
+			}
+		}
+		return nil
+	}
+}
+
+func WithSubscribedInterestPolicy(hostName string, topics []string, cleanUpConsumer bool) func(handler *Client) error {
+	return func(c *Client) error {
+		for _, topic := range topics {
+			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
+			if err != nil {
+				return errors.Join(ErrFailedToGetStream, err)
+			}
+			consumerName := fmt.Sprintf("%s-%s-cons", hostName, topic)
+			cons, err := c.getConsumer(stream, consumerName)
+			if err != nil {
+				return errors.Join(ErrFailedToGetConsumer, err)
+			}
+
+			if cleanUpConsumer {
+				streamInfo, err := stream.Info(context.Background())
+				if err != nil {
+					return fmt.Errorf("faied to get stream info: %w", err)
+				}
+				c.removableStreamConsumerMapping[streamInfo.Config.Name] = consumerName
+			}
+			c.consumers[topic] = cons
+		}
+
+		return nil
+	}
+}
+
+func WithInterestPolicy(topics ...string) func(handler *Client) error {
+	return func(c *Client) error {
+		for _, topic := range topics {
+			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
+			if err != nil {
+				return errors.Join(ErrFailedToGetStream, err)
+			}
+		}
 		return nil
 	}
 }
@@ -83,16 +135,17 @@ func WithTracer(attr ...attribute.KeyValue) func(*Client) error {
 
 type Option func(p *Client) error
 
-func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*Client, error) {
+func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	p := &Client{
-		logger:      logger.With("module", "nats-jetstream"),
-		nc:          nc,
-		consumers:   map[string]jetstream.Consumer{},
-		storageType: jetstream.MemoryStorage,
-		ctx:         ctx,
-		cancelAll:   cancel,
+		logger:                         logger.With("module", "nats-jetstream"),
+		nc:                             nc,
+		consumers:                      map[string]jetstream.Consumer{},
+		storageType:                    jetstream.MemoryStorage,
+		ctx:                            ctx,
+		cancelAll:                      cancel,
+		removableStreamConsumerMapping: map[string]string{},
 	}
 
 	js, err := jetstream.New(nc)
@@ -101,13 +154,6 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 	}
 
 	p.js = js
-
-	for _, topic := range topics {
-		_, err = p.getStream(topic, fmt.Sprintf("%s-stream", topic))
-		if err != nil {
-			return nil, errors.Join(ErrFailedToGetStream, err)
-		}
-	}
 
 	for _, opt := range opts {
 		err = opt(p)
@@ -118,7 +164,7 @@ func New(nc *nats.Conn, logger *slog.Logger, topics []string, opts ...Option) (*
 	return p, nil
 }
 
-func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stream, error) {
+func (cl *Client) getStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy) (jetstream.Stream, error) {
 	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -130,7 +176,7 @@ func (cl *Client) getStream(topicName string, streamName string) (jetstream.Stre
 			Name:        streamName,
 			Description: "Stream for topic " + topicName,
 			Subjects:    []string{topicName},
-			Retention:   jetstream.WorkQueuePolicy,
+			Retention:   retentionPolicy,
 			Discard:     jetstream.DiscardOld,
 			MaxAge:      10 * time.Minute,
 			Storage:     cl.storageType,
@@ -154,12 +200,18 @@ func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jet
 	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	streamInfo, err := stream.Info(consCtx)
+	if err != nil {
+		return nil, fmt.Errorf("faied to get stream info: %w", err)
+	}
+
 	cons, err := stream.Consumer(consCtx, consumerName)
 	if errors.Is(err, jetstream.ErrConsumerNotFound) {
-		cl.logger.Warn(fmt.Sprintf("consumer %s not found, creating new", consumerName))
+		cl.logger.Warn("consumer not found, creating new", slog.String("consumer", consumerName), slog.String("stream", streamInfo.Config.Name))
 		cons, err = stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
-			Durable:   consumerName,
-			AckPolicy: jetstream.AckExplicitPolicy,
+			Durable:       consumerName,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			MaxAckPending: 5000,
 		})
 		if err != nil {
 			return nil, errors.Join(ErrFailedToCreateConsumer, err)
@@ -208,6 +260,26 @@ func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Mess
 	return nil
 }
 
+func (cl *Client) SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error {
+	consumer, found := cl.consumers[topic]
+
+	if !found {
+		return ErrConsumerNotInitialized
+	}
+
+	_, err := consumer.Consume(func(msg jetstream.Msg) {
+		msgErr := msgFunc(msg)
+		if msgErr != nil {
+			cl.logger.Error("failed to consume message", slog.String("topic", topic), slog.String("data", string(msg.Data())))
+			return
+		}
+	})
+	if err != nil {
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+	}
+
+	return nil
+}
 func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	consumer, found := cl.consumers[topic]
 
@@ -235,6 +307,17 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 }
 
 func (cl *Client) Shutdown() {
+	if cl.removableStreamConsumerMapping != nil {
+		for stream, consumer := range cl.removableStreamConsumerMapping {
+			err := cl.js.DeleteConsumer(context.Background(), stream, consumer)
+			if err != nil {
+				cl.logger.Error("failed to delete consumer", slog.String("consumer", consumer), slog.String("stream", stream), slog.String("err", err.Error()))
+			} else {
+				cl.logger.Error("deleted consumer", slog.String("consumer", consumer), slog.String("stream", stream))
+			}
+		}
+	}
+
 	if cl.nc != nil {
 		err := cl.nc.Drain()
 		if err != nil {

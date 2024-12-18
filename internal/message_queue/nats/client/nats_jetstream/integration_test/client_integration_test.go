@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -21,16 +22,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
-const (
-	SubmitTxTopic = "submit-tx"
-	MinedTxsTopic = "mined-txs"
-)
-
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
 	mqClient       *nats_jetstream.Client
-	err            error
 	logger         *slog.Logger
 )
 
@@ -98,10 +93,11 @@ func TestNatsClient(t *testing.T) {
 		TransactionHash: testdata.TX1Hash[:],
 		MerklePath:      "mp-1",
 	}
-
-	t.Run("publish", func(t *testing.T) {
+	t.Run("publish - work queue policy", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+		const topic = "submit-tx"
+		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
+
 		require.NoError(t, err)
 		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
 		txRequest := &metamorph_api.TransactionRequest{
@@ -113,7 +109,7 @@ func TestNatsClient(t *testing.T) {
 
 		// when
 		t.Log("subscribe to topic")
-		_, err = natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
+		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
 			serialized := &metamorph_api.TransactionRequest{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
@@ -121,13 +117,13 @@ func TestNatsClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
 		require.NoError(t, err)
 
 		counter := 0
@@ -152,23 +148,27 @@ func TestNatsClient(t *testing.T) {
 		require.Equal(t, 4, counter)
 	})
 
-	t.Run("subscribe", func(t *testing.T) {
+	t.Run("subscribe - work queue policy", func(t *testing.T) {
 		// given
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic})
+
+		const topic = "mined-txs"
+
+		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
 		require.NoError(t, err)
+
 		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
 
 		// subscribe without initialized consumer, expect error
-		err = mqClient.Subscribe(MinedTxsTopic, func(_ []byte) error {
+		err = mqClient.Subscribe(topic, func(_ []byte) error {
 			return nil
 		})
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
 
 		// subscribe with initialized consumer
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{MinedTxsTopic}, nats_jetstream.WithSubscribedTopics(MinedTxsTopic))
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(topic))
 		require.NoError(t, err)
 
-		err = mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+		err = mqClient.Subscribe(topic, func(msg []byte) error {
 			serialized := &blocktx_api.TransactionBlock{}
 			unmarshalErr := proto.Unmarshal(msg, serialized)
 			if unmarshalErr != nil {
@@ -182,13 +182,13 @@ func TestNatsClient(t *testing.T) {
 		// when
 		data, err := proto.Marshal(txBlock)
 		require.NoError(t, err)
-		err = natsConn.Publish(MinedTxsTopic, data)
+		err = natsConn.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(MinedTxsTopic, data)
+		err = natsConn.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(MinedTxsTopic, data)
+		err = natsConn.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(MinedTxsTopic, []byte("not valid data"))
+		err = natsConn.Publish(topic, []byte("not valid data"))
 		require.NoError(t, err)
 
 		counter := 0
@@ -210,9 +210,124 @@ func TestNatsClient(t *testing.T) {
 		require.Equal(t, 3, counter)
 	})
 
-	t.Run("shutdown", func(t *testing.T) {
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, []string{SubmitTxTopic})
+	t.Run("publish - interest policy", func(t *testing.T) {
+		// given
+		const topic = "interest-txs"
+		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithInterestPolicy(topic))
 		require.NoError(t, err)
-		mqClient.Shutdown()
+		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
+		txRequest := &metamorph_api.TransactionRequest{
+			CallbackUrl:   "callback.example.com",
+			CallbackToken: "test-token",
+			RawTx:         testdata.TX1Raw.Bytes(),
+			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		}
+
+		// when
+		t.Log("subscribe to topic")
+		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
+			serialized := &metamorph_api.TransactionRequest{}
+			err := proto.Unmarshal(msg.Data, serialized)
+			require.NoError(t, err)
+			submittedTxsChan <- serialized
+		})
+		require.NoError(t, err)
+		t.Log("publish")
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		require.NoError(t, err)
+
+		counter := 0
+		t.Log("wait for submitted txs")
+
+		// then
+	loop:
+		for {
+			select {
+			case <-time.NewTimer(500 * time.Millisecond).C:
+				t.Log("timer finished")
+				break loop
+			case data := <-submittedTxsChan:
+				counter++
+				require.Equal(t, txRequest.CallbackUrl, data.CallbackUrl)
+				require.Equal(t, txRequest.CallbackToken, data.CallbackToken)
+				require.Equal(t, txRequest.RawTx, data.RawTx)
+				require.Equal(t, txRequest.WaitForStatus, data.WaitForStatus)
+			}
+		}
+
+		require.Equal(t, 4, counter)
 	})
+
+	t.Run("subscribe - interest policy", func(t *testing.T) {
+		// given
+		var err error
+		const topic = "interest-blocks"
+		minedTxsChan1 := make(chan *blocktx_api.TransactionBlock, 100)
+		minedTxsChan2 := make(chan *blocktx_api.TransactionBlock, 100)
+
+		mqClient = mqClientSubscribe(t, topic, "host1", minedTxsChan1)
+		mqClient2 := mqClientSubscribe(t, topic, "host2", minedTxsChan2)
+		defer mqClient2.Shutdown()
+
+		// when
+		data, err := proto.Marshal(txBlock)
+		require.NoError(t, err)
+		err = natsConn.Publish(topic, data)
+		require.NoError(t, err)
+		err = natsConn.Publish(topic, data)
+		require.NoError(t, err)
+		err = natsConn.Publish(topic, data)
+		require.NoError(t, err)
+
+		counter := 0
+		counter2 := 0
+
+		// then
+	loop:
+		for {
+			select {
+			case <-time.NewTimer(500 * time.Millisecond).C:
+				break loop
+			case minedTxBlock := <-minedTxsChan1:
+				counter++
+				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
+				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
+				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
+				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+			case minedTxBlock := <-minedTxsChan2:
+				counter2++
+				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
+				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
+				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
+				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+			}
+		}
+
+		require.Equal(t, 3, counter)
+		require.Equal(t, 3, counter2)
+	})
+}
+
+func mqClientSubscribe(t *testing.T, topic string, hostName string, minedTxsChan chan *blocktx_api.TransactionBlock) *nats_jetstream.Client {
+	client, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedInterestPolicy(hostName, []string{topic}, true))
+	require.NoError(t, err)
+	err = client.SubscribeMsg(topic, func(msg jetstream.Msg) error {
+		serialized := &blocktx_api.TransactionBlock{}
+		unmarshlErr := proto.Unmarshal(msg.Data(), serialized)
+		require.NoError(t, unmarshlErr)
+
+		minedTxsChan <- serialized
+		ackErr := msg.Ack()
+		require.NoError(t, ackErr)
+		return nil
+	})
+	require.NoError(t, err)
+
+	return client
 }

@@ -33,7 +33,7 @@ func Test_Connect(t *testing.T) {
 		// given
 
 		toPeerConn, fromPeerConn := connutil.AsyncPipe()
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 
 		sut := p2p.NewPeer(
 			slog.Default(),
@@ -66,7 +66,7 @@ func Test_Connect(t *testing.T) {
 
 	t.Run("Connect already connected peer", func(t *testing.T) {
 		// given
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := connectedPeer(t, mhMq)
 
 		// when
@@ -98,7 +98,7 @@ func Test_Connect(t *testing.T) {
 func Test_Shutdown(t *testing.T) {
 	t.Run("Shutdown", func(t *testing.T) {
 		// given
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, _ := connectedPeer(t, mhMq)
 
 		// when
@@ -111,7 +111,7 @@ func Test_Shutdown(t *testing.T) {
 
 	t.Run("Shutdown - connection should be closed", func(t *testing.T) {
 		// given
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, toPeerConn, fromPeerConn := connectedPeer(t, mhMq)
 
 		// when
@@ -153,9 +153,7 @@ func Test_keepAlive(t *testing.T) {
 			pingPongInterval   = 20 * time.Millisecond
 		)
 
-		mhMq := &mocks.MessageHandlerIMock{
-			OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {},
-		}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := peerWithConn(t, mhMq, p2p.WithPingInterval(pingPongInterval, keepAliveThreshold))
 
 		var sutUnhealthy atomic.Bool
@@ -184,7 +182,7 @@ func Test_keepAlive(t *testing.T) {
 			pingPongInterval   = time.Second
 		)
 
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := peerWithConn(t, mhMq, p2p.WithPingInterval(pingPongInterval, keepAliveThreshold))
 
 		var sutUnhealthy atomic.Bool
@@ -265,6 +263,7 @@ func Test_listenMessages(t *testing.T) {
 					require.Equal(t, tc.cmdType, msg.Command())
 					receiveMsgWg.Done()
 				},
+				OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {},
 			}
 
 			_, _, fromPeerConn := connectedPeer(t, mhMq)
@@ -284,9 +283,9 @@ func Test_listenMessages(t *testing.T) {
 }
 
 func Test_ErrorOnRead(t *testing.T) {
-	t.Run("Error while reading message from node - should not disconnect", func(t *testing.T) {
+	t.Run("Error while reading message from node - should disconnect", func(t *testing.T) {
 		// given
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := connectedPeer(t, mhMq)
 
 		var sutUnhealthy atomic.Bool
@@ -308,16 +307,16 @@ func Test_ErrorOnRead(t *testing.T) {
 		require.NoError(t, writeErr)
 		require.Equal(t, len(invalidPayload), n)
 
-		// peer should not disconnect on invalid message or signal it's unhealthy
-		require.True(t, sut.Connected(), "Peer disconnect on error on reading message")
-		require.False(t, sutUnhealthy.Load(), "Peer send signal it's unhealthy on error on reading message")
+		// peer should disconnect on invalid message and signal it's unhealthy
+		require.False(t, sut.Connected(), "Peer didn't disconnect on error on reading message")
+		require.True(t, sutUnhealthy.Load(), "Peer didn't signal it's unhealthy on error on reading message")
 	})
 }
 
 func Test_ErrorOnWrite(t *testing.T) {
 	t.Run("Error while writing message to node - should disconnect", func(t *testing.T) {
 		// given
-		mhMq := &mocks.MessageHandlerIMock{}
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, _ := connectedPeer(t, mhMq)
 
 		var sutUnhealthy atomic.Bool

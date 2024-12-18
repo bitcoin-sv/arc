@@ -15,8 +15,8 @@ type PeerI interface {
 }
 
 type MessageHandlerI interface {
-	// should be fire & forget
+	// OnReceive handles incoming messages depending on command type
 	OnReceive(msg wire.Message, peer PeerI)
-	// should be fire & forget
+	// OnSend handles outgoing messages depending on command type
 	OnSend(msg wire.Message, peer PeerI)
 }

@@ -37,7 +37,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceTransactions(txHashes, []p2p.PeerI{peer1, peer2})
@@ -69,7 +69,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceTransactions(txHashes, nil)
@@ -92,18 +92,18 @@ func Test_AnnounceTransactions(t *testing.T) {
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Announce less transactions than batch size (<256)",
+			name:            "Announce less transactions than batch size (<512)",
 			numOfTxs:        137,
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Announce exact number of transactions as batch size (256)",
-			numOfTxs:        256,
+			name:            "Announce exact number of transactions as batch size (512)",
+			numOfTxs:        512,
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Announce more transactions than batch size (>256)",
-			numOfTxs:        257,
+			name:            "Announce more transactions than batch size (>512)",
+			numOfTxs:        513,
 			expecedNumOfMsg: 2,
 		},
 	}
@@ -127,7 +127,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			sut := p2p.NewNetworkMessanger(pm)
+			sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			// when
 			peers := sut.AnnounceTransactions(txHashes, nil)
@@ -156,7 +156,7 @@ func Test_RequestTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestTransactions(txHashes)
@@ -181,7 +181,7 @@ func Test_RequestTransactions(t *testing.T) {
 
 		txHashes := []*chainhash.Hash{txHash}
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestTransactions(txHashes)
@@ -203,18 +203,18 @@ func Test_RequestTransactions(t *testing.T) {
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Request less transactions than batch size (<256)",
+			name:            "Request less transactions than batch size (<512)",
 			numOfTxs:        137,
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Request exact number of transactions as batch size (256)",
-			numOfTxs:        256,
+			name:            "Request exact number of transactions as batch size (512)",
+			numOfTxs:        512,
 			expecedNumOfMsg: 1,
 		},
 		{
-			name:            "Request more transactions than batch size (>256)",
-			numOfTxs:        257,
+			name:            "Request more transactions than batch size (>512)",
+			numOfTxs:        513,
 			expecedNumOfMsg: 2,
 		},
 	}
@@ -238,7 +238,7 @@ func Test_RequestTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			sut := p2p.NewNetworkMessanger(pm)
+			sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			// when
 			sentPeer := sut.RequestTransactions(txHashes)
@@ -268,7 +268,7 @@ func Test_AnnounceBlock(t *testing.T) {
 		err := pm.AddPeer(peer2)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		peers := sut.AnnounceBlock(blockHash, []p2p.PeerI{peer1})
@@ -296,7 +296,7 @@ func Test_RequestBlock(t *testing.T) {
 		err := pm.AddPeer(peer)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestBlock(blockHash)
@@ -319,7 +319,7 @@ func Test_RequestBlock(t *testing.T) {
 		err := pm.AddPeer(notConnectedPeer)
 		require.NoError(t, err)
 
-		sut := p2p.NewNetworkMessanger(pm)
+		sut := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 		// when
 		sentPeer := sut.RequestBlock(blockHash)

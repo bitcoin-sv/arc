@@ -15,6 +15,12 @@ func WithMaximumMessageSize(maximumMessageSize int64) PeerOptions {
 	}
 }
 
+func WithReadBufferSize(size int) PeerOptions {
+	return func(p *Peer) {
+		p.readBuffSize = size
+	}
+}
+
 func WithUserAgent(userAgentName string, userAgentVersion string) PeerOptions {
 	return func(p *Peer) {
 		p.userAgentName = &userAgentName
@@ -25,6 +31,12 @@ func WithUserAgent(userAgentName string, userAgentVersion string) PeerOptions {
 func WithNrOfWriteHandlers(n uint8) PeerOptions {
 	return func(p *Peer) {
 		p.nWriters = n
+	}
+}
+
+func WithWriteChannelSize(n uint16) PeerOptions {
+	return func(p *Peer) {
+		p.writeCh = make(chan wire.Message, n)
 	}
 }
 

@@ -58,8 +58,8 @@ func TestSendCallback(t *testing.T) {
 		// Given
 		sendOK := true
 		senderMq := &mocks.SenderIMock{
-			SendFunc:      func(_, _ string, _ *callbacker.Callback) bool { return sendOK },
-			SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) bool { return sendOK },
+			SendFunc:      func(_, _ string, _ *callbacker.Callback) (bool, bool) { return sendOK, false },
+			SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) (bool, bool) { return sendOK, false },
 		}
 
 		storeMq := &mocks.CallbackerStoreMock{

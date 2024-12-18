@@ -5,8 +5,8 @@ import (
 )
 
 type SenderI interface {
-	Send(url, token string, callback *Callback) bool
-	SendBatch(url, token string, callbacks []*Callback) bool
+	Send(url, token string, callback *Callback) (success, retry bool)
+	SendBatch(url, token string, callbacks []*Callback) (success, retry bool)
 }
 
 type Callback struct {

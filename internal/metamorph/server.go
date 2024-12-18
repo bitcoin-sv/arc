@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/go-sdk/util"
-	"github.com/libsv/go-p2p"
+
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,6 +25,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 const (
@@ -266,7 +267,12 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	defer func() {
 		if span != nil {
-			span.SetAttributes(attribute.String("finalStatus", returnedStatus.Status.String()), attribute.String("txID", returnedStatus.Txid), attribute.Bool("timeout", returnedStatus.TimedOut), attribute.String("waitFor", waitForStatus.String()))
+			span.SetAttributes(attribute.String("finalStatus",
+				returnedStatus.Status.String()),
+				attribute.String("txID", returnedStatus.Txid),
+				attribute.Bool("timeout", returnedStatus.TimedOut),
+				attribute.String("waitFor", waitForStatus.String()),
+			)
 		}
 		tracing.EndTracing(span, err)
 	}()
@@ -292,6 +298,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	checkStatusTicker := time.NewTicker(s.checkStatusInterval)
+	defer checkStatusTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():

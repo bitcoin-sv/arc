@@ -9,15 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -52,7 +54,7 @@ const (
 
 var (
 	ErrStoreNil                     = errors.New("store cannot be nil")
-	ErrPeerManagerNil               = errors.New("peer manager cannot be nil")
+	ErrPeerMessengerNil             = errors.New("p2p messenger cannot be nil")
 	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
 	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
@@ -63,7 +65,7 @@ type Processor struct {
 	store                     store.MetamorphStore
 	cacheStore                cache.Store
 	hostname                  string
-	pm                        p2p.PeerManagerI
+	messenger                 *p2p.NetworkMessenger
 	mqClient                  MessageQueue
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
@@ -76,7 +78,7 @@ type Processor struct {
 	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
-	statusMessageCh   chan *TxStatusMessage
+	statusMessageCh   chan *metamorph_p2p.TxStatusMessage
 
 	waitGroup *sync.WaitGroup
 
@@ -113,13 +115,13 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessenger, statusMessageChannel chan *metamorph_p2p.TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
 
-	if pm == nil {
-		return nil, ErrPeerManagerNil
+	if messenger == nil {
+		return nil, ErrPeerMessengerNil
 	}
 
 	hostname, err := os.Hostname()
@@ -131,7 +133,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 		store:                     s,
 		cacheStore:                c,
 		hostname:                  hostname,
-		pm:                        pm,
+		messenger:                 messenger,
 		mapExpiryTime:             mapExpiryTimeDefault,
 		recheckSeenFromAgo:        recheckSeenFromAgo,
 		recheckSeenUntilAgo:       recheckSeenUntilAgoDefault,
@@ -233,8 +235,6 @@ func (p *Processor) Start(statsEnabled bool) error {
 func (p *Processor) Shutdown() {
 	p.logger.Info("Shutting down processor")
 
-	p.pm.Shutdown()
-
 	err := p.unlockRecords()
 	if err != nil {
 		p.logger.Error("Failed to unlock all hashes", slog.String("err", err.Error()))
@@ -335,6 +335,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
+// StartProcessSubmittedTxs starts processing txs submitted to message queue
 func (p *Processor) StartProcessSubmittedTxs() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
@@ -654,17 +655,21 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
+// StartProcessExpiredTransactions periodically reads transactions with status lower then SEEN_ON_NETWORK from database and announce them again
 func (p *Processor) StartProcessExpiredTransactions() {
-	ticker := time.NewTicker(p.processExpiredTxsInterval)
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer p.waitGroup.Done()
+
+		ticker := time.NewTicker(p.processExpiredTxsInterval)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-p.ctx.Done():
 				return
-			case <-ticker.C: // Periodically read unmined transactions from database and announce them again
+			case <-ticker.C:
 				ctx, span := tracing.StartTracing(p.ctx, "StartProcessExpiredTransactions", p.tracingEnabled, p.tracingAttributes...)
 
 				// define from what point in time we are interested in unmined transactions
@@ -707,17 +712,13 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						if tx.Retries%2 != 0 {
 							// Send GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
-							p.pm.RequestTransaction(tx.Hash)
+							p.messenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
 							requested++
 							continue
 						}
 
 						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-						peers := p.pm.AnnounceTransaction(tx.Hash, nil)
-						if len(peers) == 0 {
-							p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", tx.Hash.String()))
-							continue
-						}
+						p.messenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
 						announced++
 					}
 				}
@@ -732,9 +733,9 @@ func (p *Processor) StartProcessExpiredTransactions() {
 	}()
 }
 
-// GetPeers returns a list of connected and a list of disconnected peers
+// GetPeers returns a list of connected and disconnected peers
 func (p *Processor) GetPeers() []p2p.PeerI {
-	return p.pm.GetPeers()
+	return p.messenger.GetPeers()
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
@@ -819,19 +820,14 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// Send GETDATA to peers to see if they have it
-	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
-	p.pm.RequestTransaction(req.Data.Hash)
+	_, requestTransactionSpan := tracing.StartTracing(ctx, "RequestWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
+	p.messenger.RequestWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
 	tracing.EndTracing(requestTransactionSpan, nil)
 
 	// Announce transaction to network peers
-	p.logger.Debug("announcing transaction", slog.String("hash", req.Data.Hash.String()))
-	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceTransaction", p.tracingEnabled, p.tracingAttributes...)
-	peers := p.pm.AnnounceTransaction(req.Data.Hash, nil)
+	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
+	p.messenger.AnnounceWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
 	tracing.EndTracing(announceTransactionSpan, nil)
-	if len(peers) == 0 {
-		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
-		return
-	}
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -846,6 +842,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 }
 
+// ProcessTransactions processes txs submitted to message queue
 func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
@@ -873,11 +870,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 		}
 
 		// Announce transaction to network and save peers
-		peers := p.pm.AnnounceTransaction(data.Hash, nil)
-		if len(peers) == 0 {
-			p.logger.Warn("transaction was not announced to any peer", slog.String("hash", data.Hash.String()))
-			continue
-		}
+		p.messenger.AnnounceWithAutoBatch(data.Hash, wire.InvTypeTx)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
@@ -889,13 +882,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 }
 
 func (p *Processor) Health() error {
-	healthyConnections := 0
-
-	for _, peer := range p.pm.GetPeers() {
-		if peer.Connected() && peer.IsHealthy() {
-			healthyConnections++
-		}
-	}
+	healthyConnections := int(p.messenger.CountConnectedPeers()) // #nosec G115
 
 	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))

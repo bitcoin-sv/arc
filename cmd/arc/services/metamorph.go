@@ -9,7 +9,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/libsv/go-p2p"
+	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -24,9 +24,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 )
 
@@ -43,9 +46,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	var (
 		metamorphStore  store.MetamorphStore
-		peerHandler     *metamorph.PeerHandler
-		pm              metamorph.PeerManager
-		statusMessageCh chan *metamorph.TxStatusMessage
+		pm              *p2p.PeerManager
+		statusMessageCh chan *metamorph_p2p.TxStatusMessage
 		mqClient        metamorph.MessageQueue
 		processor       *metamorph.Processor
 		server          *metamorph.Server
@@ -82,7 +84,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
-		disposeMtm(logger, server, processor, peerHandler, mqClient, metamorphStore, healthServer, shutdownFns)
+		disposeMtm(logger, server, processor, pm, mqClient, metamorphStore, healthServer, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
@@ -91,7 +93,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	pm, peerHandler, statusMessageCh, err = initPeerManager(logger, metamorphStore, arcConfig)
+	pm, statusMessageCh, err = initPeerManager(logger, metamorphStore, arcConfig)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -163,7 +165,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
-		pm,
+		p2p.NewNetworkMessenger(logger, pm),
 		statusMessageCh,
 		processorOpts...,
 	)
@@ -256,50 +258,53 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 	return s, err
 }
 
-func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (p2p.PeerManagerI, *metamorph.PeerHandler, chan *metamorph.TxStatusMessage, error) {
+func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (*p2p.PeerManager, chan *metamorph_p2p.TxStatusMessage, error) {
 	network, err := config.GetNetwork(arcConfig.Network)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get network: %v", err)
+		return nil, nil, fmt.Errorf("failed to get network: %v", err)
 	}
 
 	logger.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph.TxStatusMessage, 10000)
+	messageCh := make(chan *metamorph_p2p.TxStatusMessage, 10000)
 	var pmOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-handler")), network, pmOpts...)
+	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
 
-	peerHandler := metamorph.NewPeerHandler(s, messageCh)
+	msgHandler := metamorph_p2p.NewMsgHandler(logger.With(slog.String("module", "peer-msg-handler")), s, messageCh)
 
 	peerOpts := []p2p.PeerOptions{
-		p2p.WithRetryReadWriteMessageInterval(5 * time.Second),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
+		p2p.WithPingInterval(30*time.Second, 2*time.Minute),
+		p2p.WithNrOfWriteHandlers(8),
+		p2p.WithWriteChannelSize(4096),
 	}
+
 	if version.Version != "" {
 		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
 	}
 
+	l := logger.With(slog.String("module", "peer"))
 	for _, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
 		peerURL, err := peerSetting.GetP2PUrl()
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error getting peer url: %v", err)
+			return nil, nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
-		var peer *p2p.Peer
-		peer, err = p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
+		peer := p2p.NewPeer(l, msgHandler, peerURL, network, peerOpts...)
+		ok := peer.Connect()
+		if !ok {
+			return nil, nil, fmt.Errorf("cannot connect to peer %s", peerURL)
 		}
 
 		if err = pm.AddPeer(peer); err != nil {
-			return nil, nil, nil, fmt.Errorf("error adding peer %s: %v", peerURL, err)
+			return nil, nil, fmt.Errorf("error adding peer %s: %v", peerURL, err)
 		}
 	}
 
-	return pm, peerHandler, messageCh, nil
+	return pm, messageCh, nil
 }
 
 func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
@@ -316,14 +321,14 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int,
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
-	peerHandler *metamorph.PeerHandler, mqClient metamorph.MessageQueue,
+	peerManaager *p2p.PeerManager, mqClient metamorph.MessageQueueClient,
 	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
 	shutdownFns []func(),
 ) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new request will be received
 	// 2. processor - ensure all started job are complete
-	// 3. peerHandler
+	// 3. peerManaager
 	// 4. mqClient
 	// 5. store
 	// 6. healthServer
@@ -335,8 +340,8 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 	if processor != nil {
 		processor.Shutdown()
 	}
-	if peerHandler != nil {
-		peerHandler.Shutdown()
+	if peerManaager != nil {
+		peerManaager.Shutdown()
 	}
 	if mqClient != nil {
 		mqClient.Shutdown()

@@ -4,20 +4,20 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/ignore_p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/wire"
 	"sync"
 )
 
-// Ensure, that PeerIMock does implement ignore_p2p.PeerI.
+// Ensure, that PeerIMock does implement p2p.PeerI.
 // If this is not the case, regenerate this file with moq.
-var _ ignore_p2p.PeerI = &PeerIMock{}
+var _ p2p.PeerI = &PeerIMock{}
 
-// PeerIMock is a mock implementation of ignore_p2p.PeerI.
+// PeerIMock is a mock implementation of p2p.PeerI.
 //
 //	func TestSomethingThatUsesPeerI(t *testing.T) {
 //
-//		// make and configure a mocked ignore_p2p.PeerI
+//		// make and configure a mocked p2p.PeerI
 //		mockedPeerI := &PeerIMock{
 //			ConnectedFunc: func() bool {
 //				panic("mock out the Connected method")
@@ -42,7 +42,7 @@ var _ ignore_p2p.PeerI = &PeerIMock{}
 //			},
 //		}
 //
-//		// use mockedPeerI in code that requires ignore_p2p.PeerI
+//		// use mockedPeerI in code that requires p2p.PeerI
 //		// and then make assertions.
 //
 //	}

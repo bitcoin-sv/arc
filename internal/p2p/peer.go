@@ -1,4 +1,4 @@
-package ignore_p2p
+package p2p
 
 import (
 	"bufio"

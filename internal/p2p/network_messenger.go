@@ -1,4 +1,4 @@
-package ignore_p2p
+package p2p
 
 import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"

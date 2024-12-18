@@ -17,15 +17,15 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithSeenOnNetworkTxTime(d time.Duration) func(*Processor) {
+func WithRecheckSeenFromAgo(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.seenOnNetworkTxTime = d
+		p.recheckSeenFromAgo = d
 	}
 }
 
-func WithSeenOnNetworkTxTimeUntil(d time.Duration) func(*Processor) {
+func WithRecheckSeenUntilAgo(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.seenOnNetworkTxTimeUntil = d
+		p.recheckSeenUntilAgo = d
 	}
 }
 

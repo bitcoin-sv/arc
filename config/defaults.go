@@ -97,10 +97,12 @@ func getMetamorphConfig() *MetamorphConfig {
 		UnseenTransactionRebroadcastingInterval: 60 * time.Second,
 		MaxRetries:                              1000,
 		ProcessStatusUpdateInterval:             5 * time.Second,
-		CheckSeenOnNetworkOlderThan:             3 * time.Hour,
-		CheckSeenOnNetworkPeriod:                4 * time.Hour,
-		MonitorPeers:                            false,
-		CheckUtxos:                              false,
+		RecheckSeen: RecheckSeen{
+			FromAgo:  24 * time.Hour,
+			UntilAgo: 1 * time.Hour,
+		},
+		MonitorPeers: false,
+		CheckUtxos:   false,
 		Health: &HealthConfig{
 			SeverDialAddr:             "localhost:8005",
 			MinimumHealthyConnections: 2,

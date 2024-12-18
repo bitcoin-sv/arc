@@ -32,13 +32,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
@@ -64,8 +64,8 @@ func TestReorg(t *testing.T) {
 		require.NoError(t, err)
 
 		// should become LONGEST
-		blockMessage := &p2p.BlockMessage{
-			// Hash: blockHash,
+		blockMessage := &bcnet.BlockMessage{
+			//Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevBlockHash, // NON-existent in the db
@@ -77,8 +77,7 @@ func TestReorg(t *testing.T) {
 		}
 
 		processor.StartBlockProcessing()
-		err = p2pMsgHandler.HandleBlock(blockMessage, nil)
-		require.NoError(t, err)
+		p2pMsgHandler.OnReceive(blockMessage, nil)
 
 		// Allow DB to process the block
 		time.Sleep(200 * time.Millisecond)
@@ -108,7 +107,7 @@ func TestReorg(t *testing.T) {
 		merkleRoot := treeStore[len(treeStore)-1]
 
 		// should become STALE
-		blockMessage := &p2p.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -121,8 +120,7 @@ func TestReorg(t *testing.T) {
 		}
 
 		processor.StartBlockProcessing()
-		err := p2pMsgHandler.HandleBlock(blockMessage, nil)
-		require.NoError(t, err)
+		p2pMsgHandler.OnReceive(blockMessage, nil)
 
 		// Allow DB to process the block
 		time.Sleep(200 * time.Millisecond)
@@ -167,7 +165,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		// reorg should happen
-		blockMessage := &p2p.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -180,8 +178,7 @@ func TestReorg(t *testing.T) {
 		}
 
 		processor.StartBlockProcessing()
-		err := p2pMsgHandler.HandleBlock(blockMessage, nil)
-		require.NoError(t, err)
+		p2pMsgHandler.OnReceive(blockMessage, nil)
 
 		// Allow DB to process the block and perform reorg
 		time.Sleep(1 * time.Second)
@@ -254,7 +251,7 @@ func TestReorg(t *testing.T) {
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 		// should become STALE
-		blockMessage := &p2p.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -267,8 +264,7 @@ func TestReorg(t *testing.T) {
 		}
 
 		processor.StartBlockProcessing()
-		err := p2pMsgHandler.HandleBlock(blockMessage, nil)
-		require.NoError(t, err)
+		p2pMsgHandler.OnReceive(blockMessage, nil)
 
 		// Allow DB to process the block and find orphans
 		time.Sleep(1 * time.Second)
@@ -328,7 +324,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		// reorg should happen
-		blockMessage := &p2p.BlockMessage{
+		blockMessage := &bcnet.BlockMessage{
 			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
@@ -342,8 +338,7 @@ func TestReorg(t *testing.T) {
 		}
 
 		processor.StartBlockProcessing()
-		err := p2pMsgHandler.HandleBlock(blockMessage, nil)
-		require.NoError(t, err)
+		p2pMsgHandler.OnReceive(blockMessage, nil)
 
 		// Allow DB to process the block, find orphans and perform reorg
 		time.Sleep(3 * time.Second)

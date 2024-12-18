@@ -8,10 +8,10 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/libsv/go-p2p"
-
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -20,6 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 const (
@@ -37,7 +38,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blockStore   store.BlocktxStore
 		mqClient     blocktx.MessageQueueClient
 		processor    *blocktx.Processor
-		pm           p2p.PeerManagerI
+		pm           *p2p.PeerManager
 		server       *blocktx.Server
 		healthServer *grpc_opts.GrpcServer
 		workers      *blocktx.BackgroundWorkers
@@ -127,8 +128,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithIncomingIsLongest(btxConfig.IncomingIsLongest),
 	)
 
-	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *p2p.BlockMessage, blockProcessingBuffer)
+	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
+	blockProcessCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
 
 	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
@@ -142,7 +143,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start peer handler: %v", err)
 	}
 
-	pmOpts := []p2p.PeerManagerOptions{p2p.WithExcessiveBlockSize(maximumBlockSize)}
+	// p2p global setting
+	p2p.SetExcessiveBlockSize(maximumBlockSize)
+
+	pmOpts := []p2p.PeerManagerOptions{}
 	if arcConfig.Blocktx.MonitorPeers {
 		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
 	}
@@ -150,7 +154,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
 	peers := make([]p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
 
-	peerHandler := blocktx.NewPeerHandler(logger, blockRequestCh, blockProcessCh)
+	peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
 
 	peerOpts := []p2p.PeerOptions{
 		p2p.WithMaximumMessageSize(maximumBlockSize),
@@ -169,8 +173,9 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 			return nil, fmt.Errorf("error getting peer url: %v", err)
 		}
 
-		peer, err := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerURL, peerHandler, network, peerOpts...)
-		if err != nil {
+		peer := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerHandler, peerURL, network, peerOpts...)
+		ok := peer.Connect()
+		if !ok {
 			stopFn()
 			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
 		}
@@ -243,7 +248,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm p2p.PeerManagerI, mqClient blocktx.MessageQueueClient,
+	pm *p2p.PeerManager, mqClient blocktx.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {

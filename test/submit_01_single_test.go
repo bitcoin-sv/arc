@@ -177,6 +177,8 @@ func TestSubmitMined(t *testing.T) {
 
 		merklePath, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
 		require.NoError(t, err)
+		merklePathStr, err := merklePath.String()
+		require.NoError(t, err)
 
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
@@ -199,7 +201,7 @@ func TestSubmitMined(t *testing.T) {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
-			require.Equal(t, merklePath.String(), status.MerklePath)
+			require.Equal(t, merklePathStr, status.MerklePath)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:

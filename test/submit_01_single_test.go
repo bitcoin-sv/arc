@@ -199,7 +199,7 @@ func TestSubmitMined(t *testing.T) {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
-			require.Equal(t, merklePath, status.MerklePath)
+			require.Equal(t, merklePath.String(), status.MerklePath)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:

@@ -1,6 +1,6 @@
 ---
-logLevel: INFO
 logFormat: tint
+logLevel: INFO
 profilerAddr: localhost:9999
 prometheus:
   enabled: true

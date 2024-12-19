@@ -2,6 +2,7 @@ package integrationtest
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -9,13 +10,15 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	nats_mocks "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/libsv/go-p2p"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,15 +34,19 @@ func TestProcessor(t *testing.T) {
 
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
-		pm := &mocks.PeerManagerMock{
-			ShutdownFunc: func() {},
-			RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI {
-				return nil
-			},
-			AnnounceTransactionFunc: func(_ *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
-				return nil
-			},
+		peer := &p2p_mocks.PeerIMock{
+			WriteMsgFunc:  func(_ wire.Message) {},
+			NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
+			StringFunc:    func() string { return "peer" },
+			ConnectedFunc: func() bool { return true },
 		}
+
+		pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
+		err = pm.AddPeer(peer)
+		require.NoError(t, err)
+
+		messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+
 		natsMock := &nats_mocks.NatsConnectionMock{
 			DrainFunc: func() error {
 				return nil
@@ -49,9 +56,9 @@ func TestProcessor(t *testing.T) {
 			},
 		}
 		natsQueue := nats_core.New(natsMock)
-		statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, pm, statusMessageChannel,
+		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(natsQueue),
 		)
@@ -117,17 +124,17 @@ func TestProcessor(t *testing.T) {
 		}
 
 		// when
-		statusMessageChannel <- &metamorph.TxStatusMessage{
+		statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 			Hash:   tx1,
 			Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Peer:   "",
 		}
-		statusMessageChannel <- &metamorph.TxStatusMessage{
+		statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 			Hash:   tx2,
 			Status: metamorph_api.Status_REJECTED, // this tx should be removed from the cache - final status
 			Peer:   "",
 		}
-		statusMessageChannel <- &metamorph.TxStatusMessage{
+		statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 			Hash:   txNotRegistered, // this tx should not be processed
 			Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Peer:   "",

@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/libsv/go-p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 type BackgroundWorkers struct {
@@ -40,7 +41,7 @@ func (w *BackgroundWorkers) GracefulStop() {
 	w.l.Info("Shutdown complete")
 }
 
-func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Duration, retentionDays int, blockRequestingCh chan<- BlockRequest) {
+func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Duration, retentionDays int, blockRequestingCh chan<- blocktx_p2p.BlockRequest) {
 	w.workersWg.Add(1)
 
 	go func() {
@@ -68,7 +69,7 @@ func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Durat
 	}()
 }
 
-func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockRequestingCh chan<- BlockRequest) error {
+func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockRequestingCh chan<- blocktx_p2p.BlockRequest) error {
 	const (
 		hoursPerDay   = 24
 		blocksPerHour = 6
@@ -91,7 +92,7 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 			slog.String("peer", peer.String()),
 		)
 
-		blockRequestingCh <- BlockRequest{
+		blockRequestingCh <- blocktx_p2p.BlockRequest{
 			Hash: block.Hash,
 			Peer: peer,
 		}

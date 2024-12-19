@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/libsv/go-p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 

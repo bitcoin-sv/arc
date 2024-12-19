@@ -22,7 +22,6 @@ type ArcConfig struct {
 	MessageQueue    *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing         *TracingConfig      `mapstructure:"tracing"`
 	PeerRPC         *PeerRPCConfig      `mapstructure:"peerRpc"`
-	Broadcasting    *BroadcastingConfig `mapstructure:"broadcasting"`
 	Metamorph       *MetamorphConfig    `mapstructure:"metamorph"`
 	Blocktx         *BlocktxConfig      `mapstructure:"blocktx"`
 	API             *APIConfig          `mapstructure:"api"`
@@ -39,21 +38,6 @@ type PrometheusConfig struct {
 
 func (p *PrometheusConfig) IsEnabled() bool {
 	return p.Enabled && p.Addr != "" && p.Endpoint != ""
-}
-
-type BroadcastingConfig struct {
-	Mode      string      `mapstructure:"mode"`
-	Multicast *Mulsticast `mapstructure:"multicast"`
-	Unicast   *Unicast    `mapstructure:"unicast"`
-}
-
-type Unicast struct {
-	Peers []*PeerConfig `mapstructure:"peers"`
-}
-type Mulsticast struct {
-	Ipv6Enabled     bool      `mapstructure:"ipv6Enabled"`
-	MulticastGroups []*string `mapstructure:"multicastGroups"`
-	Interfaces      []*string `mapstructure:"interfaces"`
 }
 
 type PeerConfig struct {

@@ -129,6 +129,31 @@ func getBlocktxConfig() *BlocktxConfig {
 		MaxBlockProcessingDuration:    5 * time.Minute,
 		MessageQueue:                  &MessageQueueConfig{},
 		P2pReadBufferSize:             8 * 1024 * 1024,
+		BlockchainNetwork: &BlockchainNetwork[*BlocktxGroups]{
+			Mode:    "classic",
+			Network: "regtest",
+			Peers: []*PeerConfig{
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18334,
+					},
+				},
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18335,
+					},
+				},
+			},
+		},
 	}
 }
 

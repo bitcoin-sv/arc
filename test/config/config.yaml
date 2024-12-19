@@ -65,8 +65,6 @@ metamorph:
   processorCacheExpiryTime: 24h
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
-  checkSeenOnNetworkOlderThan: 3h
-  checkSeenOnNetworkPeriod: 4h
   monitorPeers: true
   checkUtxos: false
   profilerAddr: localhost:9992
@@ -100,6 +98,22 @@ blocktx:
     enabled: true
     interval: 1s
   maxAllowedBlockHeightMismatch: 3
+  bcnet:
+    mode: classic 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332 
 
 api:
   address: 0.0.0.0:9090

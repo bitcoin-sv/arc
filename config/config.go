@@ -116,18 +116,35 @@ type MetamorphConfig struct {
 }
 
 type BlocktxConfig struct {
-	ListenAddr                    string              `mapstructure:"listenAddr"`
-	DialAddr                      string              `mapstructure:"dialAddr"`
-	HealthServerDialAddr          string              `mapstructure:"healthServerDialAddr"`
-	Db                            *DbConfig           `mapstructure:"db"`
-	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
-	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
-	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
-	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
-	FillGaps                      *FillGapsConfig     `mapstructure:"fillGaps"`
-	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
-	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
-	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
+	ListenAddr                    string                             `mapstructure:"listenAddr"`
+	DialAddr                      string                             `mapstructure:"dialAddr"`
+	HealthServerDialAddr          string                             `mapstructure:"healthServerDialAddr"`
+	Db                            *DbConfig                          `mapstructure:"db"`
+	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
+	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
+	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
+	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
+	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
+	MaxAllowedBlockHeightMismatch int                                `mapstructure:"maxAllowedBlockHeightMismatch"`
+	MessageQueue                  *MessageQueueConfig                `mapstructure:"mq"`
+	P2pReadBufferSize             int                                `mapstructure:"p2pReadBufferSize"`
+	BlockchainNetwork             *BlockchainNetwork[*BlocktxGroups] `mapstructure:"bcnet"`
+}
+
+type BlockchainNetwork[McastT any] struct {
+	Mode    string        `mapstructure:"mode"`
+	Network string        `mapstructure:"network"`
+	Peers   []*PeerConfig `mapstructure:"peers"`
+	Mcast   McastT        `mapstructure:"mcast"`
+}
+
+type BlocktxGroups struct {
+	McastBlock McastGroup `mapstructure:"block"`
+}
+
+type McastGroup struct {
+	Address    string   `mapstructure:"address"`
+	Interfaces []string `mapstructure:"interfaces"`
 }
 
 type DbConfig struct {
@@ -149,10 +166,6 @@ type PostgresConfig struct {
 type CacheConfig struct {
 	Engine string       `mapstructure:"engine"`
 	Redis  *RedisConfig `mapstructure:"redis"`
-}
-
-type FreeCacheConfig struct {
-	Size int `mapstructure:"size"`
 }
 
 type RedisConfig struct {

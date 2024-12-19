@@ -128,6 +128,23 @@ type BlocktxConfig struct {
 	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
 	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
 	IncomingIsLongest             bool                `mapstructure:"incomingIsLongest"`
+	BlockchainNetwork             *BlockchainNetwork[*BlocktxGroups] `mapstructure:"bcnet"`
+}
+
+type BlockchainNetwork[McastT any] struct {
+	Mode    string        `mapstructure:"mode"`
+	Network string        `mapstructure:"network"`
+	Peers   []*PeerConfig `mapstructure:"peers"`
+	Mcast   McastT        `mapstructure:"mcast"`
+}
+
+type BlocktxGroups struct {
+	McastBlock McastGroup `mapstructure:"block"`
+}
+
+type McastGroup struct {
+	Address    string   `mapstructure:"address"`
+	Interfaces []string `mapstructure:"interfaces"`
 }
 
 type DbConfig struct {
@@ -149,10 +166,6 @@ type PostgresConfig struct {
 type CacheConfig struct {
 	Engine string       `mapstructure:"engine"`
 	Redis  *RedisConfig `mapstructure:"redis"`
-}
-
-type FreeCacheConfig struct {
-	Size int `mapstructure:"size"`
 }
 
 type RedisConfig struct {

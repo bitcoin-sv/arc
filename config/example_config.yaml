@@ -111,6 +111,26 @@ blocktx:
     interval: 15m # time interval to check and fill gaps in processed blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
   p2pReadBufferSize: 8388608 # size of read buffer for p2p messeges
+  bcnet:
+    mode: classic # [classic|hybrid]
+    network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
+    peers: # list of bitcoin node peers to connect to (required)
+    - host: localhost
+      port:
+        p2p: 18333 # port for p2p connection
+        zmq: 28332 # port for zmq connection
+    - host: localhost
+      port:
+        p2p: 18334
+    - host: localhost
+      port:
+        p2p: 18335
+    mcast: # multicast groups (required if mode: hybrid)
+      block: 
+        address: "[]" # multicast group IPv6 address 
+        interfaces:
+        - "eth0"
+        - "eth1"
 
 api:
   address: localhost:9090 # address to start api server on

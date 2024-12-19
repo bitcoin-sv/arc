@@ -1,0 +1,21 @@
+- blockid: 1001
+  txid: 1000001
+  merkle_path: '' # empty - we will request this tx
+  merkle_tree_index: 0
+  inserted_at: 2023-12-10 14:00:00
+- blockid: 1001
+  txid: 1000002
+  merkle_path: merkle-path-2
+  inserted_at: 2023-12-10 14:00:00
+- blockid: 1001
+  txid: 1000003
+  merkle_path: merkle-path-3
+  inserted_at: 2023-12-10 14:00:00
+- blockid: 1001
+  txid: 1000004
+  merkle_path: merkle-path-4
+  inserted_at: 2023-12-10 14:00:00
+- blockid: 1001
+  txid: 1000005
+  merkle_path: merkle-path-5
+  inserted_at: 2023-12-10 14:00:00

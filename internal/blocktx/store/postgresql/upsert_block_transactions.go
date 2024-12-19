@@ -74,7 +74,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	return nil
 }
 
-func (p *PostgreSQL) UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (err error) {
+func (p *PostgreSQL) UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath, n int) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpsertBlockTransactionsCOPY", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsWithMerklePaths)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -89,7 +89,7 @@ func (p *PostgreSQL) UpsertBlockTransactionsCOPY(ctx context.Context, blockID ui
 	}()
 
 	// create tmp table
-	tmpName := fmt.Sprintf("blocktxtmp_%d", blockID)
+	tmpName := fmt.Sprintf("blocktxtmp_%d_%d", blockID, n)
 	tmpTableQ := fmt.Sprintf("CREATE TEMPORARY TABLE %s (blockid BIGINT,txhash BYTEA,mp TEXT);", tmpName)
 	_, err = dbTx.ExecContext(ctx, tmpTableQ)
 	if err != nil {
@@ -134,10 +134,16 @@ func (p *PostgreSQL) UpsertBlockTransactionsCOPY(ctx context.Context, blockID ui
 					)
 					SELECT tmp.blockid, inserted_tx.id AS txID, tmp.mp AS merkle_path
 					FROM inserted_tx
-					JOIN %s tmp ON tmp.txhash = inserted_tx.hash;
+					JOIN %s tmp ON tmp.txhash = inserted_tx.hash
+					ON CONFLICT DO NOTHING;
 					`, tmpName, tmpName)
 
 	_, err = dbTx.ExecContext(ctx, txUpsertQ)
+	if err != nil {
+		return err
+	}
+
+	_, err = dbTx.ExecContext(ctx, fmt.Sprintf("DROP TABLE %s", tmpName))
 	if err != nil {
 		return err
 	}

@@ -180,7 +180,7 @@ func TestHandleBlock(t *testing.T) {
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) { return nil, nil },
 			}
 
-			storeMock.UpsertBlockTransactionsCOPYFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+			storeMock.UpsertBlockTransactionsCOPYFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxWithMerklePath, _ int) error {
 				require.LessOrEqual(t, len(txsWithMerklePaths), batchSize)
 
 				for _, txWithMr := range txsWithMerklePaths {
@@ -410,7 +410,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 					return nil, nil, nil
 				},
-				UpsertBlockTransactionsCOPYFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
+				UpsertBlockTransactionsCOPYFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath, _ int) error {
 					return nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {

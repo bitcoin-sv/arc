@@ -701,6 +701,8 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	var iterateMerkleTree trace.Span
 	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
 
+	n := 0
+
 	for txIndex, hash := range leaves {
 		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
 		if hash == nil {
@@ -723,10 +725,11 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			err := p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs)
+			err := p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs, n)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
+			n++
 			// free up memory
 			txs = txs[:0]
 		}
@@ -741,7 +744,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	tracing.EndTracing(iterateMerkleTree, nil)
 
 	// update all remaining transactions
-	err = p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs)
+	err = p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs, n)
 	if err != nil {
 		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
 	}

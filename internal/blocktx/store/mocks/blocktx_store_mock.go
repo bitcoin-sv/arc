@@ -84,7 +84,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			UpsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 //				panic("mock out the UpsertBlockTransactions method")
 //			},
-//			UpsertBlockTransactionsCOPYFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+//			UpsertBlockTransactionsCOPYFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath, n int) error {
 //				panic("mock out the UpsertBlockTransactionsCOPY method")
 //			},
 //			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error) {
@@ -161,7 +161,7 @@ type BlocktxStoreMock struct {
 	UpsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error
 
 	// UpsertBlockTransactionsCOPYFunc mocks the UpsertBlockTransactionsCOPY method.
-	UpsertBlockTransactionsCOPYFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error
+	UpsertBlockTransactionsCOPYFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath, n int) error
 
 	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
 	VerifyMerkleRootsFunc func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
@@ -327,6 +327,8 @@ type BlocktxStoreMock struct {
 			BlockID uint64
 			// TxsWithMerklePaths is the txsWithMerklePaths argument value.
 			TxsWithMerklePaths []store.TxWithMerklePath
+			// N is the n argument value.
+			N int
 		}
 		// VerifyMerkleRoots holds details about calls to the VerifyMerkleRoots method.
 		VerifyMerkleRoots []struct {
@@ -1127,7 +1129,7 @@ func (mock *BlocktxStoreMock) UpsertBlockTransactionsCalls() []struct {
 }
 
 // UpsertBlockTransactionsCOPY calls UpsertBlockTransactionsCOPYFunc.
-func (mock *BlocktxStoreMock) UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+func (mock *BlocktxStoreMock) UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath, n int) error {
 	if mock.UpsertBlockTransactionsCOPYFunc == nil {
 		panic("BlocktxStoreMock.UpsertBlockTransactionsCOPYFunc: method is nil but BlocktxStore.UpsertBlockTransactionsCOPY was just called")
 	}
@@ -1135,15 +1137,17 @@ func (mock *BlocktxStoreMock) UpsertBlockTransactionsCOPY(ctx context.Context, b
 		Ctx                context.Context
 		BlockID            uint64
 		TxsWithMerklePaths []store.TxWithMerklePath
+		N                  int
 	}{
 		Ctx:                ctx,
 		BlockID:            blockID,
 		TxsWithMerklePaths: txsWithMerklePaths,
+		N:                  n,
 	}
 	mock.lockUpsertBlockTransactionsCOPY.Lock()
 	mock.calls.UpsertBlockTransactionsCOPY = append(mock.calls.UpsertBlockTransactionsCOPY, callInfo)
 	mock.lockUpsertBlockTransactionsCOPY.Unlock()
-	return mock.UpsertBlockTransactionsCOPYFunc(ctx, blockID, txsWithMerklePaths)
+	return mock.UpsertBlockTransactionsCOPYFunc(ctx, blockID, txsWithMerklePaths, n)
 }
 
 // UpsertBlockTransactionsCOPYCalls gets all the calls that were made to UpsertBlockTransactionsCOPY.
@@ -1154,11 +1158,13 @@ func (mock *BlocktxStoreMock) UpsertBlockTransactionsCOPYCalls() []struct {
 	Ctx                context.Context
 	BlockID            uint64
 	TxsWithMerklePaths []store.TxWithMerklePath
+	N                  int
 } {
 	var calls []struct {
 		Ctx                context.Context
 		BlockID            uint64
 		TxsWithMerklePaths []store.TxWithMerklePath
+		N                  int
 	}
 	mock.lockUpsertBlockTransactionsCOPY.RLock()
 	calls = mock.calls.UpsertBlockTransactionsCOPY

@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/lib/pq"
 	"go.opentelemetry.io/otel/attribute"
@@ -68,6 +69,82 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpsertBlockTransactionsMap, err)
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (err error) {
+	ctx, span := tracing.StartTracing(ctx, "UpsertBlockTransactionsCOPY", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsWithMerklePaths)))...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	dbTx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = dbTx.Rollback()
+	}()
+
+	// create tmp table
+	tmpName := fmt.Sprintf("blocktxtmp_%d", blockID)
+	tmpTableQ := fmt.Sprintf("CREATE TEMPORARY TABLE %s (blockid BIGINT,txhash BYTEA,mp TEXT);", tmpName)
+	_, err = dbTx.ExecContext(ctx, tmpTableQ)
+	if err != nil {
+		return err
+	}
+
+	// insert data to tmp table
+	copyStmt, err := dbTx.Prepare(pq.CopyIn(tmpName, "blockid", "txhash", "mp"))
+	if err != nil {
+		return err
+	}
+
+	for _, r := range txsWithMerklePaths {
+		_, err = copyStmt.ExecContext(ctx, blockID, r.Hash, r.MerklePath)
+		if err != nil {
+			return err
+		}
+	}
+	_, err = copyStmt.ExecContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = copyStmt.Close()
+	if err != nil {
+		return err
+	}
+
+	// isert transactions
+	txUpsertQ := fmt.Sprintf(`WITH inserted_tx AS (
+						INSERT INTO blocktx.transactions (hash)
+						SELECT txhash
+						FROM %s
+						ON CONFLICT (hash)
+						DO UPDATE SET hash = EXCLUDED.hash
+						RETURNING id, hash
+					)
+					INSERT INTO blocktx.block_transactions_map (
+						blockid,
+						txid,
+						merkle_path
+					)
+					SELECT tmp.blockid, inserted_tx.id AS txID, tmp.mp AS merkle_path
+					FROM inserted_tx
+					JOIN %s tmp ON tmp.txhash = inserted_tx.hash;
+					`, tmpName, tmpName)
+
+	_, err = dbTx.ExecContext(ctx, txUpsertQ)
+	if err != nil {
+		return err
+	}
+
+	err = dbTx.Commit()
+	if err != nil {
+		return err
 	}
 
 	return nil

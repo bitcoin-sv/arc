@@ -723,7 +723,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		})
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
+			err := p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs)
 			if err != nil {
 				return errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
@@ -741,7 +741,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	tracing.EndTracing(iterateMerkleTree, nil)
 
 	// update all remaining transactions
-	err = p.store.UpsertBlockTransactions(ctx, blockID, txs)
+	err = p.store.UpsertBlockTransactionsCOPY(ctx, blockID, txs)
 	if err != nil {
 		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
 	}

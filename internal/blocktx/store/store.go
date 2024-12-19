@@ -55,4 +55,6 @@ type BlocktxStore interface {
 
 	Ping(ctx context.Context) error
 	Close() error
+
+	UpsertBlockTransactionsCOPY(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) (err error)
 }

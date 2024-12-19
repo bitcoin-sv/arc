@@ -7,6 +7,8 @@ import (
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
@@ -180,4 +182,61 @@ func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.Up
 		}
 	}
 	return unprocessed
+}
+
+func toSendRequest(d *store.Data) []*callbacker_api.SendRequest {
+	if len(d.Callbacks) == 0 {
+		return nil
+	}
+
+	requests := make([]*callbacker_api.SendRequest, 0, len(d.Callbacks))
+	for _, c := range d.Callbacks {
+		if c.CallbackURL != "" {
+			routing := &callbacker_api.CallbackRouting{
+				Url:        c.CallbackURL,
+				Token:      c.CallbackToken,
+				AllowBatch: c.AllowBatch,
+			}
+
+			request := &callbacker_api.SendRequest{
+				CallbackRouting: routing,
+
+				Txid:         d.Hash.String(),
+				Status:       callbacker_api.Status(d.Status),
+				MerklePath:   d.MerklePath,
+				ExtraInfo:    getCallbackExtraInfo(d),
+				CompetingTxs: getCallbackCompetitingTxs(d),
+
+				BlockHash:   getCallbackBlockHash(d),
+				BlockHeight: d.BlockHeight,
+			}
+			requests = append(requests, request)
+		}
+	}
+
+	return requests
+}
+
+func getCallbackExtraInfo(d *store.Data) string {
+	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
+		return minedDoubleSpendMsg
+	}
+
+	return d.RejectReason
+}
+
+func getCallbackCompetitingTxs(d *store.Data) []string {
+	if d.Status == metamorph_api.Status_MINED {
+		return nil
+	}
+
+	return d.CompetingTxs
+}
+
+func getCallbackBlockHash(d *store.Data) string {
+	if d.BlockHash == nil {
+		return ""
+	}
+
+	return d.BlockHash.String()
 }

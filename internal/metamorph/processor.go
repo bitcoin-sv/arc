@@ -316,7 +316,13 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 	for _, data := range updatedData {
 		if len(data.Callbacks) > 0 {
-			p.callbackSender.SendCallback(ctx, data)
+			requests := toSendRequest(data)
+			for _, request := range requests {
+				err = p.mqClient.PublishMarshal(ctx, CallbackTopic, request)
+				if err != nil {
+					p.logger.Error("failed to publish callback", slog.String("err", err.Error()))
+				}
+			}
 		}
 
 		p.delTxFromCache(data.Hash)
@@ -557,7 +563,13 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		}
 
 		if sendCallback && len(data.Callbacks) > 0 {
-			p.callbackSender.SendCallback(ctx, data)
+			requests := toSendRequest(data)
+			for _, request := range requests {
+				err = p.mqClient.PublishMarshal(ctx, CallbackTopic, request)
+				if err != nil {
+					p.logger.Error("failed to publish callback", slog.String("err", err.Error()))
+				}
+			}
 		}
 	}
 	return nil

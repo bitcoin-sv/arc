@@ -27,8 +27,8 @@ func TestMerklePaths(t *testing.T) {
 		requestTxChannel <- txWithoutMerklePath[:]
 		processor.StartProcessRequestTxs()
 
-		// give blocktx time to pull all transactions from block and calculate a merkle path
-		time.Sleep(1 * time.Second)
+		// give blocktx time to pull all transactions from block and calculate the merkle path
+		time.Sleep(200 * time.Millisecond)
 
 		// then
 		publishedTxs := getPublishedTxs(publishedTxsCh)

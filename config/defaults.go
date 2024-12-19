@@ -111,6 +111,31 @@ func getMetamorphConfig() *MetamorphConfig {
 			NotSeenTimeLimit:  10 * time.Minute,
 			NotFinalTimeLimit: 20 * time.Minute,
 		},
+		BlockchainNetwork: &BlockchainNetwork[*MetamorphGroups]{
+			Mode:    "classic",
+			Network: "regtest",
+			Peers: []*PeerConfig{
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18334,
+					},
+				},
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18335,
+					},
+				},
+			},
+		},
 	}
 }
 

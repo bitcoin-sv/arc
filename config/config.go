@@ -112,6 +112,7 @@ type MetamorphConfig struct {
 	Health                                  *HealthConfig `mapstructure:"health"`
 	RejectCallbackContaining                []string      `mapstructure:"rejectCallbackContaining"`
 	Stats                                   *StatsConfig  `mapstructure:"stats"`
+	BlockchainNetwork                       *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type BlocktxConfig struct {
@@ -140,6 +141,11 @@ type BlockchainNetwork[McastT any] struct {
 
 type BlocktxGroups struct {
 	McastBlock McastGroup `mapstructure:"block"`
+}
+
+type MetamorphGroups struct {
+	McastTx     McastGroup `mapstructure:"tx"`
+	McastReject McastGroup `mapstructure:"reject"`
 }
 
 type McastGroup struct {

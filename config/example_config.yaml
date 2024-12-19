@@ -27,28 +27,6 @@ peerRpc: # rpc configuration for bitcoin node
   host: localhost
   port: 18332
 
-broadcasting: # settings for connection to nodes
-  mode: unicast # one of unicast | multicast
-  multicast:
-    ipv6Enabled: true # indicates whether ipv6 is enabled for multicasting
-    multicastGroups: # must be specified if mode = multicast
-    - "172.28.56.77" # address of multicast group, needs to be ipv6 address if ipv6 is enabled
-    interfaces:
-    - "eth0"
-    - "eth1"
-  unicast:
-    peers: # list of bitcoin node peers to connect to
-    - host: localhost
-      port:
-        p2p: 18333 # port for p2p connection
-        zmq: 28332 # port for zmq connection
-    - host: localhost
-      port:
-        p2p: 18334
-    - host: localhost
-      port:
-        p2p: 18335
-
 cache:
   engine: redis # cache engine - one of in-memory | redis
   redis: # redis cache configuration in case that engine: redis

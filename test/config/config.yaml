@@ -7,7 +7,6 @@ prometheus:
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
-network: regtest
 messageQueue:
   streaming:
     enabled: true
@@ -23,23 +22,6 @@ peerRpc:
   user: bitcoin
   host: node1
   port: 18332
-
-broadcasting:
-  mode: unicast
-  unicast:
-    peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node3
-      port:
-        p2p: 18333
-        zmq: 28332
 
 cache:
   engine: redis

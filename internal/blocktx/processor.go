@@ -649,17 +649,10 @@ func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blo
 		blockHashes[i] = b.Hash
 	}
 
-	registeredTxs, err := p.store.GetRegisteredTxsByBlockHashes(ctx, blockHashes)
+	txsToPublish, err = p.store.GetRegisteredTxsByBlockHashes(ctx, blockHashes)
 	if err != nil {
 		block := blocks[len(blocks)-1]
 		p.logger.Error("unable to get registered transactions", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return nil, false
-	}
-
-	txsToPublish, err = p.calculateMissingMerklePaths(ctx, registeredTxs)
-	if err != nil {
-		block := blocks[len(blocks)-1]
-		p.logger.Error("failed to calculate missing merkle paths", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return nil, false
 	}
 

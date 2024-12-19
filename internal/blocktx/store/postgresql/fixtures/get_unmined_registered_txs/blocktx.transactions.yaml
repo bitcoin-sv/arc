@@ -1,0 +1,23 @@
+# txs in a block
+- id: 1
+  hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: false
+- id: 2
+  hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: true
+
+# unmined txs
+- id: 3
+  hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: true
+- id: 4
+  hash: 0xee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: true
+- id: 5
+  hash: 0x3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd
+  inserted_at: 2023-12-10 14:00:00
+  is_registered: false

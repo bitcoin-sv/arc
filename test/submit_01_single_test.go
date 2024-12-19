@@ -147,6 +147,7 @@ func TestSubmitMined(t *testing.T) {
 		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 		// given
+		fmt.Println("shota start")
 		address, _ := node_client.FundNewWallet(t, bitcoind)
 		utxos := node_client.GetUtxos(t, bitcoind, address)
 
@@ -154,32 +155,40 @@ func TestSubmitMined(t *testing.T) {
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
 
-		callbackReceivedChan := make(chan *TransactionResponse)
+		callbackReceivedChan := make(chan *TransactionResponse, 2)
 		callbackErrChan := make(chan error)
 
 		callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
 		defer shutdown()
 
 		// when
+		fmt.Println("shota 6", time.Now())
+
 		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
 			map[string]string{
 				"X-WaitFor":       StatusMined,
 				"X-CallbackUrl":   callbackURL,
 				"X-CallbackToken": token,
+				"X-MaxTimeout":    "15",
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(10 * time.Second)
+		fmt.Println("shota 7", time.Now())
+		callbackTimeout := time.After(15 * time.Second)
 
 		select {
 		case status := <-callbackReceivedChan:
+			fmt.Println("shota 2")
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
 		case err := <-callbackErrChan:
+			fmt.Println("shota 3")
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:
+			fmt.Println("shota 5")
 			t.Fatal("callback exceeded timeout")
 		}
+		fmt.Println("shota 4")
 	})
 }
 

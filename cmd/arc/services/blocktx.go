@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,11 +14,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/libsv/go-p2p/wire"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/mcast"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -41,6 +44,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		mqClient     blocktx.MessageQueueClient
 		processor    *blocktx.Processor
 		pm           *p2p.PeerManager
+		mcastListner *mcast.Listner
 		server       *blocktx.Server
 		healthServer *grpc_opts.GrpcServer
 		workers      *blocktx.BackgroundWorkers
@@ -71,13 +75,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mqClient, blockStore, healthServer, workers, shutdownFns)
+		disposeBlockTx(logger, server, processor, pm, mcastListner, mqClient, blockStore, healthServer, workers, shutdownFns)
 		logger.Info("Shutdown complete")
-	}
-
-	network, err := config.GetNetwork(arcConfig.Network)
-	if err != nil {
-		return nil, err
 	}
 
 	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, arcConfig.Tracing)
@@ -143,58 +142,18 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	err = processor.Start(arcConfig.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to start peer handler: %v", err)
+		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
-	// p2p global setting
-	p2p.SetExcessiveBlockSize(maximumBlockSize)
-
-	pmOpts := []p2p.PeerManagerOptions{}
-	if arcConfig.Blocktx.MonitorPeers {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
-	}
-
-	pm = p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
-	peers := make([]p2p.PeerI, len(arcConfig.Broadcasting.Unicast.Peers))
-
-	peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
-
-	peerOpts := []p2p.PeerOptions{
-		p2p.WithMaximumMessageSize(maximumBlockSize),
-		p2p.WithPingInterval(30*time.Second, 1*time.Minute),
-		p2p.WithReadBufferSize(arcConfig.Blocktx.P2pReadBufferSize),
-	}
-
-	if version.Version != "" {
-		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
-	}
-
-	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
-		peerURL, err := peerSetting.GetP2PUrl()
-		if err != nil {
-			stopFn()
-			return nil, fmt.Errorf("error getting peer url: %v", err)
-		}
-
-		peer := p2p.NewPeer(logger.With(slog.String("module", "peer")), peerHandler, peerURL, network, peerOpts...)
-		ok := peer.Connect()
-		if !ok {
-			stopFn()
-			return nil, fmt.Errorf("error creating peer %s: %v", peerURL, err)
-		}
-
-		err = pm.AddPeer(peer)
-		if err != nil {
-			stopFn()
-			return nil, fmt.Errorf("error adding peer: %v", err)
-		}
-
-		peers[i] = peer
+	pm, mcastListner, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
 	}
 
 	if btxConfig.FillGaps != nil && btxConfig.FillGaps.Enabled {
 		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
-		workers.StartFillGaps(peers, btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
+		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
 	server, err = blocktx.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
@@ -250,8 +209,123 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 	return s, err
 }
 
+func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListner *mcast.Listner, err error) {
+	defer func() {
+		// cleanup on error
+		if err == nil {
+			return
+		}
+
+		if manager != nil {
+			manager.Shutdown()
+		}
+
+		if mcastListner != nil {
+			mcastListner.Disconnect()
+		}
+	}()
+
+	// p2p global setting
+	p2p.SetExcessiveBlockSize(maximumBlockSize)
+
+	cfg := arcConfig.Blocktx.BlockchainNetwork
+	network, err := config.GetNetwork(cfg.Network)
+	if err != nil {
+		return
+	}
+
+	var msgHandler p2p.MessageHandlerI
+
+	if cfg.Mode == "classic" {
+		msgHandler = blocktx_p2p.NewMsgHandler(l, blockRequestCh, blockProcessCh)
+	} else if cfg.Mode == "hybrid" {
+		msgHandler = blocktx_p2p.NewHybridMsgHandler(l, blockProcessCh)
+	} else {
+		return nil, nil, fmt.Errorf("unsupported communication type: %s", cfg.Mode)
+	}
+
+	// connect to peers
+	var managerOpts []p2p.PeerManagerOptions
+	if arcConfig.Blocktx.MonitorPeers {
+		managerOpts = append(managerOpts, p2p.WithRestartUnhealthyPeers())
+	}
+
+	manager = p2p.NewPeerManager(l.With(slog.String("module", "peer-mng")), network, managerOpts...)
+	peers, err := connectToPeers(l, network, msgHandler, cfg.Peers, p2p.WithMaximumMessageSize(maximumBlockSize))
+	if err != nil {
+		return
+	}
+
+	for _, p := range peers {
+		if err = manager.AddPeer(p); err != nil {
+			return
+		}
+	}
+
+	// connect to mcast
+	if cfg.Mode == "hybrid" {
+		if cfg.Mcast == nil {
+			return manager, mcastListner, errors.New("mcast config is required")
+		}
+
+		// TODO: add net interfaces
+		mcastListner = mcast.NewMcastListner(l, cfg.Mcast.McastBlock.Address, network, store, blockProcessCh)
+		ok := mcastListner.Connect()
+		if !ok {
+			return manager, nil, fmt.Errorf("error connecting to mcast %s: %w", cfg.Mcast.McastBlock, err)
+		}
+	}
+
+	return
+}
+
+func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.MessageHandlerI, peersConfig []*config.PeerConfig, additionalOpts ...p2p.PeerOptions) (peers []*p2p.Peer, err error) {
+	defer func() {
+		// cleanup on error
+		if err == nil {
+			return
+		}
+
+		for _, p := range peers {
+			p.Shutdown()
+		}
+	}()
+
+	opts := []p2p.PeerOptions{
+		p2p.WithPingInterval(30*time.Second, 2*time.Minute),
+	}
+
+	if version.Version != "" {
+		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+	}
+
+	opts = append(opts, additionalOpts...)
+
+	for _, settings := range peersConfig {
+		url, err := settings.GetP2PUrl()
+		if err != nil {
+			return nil, fmt.Errorf("error getting peer url: %w", err)
+		}
+
+		p := p2p.NewPeer(
+			l.With(slog.String("module", "peer")),
+			msgHandler,
+			url,
+			network,
+			opts...)
+		ok := p.Connect()
+		if !ok {
+			return nil, fmt.Errorf("error connecting peer %s: %w", url, err)
+		}
+
+		peers = append(peers, p)
+	}
+
+	return
+}
+
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm *p2p.PeerManager, mqClient blocktx.MessageQueueClient,
+	pm *p2p.PeerManager, mcastListner *mcast.Listner, mqClient blocktx.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {
@@ -276,6 +350,9 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	}
 	if pm != nil {
 		pm.Shutdown()
+	}
+	if mcastListner != nil {
+		mcastListner.Disconnect()
 	}
 	if mqClient != nil {
 		mqClient.Shutdown()

@@ -21,6 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -39,13 +40,13 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 	}
 
-	nMessenger := &p2p.NetworkMessenger{}
+	nMessenger := &bcnet.Mediator{}
 	cStore := cache.NewMemoryStore()
 
 	tt := []struct {
 		name      string
 		store     store.MetamorphStore
-		messenger *p2p.NetworkMessenger
+		messenger *bcnet.Mediator
 
 		expectedError           error
 		expectedNonNilProcessor bool
@@ -127,7 +128,7 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			messenger := &p2p.NetworkMessenger{}
+			messenger := &bcnet.Mediator{}
 			cStore := cache.NewMemoryStore()
 
 			// when
@@ -252,6 +253,8 @@ func TestProcessTransaction(t *testing.T) {
 			require.NoError(t, err)
 
 			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+			defer messenger.Shutdown()
+			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -259,7 +262,7 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithMessageQueueClient(publisher))
+			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -531,7 +534,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			messenger := &p2p.NetworkMessenger{}
+			messenger := &bcnet.Mediator{}
 			cStore := cache.NewMemoryStore()
 			for _, i := range tc.inputs {
 				if i.registered {
@@ -712,7 +715,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -851,7 +854,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			err := pm.AddPeer(peer)
 			require.NoError(t, err)
 
-			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -935,7 +938,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &p2p.NetworkMessenger{}
+			pm := &bcnet.Mediator{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 
 			mqClient := &mocks.MessageQueueMock{
@@ -1032,7 +1035,7 @@ func TestProcessorHealth(t *testing.T) {
 			}
 			cStore := cache.NewMemoryStore()
 
-			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
@@ -1086,7 +1089,7 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
-			pm := &p2p.NetworkMessenger{}
+			pm := &bcnet.Mediator{}
 
 			cStore := cache.NewMemoryStore()
 

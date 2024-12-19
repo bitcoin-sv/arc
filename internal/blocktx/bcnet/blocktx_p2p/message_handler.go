@@ -25,9 +25,12 @@ type MsgHandler struct {
 	blockProcessingCh chan<- *bcnet.BlockMessage
 }
 
-func NewMsgHandler(logger *slog.Logger, blockRequestCh chan<- BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) *MsgHandler {
+func NewMsgHandler(l *slog.Logger, blockRequestCh chan<- BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) *MsgHandler {
 	return &MsgHandler{
-		logger:            logger.With(slog.String("module", "peer-msg-handler")),
+		logger: l.With(
+			slog.String("module", "peer-msg-handler"),
+			slog.String("mode", "classic"),
+		),
 		blockRequestingCh: blockRequestCh,
 		blockProcessingCh: blockProcessCh,
 	}

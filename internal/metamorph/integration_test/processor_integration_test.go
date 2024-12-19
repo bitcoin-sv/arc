@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	nats_mocks "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -46,6 +47,8 @@ func TestProcessor(t *testing.T) {
 		require.NoError(t, err)
 
 		messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+		defer messenger.Shutdown()
+		mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 		natsMock := &nats_mocks.NatsConnectionMock{
 			DrainFunc: func() error {
@@ -58,7 +61,7 @@ func TestProcessor(t *testing.T) {
 		natsQueue := nats_core.New(natsMock)
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
+		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, mediator, statusMessageChannel,
 			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(natsQueue),
 		)

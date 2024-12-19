@@ -100,19 +100,20 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                              string        `mapstructure:"listenAddr"`
-	DialAddr                                string        `mapstructure:"dialAddr"`
-	Db                                      *DbConfig     `mapstructure:"db"`
-	ProcessorCacheExpiryTime                time.Duration `mapstructure:"processorCacheExpiryTime"`
-	UnseenTransactionRebroadcastingInterval time.Duration `mapstructure:"unseenTransactionRebroadcastingInterval"`
-	MaxRetries                              int           `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval             time.Duration `mapstructure:"processStatusUpdateInterval"`
-	RecheckSeen                             RecheckSeen   `mapstructure:"recheckSeen"`
-	MonitorPeers                            bool          `mapstructure:"monitorPeers"`
-	CheckUtxos                              bool          `mapstructure:"checkUtxos"`
-	Health                                  *HealthConfig `mapstructure:"health"`
-	RejectCallbackContaining                []string      `mapstructure:"rejectCallbackContaining"`
-	Stats                                   *StatsConfig  `mapstructure:"stats"`
+	ListenAddr                              string                               `mapstructure:"listenAddr"`
+	DialAddr                                string                               `mapstructure:"dialAddr"`
+	Db                                      *DbConfig                            `mapstructure:"db"`
+	ProcessorCacheExpiryTime                time.Duration                        `mapstructure:"processorCacheExpiryTime"`
+	UnseenTransactionRebroadcastingInterval time.Duration                        `mapstructure:"unseenTransactionRebroadcastingInterval"`
+	MaxRetries                              int                                  `mapstructure:"maxRetries"`
+	ProcessStatusUpdateInterval             time.Duration                        `mapstructure:"processStatusUpdateInterval"`
+	RecheckSeen                             RecheckSeen                          `mapstructure:"recheckSeen"`
+	MonitorPeers                            bool                                 `mapstructure:"monitorPeers"`
+	CheckUtxos                              bool                                 `mapstructure:"checkUtxos"`
+	Health                                  *HealthConfig                        `mapstructure:"health"`
+	RejectCallbackContaining                []string                             `mapstructure:"rejectCallbackContaining"`
+	Stats                                   *StatsConfig                         `mapstructure:"stats"`
+	BlockchainNetwork                       *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type BlocktxConfig struct {
@@ -140,6 +141,11 @@ type BlockchainNetwork[McastT any] struct {
 
 type BlocktxGroups struct {
 	McastBlock McastGroup `mapstructure:"block"`
+}
+
+type MetamorphGroups struct {
+	McastTx     McastGroup `mapstructure:"tx"`
+	McastReject McastGroup `mapstructure:"reject"`
 }
 
 type McastGroup struct {

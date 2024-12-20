@@ -272,6 +272,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 					continue
 				}
 
+				fmt.Println("shota  aq1", time.Now())
 				txsBlocks = append(txsBlocks, txBlock)
 
 				if len(txsBlocks) < p.processMinedBatchSize {
@@ -290,6 +291,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 					continue
 				}
 
+				fmt.Println("shota aq", time.Now())
 				p.updateMined(p.ctx, txsBlocks)
 				txsBlocks = []*blocktx_api.TransactionBlock{}
 
@@ -308,12 +310,14 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		tracing.EndTracing(span, err)
 	}()
 
+	fmt.Println("shota 1", time.Now())
 	updatedData, err := p.store.UpdateMined(ctx, txsBlocks)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 		return
 	}
 
+	fmt.Println("shota 2", time.Now())
 	for _, data := range updatedData {
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data)

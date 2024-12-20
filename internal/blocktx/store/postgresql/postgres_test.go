@@ -52,7 +52,7 @@ type Transaction struct {
 
 type BlockTransactionMap struct {
 	BlockID         int64     `db:"blockid"`
-	TransactionID   int64     `db:"txid"`
+	TransctionHash  []byte    `db:"txhash"`
 	MerklePath      string    `db:"merkle_path"`
 	MerkleTreeIndex int64     `db:"merkle_tree_index"`
 	InsertedAt      time.Time `db:"inserted_at"`
@@ -842,7 +842,7 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 				require.Equal(t, i < tc.expectedUpdatedResLen, storedtx.IsRegistered)
 
 				var mp BlockTransactionMap
-				err = d.Get(&mp, "SELECT blockid, txid, merkle_path, merkle_tree_index from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
+				err = d.Get(&mp, "SELECT blockid, txhash, merkle_path, merkle_tree_index from blocktx.block_transactions_map WHERE txhash=$1", storedtx.Hash)
 				require.NoError(t, err, "error during getting block transactions map")
 
 				require.Equal(t, tx.MerklePath, mp.MerklePath)

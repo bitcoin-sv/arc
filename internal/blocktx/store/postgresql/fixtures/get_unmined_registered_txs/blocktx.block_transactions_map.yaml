@@ -1,8 +1,8 @@
 - blockid: 1
-  txid: 1
+  txhash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
   merkle_path: merkle-path-1
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1
-  txid: 2
+  txhash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
   merkle_path: merkle-path-2
   inserted_at: 2023-12-10 14:00:00

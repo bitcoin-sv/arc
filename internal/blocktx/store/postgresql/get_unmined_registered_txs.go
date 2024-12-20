@@ -16,7 +16,7 @@ func (p *PostgreSQL) GetUnminedRegisteredTxsHashes(ctx context.Context) (txHashe
 		SELECT
 			t.hash
 		FROM blocktx.transactions AS t
-		LEFT JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+		LEFT JOIN blocktx.block_transactions_map AS m ON t.hash = m.txhash
 		WHERE m.blockid IS NULL AND t.is_registered = true
 	`
 

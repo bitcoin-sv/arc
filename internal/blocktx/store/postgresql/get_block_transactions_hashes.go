@@ -19,7 +19,7 @@ func (p *PostgreSQL) GetBlockTransactionsHashes(ctx context.Context, blockHash [
 		SELECT
 			t.hash
 		FROM blocktx.transactions AS t
-			JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+			JOIN blocktx.block_transactions_map AS m ON t.hash = m.txhash
 			JOIN blocktx.blocks AS b ON m.blockid = b.id
 		WHERE b.hash = $1
 	`

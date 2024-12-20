@@ -52,7 +52,7 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			m.merkle_tree_index,
 			b.status
 		FROM blocktx.transactions AS t
-			JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
+			JOIN blocktx.block_transactions_map AS m ON t.hash = m.txhash
 			JOIN blocktx.blocks AS b ON m.blockid = b.id
 	`
 	q += " " + predicate

@@ -1,0 +1,1 @@
+DROP INDEX blocktx.ix_transaction_is_registered_hash;

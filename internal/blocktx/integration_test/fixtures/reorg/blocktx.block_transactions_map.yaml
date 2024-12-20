@@ -1,16 +1,16 @@
 - blockid: 1002
-  txid: 1000003
+  txhash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   merkle_path: merkle-path-3
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1999 # the same tx also in stale block
-  txid: 1000003
+  txhash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   merkle_path: merkle-path-999
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1999 # the same tx also in stale block
-  txid: 1000001
+  txhash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
   merkle_path: merkle-path-999
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1004
-  txid: 1000005
+  txhash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6
   merkle_path: merkle-path-5
   inserted_at: 2023-12-10 14:00:00

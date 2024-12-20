@@ -34,41 +34,24 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 			SELECT UNNEST($1::BYTEA[])
 			ON CONFLICT (hash)
 			DO UPDATE SET hash = EXCLUDED.hash
-		RETURNING id`
+		`
 
-	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes))
+	_, err = p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpsertTransactions, err)
-	}
-
-	counter := 0
-	txIDs := make([]uint64, len(txsWithMerklePaths))
-	for rows.Next() {
-		var txID uint64
-		err = rows.Scan(&txID)
-		if err != nil {
-			return errors.Join(store.ErrFailedToGetRows, err)
-		}
-
-		txIDs[counter] = txID
-		counter++
-	}
-
-	if len(txIDs) != len(txsWithMerklePaths) {
-		return errors.Join(store.ErrMismatchedTxIDsAndMerklePathLength, err)
 	}
 
 	const qMapInsert = `
 		INSERT INTO blocktx.block_transactions_map (
 			 blockid
-			,txid
+			,txhash
 			,merkle_path
 			,merkle_tree_index
 			)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[], $4::INT[])
+		SELECT * FROM UNNEST($1::INT[], $2::BYTEA[], $3::TEXT[], $4::INT[])
 		ON CONFLICT DO NOTHING
 		`
-	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths), pq.Array(merkleTreeIndexes))
+	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txHashes), pq.Array(merklePaths), pq.Array(merkleTreeIndexes))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpsertBlockTransactionsMap, err)
 	}

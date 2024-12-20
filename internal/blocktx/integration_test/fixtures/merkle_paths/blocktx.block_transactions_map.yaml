@@ -1,21 +1,21 @@
 - blockid: 1001
-  txid: 1000001
+  txhash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
   merkle_path: '' # empty - we will request this tx
   merkle_tree_index: 0
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1001
-  txid: 1000002
+  txhash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
   merkle_path: merkle-path-2
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1001
-  txid: 1000003
+  txhash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   merkle_path: merkle-path-3
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1001
-  txid: 1000004
+  txhash: 0x2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f
   merkle_path: merkle-path-4
   inserted_at: 2023-12-10 14:00:00
 - blockid: 1001
-  txid: 1000005
+  txhash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6
   merkle_path: merkle-path-5
   inserted_at: 2023-12-10 14:00:00

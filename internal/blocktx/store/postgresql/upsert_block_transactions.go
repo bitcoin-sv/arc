@@ -20,11 +20,9 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 
 	txHashes := make([][]byte, len(txsWithMerklePaths))
 	blockIDs := make([]uint64, len(txsWithMerklePaths))
-	merklePaths := make([]string, len(txsWithMerklePaths))
 	merkleTreeIndexes := make([]int64, len(txsWithMerklePaths))
 	for pos, tx := range txsWithMerklePaths {
 		txHashes[pos] = tx.Hash
-		merklePaths[pos] = tx.MerklePath
 		blockIDs[pos] = blockID
 		merkleTreeIndexes[pos] = tx.MerkleTreeIndex
 	}
@@ -34,7 +32,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 			SELECT UNNEST($1::BYTEA[])
 			ON CONFLICT (hash)
 			DO UPDATE SET hash = EXCLUDED.hash
-		RETURNING id`
+		RETURNING id, is_registered`
 
 	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes))
 	if err != nil {
@@ -43,14 +41,24 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 
 	counter := 0
 	txIDs := make([]uint64, len(txsWithMerklePaths))
+	merklePaths := make([]string, len(txsWithMerklePaths))
 	for rows.Next() {
 		var txID uint64
-		err = rows.Scan(&txID)
+		var isRegistered bool
+
+		err = rows.Scan(&txID, &isRegistered)
 		if err != nil {
 			return errors.Join(store.ErrFailedToGetRows, err)
 		}
 
 		txIDs[counter] = txID
+
+		if isRegistered {
+			merklePaths[counter] = txsWithMerklePaths[counter].MerklePath
+		} else {
+			merklePaths[counter] = ""
+		}
+
 		counter++
 	}
 

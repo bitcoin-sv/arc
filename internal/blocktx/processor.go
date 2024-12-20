@@ -27,7 +27,6 @@ var (
 	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
 	ErrFailedToCreateBUMP                  = errors.New("failed to create new bump for tx hash from merkle tree and index")
 	ErrFailedToGetStringFromBUMPHex        = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToGetRegisteredTransactions   = errors.New("failed to get reigstered transactions")
 	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
 	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")
@@ -691,17 +690,6 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		tracing.EndTracing(span, err)
 	}()
 
-	// get registered transcations that don't have any block associated - registered but unmined
-	registeredTxsHashes, err := p.store.GetUnminedRegisteredTxsHashes(ctx)
-	if err != nil {
-		return errors.Join(ErrFailedToGetRegisteredTransactions, fmt.Errorf("block height: %d", block.Height), err)
-	}
-
-	registeredTxsMap := make(map[string]struct{})
-	for _, txHash := range registeredTxsHashes {
-		registeredTxsMap[string(txHash)] = struct{}{}
-	}
-
 	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
 	leaves := merkleTree[:(len(merkleTree)+1)/2]
 
@@ -730,27 +718,20 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		tx := store.TxWithMerklePath{
-			Hash:            hash[:],
-			MerklePath:      "",
-			MerkleTreeIndex: int64(txIndex), // #nosec G115
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
+		if err != nil {
+			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
 		}
 
-		_, found := registeredTxsMap[string(hash[:])]
+		bumpHex, err := bump.String()
+		if err != nil {
+			return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
+		}
 
-		// only calculate merklePath for transactions that are registered
-		if found {
-			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(tx.MerkleTreeIndex)) // #nosec G115
-			if err != nil {
-				return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
-			}
-
-			bumpHex, err := bump.String()
-			if err != nil {
-				return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
-			}
-
-			tx.MerklePath = bumpHex
+		tx := store.TxWithMerklePath{
+			Hash:            hash[:],
+			MerklePath:      bumpHex,
+			MerkleTreeIndex: int64(txIndex), // #nosec G115
 		}
 
 		txs = append(txs, tx)

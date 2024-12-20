@@ -46,7 +46,6 @@ type BlocktxStore interface {
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
-	GetUnminedRegisteredTxsHashes(ctx context.Context) ([][]byte, error)
 	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)

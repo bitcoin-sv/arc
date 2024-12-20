@@ -170,9 +170,6 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetUnminedRegisteredTxsHashesFunc: func(_ context.Context) ([][]byte, error) {
-					return nil, nil
-				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
@@ -415,9 +412,6 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 						return orphans, ancestor, nil
 					}
 					return nil, nil, nil
-				},
-				GetUnminedRegisteredTxsHashesFunc: func(_ context.Context) ([][]byte, error) {
-					return nil, nil
 				},
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil

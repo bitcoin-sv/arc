@@ -49,6 +49,7 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			b.hash,
 			b.height,
 			m.merkle_path,
+			m.merkle_tree_index,
 			b.status
 		FROM blocktx.transactions AS t
 			JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
@@ -67,6 +68,7 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 		var blockHash []byte
 		var blockHeight uint64
 		var merklePath string
+		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
 
 		err = rows.Scan(
@@ -74,6 +76,7 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			&blockHash,
 			&blockHeight,
 			&merklePath,
+			&merkleTreeIndex,
 			&blockStatus,
 		)
 		if err != nil {
@@ -81,11 +84,12 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 		}
 
 		transactionBlocks = append(transactionBlocks, store.TransactionBlock{
-			TxHash:      txHash,
-			BlockHash:   blockHash,
-			BlockHeight: blockHeight,
-			MerklePath:  merklePath,
-			BlockStatus: blockStatus,
+			TxHash:          txHash,
+			BlockHash:       blockHash,
+			BlockHeight:     blockHeight,
+			MerklePath:      merklePath,
+			MerkleTreeIndex: merkleTreeIndex,
+			BlockStatus:     blockStatus,
 		})
 	}
 

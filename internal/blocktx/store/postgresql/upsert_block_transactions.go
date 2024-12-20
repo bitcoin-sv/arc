@@ -20,11 +20,11 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 
 	txHashes := make([][]byte, len(txsWithMerklePaths))
 	blockIDs := make([]uint64, len(txsWithMerklePaths))
-	merklePaths := make([]string, len(txsWithMerklePaths))
+	merkleTreeIndexes := make([]int64, len(txsWithMerklePaths))
 	for pos, tx := range txsWithMerklePaths {
 		txHashes[pos] = tx.Hash
-		merklePaths[pos] = tx.MerklePath
 		blockIDs[pos] = blockID
+		merkleTreeIndexes[pos] = tx.MerkleTreeIndex
 	}
 
 	qBulkUpsert := `
@@ -32,7 +32,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 			SELECT UNNEST($1::BYTEA[])
 			ON CONFLICT (hash)
 			DO UPDATE SET hash = EXCLUDED.hash
-		RETURNING id`
+		RETURNING id, is_registered`
 
 	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes))
 	if err != nil {
@@ -41,14 +41,24 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 
 	counter := 0
 	txIDs := make([]uint64, len(txsWithMerklePaths))
+	merklePaths := make([]string, len(txsWithMerklePaths))
 	for rows.Next() {
 		var txID uint64
-		err = rows.Scan(&txID)
+		var isRegistered bool
+
+		err = rows.Scan(&txID, &isRegistered)
 		if err != nil {
 			return errors.Join(store.ErrFailedToGetRows, err)
 		}
 
 		txIDs[counter] = txID
+
+		if isRegistered {
+			merklePaths[counter] = txsWithMerklePaths[counter].MerklePath
+		} else {
+			merklePaths[counter] = ""
+		}
+
 		counter++
 	}
 
@@ -61,11 +71,12 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 			 blockid
 			,txid
 			,merkle_path
+			,merkle_tree_index
 			)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[])
+		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[], $4::INT[])
 		ON CONFLICT DO NOTHING
 		`
-	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths))
+	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths), pq.Array(merkleTreeIndexes))
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpsertBlockTransactionsMap, err)
 	}

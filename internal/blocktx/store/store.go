@@ -23,6 +23,7 @@ var (
 	ErrFailedToSetBlockProcessing         = errors.New("failed to set block processing")
 	ErrFailedToUpsertTransactions         = errors.New("failed to upsert transactions")
 	ErrFailedToUpsertBlockTransactionsMap = errors.New("failed to upsert block transactions map")
+	ErrFailedToParseHash                  = errors.New("failed to parse hash")
 	ErrMismatchedTxIDsAndMerklePathLength = errors.New("mismatched tx IDs and merkle path length")
 )
 
@@ -45,6 +46,7 @@ type BlocktxStore interface {
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
+	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
 

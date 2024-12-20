@@ -25,7 +25,6 @@ import (
 
 var (
 	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
-	ErrFailedToCreateBUMP                  = errors.New("failed to create new bump for tx hash from merkle tree and index")
 	ErrFailedToGetStringFromBUMPHex        = errors.New("failed to get string from bump for tx hash")
 	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
 	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
@@ -718,10 +717,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
-		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
-		}
+		bump, _ := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
 
 		bumpHex, err := bump.String()
 		if err != nil {
@@ -1012,15 +1008,9 @@ func (p *Processor) calculateMissingMerklePaths(ctx context.Context, txs []store
 				continue
 			}
 
-			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, uint64(tx.MerkleTreeIndex)) // #nosec G115
-			if err != nil {
-				return nil, errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
-			}
+			bump, _ := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, uint64(tx.MerkleTreeIndex)) // #nosec G115
 
-			bumpHex, err := bump.String()
-			if err != nil {
-				return nil, errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
-			}
+			bumpHex, _ := bump.String() // this never returns an error
 
 			tx.MerklePath = bumpHex
 			updatedTxs = append(updatedTxs, tx)

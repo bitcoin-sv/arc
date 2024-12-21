@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -265,11 +266,14 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 
 	// normally a node would respond very quickly, unless it's under heavy load
 	timeDuration := s.maxTimeoutDefault
+	fmt.Println("shota time", timeDuration)
 	if timeoutSeconds > 0 {
 		timeDuration = time.Second * time.Duration(timeoutSeconds)
+		fmt.Println("shota time", timeoutSeconds)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeDuration)
+
 	defer func() {
 		cancel()
 		close(responseChannel)
@@ -312,7 +316,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			return returnedStatus
 		case res := <-responseChannel:
 			returnedStatus.Status = res.Status
-
+			fmt.Println("shota response ")
 			if span != nil {
 				span.AddEvent("status change", trace.WithAttributes(attribute.String("status", returnedStatus.Status.String())))
 			}

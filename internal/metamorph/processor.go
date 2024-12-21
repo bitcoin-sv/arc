@@ -745,6 +745,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	if err == nil {
 		//	When transaction is re-submitted we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
+		fmt.Println("shota aqm")
 		addNewCallback(data, req.Data)
 		err = p.storeData(p.ctx, data)
 		if err != nil {
@@ -778,7 +779,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	sh := &store.Status{Status: req.Data.Status, Timestamp: p.now()}
 	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
 	req.Data.Status = metamorph_api.Status_STORED
-
+	fmt.Println("shota aqm2")
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
@@ -811,7 +812,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		p.logger.Error("failed to store tx in cache", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
 	}
-
+	fmt.Println("shota aqm4")
 	// Send GETDATA to peers to see if they have it
 	ctx, requestTransactionSpan := tracing.StartTracing(ctx, "RequestTransaction", p.tracingEnabled, p.tracingAttributes...)
 	p.pm.RequestTransaction(req.Data.Hash)
@@ -826,7 +827,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		p.logger.Warn("transaction was not announced to any peer", slog.String("hash", req.Data.Hash.String()))
 		return
 	}
-
+	fmt.Println("shota aqm3")
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
 		Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,

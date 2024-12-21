@@ -170,10 +170,16 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
+				GetUnminedRegisteredTxsHashesFunc: func(_ context.Context) ([][]byte, error) {
+					return nil, nil
+				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 				MarkBlockAsDoneFunc:                    func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
@@ -410,6 +416,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}
 					return nil, nil, nil
 				},
+				GetUnminedRegisteredTxsHashesFunc: func(_ context.Context) ([][]byte, error) {
+					return nil, nil
+				},
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil
 				},
@@ -417,6 +426,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					return nil, nil
 				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
+					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
@@ -497,6 +509,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					return nil, registerErrTest
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -727,6 +742,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
 			}
 

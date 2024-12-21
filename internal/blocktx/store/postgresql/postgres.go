@@ -16,7 +16,7 @@ import (
 var ErrNoTransaction = errors.New("sql: transaction has already been committed or rolled back")
 
 const (
-	postgresDriverName        = "postgres"
+	postgresDriverName        = "pgx"
 	maxPostgresBulkInsertRows = 8192
 )
 

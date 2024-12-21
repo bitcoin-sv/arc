@@ -15,6 +15,7 @@ var (
 	ErrBlockNotFound                      = errors.New("block not found")
 	ErrUnableToPrepareStatement           = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows                 = errors.New("unable to delete rows")
+	ErrUnableToGetSQLConnection           = errors.New("unable to get or create sql connection")
 	ErrFailedToInsertBlock                = errors.New("failed to insert block")
 	ErrFailedToUpdateBlockStatuses        = errors.New("failed to update block statuses")
 	ErrFailedToOpenDB                     = errors.New("failed to open postgres database")

@@ -28,13 +28,7 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		copyRowsBlockTxMap[pos] = []any{blockID, tx.Hash, tx.MerklePath, tx.MerkleTreeIndex}
 	}
 
-	// get an existing connection from the pool instead of creating a new one
-	conn, err := p.db.Conn(ctx)
-	if err != nil {
-		return errors.Join(store.ErrUnableToGetSQLConnection, err)
-	}
-
-	err = conn.Raw(func(driverConn any) error {
+	err = p.conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
 		var pqErr *pgconn.PgError
 

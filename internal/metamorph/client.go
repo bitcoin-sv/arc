@@ -308,7 +308,8 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	for {
 		response, err = m.client.PutTransaction(ctx, request)
-		if err == nil {
+		st, ok := status.FromError(err)
+		if err == nil || (ok && st.Code() == codes.Canceled) {
 			txStatus = &TransactionStatus{
 				TxID:         response.GetTxid(),
 				Status:       response.GetStatus().String(),
@@ -396,7 +397,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	for {
 		responses, err = m.client.PutTransactions(ctx, in)
-		if err == nil {
+		st, ok := status.FromError(err)
+		if err == nil || (ok && st.Code() == codes.Canceled) {
 			for _, response := range responses.GetStatuses() {
 				txStatuses = append(txStatuses, &TransactionStatus{
 					TxID:         response.GetTxid(),

@@ -542,6 +542,36 @@ A callback with status `MINED_IN_STALE_BLOCK` will be sent for that transaction 
 | In longest chain, not in stale chain | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
 | In stale chain only (no reorg)       | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
 
+#### Simplified flow diagram
+```mermaid
+flowchart TD
+    A[Incoming new block received from peers] --> B{Block already in DB?}
+    B -->|Yes| S((STOP))
+    B -->|NO| C[Insert block to DB]
+    C --> D["`Assign status to the new block based on a previous block. Status is one of:
+    - LONGEST
+    - STALE (fork)
+    - ORPHANED`"]
+    D --> E{Switch block.Status}
+
+    E --> F[ORPHANED]
+    F --> I[Get orphaned blocks down to non-orphan ancestor]
+    I --> J["Accept orphaned blocks into the chain of the non-orphan ancestor (if non-orphan ancestor exists)"]
+    J --> K["Perform the steps of the LONGEST or STALE case, depending on which chain was the orphan block accepted to (if any)"]
+    K --> Q[Publish MINED transactions to metamorph]
+
+    E --> H[STALE]
+    H --> L["`Compare the **chainworks** of the stale chain and the longest chain`"]
+    L --> M{Stale chain has greater chainwork?}
+    M -->|YES| N["`Perform **reorg**`"]
+    N --> O[Mark block from the longest chain as STALE]
+    O --> P[Mark blocks from the stale chain as LONGEST]
+    P --> Q
+
+    E --> G[LONGEST]
+    G --> Q
+```
+
 ## Forcing validation
 
 If the `X-ForceValidation` header is set, the tx will be validated regardless of the other header values.

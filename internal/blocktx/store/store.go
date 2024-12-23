@@ -34,13 +34,13 @@ type BlocktxStore interface {
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (updatedTxs []*chainhash.Hash, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
-	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)
+	GetChainTip(ctx context.Context, heightRange int) (*blocktx_api.Block, error)
 	UpsertBlock(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 	UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxWithMerklePath) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
 	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
-	GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]TransactionBlock, error)
+	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]TransactionBlock, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)

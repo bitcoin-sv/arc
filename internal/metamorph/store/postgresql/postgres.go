@@ -662,8 +662,8 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				SELECT t.hash, t.status, t.reject_reason, t.history_update, t.timestamp
 				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::JSONB[], $6::TIMESTAMP WITH TIME ZONE[]) AS t(hash, status, reject_reason, history_update, timestamp)
 			) AS bulk_query
-			WHERE metamorph.transactions.hash = bulk_query.hash
-				AND metamorph.transactions.status < bulk_query.status
+			WHERE metamorph.transactions.hash=bulk_query.hash
+				AND (metamorph.transactions.status < bulk_query.status OR metamorph.transactions.status=$7)
 		RETURNING metamorph.transactions.stored_at
 		,metamorph.transactions.hash
 		,metamorph.transactions.status
@@ -695,7 +695,15 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(statusHistories), pq.Array(timestamps))
+	rows, err := tx.QueryContext(ctx, qBulk,
+		p.now(),
+		pq.Array(txHashes),
+		pq.Array(statuses),
+		pq.Array(rejectReasons),
+		pq.Array(statusHistories),
+		pq.Array(timestamps),
+		metamorph_api.Status_MINED_IN_STALE_BLOCK,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -853,7 +861,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 				AS t(hash, status, reject_reason, competing_txs)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
-				AND metamorph.transactions.status <= bulk_query.status
+				AND (metamorph.transactions.status <= bulk_query.status OR metamorph.transactions.status=$6)
 				AND (metamorph.transactions.competing_txs IS NULL
 						OR LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
 		RETURNING metamorph.transactions.stored_at
@@ -916,7 +924,14 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 	}
 
-	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
+	rows, err = tx.QueryContext(ctx, qBulk,
+		p.now(),
+		pq.Array(txHashes),
+		pq.Array(statuses),
+		pq.Array(rejectReasons),
+		pq.Array(competingTxs),
+		metamorph_api.Status_MINED_IN_STALE_BLOCK,
+	)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))

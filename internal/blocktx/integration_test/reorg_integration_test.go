@@ -101,7 +101,7 @@ func TestReorg(t *testing.T) {
 			txhash822015Competing       = "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"
 		)
 
-		//	blockHash := testutils.RevChainhash(t, blockHash822015Fork)
+		blockHash := testutils.RevChainhash(t, blockHash822015Fork)
 		prevBlockHash := testutils.RevChainhash(t, blockHash822014StartOfChain)
 		txHash := testutils.RevChainhash(t, txhash822015)
 		txHash2 := testutils.RevChainhash(t, txhash822015Competing) // should not be published - is already in the longest chain

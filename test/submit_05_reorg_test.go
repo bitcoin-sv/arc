@@ -174,22 +174,11 @@ func TestReorg(t *testing.T) {
 	require.Equal(t, StatusMined, statusResp.TxStatus)
 	require.Equal(t, staleHash, *statusResp.BlockHash)
 
-	// verify that tx2 is now MINED_IN_STALE_BLOCK
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
+	// verify that tx2 was rebroadcasted and is now MINED with new block data
+	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID().String())
 	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMinedInStaleBlock, statusResp.TxStatus)
+	require.Equal(t, StatusMined, statusResp.TxStatus)
 	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
-
-	// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
-	select {
-	case status := <-callbackReceivedChan:
-		require.Equal(t, tx2.TxID().String(), status.Txid)
-		require.Equal(t, StatusMinedInStaleBlock, status.TxStatus)
-	case err := <-callbackErrChan:
-		t.Fatalf("callback error: %v", err)
-	case <-time.After(1 * time.Second):
-		t.Fatal("callback exceeded timeout")
-	}
 }
 
 func call(t *testing.T, method string, params []interface{}) {

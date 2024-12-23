@@ -105,7 +105,7 @@ func TestReorg(t *testing.T) {
 
 		const blockHash822011 = "bf9be09b345cc2d904b59951cc8a2ed452d8d143e2e25cde64058270fb3a667a"
 
-		//blockHash := testutils.RevChainhash(t, blockHash822011)
+		// blockHash := testutils.RevChainhash(t, blockHash822011)
 		prevBlockHash := testutils.RevChainhash(t, "00000000000000000a00c377b260a3219b0c314763f486bc363df7aa7e22ad72")
 		txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 		require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevBlockHash, // NON-existent in the db
@@ -149,7 +149,7 @@ func TestReorg(t *testing.T) {
 			txhash822015Competing       = "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"
 		)
 
-		//	blockHash := testutils.RevChainhash(t, blockHash822015Fork)
+		blockHash := testutils.RevChainhash(t, blockHash822015Fork)
 		prevBlockHash := testutils.RevChainhash(t, blockHash822014StartOfChain)
 		txHash := testutils.RevChainhash(t, txhash822015)
 		txHash2 := testutils.RevChainhash(t, txhash822015Competing) // should not be published - is already in the longest chain
@@ -158,7 +158,7 @@ func TestReorg(t *testing.T) {
 
 		// should become STALE
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevBlockHash, // block with status LONGEST at height 822014
@@ -225,7 +225,7 @@ func TestReorg(t *testing.T) {
 		// should become LONGEST
 		// reorg should happen
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status STALE at height 822015
@@ -307,14 +307,14 @@ func TestReorg(t *testing.T) {
 			txhash822019 = "71fbb8fb5c0f978e3c221bc6ac235587f3c26fa10e231b54fce972d4a5c30e5e"
 		)
 
-		//blockHash := testutils.RevChainhash(t, blockHash822021)
+		// blockHash := testutils.RevChainhash(t, blockHash822021)
 		txHash := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
 		merkleRoot := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 		// should become STALE
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain
@@ -389,7 +389,7 @@ func TestReorg(t *testing.T) {
 			txhash822017          = "ece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6"
 		)
 
-		//blockHash := testutils.RevChainhash(t, blockHash822021)
+		// blockHash := testutils.RevChainhash(t, blockHash822021)
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 		txHash := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
 		merkleRoot := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
@@ -397,7 +397,7 @@ func TestReorg(t *testing.T) {
 		// should become LONGEST
 		// reorg should happen
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain

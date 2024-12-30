@@ -87,18 +87,6 @@ func getMetamorphConfig() *MetamorphConfig {
 						ZMQ: 28332,
 					},
 				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18334,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18335,
-					},
-				},
 			},
 		},
 	}
@@ -128,18 +116,6 @@ func getBlocktxConfig() *BlocktxConfig {
 					Port: &PeerPortConfig{
 						P2P: 18333,
 						ZMQ: 28332,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18334,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18335,
 					},
 				},
 			},

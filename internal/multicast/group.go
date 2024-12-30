@@ -56,6 +56,7 @@ type Group[T wire.Message] struct {
 func NewGroup[T wire.Message](l *slog.Logger, mh MessageHandlerI, addr string, mode ModeFlag, network wire.BitcoinNet /*TODO: add opts*/) *Group[T] {
 	var tmp T
 	l = l.With(
+		slog.String("module", "mcast-group"),
 		slog.Group("mcast",
 			slog.String("network", network.String()),
 			slog.String("cmd", tmp.Command()),
@@ -126,7 +127,7 @@ func (g *Group[T]) connect() bool {
 		return false
 	}
 
-	conn, err := net.ListenUDP("udp6", udpAddr)
+	conn, err := net.ListenPacket("udp6", udpAddr.String())
 	if err != nil {
 		g.logger.Error("Failed to dial node", slog.String("err", err.Error()))
 		return false
@@ -136,6 +137,7 @@ func (g *Group[T]) connect() bool {
 	g.mcastConn = &ipv6ConnAdapter{Conn: pConn}
 
 	if g.mode.Has(Read) {
+		g.logger.Info("Join to multicast group")
 		err = pConn.JoinGroup(nil, udpAddr) // TODO: define net interface
 		if err != nil {
 			g.logger.Error("Failed to join mcast group", slog.String("err", err.Error()))
@@ -146,6 +148,7 @@ func (g *Group[T]) connect() bool {
 	}
 
 	if g.mode.Has(Write) {
+		g.mcastConn.dst = udpAddr
 		g.sendMessages()
 	}
 

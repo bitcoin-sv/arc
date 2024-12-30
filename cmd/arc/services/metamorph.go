@@ -300,6 +300,7 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcC
 	if cfg.Mode == "classic" {
 		msgHandler = metamorph_p2p.NewMsgHandler(l, s, messageCh)
 	} else if cfg.Mode == "hybrid" {
+		l.Info("!!! Metamorph will communicate with blockchain in HYBRID mode (via p2p and multicast groups) !!!")
 		msgHandler = metamorph_p2p.NewHybridMsgHandler(l, messageCh)
 	} else {
 		err = fmt.Errorf("unsupported communication type: %s", cfg.Mode)

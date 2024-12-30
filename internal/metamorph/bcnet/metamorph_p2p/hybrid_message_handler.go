@@ -29,16 +29,44 @@ func NewHybridMsgHandler(l *slog.Logger, messageCh chan<- *TxStatusMessage) *Hyb
 // OnReceive handles incoming messages depending on command type
 func (h *HybridMsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
-	if cmd == wire.CmdTx {
-		h.handleReceivedTx(msg, peer)
-	}
+	switch cmd {
+	case wire.CmdInv:
+		h.handleReceivedInv(msg, peer)
 
-	// ignore other
+	case wire.CmdTx:
+		h.handleReceivedTx(msg, peer)
+
+	default:
+		// ignore other
+	}
 }
 
 // OnSend handles outgoing messages depending on command type
 func (h *HybridMsgHandler) OnSend(_ wire.Message, _ p2p.PeerI) {
 	// ignore
+}
+
+func (h *HybridMsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
+	msg, ok := wireMsg.(*wire.MsgInv)
+	if !ok {
+		return
+	}
+
+	go func() {
+		for _, iv := range msg.InvList {
+			if iv.Type == wire.InvTypeTx {
+				select {
+				case h.messageCh <- &TxStatusMessage{
+					Hash:   &iv.Hash,
+					Status: metamorph_api.Status_SEEN_ON_NETWORK,
+					Peer:   peer.String(),
+				}:
+				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
+				}
+			}
+			// ignore INV with block or error
+		}
+	}()
 }
 
 func (h *HybridMsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {

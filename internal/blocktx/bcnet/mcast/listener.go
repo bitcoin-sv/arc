@@ -14,9 +14,9 @@ import (
 
 var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to blockchain.BlockMessage")
 
-var _ multicast.MessageHandlerI = (*Listner)(nil)
+var _ multicast.MessageHandlerI = (*Listener)(nil)
 
-type Listner struct {
+type Listener struct {
 	hostname string
 
 	logger    *slog.Logger
@@ -26,11 +26,11 @@ type Listner struct {
 	blockGroup *multicast.Group[*bcnet.BlockMessage]
 }
 
-func NewMcastListner(l *slog.Logger, addr string, network wire.BitcoinNet, store store.BlocktxStore, receiveCh chan<- *bcnet.BlockMessage) *Listner {
+func NewMcastListener(l *slog.Logger, addr string, network wire.BitcoinNet, store store.BlocktxStore, receiveCh chan<- *bcnet.BlockMessage) *Listener {
 	hostname, _ := os.Hostname()
 
-	listner := Listner{
-		logger:    l.With("module", "mcast-listner"),
+	listner := Listener{
+		logger:    l.With("module", "mcast-listener"),
 		hostname:  hostname,
 		store:     store,
 		receiveCh: receiveCh,
@@ -40,16 +40,16 @@ func NewMcastListner(l *slog.Logger, addr string, network wire.BitcoinNet, store
 	return &listner
 }
 
-func (l *Listner) Connect() bool {
+func (l *Listener) Connect() bool {
 	return l.blockGroup.Connect()
 }
 
-func (l *Listner) Disconnect() {
+func (l *Listener) Disconnect() {
 	l.blockGroup.Disconnect()
 }
 
 // OnReceive should be fire & forget
-func (l *Listner) OnReceive(msg wire.Message) {
+func (l *Listener) OnReceive(msg wire.Message) {
 	if msg.Command() == wire.CmdBlock {
 		blockMsg, ok := msg.(*bcnet.BlockMessage)
 		if !ok {
@@ -60,6 +60,8 @@ func (l *Listner) OnReceive(msg wire.Message) {
 		// TODO: move it to mediator or smth
 		// lock block for the current instance to process
 		hash := blockMsg.Hash
+
+		l.logger.Info("Received BLOCK msg from multicast group", slog.String("hash", hash.String()))
 
 		processedBy, err := l.store.SetBlockProcessing(context.Background(), hash, l.hostname)
 		if err != nil {
@@ -82,6 +84,6 @@ func (l *Listner) OnReceive(msg wire.Message) {
 }
 
 // OnSend should be fire & forget
-func (l *Listner) OnSend(_ wire.Message) {
+func (l *Listener) OnSend(_ wire.Message) {
 	// ignore
 }

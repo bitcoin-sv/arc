@@ -40,14 +40,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	btxConfig := arcConfig.Blocktx
 
 	var (
-		blockStore   store.BlocktxStore
-		mqClient     blocktx.MessageQueueClient
-		processor    *blocktx.Processor
-		pm           *p2p.PeerManager
-		mcastListner *mcast.Listner
-		server       *blocktx.Server
-		healthServer *grpc_opts.GrpcServer
-		workers      *blocktx.BackgroundWorkers
+		blockStore    store.BlocktxStore
+		mqClient      blocktx.MessageQueueClient
+		processor     *blocktx.Processor
+		pm            *p2p.PeerManager
+		mcastListener *mcast.Listener
+		server        *blocktx.Server
+		healthServer  *grpc_opts.GrpcServer
+		workers       *blocktx.BackgroundWorkers
 
 		err error
 	)
@@ -75,7 +75,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mcastListner, mqClient, blockStore, healthServer, workers, shutdownFns)
+		disposeBlockTx(logger, server, processor, pm, mcastListener, mqClient, blockStore, healthServer, workers, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
@@ -145,7 +145,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
-	pm, mcastListner, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
+	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
@@ -209,7 +209,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 	return s, err
 }
 
-func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListner *mcast.Listner, err error) {
+func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -220,8 +220,8 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 			manager.Shutdown()
 		}
 
-		if mcastListner != nil {
-			mcastListner.Disconnect()
+		if mcastListener != nil {
+			mcastListener.Disconnect()
 		}
 	}()
 
@@ -239,6 +239,7 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	if cfg.Mode == "classic" {
 		msgHandler = blocktx_p2p.NewMsgHandler(l, blockRequestCh, blockProcessCh)
 	} else if cfg.Mode == "hybrid" {
+		l.Info("!!! Blocktx will communicate with blockchain in HYBRID mode (via p2p and multicast groups) !!!")
 		msgHandler = blocktx_p2p.NewHybridMsgHandler(l, blockProcessCh)
 	} else {
 		return nil, nil, fmt.Errorf("unsupported communication type: %s", cfg.Mode)
@@ -265,12 +266,12 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	// connect to mcast
 	if cfg.Mode == "hybrid" {
 		if cfg.Mcast == nil {
-			return manager, mcastListner, errors.New("mcast config is required")
+			return manager, mcastListener, errors.New("mcast config is required")
 		}
 
 		// TODO: add net interfaces
-		mcastListner = mcast.NewMcastListner(l, cfg.Mcast.McastBlock.Address, network, store, blockProcessCh)
-		ok := mcastListner.Connect()
+		mcastListener = mcast.NewMcastListener(l, cfg.Mcast.McastBlock.Address, network, store, blockProcessCh)
+		ok := mcastListener.Connect()
 		if !ok {
 			return manager, nil, fmt.Errorf("error connecting to mcast %s: %w", cfg.Mcast.McastBlock, err)
 		}
@@ -325,7 +326,7 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm *p2p.PeerManager, mcastListner *mcast.Listner, mqClient blocktx.MessageQueueClient,
+	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient blocktx.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {
@@ -351,8 +352,8 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	if pm != nil {
 		pm.Shutdown()
 	}
-	if mcastListner != nil {
-		mcastListner.Disconnect()
+	if mcastListener != nil {
+		mcastListener.Disconnect()
 	}
 	if mqClient != nil {
 		mqClient.Shutdown()

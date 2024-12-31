@@ -306,6 +306,62 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 	return tx, nil
 }
 
+func CreateTxFromTx(privateKey string, address string, parent *sdkTx.Transaction, fee ...uint64) (*sdkTx.Transaction, error) {
+	tx := sdkTx.NewTransaction()
+
+	// Add an input using the parent tx
+	u, err := sdkTx.NewUTXO(parent.TxID(), 0, parent.Outputs[0].LockingScript.String(), parent.Outputs[0].Satoshis)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating UTXO: %v", err)
+	}
+	err = tx.AddInputsFromUTXOs(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding input: %v", err)
+	}
+
+	// Add an output to the address you've previously created
+	recipientAddress := address
+
+	var feeValue uint64
+	if len(fee) > 0 {
+		feeValue = fee[0]
+	} else {
+		feeValue = 20 // Set your default fee value here
+	}
+	amountToSend := tx.TotalInputSatoshis() - feeValue
+
+	err = tx.PayToAddress(recipientAddress, amountToSend)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pay to address: %v", err)
+	}
+
+	// Sign the input
+	wif, err := bsvutil.DecodeWIF(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode WIF: %v", err)
+	}
+
+	// Extract raw private key bytes directly from the WIF structure
+	privateKeyDecoded := wif.PrivKey.Serialize()
+	pk, _ := ec.PrivateKeyFromBytes(privateKeyDecoded)
+
+	unlockingScriptTemplate, err := p2pkh.Unlock(pk, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, input := range tx.Inputs {
+		input.UnlockingScriptTemplate = unlockingScriptTemplate
+	}
+
+	err = tx.Sign()
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
 func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePort int, nodeUser, nodePassword string) error {
 	c := http.Client{}
 
@@ -368,6 +424,22 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 			return e
 		}
 		return errors.New("unknown error returned from node in rpc response")
+	}
+
+	fmt.Println("successful call with method: ", method)
+	fmt.Println("ID:                          ", rpcResponse.ID)
+	fmt.Println("RESULT:                      ", rpcResponse.Result)
+
+	b, _ := rpcResponse.Result.MarshalJSON()
+
+	fmt.Println("Results in string:           ", string(b))
+
+	ids := []string{}
+	err = json.Unmarshal(rpcResponse.Result, &ids)
+	if err != nil {
+		fmt.Println("Error unmarshalling to array of ids: ", err)
+	} else {
+		fmt.Println("Results in array of strings: ", ids)
 	}
 
 	return nil

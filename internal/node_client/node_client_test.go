@@ -2,6 +2,7 @@ package node_client_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -59,6 +60,8 @@ func testmain(m *testing.M) int {
 	if err != nil {
 		log.Fatalf("failed to convert port to int: %v", err)
 	}
+
+	fmt.Println("hostPort: ", hostPort)
 
 	return m.Run()
 }

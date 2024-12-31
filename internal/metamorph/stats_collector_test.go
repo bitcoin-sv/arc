@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/p2p"
-
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/stretchr/testify/require"
@@ -50,7 +49,7 @@ func TestStartCollectStats(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			messenger := &p2p.NetworkMessenger{}
+			messenger := &bcnet.Mediator{}
 
 			processor, err := metamorph.NewProcessor(mtmStore, nil, messenger, nil,
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),

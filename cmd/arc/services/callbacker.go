@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -195,7 +196,7 @@ func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.Back
 		processor.GracefulStop()
 	}
 
-	if mqClient != nil {
+	if mqClient != nil && !(reflect.ValueOf(mqClient).IsNil()) {
 		mqClient.Shutdown()
 	}
 

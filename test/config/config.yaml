@@ -7,7 +7,6 @@ prometheus:
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
-network: regtest
 messageQueue:
   streaming:
     enabled: true
@@ -23,23 +22,6 @@ peerRpc:
   user: bitcoin
   host: node1
   port: 18332
-
-broadcasting:
-  mode: unicast
-  unicast:
-    peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node3
-      port:
-        p2p: 18333
-        zmq: 28332
 
 cache:
   engine: redis
@@ -65,8 +47,6 @@ metamorph:
   processorCacheExpiryTime: 24h
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
-  checkSeenOnNetworkOlderThan: 3h
-  checkSeenOnNetworkPeriod: 4h
   monitorPeers: true
   checkUtxos: false
   profilerAddr: localhost:9992
@@ -77,6 +57,22 @@ metamorph:
   stats:
     notSeenTimeLimit: 10m
     notFinalTimeLimit: 20m
+  bcnet:
+    mode: classic 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332 
 
 blocktx:
   listenAddr: 0.0.0.0:8011
@@ -100,6 +96,22 @@ blocktx:
     enabled: true
     interval: 1s
   maxAllowedBlockHeightMismatch: 3
+  bcnet:
+    mode: classic 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332 
 
 api:
   address: 0.0.0.0:9090

@@ -37,7 +37,10 @@ type MsgHandler struct {
 
 func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *TxStatusMessage) *MsgHandler {
 	ph := &MsgHandler{
-		logger:    l,
+		logger: l.With(
+			slog.String("module", "peer-msg-handler"),
+			slog.String("mode", "classic"),
+		),
 		store:     s,
 		messageCh: messageCh,
 	}

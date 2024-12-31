@@ -261,6 +261,35 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 	return s, err
 }
 
+// setupMtmBcNetworkCommunication initializes the Metamorph blockchain network communication, configuring it
+// to operate in either classic (P2P-only) or hybrid (P2P and multicast) mode.
+//
+// Parameters:
+// - `l *slog.Logger`: Logger instance for event logging.
+// - `s store.MetamorphStore`: Storage interface for Metamorph operations.
+// - `arcConfig *config.ArcConfig`: Configuration object for blockchain network settings.
+// - `mediatorOpts []bcnet.Option`: Additional options for the mediator.
+//
+// Returns:
+// - `mediator *bcnet.Mediator`: Coordinates communication between P2P and multicast layers.
+// - `messenger *p2p.NetworkMessenger`: Handles P2P message delivery - used by mediator only.
+// - `manager *p2p.PeerManager`: Manages the lifecycle of P2P peers.
+// - `multicaster *mcast.Multicaster`: Handles multicast message broadcasting and listening - used by mediator only.
+// - `messageCh chan *metamorph_p2p.TxStatusMessage`: Channel for handling transaction status messages.
+// - `err error`: Error if any part of the setup fails.
+//
+// Key Details:
+// - **Mode Handling**:
+//   - `"classic"`: Uses `metamorph_p2p.NewMsgHandler` for exclusive P2P communication.
+//   - `"hybrid"`: Uses `metamorph_p2p.NewHybridMsgHandler` for integration of P2P and multicast group communication.
+//
+// - **Error Cleanup**: Cleans up resources such as the messenger, manager, and multicaster on failure.
+// - **Peer Management**: Establishes connections to P2P peers and configures them with write handlers and buffer sizes.
+// - **Multicast Communication**: In hybrid mode, joins multicast groups for transaction and rejection messages.
+//
+// Message Handlers:
+// - `metamorph_p2p.NewMsgHandler`: Used in classic mode, handling all communication via P2P.
+// - `metamorph_p2p.NewHybridMsgHandler`: Used in hybrid mode, integrating P2P communication with multicast group updates.
 func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig, mediatorOpts []bcnet.Option) (
 	mediator *bcnet.Mediator, messenger *p2p.NetworkMessenger, manager *p2p.PeerManager, multicaster *mcast.Multicaster,
 	messageCh chan *metamorph_p2p.TxStatusMessage, err error) {

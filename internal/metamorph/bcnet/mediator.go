@@ -13,6 +13,37 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+// Mediator acts as the central communication hub between metamorph processor and blockchain network,
+// coordinating the interactions between the peer-to-peer messenger (p2p) and the multicast system (mcast).
+// It is responsible for handling transactions and peer interactions depending on the operating mode (classic or hybrid).
+//
+// Fields:
+// - `classic`: A flag indicating if the system is operating in classic mode (`true`) or hybrid mode (`false`).
+// - `p2pMessenger`: The component responsible for managing peer-to-peer communications, including requesting and announcing transactions.
+// - `mcaster`: The component responsible for sending transactions over multicast networks in hybrid mode.
+//
+// Methods:
+// - `NewMediator`: Initializes a new `Mediator` with the specified logging, mode (classic or hybrid),
+// p2p messenger, multicast system, and optional tracing attributes.
+// - `AskForTxAsync`: Asynchronously requests a transaction by its hash from the network via P2P.
+// - `AnnounceTxAsync`: Asynchronously announces a transaction to the network.
+// In classic mode, it uses `p2pMessenger` to announce the transaction. In hybrid mode, it uses `mcaster` to send the transaction via multicast.
+//
+// Usage:
+// - The `Mediator` abstracts the differences between classic (peer-to-peer) and hybrid (peer-to-peer and multicast) modes.
+// - In classic mode, transactions are communicated directly with peers, whereas in hybrid mode, multicast groups are used for broader network communication.
+// - Tracing functionality allows monitoring the flow of transactions and network requests, providing insights into system performance and behavior.
+type Mediator struct {
+	logger  *slog.Logger
+	classic bool
+
+	p2pMessenger *p2p.NetworkMessenger
+	mcaster      *mcast.Multicaster
+
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
+}
+
 type Option func(*Mediator)
 
 func WithTracer(attr ...attribute.KeyValue) Option {
@@ -26,17 +57,6 @@ func WithTracer(attr ...attribute.KeyValue) Option {
 			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
 	}
-}
-
-type Mediator struct {
-	logger  *slog.Logger
-	classic bool
-
-	p2pMessenger *p2p.NetworkMessenger
-	mcaster      *mcast.Multicaster
-
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
 }
 
 func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, mcaster *mcast.Multicaster, opts ...Option) *Mediator {

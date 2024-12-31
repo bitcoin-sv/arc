@@ -13,23 +13,22 @@ import (
 	"golang.org/x/net/ipv6"
 )
 
-type ModeFlag uint8
-
-const (
-	Read ModeFlag = 1 << iota
-	Write
-)
-
-func (flag ModeFlag) Has(v ModeFlag) bool {
-	return v&flag != 0
-}
-
-type MessageHandlerI interface {
-	// OnReceive should be fire & forget
-	OnReceive(msg wire.Message)
-	// OnSend should be fire & forget
-	OnSend(msg wire.Message)
-}
+// WORK IN PROGRESS
+//
+//
+// The Group structure represents a multicast communication group for exchanging messages
+// over a network. It is designed to support both reading and writing messages through the
+// IPv6 multicast group. The Group abstracts the complexities of managing connections, handling
+// messages, and interfacing with the multicast group. Key features include:
+//
+// - **Multicast Address Management:** Supports setting up multicast UDP connections,
+//   joining groups, and resolving addresses.
+// - **Mode Configurability:** Allows configuring the group in read-only, write-only, or
+//   read-write mode through the `ModeFlag`.
+// - **Transparent Communication:** Ensures seamless handling of protocol-specific
+//   messages via handlers and encapsulated logic.
+// - **Error Handling and Logging:** Integrates structured logging for diagnostics and error
+//   tracking, aiding maintainability and debugging.
 
 type Group[T wire.Message] struct {
 	execWg        sync.WaitGroup
@@ -51,6 +50,35 @@ type Group[T wire.Message] struct {
 
 	logger *slog.Logger
 	mh     MessageHandlerI
+}
+
+// MessageHandlerI is an interface that defines the contract for handling messages
+// in the multicast group communication. It provides two primary methods:
+//
+//   - **OnReceive(msg wire.Message):** Triggered when a message is received from the
+//     multicast group. This method should be implemented to handle received messages in
+//     a fire-and-forget manner, ensuring that processing does not block the main communication flow.
+//
+//   - **OnSend(msg wire.Message):** Triggered when a message is successfully sent to the
+//     multicast group. This method allows implementing custom actions or logging after
+//     message transmission, also in a fire-and-forget manner.
+//
+// By defining this interface, the Group structure decouples the message handling logic
+// from the underlying communication mechanism, providing extensibility and modularity.
+type MessageHandlerI interface {
+	OnReceive(msg wire.Message)
+	OnSend(msg wire.Message)
+}
+
+type ModeFlag uint8
+
+const (
+	Read ModeFlag = 1 << iota
+	Write
+)
+
+func (flag ModeFlag) Has(v ModeFlag) bool {
+	return v&flag != 0
 }
 
 func NewGroup[T wire.Message](l *slog.Logger, mh MessageHandlerI, addr string, mode ModeFlag, network wire.BitcoinNet /*TODO: add opts*/) *Group[T] {

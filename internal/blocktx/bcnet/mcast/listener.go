@@ -16,6 +16,27 @@ var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to bloc
 
 var _ multicast.MessageHandlerI = (*Listener)(nil)
 
+// Listener is a multicast message listener specifically designed for processing blocks messages.
+//
+// Responsibilities:
+// - Connects to a multicast group and listens for block messages (`CmdBlock`).
+// - Processes incoming block messages by marking them for processing in the storage to ensure that only one instance processes a block at a time.
+// - Ignores non-block messages to optimize processing and maintain focus on relevant data.
+//
+// Key Methods:
+// - `NewMcastListener`: Initializes a new Listener instance, setting up the multicast group for reading block messages.
+// - `Connect`: Establishes the connection to the multicast group.
+// - `Disconnect`: Leaves the multicast group.
+// - `OnReceive`: Handles received multicast messages, verifying their type and ensuring proper processing of block messages.
+// - `OnSend`: Placeholder for handling messages sent to the multicast group, currently ignored.
+//
+// Behavior:
+// - On receiving a block message (`CmdBlock`):
+//   1. Verifies the message type.
+//   2. Tries to mark the block as being processed by the current instance.
+//   3. Forwards the block message to the `receiveCh` for further handling.
+// - Logs and gracefully handles errors in block processing, ensuring robustness in a distributed system.
+
 type Listener struct {
 	hostname string
 
@@ -48,7 +69,7 @@ func (l *Listener) Disconnect() {
 	l.blockGroup.Disconnect()
 }
 
-// OnReceive should be fire & forget
+// OnReceive handles received messages from multicast group
 func (l *Listener) OnReceive(msg wire.Message) {
 	if msg.Command() == wire.CmdBlock {
 		blockMsg, ok := msg.(*bcnet.BlockMessage)
@@ -83,7 +104,7 @@ func (l *Listener) OnReceive(msg wire.Message) {
 	// ignore other messages
 }
 
-// OnSend should be fire & forget
+// OnSend handles sent messages to multicast group
 func (l *Listener) OnSend(_ wire.Message) {
 	// ignore
 }

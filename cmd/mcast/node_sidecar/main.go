@@ -118,12 +118,12 @@ func startMcastSideCar(logger *slog.Logger, arcConfig *config.ArcConfig) (func()
 }
 
 func connectPeer(logger *slog.Logger, peerCfg *config.PeerConfig, msgHandler p2p.MessageHandlerI, network wire.BitcoinNet) (*p2p.Peer, error) {
-	peerUrl, err := peerCfg.GetP2PUrl()
+	peerURL, err := peerCfg.GetP2PUrl()
 	if err != nil {
 		return nil, err
 	}
 
-	peer := p2p.NewPeer(logger, msgHandler, peerUrl, network)
+	peer := p2p.NewPeer(logger, msgHandler, peerURL, network)
 	connected := peer.Connect()
 	if !connected {
 		return nil, errors.New("cannot connect to peer")
@@ -253,11 +253,10 @@ func (b *MulticastP2PBridge) handleReceivedGetDataMsg(getMsg *wire.MsgGetData, p
 			// check if have tx in memory and send it to peer
 			anyMsg, found := b.txCache.Load(inv.Hash)
 			if found {
-				txMsg, _ := anyMsg.(*wire.MsgTx)
+				txMsg := anyMsg.(*wire.MsgTx) // nolint:errcheck,revive
 				peer.WriteMsg(txMsg)
 				b.l.Info("Sent requested data to the peer", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
 			}
-
 		}
 		// ignore other inv
 	}
@@ -269,11 +268,11 @@ func (b *MulticastP2PBridge) OnReceiveFromMcast(msg wire.Message) {
 	cmd := msg.Command()
 	switch cmd {
 	case wire.CmdBlock:
-		blockmsg, _ := msg.(*wire.MsgBlock)
+		blockmsg := msg.(*wire.MsgBlock) // nolint:errcheck,revive
 		b.l.Info("Received BlockMsg from multicast", slog.String("hash", blockmsg.BlockHash().String()))
 
 	case wire.CmdTx:
-		txmsg, _ := msg.(*wire.MsgTx)
+		txmsg := msg.(*wire.MsgTx) // nolint:errcheck,revive
 		b.handleReceivedMcastTxMsg(txmsg)
 
 	default:
@@ -286,11 +285,11 @@ func (b *MulticastP2PBridge) OnSendToMcast(msg wire.Message) {
 	cmd := msg.Command()
 	switch cmd {
 	case wire.CmdBlock:
-		blockmsg, _ := msg.(*wire.MsgBlock)
+		blockmsg := msg.(*wire.MsgBlock) // nolint:errcheck,revive
 		b.l.Info("Sent BlockMsg to multicast", slog.String("hash", blockmsg.BlockHash().String()))
 
 	case wire.CmdTx:
-		txmsg, _ := msg.(*wire.MsgTx)
+		txmsg := msg.(*wire.MsgTx) // nolint:errcheck,revive
 		b.l.Info("Sent TxMsg to multicast", slog.String("hash", txmsg.TxHash().String()))
 
 	default:

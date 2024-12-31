@@ -69,8 +69,8 @@ func (l *Listener) Disconnect() {
 	l.blockGroup.Disconnect()
 }
 
-// OnReceive handles received messages from multicast group
-func (l *Listener) OnReceive(msg wire.Message) {
+// OnReceiveFromMcast handles received messages from multicast group
+func (l *Listener) OnReceiveFromMcast(msg wire.Message) {
 	if msg.Command() == wire.CmdBlock {
 		blockMsg, ok := msg.(*bcnet.BlockMessage)
 		if !ok {
@@ -104,7 +104,7 @@ func (l *Listener) OnReceive(msg wire.Message) {
 	// ignore other messages
 }
 
-// OnSend handles sent messages to multicast group
-func (l *Listener) OnSend(_ wire.Message) {
+// OnSendToMcast handles sent messages to multicast group
+func (l *Listener) OnSendToMcast(_ wire.Message) {
 	// ignore
 }

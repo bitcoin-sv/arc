@@ -19,11 +19,11 @@ var _ multicast.MessageHandlerI = &MessageHandlerIMock{}
 //
 //		// make and configure a mocked multicast.MessageHandlerI
 //		mockedMessageHandlerI := &MessageHandlerIMock{
-//			OnReceiveFunc: func(msg wire.Message)  {
-//				panic("mock out the OnReceive method")
+//			OnReceiveFromMcastFunc: func(msg wire.Message)  {
+//				panic("mock out the OnReceiveFromMcast method")
 //			},
-//			OnSendFunc: func(msg wire.Message)  {
-//				panic("mock out the OnSend method")
+//			OnSendToMcastFunc: func(msg wire.Message)  {
+//				panic("mock out the OnSendToMcast method")
 //			},
 //		}
 //
@@ -32,89 +32,89 @@ var _ multicast.MessageHandlerI = &MessageHandlerIMock{}
 //
 //	}
 type MessageHandlerIMock struct {
-	// OnReceiveFunc mocks the OnReceive method.
-	OnReceiveFunc func(msg wire.Message)
+	// OnReceiveFromMcastFunc mocks the OnReceiveFromMcast method.
+	OnReceiveFromMcastFunc func(msg wire.Message)
 
-	// OnSendFunc mocks the OnSend method.
-	OnSendFunc func(msg wire.Message)
+	// OnSendToMcastFunc mocks the OnSendToMcast method.
+	OnSendToMcastFunc func(msg wire.Message)
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// OnReceive holds details about calls to the OnReceive method.
-		OnReceive []struct {
+		// OnReceiveFromMcast holds details about calls to the OnReceiveFromMcast method.
+		OnReceiveFromMcast []struct {
 			// Msg is the msg argument value.
 			Msg wire.Message
 		}
-		// OnSend holds details about calls to the OnSend method.
-		OnSend []struct {
+		// OnSendToMcast holds details about calls to the OnSendToMcast method.
+		OnSendToMcast []struct {
 			// Msg is the msg argument value.
 			Msg wire.Message
 		}
 	}
-	lockOnReceive sync.RWMutex
-	lockOnSend    sync.RWMutex
+	lockOnReceiveFromMcast sync.RWMutex
+	lockOnSendToMcast      sync.RWMutex
 }
 
-// OnReceive calls OnReceiveFunc.
-func (mock *MessageHandlerIMock) OnReceive(msg wire.Message) {
-	if mock.OnReceiveFunc == nil {
-		panic("MessageHandlerIMock.OnReceiveFunc: method is nil but MessageHandlerI.OnReceive was just called")
+// OnReceiveFromMcast calls OnReceiveFromMcastFunc.
+func (mock *MessageHandlerIMock) OnReceiveFromMcast(msg wire.Message) {
+	if mock.OnReceiveFromMcastFunc == nil {
+		panic("MessageHandlerIMock.OnReceiveFromMcastFunc: method is nil but MessageHandlerI.OnReceiveFromMcast was just called")
 	}
 	callInfo := struct {
 		Msg wire.Message
 	}{
 		Msg: msg,
 	}
-	mock.lockOnReceive.Lock()
-	mock.calls.OnReceive = append(mock.calls.OnReceive, callInfo)
-	mock.lockOnReceive.Unlock()
-	mock.OnReceiveFunc(msg)
+	mock.lockOnReceiveFromMcast.Lock()
+	mock.calls.OnReceiveFromMcast = append(mock.calls.OnReceiveFromMcast, callInfo)
+	mock.lockOnReceiveFromMcast.Unlock()
+	mock.OnReceiveFromMcastFunc(msg)
 }
 
-// OnReceiveCalls gets all the calls that were made to OnReceive.
+// OnReceiveFromMcastCalls gets all the calls that were made to OnReceiveFromMcast.
 // Check the length with:
 //
-//	len(mockedMessageHandlerI.OnReceiveCalls())
-func (mock *MessageHandlerIMock) OnReceiveCalls() []struct {
+//	len(mockedMessageHandlerI.OnReceiveFromMcastCalls())
+func (mock *MessageHandlerIMock) OnReceiveFromMcastCalls() []struct {
 	Msg wire.Message
 } {
 	var calls []struct {
 		Msg wire.Message
 	}
-	mock.lockOnReceive.RLock()
-	calls = mock.calls.OnReceive
-	mock.lockOnReceive.RUnlock()
+	mock.lockOnReceiveFromMcast.RLock()
+	calls = mock.calls.OnReceiveFromMcast
+	mock.lockOnReceiveFromMcast.RUnlock()
 	return calls
 }
 
-// OnSend calls OnSendFunc.
-func (mock *MessageHandlerIMock) OnSend(msg wire.Message) {
-	if mock.OnSendFunc == nil {
-		panic("MessageHandlerIMock.OnSendFunc: method is nil but MessageHandlerI.OnSend was just called")
+// OnSendToMcast calls OnSendToMcastFunc.
+func (mock *MessageHandlerIMock) OnSendToMcast(msg wire.Message) {
+	if mock.OnSendToMcastFunc == nil {
+		panic("MessageHandlerIMock.OnSendToMcastFunc: method is nil but MessageHandlerI.OnSendToMcast was just called")
 	}
 	callInfo := struct {
 		Msg wire.Message
 	}{
 		Msg: msg,
 	}
-	mock.lockOnSend.Lock()
-	mock.calls.OnSend = append(mock.calls.OnSend, callInfo)
-	mock.lockOnSend.Unlock()
-	mock.OnSendFunc(msg)
+	mock.lockOnSendToMcast.Lock()
+	mock.calls.OnSendToMcast = append(mock.calls.OnSendToMcast, callInfo)
+	mock.lockOnSendToMcast.Unlock()
+	mock.OnSendToMcastFunc(msg)
 }
 
-// OnSendCalls gets all the calls that were made to OnSend.
+// OnSendToMcastCalls gets all the calls that were made to OnSendToMcast.
 // Check the length with:
 //
-//	len(mockedMessageHandlerI.OnSendCalls())
-func (mock *MessageHandlerIMock) OnSendCalls() []struct {
+//	len(mockedMessageHandlerI.OnSendToMcastCalls())
+func (mock *MessageHandlerIMock) OnSendToMcastCalls() []struct {
 	Msg wire.Message
 } {
 	var calls []struct {
 		Msg wire.Message
 	}
-	mock.lockOnSend.RLock()
-	calls = mock.calls.OnSend
-	mock.lockOnSend.RUnlock()
+	mock.lockOnSendToMcast.RLock()
+	calls = mock.calls.OnSendToMcast
+	mock.lockOnSendToMcast.RUnlock()
 	return calls
 }

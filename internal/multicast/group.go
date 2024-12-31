@@ -66,8 +66,8 @@ type Group[T wire.Message] struct {
 // By defining this interface, the Group structure decouples the message handling logic
 // from the underlying communication mechanism, providing extensibility and modularity.
 type MessageHandlerI interface {
-	OnReceive(msg wire.Message)
-	OnSend(msg wire.Message)
+	OnReceiveFromMcast(msg wire.Message)
+	OnSendToMcast(msg wire.Message)
 }
 
 type ModeFlag uint8

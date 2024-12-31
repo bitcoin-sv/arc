@@ -15,6 +15,35 @@ var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
 
 var _ multicast.MessageHandlerI = (*Multicaster)(nil)
 
+// Multicaster facilitates the transmission and reception of transaction and reject messages over multicast groups.
+//
+// Fields:
+// - `messageCh`: Channel used to send status messages for transactions, such as acceptance or rejection.
+// - `txGroup`: Multicast group for transmitting transaction (`MsgTx`) messages.
+// - `rejectGroup`: Multicast group for receiving rejection (`MsgReject`) messages.
+//
+// Responsibilities:
+// - Establishes and manages connections to multicast groups for sending and receiving blockchain transaction messages.
+// - Handles the transmission of transactions and processes rejections received from the network.
+//
+// Key Methods:
+// - `NewMulticaster`: Initializes a new `Multicaster` instance with specified multicast group addresses, network, and message channel.
+// - `Connect`: Connects to both `txGroup` (for sending) and `rejectGroup` (for receiving).
+// - `Disconnect`: Disconnects from all multicast groups, cleaning up resources.
+// - `SendTx`: Encodes and sends a raw transaction to the multicast `txGroup`.
+// - `OnReceive`: Processes messages received via the `rejectGroup` and updates the `messageCh` with rejection status.
+// - `OnSend`: Processes messages sent via the `txGroup` and updates the `messageCh` with sent-to-network status.
+//
+// Behavior:
+// - On receiving a `MsgReject` (`CmdReject`):
+//  1. Extracts the rejection reason and transaction hash.
+//  2. Sends a `TxStatusMessage` to the `messageCh` indicating rejection status.
+//
+// - On sending a `MsgTx` (`CmdTx`):
+//  1. Extracts the transaction hash.
+//  2. Sends a `TxStatusMessage` to the `messageCh` indicating the transaction was sent to the network.
+//
+// - Ignores unsupported or irrelevant message types for both sending and receiving.
 type Multicaster struct {
 	logger    *slog.Logger
 	messageCh chan<- *metamorph_p2p.TxStatusMessage

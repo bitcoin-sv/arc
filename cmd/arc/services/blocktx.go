@@ -209,6 +209,33 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 	return s, err
 }
 
+// setupBcNetworkCommunication initializes the Bloctx blockchain network communication layer, configuring it
+// to operate in either classic (P2P-only) or hybrid (P2P and multicast) mode.
+//
+// Parameters:
+// - `l *slog.Logger`: Logger instance for logging events.
+// - `arcConfig *config.ArcConfig`: Configuration object containing blockchain network settings.
+// - `store store.BlocktxStore`: A storage interface for blockchain transactions.
+// - `blockRequestCh chan<- blocktx_p2p.BlockRequest`: Channel for handling block requests.
+// - `blockProcessCh chan<- *bcnet.BlockMessage`: Channel for processing block messages.
+//
+// Returns:
+// - `manager *p2p.PeerManager`: Manages P2P peers.
+// - `mcastListener *mcast.Listener`: Handles multicast communication, or `nil` if not in hybrid mode.
+// - `err error`: Error if any issue occurs during setup.
+//
+// Key Details:
+// - **Mode Handling**:
+//   - `"classic"` mode uses `blocktx_p2p.NewMsgHandler` for P2P communication only.
+//   - `"hybrid"` mode uses `blocktx_p2p.NewHybridMsgHandler` for P2P and multicast communication.
+//
+// - **Error Cleanup**: Ensures resources like peers and multicast listeners are properly cleaned up on errors.
+// - **Peer Management**: Connects to configured peers and initializes a PeerManager for handling P2P connections.
+// - **Multicast Communication**: In hybrid mode, joins a multicast group for blockchain updates and uses correct P2P message handler.
+//
+// Message Handlers:
+// - `blocktx_p2p.NewMsgHandler`: Used in classic mode, handles all blockchain communication exclusively via P2P.
+// - `blocktx_p2p.NewHybridMsgHandler`: Used in hybrid mode, seamlessly integrates P2P communication with multicast group updates.
 func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
 	defer func() {
 		// cleanup on error

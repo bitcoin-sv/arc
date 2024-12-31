@@ -20,7 +20,6 @@ func TestMain(m *testing.M) {
 	}
 
 	log.Printf("current block height: %d", info.Blocks)
-
 	os.Exit(m.Run())
 }
 
@@ -50,7 +49,10 @@ func setupSut() {
 
 	if info.Blocks < minNumbeOfBlocks {
 		// generate blocks in part to ensure blocktx is able to process all blocks
-		const blockBatch = 20 // should be less or equal n*10 where n is number of blocktx instances
+		blockBatch := float64(20)
+		if os.Getenv("TEST_LOCAL_MCAST") != "" {
+			blockBatch = float64(4)
+		}
 
 		for {
 			_, err = bitcoind.Generate(blockBatch)
@@ -72,6 +74,6 @@ func setupSut() {
 			}
 		}
 
-		time.Sleep(5 * time.Second) // wait for fillGaps to fill eventual gaps
+		time.Sleep(15 * time.Second) // wait for fillGaps to fill eventual gaps
 	}
 }

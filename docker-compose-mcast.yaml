@@ -15,6 +15,8 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
+    networks: 
+      - multicast_bridge
 
   node2:
     container_name: node2
@@ -28,6 +30,8 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
+    networks: 
+      - multicast_bridge
 
   node3:
     container_name: node3
@@ -41,6 +45,8 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node3-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node2:18333" ]
+    networks:
+      - multicast_bridge
 
   db:
     image: postgres:15.4
@@ -58,7 +64,9 @@ services:
       - '5432:5432'
     expose:
       - "5432"
-
+    networks:
+      - multicast_bridge
+ 
   migrate-blocktx:
     container_name: migrate-blocktx
     image: migrate/migrate:v4.16.2
@@ -77,6 +85,8 @@ services:
       db:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - multicast_bridge
 
   migrate-metamorph:
     container_name: migrate-metamorph
@@ -96,6 +106,8 @@ services:
       db:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - multicast_bridge
 
   migrate-callbacker:
     container_name: migrate-callbacker
@@ -115,6 +127,8 @@ services:
       db:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - multicast_bridge
 
   nats-1:
     image: nats:2.10.18-alpine3.20
@@ -131,6 +145,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - multicast_bridge
 
   nats-2:
     image: nats:2.10.18-alpine3.20
@@ -147,6 +163,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - multicast_bridge
 
   cache:
     image: redis
@@ -157,13 +175,32 @@ services:
       - redis-data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
+    networks:
+      - multicast_bridge
+
+  mcast_sidecar:
+    build:
+      context: ./
+      dockerfile: ./cmd/mcast/node_sidecar/Dockerfile    
+    volumes:
+      - ./test/config/config_mcast.yaml:/service/config.yaml
+    command: [ "./sidecar", "-config=." ]
+    depends_on:
+      node1:
+        condition: service_healthy
+      node2:
+        condition: service_healthy
+      node3:
+        condition: service_healthy
+    networks:
+      - multicast_bridge
 
   blocktx:
     build: ./
     expose:
       - "8011"
     volumes:
-      - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_mcast.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -180,12 +217,14 @@ services:
         condition: service_healthy
       migrate-blocktx:
         condition: service_completed_successfully
-
+      
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - multicast_bridge
 
   callbacker:
     build: ./
@@ -195,7 +234,7 @@ services:
     environment:
       - ARC_TRACING_ENABLED
     volumes:
-      - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_mcast.yaml:/service/config.yaml
     depends_on:
       nats-1:
         condition: service_healthy
@@ -208,6 +247,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - multicast_bridge
 
   metamorph:
     build: ./
@@ -217,7 +258,7 @@ services:
     environment:
       - ARC_TRACING_ENABLED
     volumes:
-      - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_mcast.yaml:/service/config.yaml
     depends_on:
       blocktx:
         condition: service_healthy
@@ -232,6 +273,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - multicast_bridge
 
   api:
     build: ./
@@ -251,24 +294,19 @@ services:
     depends_on:
       metamorph:
         condition: service_healthy
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.35
-    profiles: ["tracing"]
-    ports:
-      - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - OTEL_EXPORTER_OTLP_INSECURE=true
+    networks:
+      - multicast_bridge
 
   tests:
     build:
       context: ./
       dockerfile: ./test/Dockerfile
+    environment:
+      - TEST_LOCAL_MCAST=TRUE
     depends_on:
       - api
+    networks:
+      - multicast_bridge
 
 volumes:
   node1-data:
@@ -283,3 +321,13 @@ volumes:
     external: false
   redis-data:
     external: false
+
+networks:
+  multicast_bridge:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: "2001:db8:9::/64"
+          gateway: "2001:db8:9::1"

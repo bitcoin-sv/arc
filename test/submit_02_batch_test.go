@@ -5,6 +5,7 @@ package test
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 )
 
 func TestBatchChainedTxs(t *testing.T) {
+	if os.Getenv("TEST_LOCAL_MCAST") != "" {
+		t.Skip("Multicasting does't support chained txs yet")
+	}
+
 	t.Run("submit batch of chained transactions", func(t *testing.T) {
 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 

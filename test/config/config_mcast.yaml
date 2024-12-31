@@ -1,0 +1,179 @@
+---
+logFormat: tint
+logLevel: INFO
+profilerAddr: localhost:9999
+prometheus:
+  enabled: true
+  endpoint: /metrics
+  addr: :2112
+grpcMessageSize: 100000000
+messageQueue:
+  streaming:
+    enabled: true
+    fileStorage: false
+  URL: nats://nats-1:4222,nats://nats-2:4223
+tracing:
+  enabled: false
+  sample: 100
+  dialAddr: http://jaeger:4317
+
+peerRpc:
+  password: bitcoin
+  user: bitcoin
+  host: node1
+  port: 18332
+
+cache:
+  engine: redis
+  redis:
+    addr: cache:6379
+    password: ""
+    db: 1
+
+metamorph:
+  listenAddr: "[::]:8001"
+  dialAddr: metamorph:8001
+  db:
+    mode: postgres
+    postgres:
+      host: db
+      port: 5432
+      name: main
+      user: arcuser
+      password: arcpass
+      maxIdleConns: 10
+      maxOpenConns: 80
+      sslMode: disable
+  processorCacheExpiryTime: 24h
+  maxRetries: 1000
+  processStatusUpdateInterval: 50ms
+  monitorPeers: true
+  checkUtxos: false
+  profilerAddr: "[::]:9992"
+  health:
+    serverDialAddr: "[::]:8005"
+    minimumHealthyConnections: 2
+  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
+  stats:
+    notSeenTimeLimit: 10m
+    notFinalTimeLimit: 20m
+  bcnet:
+    mode: hybrid 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332
+    mcast:
+      tx:
+        address: "[ff05::1]:9999"
+      reject:
+        address: "[ff05::2]:9989"
+
+blocktx:
+  listenAddr: "[::]:8011"
+  dialAddr: blocktx:8011
+  healthServerDialAddr: "[::]:8006"
+  db:
+    mode: postgres
+    postgres:
+      host: db
+      port: 5432
+      name: main
+      user: arcuser
+      password: arcpass
+      maxIdleConns: 10
+      maxOpenConns: 80
+      sslMode: disable
+  recordRetentionDays: 28
+  profilerAddr: "[::]:9993"
+  registerTxsInterval: 200ms
+  fillGaps:
+    enabled: true
+    interval: 120s
+  maxAllowedBlockHeightMismatch: 3
+  bcnet:
+    mode: hybrid 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332
+    mcast:
+      block:
+        address: "[ff05::3]:9979"
+
+api:
+  address: "[::]:9090"
+  wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
+  wocMainnet: false
+  requestExtendedLogs: true
+  processorCacheExpiryTime: 24h
+  defaultPolicy:
+    excessiveblocksize: 2000000000
+    blockmaxsize: 512000000
+    maxtxsizepolicy: 100000000
+    maxorphantxsize: 1000000000
+    datacarriersize: 4294967295
+    maxscriptsizepolicy: 100000000
+    maxopsperscriptpolicy: 4294967295
+    maxscriptnumlengthpolicy: 10000
+    maxpubkeyspermultisigpolicy: 4294967295
+    maxtxsigopscountspolicy: 4294967295
+    maxstackmemoryusagepolicy: 100000000
+    maxstackmemoryusageconsensus: 200000000
+    limitancestorcount: 10000
+    limitcpfpgroupmemberscount: 25
+    maxmempool: 2000000000
+    maxmempoolsizedisk: 0
+    mempoolmaxpercentcpfp: 10
+    acceptnonstdoutputs: true
+    datacarrier: true
+    minminingtxfee: 1e-8
+    maxstdtxvalidationduration: 3
+    maxnonstdtxvalidationduration: 1000
+    maxtxchainvalidationbudget: 50
+    validationclockcpu: true
+    minconsolidationfactor: 20
+    maxconsolidationinputscriptsize: 150
+    minconfconsolidationinput: 6
+    minconsolidationinputmaturity: 6
+    acceptnonstdconsolidationinput: false
+
+callbacker:
+  listenAddr: "[::]:8021"
+  dialAddr: callbacker:8021
+  health:
+    serverDialAddr: "[::]:8022"
+  db:
+    mode: postgres
+    postgres:
+      host: db
+      port: 5432
+      name: main
+      user: arcuser
+      password: arcpass
+      maxIdleConns: 10
+      maxOpenConns: 80
+      sslMode: disable
+  failedCallbackCheckInterval: 1m
+  delayDuration: 5s
+  expiration: 24h

@@ -301,7 +301,7 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 
 func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBatch bool, tx *sdkTx.Transaction) {
 	t.Helper()
-
+	time.Sleep(100 * time.Millisecond)
 	rawTx, err := tx.EFHex()
 	require.NoError(t, err)
 

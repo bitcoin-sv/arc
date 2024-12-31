@@ -240,7 +240,7 @@ func (g *Group[T]) listenForMessages() {
 			}
 
 			g.logger.Log(context.Background(), slogLvlTrace, "Received message")
-			g.mh.OnReceive(msg)
+			g.mh.OnReceiveFromMcast(msg)
 		}
 	}()
 }
@@ -272,7 +272,7 @@ func (g *Group[T]) sendMessages() {
 
 				g.logger.Log(context.Background(), slogLvlTrace, "Sent message")
 				// let client react on sending msg
-				g.mh.OnSend(msg)
+				g.mh.OnSendToMcast(msg)
 			}
 		}
 	}()

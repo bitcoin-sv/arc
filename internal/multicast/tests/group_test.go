@@ -18,12 +18,12 @@ var (
 
 func TestGroupCommunication(t *testing.T) {
 	// given
-	lMsgHandler := &mocks.MessageHandlerIMock{OnReceiveFunc: func(_ wire.Message) {}}
+	lMsgHandler := &mocks.MessageHandlerIMock{OnReceiveFromMcastFunc: func(_ wire.Message) {}}
 	listener := multicast.NewGroup[*wire.MsgPing](slog.Default(), lMsgHandler, addr, multicast.Read, bcNet)
 	require.True(t, listener.Connect())
 	defer listener.Disconnect()
 
-	wMsgHandler := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message) {}}
+	wMsgHandler := &mocks.MessageHandlerIMock{OnSendToMcastFunc: func(_ wire.Message) {}}
 	writer := multicast.NewGroup[*wire.MsgPing](slog.Default(), wMsgHandler, addr, multicast.Write, bcNet)
 	require.True(t, writer.Connect())
 	defer writer.Disconnect()
@@ -35,11 +35,11 @@ func TestGroupCommunication(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// then
-	sentMsgs := wMsgHandler.OnSendCalls()
+	sentMsgs := wMsgHandler.OnSendToMcastCalls()
 	require.Len(t, sentMsgs, 1, "writer didn't send message")
 	require.Equal(t, msg, (sentMsgs[0].Msg).(*wire.MsgPing))
 
-	receivedMsgs := lMsgHandler.OnReceiveCalls()
+	receivedMsgs := lMsgHandler.OnReceiveFromMcastCalls()
 	require.Len(t, receivedMsgs, 1, "listener didn't receive message")
 	require.Equal(t, msg, (receivedMsgs[0].Msg).(*wire.MsgPing))
 }

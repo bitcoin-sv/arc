@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-
-	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
@@ -22,10 +22,10 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	var processedBy string
 	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy).Scan(&processedBy)
 	if err != nil {
-		var pqErr *pq.Error
+		var pqErr *pgconn.PgError
 
 		// Error 23505 is: "duplicate key violates unique constraint"
-		if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
 			if err != nil {
 				return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)

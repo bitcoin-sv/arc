@@ -3,13 +3,15 @@ package blocktx_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"testing"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
@@ -78,84 +80,6 @@ func TestClient_ClearBlocks(t *testing.T) {
 			client := blocktx.NewClient(apiClient)
 
 			res, err := client.ClearBlocks(context.Background(), 1)
-			if tc.expectedErrorStr != "" {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			}
-
-			require.NoError(t, err)
-			require.Equal(t, int64(5), res)
-		})
-	}
-}
-
-func TestClient_ClearTransactions(t *testing.T) {
-	tt := []struct {
-		name     string
-		clearErr error
-
-		expectedErrorStr string
-	}{
-		{
-			name: "success",
-		},
-		{
-			name:     "err",
-			clearErr: errors.New("failed to clear data"),
-
-			expectedErrorStr: "failed to clear data",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearTransactionsFunc: func(_ context.Context, _ *blocktx_api.ClearData, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
-				},
-			}
-			client := blocktx.NewClient(apiClient)
-
-			res, err := client.ClearTransactions(context.Background(), 1)
-			if tc.expectedErrorStr != "" {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			}
-
-			require.NoError(t, err)
-			require.Equal(t, int64(5), res)
-		})
-	}
-}
-
-func TestClient_ClearBlockTransactionsMap(t *testing.T) {
-	tt := []struct {
-		name     string
-		clearErr error
-
-		expectedErrorStr string
-	}{
-		{
-			name: "success",
-		},
-		{
-			name:     "err",
-			clearErr: errors.New("failed to clear data"),
-
-			expectedErrorStr: "failed to clear data",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.BlockTxAPIClientMock{
-				ClearBlockTransactionsMapFunc: func(_ context.Context, _ *blocktx_api.ClearData, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-					return &blocktx_api.RowsAffectedResponse{Rows: 5}, tc.clearErr
-				},
-			}
-			client := blocktx.NewClient(apiClient)
-
-			res, err := client.ClearBlockTransactionsMap(context.Background(), 1)
 			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

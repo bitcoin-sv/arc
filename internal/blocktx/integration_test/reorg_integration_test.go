@@ -29,66 +29,21 @@ package integrationtest
 // 		15. Verification of reorg - checking if statuses are correctly switched (for blocks and for transactions)
 
 import (
-	"database/sql"
-	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
+	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
-
-const migrationsPath = "file://../store/postgresql/migrations"
-
-var (
-	dbInfo string
-	dbConn *sql.DB
-)
-
-func TestMain(m *testing.M) {
-	os.Exit(testmain(m))
-}
-
-func testmain(m *testing.M) int {
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
-		return 1
-	}
-
-	port := "5437"
-	resource, connStr, err := testutils.RunAndMigratePostgresql(pool, port, "blocktx", migrationsPath)
-	if err != nil {
-		log.Print(err)
-		return 1
-	}
-	defer func() {
-		err = pool.Purge(resource)
-		if err != nil {
-			log.Fatalf("failed to purge pool: %v", err)
-		}
-	}()
-
-	dbInfo = connStr
-
-	dbConn, err = sql.Open("postgres", dbInfo)
-	if err != nil {
-		log.Fatalf("failed to create db connection: %v", err)
-		return 1
-	}
-
-	return m.Run()
-}
 
 func TestReorg(t *testing.T) {
 	// TODO: remove the skip when gaps are filling quickly again
@@ -101,11 +56,11 @@ func TestReorg(t *testing.T) {
 	t.Run("block on empty database", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 
-		processor, p2pMsgHandler, store, _ := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, _ := setupSut(t, dbInfo)
 
 		const blockHash822011 = "bf9be09b345cc2d904b59951cc8a2ed452d8d143e2e25cde64058270fb3a667a"
 
-		//blockHash := testutils.RevChainhash(t, blockHash822011)
+		// blockHash := testutils.RevChainhash(t, blockHash822011)
 		prevBlockHash := testutils.RevChainhash(t, "00000000000000000a00c377b260a3219b0c314763f486bc363df7aa7e22ad72")
 		txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
 		require.NoError(t, err)
@@ -114,7 +69,7 @@ func TestReorg(t *testing.T) {
 
 		// should become LONGEST
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevBlockHash, // NON-existent in the db
@@ -139,7 +94,7 @@ func TestReorg(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_block")
 
-		processor, p2pMsgHandler, store, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
@@ -158,7 +113,7 @@ func TestReorg(t *testing.T) {
 
 		// should become STALE
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevBlockHash, // block with status LONGEST at height 822014
@@ -189,7 +144,7 @@ func TestReorg(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg")
 
-		processor, p2pMsgHandler, store, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822015Fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
@@ -217,7 +172,7 @@ func TestReorg(t *testing.T) {
 		// should become LONGEST
 		// reorg should happen
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status STALE at height 822015
@@ -284,7 +239,7 @@ func TestReorg(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
 
-		processor, p2pMsgHandler, store, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822017Longest = "00000000000000000643d48201cf609b8cc50befe804194f19a7ec61cf046239"
@@ -297,14 +252,14 @@ func TestReorg(t *testing.T) {
 			blockHash822023Orphan  = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
 		)
 
-		//blockHash := testutils.RevChainhash(t, blockHash822021)
+		// blockHash := testutils.RevChainhash(t, blockHash822021)
 		txHash := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
 		merkleRoot := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 
 		// should become STALE
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain
@@ -346,7 +301,7 @@ func TestReorg(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg_orphans")
 
-		processor, p2pMsgHandler, store, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
@@ -370,7 +325,7 @@ func TestReorg(t *testing.T) {
 			txhash822017          = "ece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6"
 		)
 
-		//blockHash := testutils.RevChainhash(t, blockHash822021)
+		// blockHash := testutils.RevChainhash(t, blockHash822021)
 		prevhash := testutils.RevChainhash(t, blockHash822020Orphan)
 		txHash := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
 		merkleRoot := testutils.RevChainhash(t, "3e15f823a7de25c26ce9001d4814a6f0ebc915a1ca4f1ba9cfac720bd941c39c")
@@ -378,7 +333,7 @@ func TestReorg(t *testing.T) {
 		// should become LONGEST
 		// reorg should happen
 		blockMessage := &p2p.BlockMessage{
-			//Hash: blockHash,
+			// Hash: blockHash,
 			Header: &wire.BlockHeader{
 				Version:    541065216,
 				PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain

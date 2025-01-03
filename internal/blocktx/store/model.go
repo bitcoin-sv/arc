@@ -1,8 +1,9 @@
 package store
 
 import (
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
 type BlockGap struct {
@@ -10,17 +11,22 @@ type BlockGap struct {
 	Hash   *chainhash.Hash
 }
 
-type TxWithMerklePath struct {
-	Hash       []byte
+type TxHashWithMerkleTreeIndex struct {
+	Hash            []byte
+	MerkleTreeIndex int64
+}
+
+type BlockTransactionWithMerklePath struct {
+	BlockTransaction
 	MerklePath string
 }
 
-type TransactionBlock struct {
-	TxHash      []byte
-	BlockHash   []byte
-	BlockHeight uint64
-	MerklePath  string
-	BlockStatus blocktx_api.Status
+type BlockTransaction struct {
+	TxHash          []byte
+	BlockHash       []byte
+	BlockHeight     uint64
+	MerkleTreeIndex int64
+	BlockStatus     blocktx_api.Status
 }
 
 type BlockStatusUpdate struct {

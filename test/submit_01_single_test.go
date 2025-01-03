@@ -14,6 +14,7 @@ import (
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
@@ -143,8 +144,8 @@ func TestSubmitSingle(t *testing.T) {
 }
 
 func TestSubmitMined(t *testing.T) {
-	t.Run("submit mined tx", func(t *testing.T) {
-		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
+	t.Run("submit mined tx + calculate merkle path", func(t *testing.T) {
+		// Submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
 
 		// given
 		address, _ := node_client.FundNewWallet(t, bitcoind)
@@ -153,6 +154,29 @@ func TestSubmitMined(t *testing.T) {
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
+
+		blockData := node_client.GetBlockDataByBlockHash(t, bitcoind, rawTx.BlockHash)
+		blockTxHashes := make([]*chainhash.Hash, len(blockData.Txs))
+		var txIndex uint64
+
+		for i, blockTx := range blockData.Txs {
+			h, err := chainhash.NewHashFromStr(blockTx)
+			require.NoError(t, err)
+
+			blockTxHashes[i] = h
+
+			if blockTx == rawTx.Hash {
+				txIndex = uint64(i)
+			}
+		}
+
+		merkleTree := bc.BuildMerkleTreeStoreChainHash(blockTxHashes)
+		require.Equal(t, merkleTree[len(merkleTree)-1].String(), blockData.MerkleRoot)
+
+		merklePath, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
+		require.NoError(t, err)
+		merklePathStr, err := merklePath.String()
+		require.NoError(t, err)
 
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
@@ -175,6 +199,7 @@ func TestSubmitMined(t *testing.T) {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
+			require.Equal(t, merklePathStr, *status.MerklePath)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-callbackTimeout:

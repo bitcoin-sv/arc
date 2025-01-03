@@ -3,24 +3,25 @@ package postgresql
 import (
 	"context"
 
+	"github.com/lib/pq"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/lib/pq"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.TransactionBlock, err error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
 	if onlyLongestChain {
-		predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"
+		predicate := "WHERE bt.hash = ANY($1) AND b.is_longest = true"
 		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
 	}
 
-	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
+	predicate := "WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
 
 	return p.getTransactionBlocksByPredicate(ctx, predicate,
 		pq.Array(hashes),
@@ -29,30 +30,18 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 	)
 }
 
-func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) (registeredTxs []store.TransactionBlock, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	predicate := "WHERE b.hash = ANY($1) AND t.is_registered = TRUE"
-
-	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(blockHashes))
-}
-
-func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.TransactionBlock, error) {
-	transactionBlocks := make([]store.TransactionBlock, 0)
+func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
+	transactionBlocks := make([]store.BlockTransaction, 0)
 
 	q := `
 		SELECT
-			t.hash,
+			bt.hash,
 			b.hash,
 			b.height,
-			m.merkle_path,
+			bt.merkle_tree_index,
 			b.status
-		FROM blocktx.transactions AS t
-			JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
-			JOIN blocktx.blocks AS b ON m.blockid = b.id
+		FROM blocktx.block_transactions AS bt
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
 	`
 	q += " " + predicate
 
@@ -66,26 +55,83 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 		var txHash []byte
 		var blockHash []byte
 		var blockHeight uint64
-		var merklePath string
+		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
 
 		err = rows.Scan(
 			&txHash,
 			&blockHash,
 			&blockHeight,
-			&merklePath,
+			&merkleTreeIndex,
 			&blockStatus,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		transactionBlocks = append(transactionBlocks, store.TransactionBlock{
-			TxHash:      txHash,
-			BlockHash:   blockHash,
-			BlockHeight: blockHeight,
-			MerklePath:  merklePath,
-			BlockStatus: blockStatus,
+		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
+			TxHash:          txHash,
+			BlockHash:       blockHash,
+			BlockHeight:     blockHeight,
+			MerkleTreeIndex: merkleTreeIndex,
+			BlockStatus:     blockStatus,
+		})
+	}
+
+	return transactionBlocks, nil
+}
+
+func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) (registeredTxs []store.BlockTransaction, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetRegisteredTxsByBlockHashes", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	transactionBlocks := make([]store.BlockTransaction, 0)
+
+	q := `
+		SELECT
+			bt.hash,
+			b.hash,
+			b.height,
+			bt.merkle_tree_index,
+			b.status
+		FROM blocktx.registered_transactions AS r
+			JOIN blocktx.block_transactions AS bt ON r.hash = bt.hash
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+		WHERE b.hash = ANY($1)
+	`
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(blockHashes))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txHash []byte
+		var blockHash []byte
+		var blockHeight uint64
+		var merkleTreeIndex int64
+		var blockStatus blocktx_api.Status
+
+		err = rows.Scan(
+			&txHash,
+			&blockHash,
+			&blockHeight,
+			&merkleTreeIndex,
+			&blockStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
+			TxHash:          txHash,
+			BlockHash:       blockHash,
+			BlockHeight:     blockHeight,
+			MerkleTreeIndex: merkleTreeIndex,
+			BlockStatus:     blockStatus,
 		})
 	}
 

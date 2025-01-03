@@ -80,6 +80,10 @@ func TestStartFillGaps(t *testing.T) {
 
 					return tc.blockGaps, nil
 				},
+
+				GetBlocksWithMissingMerkleTreeIndexFunc: func(_ context.Context) ([]*store.Block, error) {
+					return nil, nil
+				},
 			}
 
 			peerMock := &mocks.PeerMock{

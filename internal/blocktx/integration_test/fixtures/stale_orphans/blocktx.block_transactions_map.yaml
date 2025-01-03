@@ -1,8 +1,8 @@
-- blockid: 1002
-  txid: 1000003
-  merkle_path: merkle-path-3
+- block_id: 1002
+  merkle_tree_index: 3
   inserted_at: 2023-12-10 14:00:00
-- blockid: 1005
-  txid: 1000005
-  merkle_path: merkle-path-5
+  hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+- block_id: 1005
+  merkle_tree_index: 5
   inserted_at: 2023-12-10 14:00:00
+  hash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6

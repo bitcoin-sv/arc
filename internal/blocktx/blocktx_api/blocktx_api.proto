@@ -11,14 +11,11 @@ service BlockTxAPI {
   // Health returns the health of the API.
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
 
-  // ClearTransactions clears transaction data
-  rpc ClearTransactions(ClearData) returns (RowsAffectedResponse) {}
-
   // ClearBlocks clears block data
   rpc ClearBlocks(ClearData) returns (RowsAffectedResponse) {}
 
-  // ClearBlockTransactionsMap clears block-transaction-map data
-  rpc ClearBlockTransactionsMap(ClearData) returns (RowsAffectedResponse) {}
+  // ClearRegisteredTransactions clears registered transactions
+  rpc ClearRegisteredTransactions(ClearData) returns (RowsAffectedResponse) {}
 
   // DelUnfinishedBlockProcessing deletes unfinished block processing
   rpc DelUnfinishedBlockProcessing(DelUnfinishedBlockProcessingRequest) returns (RowsAffectedResponse) {}

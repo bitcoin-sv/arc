@@ -1,0 +1,16 @@
+- block_id: 1002
+  hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+  merkle_tree_index: 3
+  inserted_at: 2023-12-10 14:00:00
+- block_id: 1999 # the same tx also in stale block
+  hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+  merkle_tree_index: 999
+  inserted_at: 2023-12-10 14:00:00
+- block_id: 1999 # the same tx also in stale block
+  hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
+  merkle_tree_index: 999
+  inserted_at: 2023-12-10 14:00:00
+- block_id: 1004
+  hash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6
+  merkle_tree_index: 5
+  inserted_at: 2023-12-10 14:00:00

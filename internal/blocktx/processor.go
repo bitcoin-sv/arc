@@ -16,7 +16,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -24,15 +23,17 @@ import (
 )
 
 var (
-	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
-	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
-	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
-	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
-	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
-	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
-	ErrFailedToProcessBlock            = errors.New("failed to process block")
-	ErrFailedToStartCollectingStats    = errors.New("failed to start collecting stats")
+	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
+	ErrFailedToGetStringFromBump           = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToGetBump                     = errors.New("failed to get bump for tx hash")
+	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
+	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
+	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")
+	ErrBlockAlreadyExists                  = errors.New("block already exists in the database")
+	ErrUnexpectedBlockStatus               = errors.New("unexpected block status")
+	ErrFailedToProcessBlock                = errors.New("failed to process block")
+	ErrFailedToStartCollectingStats        = errors.New("failed to start collecting stats")
+	ErrFailedToCalculateMissingMerklePaths = errors.New("failed to calculate missing merkle paths")
 )
 
 const (
@@ -349,7 +350,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 func (p *Processor) StartProcessRequestTxs() {
 	p.waitGroup.Add(1)
 
-	txHashes := make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+	txHashes := make([][]byte, 0, p.registerRequestTxsBatchSize)
 
 	ticker := time.NewTicker(p.registerRequestTxsInterval)
 
@@ -361,13 +362,13 @@ func (p *Processor) StartProcessRequestTxs() {
 			case <-p.ctx.Done():
 				return
 			case txHash := <-p.requestTxChannel:
-				tx, err := chainhash.NewHash(txHash)
+				_, err := chainhash.NewHash(txHash)
 				if err != nil {
 					p.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
 					continue
 				}
 
-				txHashes = append(txHashes, tx)
+				txHashes = append(txHashes, txHash)
 
 				if len(txHashes) < p.registerRequestTxsBatchSize || len(txHashes) == 0 {
 					continue
@@ -379,7 +380,7 @@ func (p *Processor) StartProcessRequestTxs() {
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+				txHashes = make([][]byte, 0, p.registerRequestTxsBatchSize)
 				ticker.Reset(p.registerRequestTxsInterval)
 
 			case <-ticker.C:
@@ -394,25 +395,29 @@ func (p *Processor) StartProcessRequestTxs() {
 					continue // retry, don't clear the txHashes slice
 				}
 
-				txHashes = make([]*chainhash.Hash, 0, p.registerRequestTxsBatchSize)
+				txHashes = make([][]byte, 0, p.registerRequestTxsBatchSize)
 				ticker.Reset(p.registerRequestTxsInterval)
 			}
 		}
 	}()
 }
 
-func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
-	hashesBytes := make([][]byte, len(txHashes))
-	for i, h := range txHashes {
-		hashesBytes[i] = h[:]
-	}
-
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, hashesBytes, false)
+func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes, false)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
 
-	for _, minedTx := range minedTxs {
+	if len(minedTxs) == 0 {
+		return nil
+	}
+
+	minedTxsIncludingMP, err := p.calculateMerklePaths(p.ctx, minedTxs)
+	if err != nil {
+		return errors.Join(ErrFailedToCalculateMissingMerklePaths, err)
+	}
+
+	for _, minedTx := range minedTxsIncludingMP {
 		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: minedTx.TxHash,
 			BlockHash:       minedTx.BlockHash,
@@ -431,24 +436,19 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 }
 
 func (p *Processor) registerTransactions(txHashes [][]byte) {
-	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
+	if len(txHashes) == 0 {
+		return
+	}
+
+	err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
 
-	if len(updatedTxs) > 0 {
-		err = p.publishMinedTxs(updatedTxs)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-		}
+	err = p.publishMinedTxs(txHashes)
+	if err != nil {
+		p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 	}
-}
-
-func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
-	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
-	defer tracing.EndTracing(span, nil)
-
-	return bc.BuildMerkleTreeStoreChainHash(txids)
 }
 
 func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
@@ -487,7 +487,7 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 		return err
 	}
 
-	var longestTxs, staleTxs []store.TransactionBlock
+	var longestTxs, staleTxs []store.BlockTransaction
 	var ok bool
 
 	switch block.Status {
@@ -506,8 +506,14 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
-	p.publishTxsToMetamorph(ctx, longestTxs)
-	p.publishTxsToMetamorph(ctx, staleTxs)
+	allTxs := append(longestTxs, staleTxs...)
+
+	txsToPublish, err := p.calculateMerklePaths(ctx, allTxs)
+	if err != nil {
+		return ErrFailedToCalculateMissingMerklePaths
+	}
+
+	p.publishTxsToMetamorph(ctx, txsToPublish)
 
 	return nil
 }
@@ -625,7 +631,7 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, ok bool) {
+func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "getRegisteredTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -653,7 +659,9 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		tracing.EndTracing(span, err)
 	}()
 
-	calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
+	_, buildMerkleSpan := tracing.StartTracing(ctx, "BuildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
+	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
+	tracing.EndTracing(buildMerkleSpan, nil)
 	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
 		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
 		return err
@@ -665,7 +673,7 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		return err
 	}
 
-	if err = p.storeTransactions(ctx, blockID, incomingBlock, calculatedMerkleTree); err != nil {
+	if err = p.storeTransactions(ctx, blockID, incomingBlock, txHashes); err != nil {
 		p.logger.Error("unable to store transactions from block", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.String("err", err.Error()))
 		return err
 	}
@@ -673,59 +681,56 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 	return nil
 }
 
-func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, merkleTree []*chainhash.Hash) (err error) {
+func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, txHashes []*chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "storeTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
-	leaves := merkleTree[:(len(merkleTree)+1)/2]
+	txs, err := p.iterateTransactions(ctx, blockID, block, txHashes)
+	if err != nil {
+		return err
+	}
+
+	// update all remaining transactions
+	err = p.store.InsertBlockTransactions(ctx, blockID, txs)
+	if err != nil {
+		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
+	}
+
+	return nil
+}
+
+func (p *Processor) iterateTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, txHashes []*chainhash.Hash) (txs []store.TxHashWithMerkleTreeIndex, err error) {
+	ctx, span := tracing.StartTracing(ctx, "iterateTransactions", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	txs = make([]store.TxHashWithMerkleTreeIndex, 0, p.transactionStorageBatchSize)
 
 	blockhash, err := chainhash.NewHash(block.Hash)
 	if err != nil {
-		return errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
+		return nil, errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
 	}
 
-	var totalSize int
-	for totalSize = 1; totalSize < len(leaves); totalSize++ {
-		if leaves[totalSize] == nil {
-			// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
-			break
-		}
-	}
+	totalSize := len(txHashes)
 
 	progress := progressIndices(totalSize, 5)
 	now := time.Now()
 
-	var iterateMerkleTree trace.Span
-	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
-
-	for txIndex, hash := range leaves {
-		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
-		if hash == nil {
-			break
+	for txIndex, hash := range txHashes {
+		tx := store.TxHashWithMerkleTreeIndex{
+			Hash:            hash[:],
+			MerkleTreeIndex: int64(txIndex),
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
-		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
-		}
-
-		bumpHex, err := bump.String()
-		if err != nil {
-			return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
-		}
-
-		txs = append(txs, store.TxWithMerklePath{
-			Hash:       hash[:],
-			MerklePath: bumpHex,
-		})
+		txs = append(txs, tx)
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
+			err := p.store.InsertBlockTransactions(ctx, blockID, txs)
 			if err != nil {
-				return errors.Join(ErrFailedToInsertBlockTransactions, err)
+				return nil, errors.Join(ErrFailedToInsertBlockTransactions, err)
 			}
 			// free up memory
 			txs = txs[:0]
@@ -738,18 +743,10 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		}
 	}
 
-	tracing.EndTracing(iterateMerkleTree, nil)
-
-	// update all remaining transactions
-	err = p.store.UpsertBlockTransactions(ctx, blockID, txs)
-	if err != nil {
-		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
-	}
-
-	return nil
+	return txs, nil
 }
 
-func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleStaleBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -790,7 +787,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	return nil, nil, true
 }
 
-func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, err error) {
+func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "performReorg", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -843,7 +840,7 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	return longestTxs, staleTxs, nil
 }
 
-func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleOrphans", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -940,7 +937,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	return true
 }
 
-func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.TransactionBlock) {
+func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.BlockTransactionWithMerklePath) {
 	var publishErr error
 	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -962,6 +959,62 @@ func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.Trans
 			publishErr = err
 		}
 	}
+}
+
+func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockTransaction) (updatedTxs []store.BlockTransactionWithMerklePath, err error) {
+	ctx, span := tracing.StartTracing(ctx, "calculateMerklePaths", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	// gather all transactions with missing merkle paths for each block in a map
+	// to avoid getting all transaction from the same block multiple times
+	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath, 0)
+
+	for _, tx := range txs {
+		blockTxsMap[string(tx.BlockHash)] = append(blockTxsMap[string(tx.BlockHash)], store.BlockTransactionWithMerklePath{
+			BlockTransaction: store.BlockTransaction{
+				TxHash:          tx.TxHash,
+				BlockHash:       tx.BlockHash,
+				BlockHeight:     tx.BlockHeight,
+				MerkleTreeIndex: tx.MerkleTreeIndex,
+				BlockStatus:     tx.BlockStatus,
+			},
+		})
+	}
+
+	for _, blockTxs := range blockTxsMap {
+		blockHash := blockTxs[0].BlockHash
+
+		txHashes, err := p.store.GetBlockTransactionsHashes(ctx, blockHash)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetBlockTransactions, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
+		}
+
+		merkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
+
+		for _, tx := range blockTxs {
+			if tx.MerkleTreeIndex == -1 {
+				p.logger.Warn("missing merkle tree index for transaction", slog.String("hash", getHashStringNoErr(tx.TxHash)))
+				continue
+			}
+
+			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, uint64(tx.MerkleTreeIndex)) // #nosec G115
+			if err != nil {
+				return nil, errors.Join(ErrFailedToGetBump, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
+			}
+
+			bumpHex, err := bump.String()
+			if err != nil {
+				return nil, errors.Join(ErrFailedToGetStringFromBump, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
+			}
+
+			tx.MerklePath = bumpHex
+			updatedTxs = append(updatedTxs, tx)
+		}
+	}
+
+	return updatedTxs, nil
 }
 
 func (p *Processor) Shutdown() {

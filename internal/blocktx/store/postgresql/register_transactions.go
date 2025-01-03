@@ -3,45 +3,24 @@ package postgresql
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"time"
 
 	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
-func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte) ([]*chainhash.Hash, error) {
+func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte) error {
 	const q = `
-		INSERT INTO blocktx.transactions (hash, is_registered)
-			SELECT hash, TRUE
+		INSERT INTO blocktx.registered_transactions (hash)
+			SELECT hash
 			FROM UNNEST ($1::BYTEA[]) as hash
-		ON CONFLICT (hash) DO UPDATE
-			SET is_registered = TRUE
-		RETURNING hash, inserted_at
+		ON CONFLICT (hash) DO NOTHING
 	`
 
-	now := p.now()
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(txHashes))
+	_, err := p.db.ExecContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
-		return nil, errors.Join(store.ErrFailedToInsertTransactions, err)
-	}
-	defer rows.Close()
-
-	updatedTxs := make([]*chainhash.Hash, 0)
-	for rows.Next() {
-		var hash []byte
-		var insertedAt time.Time
-
-		err = rows.Scan(&hash, &insertedAt)
-		if err != nil {
-			return nil, errors.Join(store.ErrFailedToGetRows, err)
-		}
-
-		if insertedAt.Before(now) {
-			ch, _ := chainhash.NewHash(hash)
-			updatedTxs = append(updatedTxs, ch)
-		}
+		return errors.Join(store.ErrFailedToInsertTransactions, err)
 	}
 
-	return updatedTxs, nil
+	return nil
 }

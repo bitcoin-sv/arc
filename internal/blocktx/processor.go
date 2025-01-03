@@ -499,10 +499,14 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
+	p.logger.Info("calculating merkle paths")
+
 	txsToPublish, err := p.calculateMerklePaths(ctx, append(longestTxs, staleTxs...))
 	if err != nil {
 		return ErrFailedToCalculateMissingMerklePaths
 	}
+
+	p.logger.Info("publishing mined txs")
 
 	p.publishTxsToMetamorph(ctx, txsToPublish)
 

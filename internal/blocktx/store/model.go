@@ -11,7 +11,7 @@ type BlockGap struct {
 	Hash   *chainhash.Hash
 }
 
-type TxHashWithMerkleTreeIndex struct { // Todo: Rename TxWithMerkleTreeIndex
+type TxHashWithMerkleTreeIndex struct {
 	Hash            []byte
 	MerkleTreeIndex int64
 }

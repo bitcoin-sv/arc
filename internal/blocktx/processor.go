@@ -693,11 +693,6 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	ctx, iterateMerkleTree = tracing.StartTracing(ctx, "iterateMerkleTree", p.tracingEnabled, p.tracingAttributes...)
 
 	for txIndex, hash := range txHashes {
-		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
-		if hash == nil {
-			break
-		}
-
 		tx := store.TxHashWithMerkleTreeIndex{
 			Hash:            hash[:],
 			MerkleTreeIndex: int64(txIndex), // #nosec G115

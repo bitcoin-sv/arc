@@ -15,7 +15,7 @@ import (
 )
 
 // InsertBlockTransactions inserts the transaction hashes for a given block hash
-func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) (err error) {
+func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpsertBlockTransactions", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsWithMerklePaths)))...)
 	defer func() {
 		tracing.EndTracing(span, err)

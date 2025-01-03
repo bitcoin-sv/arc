@@ -11,18 +11,14 @@ type BlockGap struct {
 	Hash   *chainhash.Hash
 }
 
-type TxWithMerklePath struct { // Todo: Rename TxWithMerkleTreeIndex
+type TxHashWithMerkleTreeIndex struct { // Todo: Rename TxWithMerkleTreeIndex
 	Hash            []byte
 	MerkleTreeIndex int64
 }
 
-type TransactionBlock struct { //Todo: Embed BlockTransaction & rename
-	TxHash          []byte
-	BlockHash       []byte
-	BlockHeight     uint64
-	MerklePath      string
-	MerkleTreeIndex int64
-	BlockStatus     blocktx_api.Status
+type BlockTransactionWithMerklePath struct {
+	BlockTransaction
+	MerklePath string
 }
 
 type BlockTransaction struct {

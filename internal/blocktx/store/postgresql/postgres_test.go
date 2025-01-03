@@ -671,13 +671,13 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 
 	tcs := []struct {
 		name               string
-		txsWithMerklePaths []store.TxWithMerklePath
+		txsWithMerklePaths []store.TxHashWithMerkleTreeIndex
 
 		upsertRepeat bool
 	}{
 		{
 			name: "insert 6 existing",
-			txsWithMerklePaths: []store.TxWithMerklePath{
+			txsWithMerklePaths: []store.TxHashWithMerkleTreeIndex{
 				{
 					Hash:            testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
 					MerkleTreeIndex: int64(1),
@@ -706,7 +706,7 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 		},
 		{
 			name: "insert 6 new",
-			txsWithMerklePaths: []store.TxWithMerklePath{
+			txsWithMerklePaths: []store.TxHashWithMerkleTreeIndex{
 				{
 					Hash:            testutils.RevChainhash(t, "6b86e32c1896ff25fb2d857b96484b86c44444f3796bafb456c51a67a19a3c93")[:],
 					MerkleTreeIndex: int64(1),
@@ -832,7 +832,7 @@ func BenchmarkUpsertBlockTransactions(b *testing.B) {
 			b.StopTimer()
 
 			testBlockID := uint64(9736)
-			txsWithMerklePaths := make([]store.TxWithMerklePath, totalRows)
+			txsWithMerklePaths := make([]store.TxHashWithMerkleTreeIndex, totalRows)
 
 			counter := 0
 			for range totalRows {
@@ -842,7 +842,7 @@ func BenchmarkUpsertBlockTransactions(b *testing.B) {
 				require.NoError(b, err)
 				hex.EncodeToString(merklePath)
 
-				txsWithMerklePaths[counter] = store.TxWithMerklePath{
+				txsWithMerklePaths[counter] = store.TxHashWithMerkleTreeIndex{
 					Hash: hash,
 				}
 
@@ -876,13 +876,13 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 
 	txHash := testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")
 
-	txsWithMerklePaths := []store.TxWithMerklePath{
+	txsWithMerklePaths := []store.TxHashWithMerkleTreeIndex{
 		{
 			Hash: txHash[:],
 		},
 	}
 
-	competingTxsWithMerklePaths := []store.TxWithMerklePath{
+	competingTxsWithMerklePaths := []store.TxHashWithMerkleTreeIndex{
 		{
 			Hash: txHash[:],
 		},

@@ -677,8 +677,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		tracing.EndTracing(span, err)
 	}()
 
-	txs := make([]store.TxWithMerklePath, 0, p.transactionStorageBatchSize)
-	//leaves := merkleTree[:(len(merkleTree)+1)/2]
+	txs := make([]store.TxHashWithMerkleTreeIndex, 0, p.transactionStorageBatchSize)
 
 	blockhash, err := chainhash.NewHash(block.Hash)
 	if err != nil {
@@ -686,12 +685,6 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	}
 
 	totalSize := len(txHashes)
-	//for totalSize = 1; totalSize < len(leaves); totalSize++ {
-	//	if leaves[totalSize] == nil {
-	//		// Everything to the right of the first nil will also be nil, as this is just padding upto the next PoT.
-	//		break
-	//	}
-	//}
 
 	progress := progressIndices(totalSize, 5)
 	now := time.Now()
@@ -705,16 +698,8 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		//bump, _ := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
-
-		//bumpHex, err := bump.String()
-		//if err != nil {
-		//	return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
-		//}
-
-		tx := store.TxWithMerklePath{
-			Hash: hash[:],
-			//MerklePath:      bumpHex,
+		tx := store.TxHashWithMerkleTreeIndex{
+			Hash:            hash[:],
 			MerkleTreeIndex: int64(txIndex), // #nosec G115
 		}
 
@@ -938,7 +923,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	return true
 }
 
-func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.TransactionBlock) {
+func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.BlockTransactionWithMerklePath) {
 	var publishErr error
 	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -962,7 +947,7 @@ func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.Trans
 	}
 }
 
-func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockTransaction) (updatedTxs []store.TransactionBlock, err error) {
+func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockTransaction) (updatedTxs []store.BlockTransactionWithMerklePath, err error) {
 	ctx, span := tracing.StartTracing(ctx, "calculateMerklePaths", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -970,16 +955,17 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 
 	// gather all transactions with missing merkle paths for each block in a map
 	// to avoid getting all transaction from the same block multiple times
-	blockTxsMap := make(map[string][]store.TransactionBlock, 0)
+	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath, 0)
 
 	for _, tx := range txs {
-		blockTxsMap[string(tx.BlockHash)] = append(blockTxsMap[string(tx.BlockHash)], store.TransactionBlock{
-			TxHash:          tx.TxHash,
-			BlockHash:       tx.BlockHash,
-			BlockHeight:     tx.BlockHeight,
-			MerklePath:      "",
-			MerkleTreeIndex: tx.MerkleTreeIndex,
-			BlockStatus:     tx.BlockStatus,
+		blockTxsMap[string(tx.BlockHash)] = append(blockTxsMap[string(tx.BlockHash)], store.BlockTransactionWithMerklePath{
+			BlockTransaction: store.BlockTransaction{
+				TxHash:          tx.TxHash,
+				BlockHash:       tx.BlockHash,
+				BlockHeight:     tx.BlockHeight,
+				MerkleTreeIndex: tx.MerkleTreeIndex,
+				BlockStatus:     tx.BlockStatus,
+			},
 		})
 	}
 

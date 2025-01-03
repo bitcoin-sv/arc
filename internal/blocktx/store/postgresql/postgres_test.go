@@ -1024,7 +1024,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			prepareDb(t, sut, "fixtures/register_transactions")
 
 			// when
-			result, err := sut.RegisterTransactions(ctx, tc.txs)
+			err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 

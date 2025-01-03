@@ -27,6 +27,18 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		merkleTreeIndexes[pos] = tx.MerkleTreeIndex
 	}
 
+	//Todo:
+	// transactions table
+	//  id // maybe not needed
+	//  block_id
+	//  hash
+	//  merkle_path
+	//  merkle_tree_index
+	//  is_registered
+	//  inserted_at
+	//  primary key: id, block_id OR hash, block_id
+	// remove block transactions mapping
+
 	qBulkUpsert := `
 		INSERT INTO blocktx.transactions (hash)
 			SELECT UNNEST($1::BYTEA[])

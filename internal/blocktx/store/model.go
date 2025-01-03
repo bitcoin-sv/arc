@@ -26,6 +26,13 @@ type TransactionBlock struct {
 	BlockStatus     blocktx_api.Status
 }
 
+type BlockTransaction struct {
+	TxHash      []byte
+	BlockHash   []byte
+	BlockHeight uint64
+	BlockStatus blocktx_api.Status
+}
+
 type BlockStatusUpdate struct {
 	Hash   []byte
 	Status blocktx_api.Status

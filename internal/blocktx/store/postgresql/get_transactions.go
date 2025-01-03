@@ -3,13 +3,14 @@ package postgresql
 import (
 	"context"
 
+	"github.com/lib/pq"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/lib/pq"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.TransactionBlock, err error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -29,15 +30,102 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 	)
 }
 
-func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) (registeredTxs []store.TransactionBlock, err error) {
+func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
+	transactionBlocks := make([]store.BlockTransaction, 0)
+
+	q := `
+		SELECT
+			bt.hash,
+			b.hash,
+			b.height,
+			b.status
+		FROM blocktx.block_transactions AS bt
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+	`
+	q += " " + predicate
+
+	rows, err := p.db.QueryContext(ctx, q, predicateParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txHash []byte
+		var blockHash []byte
+		var blockHeight uint64
+		var blockStatus blocktx_api.Status
+
+		err = rows.Scan(
+			&txHash,
+			&blockHash,
+			&blockHeight,
+			&blockStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
+			TxHash:      txHash,
+			BlockHash:   blockHash,
+			BlockHeight: blockHeight,
+			BlockStatus: blockStatus,
+		})
+	}
+
+	return transactionBlocks, nil
+}
+func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) (registeredTxs []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	predicate := "WHERE b.hash = ANY($1) AND t.is_registered = TRUE"
+	transactionBlocks := make([]store.BlockTransaction, 0)
 
-	return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(blockHashes))
+	q := `
+		SELECT
+			bt.hash,
+			b.hash,
+			b.height,
+			b.status
+		FROM blocktx.block_transactions AS bt
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+	`
+	q += " " + predicate
+
+	rows, err := p.db.QueryContext(ctx, q, predicateParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txHash []byte
+		var blockHash []byte
+		var blockHeight uint64
+		var blockStatus blocktx_api.Status
+
+		err = rows.Scan(
+			&txHash,
+			&blockHash,
+			&blockHeight,
+			&blockStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
+			TxHash:      txHash,
+			BlockHash:   blockHash,
+			BlockHeight: blockHeight,
+			BlockStatus: blockStatus,
+		})
+	}
+
+	return transactionBlocks, nil
 }
 
 func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.TransactionBlock, error) {

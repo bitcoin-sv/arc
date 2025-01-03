@@ -437,17 +437,17 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 }
 
 func (p *Processor) registerTransactions(txHashes [][]byte) {
-	updatedTxs, err := p.store.RegisterTransactions(p.ctx, txHashes)
+	err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
-
-	if len(updatedTxs) > 0 {
-		err = p.publishMinedTxs(updatedTxs)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-		}
-	}
+	//
+	//if len(updatedTxs) > 0 {
+	//	err = p.publishMinedTxs(updatedTxs)
+	//	if err != nil {
+	//		p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+	//	}
+	//}
 }
 
 func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
@@ -493,7 +493,7 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 		return err
 	}
 
-	var longestTxs, staleTxs []store.TransactionBlock
+	var longestTxs, staleTxs []store.BlockTransaction
 	var ok bool
 
 	switch block.Status {
@@ -635,7 +635,7 @@ func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.TransactionBlock, ok bool) {
+func (p *Processor) getRegisteredTransactions(ctx context.Context, blocks []*blocktx_api.Block) (txsToPublish []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "getRegisteredTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -759,7 +759,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	return nil
 }
 
-func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleStaleBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -800,7 +800,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	return nil, nil, true
 }
 
-func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, err error) {
+func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "performReorg", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -853,7 +853,7 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	return longestTxs, staleTxs, nil
 }
 
-func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.TransactionBlock, ok bool) {
+func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "handleOrphans", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -950,7 +950,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	return true
 }
 
-func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.TransactionBlock) {
+func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.BlockTransaction) {
 	var publishErr error
 	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

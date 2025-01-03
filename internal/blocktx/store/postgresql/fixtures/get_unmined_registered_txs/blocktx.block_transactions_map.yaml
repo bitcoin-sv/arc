@@ -1,0 +1,8 @@
+- blockid: 1
+  txid: 1
+  merkle_path: merkle-path-1
+  inserted_at: 2023-12-10 14:00:00
+- blockid: 1
+  txid: 2
+  merkle_path: merkle-path-2
+  inserted_at: 2023-12-10 14:00:00

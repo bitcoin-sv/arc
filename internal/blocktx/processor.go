@@ -24,15 +24,16 @@ import (
 )
 
 var (
-	ErrFailedToSubscribeToTopic        = errors.New("failed to subscribe to register topic")
-	ErrFailedToCreateBUMP              = errors.New("failed to create new bump for tx hash from merkle tree and index")
-	ErrFailedToGetStringFromBUMPHex    = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToParseBlockHash          = errors.New("failed to parse block hash")
-	ErrFailedToInsertBlockTransactions = errors.New("failed to insert block transactions")
-	ErrBlockAlreadyExists              = errors.New("block already exists in the database")
-	ErrUnexpectedBlockStatus           = errors.New("unexpected block status")
-	ErrFailedToProcessBlock            = errors.New("failed to process block")
-	ErrFailedToStartCollectingStats    = errors.New("failed to start collecting stats")
+	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
+	ErrFailedToGetStringFromBUMPHex        = errors.New("failed to get string from bump for tx hash")
+	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
+	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
+	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")
+	ErrBlockAlreadyExists                  = errors.New("block already exists in the database")
+	ErrUnexpectedBlockStatus               = errors.New("unexpected block status")
+	ErrFailedToProcessBlock                = errors.New("failed to process block")
+	ErrFailedToStartCollectingStats        = errors.New("failed to start collecting stats")
+	ErrFailedToCalculateMissingMerklePaths = errors.New("failed to calculate missing merkle paths")
 )
 
 const (
@@ -412,6 +413,11 @@ func (p *Processor) publishMinedTxs(txHashes []*chainhash.Hash) error {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}
 
+	minedTxs, err = p.calculateMissingMerklePaths(p.ctx, minedTxs)
+	if err != nil {
+		return errors.Join(ErrFailedToCalculateMissingMerklePaths, err)
+	}
+
 	for _, minedTx := range minedTxs {
 		txBlock := &blocktx_api.TransactionBlock{
 			TransactionHash: minedTx.TxHash,
@@ -506,8 +512,12 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
-	p.publishTxsToMetamorph(ctx, longestTxs)
-	p.publishTxsToMetamorph(ctx, staleTxs)
+	txsToPublish, err := p.calculateMissingMerklePaths(ctx, append(longestTxs, staleTxs...))
+	if err != nil {
+		return ErrFailedToCalculateMissingMerklePaths
+	}
+
+	p.publishTxsToMetamorph(ctx, txsToPublish)
 
 	return nil
 }
@@ -707,20 +717,20 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			break
 		}
 
-		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
-		if err != nil {
-			return errors.Join(ErrFailedToCreateBUMP, fmt.Errorf("tx hash %s, block height: %d", hash.String(), block.Height), err)
-		}
+		bump, _ := bc.NewBUMPFromMerkleTreeAndIndex(block.Height, merkleTree, uint64(txIndex)) // #nosec G115
 
 		bumpHex, err := bump.String()
 		if err != nil {
 			return errors.Join(ErrFailedToGetStringFromBUMPHex, err)
 		}
 
-		txs = append(txs, store.TxWithMerklePath{
-			Hash:       hash[:],
-			MerklePath: bumpHex,
-		})
+		tx := store.TxWithMerklePath{
+			Hash:            hash[:],
+			MerklePath:      bumpHex,
+			MerkleTreeIndex: int64(txIndex), // #nosec G115
+		}
+
+		txs = append(txs, tx)
 
 		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
 			err := p.store.UpsertBlockTransactions(ctx, blockID, txs)
@@ -962,6 +972,52 @@ func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.Trans
 			publishErr = err
 		}
 	}
+}
+
+func (p *Processor) calculateMissingMerklePaths(ctx context.Context, txs []store.TransactionBlock) (updatedTxs []store.TransactionBlock, err error) {
+	ctx, span := tracing.StartTracing(ctx, "calculateMissingMerklePaths", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	// gather all transactions with missing merkle paths for each block in a map
+	// to avoid getting all transaction from the same block multiple times
+	blockTxsMap := make(map[string][]store.TransactionBlock, 0)
+
+	for _, tx := range txs {
+		if tx.MerklePath == "" {
+			blockTxsMap[string(tx.BlockHash)] = append(blockTxsMap[string(tx.BlockHash)], tx)
+		} else {
+			updatedTxs = append(updatedTxs, tx)
+		}
+	}
+
+	for _, txs := range blockTxsMap {
+		blockHash := txs[0].BlockHash
+
+		txHashes, err := p.store.GetBlockTransactionsHashes(ctx, blockHash)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetBlockTransactions, fmt.Errorf("block hash %s", getHashStringNoErr(blockHash)), err)
+		}
+
+		merkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
+
+		for _, tx := range txs {
+			if tx.MerkleTreeIndex == -1 {
+				p.logger.Warn("missing merkle tree index for transaction", slog.String("hash", getHashStringNoErr(tx.TxHash)))
+				continue
+			}
+
+			bump, _ := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, uint64(tx.MerkleTreeIndex)) // #nosec G115
+
+			bumpHex, _ := bump.String() // this never returns an error
+
+			tx.MerklePath = bumpHex
+			updatedTxs = append(updatedTxs, tx)
+		}
+	}
+
+	return updatedTxs, nil
 }
 
 func (p *Processor) Shutdown() {

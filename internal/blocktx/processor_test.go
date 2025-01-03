@@ -176,6 +176,9 @@ func TestHandleBlock(t *testing.T) {
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 				MarkBlockAsDoneFunc:                    func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) { return nil, nil },
 			}
@@ -419,6 +422,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
 					return nil, nil
 				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
 				},
@@ -497,6 +503,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					return nil, registerErrTest
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
 			}
@@ -727,6 +736,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
 			}
 

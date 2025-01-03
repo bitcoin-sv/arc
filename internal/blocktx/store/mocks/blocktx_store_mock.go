@@ -1121,7 +1121,7 @@ func (mock *BlocktxStoreMock) UpsertBlockCalls() []struct {
 }
 
 // UpsertBlockTransactions calls UpsertBlockTransactionsFunc.
-func (mock *BlocktxStoreMock) UpsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
+func (mock *BlocktxStoreMock) InsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxWithMerklePath) error {
 	if mock.UpsertBlockTransactionsFunc == nil {
 		panic("BlocktxStoreMock.UpsertBlockTransactionsFunc: method is nil but BlocktxStore.UpsertBlockTransactions was just called")
 	}

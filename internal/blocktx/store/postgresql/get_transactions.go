@@ -17,11 +17,11 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 	}()
 
 	if onlyLongestChain {
-		predicate := "WHERE t.hash = ANY($1) AND b.is_longest = true"
+		predicate := "WHERE bt.hash = ANY($1) AND b.is_longest = true"
 		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
 	}
 
-	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
+	predicate := "WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
 
 	return p.getTransactionBlocksByPredicate(ctx, predicate,
 		pq.Array(hashes),
@@ -94,6 +94,7 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 			bt.hash,
 			b.hash,
 			b.height,
+			bt.merkle_tree_index,
 			b.status
 		FROM blocktx.registered_transactions AS r
 			JOIN blocktx.block_transactions AS bt ON r.hash = bt.hash
@@ -111,12 +112,14 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 		var txHash []byte
 		var blockHash []byte
 		var blockHeight uint64
+		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
 
 		err = rows.Scan(
 			&txHash,
 			&blockHash,
 			&blockHeight,
+			&merkleTreeIndex,
 			&blockStatus,
 		)
 		if err != nil {
@@ -124,10 +127,11 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 		}
 
 		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
-			TxHash:      txHash,
-			BlockHash:   blockHash,
-			BlockHeight: blockHeight,
-			BlockStatus: blockStatus,
+			TxHash:          txHash,
+			BlockHash:       blockHash,
+			BlockHeight:     blockHeight,
+			MerkleTreeIndex: merkleTreeIndex,
+			BlockStatus:     blockStatus,
 		})
 	}
 

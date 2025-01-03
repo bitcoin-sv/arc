@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func TestExlusiveRightTxs(t *testing.T) {
 	// given
-	leftTxs := []store.TransactionBlock{
+	leftTxs := []store.BlockTransaction{
 		{
 			TxHash: []byte("1"),
 		},
@@ -18,7 +19,7 @@ func TestExlusiveRightTxs(t *testing.T) {
 			TxHash: []byte("2"),
 		},
 	}
-	rightTxs := []store.TransactionBlock{
+	rightTxs := []store.BlockTransaction{
 		{
 			TxHash: []byte("A"),
 		},
@@ -30,7 +31,7 @@ func TestExlusiveRightTxs(t *testing.T) {
 		},
 	}
 
-	expectedStaleTxs := []store.TransactionBlock{
+	expectedStaleTxs := []store.BlockTransaction{
 		{
 			TxHash: []byte("A"),
 		},

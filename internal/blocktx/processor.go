@@ -441,21 +441,7 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
-	//
-	//if len(updatedTxs) > 0 {
-	//	err = p.publishMinedTxs(updatedTxs)
-	//	if err != nil {
-	//		p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-	//	}
-	//}
 }
-
-//func (p *Processor) buildMerkleTreeStoreChainHash(ctx context.Context, txids []*chainhash.Hash) []*chainhash.Hash {
-//	_, span := tracing.StartTracing(ctx, "buildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
-//	defer tracing.EndTracing(span, nil)
-//
-//	return bc.BuildMerkleTreeStoreChainHash(txids)
-//}
 
 func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 	ctx := p.ctx
@@ -663,11 +649,13 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		tracing.EndTracing(span, err)
 	}()
 
-	//calculatedMerkleTree := p.buildMerkleTreeStoreChainHash(ctx, txHashes)
-	//if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
-	//	p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
-	//	return err
-	//}
+	_, buildMerkleSpan := tracing.StartTracing(ctx, "BuildMerkleTreeStoreChainHash", p.tracingEnabled, p.tracingAttributes...)
+	calculatedMerkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
+	tracing.EndTracing(buildMerkleSpan, nil)
+	if !merkleRoot.IsEqual(calculatedMerkleTree[len(calculatedMerkleTree)-1]) {
+		p.logger.Error("merkle root mismatch", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)))
+		return err
+	}
 
 	blockID, err := p.store.UpsertBlock(ctx, incomingBlock)
 	if err != nil {

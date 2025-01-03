@@ -170,10 +170,10 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
-				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
@@ -416,10 +416,10 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				UpsertBlockTransactionsFunc: func(_ context.Context, _ uint64, _ []store.TxWithMerklePath) error {
 					return nil
 				},
-				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.TransactionBlock, error) {
+				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
@@ -499,8 +499,8 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			// given
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) ([]*chainhash.Hash, error) {
-					return nil, registerErrTest
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error {
+					return registerErrTest
 				},
 				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
 					return nil, nil
@@ -723,12 +723,12 @@ func TestStartProcessRequestTxs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte, _ bool) ([]store.TransactionBlock, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte, _ bool) ([]store.BlockTransaction, error) {
 					for _, hash := range hashes {
 						require.Equal(t, testdata.TX1Hash[:], hash)
 					}
 
-					return []store.TransactionBlock{{
+					return []store.BlockTransaction{{
 						TxHash:      testdata.TX1Hash[:],
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,

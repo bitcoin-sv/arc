@@ -51,13 +51,13 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetLongestChainFromHeightFunc: func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetLongestChainFromHeight method")
 //			},
-//			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+//			GetMinedTransactionsFunc: func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.BlockTransaction, error) {
 //				panic("mock out the GetMinedTransactions method")
 //			},
 //			GetOrphansBackToNonOrphanAncestorFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
 //				panic("mock out the GetOrphansBackToNonOrphanAncestor method")
 //			},
-//			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+//			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error) {
 //				panic("mock out the GetRegisteredTxsByBlockHashes method")
 //			},
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
@@ -72,7 +72,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
-//			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) ([]*chainhash.Hash, error) {
+//			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) error {
 //				panic("mock out the RegisterTransactions method")
 //			},
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
@@ -128,13 +128,13 @@ type BlocktxStoreMock struct {
 	GetLongestChainFromHeightFunc func(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 
 	// GetMinedTransactionsFunc mocks the GetMinedTransactions method.
-	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error)
+	GetMinedTransactionsFunc func(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.BlockTransaction, error)
 
 	// GetOrphansBackToNonOrphanAncestorFunc mocks the GetOrphansBackToNonOrphanAncestor method.
 	GetOrphansBackToNonOrphanAncestorFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error)
 
 	// GetRegisteredTxsByBlockHashesFunc mocks the GetRegisteredTxsByBlockHashes method.
-	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error)
+	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error)
 
 	// GetStaleChainBackFromHashFunc mocks the GetStaleChainBackFromHash method.
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
@@ -149,7 +149,7 @@ type BlocktxStoreMock struct {
 	PingFunc func(ctx context.Context) error
 
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
-	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) ([]*chainhash.Hash, error)
+	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) error
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
@@ -717,7 +717,7 @@ func (mock *BlocktxStoreMock) GetLongestChainFromHeightCalls() []struct {
 }
 
 // GetMinedTransactions calls GetMinedTransactionsFunc.
-func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.TransactionBlock, error) {
+func (mock *BlocktxStoreMock) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) ([]store.BlockTransaction, error) {
 	if mock.GetMinedTransactionsFunc == nil {
 		panic("BlocktxStoreMock.GetMinedTransactionsFunc: method is nil but BlocktxStore.GetMinedTransactions was just called")
 	}
@@ -793,7 +793,7 @@ func (mock *BlocktxStoreMock) GetOrphansBackToNonOrphanAncestorCalls() []struct 
 }
 
 // GetRegisteredTxsByBlockHashes calls GetRegisteredTxsByBlockHashesFunc.
-func (mock *BlocktxStoreMock) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.TransactionBlock, error) {
+func (mock *BlocktxStoreMock) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error) {
 	if mock.GetRegisteredTxsByBlockHashesFunc == nil {
 		panic("BlocktxStoreMock.GetRegisteredTxsByBlockHashesFunc: method is nil but BlocktxStore.GetRegisteredTxsByBlockHashes was just called")
 	}
@@ -973,7 +973,7 @@ func (mock *BlocktxStoreMock) PingCalls() []struct {
 }
 
 // RegisterTransactions calls RegisterTransactionsFunc.
-func (mock *BlocktxStoreMock) RegisterTransactions(ctx context.Context, txHashes [][]byte) ([]*chainhash.Hash, error) {
+func (mock *BlocktxStoreMock) RegisterTransactions(ctx context.Context, txHashes [][]byte) error {
 	if mock.RegisterTransactionsFunc == nil {
 		panic("BlocktxStoreMock.RegisterTransactionsFunc: method is nil but BlocktxStore.RegisterTransactions was just called")
 	}

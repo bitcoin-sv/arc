@@ -58,6 +58,14 @@ type BlockTransactionMap struct {
 	InsertedAt      time.Time `db:"inserted_at"`
 }
 
+type BlockTransaction struct {
+	ID              int64     `db:"id"`
+	BlockID         int64     `db:"block_id"`
+	MerkleTreeIndex int64     `db:"merkle_tree_index"`
+	Hash            string    `db:"hash"`
+	InsertedAt      time.Time `db:"inserted_at"`
+}
+
 const (
 	migrationsPath = "file://migrations"
 )
@@ -95,11 +103,10 @@ func testmain(m *testing.M) int {
 func prepareDb(t testing.TB, postgres *PostgreSQL, fixture string) {
 	t.Helper()
 
-	testutils.PruneTables(t, postgres.db,
-		"blocktx.blocks",
-		"blocktx.transactions",
-		"blocktx.block_transactions_map",
-	)
+	_, err := postgres.db.Exec("DELETE FROM blocktx.blocks WHERE hash IS NOT NULL")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if fixture != "" {
 		testutils.LoadFixtures(t, postgres.db, fixture)
@@ -564,23 +571,10 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Len(t, blocks, 1)
 
-		resp, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "block_transactions_map")
-		require.NoError(t, err)
-		require.Equal(t, int64(5), resp.Rows)
+		var bts []BlockTransaction
+		require.NoError(t, d.Select(&bts, "SELECT block_id FROM blocktx.block_transactions"))
 
-		var mps []BlockTransactionMap
-		require.NoError(t, d.Select(&mps, "SELECT blockid FROM blocktx.block_transactions_map"))
-
-		require.Len(t, mps, 5)
-
-		resp, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "transactions")
-		require.NoError(t, err)
-		require.Equal(t, int64(5), resp.Rows)
-
-		var txs []Transaction
-		require.NoError(t, d.Select(&txs, "SELECT hash FROM blocktx.transactions"))
-
-		require.Len(t, txs, 5)
+		require.Len(t, bts, 5)
 	})
 
 	t.Run("set/get/del block processing", func(t *testing.T) {
@@ -705,12 +699,10 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
 					Hash:            testutils.RevChainhash(t, "76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b")[:],
-					MerklePath:      "test1",
 					MerkleTreeIndex: int64(1),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0")[:],
-					MerklePath:      "test2",
 					MerkleTreeIndex: int64(2),
 				},
 			},
@@ -721,7 +713,6 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
 					Hash:            testutils.RevChainhash(t, "edd33fdcdfa68444d227780e2b62a4437c00120c5320d2026aeb24a781f4c3f1")[:],
-					MerklePath:      "",
 					MerkleTreeIndex: int64(1),
 				},
 			},
@@ -732,32 +723,26 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
 					Hash:            testutils.RevChainhash(t, "b4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743")[:],
-					MerklePath:      "test1",
 					MerkleTreeIndex: int64(1),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669")[:],
-					MerklePath:      "test2",
 					MerkleTreeIndex: int64(2),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
-					MerklePath:      "test3",
 					MerkleTreeIndex: int64(3),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
-					MerklePath:      "test4",
 					MerkleTreeIndex: int64(4),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313")[:],
-					MerklePath:      "test5",
 					MerkleTreeIndex: int64(5),
 				},
 				{
 					Hash:            testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-					MerklePath:      "test6",
 					MerkleTreeIndex: int64(6),
 				},
 			},
@@ -768,7 +753,6 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			txsWithMerklePaths: []store.TxWithMerklePath{
 				{
 					Hash:            testutils.RevChainhash(t, "8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b")[:],
-					MerklePath:      "test7",
 					MerkleTreeIndex: int64(7),
 				},
 			},
@@ -809,7 +793,6 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 			// assume registered transactions are at the beginning of tc.txs
 			for i := 0; i < tc.expectedUpdatedResLen; i++ {
 				require.True(t, bytes.Equal(tc.txsWithMerklePaths[i].Hash, res[i].TxHash))
-				require.Equal(t, tc.txsWithMerklePaths[i].MerklePath, res[i].MerklePath)
 			}
 
 			// assert data are correctly saved in the store
@@ -828,7 +811,6 @@ func TestPostgresStore_UpsertBlockTransactions(t *testing.T) {
 				err = d.Get(&mp, "SELECT blockid, txid, merkle_path, merkle_tree_index from blocktx.block_transactions_map WHERE txid=$1", storedtx.ID)
 				require.NoError(t, err, "error during getting block transactions map")
 
-				require.Equal(t, tx.MerklePath, mp.MerklePath)
 				require.Equal(t, tx.MerkleTreeIndex, mp.MerkleTreeIndex)
 				require.Equal(t, testBlockID, uint64(mp.BlockID))
 			}
@@ -904,8 +886,7 @@ func BenchmarkUpsertBlockTransactions(b *testing.B) {
 				hex.EncodeToString(merklePath)
 
 				txsWithMerklePaths[counter] = store.TxWithMerklePath{
-					Hash:       hash,
-					MerklePath: hex.EncodeToString(merklePath),
+					Hash: hash,
 				}
 
 				counter++
@@ -940,15 +921,13 @@ func TestPostgresStore_UpsertBlockTransactions_CompetingBlocks(t *testing.T) {
 
 	txsWithMerklePaths := []store.TxWithMerklePath{
 		{
-			Hash:       txHash[:],
-			MerklePath: "merkle-path-1",
+			Hash: txHash[:],
 		},
 	}
 
 	competingTxsWithMerklePaths := []store.TxWithMerklePath{
 		{
-			Hash:       txHash[:],
-			MerklePath: "merkle-path-2",
+			Hash: txHash[:],
 		},
 	}
 
@@ -1026,19 +1005,12 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			// when
 			err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
-			require.NotNil(t, result)
-
-			resultmap := make(map[chainhash.Hash]bool)
-			for _, h := range result {
-				resultmap[*h] = false
-			}
 
 			// then
 			// assert data are correctly saved in the store
 			d, err := sqlx.Open("postgres", dbInfo)
 			require.NoError(t, err)
 
-			updatedCounter := 0
 			for _, hash := range tc.txs {
 				var storedtx Transaction
 				err = d.Get(&storedtx, "SELECT hash, is_registered from blocktx.transactions WHERE hash=$1", hash)
@@ -1047,15 +1019,8 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 				require.NotNil(t, storedtx)
 				require.True(t, storedtx.IsRegistered)
 
-				if _, found := resultmap[chainhash.Hash(storedtx.Hash)]; found {
-					require.Greater(t, storedtx.InsertedAt, now)
-					updatedCounter++
-				} else {
-					require.Less(t, storedtx.InsertedAt, now)
-				}
+				require.Less(t, storedtx.InsertedAt, now)
 			}
-
-			require.Equal(t, len(result), updatedCounter)
 		})
 	}
 }

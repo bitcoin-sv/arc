@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/lib/pq"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
@@ -18,80 +21,35 @@ func (p *PostgreSQL) UpsertBlockTransactions(ctx context.Context, blockID uint64
 		tracing.EndTracing(span, err)
 	}()
 
-	txHashes := make([][]byte, len(txsWithMerklePaths))
-	blockIDs := make([]uint64, len(txsWithMerklePaths))
-	merkleTreeIndexes := make([]int64, len(txsWithMerklePaths))
+	copyRows := make([][]any, len(txsWithMerklePaths))
+
 	for pos, tx := range txsWithMerklePaths {
-		txHashes[pos] = tx.Hash
-		blockIDs[pos] = blockID
-		merkleTreeIndexes[pos] = tx.MerkleTreeIndex
+		copyRows[pos] = []any{blockID, tx.Hash, tx.MerkleTreeIndex}
 	}
 
-	//Todo:
-	// transactions table
-	//  id // maybe not needed
-	//  block_id
-	//  hash
-	//  merkle_path
-	//  merkle_tree_index
-	//  is_registered
-	//  inserted_at
-	//  primary key: id, block_id OR hash, block_id
-	// remove block transactions mapping
+	err = p.conn.Raw(func(driverConn any) error {
+		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
+		var pqErr *pgconn.PgError
 
-	qBulkUpsert := `
-		INSERT INTO blocktx.transactions (hash)
-			SELECT UNNEST($1::BYTEA[])
-			ON CONFLICT (hash)
-			DO UPDATE SET hash = EXCLUDED.hash
-		RETURNING id, is_registered`
+		// Do pgx specific stuff with conn
+		_, err = conn.CopyFrom(
+			ctx,
+			pgx.Identifier{"blocktx", "block_transactions"},
+			[]string{"block_id", "hash", "merkle_tree_index"},
+			pgx.CopyFromRows(copyRows),
+		)
 
-	rows, err := p.db.QueryContext(ctx, qBulkUpsert, pq.Array(txHashes))
-	if err != nil {
-		return errors.Join(store.ErrFailedToUpsertTransactions, err)
-	}
-
-	counter := 0
-	txIDs := make([]uint64, len(txsWithMerklePaths))
-	merklePaths := make([]string, len(txsWithMerklePaths))
-	for rows.Next() {
-		var txID uint64
-		var isRegistered bool
-
-		err = rows.Scan(&txID, &isRegistered)
+		// Error 23505 is: "duplicate key violates unique constraint"
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			// ON CONFLICT DO NOTHING
+			err = nil
+		}
 		if err != nil {
-			return errors.Join(store.ErrFailedToGetRows, err)
+			return err
 		}
 
-		txIDs[counter] = txID
-
-		if isRegistered {
-			merklePaths[counter] = txsWithMerklePaths[counter].MerklePath
-		} else {
-			merklePaths[counter] = ""
-		}
-
-		counter++
-	}
-
-	if len(txIDs) != len(txsWithMerklePaths) {
-		return errors.Join(store.ErrMismatchedTxIDsAndMerklePathLength, err)
-	}
-
-	const qMapInsert = `
-		INSERT INTO blocktx.block_transactions_map (
-			 blockid
-			,txid
-			,merkle_path
-			,merkle_tree_index
-			)
-		SELECT * FROM UNNEST($1::INT[], $2::INT[], $3::TEXT[], $4::INT[])
-		ON CONFLICT DO NOTHING
-		`
-	_, err = p.db.ExecContext(ctx, qMapInsert, pq.Array(blockIDs), pq.Array(txIDs), pq.Array(merklePaths), pq.Array(merkleTreeIndexes))
-	if err != nil {
-		return errors.Join(store.ErrFailedToUpsertBlockTransactionsMap, err)
-	}
+		return nil
+	})
 
 	return nil
 }

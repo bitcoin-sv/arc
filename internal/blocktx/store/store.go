@@ -15,6 +15,7 @@ var (
 	ErrBlockNotFound                      = errors.New("block not found")
 	ErrUnableToPrepareStatement           = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows                 = errors.New("unable to delete rows")
+	ErrUnableToGetSQLConnection           = errors.New("unable to get or create sql connection")
 	ErrFailedToInsertBlock                = errors.New("failed to insert block")
 	ErrFailedToUpdateBlockStatuses        = errors.New("failed to update block statuses")
 	ErrFailedToOpenDB                     = errors.New("failed to open postgres database")
@@ -45,7 +46,7 @@ type BlocktxStore interface {
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
-	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]TransactionBlock, error)
+	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]BlockTransaction, error)
 	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)

@@ -17,9 +17,7 @@ var _ MerkleRootsVerifier = &Client{}
 
 type Watcher interface {
 	Health(ctx context.Context) error
-	ClearTransactions(ctx context.Context, retentionDays int32) (int64, error)
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
-	ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error)
 	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
 }
 
@@ -63,24 +61,8 @@ func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy
 	return resp.Rows, nil
 }
 
-func (btc *Client) ClearTransactions(ctx context.Context, retentionDays int32) (int64, error) {
-	resp, err := btc.client.ClearTransactions(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
-	if err != nil {
-		return 0, err
-	}
-	return resp.Rows, nil
-}
-
 func (btc *Client) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
 	resp, err := btc.client.ClearBlocks(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
-	if err != nil {
-		return 0, err
-	}
-	return resp.Rows, nil
-}
-
-func (btc *Client) ClearBlockTransactionsMap(ctx context.Context, retentionDays int32) (int64, error) {
-	resp, err := btc.client.ClearBlockTransactionsMap(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
 	if err != nil {
 		return 0, err
 	}

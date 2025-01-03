@@ -21,14 +21,8 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //
 //		// make and configure a mocked blocktx_api.BlockTxAPIClient
 //		mockedBlockTxAPIClient := &BlockTxAPIClientMock{
-//			ClearBlockTransactionsMapFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-//				panic("mock out the ClearBlockTransactionsMap method")
-//			},
 //			ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocks method")
-//			},
-//			ClearTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-//				panic("mock out the ClearTransactions method")
 //			},
 //			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the DelUnfinishedBlockProcessing method")
@@ -46,14 +40,8 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //
 //	}
 type BlockTxAPIClientMock struct {
-	// ClearBlockTransactionsMapFunc mocks the ClearBlockTransactionsMap method.
-	ClearBlockTransactionsMapFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
-
 	// ClearBlocksFunc mocks the ClearBlocks method.
 	ClearBlocksFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
-
-	// ClearTransactionsFunc mocks the ClearTransactions method.
-	ClearTransactionsFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// DelUnfinishedBlockProcessingFunc mocks the DelUnfinishedBlockProcessing method.
 	DelUnfinishedBlockProcessingFunc func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
@@ -66,26 +54,8 @@ type BlockTxAPIClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// ClearBlockTransactionsMap holds details about calls to the ClearBlockTransactionsMap method.
-		ClearBlockTransactionsMap []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *blocktx_api.ClearData
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// ClearBlocks holds details about calls to the ClearBlocks method.
 		ClearBlocks []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *blocktx_api.ClearData
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
-		// ClearTransactions holds details about calls to the ClearTransactions method.
-		ClearTransactions []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// In is the in argument value.
@@ -121,52 +91,10 @@ type BlockTxAPIClientMock struct {
 			Opts []grpc.CallOption
 		}
 	}
-	lockClearBlockTransactionsMap    sync.RWMutex
 	lockClearBlocks                  sync.RWMutex
-	lockClearTransactions            sync.RWMutex
 	lockDelUnfinishedBlockProcessing sync.RWMutex
 	lockHealth                       sync.RWMutex
 	lockVerifyMerkleRoots            sync.RWMutex
-}
-
-// ClearBlockTransactionsMap calls ClearBlockTransactionsMapFunc.
-func (mock *BlockTxAPIClientMock) ClearBlockTransactionsMap(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-	if mock.ClearBlockTransactionsMapFunc == nil {
-		panic("BlockTxAPIClientMock.ClearBlockTransactionsMapFunc: method is nil but BlockTxAPIClient.ClearBlockTransactionsMap was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *blocktx_api.ClearData
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockClearBlockTransactionsMap.Lock()
-	mock.calls.ClearBlockTransactionsMap = append(mock.calls.ClearBlockTransactionsMap, callInfo)
-	mock.lockClearBlockTransactionsMap.Unlock()
-	return mock.ClearBlockTransactionsMapFunc(ctx, in, opts...)
-}
-
-// ClearBlockTransactionsMapCalls gets all the calls that were made to ClearBlockTransactionsMap.
-// Check the length with:
-//
-//	len(mockedBlockTxAPIClient.ClearBlockTransactionsMapCalls())
-func (mock *BlockTxAPIClientMock) ClearBlockTransactionsMapCalls() []struct {
-	Ctx  context.Context
-	In   *blocktx_api.ClearData
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *blocktx_api.ClearData
-		Opts []grpc.CallOption
-	}
-	mock.lockClearBlockTransactionsMap.RLock()
-	calls = mock.calls.ClearBlockTransactionsMap
-	mock.lockClearBlockTransactionsMap.RUnlock()
-	return calls
 }
 
 // ClearBlocks calls ClearBlocksFunc.
@@ -206,46 +134,6 @@ func (mock *BlockTxAPIClientMock) ClearBlocksCalls() []struct {
 	mock.lockClearBlocks.RLock()
 	calls = mock.calls.ClearBlocks
 	mock.lockClearBlocks.RUnlock()
-	return calls
-}
-
-// ClearTransactions calls ClearTransactionsFunc.
-func (mock *BlockTxAPIClientMock) ClearTransactions(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-	if mock.ClearTransactionsFunc == nil {
-		panic("BlockTxAPIClientMock.ClearTransactionsFunc: method is nil but BlockTxAPIClient.ClearTransactions was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *blocktx_api.ClearData
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockClearTransactions.Lock()
-	mock.calls.ClearTransactions = append(mock.calls.ClearTransactions, callInfo)
-	mock.lockClearTransactions.Unlock()
-	return mock.ClearTransactionsFunc(ctx, in, opts...)
-}
-
-// ClearTransactionsCalls gets all the calls that were made to ClearTransactions.
-// Check the length with:
-//
-//	len(mockedBlockTxAPIClient.ClearTransactionsCalls())
-func (mock *BlockTxAPIClientMock) ClearTransactionsCalls() []struct {
-	Ctx  context.Context
-	In   *blocktx_api.ClearData
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *blocktx_api.ClearData
-		Opts []grpc.CallOption
-	}
-	mock.lockClearTransactions.RLock()
-	calls = mock.calls.ClearTransactions
-	mock.lockClearTransactions.RUnlock()
 	return calls
 }
 

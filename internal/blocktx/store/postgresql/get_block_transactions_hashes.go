@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func (p *PostgreSQL) GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) (txHashes []*chainhash.Hash, err error) {
@@ -17,10 +18,9 @@ func (p *PostgreSQL) GetBlockTransactionsHashes(ctx context.Context, blockHash [
 
 	q := `
 		SELECT
-			t.hash
-		FROM blocktx.transactions AS t
-			JOIN blocktx.block_transactions_map AS m ON t.id = m.txid
-			JOIN blocktx.blocks AS b ON m.blockid = b.id
+			bt.hash
+		FROM blocktx.block_transactions AS bt
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
 		WHERE b.hash = $1
 	`
 

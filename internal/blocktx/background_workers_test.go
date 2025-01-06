@@ -8,14 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/libsv/go-p2p"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStartFillGaps(t *testing.T) {
@@ -79,10 +81,6 @@ func TestStartFillGaps(t *testing.T) {
 					}
 
 					return tc.blockGaps, nil
-				},
-
-				GetBlocksWithMissingMerkleTreeIndexFunc: func(_ context.Context) ([]*store.Block, error) {
-					return nil, nil
 				},
 			}
 

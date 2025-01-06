@@ -245,8 +245,16 @@ func (p *Processor) StartBlockProcessing() {
 					continue
 				}
 
+				timeElapsed := time.Since(timeStart)
+				nTxs := len(blockMsg.TransactionHashes)
+
 				// add the total block processing time to the stats
-				p.logger.Info("Processed block", slog.String("hash", hash.String()), slog.Uint64("height", blockMsg.Height), slog.Int("txs", len(blockMsg.TransactionHashes)), slog.String("duration", time.Since(timeStart).String()))
+				p.logger.Info("Processed block", slog.String("hash", hash.String()),
+					slog.Uint64("height", blockMsg.Height),
+					slog.Int("txs", nTxs),
+					slog.String("duration", timeElapsed.String()),
+					slog.Float64("txs/s", float64(nTxs)/timeElapsed.Seconds()),
+				)
 			}
 		}
 	}()

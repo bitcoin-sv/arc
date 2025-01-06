@@ -31,7 +31,6 @@ func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64
 		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
 		var pqErr *pgconn.PgError
 
-		// Do pgx specific stuff with conn
 		_, err = conn.CopyFrom(
 			ctx,
 			pgx.Identifier{"blocktx", "block_transactions"},

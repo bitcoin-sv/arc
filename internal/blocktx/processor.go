@@ -37,7 +37,7 @@ var (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 10000
+	transactionStoringBatchsizeDefault = 50000
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
 	registerTxsIntervalDefault         = time.Second * 10

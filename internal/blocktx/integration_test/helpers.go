@@ -44,6 +44,17 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHan
 	}
 	mqClient := nats_core.New(mockNatsConn, nats_core.WithLogger(logger))
 
+	//mqClient := &mocks.MessageQueueClientMock{
+	//	PublishMarshalFunc: func(ctx context.Context, topic string, m proto.Message) error {
+	//		serialized := &blocktx_api.TransactionBlock{}
+	//		err := proto.Unmarshal(m, serialized)
+	//		require.NoError(t, err)
+	//
+	//		publishedTxsCh <- m
+	//		return nil
+	//	},
+	//}
+
 	p2pMsgHandler := blocktx.NewPeerHandler(logger, nil, blockProcessCh)
 	processor, err := blocktx.NewProcessor(
 		logger,

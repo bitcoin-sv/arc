@@ -91,7 +91,7 @@ func (c Client) Publish(ctx context.Context, topic string, data []byte) (err err
 }
 
 func (c Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "Publish", c.tracingEnabled, c.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "PublishMarshal", c.tracingEnabled, c.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()

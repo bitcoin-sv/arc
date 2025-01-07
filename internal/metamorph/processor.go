@@ -276,12 +276,13 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 				// if we have a pending request with given transaction hash, provide mined status
 				if len(txBlock.TransactionHash) != 0 {
-					p.responseProcessor.UpdateStatus((*chainhash.Hash)(txBlock.TransactionHash), StatusAndError{
-						Hash:         (*chainhash.Hash)(txBlock.TransactionHash),
-						Status:       metamorph_api.Status_MINED,
-						Err:          nil,
-						CompetingTxs: nil,
-					})
+					hash, err := chainhash.NewHash(txBlock.TransactionHash)
+					if err == nil {
+						p.responseProcessor.UpdateStatus(hash, StatusAndError{
+							Hash:   hash,
+							Status: metamorph_api.Status_MINED,
+						})
+					}
 				}
 				if len(txsBlocks) < p.processMinedBatchSize {
 					continue

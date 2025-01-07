@@ -206,6 +206,7 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &p2p.BlockMessage{
+				//Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					PrevBlock:  tc.prevBlockHash,
@@ -247,9 +248,6 @@ func TestHandleBlock(t *testing.T) {
 }
 
 func TestHandleBlockReorgAndOrphans(t *testing.T) {
-	// TODO: remove the skip when gaps are filling quickly again
-	t.Skip("Skipping until gaps are being processed quickly again")
-
 	testCases := []struct {
 		name                     string
 		blockAlreadyExists       bool
@@ -457,7 +455,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &p2p.BlockMessage{
-				// Hash: testdata.Block1Hash,
+				//Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					MerkleRoot: *merkleRoot,

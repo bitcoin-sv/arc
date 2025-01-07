@@ -547,15 +547,13 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
-		Status:       blocktx_api.Status_LONGEST, // temporary fix (!), TODO: remove this when gaps are filling quickly again
 	}
 
-	// TODO: uncomment when gaps are filling quickly again
-	// err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
-	// if err != nil {
-	// 	p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-	// 	return nil, err
-	// }
+	err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
+	if err != nil {
+		p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+		return nil, err
+	}
 
 	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
@@ -568,7 +566,6 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 	return incomingBlock, nil
 }
 
-//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "assignBlockStatus", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -629,7 +626,6 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 	return nil
 }
 
-//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	_, err := p.store.GetChainTip(ctx)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {

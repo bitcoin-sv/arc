@@ -1,7 +1,6 @@
 package blocktx
 
 import (
-	"math"
 	"math/big"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -97,20 +96,4 @@ func compactToBig(compact uint32) *big.Int {
 	}
 
 	return bn
-}
-
-func progressIndices(total, steps int) map[int]int {
-	totalF := float64(total)
-	stepsF := float64(steps)
-
-	step := int(math.Max(math.Round(totalF/stepsF), 1))
-	stepF := float64(step)
-
-	progress := make(map[int]int)
-	for i := float64(1); i < stepsF; i++ {
-		progress[step*int(i)] = int(stepF * i / totalF * 100)
-	}
-
-	progress[total] = 100
-	return progress
 }

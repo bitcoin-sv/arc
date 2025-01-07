@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -16,6 +18,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -37,7 +40,7 @@ var (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 50000
+	transactionStoringBatchsizeDefault = 10000
 	maxRequestBlocks                   = 10
 	maxBlocksInProgress                = 1
 	registerTxsIntervalDefault         = time.Second * 10
@@ -45,6 +48,7 @@ const (
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
 	waitForBlockProcessing             = 5 * time.Minute
+	parallellism                       = 5
 )
 
 type Processor struct {
@@ -695,37 +699,7 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		tracing.EndTracing(span, err)
 	}()
 
-	txs, err := p.iterateTransactions(ctx, blockID, block, txHashes)
-	if err != nil {
-		return err
-	}
-
-	// update all remaining transactions
-	err = p.store.InsertBlockTransactions(ctx, blockID, txs)
-	if err != nil {
-		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
-	}
-
-	return nil
-}
-
-func (p *Processor) iterateTransactions(ctx context.Context, blockID uint64, block *blocktx_api.Block, txHashes []*chainhash.Hash) (txs []store.TxHashWithMerkleTreeIndex, err error) {
-	ctx, span := tracing.StartTracing(ctx, "iterateTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	txs = make([]store.TxHashWithMerkleTreeIndex, 0, p.transactionStorageBatchSize)
-
-	blockhash, err := chainhash.NewHash(block.Hash)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
-	}
-
-	totalSize := len(txHashes)
-
-	progress := progressIndices(totalSize, 5)
-	now := time.Now()
+	txs := make([]store.TxHashWithMerkleTreeIndex, 0, p.transactionStorageBatchSize)
 
 	for txIndex, hash := range txHashes {
 		tx := store.TxHashWithMerkleTreeIndex{
@@ -734,24 +708,62 @@ func (p *Processor) iterateTransactions(ctx context.Context, blockID uint64, blo
 		}
 
 		txs = append(txs, tx)
-
-		if (txIndex+1)%p.transactionStorageBatchSize == 0 {
-			err := p.store.InsertBlockTransactions(ctx, blockID, txs)
-			if err != nil {
-				return nil, errors.Join(ErrFailedToInsertBlockTransactions, err)
-			}
-			// free up memory
-			txs = txs[:0]
-		}
-
-		if percentage, found := progress[txIndex+1]; found {
-			if totalSize > 0 {
-				p.logger.Info(fmt.Sprintf("%d txs out of %d stored", txIndex+1, totalSize), slog.Int("percentage", percentage), slog.String("hash", blockhash.String()), slog.Uint64("height", block.Height), slog.String("duration", time.Since(now).String()))
-			}
-		}
 	}
 
-	return txs, nil
+	blockhash, err := chainhash.NewHash(block.Hash)
+	if err != nil {
+		return errors.Join(ErrFailedToParseBlockHash, fmt.Errorf("block height: %d", block.Height), err)
+	}
+
+	totalSize := len(txHashes)
+
+	now := time.Now()
+
+	batchSize := p.transactionStorageBatchSize
+
+	batches := math.Ceil(float64(len(txs)) / float64(batchSize))
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.SetLimit(parallellism)
+
+	var txsInserted int64
+	var percentage int64
+
+	for i := 0; i < int(batches); i++ {
+		batch := make([]store.TxHashWithMerkleTreeIndex, 0, batchSize)
+		if (i+1)*batchSize > len(txs) {
+			batch = txs[i*batchSize:]
+		} else {
+			batch = txs[i*batchSize : (i+1)*batchSize]
+		}
+		g.Go(func() error {
+			insertErr := p.store.InsertBlockTransactions(ctx, blockID, batch)
+			if insertErr != nil {
+				return errors.Join(ErrFailedToInsertBlockTransactions, insertErr)
+			}
+
+			atomic.AddInt64(&txsInserted, int64(len(batch)))
+
+			inserted := atomic.LoadInt64(&txsInserted)
+			atomic.StoreInt64(&percentage, int64(math.Floor(100*float64(inserted)/float64(totalSize))))
+
+			p.logger.Info(
+				fmt.Sprintf("%d txs out of %d stored", atomic.LoadInt64(&txsInserted), totalSize),
+				slog.Int64("percentage", atomic.LoadInt64(&percentage)),
+				slog.String("hash", blockhash.String()),
+				slog.Uint64("height", block.Height),
+				slog.String("duration", time.Since(now).String()),
+			)
+			return nil
+		})
+	}
+
+	err = g.Wait()
+	if err != nil {
+		return errors.Join(ErrFailedToInsertBlockTransactions, fmt.Errorf("block height: %d", block.Height), err)
+	}
+
+	return nil
 }
 
 func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {

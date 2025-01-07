@@ -143,17 +143,15 @@ func TestHandleBlock(t *testing.T) {
 			// given
 			const batchSize = 4
 
-			var expectedInsertedTransactions [][]byte
 			transactionHashes := make([]*chainhash.Hash, len(tc.txHashes))
 			for i, hash := range tc.txHashes {
 				txHash, err := chainhash.NewHashFromStr(hash)
 				require.NoError(t, err)
 				transactionHashes[i] = txHash
-
-				expectedInsertedTransactions = append(expectedInsertedTransactions, txHash[:])
 			}
 
-			var actualInsertedBlockTransactions [][]byte
+			actualInsertedBlockTransactionsCh := make(chan string, 100)
+
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockFunc: func(_ context.Context, _ *chainhash.Hash) (*blocktx_api.Block, error) {
 					if tc.blockAlreadyProcessed {
@@ -190,7 +188,7 @@ func TestHandleBlock(t *testing.T) {
 					tx, err := chainhash.NewHash(txWithMr.Hash)
 					require.NoError(t, err)
 
-					actualInsertedBlockTransactions = append(actualInsertedBlockTransactions, tx[:])
+					actualInsertedBlockTransactionsCh <- tx.String()
 				}
 
 				return nil
@@ -208,7 +206,6 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &p2p.BlockMessage{
-				// Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					PrevBlock:  tc.prevBlockHash,
@@ -228,9 +225,21 @@ func TestHandleBlock(t *testing.T) {
 			err = p2pMsgHandler.HandleBlock(blockMessage, &mocks.PeerMock{StringFunc: func() string { return "peer" }})
 			require.NoError(t, err)
 
+			var actualInsertedBlockTransactions []string
 			time.Sleep(20 * time.Millisecond)
 			sut.Shutdown()
 
+		loop:
+			for {
+				select {
+				case inserted := <-actualInsertedBlockTransactionsCh:
+					actualInsertedBlockTransactions = append(actualInsertedBlockTransactions, inserted)
+				default:
+					break loop
+				}
+			}
+
+			expectedInsertedTransactions := tc.txHashes
 			// then
 			require.ElementsMatch(t, expectedInsertedTransactions, actualInsertedBlockTransactions)
 		})

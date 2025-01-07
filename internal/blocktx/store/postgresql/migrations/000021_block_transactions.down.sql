@@ -2,7 +2,7 @@
 DROP TABLE blocktx.block_transactions;
 DROP TABLE blocktx.registered_transactions;
 
-DROP INDEX ix_block_transactions_hash;
+DROP INDEX ix_registered_transactions_inserted_at;
 
 CREATE TABLE blocktx.block_transactions_map (
     blockid int8 NOT NULL,

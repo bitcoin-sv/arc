@@ -10,15 +10,12 @@ CREATE TABLE IF NOT EXISTS blocktx.block_transactions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_block_transactions_hash ON blocktx.block_transactions (hash);
-CREATE INDEX IF NOT EXISTS ix_block_transactions_inserted_at ON blocktx.block_transactions USING btree (inserted_at);
-
 CREATE TABLE IF NOT EXISTS blocktx.registered_transactions (
     hash BYTEA PRIMARY KEY,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX ix_registered_transactions_inserted_at ON blocktx.registered_transactions USING btree (inserted_at);
+CREATE INDEX IF NOT EXISTS ix_registered_transactions_inserted_at ON blocktx.registered_transactions USING btree (inserted_at);
 
 INSERT INTO blocktx.registered_transactions
 SELECT t.hash AS hash FROM blocktx.transactions t WHERE t.is_registered = TRUE;

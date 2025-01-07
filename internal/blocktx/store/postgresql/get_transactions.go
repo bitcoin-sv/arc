@@ -32,7 +32,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 }
 
 func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
-
 	q := `
 		SELECT
 			bt.hash,

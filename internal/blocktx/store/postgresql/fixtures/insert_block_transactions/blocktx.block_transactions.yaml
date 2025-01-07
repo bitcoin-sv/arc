@@ -1,32 +1,24 @@
 - block_id: 9736
   hash: 0x76732b80598326a18d3bf0a86518adbdf95d0ddc6ff6693004440f4776168c3b
   merkle_tree_index: 1
-  inserted_at: 2024-01-09 13:00:00
 - block_id: 9736
   hash: 0x164e85a5d5bc2b2372e8feaa266e5e4b7d0808f8d2b784fb1f7349c4726392b0
   merkle_tree_index: 2
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0xb4201cc6fc5768abff14adf75042ace6061da9176ee5bb943291b9ba7d7f5743
   merkle_tree_index: 3
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0x37bd6c87927e75faeb3b3c939f64721cda48e1bb98742676eebe83aceee1a669
   merkle_tree_index: 4
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0x952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb
   merkle_tree_index: 5
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0x861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608
   merkle_tree_index: 6
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0x9421cc760c5405af950a76dc3e4345eaefd4e7322f172a3aee5e0ddc7b4f8313
   merkle_tree_index: 7
-  inserted_at: 2024-01-10 12:00:00
 - block_id: 9736
   hash: 0x8b7d038db4518ac4c665abfc5aeaacbd2124ad8ca70daa8465ed2c4427c41b9b
   merkle_tree_index: 8
-  inserted_at: 2024-01-10 12:00:00

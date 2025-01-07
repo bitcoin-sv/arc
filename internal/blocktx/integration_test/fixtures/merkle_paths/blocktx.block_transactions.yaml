@@ -1,20 +1,15 @@
 - block_id: 1001
   hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
   merkle_tree_index: 0
-  inserted_at: 2023-12-10 14:00:00
 - block_id: 1001
   hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
   merkle_tree_index: 1
-  inserted_at: 2023-12-10 14:00:00
 - block_id: 1001
   hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   merkle_tree_index: 3
-  inserted_at: 2023-12-10 14:00:00
 - block_id: 1001
   hash: 0x2ff4430eb883c6f6c0640a5d716b2d107bbc0efa5aeaa237aec796d4686b0a8f
   merkle_tree_index: 4
-  inserted_at: 2023-12-10 14:00:00
 - block_id: 1001
   hash: 0xece2b7e40d98749c03c551b783420d6e3fdc3c958244bbf275437839585829a6
   merkle_tree_index: 5
-  inserted_at: 2023-12-10 14:00:00

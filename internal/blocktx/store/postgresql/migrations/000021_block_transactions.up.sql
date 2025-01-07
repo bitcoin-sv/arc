@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS blocktx.block_transactions (
     block_id BIGINT,
     hash BYTEA NOT NULL,
     merkle_tree_index BIGINT DEFAULT -1, -- this means no merkle_tree_index
-    inserted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (hash, block_id),
     CONSTRAINT fk_block
         FOREIGN KEY(block_id)

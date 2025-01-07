@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/lib/pq"
 
@@ -31,7 +32,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, 
 }
 
 func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
-	transactionBlocks := make([]store.BlockTransaction, 0)
 
 	q := `
 		SELECT
@@ -51,6 +51,11 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 	}
 	defer rows.Close()
 
+	return p.getBlockTransactions(rows)
+}
+
+func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransaction, error) {
+	transactionBlocks := make([]store.BlockTransaction, 0)
 	for rows.Next() {
 		var txHash []byte
 		var blockHash []byte
@@ -58,7 +63,7 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
 
-		err = rows.Scan(
+		err := rows.Scan(
 			&txHash,
 			&blockHash,
 			&blockHeight,
@@ -87,8 +92,6 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 		tracing.EndTracing(span, err)
 	}()
 
-	transactionBlocks := make([]store.BlockTransaction, 0)
-
 	q := `
 		SELECT
 			bt.hash,
@@ -108,32 +111,5 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var txHash []byte
-		var blockHash []byte
-		var blockHeight uint64
-		var merkleTreeIndex int64
-		var blockStatus blocktx_api.Status
-
-		err = rows.Scan(
-			&txHash,
-			&blockHash,
-			&blockHeight,
-			&merkleTreeIndex,
-			&blockStatus,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
-			TxHash:          txHash,
-			BlockHash:       blockHash,
-			BlockHeight:     blockHeight,
-			MerkleTreeIndex: merkleTreeIndex,
-			BlockStatus:     blockStatus,
-		})
-	}
-
-	return transactionBlocks, nil
+	return p.getBlockTransactions(rows)
 }

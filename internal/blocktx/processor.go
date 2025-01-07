@@ -727,7 +727,37 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	g.SetLimit(parallellism)
 
 	var txsInserted int64
-	var percentage int64
+
+	finished := make(chan struct{})
+	defer func() {
+		finished <- struct{}{}
+	}()
+	go func() {
+		step := int64(math.Ceil(float64(len(txs)) / 5))
+
+		showProgress := step
+		ticker := time.NewTicker(1 * time.Second)
+		for {
+			select {
+			case <-ticker.C:
+				inserted := atomic.LoadInt64(&txsInserted)
+				if inserted > showProgress {
+					percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
+					p.logger.Info(
+						fmt.Sprintf("%d txs out of %d stored", inserted, totalSize),
+						slog.Int64("percentage", percentage),
+						slog.String("hash", blockhash.String()),
+						slog.Uint64("height", block.Height),
+						slog.String("duration", time.Since(now).String()),
+					)
+					showProgress += step
+				}
+			case <-finished:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 
 	for i := 0; i < int(batches); i++ {
 		batch := make([]store.TxHashWithMerkleTreeIndex, 0, batchSize)
@@ -743,17 +773,6 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			}
 
 			atomic.AddInt64(&txsInserted, int64(len(batch)))
-
-			inserted := atomic.LoadInt64(&txsInserted)
-			atomic.StoreInt64(&percentage, int64(math.Floor(100*float64(inserted)/float64(totalSize))))
-
-			p.logger.Info(
-				fmt.Sprintf("%d txs out of %d stored", atomic.LoadInt64(&txsInserted), totalSize),
-				slog.Int64("percentage", atomic.LoadInt64(&percentage)),
-				slog.String("hash", blockhash.String()),
-				slog.Uint64("height", block.Height),
-				slog.String("duration", time.Since(now).String()),
-			)
 			return nil
 		})
 	}

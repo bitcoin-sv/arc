@@ -207,7 +207,7 @@ func TestReturnMinedStatus(t *testing.T) {
 				"X-WaitFor":       StatusMined,
 				"X-CallbackUrl":   callbackURL,
 				"X-CallbackToken": token,
-				"X-MaxTimeout":    "15",
+				"X-MaxTimeout":    "5",
 			}, http.StatusOK)
 
 		// wait for callback
@@ -223,7 +223,7 @@ func TestReturnMinedStatus(t *testing.T) {
 			t.Fatal("callback exceeded timeout")
 		}
 
-		require.Equal(t, transactionResponse.TxStatus, StatusMined)
+		require.Equal(t, StatusMined, transactionResponse.TxStatus)
 	})
 }
 

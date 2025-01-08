@@ -284,6 +284,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 						})
 					}
 				}
+
 				if len(txsBlocks) < p.processMinedBatchSize {
 					continue
 				}

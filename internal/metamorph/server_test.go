@@ -164,7 +164,11 @@ func TestPutTransaction(t *testing.T) {
 			}
 
 			// when
-			actualStatus, err := sut.PutTransaction(context.Background(), txRequest)
+			// when
+			ctx := context.Background()
+			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			actualStatus, err := sut.PutTransaction(timeoutCtx, txRequest)
 
 			// then
 			assert.NoError(t, err)
@@ -602,7 +606,10 @@ func TestPutTransactions(t *testing.T) {
 			defer sut.GracefulStop()
 
 			// when
-			statuses, err := sut.PutTransactions(context.Background(), tc.requests)
+			ctx := context.Background()
+			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			statuses, err := sut.PutTransactions(timeoutCtx, tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

@@ -11,10 +11,7 @@ import (
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -23,8 +20,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 )
-
-const retryInterval = 300 * time.Millisecond
 
 var (
 	ErrTransactionNotFound = errors.New("transaction not found")
@@ -281,7 +276,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	}()
 
 	request := transactionRequest(tx.Bytes(), options)
-
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, request)
 		if err != nil {
@@ -295,59 +289,29 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 		}, nil
 	}
 
-	var response *metamorph_api.TransactionStatus
-	var getStatusErr error
+	deadline, _ := ctx.Deadline()
+	// decrease time to get initial deadline
+	newDeadline := deadline.Add(time.Second)
 
-	// in case of error try PutTransaction until timeout expires
+	// Create a new context with the updated deadline
+	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
+	defer newCancel()
 
-	maxTimeout := max(time.Duration(request.MaxTimeout)*time.Second, m.maxTimeout)
-	retryTicker := time.NewTicker(retryInterval)
-	defer retryTicker.Stop()
-
-	timeoutTimer := time.NewTimer(maxTimeout)
-
-	for {
-		response, err = m.client.PutTransaction(ctx, request)
-		st, ok := status.FromError(err)
-		if err == nil || (ok && st.Code() == codes.Canceled) {
-			txStatus = &TransactionStatus{
-				TxID:         response.GetTxid(),
-				Status:       response.GetStatus().String(),
-				ExtraInfo:    response.GetRejectReason(),
-				CompetingTxs: response.GetCompetingTxs(),
-				BlockHash:    response.GetBlockHash(),
-				BlockHeight:  response.GetBlockHeight(),
-				MerklePath:   response.GetMerklePath(),
-				Callbacks:    response.GetCallbacks(),
-				Timestamp:    m.now().Unix(),
-			}
-			break
-		}
-
-		m.logger.ErrorContext(ctx, "Failed to put transaction", slog.String("hash", tx.TxID()), slog.String("err", err.Error()))
-
-		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
-			// if error is deadline exceeded, check tx status to avoid false negatives
-
-			fallbackCtx, fallbackCtxCancel := cloneCtxWithNewTimeout(ctx, time.Second)
-			txStatus, getStatusErr = m.GetTransactionStatus(fallbackCtx, tx.TxID())
-			fallbackCtxCancel()
-
-			if getStatusErr == nil {
-				break
-			}
-			m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", getStatusErr.Error()))
-		}
-
-		select {
-		case <-timeoutTimer.C:
-			return nil, err
-
-		case <-retryTicker.C:
-			continue
-		}
+	response, err := m.client.PutTransaction(newCtx, request)
+	if err != nil {
+		return nil, err
 	}
-
+	txStatus = &TransactionStatus{
+		TxID:         response.GetTxid(),
+		Status:       response.GetStatus().String(),
+		ExtraInfo:    response.GetRejectReason(),
+		CompetingTxs: response.GetCompetingTxs(),
+		BlockHash:    response.GetBlockHash(),
+		BlockHeight:  response.GetBlockHeight(),
+		MerklePath:   response.GetMerklePath(),
+		Callbacks:    response.GetCallbacks(),
+		Timestamp:    m.now().Unix(),
+	}
 	return txStatus, nil
 }
 
@@ -387,68 +351,31 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	}
 	var responses *metamorph_api.TransactionStatuses
 
-	// in case of error try PutTransaction until timeout expires
+	deadline, _ := ctx.Deadline()
+	// decrease time to get initial deadline
+	newDeadline := deadline.Add(time.Second)
 
-	maxTimeout := max(time.Duration(in.Transactions[0].MaxTimeout)*time.Second, m.maxTimeout)
-	retryTicker := time.NewTicker(retryInterval)
-	defer retryTicker.Stop()
+	// Create a new context with the updated deadline
+	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
+	defer newCancel()
 
-	timeoutTimer := time.NewTimer(maxTimeout)
-
-	for {
-		responses, err = m.client.PutTransactions(ctx, in)
-		st, ok := status.FromError(err)
-		if err == nil || (ok && st.Code() == codes.Canceled) {
-			for _, response := range responses.GetStatuses() {
-				txStatuses = append(txStatuses, &TransactionStatus{
-					TxID:         response.GetTxid(),
-					MerklePath:   response.GetMerklePath(),
-					Status:       response.GetStatus().String(),
-					ExtraInfo:    response.GetRejectReason(),
-					CompetingTxs: response.GetCompetingTxs(),
-					BlockHash:    response.GetBlockHash(),
-					BlockHeight:  response.GetBlockHeight(),
-					Callbacks:    response.GetCallbacks(),
-					Timestamp:    m.now().Unix(),
-				})
-			}
-			break
-		}
-
-		m.logger.ErrorContext(ctx, "Failed to put transactions", slog.String("err", err.Error()))
-
-		// if error is deadline exceeded, check tx status to avoid false negatives
-		if status.Code(err) == codes.Code(code.Code_DEADLINE_EXCEEDED) {
-			completedErrorFree := true
-			for _, tx := range txs {
-				// Todo: Create and use here client.GetTransactionStatuses rpc function
-				fallbackCtx, fallbackCtxCancel := cloneCtxWithNewTimeout(ctx, time.Second)
-				txStatus, getStatusErr := m.GetTransactionStatus(fallbackCtx, tx.TxID())
-				fallbackCtxCancel()
-
-				if getStatusErr != nil {
-					m.logger.ErrorContext(ctx, "Failed to get transaction status", slog.String("hash", tx.TxID()), slog.String("err", getStatusErr.Error()))
-					completedErrorFree = false
-					break
-				}
-
-				txStatuses = append(txStatuses, txStatus)
-			}
-
-			if completedErrorFree {
-				break
-			}
-		}
-
-		select {
-		case <-timeoutTimer.C:
-			return nil, err
-
-		case <-retryTicker.C:
-			continue
-		}
+	responses, err = m.client.PutTransactions(newCtx, in)
+	if err != nil {
+		return nil, err
 	}
-
+	for _, response := range responses.GetStatuses() {
+		txStatuses = append(txStatuses, &TransactionStatus{
+			TxID:         response.GetTxid(),
+			MerklePath:   response.GetMerklePath(),
+			Status:       response.GetStatus().String(),
+			ExtraInfo:    response.GetRejectReason(),
+			CompetingTxs: response.GetCompetingTxs(),
+			BlockHash:    response.GetBlockHash(),
+			BlockHeight:  response.GetBlockHeight(),
+			Callbacks:    response.GetCallbacks(),
+			Timestamp:    m.now().Unix(),
+		})
+	}
 	return txStatuses, nil
 }
 
@@ -490,12 +417,6 @@ func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_ap
 		FullStatusUpdates: options.FullStatusUpdates,
 		MaxTimeout:        int64(options.MaxTimeout),
 	}
-}
-
-// creates a new context with all parent data, but ignores its timing out or cancellation
-func cloneCtxWithNewTimeout(parent context.Context, timeout time.Duration) (context.Context, func()) {
-	ctx := context.WithoutCancel(parent)
-	return context.WithTimeout(ctx, timeout)
 }
 
 // TransactionOptions options passed from header when creating transactions.

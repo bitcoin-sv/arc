@@ -53,6 +53,7 @@ type ArcDefaultHandler struct {
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mapExpiryTime                 time.Duration
+	defaultTimeout                time.Duration
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
@@ -72,6 +73,12 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.rejectedCallbackURLSubstrings = rejectedCallbackURLSubstrings
+	}
+}
+
+func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler) {
+	return func(s *ArcDefaultHandler) {
+		s.defaultTimeout = timeout
 	}
 }
 
@@ -114,6 +121,7 @@ func NewDefault(
 		mrVerifier:         mr,
 		txFinder:           cachedFinder,
 		mapExpiryTime:      mapExpiryTimeDefault,
+		defaultTimeout:     maxTimeoutSecondsDefault * time.Second,
 	}
 
 	// apply options
@@ -271,6 +279,7 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 			span.SetAttributes(attr...)
 		}
 		// if an error is returned, the processing failed
+		fmt.Println("aqedan brundeba")
 		response <- PostResponse{e.Status, e}
 		return
 	}
@@ -300,17 +309,22 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
+	timeout := m.defaultTimeout
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+		timeout = time.Second * time.Duration(*params.XMaxTimeout)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx.Request().Context(), timeout)
+	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
+	defer cancel()
+
 	response := make(chan PostResponse, 1)
 	go m.postTransaction(ctx, params, response)
 
-	// set timeout
-	timeout := maxTimeoutSecondsDefault
-	if params.XMaxTimeout != nil && *params.XMaxTimeout <= maxTimeout {
-		timeout = *params.XMaxTimeout
-	}
-
-	// Create a context with timeout
-	timer := time.NewTimer(time.Duration(timeout+1) * time.Second)
+	// Create a context with timeout. We add a second here to include time to return the response back
+	// in most cases this second will not be used but let's have it to include the time for the response
+	// to propagate back to the calling site here.
+	timer := time.NewTimer(timeout + time.Second)
 	defer timer.Stop()
 
 	// Use a select statement to wait for either the function to complete or the timeout
@@ -500,17 +514,22 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
+	timeout := m.defaultTimeout
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+		timeout = time.Second * time.Duration(*params.XMaxTimeout)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx.Request().Context(), timeout)
+	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
+	defer cancel()
+
 	response := make(chan PostResponse, 1)
 	go m.postTransactions(ctx, params, response)
 
-	// set timeout
-	timeout := maxTimeoutSecondsDefault
-	if params.XMaxTimeout != nil && *params.XMaxTimeout <= maxTimeout {
-		timeout = *params.XMaxTimeout
-	}
-
-	// Create a context with timeout
-	timer := time.NewTimer(time.Duration(timeout+1) * time.Second)
+	// Create a context with timeout. We add a second here to include time to return the response back
+	// in most cases this second will not be used but let's have it to include the time for the response
+	// to propagate back to the calling site here.
+	timer := time.NewTimer(timeout + time.Second)
 	defer timer.Stop()
 
 	// Use a select statement to wait for either the function to complete or the timeout
@@ -816,6 +835,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		submitStatuses = append(submitStatuses, status)
 	} else {
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
+
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, nil, err)
 			m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))

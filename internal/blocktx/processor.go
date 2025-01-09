@@ -1010,10 +1010,10 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 
 	// gather all transactions with missing merkle paths for each block in a map
 	// to avoid getting all transaction from the same block multiple times
-	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath, 0)
+	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath)
 
 	for _, tx := range txs {
-		blockTxsMap[hex.EncodeToString(tx.BlockHash)] = append(blockTxsMap[string(tx.BlockHash)], store.BlockTransactionWithMerklePath{
+		blockTransactionWithMerklePath := store.BlockTransactionWithMerklePath{
 			BlockTransaction: store.BlockTransaction{
 				TxHash:          tx.TxHash,
 				BlockHash:       tx.BlockHash,
@@ -1021,7 +1021,9 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 				MerkleTreeIndex: tx.MerkleTreeIndex,
 				BlockStatus:     tx.BlockStatus,
 			},
-		})
+		}
+
+		blockTxsMap[hex.EncodeToString(tx.BlockHash)] = append(blockTxsMap[hex.EncodeToString(tx.BlockHash)], blockTransactionWithMerklePath)
 	}
 
 	for bh, blockTxs := range blockTxsMap {

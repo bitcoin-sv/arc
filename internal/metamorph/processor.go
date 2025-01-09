@@ -792,7 +792,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// register transaction in blocktx using message queue
 	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
-		p.logger.Error("failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+		p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
 	// broadcast that transaction is stored to client

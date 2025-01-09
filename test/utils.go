@@ -172,13 +172,14 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 	srv := &http.Server{Addr: ":9000"}
 	shutdownFn = func() {
 		t.Logf("shutting down callback listener %s", callbackURL)
-		close(receivedChan)
-		close(errChan)
 
 		if err := srv.Shutdown(context.TODO()); err != nil {
 			t.Fatal("failed to shut down server")
 		}
 		t.Log("callback listener is down")
+
+		close(receivedChan)
+		close(errChan)
 	}
 
 	go func(server *http.Server) {

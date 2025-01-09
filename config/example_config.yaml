@@ -106,6 +106,7 @@ blocktx:
   registerTxsInterval: 10s # time interval to read from the channel registered transactions
   maxBlockProcessingDuration: 5m # maximum time a blocktx can spend on processing a block before unlocking it to be requested again
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
+  incomingIsLongest: false # whether each new block received is considered to be from the longest blockchain. If there are a lot of block gaps in blocktx database it is advisable to set this to true
   fillGaps:
     enabled: true
     interval: 15m # time interval to check and fill gaps in processed blocks

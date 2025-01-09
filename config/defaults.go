@@ -129,6 +129,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		MaxBlockProcessingDuration:    5 * time.Minute,
 		MessageQueue:                  &MessageQueueConfig{},
 		P2pReadBufferSize:             8 * 1024 * 1024,
+		IncomingIsLongest:             false,
 	}
 }
 

@@ -8,12 +8,13 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/libsv/go-p2p"
+
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/libsv/go-p2p"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -127,6 +128,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),
+		blocktx.WithIncomingIsLongest(btxConfig.IncomingIsLongest),
 	)
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)

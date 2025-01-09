@@ -72,7 +72,7 @@ type Processor struct {
 	processGuardsMap            sync.Map
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
-	hasGaps                     bool
+	incomingIsLongest           bool
 
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
@@ -551,7 +551,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
 	}
 
-	if p.hasGaps {
+	if p.incomingIsLongest {
 		incomingBlock.Status = blocktx_api.Status_LONGEST
 	} else {
 		err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)

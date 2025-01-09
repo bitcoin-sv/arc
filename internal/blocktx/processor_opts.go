@@ -79,3 +79,9 @@ func WithMaxBlockProcessingDuration(d time.Duration) func(*Processor) {
 		processor.maxBlockProcessingDuration = d
 	}
 }
+
+func WithIncomingIsLongest(enabled bool) func(*Processor) {
+	return func(processor *Processor) {
+		processor.incomingIsLongest = enabled
+	}
+}

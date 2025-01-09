@@ -7,61 +7,61 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func WithMessageQueueClient(mqClient MessageQueueClient) func(handler *Processor) {
+func WithMessageQueueClient(mqClient MessageQueueClient) func(*Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient
 	}
 }
 
-func WithTransactionBatchSize(size int) func(handler *Processor) {
+func WithTransactionBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
 		p.transactionStorageBatchSize = size
 	}
 }
 
-func WithRetentionDays(dataRetentionDays int) func(handler *Processor) {
+func WithRetentionDays(dataRetentionDays int) func(*Processor) {
 	return func(p *Processor) {
 		p.dataRetentionDays = dataRetentionDays
 	}
 }
 
-func WithRegisterTxsInterval(d time.Duration) func(handler *Processor) {
+func WithRegisterTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.registerTxsInterval = d
 	}
 }
 
-func WithRegisterRequestTxsInterval(d time.Duration) func(handler *Processor) {
+func WithRegisterRequestTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.registerRequestTxsInterval = d
 	}
 }
 
-func WithRegisterTxsChan(registerTxsChan chan []byte) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.registerTxsChan = registerTxsChan
+func WithRegisterTxsChan(registerTxsChan chan []byte) func(*Processor) {
+	return func(processor *Processor) {
+		processor.registerTxsChan = registerTxsChan
 	}
 }
 
-func WithRequestTxChan(requestTxChannel chan []byte) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.requestTxChannel = requestTxChannel
+func WithRequestTxChan(requestTxChannel chan []byte) func(*Processor) {
+	return func(processor *Processor) {
+		processor.requestTxChannel = requestTxChannel
 	}
 }
 
-func WithRegisterTxsBatchSize(size int) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.registerTxsBatchSize = size
+func WithRegisterTxsBatchSize(size int) func(*Processor) {
+	return func(processor *Processor) {
+		processor.registerTxsBatchSize = size
 	}
 }
 
-func WithRegisterRequestTxsBatchSize(size int) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.registerRequestTxsBatchSize = size
+func WithRegisterRequestTxsBatchSize(size int) func(*Processor) {
+	return func(processor *Processor) {
+		processor.registerRequestTxsBatchSize = size
 	}
 }
 
-func WithTracer(attr ...attribute.KeyValue) func(s *Processor) {
+func WithTracer(attr ...attribute.KeyValue) func(*Processor) {
 	return func(p *Processor) {
 		p.tracingEnabled = true
 		if len(attr) > 0 {
@@ -74,8 +74,8 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Processor) {
 	}
 }
 
-func WithMaxBlockProcessingDuration(d time.Duration) func(handler *Processor) {
-	return func(handler *Processor) {
-		handler.maxBlockProcessingDuration = d
+func WithMaxBlockProcessingDuration(d time.Duration) func(*Processor) {
+	return func(processor *Processor) {
+		processor.maxBlockProcessingDuration = d
 	}
 }

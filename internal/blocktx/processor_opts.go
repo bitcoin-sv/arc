@@ -67,9 +67,3 @@ func WithIncomingIsLongest(enabled bool) func(*Processor) {
 		processor.incomingIsLongest = enabled
 	}
 }
-
-func WithIncomingIsLongest(enabled bool) func(*Processor) {
-	return func(processor *Processor) {
-		processor.incomingIsLongest = enabled
-	}
-}

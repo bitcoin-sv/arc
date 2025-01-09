@@ -5,7 +5,6 @@ package test
 import (
 	"embed"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -124,21 +123,7 @@ func TestSubmitSingle(t *testing.T) {
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			// Check Merkle path
-			require.NotNil(t, statusResponse.MerklePath)
-			t.Logf("BUMP: %s", *statusResponse.MerklePath)
-			bump, err := bc.NewBUMPFromStr(*statusResponse.MerklePath)
-			require.NoError(t, err)
-
-			jsonB, err := json.Marshal(bump)
-			require.NoError(t, err)
-			t.Logf("BUMPjson: %s", string(jsonB))
-
-			root, err := bump.CalculateRootGivenTxid(tc.tx.TxID())
-			require.NoError(t, err)
-
-			require.NotNil(t, statusResponse.BlockHeight)
-			blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, int(*statusResponse.BlockHeight))
-			require.Equal(t, blockRoot, root)
+			checkMerklePath(t, statusResponse)
 		})
 	}
 }

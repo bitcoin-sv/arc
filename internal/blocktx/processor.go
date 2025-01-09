@@ -417,7 +417,7 @@ func (p *Processor) StartProcessRequestTxs() {
 }
 
 func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes, false)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined transactions: %v", err)
 	}

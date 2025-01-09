@@ -462,18 +462,11 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, true)
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
-
-		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, false)
-
-		// then
-		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs, actualTxs)
+		require.Equal(t, expectedTxs, actualTxs)
 	})
 
 	t.Run("get registered txs by block hashes", func(t *testing.T) {
@@ -901,11 +894,11 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 			MerkleTreeIndex: int64(1),
 		},
 		{
-			TxHash:      txHash[:],
-			BlockHash:   testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
-			BlockHeight: uint64(826481),
-			MerklePath:  "merkle-path-2",
-			BlockStatus: blocktx_api.Status_STALE,
+			TxHash:          txHash[:],
+			BlockHash:       testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
+			BlockHeight:     uint64(826481),
+			MerkleTreeIndex: int64(1),
+			BlockStatus:     blocktx_api.Status_STALE,
 		},
 	}
 
@@ -917,7 +910,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
+	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]})
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)

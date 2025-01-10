@@ -25,18 +25,18 @@ build_docker:
 
 .PHONY: run
 run:
-	docker compose down --remove-orphans
+	docker compose down -v --remove-orphans
 	docker compose up --build blocktx callbacker metamorph api
 
 .PHONY: run_e2e_tests
 run_e2e_tests:
-	docker compose down --remove-orphans
+	docker compose down -v --remove-orphans
 	docker compose up --build blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
 	docker compose down
 
 .PHONY: run_e2e_tests_with_tracing
 run_e2e_tests_with_tracing:
-	docker compose down --remove-orphans
+	docker compose down -v --remove-orphans
 	ARC_TRACING_ENABLED=TRUE docker compose up --build blocktx callbacker metamorph api tests jaeger --scale blocktx=4 --scale metamorph=2 --no-attach jaeger
 
 .PHONY: test

@@ -21,9 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	BlockTxAPI_Health_FullMethodName                       = "/blocktx_api.BlockTxAPI/Health"
-	BlockTxAPI_ClearTransactions_FullMethodName            = "/blocktx_api.BlockTxAPI/ClearTransactions"
 	BlockTxAPI_ClearBlocks_FullMethodName                  = "/blocktx_api.BlockTxAPI/ClearBlocks"
-	BlockTxAPI_ClearBlockTransactionsMap_FullMethodName    = "/blocktx_api.BlockTxAPI/ClearBlockTransactionsMap"
+	BlockTxAPI_ClearRegisteredTransactions_FullMethodName  = "/blocktx_api.BlockTxAPI/ClearRegisteredTransactions"
 	BlockTxAPI_DelUnfinishedBlockProcessing_FullMethodName = "/blocktx_api.BlockTxAPI/DelUnfinishedBlockProcessing"
 	BlockTxAPI_VerifyMerkleRoots_FullMethodName            = "/blocktx_api.BlockTxAPI/VerifyMerkleRoots"
 )
@@ -34,12 +33,10 @@ const (
 type BlockTxAPIClient interface {
 	// Health returns the health of the API.
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
-	// ClearTransactions clears transaction data
-	ClearTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
 	// ClearBlocks clears block data
 	ClearBlocks(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
-	// ClearBlockTransactionsMap clears block-transaction-map data
-	ClearBlockTransactionsMap(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
+	// ClearRegisteredTransactions clears registered transactions
+	ClearRegisteredTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
 	// DelUnfinishedBlockProcessing deletes unfinished block processing
 	DelUnfinishedBlockProcessing(ctx context.Context, in *DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
@@ -64,16 +61,6 @@ func (c *blockTxAPIClient) Health(ctx context.Context, in *emptypb.Empty, opts .
 	return out, nil
 }
 
-func (c *blockTxAPIClient) ClearTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RowsAffectedResponse)
-	err := c.cc.Invoke(ctx, BlockTxAPI_ClearTransactions_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *blockTxAPIClient) ClearBlocks(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RowsAffectedResponse)
@@ -84,10 +71,10 @@ func (c *blockTxAPIClient) ClearBlocks(ctx context.Context, in *ClearData, opts 
 	return out, nil
 }
 
-func (c *blockTxAPIClient) ClearBlockTransactionsMap(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error) {
+func (c *blockTxAPIClient) ClearRegisteredTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RowsAffectedResponse)
-	err := c.cc.Invoke(ctx, BlockTxAPI_ClearBlockTransactionsMap_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, BlockTxAPI_ClearRegisteredTransactions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,12 +107,10 @@ func (c *blockTxAPIClient) VerifyMerkleRoots(ctx context.Context, in *MerkleRoot
 type BlockTxAPIServer interface {
 	// Health returns the health of the API.
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
-	// ClearTransactions clears transaction data
-	ClearTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error)
 	// ClearBlocks clears block data
 	ClearBlocks(context.Context, *ClearData) (*RowsAffectedResponse, error)
-	// ClearBlockTransactionsMap clears block-transaction-map data
-	ClearBlockTransactionsMap(context.Context, *ClearData) (*RowsAffectedResponse, error)
+	// ClearRegisteredTransactions clears registered transactions
+	ClearRegisteredTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error)
 	// DelUnfinishedBlockProcessing deletes unfinished block processing
 	DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
@@ -143,14 +128,11 @@ type UnimplementedBlockTxAPIServer struct{}
 func (UnimplementedBlockTxAPIServer) Health(context.Context, *emptypb.Empty) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
-func (UnimplementedBlockTxAPIServer) ClearTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ClearTransactions not implemented")
-}
 func (UnimplementedBlockTxAPIServer) ClearBlocks(context.Context, *ClearData) (*RowsAffectedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearBlocks not implemented")
 }
-func (UnimplementedBlockTxAPIServer) ClearBlockTransactionsMap(context.Context, *ClearData) (*RowsAffectedResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ClearBlockTransactionsMap not implemented")
+func (UnimplementedBlockTxAPIServer) ClearRegisteredTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearRegisteredTransactions not implemented")
 }
 func (UnimplementedBlockTxAPIServer) DelUnfinishedBlockProcessing(context.Context, *DelUnfinishedBlockProcessingRequest) (*RowsAffectedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DelUnfinishedBlockProcessing not implemented")
@@ -197,24 +179,6 @@ func _BlockTxAPI_Health_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_ClearTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClearData)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BlockTxAPIServer).ClearTransactions(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BlockTxAPI_ClearTransactions_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).ClearTransactions(ctx, req.(*ClearData))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _BlockTxAPI_ClearBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ClearData)
 	if err := dec(in); err != nil {
@@ -233,20 +197,20 @@ func _BlockTxAPI_ClearBlocks_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockTxAPI_ClearBlockTransactionsMap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BlockTxAPI_ClearRegisteredTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ClearData)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BlockTxAPIServer).ClearBlockTransactionsMap(ctx, in)
+		return srv.(BlockTxAPIServer).ClearRegisteredTransactions(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BlockTxAPI_ClearBlockTransactionsMap_FullMethodName,
+		FullMethod: BlockTxAPI_ClearRegisteredTransactions_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockTxAPIServer).ClearBlockTransactionsMap(ctx, req.(*ClearData))
+		return srv.(BlockTxAPIServer).ClearRegisteredTransactions(ctx, req.(*ClearData))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -299,16 +263,12 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockTxAPI_Health_Handler,
 		},
 		{
-			MethodName: "ClearTransactions",
-			Handler:    _BlockTxAPI_ClearTransactions_Handler,
-		},
-		{
 			MethodName: "ClearBlocks",
 			Handler:    _BlockTxAPI_ClearBlocks_Handler,
 		},
 		{
-			MethodName: "ClearBlockTransactionsMap",
-			Handler:    _BlockTxAPI_ClearBlockTransactionsMap_Handler,
+			MethodName: "ClearRegisteredTransactions",
+			Handler:    _BlockTxAPI_ClearRegisteredTransactions_Handler,
 		},
 		{
 			MethodName: "DelUnfinishedBlockProcessing",

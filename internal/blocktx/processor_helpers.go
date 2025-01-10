@@ -1,12 +1,12 @@
 package blocktx
 
 import (
-	"math"
 	"math/big"
+
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 func getHashStringNoErr(hash []byte) string {
@@ -29,14 +29,14 @@ func sumChainwork(blocks []*blocktx_api.Block) *big.Int {
 	return sum
 }
 
-func exclusiveRightTxs(leftTxs, rightTxs []store.TransactionBlock) []store.TransactionBlock {
+func exclusiveRightTxs(leftTxs, rightTxs []store.BlockTransaction) []store.BlockTransaction {
 	leftTxsMap := make(map[string]struct{})
 
 	for _, tx := range leftTxs {
 		leftTxsMap[string(tx.TxHash)] = struct{}{}
 	}
 
-	exclusiveRightTxs := make([]store.TransactionBlock, 0)
+	exclusiveRightTxs := make([]store.BlockTransaction, 0)
 	for _, tx := range rightTxs {
 		if _, found := leftTxsMap[string(tx.TxHash)]; !found {
 			exclusiveRightTxs = append(exclusiveRightTxs, tx)
@@ -96,20 +96,4 @@ func compactToBig(compact uint32) *big.Int {
 	}
 
 	return bn
-}
-
-func progressIndices(total, steps int) map[int]int {
-	totalF := float64(total)
-	stepsF := float64(steps)
-
-	step := int(math.Max(math.Round(totalF/stepsF), 1))
-	stepF := float64(step)
-
-	progress := make(map[int]int)
-	for i := float64(1); i < stepsF; i++ {
-		progress[step*int(i)] = int(stepF * i / totalF * 100)
-	}
-
-	progress[total] = 100
-	return progress
 }

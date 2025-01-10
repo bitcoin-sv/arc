@@ -20,7 +20,10 @@ import (
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
+	"github.com/libsv/go-bc"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 const (
@@ -399,4 +402,22 @@ func generateNewUnlockingScriptFromRandomKey() (*script.Script, error) {
 		return nil, err
 	}
 	return sc, nil
+}
+
+func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
+	require.NotNil(t, statusResponse.MerklePath)
+
+	bump, err := bc.NewBUMPFromStr(*statusResponse.MerklePath)
+	require.NoError(t, err)
+
+	jsonB, err := json.Marshal(bump)
+	require.NoError(t, err)
+	t.Logf("BUMPjson: %s", string(jsonB))
+
+	root, err := bump.CalculateRootGivenTxid(statusResponse.Txid)
+	require.NoError(t, err)
+
+	require.NotNil(t, statusResponse.BlockHeight)
+	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, int(*statusResponse.BlockHeight))
+	require.Equal(t, blockRoot, root)
 }

@@ -59,5 +59,38 @@ func TestBatchChainedTxs(t *testing.T) {
 		if hasFailed {
 			t.FailNow()
 		}
+
+		node_client.Generate(t, bitcoind, 1)
+
+		// Check a couple of Merkle paths
+		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[3].TxID())
+		statusResponse := getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
+
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[4].TxID())
+		statusResponse = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
+
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[5].TxID())
+		statusResponse = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
+
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[15].TxID())
+		statusResponse = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
+
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[16].TxID())
+		statusResponse = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
+
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[17].TxID())
+		statusResponse = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResponse.TxStatus)
+		checkMerklePath(t, statusResponse)
 	})
 }

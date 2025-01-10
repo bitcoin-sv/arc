@@ -46,39 +46,3 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 
 	return processedBy, nil
 }
-
-//
-//func (p *PostgreSQL) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-//	// Check how many blocks this instance is currently processing
-//	q := `
-//		SELECT bp.block_hash FROM blocktx.block_processing bp
-//		LEFT JOIN blocktx.blocks b ON b.hash = bp.block_hash
-//		WHERE b.processed_at IS NULL AND bp.processed_by = $1;
-//	`
-//
-//	rows, err := p.db.QueryContext(ctx, q, processedBy)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//
-//	hashes := make([]*chainhash.Hash, 0)
-//
-//	for rows.Next() {
-//		var hash []byte
-//
-//		err = rows.Scan(&hash)
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		txHash, err := chainhash.NewHash(hash)
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		hashes = append(hashes, txHash)
-//	}
-//
-//	return hashes, nil
-//}

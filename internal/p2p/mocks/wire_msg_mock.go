@@ -4,20 +4,21 @@
 package mocks
 
 import (
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/wire"
 	"io"
 	"sync"
 )
 
-// Ensure, that MessageMock does implement wire.Message.
+// Ensure, that MessageMock does implement p2p.Message.
 // If this is not the case, regenerate this file with moq.
-var _ wire.Message = &MessageMock{}
+var _ p2p.Message = &MessageMock{}
 
-// MessageMock is a mock implementation of wire.Message.
+// MessageMock is a mock implementation of p2p.Message.
 //
 //	func TestSomethingThatUsesMessage(t *testing.T) {
 //
-//		// make and configure a mocked wire.Message
+//		// make and configure a mocked p2p.Message
 //		mockedMessage := &MessageMock{
 //			BsvEncodeFunc: func(writer io.Writer, v uint32, messageEncoding wire.MessageEncoding) error {
 //				panic("mock out the BsvEncode method")
@@ -33,7 +34,7 @@ var _ wire.Message = &MessageMock{}
 //			},
 //		}
 //
-//		// use mockedMessage in code that requires wire.Message
+//		// use mockedMessage in code that requires p2p.Message
 //		// and then make assertions.
 //
 //	}

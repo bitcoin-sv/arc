@@ -9,6 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"sync"
+	"time"
 )
 
 // Ensure, that BlocktxStoreMock does implement store.BlocktxStore.
@@ -27,17 +28,11 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
 //			},
-//			DelBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-//				panic("mock out the DelBlockProcessing method")
-//			},
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
 //			GetBlockGapsFunc: func(ctx context.Context, heightRange int) ([]*store.BlockGap, error) {
 //				panic("mock out the GetBlockGaps method")
-//			},
-//			GetBlockHashesProcessingInProgressFunc: func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-//				panic("mock out the GetBlockHashesProcessingInProgress method")
 //			},
 //			GetBlockTransactionsHashesFunc: func(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetBlockTransactionsHashes method")
@@ -78,7 +73,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) error {
 //				panic("mock out the RegisterTransactions method")
 //			},
-//			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+//			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
@@ -103,17 +98,11 @@ type BlocktxStoreMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
 
-	// DelBlockProcessingFunc mocks the DelBlockProcessing method.
-	DelBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
-
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 
 	// GetBlockGapsFunc mocks the GetBlockGaps method.
 	GetBlockGapsFunc func(ctx context.Context, heightRange int) ([]*store.BlockGap, error)
-
-	// GetBlockHashesProcessingInProgressFunc mocks the GetBlockHashesProcessingInProgress method.
-	GetBlockHashesProcessingInProgressFunc func(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 
 	// GetBlockTransactionsHashesFunc mocks the GetBlockTransactionsHashes method.
 	GetBlockTransactionsHashesFunc func(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
@@ -155,7 +144,7 @@ type BlocktxStoreMock struct {
 	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) error
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
-	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
+	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
 
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
@@ -180,15 +169,6 @@ type BlocktxStoreMock struct {
 		// Close holds details about calls to the Close method.
 		Close []struct {
 		}
-		// DelBlockProcessing holds details about calls to the DelBlockProcessing method.
-		DelBlockProcessing []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash *chainhash.Hash
-			// ProcessedBy is the processedBy argument value.
-			ProcessedBy string
-		}
 		// GetBlock holds details about calls to the GetBlock method.
 		GetBlock []struct {
 			// Ctx is the ctx argument value.
@@ -202,13 +182,6 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// HeightRange is the heightRange argument value.
 			HeightRange int
-		}
-		// GetBlockHashesProcessingInProgress holds details about calls to the GetBlockHashesProcessingInProgress method.
-		GetBlockHashesProcessingInProgress []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// ProcessedBy is the processedBy argument value.
-			ProcessedBy string
 		}
 		// GetBlockTransactionsHashes holds details about calls to the GetBlockTransactionsHashes method.
 		GetBlockTransactionsHashes []struct {
@@ -309,8 +282,12 @@ type BlocktxStoreMock struct {
 			Ctx context.Context
 			// Hash is the hash argument value.
 			Hash *chainhash.Hash
-			// ProcessedBy is the processedBy argument value.
-			ProcessedBy string
+			// SetProcessedBy is the setProcessedBy argument value.
+			SetProcessedBy string
+			// LockTime is the lockTime argument value.
+			LockTime time.Duration
+			// MaxParallelProcessing is the maxParallelProcessing argument value.
+			MaxParallelProcessing int
 		}
 		// UpdateBlocksStatuses holds details about calls to the UpdateBlocksStatuses method.
 		UpdateBlocksStatuses []struct {
@@ -336,29 +313,27 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch int
 		}
 	}
-	lockClearBlocktxTable                  sync.RWMutex
-	lockClose                              sync.RWMutex
-	lockDelBlockProcessing                 sync.RWMutex
-	lockGetBlock                           sync.RWMutex
-	lockGetBlockGaps                       sync.RWMutex
-	lockGetBlockHashesProcessingInProgress sync.RWMutex
-	lockGetBlockTransactionsHashes         sync.RWMutex
-	lockGetChainTip                        sync.RWMutex
-	lockGetLongestBlockByHeight            sync.RWMutex
-	lockGetLongestChainFromHeight          sync.RWMutex
-	lockGetMinedTransactions               sync.RWMutex
-	lockGetOrphansBackToNonOrphanAncestor  sync.RWMutex
-	lockGetRegisteredTxsByBlockHashes      sync.RWMutex
-	lockGetStaleChainBackFromHash          sync.RWMutex
-	lockGetStats                           sync.RWMutex
-	lockInsertBlockTransactions            sync.RWMutex
-	lockMarkBlockAsDone                    sync.RWMutex
-	lockPing                               sync.RWMutex
-	lockRegisterTransactions               sync.RWMutex
-	lockSetBlockProcessing                 sync.RWMutex
-	lockUpdateBlocksStatuses               sync.RWMutex
-	lockUpsertBlock                        sync.RWMutex
-	lockVerifyMerkleRoots                  sync.RWMutex
+	lockClearBlocktxTable                 sync.RWMutex
+	lockClose                             sync.RWMutex
+	lockGetBlock                          sync.RWMutex
+	lockGetBlockGaps                      sync.RWMutex
+	lockGetBlockTransactionsHashes        sync.RWMutex
+	lockGetChainTip                       sync.RWMutex
+	lockGetLongestBlockByHeight           sync.RWMutex
+	lockGetLongestChainFromHeight         sync.RWMutex
+	lockGetMinedTransactions              sync.RWMutex
+	lockGetOrphansBackToNonOrphanAncestor sync.RWMutex
+	lockGetRegisteredTxsByBlockHashes     sync.RWMutex
+	lockGetStaleChainBackFromHash         sync.RWMutex
+	lockGetStats                          sync.RWMutex
+	lockInsertBlockTransactions           sync.RWMutex
+	lockMarkBlockAsDone                   sync.RWMutex
+	lockPing                              sync.RWMutex
+	lockRegisterTransactions              sync.RWMutex
+	lockSetBlockProcessing                sync.RWMutex
+	lockUpdateBlocksStatuses              sync.RWMutex
+	lockUpsertBlock                       sync.RWMutex
+	lockVerifyMerkleRoots                 sync.RWMutex
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -425,46 +400,6 @@ func (mock *BlocktxStoreMock) CloseCalls() []struct {
 	mock.lockClose.RLock()
 	calls = mock.calls.Close
 	mock.lockClose.RUnlock()
-	return calls
-}
-
-// DelBlockProcessing calls DelBlockProcessingFunc.
-func (mock *BlocktxStoreMock) DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error) {
-	if mock.DelBlockProcessingFunc == nil {
-		panic("BlocktxStoreMock.DelBlockProcessingFunc: method is nil but BlocktxStore.DelBlockProcessing was just called")
-	}
-	callInfo := struct {
-		Ctx         context.Context
-		Hash        *chainhash.Hash
-		ProcessedBy string
-	}{
-		Ctx:         ctx,
-		Hash:        hash,
-		ProcessedBy: processedBy,
-	}
-	mock.lockDelBlockProcessing.Lock()
-	mock.calls.DelBlockProcessing = append(mock.calls.DelBlockProcessing, callInfo)
-	mock.lockDelBlockProcessing.Unlock()
-	return mock.DelBlockProcessingFunc(ctx, hash, processedBy)
-}
-
-// DelBlockProcessingCalls gets all the calls that were made to DelBlockProcessing.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.DelBlockProcessingCalls())
-func (mock *BlocktxStoreMock) DelBlockProcessingCalls() []struct {
-	Ctx         context.Context
-	Hash        *chainhash.Hash
-	ProcessedBy string
-} {
-	var calls []struct {
-		Ctx         context.Context
-		Hash        *chainhash.Hash
-		ProcessedBy string
-	}
-	mock.lockDelBlockProcessing.RLock()
-	calls = mock.calls.DelBlockProcessing
-	mock.lockDelBlockProcessing.RUnlock()
 	return calls
 }
 
@@ -537,42 +472,6 @@ func (mock *BlocktxStoreMock) GetBlockGapsCalls() []struct {
 	mock.lockGetBlockGaps.RLock()
 	calls = mock.calls.GetBlockGaps
 	mock.lockGetBlockGaps.RUnlock()
-	return calls
-}
-
-// GetBlockHashesProcessingInProgress calls GetBlockHashesProcessingInProgressFunc.
-func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error) {
-	if mock.GetBlockHashesProcessingInProgressFunc == nil {
-		panic("BlocktxStoreMock.GetBlockHashesProcessingInProgressFunc: method is nil but BlocktxStore.GetBlockHashesProcessingInProgress was just called")
-	}
-	callInfo := struct {
-		Ctx         context.Context
-		ProcessedBy string
-	}{
-		Ctx:         ctx,
-		ProcessedBy: processedBy,
-	}
-	mock.lockGetBlockHashesProcessingInProgress.Lock()
-	mock.calls.GetBlockHashesProcessingInProgress = append(mock.calls.GetBlockHashesProcessingInProgress, callInfo)
-	mock.lockGetBlockHashesProcessingInProgress.Unlock()
-	return mock.GetBlockHashesProcessingInProgressFunc(ctx, processedBy)
-}
-
-// GetBlockHashesProcessingInProgressCalls gets all the calls that were made to GetBlockHashesProcessingInProgress.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetBlockHashesProcessingInProgressCalls())
-func (mock *BlocktxStoreMock) GetBlockHashesProcessingInProgressCalls() []struct {
-	Ctx         context.Context
-	ProcessedBy string
-} {
-	var calls []struct {
-		Ctx         context.Context
-		ProcessedBy string
-	}
-	mock.lockGetBlockHashesProcessingInProgress.RLock()
-	calls = mock.calls.GetBlockHashesProcessingInProgress
-	mock.lockGetBlockHashesProcessingInProgress.RUnlock()
 	return calls
 }
 
@@ -1049,23 +948,27 @@ func (mock *BlocktxStoreMock) RegisterTransactionsCalls() []struct {
 }
 
 // SetBlockProcessing calls SetBlockProcessingFunc.
-func (mock *BlocktxStoreMock) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error) {
+func (mock *BlocktxStoreMock) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
 	if mock.SetBlockProcessingFunc == nil {
 		panic("BlocktxStoreMock.SetBlockProcessingFunc: method is nil but BlocktxStore.SetBlockProcessing was just called")
 	}
 	callInfo := struct {
-		Ctx         context.Context
-		Hash        *chainhash.Hash
-		ProcessedBy string
+		Ctx                   context.Context
+		Hash                  *chainhash.Hash
+		SetProcessedBy        string
+		LockTime              time.Duration
+		MaxParallelProcessing int
 	}{
-		Ctx:         ctx,
-		Hash:        hash,
-		ProcessedBy: processedBy,
+		Ctx:                   ctx,
+		Hash:                  hash,
+		SetProcessedBy:        setProcessedBy,
+		LockTime:              lockTime,
+		MaxParallelProcessing: maxParallelProcessing,
 	}
 	mock.lockSetBlockProcessing.Lock()
 	mock.calls.SetBlockProcessing = append(mock.calls.SetBlockProcessing, callInfo)
 	mock.lockSetBlockProcessing.Unlock()
-	return mock.SetBlockProcessingFunc(ctx, hash, processedBy)
+	return mock.SetBlockProcessingFunc(ctx, hash, setProcessedBy, lockTime, maxParallelProcessing)
 }
 
 // SetBlockProcessingCalls gets all the calls that were made to SetBlockProcessing.
@@ -1073,14 +976,18 @@ func (mock *BlocktxStoreMock) SetBlockProcessing(ctx context.Context, hash *chai
 //
 //	len(mockedBlocktxStore.SetBlockProcessingCalls())
 func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
-	Ctx         context.Context
-	Hash        *chainhash.Hash
-	ProcessedBy string
+	Ctx                   context.Context
+	Hash                  *chainhash.Hash
+	SetProcessedBy        string
+	LockTime              time.Duration
+	MaxParallelProcessing int
 } {
 	var calls []struct {
-		Ctx         context.Context
-		Hash        *chainhash.Hash
-		ProcessedBy string
+		Ctx                   context.Context
+		Hash                  *chainhash.Hash
+		SetProcessedBy        string
+		LockTime              time.Duration
+		MaxParallelProcessing int
 	}
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing

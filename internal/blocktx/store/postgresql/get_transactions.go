@@ -17,16 +17,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 		tracing.EndTracing(span, err)
 	}()
 
-	predicate := "WHERE t.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
-
-	return p.getTransactionBlocksByPredicate(ctx, predicate,
-		pq.Array(hashes),
-		blocktx_api.Status_LONGEST,
-		blocktx_api.Status_STALE,
-	)
-}
-
-func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
 	q := `
 		SELECT
 			bt.hash,
@@ -36,10 +26,10 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			b.status
 		FROM blocktx.block_transactions AS bt
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+		WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL
 	`
-	q += " " + predicate
 
-	rows, err := p.db.QueryContext(ctx, q, predicateParams...)
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes), blocktx_api.Status_LONGEST, blocktx_api.Status_STALE)
 	if err != nil {
 		return nil, err
 	}

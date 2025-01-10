@@ -559,37 +559,36 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, bts, 5)
 	})
 
-	t.Run("set/get/del block processing", func(t *testing.T) {
+	t.Run("set block processing", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/block_processing")
 
-		bh1 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
+		var processedBy string
+		var err error
+		const lockTime = 15 * time.Minute
 
-		const lockTime = 5 * time.Minute
-		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime)
+		// block already processed by pod-2
+		bh2 := testutils.RevChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh2, "pod-1", lockTime, 2)
+		require.ErrorIs(t, err, store.ErrBlockProcessingInProgress)
+		require.Equal(t, "pod-2", processedBy)
+
+		// pod-2 already processing 2 blocks => maximum reached
+		bh3 := testutils.RevChainhash(t, "51e9e0bacaf8ff4e993ca083aabbbd9bf56e724508d159fe2d43360500000000")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh3, "pod-2", lockTime, 2)
+		require.ErrorIs(t, err, store.ErrBlockProcessingMaximumReached)
+		require.Equal(t, "", processedBy)
+
+		// successfully insert new block processing
+		bh0 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh0, "pod-1", lockTime, 2)
 		require.NoError(t, err)
 		require.Equal(t, "pod-1", processedBy)
 
-		// set a second time, expect error
-		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime)
-		require.ErrorIs(t, err, store.ErrBlockProcessingDuplicateKey)
-		require.Equal(t, "pod-1", processedBy)
-
-		bhInProgress := testutils.RevChainhash(t, "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000")
-
-		blockHashes, err := postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")
-		require.NoError(t, err)
-		require.Len(t, blockHashes, 1)
-		require.True(t, bhInProgress.IsEqual(blockHashes[0]))
-
-		_, err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-1")
-		require.ErrorIs(t, err, store.ErrBlockNotFound)
-
-		_, err = postgresDB.DelBlockProcessing(ctx, bhInProgress, "pod-2")
-		require.NoError(t, err)
-
-		blockHashes, err = postgresDB.GetBlockHashesProcessingInProgress(ctx, "pod-2")
-		require.NoError(t, err)
-		require.Len(t, blockHashes, 0)
+		// pod-1 already processing 1 block => maximum reached
+		bh1 := testutils.RevChainhash(t, "f64b7221f28256a0f47521121d0f63b91223d7fe603993c5e676460e00000000")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime, 1)
+		require.ErrorIs(t, err, store.ErrBlockProcessingMaximumReached)
+		require.Equal(t, "", processedBy)
 	})
 
 	t.Run("mark block as done", func(t *testing.T) {

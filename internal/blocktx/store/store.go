@@ -12,7 +12,8 @@ import (
 
 var (
 	ErrNotFound                           = errors.New("not found")
-	ErrBlockProcessingDuplicateKey        = errors.New("block hash already exists")
+	ErrBlockProcessingMaximumReached      = errors.New("block processing maximum reached")
+	ErrBlockProcessingInProgress          = errors.New("block processing already in progress")
 	ErrBlockNotFound                      = errors.New("block not found")
 	ErrUnableToPrepareStatement           = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows                 = errors.New("unable to delete rows")
@@ -52,9 +53,7 @@ type BlocktxStore interface {
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
 
-	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration) (string, error)
-	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
-	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
+	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	Ping(ctx context.Context) error

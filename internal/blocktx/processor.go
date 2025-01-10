@@ -154,29 +154,6 @@ func (p *Processor) Start(statsEnabled bool) error {
 func (p *Processor) StartBlockRequesting() {
 	p.waitGroup.Add(1)
 
-	waitUntilFree := func(ctx context.Context) bool {
-		t := time.NewTicker(time.Second)
-		defer t.Stop()
-
-		for {
-			bhs, err := p.store.GetBlockHashesProcessingInProgress(p.ctx, p.hostname)
-			if err != nil {
-				p.logger.Error("failed to get block hashes where processing in progress", slog.String("err", err.Error()))
-			}
-
-			if len(bhs) < maxBlocksInProgress && err == nil {
-				return true
-			}
-
-			select {
-			case <-ctx.Done():
-				return false
-
-			case <-t.C:
-			}
-		}
-	}
-
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -187,15 +164,11 @@ func (p *Processor) StartBlockRequesting() {
 				hash := req.Hash
 				peer := req.Peer
 
-				if ok := waitUntilFree(p.ctx); !ok {
-					continue
-				}
-
 				// lock block for the current instance to process
-				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime)
+				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime, maxBlocksInProgress)
 				if err != nil {
 					// block is already being processed by another blocktx instance
-					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
+					if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
 						p.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}
@@ -992,18 +965,4 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 func (p *Processor) Shutdown() {
 	p.cancelAll()
 	p.waitGroup.Wait()
-
-	// unlock unprocessed blocks
-	bhs, err := p.store.GetBlockHashesProcessingInProgress(context.Background(), p.hostname)
-	if err != nil {
-		p.logger.Error("reading unprocessing blocks on shutdown failed", slog.Any("err", err))
-		return
-	}
-
-	for _, bh := range bhs {
-		_, err := p.store.DelBlockProcessing(context.Background(), bh, p.hostname)
-		if err != nil {
-			p.logger.Error("unlocking unprocessed block on shutdown failed", slog.String("hash", bh.String()), slog.Any("err", err))
-		}
-	}
 }

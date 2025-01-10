@@ -22,6 +22,12 @@ func Test_NewLogger(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name:          "valid logger",
+			loglevel:      "INFO",
+			logformat:     "json",
+			expectedError: nil,
+		},
+		{
 			name:          "invalid log format",
 			loglevel:      "INFO",
 			logformat:     "invalid format",
@@ -39,6 +45,10 @@ func Test_NewLogger(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 			sut, err := NewLogger(tc.loglevel, tc.logformat)
+
+			if sut != nil {
+				sut.Info("test")
+			}
 
 			// then
 			assert.ErrorIs(t, err, tc.expectedError)

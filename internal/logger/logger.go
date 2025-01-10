@@ -72,10 +72,6 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 
 // replaceAttr inspired by https://go.dev/src/log/slog/example_custom_levels_test.go
 func replaceAttr(_ []string, a slog.Attr) slog.Attr {
-	if a.Key == slog.TimeKey {
-		return slog.Attr{}
-	}
-
 	// Customize the name of the level key
 	if a.Key == slog.LevelKey {
 		level := a.Value.Any().(slog.Level) //nolint:errcheck,revive

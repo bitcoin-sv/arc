@@ -4,16 +4,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/lmittmann/tint"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStartMetamorphWatcher(t *testing.T) {
@@ -98,7 +97,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 			}
 
 			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
-				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+				k8s_watcher.WithLogger(slog.Default()),
 				k8s_watcher.WithRetryInterval(20*time.Millisecond),
 			)
 			err := watcher.Start()
@@ -188,7 +187,7 @@ func TestStartBlocktxWatcher(t *testing.T) {
 			}
 
 			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithBlocktxTicker(ticker),
-				k8s_watcher.WithLogger(slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelInfo, TimeFormat: time.Kitchen}))),
+				k8s_watcher.WithLogger(slog.Default()),
 			)
 			err := watcher.Start()
 			require.NoError(t, err)

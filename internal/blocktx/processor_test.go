@@ -430,6 +430,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return nil, nil
+				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
 				},
@@ -709,6 +712,9 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHash:   testdata.Block1Hash[:],
 						BlockHeight: 1,
 					}}, tc.getMinedErr
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
 			}
 

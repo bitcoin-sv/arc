@@ -205,6 +205,7 @@ func TestHandleBlock(t *testing.T) {
 			require.NoError(t, err)
 
 			blockMessage := &p2p.BlockMessage{
+				// Hash: testdata.Block1Hash,
 				Header: &wire.BlockHeader{
 					Version:    541065216,
 					PrevBlock:  tc.prevBlockHash,

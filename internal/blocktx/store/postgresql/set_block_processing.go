@@ -13,21 +13,23 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
+// SetBlockProcessing tries to insert a record to the block processing table in order to mark a certain block as being processed by a blocktx instance. If there is an entry from any block tx instance not older than `lockTime` then a new entry will be inserted successfully returning the name of the blocktx instance which has called the function
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration) (string, error) {
 	// Try to set a block as being processed by this instance
 	qInsert := `
 		INSERT INTO blocktx.block_processing (block_hash, processed_by)
 		SELECT $1, $2
 		WHERE NOT EXISTS (
-		  SELECT 1 FROM blocktx.block_processing bp WHERE bp.block_hash = $1 AND inserted_at > (NOW() - $3 * interval '1 * second')
+		  SELECT 1 FROM blocktx.block_processing bp WHERE bp.block_hash = $1 AND inserted_at > $3
 		)
 		RETURNING processed_by
 	`
 
-	var processedBy string
-	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, lockTime.Seconds()).Scan(&processedBy)
-	if err != nil {
+	// Todo: insert only if not setProcessedBy instance is not already processing X blocks
 
+	var processedBy string
+	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, p.now().Add(-1*lockTime)).Scan(&processedBy)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			var currentlyProcessedBy string
 			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1 ORDER BY inserted_at DESC LIMIT 1`, hash[:]).Scan(&currentlyProcessedBy)
@@ -35,7 +37,6 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 				return "", errors.Join(store.ErrBlockProcessingDuplicateKey, err)
 			}
 			return currentlyProcessedBy, store.ErrBlockProcessingDuplicateKey
-
 		}
 
 		return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)

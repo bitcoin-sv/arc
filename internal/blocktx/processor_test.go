@@ -710,9 +710,6 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHeight: 1,
 					}}, tc.getMinedErr
 				},
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
 			}
 
 			mq := &mocks.MessageQueueClientMock{

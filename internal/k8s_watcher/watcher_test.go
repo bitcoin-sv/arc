@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -68,8 +67,6 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &btxMocks.WatcherMock{}
-
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamestTest := tc.podNames
@@ -96,7 +93,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
+			watcher := k8s_watcher.New(metamorphMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
 				k8s_watcher.WithLogger(slog.Default()),
 				k8s_watcher.WithRetryInterval(20*time.Millisecond),
 			)

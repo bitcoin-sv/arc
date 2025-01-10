@@ -9,14 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 const (
 	logLevelDefault      = slog.LevelInfo
 	metamorphService     = "metamorph"
-	blocktxService       = "blocktx"
 	intervalDefault      = 15 * time.Second
 	maxRetries           = 5
 	retryIntervalDefault = 2 * time.Second
@@ -28,7 +26,6 @@ type K8sClient interface {
 
 type Watcher struct {
 	metamorphClient   metamorph.TransactionMaintainer
-	blocktxClient     blocktx.Watcher
 	k8sClient         K8sClient
 	logger            *slog.Logger
 	tickerMetamorph   Ticker
@@ -55,10 +52,9 @@ func WithRetryInterval(d time.Duration) func(*Watcher) {
 type ServerOption func(f *Watcher)
 
 // New The K8s watcher listens to events coming from Kubernetes. If it detects a metamorph pod which was terminated, then it sets records locked by this pod to unlocked. This is a safety measure for the case that metamorph is terminated ungracefully where it misses to unlock its records itself.
-func New(metamorphClient metamorph.TransactionMaintainer, blocktxClient blocktx.Watcher, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
+func New(metamorphClient metamorph.TransactionMaintainer, k8sClient K8sClient, namespace string, opts ...ServerOption) *Watcher {
 	watcher := &Watcher{
 		metamorphClient: metamorphClient,
-		blocktxClient:   blocktxClient,
 		k8sClient:       k8sClient,
 
 		namespace:       namespace,

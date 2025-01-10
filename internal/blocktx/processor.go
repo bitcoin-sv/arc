@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -48,6 +47,7 @@ const (
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
 	waitForBlockProcessing             = 5 * time.Minute
+	lockTime                           = 5 * time.Minute
 	parallellism                       = 5
 )
 
@@ -68,7 +68,6 @@ type Processor struct {
 	registerRequestTxsBatchSize int
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
-	processGuardsMap            sync.Map
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
 
@@ -193,7 +192,7 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				// lock block for the current instance to process
-				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname)
+				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime)
 				if err != nil {
 					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
@@ -210,7 +209,6 @@ func (p *Processor) StartBlockRequesting() {
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
 				_ = peer.WriteMsg(msg)
 
-				p.startBlockProcessGuard(p.ctx, hash)
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
@@ -238,14 +236,12 @@ func (p *Processor) StartBlockProcessing() {
 				err = p.processBlock(blockMsg)
 				if err != nil {
 					p.logger.Error("block processing failed", slog.String("hash", hash.String()), slog.String("err", err.Error()))
-					p.unlockBlock(p.ctx, &hash)
 					continue
 				}
 
 				storeErr := p.store.MarkBlockAsDone(p.ctx, &hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
 				if storeErr != nil {
 					p.logger.Error("unable to mark block as processed", slog.String("hash", hash.String()), slog.String("err", storeErr.Error()))
-					p.unlockBlock(p.ctx, &hash)
 					continue
 				}
 
@@ -262,66 +258,6 @@ func (p *Processor) StartBlockProcessing() {
 			}
 		}
 	}()
-}
-
-func (p *Processor) startBlockProcessGuard(ctx context.Context, hash *chainhash.Hash) {
-	p.waitGroup.Add(1)
-
-	execCtx, stopFn := context.WithCancel(ctx)
-	p.processGuardsMap.Store(*hash, stopFn)
-
-	go func() {
-		defer p.waitGroup.Done()
-		defer p.processGuardsMap.Delete(*hash)
-
-		select {
-		case <-execCtx.Done():
-			// we may do nothing here:
-			// 1. block processing is completed, or
-			// 2. processor is shutting down – all unprocessed blocks are released in the Shutdown func
-			return
-
-		case <-time.After(p.maxBlockProcessingDuration):
-			// check if block was processed successfully
-			block, _ := p.store.GetBlock(execCtx, hash)
-
-			if block != nil {
-				return // success
-			}
-
-			p.logger.Warn(fmt.Sprintf("block was not processed after %v. Unlock the block to be processed later", waitForBlockProcessing), slog.String("hash", hash.String()))
-			p.unlockBlock(execCtx, hash)
-		}
-	}()
-}
-
-func (p *Processor) stopBlockProcessGuard(hash *chainhash.Hash) {
-	stopFn, found := p.processGuardsMap.Load(*hash)
-	if found {
-		stopFn.(context.CancelFunc)()
-	}
-}
-
-// unlock block for future processing
-func (p *Processor) unlockBlock(ctx context.Context, hash *chainhash.Hash) {
-	// use closures for retries
-	unlockFn := func() error {
-		_, err := p.store.DelBlockProcessing(ctx, hash, p.hostname)
-		if errors.Is(err, store.ErrBlockNotFound) {
-			return nil // block is already unlocked
-		}
-
-		return err
-	}
-
-	var bo backoff.BackOff
-	bo = backoff.NewConstantBackOff(100 * time.Millisecond)
-	bo = backoff.WithContext(bo, ctx)
-	bo = backoff.WithMaxRetries(bo, 5)
-
-	if unlockErr := backoff.Retry(unlockFn, bo); unlockErr != nil {
-		p.logger.ErrorContext(ctx, "failed to delete block processing", slog.String("hash", hash.String()), slog.String("err", unlockErr.Error()))
-	}
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
@@ -468,9 +404,6 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 
 	var block *blocktx_api.Block
 	blockHash := blockMsg.Header.BlockHash()
-
-	// release guardian
-	defer p.stopBlockProcessGuard(&blockHash)
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

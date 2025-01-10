@@ -2,37 +2,43 @@ package postgresql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+
+	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
-func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string) (string, error) {
+func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration) (string, error) {
 	// Try to set a block as being processed by this instance
 	qInsert := `
 		INSERT INTO blocktx.block_processing (block_hash, processed_by)
-		VALUES ($1, $2)
+		SELECT $1, $2
+		WHERE NOT EXISTS (
+		  SELECT 1 FROM blocktx.block_processing bp WHERE bp.block_hash = $1 AND inserted_at > (NOW() - $3 * interval '1 * second')
+		)
 		RETURNING processed_by
 	`
 
 	var processedBy string
-	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy).Scan(&processedBy)
+	err := p.db.QueryRowContext(ctx, qInsert, hash[:], setProcessedBy, lockTime.Seconds()).Scan(&processedBy)
 	if err != nil {
-		var pqErr *pgconn.PgError
 
-		// Error 23505 is: "duplicate key violates unique constraint"
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1`, hash[:]).Scan(&processedBy)
+		if errors.Is(err, sql.ErrNoRows) {
+			var currentlyProcessedBy string
+			err = p.db.QueryRowContext(ctx, `SELECT processed_by FROM blocktx.block_processing WHERE block_hash = $1 ORDER BY inserted_at DESC LIMIT 1`, hash[:]).Scan(&currentlyProcessedBy)
 			if err != nil {
-				return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
+				return "", errors.Join(store.ErrBlockProcessingDuplicateKey, err)
 			}
+			return currentlyProcessedBy, store.ErrBlockProcessingDuplicateKey
 
-			return processedBy, store.ErrBlockProcessingDuplicateKey
 		}
+
+		return "", errors.Join(store.ErrFailedToSetBlockProcessing, err)
 	}
 
 	return processedBy, nil

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
@@ -51,7 +52,7 @@ type BlocktxStore interface {
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
 
-	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
+	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration) (string, error)
 	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
 	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)

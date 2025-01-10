@@ -564,12 +564,13 @@ func TestPostgresDB(t *testing.T) {
 
 		bh1 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 
-		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
+		const lockTime = 5 * time.Minute
+		processedBy, err := postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime)
 		require.NoError(t, err)
 		require.Equal(t, "pod-1", processedBy)
 
 		// set a second time, expect error
-		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime)
 		require.ErrorIs(t, err, store.ErrBlockProcessingDuplicateKey)
 		require.Equal(t, "pod-1", processedBy)
 

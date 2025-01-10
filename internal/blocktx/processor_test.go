@@ -563,8 +563,15 @@ func TestStartBlockRequesting(t *testing.T) {
 			expectedPeerWriteMessageCalls:   1,
 		},
 		{
-			name:                  "block already processed",
+			name:                  "block processing maximum reached",
 			setBlockProcessingErr: store.ErrBlockProcessingMaximumReached,
+
+			expectedSetBlockProcessingCalls: 1,
+			expectedPeerWriteMessageCalls:   0,
+		},
+		{
+			name:                  "block processing already in progress",
+			setBlockProcessingErr: store.ErrBlockProcessingInProgress,
 
 			expectedSetBlockProcessingCalls: 1,
 			expectedPeerWriteMessageCalls:   0,
@@ -574,19 +581,6 @@ func TestStartBlockRequesting(t *testing.T) {
 			setBlockProcessingErr: errors.New("failed to set block processing"),
 
 			expectedSetBlockProcessingCalls: 1,
-			expectedPeerWriteMessageCalls:   0,
-		},
-		{
-			name: "max blocks being processed reached",
-			bhsProcInProg: []*chainhash.Hash{
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-			},
-
-			expectedSetBlockProcessingCalls: 0,
 			expectedPeerWriteMessageCalls:   0,
 		},
 	}

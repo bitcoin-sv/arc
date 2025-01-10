@@ -167,8 +167,10 @@ func (p *Processor) StartBlockRequesting() {
 				// lock block for the current instance to process
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime, maxBlocksInProgress)
 				if err != nil {
-					// block is already being processed by another blocktx instance
 					if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
+						p.logger.Debug("block processing maximum reached", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						continue
+					} else if errors.Is(err, store.ErrBlockProcessingInProgress) {
 						p.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					}

@@ -203,7 +203,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
-				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
 				mqClient := &apiMocks.MessageQueueClientMock{
@@ -460,7 +459,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
-				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
 				mqClient := &apiMocks.MessageQueueClientMock{

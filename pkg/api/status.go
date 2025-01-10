@@ -14,7 +14,6 @@ const (
 	StatusOK                        StatusCode = 200
 	ErrStatusBadRequest             StatusCode = 400
 	ErrStatusNotFound               StatusCode = 404
-	ErrStatusTimeout                StatusCode = 408
 	ErrStatusGeneric                StatusCode = 409
 	ErrStatusTxFormat               StatusCode = 460
 	ErrStatusUnlockingScripts       StatusCode = 461

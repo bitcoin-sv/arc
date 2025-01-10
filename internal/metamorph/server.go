@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	maxTimeoutDefault          = 5 * time.Second
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
 )
@@ -56,7 +55,6 @@ type Server struct {
 	logger              *slog.Logger
 	processor           ProcessorI
 	store               store.MetamorphStore
-	maxTimeoutDefault   time.Duration
 	checkStatusInterval time.Duration
 	bitcoinNode         BitcoinNode
 	forceCheckUtxos     bool
@@ -68,12 +66,6 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 	return func(s *Server) {
 		s.bitcoinNode = bitcoinNode
 		s.forceCheckUtxos = true
-	}
-}
-
-func WithServerMaxTimeoutDefault(timeout time.Duration) func(*Server) {
-	return func(s *Server) {
-		s.maxTimeoutDefault = timeout
 	}
 }
 
@@ -108,7 +100,6 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		logger:              logger,
 		processor:           processor,
 		store:               store,
-		maxTimeoutDefault:   maxTimeoutDefault,
 		checkStatusInterval: checkStatusIntervalDefault,
 		forceCheckUtxos:     false,
 	}
@@ -159,16 +150,22 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
-	deadline, _ := ctx.Deadline()
+	deadline, ok := ctx.Deadline()
 
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(-time.Second)
+	newDeadline := deadline
+	if time.Now().Add(2 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 2))
+	}
 
 	// Create a new context with the updated deadline
-	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
-	defer newCancel()
+	if ok {
+		var newCancel context.CancelFunc
+		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		defer newCancel()
+	}
 
-	ctx, span := tracing.StartTracing(newCtx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -178,21 +175,26 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// Convert gRPC req to store.Data struct...
 	sReq := toStoreData(hash, statusReceived, req)
-	mda := s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String())
-	return mda, nil
+	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
-	deadline, _ := ctx.Deadline()
+	deadline, ok := ctx.Deadline()
 
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(-time.Second)
+	newDeadline := deadline
+	if time.Now().Add(2 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 2))
+	}
 
 	// Create a new context with the updated deadline
-	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
-	defer newCancel()
+	if ok {
+		var newCancel context.CancelFunc
+		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		defer newCancel()
+	}
 
-	ctx, span := tracing.StartTracing(newCtx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -286,7 +288,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	responseChannel := make(chan StatusAndError, 10)
-	go s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
+	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {
 		// wait for seen by default, this is the safest option

@@ -61,13 +61,6 @@ type Metamorph struct {
 	now               func() time.Time
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
-	maxTimeout        time.Duration
-}
-
-func WithClientMaxTimeoutDefault(d time.Duration) func(*Metamorph) {
-	return func(m *Metamorph) {
-		m.maxTimeout = d
-	}
 }
 
 func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
@@ -104,10 +97,9 @@ func WithClientTracer(attr ...attribute.KeyValue) func(s *Metamorph) {
 // NewClient creates a connection to a list of metamorph servers via gRPC.
 func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Metamorph)) *Metamorph {
 	m := &Metamorph{
-		client:     client,
-		logger:     slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
-		now:        time.Now,
-		maxTimeout: maxTimeoutDefault,
+		client: client,
+		logger: slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+		now:    time.Now,
 	}
 
 	for _, opt := range opts {
@@ -290,8 +282,8 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	}
 
 	deadline, _ := ctx.Deadline()
-	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second)
+	// increase time to make sure that expiration happens from inside the metramorph function
+	newDeadline := deadline.Add(time.Second * 2)
 
 	// Create a new context with the updated deadline
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
@@ -353,9 +345,9 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	deadline, _ := ctx.Deadline()
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second)
+	newDeadline := deadline.Add(time.Second * 5)
 
-	// Create a new context with the updated deadline
+	// increase time to make sure that expiration happens from inside the metramorph function
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
 	defer newCancel()
 
@@ -415,7 +407,6 @@ func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_ap
 		CallbackBatch:     options.CallbackBatch,
 		WaitForStatus:     options.WaitForStatus,
 		FullStatusUpdates: options.FullStatusUpdates,
-		MaxTimeout:        int64(options.MaxTimeout),
 	}
 }
 
@@ -431,7 +422,6 @@ type TransactionOptions struct {
 	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
 	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
 	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
-	MaxTimeout              int                  `json:"max_timeout,omitempty"`
 }
 
 type Transaction struct {

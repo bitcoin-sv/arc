@@ -22,9 +22,6 @@
   processed_at: 2023-12-10 14:10:00
   size: 244000000
   tx_count: 4437
-
-# block 822011 is being processed (in table block_processing)
-
 - inserted_at: 2023-12-10 14:00:00
   id: 2
   hash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
@@ -131,4 +128,3 @@
   processed_at: 2023-12-15 15:00:00
   size: 8630000
   tx_count: 36724
-

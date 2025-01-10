@@ -227,6 +227,7 @@ func TestPostgresDB(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
 
 		hash822014 := testutils.RevChainhash(t, "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000")
+		hash822011 := testutils.RevChainhash(t, "3a03313b727fa08c170fab2660c225d52b4d85516c92a0020000000000000000")
 		hash822019 := testutils.RevChainhash(t, "5696fc6e504b6aa2ae5d9c46b9418192dc61bd1b2e3364030000000000000000")
 		hash822020 := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
 		hash822009 := testutils.RevChainhash(t, "4ad773b1a464129a0ed8c7a8c71bb98175f0f01da1793f0e0000000000000000")
@@ -253,6 +254,10 @@ func TestPostgresDB(t *testing.T) {
 			{ // processing not finished
 				Height: 822020,
 				Hash:   hash822020,
+			},
+			{ // processing not finished
+				Height: 822011,
+				Hash:   hash822011,
 			},
 		}
 

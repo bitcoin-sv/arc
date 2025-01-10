@@ -14,44 +14,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 )
 
-func TestClient_DelUnfinishedBlockProcessing(t *testing.T) {
-	tt := []struct {
-		name   string
-		delErr error
-
-		expectedErrorStr string
-	}{
-		{
-			name: "success",
-		},
-		{
-			name:   "err",
-			delErr: errors.New("failed to delete unfinished block processing"),
-
-			expectedErrorStr: "failed to delete unfinished block processing",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			apiClient := &mocks.BlockTxAPIClientMock{
-				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ *blocktx_api.DelUnfinishedBlockProcessingRequest, _ ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-					return &blocktx_api.RowsAffectedResponse{}, tc.delErr
-				},
-			}
-			client := blocktx.NewClient(apiClient)
-
-			_, err := client.DelUnfinishedBlockProcessing(context.Background(), "test-1")
-			if tc.expectedErrorStr != "" {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			}
-
-			require.NoError(t, err)
-		})
-	}
-}
-
 func TestClient_ClearBlocks(t *testing.T) {
 	tt := []struct {
 		name     string

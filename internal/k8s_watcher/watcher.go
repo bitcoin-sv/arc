@@ -98,77 +98,10 @@ func WithMetamorphTicker(t Ticker) func(*Watcher) {
 	}
 }
 
-func WithBlocktxTicker(t Ticker) func(*Watcher) {
-	return func(p *Watcher) {
-		p.tickerBlocktx = t
-	}
-}
-
 func (c *Watcher) Start() error {
 	c.watchMetamorph()
 
-	c.watchBlocktx()
-
 	return nil
-}
-
-func (c *Watcher) watchBlocktx() {
-	ctx, cancel := context.WithCancel(context.Background())
-	c.shutdownBlocktx = cancel
-	c.waitGroup.Add(1)
-	go func() {
-		var runningPods map[string]struct{}
-		defer c.waitGroup.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.tickerBlocktx.Tick():
-				// Update the list of running pods. Detect those which have been terminated and call them to delete unfinished block processing
-				ctx := context.Background()
-				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, blocktxService)
-				if err != nil {
-					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
-					continue
-				}
-
-				for podName := range runningPods {
-					// Ignore all other services than blocktx
-					if !strings.Contains(podName, blocktxService) {
-						continue
-					}
-
-					_, found := runningPodsK8s[podName]
-					if !found {
-						// A previously running pod has been terminated => set records locked by this pod unlocked
-
-						retryTicker := time.NewTicker(c.retryInterval)
-						i := 0
-
-					retryLoop:
-						for range retryTicker.C {
-							i++
-
-							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("Failed to delete unfinished block processing after %d retries", maxRetries), slog.String("pod-name", podName))
-								break retryLoop
-							}
-
-							rows, err := c.blocktxClient.DelUnfinishedBlockProcessing(ctx, podName)
-							if err != nil {
-								c.logger.Error("Failed to delete unfinished block processing", slog.String("pod-name", podName), slog.String("err", err.Error()))
-								continue
-							}
-							c.logger.Info("Deleted unfinished block processing", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
-							break
-						}
-					}
-				}
-
-				runningPods = runningPodsK8s
-			}
-		}
-	}()
 }
 
 func (c *Watcher) watchMetamorph() {

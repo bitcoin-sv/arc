@@ -18,7 +18,6 @@ var _ MerkleRootsVerifier = &Client{}
 type Watcher interface {
 	Health(ctx context.Context) error
 	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
-	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
 }
 
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
@@ -51,14 +50,6 @@ func (btc *Client) Health(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
-	resp, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
-	if err != nil {
-		return 0, err
-	}
-	return resp.Rows, nil
 }
 
 func (btc *Client) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {

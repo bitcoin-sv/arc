@@ -17,9 +17,6 @@ service BlockTxAPI {
   // ClearRegisteredTransactions clears registered transactions
   rpc ClearRegisteredTransactions(ClearData) returns (RowsAffectedResponse) {}
 
-  // DelUnfinishedBlockProcessing deletes unfinished block processing
-  rpc DelUnfinishedBlockProcessing(DelUnfinishedBlockProcessingRequest) returns (RowsAffectedResponse) {}
-
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	rpc VerifyMerkleRoots(MerkleRootsVerificationRequest) returns (MerkleRootVerificationResponse) {}
 }

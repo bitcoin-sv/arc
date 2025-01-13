@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/libsv/go-p2p"
-	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -177,24 +175,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
-	}
-
-	if mtmConfig.CheckUtxos {
-		peerRPC := arcConfig.PeerRPC
-
-		rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPC.User, peerRPC.Password, peerRPC.Host, peerRPC.Port))
-		if err != nil {
-			stopFn()
-			return nil, fmt.Errorf("failed to parse rpc URL: %v", err)
-		}
-
-		node, err := bitcoin.NewFromURL(rpcURL, false)
-		if err != nil {
-			stopFn()
-			return nil, err
-		}
-
-		optsServer = append(optsServer, metamorph.WithForceCheckUtxos(node))
 	}
 
 	server, err = metamorph.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,

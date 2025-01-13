@@ -97,7 +97,7 @@ blocktx:
   registerTxsInterval: 200ms
   fillGaps:
     enabled: true
-    interval: 1s
+    interval: 30s
   maxAllowedBlockHeightMismatch: 3
 
 api:

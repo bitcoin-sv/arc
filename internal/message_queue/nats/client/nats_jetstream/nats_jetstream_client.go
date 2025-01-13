@@ -235,6 +235,10 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 }
 
 func (cl *Client) Shutdown() {
+	if cl == nil {
+		return
+	}
+
 	if cl.nc != nil {
 		err := cl.nc.Drain()
 		if err != nil {

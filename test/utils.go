@@ -4,7 +4,6 @@ package test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -55,9 +54,21 @@ type TransactionResponse struct {
 	Txid         string    `json:"txid"`
 }
 
+func (c TransactionResponse) GetTxID() string {
+	return c.Txid
+}
+
 type CallbackBatchResponse struct {
 	Count     int                    `json:"count"`
 	Callbacks []*TransactionResponse `json:"callbacks,omitempty"`
+}
+
+func (c CallbackBatchResponse) GetTxID() string {
+	return c.Callbacks[0].Txid
+}
+
+type Response interface {
+	GetTxID() string
 }
 
 type ErrorFee struct {
@@ -124,13 +135,8 @@ func generateRandomString(length int) string {
 	return string(b)
 }
 
-type (
-	callbackResponseFn      func(w http.ResponseWriter, rc chan *TransactionResponse, ec chan error, status *TransactionResponse)
-	callbackBatchResponseFn func(w http.ResponseWriter, rc chan *CallbackBatchResponse, ec chan error, status *CallbackBatchResponse)
-)
-
-// use buffered channels for multiple callbacks
-func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errChan chan error, alternativeResponseFn callbackResponseFn) (callbackURL, token string, shutdownFn func()) {
+// registerHandlerForCallback registers a new handler function that responds to callbacks with bad request response first and at second try with success or alternative given response function. It returns the callback URL and token to be used.
+func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errChan chan error, alternativeResponseFn func(w http.ResponseWriter, rc chan T, ec chan error, status T), mux *http.ServeMux) (callbackURL, token string) {
 	t.Helper()
 
 	callback := generateRandomString(16)
@@ -142,7 +148,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 
 	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
 
-	http.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
 		// check auth
 		if expectedAuthHeader != req.Header.Get("Authorization") {
 			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
@@ -153,7 +159,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 			return
 		}
 
-		status, err := readPayload[*TransactionResponse](t, req)
+		status, err := readPayload[T](t, req)
 		if err != nil {
 			errChan <- fmt.Errorf("read callback payload failed: %v", err)
 			return
@@ -172,94 +178,7 @@ func startCallbackSrv(t *testing.T, receivedChan chan *TransactionResponse, errC
 		}
 	})
 
-	srv := &http.Server{Addr: ":9000"}
-	shutdownFn = func() {
-		t.Logf("shutting down callback listener %s", callbackURL)
-
-		if err := srv.Shutdown(context.TODO()); err != nil {
-			t.Fatal("failed to shut down server")
-		}
-		t.Log("callback listener is down")
-
-		close(receivedChan)
-		close(errChan)
-	}
-
-	go func(server *http.Server) {
-		t.Logf("starting callback server %s", callbackURL)
-		err := server.ListenAndServe()
-		if err != nil {
-			return
-		}
-	}(srv)
-
-	return
-}
-
-// use buffered channels for multiple callbacks
-func startBatchCallbackSrv(t *testing.T, receivedChan chan *CallbackBatchResponse, errChan chan error, alternativeResponseFn callbackBatchResponseFn) (callbackURL, token string, shutdownFn func()) {
-	t.Helper()
-
-	callback := generateRandomString(16)
-	token = "1234"
-	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
-
-	hostname, err := os.Hostname()
-	require.NoError(t, err)
-
-	callbackURL = fmt.Sprintf("http://%s:9000/%s/batch", hostname, callback)
-
-	http.HandleFunc(fmt.Sprintf("/%s/batch", callback), func(w http.ResponseWriter, req *http.Request) {
-		// check auth
-		if expectedAuthHeader != req.Header.Get("Authorization") {
-			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
-			err = respondToCallback(w, false)
-			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
-			}
-			return
-		}
-
-		status, err := readPayload[*CallbackBatchResponse](t, req)
-		if err != nil {
-			errChan <- fmt.Errorf("read callback payload failed: %v", err)
-			return
-		}
-
-		if alternativeResponseFn != nil {
-			alternativeResponseFn(w, receivedChan, errChan, status)
-		} else {
-			t.Log("callback received, responding success")
-			err = respondToCallback(w, true)
-			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
-			}
-
-			receivedChan <- status
-		}
-	})
-
-	srv := &http.Server{Addr: ":9000"}
-	shutdownFn = func() {
-		t.Logf("shutting down callback listener %s", callbackURL)
-		close(receivedChan)
-		close(errChan)
-
-		if err := srv.Shutdown(context.TODO()); err != nil {
-			t.Fatal("failed to shut down server")
-		}
-		t.Log("callback listener is down")
-	}
-
-	go func(server *http.Server) {
-		t.Logf("starting callback server %s", callbackURL)
-		err := server.ListenAndServe()
-		if err != nil {
-			return
-		}
-	}(srv)
-
-	return
+	return callbackURL, token
 }
 
 func readPayload[T any](t *testing.T, req *http.Request) (T, error) {
@@ -320,26 +239,24 @@ func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBa
 	require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 }
 
-func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionResponse, chan error, callbackResponseFn) {
+func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) func(w http.ResponseWriter, rc chan T, ec chan error, status T) {
 	t.Helper()
-
-	callbackReceivedChan := make(chan *TransactionResponse, 100) // do not block callback server responses
-	callbackErrChan := make(chan error, 100)
 
 	responseVisitMap := make(map[string]int)
 	mu := &sync.Mutex{}
 
-	calbackResponseFn := func(w http.ResponseWriter, rc chan *TransactionResponse, _ chan error, status *TransactionResponse) {
+	calbackResponseFn := func(w http.ResponseWriter, rc chan T, _ chan error, status T) {
 		mu.Lock()
-		callbackNumber := responseVisitMap[status.Txid]
-		callbackNumber++
-		responseVisitMap[status.Txid] = callbackNumber
+		txID := status.GetTxID()
+		callbackCounter := responseVisitMap[txID]
+		callbackCounter++
+		responseVisitMap[txID] = callbackCounter
 		mu.Unlock()
-		// Let ARC send the same callback few times. Respond with success on the last one.
+
+		// Let ARC send the same callback few times
 		respondWithSuccess := false
-		if callbackNumber < callbackNumbers {
-			respondWithSuccess = false
-		} else {
+		if callbackCounter >= respondSuccessAtCallbacks {
+			// Respond with success at specified number of requests
 			respondWithSuccess = true
 		}
 
@@ -350,40 +267,7 @@ func prepareCallback(t *testing.T, callbackNumbers int) (chan *TransactionRespon
 
 		rc <- status
 	}
-	return callbackReceivedChan, callbackErrChan, calbackResponseFn
-}
-
-func prepareBatchCallback(t *testing.T, callbackNumbers int) (chan *CallbackBatchResponse, chan error, callbackBatchResponseFn) {
-	t.Helper()
-
-	callbackReceivedChan := make(chan *CallbackBatchResponse, 100) // do not block callback server responses
-	callbackErrChan := make(chan error, 100)
-
-	responseVisitMap := make(map[string]int)
-	mu := &sync.Mutex{}
-
-	calbackResponseFn := func(w http.ResponseWriter, rc chan *CallbackBatchResponse, _ chan error, status *CallbackBatchResponse) {
-		mu.Lock()
-		callbackNumber := responseVisitMap[status.Callbacks[0].Txid]
-		callbackNumber++
-		responseVisitMap[status.Callbacks[0].Txid] = callbackNumber
-		mu.Unlock()
-		// Let ARC send the same callback few times. Respond with success on the last one.
-		respondWithSuccess := false
-		if callbackNumber < callbackNumbers {
-			respondWithSuccess = false
-		} else {
-			respondWithSuccess = true
-		}
-
-		err := respondToCallback(w, respondWithSuccess)
-		if err != nil {
-			t.Fatalf("Failed to respond to callback: %v", err)
-		}
-
-		rc <- status
-	}
-	return callbackReceivedChan, callbackErrChan, calbackResponseFn
+	return calbackResponseFn
 }
 
 func generateNewUnlockingScriptFromRandomKey() (*script.Script, error) {

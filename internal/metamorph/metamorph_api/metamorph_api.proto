@@ -60,7 +60,6 @@ message TransactionRequest {
   bytes raw_tx = 9;
   Status wait_for_status = 10;
   bool full_status_updates = 11;
-  int64 max_timeout = 12;
   string event_id = 13;
 }
 

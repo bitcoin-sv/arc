@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	maxTimeout               = 30
-	maxTimeoutSecondsDefault = 5
-	mapExpiryTimeDefault     = 24 * time.Hour
+	maxTimeout            = 30
+	timeoutSecondsDefault = 5
+	mapExpiryTimeDefault  = 24 * time.Hour
 )
 
 var (
@@ -53,9 +53,15 @@ type ArcDefaultHandler struct {
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mapExpiryTime                 time.Duration
+	defaultTimeout                time.Duration
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
+}
+
+type PostResponse struct {
+	StatusCode int
+	response   interface{}
 }
 
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
@@ -67,6 +73,12 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 func WithCallbackURLRestrictions(rejectedCallbackURLSubstrings []string) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.rejectedCallbackURLSubstrings = rejectedCallbackURLSubstrings
+	}
+}
+
+func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler) {
+	return func(s *ArcDefaultHandler) {
+		s.defaultTimeout = timeout
 	}
 }
 
@@ -109,6 +121,7 @@ func NewDefault(
 		mrVerifier:         mr,
 		txFinder:           cachedFinder,
 		mapExpiryTime:      mapExpiryTimeDefault,
+		defaultTimeout:     timeoutSecondsDefault * time.Second,
 	}
 
 	// apply options
@@ -180,11 +193,10 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 	return satoshis, bytes
 }
 
-// POSTTransaction ...
-func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
-	reqCtx := ctx.Request().Context()
+func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTransactionParams) PostResponse {
+	var err error
 
-	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
+	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -192,7 +204,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	txHex, err := parseTransactionFromRequest(ctx.Request())
@@ -202,8 +214,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
 		}
-
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	// Now we check if we have the transaction present in db, if so we skip validation (as we must have already validated it)
@@ -215,7 +226,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			span.SetAttributes(attr...)
 		}
 		// if an error is returned, the processing failed
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	// check if we already have the transaction in db (so no need to validate)
@@ -224,7 +235,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		// if we have error which is NOT ErrTransactionNotFound, return err
 		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			return ctx.JSON(e.Status, e)
+			return PostResponse{e.Status, e}
 		}
 	} else {
 		// if we have found transaction skip the validation
@@ -240,7 +251,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 		// if LastSubmitted doesn't need to be updated and we already have provided callbacks - skip everything and return current status
 		if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
-			return ctx.JSON(int(api.StatusOK), &api.TransactionResponse{
+			return PostResponse{int(api.StatusOK), &api.TransactionResponse{
 				Status:       int(api.StatusOK),
 				Title:        "OK",
 				BlockHash:    &tx.BlockHash,
@@ -251,7 +262,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 				Timestamp:    m.now(),
 				Txid:         txIDs[0],
 				MerklePath:   &tx.MerklePath,
-			})
+			}}
 		}
 	}
 
@@ -262,7 +273,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			span.SetAttributes(attr...)
 		}
 		// if an error is returned, the processing failed
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	if len(fails) > 0 {
@@ -272,19 +283,34 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
 		}
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
 	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
-	response := successes[0]
+	res := successes[0]
 
 	if span != nil {
-		span.SetAttributes(attribute.String("status", string(response.TxStatus)))
+		span.SetAttributes(attribute.String("status", string(res.TxStatus)))
 	}
 
-	return ctx.JSON(response.Status, response)
+	return PostResponse{res.Status, res}
+}
+
+// POSTTransaction ...
+func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
+	timeout := m.defaultTimeout
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+		timeout = time.Second * time.Duration(*params.XMaxTimeout)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx.Request().Context(), timeout)
+	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
+	defer cancel()
+
+	postResponse := m.postTransaction(ctx, params)
+	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 
 // GETTransactionStatus ...
@@ -332,11 +358,9 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 	})
 }
 
-// POSTTransactions ...
-func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
-	reqCtx := ctx.Request().Context()
-
-	reqCtx, span := tracing.StartTracing(reqCtx, "POSTTransactions", m.tracingEnabled, m.tracingAttributes...)
+func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTransactionsParams) PostResponse {
+	var err error
+	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -349,7 +373,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
 		}
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	txsHex, err := parseTransactionsFromRequest(ctx.Request())
@@ -359,7 +383,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
 		}
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	// Now we check if we have the transactions present in db, if so we skip validation (as we must have already validated them)
@@ -371,7 +395,8 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			span.SetAttributes(attr...)
 		}
 		// if an error is returned, the processing failed
-		return ctx.JSON(e.Status, e)
+
+		return PostResponse{e.Status, e}
 	}
 
 	// check if we already have the transactions in db (so no need to validate)
@@ -381,7 +406,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		// if we have error which is NOT ErrTransactionNotFound, return err
 		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			return ctx.JSON(e.Status, e)
+			return PostResponse{e.Status, e}
 		}
 	} else if len(txStatuses) == len(txIDs) {
 		// if we have found all the transactions, skip the validation
@@ -427,7 +452,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		for _, o := range successes {
 			responses = append(responses, o)
 		}
-		return ctx.JSON(int(api.StatusOK), responses)
+		return PostResponse{int(api.StatusOK), responses}
 	}
 
 	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
@@ -436,7 +461,7 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
 		}
-		return ctx.JSON(e.Status, e)
+		return PostResponse{e.Status, e}
 	}
 
 	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
@@ -453,7 +478,22 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 		responses = append(responses, fo)
 	}
 
-	return ctx.JSON(int(api.StatusOK), responses)
+	return PostResponse{int(api.StatusOK), responses}
+}
+
+// POSTTransactions ...
+func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
+	timeout := m.defaultTimeout
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+		timeout = time.Second * time.Duration(*params.XMaxTimeout)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx.Request().Context(), timeout)
+	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
+	defer cancel()
+
+	postResponse := m.postTransactions(ctx, params)
+	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 
 func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
@@ -475,9 +515,7 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []str
 }
 
 func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
-	transactionOptions := &metamorph.TransactionOptions{
-		MaxTimeout: maxTimeoutSecondsDefault,
-	}
+	transactionOptions := &metamorph.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackURLSubstrings); err != nil {
 			return nil, err
@@ -540,14 +578,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 	}
 	if params.XSkipTxValidation != nil {
 		transactionOptions.SkipTxValidation = *params.XSkipTxValidation
-	}
-
-	if params.XMaxTimeout != nil {
-		if *params.XMaxTimeout > maxTimeout {
-			return nil, ErrMaxTimeoutExceeded
-		}
-
-		transactionOptions.MaxTimeout = *params.XMaxTimeout
 	}
 
 	if params.XFullStatusUpdates != nil {
@@ -732,6 +762,14 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 	}()
 
 	var submitStatuses []*metamorph.TransactionStatus
+
+	// to avoid false negatives first check if ctx is expired
+	select {
+	case <-ctx.Done():
+		_, arcError := m.handleError(ctx, nil, context.DeadlineExceeded)
+		return nil, arcError
+	default:
+	}
 
 	if len(txs) == 1 {
 		tx := txs[0]

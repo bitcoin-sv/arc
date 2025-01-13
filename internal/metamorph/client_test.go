@@ -3,13 +3,10 @@ package metamorph_test
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"testing"
 	"time"
 
-	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 
@@ -136,7 +133,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
-			putTxErr:     status.New(codes.Code(code.Code_DEADLINE_EXCEEDED), errors.New("deadline exceeded").Error()).Err(),
 			withMqClient: false,
 			getTxStatus: &metamorph_api.TransactionStatus{
 				Txid:   testdata.TX1Hash.String(),
@@ -155,14 +151,17 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
-				Txid:   testdata.TX1Hash.String(),
-				Status: metamorph_api.Status_RECEIVED,
+				Txid:     testdata.TX1Hash.String(),
+				Status:   metamorph_api.Status_RECEIVED,
+				TimedOut: true,
 			},
-			putTxErr:     status.New(codes.Code(code.Code_DEADLINE_EXCEEDED), errors.New("deadline exceeded").Error()).Err(),
 			withMqClient: false,
 			getTxErr:     errors.New("failed to get tx status"),
-
-			expectedErrorStr: "rpc error: code = DeadlineExceeded desc = deadline exceeded",
+			expectedStatus: &metamorph.TransactionStatus{
+				TxID:      testdata.TX1Hash.String(),
+				Status:    metamorph_api.Status_RECEIVED.String(),
+				Timestamp: now.Unix(),
+			},
 		},
 		{
 			name: "wait for queued, with mq client",
@@ -204,7 +203,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
-				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
 				mqClient := &apiMocks.MessageQueueClientMock{
@@ -218,7 +216,10 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			tx, err := sdkTx.NewTransactionFromHex(testdata.TX1RawString)
 			// Then
 			require.NoError(t, err)
-			txStatus, err := client.SubmitTransaction(context.Background(), tx, tc.options)
+			ctx := context.Background()
+			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+			defer cancel()
+			txStatus, err := client.SubmitTransaction(timeoutCtx, tx, tc.options)
 
 			require.Equal(t, tc.expectedStatus, txStatus)
 
@@ -340,7 +341,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					},
 				},
 			},
-			putTxErr:     status.New(codes.Code(code.Code_DEADLINE_EXCEEDED), errors.New("deadline exceeded").Error()).Err(),
 			withMqClient: false,
 			getTxStatus: &metamorph_api.TransactionStatus{
 				Txid:   testdata.TX1Hash.String(),
@@ -386,12 +386,26 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					},
 				},
 			},
-			putTxErr:     status.New(codes.Code(code.Code_DEADLINE_EXCEEDED), errors.New("deadline exceeded").Error()).Err(),
 			withMqClient: false,
 			getTxErr:     errors.New("failed to get tx status"),
 
-			expectedStatuses: nil,
-			expectedErrorStr: "rpc error: code = DeadlineExceeded desc = deadline exceeded",
+			expectedStatuses: []*metamorph.TransactionStatus{
+				{
+					TxID:      tx1.TxID(),
+					Status:    metamorph_api.Status_RECEIVED.String(),
+					Timestamp: now.Unix(),
+				},
+				{
+					TxID:      tx2.TxID(),
+					Status:    metamorph_api.Status_RECEIVED.String(),
+					Timestamp: now.Unix(),
+				},
+				{
+					TxID:      tx3.TxID(),
+					Status:    metamorph_api.Status_RECEIVED.String(),
+					Timestamp: now.Unix(),
+				},
+			},
 		},
 		{
 			name: "wait for queued, with mq client",
@@ -445,7 +459,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
-				metamorph.WithClientMaxTimeoutDefault(1 * time.Second),
 			}
 			if tc.withMqClient {
 				mqClient := &apiMocks.MessageQueueClientMock{
@@ -458,7 +471,10 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			client := metamorph.NewClient(apiClient, opts...)
 			// When
-			statuses, err := client.SubmitTransactions(context.Background(), sdkTx.Transactions{tx1, tx2, tx3}, tc.options)
+			ctx := context.Background()
+			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			statuses, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx1, tx2, tx3}, tc.options)
 			// Then
 			require.Equal(t, tc.expectedStatuses, statuses)
 

@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	maxTimeoutDefault          = 5 * time.Second
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
 )
@@ -56,7 +55,6 @@ type Server struct {
 	logger              *slog.Logger
 	processor           ProcessorI
 	store               store.MetamorphStore
-	maxTimeoutDefault   time.Duration
 	checkStatusInterval time.Duration
 	bitcoinNode         BitcoinNode
 	forceCheckUtxos     bool
@@ -68,12 +66,6 @@ func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
 	return func(s *Server) {
 		s.bitcoinNode = bitcoinNode
 		s.forceCheckUtxos = true
-	}
-}
-
-func WithServerMaxTimeoutDefault(timeout time.Duration) func(*Server) {
-	return func(s *Server) {
-		s.maxTimeoutDefault = timeout
 	}
 }
 
@@ -108,7 +100,6 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		logger:              logger,
 		processor:           processor,
 		store:               store,
-		maxTimeoutDefault:   maxTimeoutDefault,
 		checkStatusInterval: checkStatusIntervalDefault,
 		forceCheckUtxos:     false,
 	}
@@ -159,6 +150,21 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 }
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
+	deadline, ok := ctx.Deadline()
+
+	// decrease time to get initial deadline
+	newDeadline := deadline
+	if time.Now().Add(2 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 2))
+	}
+
+	// Create a new context with the updated deadline
+	if ok {
+		var newCancel context.CancelFunc
+		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		defer newCancel()
+	}
+
 	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -169,10 +175,25 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// Convert gRPC req to store.Data struct...
 	sReq := toStoreData(hash, statusReceived, req)
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, req.GetMaxTimeout(), hash.String()), nil
+	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
 }
 
 func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
+	deadline, ok := ctx.Deadline()
+
+	// decrease time to get initial deadline
+	newDeadline := deadline
+	if time.Now().Add(2 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 2))
+	}
+
+	// Create a new context with the updated deadline
+	if ok {
+		var newCancel context.CancelFunc
+		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		defer newCancel()
+	}
+
 	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -191,12 +212,10 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
 	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
-	var timeout int64
 
 	for ind, txReq := range req.GetTransactions() {
 		statusReceived := metamorph_api.Status_RECEIVED
 		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
-		timeout = txReq.GetMaxTimeout()
 
 		processTxsInputMap[*hash] = processTxInput{
 			data:          toStoreData(hash, statusReceived, txReq),
@@ -213,7 +232,7 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, timeout, txID)
+			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
 
 			resp.Statuses[processTxInput.responseIndex] = statusNew
 		}(ctx, input, hash.String(), wg, resp)
@@ -237,7 +256,7 @@ func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req 
 		RawTx:             req.GetRawTx(),
 	}
 }
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, timeoutSeconds int64, txID string) *metamorph_api.TransactionStatus {
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, txID string) *metamorph_api.TransactionStatus {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransaction", s.tracingEnabled, s.tracingAttributes...)
 	returnedStatus := &metamorph_api.TransactionStatus{
@@ -261,20 +280,14 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		tracing.EndTracing(span, err)
 	}()
 
-	responseChannel := make(chan StatusAndError, 10)
-
-	// normally a node would respond very quickly, unless it's under heavy load
-	timeDuration := s.maxTimeoutDefault
-	if timeoutSeconds > 0 {
-		timeDuration = time.Second * time.Duration(timeoutSeconds)
+	// to avoid false negatives first check if ctx is expired
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, timeDuration)
-	defer func() {
-		cancel()
-		close(responseChannel)
-	}()
-
+	responseChannel := make(chan StatusAndError, 10)
 	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 
 	if waitForStatus == 0 {
@@ -288,9 +301,12 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	}
 
 	checkStatusTicker := time.NewTicker(s.checkStatusInterval)
-
 	for {
 		select {
+		case <-ctx.Done():
+			// Ensure that function returns at latest when context times out
+			returnedStatus.TimedOut = true
+			return returnedStatus
 		case <-checkStatusTicker.C:
 
 			// Check in intervals whether the tx was seen on network & updated on DB by another metamorph instance
@@ -305,11 +321,6 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			if err == nil && tx.Status == waitForStatus {
 				return tx
 			}
-
-		case <-ctx.Done():
-			// Ensure that function returns at latest when context times out
-			returnedStatus.TimedOut = true
-			return returnedStatus
 		case res := <-responseChannel:
 			returnedStatus.Status = res.Status
 

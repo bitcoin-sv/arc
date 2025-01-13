@@ -212,7 +212,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	return txStatus, nil
 }
 
-// GetTransactionStatusეს gets the statusეს of all transactions.
+// GetTransactionStatuses gets the status of all transactions.
 func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) (txStatus []*TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txIDs", txIDs[0]))...)
 	defer func() {

@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 type BackgroundWorkers struct {
-	l *slog.Logger
-	s store.BlocktxStore
+	logger *slog.Logger
+	store  store.BlocktxStore
 
 	workersWg sync.WaitGroup
 	ctx       context.Context
@@ -23,8 +24,8 @@ func NewBackgroundWorkers(store store.BlocktxStore, logger *slog.Logger) *Backgr
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &BackgroundWorkers{
-		s: store,
-		l: logger.With(slog.String("module", "background workers")),
+		store:  store,
+		logger: logger.With(slog.String("module", "background workers")),
 
 		ctx:       ctx,
 		cancelAll: cancel,
@@ -32,12 +33,12 @@ func NewBackgroundWorkers(store store.BlocktxStore, logger *slog.Logger) *Backgr
 }
 
 func (w *BackgroundWorkers) GracefulStop() {
-	w.l.Info("Shutting down")
+	w.logger.Info("Shutting down")
 
 	w.cancelAll()
 	w.workersWg.Wait()
 
-	w.l.Info("Shutdown complete")
+	w.logger.Info("Shutdown complete")
 }
 
 func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Duration, retentionDays int, blockRequestingCh chan<- BlockRequest) {
@@ -46,20 +47,20 @@ func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Durat
 	go func() {
 		defer w.workersWg.Done()
 
-		t := time.NewTicker(interval)
+		ticker := time.NewTicker(interval)
 		i := 0
 
 		for {
 			select {
-			case <-t.C:
+			case <-ticker.C:
 				i = i % len(peers)
 				err := w.fillGaps(peers[i], retentionDays, blockRequestingCh)
 				if err != nil {
-					w.l.Error("failed to fill blocks gaps", slog.String("err", err.Error()))
+					w.logger.Error("failed to fill blocks gaps", slog.String("err", err.Error()))
 				}
 
 				i++
-				t.Reset(interval)
+				ticker.Reset(interval)
 
 			case <-w.ctx.Done():
 				return
@@ -75,7 +76,7 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 	)
 
 	heightRange := retentionDays * hoursPerDay * blocksPerHour
-	blockHeightGaps, err := w.s.GetBlockGaps(w.ctx, heightRange)
+	blockHeightGaps, err := w.store.GetBlockGaps(w.ctx, heightRange)
 	if err != nil || len(blockHeightGaps) == 0 {
 		return err
 	}
@@ -85,7 +86,7 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 			break
 		}
 
-		w.l.Info("adding request for missing block to request channel",
+		w.logger.Info("adding request for missing block to request channel",
 			slog.String("hash", block.Hash.String()),
 			slog.Uint64("height", block.Height),
 			slog.String("peer", peer.String()),

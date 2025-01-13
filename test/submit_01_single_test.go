@@ -14,6 +14,7 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
@@ -348,6 +349,8 @@ func TestCallback(t *testing.T) {
 
 			// then
 
+			var errs []error
+
 			// verify callbacks were received correctly
 			for i, srv := range callbackServers {
 				t.Logf("listen callbacks on server %s", srv.url)
@@ -365,7 +368,7 @@ func TestCallback(t *testing.T) {
 					case callback := <-srv.responseChan:
 						require.NotNil(t, callback)
 
-						t.Logf("callback server %d iteration %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
+						t.Logf("callback received - server: %d, iteration: %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
 
 						visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
 						require.True(t, expectedTx)
@@ -379,10 +382,16 @@ func TestCallback(t *testing.T) {
 						require.Equal(t, StatusMined, callback.TxStatus)
 
 					case err := <-srv.errChan:
-						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)
+						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						t.Fail()
 					case <-callbackTimeout:
-						t.Fatalf("callback server %d not received %d callback - timeout", i, j)
+						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))
+						t.Fail()
 					}
+				}
+
+				for _, err := range errs {
+					assert.NoError(t, err)
 				}
 
 				require.Empty(t, expectedTxsCallbacks) // ensure all expected callbacks were received

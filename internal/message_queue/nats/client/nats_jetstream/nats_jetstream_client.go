@@ -307,6 +307,10 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 }
 
 func (cl *Client) Shutdown() {
+	if cl == nil {
+		return
+	}
+
 	if cl.removableStreamConsumerMapping != nil {
 		for stream, consumer := range cl.removableStreamConsumerMapping {
 			err := cl.js.DeleteConsumer(context.Background(), stream, consumer)

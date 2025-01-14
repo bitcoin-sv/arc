@@ -567,12 +567,15 @@ func TestBatchCallback(t *testing.T) {
 
 			// then
 
+			var errs []error
+
 			// verify callbacks were received correctly
 			for i, srv := range callbackServers {
 				t.Logf("listen callbacks on server %s", srv.url)
 
 				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
 				for _, tx := range txs {
+					t.Logf("expected callback - server: %d, tx ID: %s", i, tx.TxID())
 					expectedTxsCallbacks[tx.TxID()] = 0
 				}
 
@@ -586,29 +589,34 @@ func TestBatchCallback(t *testing.T) {
 						require.Greater(t, batch.Count, 0)
 						require.NotNil(t, batch.Callbacks)
 
-						t.Logf("callback server %d iteration %d, count: %d result[0]: %s", i, j, batch.Count, batch.Callbacks[0].TxStatus)
+						t.Logf("callback server: %d, callback: %d, count: %d result[0]: %s", i, j, batch.Count, batch.Callbacks[0].TxStatus)
 
 						for _, callback := range batch.Callbacks {
-							visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
-							require.True(t, expectedTx)
+							visitNumber, txWasExpected := expectedTxsCallbacks[callback.Txid]
+							assert.True(t, txWasExpected)
+
 							visitNumber++
 							expectedTxsCallbacks[callback.Txid] = visitNumber
 
-							if visitNumber == callbacksNumber {
-								delete(expectedTxsCallbacks, callback.Txid) // remove after receiving expected callbacks
-							}
-
-							require.Equal(t, StatusMined, callback.TxStatus)
+							assert.Equal(t, StatusMined, callback.TxStatus)
 						}
 
-					case err := <-srv.errChan:
-						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)
+					case err = <-srv.errChan:
+						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						t.Fail()
 					case <-callbackTimeout:
-						t.Fatalf("callback server %d not received %d callback - timeout", i, j)
+						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))
+						t.Fail()
 					}
 				}
 
-				require.Empty(t, expectedTxsCallbacks) // ensure all expected callbacks were received
+				for _, err = range errs {
+					assert.NoError(t, err)
+				}
+
+				for txID, receivedCallbacks := range expectedTxsCallbacks {
+					assert.Equalf(t, expectedCallbacksNumber, receivedCallbacks, "expected callbacks mismatch for tx: %s", txID)
+				}
 			}
 		})
 	}

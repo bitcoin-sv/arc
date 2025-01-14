@@ -3,7 +3,6 @@ package metamorph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -213,7 +212,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	return txStatus, nil
 }
 
-// GetTransactionStatusეს gets the statusეს of all transactions.
+// GetTransactionStatuses gets the status of all transactions.
 func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) (txStatus []*TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txIDs", txIDs[0]))...)
 	defer func() {
@@ -284,7 +283,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	deadline, _ := ctx.Deadline()
 	// increase time to make sure that expiration happens from inside the metramorph function
-	newDeadline := deadline.Add(time.Second * 10)
+	newDeadline := deadline.Add(time.Second * MaxTimeout)
 
 	// Create a new context with the updated deadline
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
@@ -294,7 +293,6 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("shotuna response", response)
 	txStatus = &TransactionStatus{
 		TxID:         response.GetTxid(),
 		Status:       response.GetStatus().String(),
@@ -347,7 +345,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	deadline, _ := ctx.Deadline()
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second * 10)
+	newDeadline := deadline.Add(time.Second * MaxTimeout)
 
 	// increase time to make sure that expiration happens from inside the metramorph function
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)

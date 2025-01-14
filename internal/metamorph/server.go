@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -31,6 +30,7 @@ import (
 const (
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
+	MaxTimeout                 = 30
 )
 
 var (
@@ -57,17 +57,8 @@ type Server struct {
 	processor           ProcessorI
 	store               store.MetamorphStore
 	checkStatusInterval time.Duration
-	bitcoinNode         BitcoinNode
-	forceCheckUtxos     bool
 	tracingEnabled      bool
 	tracingAttributes   []attribute.KeyValue
-}
-
-func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
-	return func(s *Server) {
-		s.bitcoinNode = bitcoinNode
-		s.forceCheckUtxos = true
-	}
 }
 
 func WithCheckStatusInterval(d time.Duration) func(*Server) {
@@ -102,7 +93,6 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		processor:           processor,
 		store:               store,
 		checkStatusInterval: checkStatusIntervalDefault,
-		forceCheckUtxos:     false,
 	}
 
 	for _, opt := range opts {
@@ -155,8 +145,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(10 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 10))
+	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
 	}
 
 	// Create a new context with the updated deadline
@@ -184,8 +174,8 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(10 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 10))
+	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
 	}
 
 	// Create a new context with the updated deadline
@@ -305,28 +295,21 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("shotuna time", time.Now())
 			// Ensure that function returns at latest when context times out
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case <-checkStatusTicker.C:
-
-			// Check in intervals whether the tx was seen on network & updated on DB by another metamorph instance
-			if waitForStatus != metamorph_api.Status_SEEN_ON_NETWORK {
-				continue
-			}
-
+			// it's possible the transaction status was received and updated in db by another metamorph
+			// check if that's the case and we have a new tx status to return
 			var tx *metamorph_api.TransactionStatus
 			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 				Txid: txID,
 			})
-			if err == nil && tx.Status == waitForStatus {
+			if err == nil && tx.Status >= waitForStatus {
 				return tx
 			}
 		case res := <-responseChannel:
-			fmt.Println("shotuna 7", res)
 			returnedStatus.Status = res.Status
-			fmt.Println("shotuna st", returnedStatus, time.Now())
 
 			if span != nil {
 				span.AddEvent("status change", trace.WithAttributes(attribute.String("status", returnedStatus.Status.String())))
@@ -337,26 +320,22 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 
 			if res.Err != nil {
-				fmt.Println("shotuna 23")
 				returnedStatus.RejectReason = res.Err.Error()
 				// Note: return here so that user doesn't have to wait for timeout in case of an error
 				return returnedStatus
 			} else {
-				fmt.Println("shotuna 24")
 				returnedStatus.RejectReason = ""
 				if res.Status == metamorph_api.Status_MINED {
-					fmt.Println("shotuna 26")
 					var tx *metamorph_api.TransactionStatus
 					tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 						Txid: txID,
 					})
 					if err != nil {
-						fmt.Println("shotuna 28")
 						s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
 						returnedStatus.RejectReason = err.Error()
 						return returnedStatus
 					}
-					fmt.Println("shotuna 20")
+
 					return tx
 				}
 			}

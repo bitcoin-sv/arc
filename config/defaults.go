@@ -102,7 +102,6 @@ func getMetamorphConfig() *MetamorphConfig {
 			UntilAgo: 1 * time.Hour,
 		},
 		MonitorPeers: false,
-		CheckUtxos:   false,
 		Health: &HealthConfig{
 			SeverDialAddr:             "localhost:8005",
 			MinimumHealthyConnections: 2,

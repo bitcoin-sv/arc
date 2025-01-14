@@ -274,15 +274,6 @@ func (p *Processor) StartProcessMinedCallbacks() {
 
 				txsBlocks = append(txsBlocks, txBlock)
 
-				fmt.Println("shotuna", time.Now())
-				// if we have a pending request with given transaction hash, provide mined status
-				if len(txBlock.TransactionHash) != 0 {
-					hash, err := chainhash.NewHash(txBlock.TransactionHash)
-					if err == nil {
-						fmt.Println("shotuna 3", time.Now(), hash.String())
-					}
-				}
-
 				if len(txsBlocks) < p.processMinedBatchSize {
 					continue
 				}
@@ -325,7 +316,6 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 	for _, data := range updatedData {
 		// if we have a pending request with given transaction hash, provide mined status
-		fmt.Println("shota meore", time.Now(), data.Hash.String())
 		p.responseProcessor.UpdateStatus(data.Hash, StatusAndError{
 			Hash:   data.Hash,
 			Status: metamorph_api.Status_MINED,
@@ -754,8 +744,6 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		tracing.EndTracing(span, err)
 	}()
 
-	dl, ok := ctx.Deadline()
-	fmt.Println("shota registering", dl, ok)
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it

@@ -1,14 +1,10 @@
 package blocktx
 
 import (
-	"errors"
-
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
-
-var ErrMerklePathNotFoundForTransaction = errors.New("merkle path not found for transaction")
 
 type BlockRequest struct {
 	Hash *chainhash.Hash

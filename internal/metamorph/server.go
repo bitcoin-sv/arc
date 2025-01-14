@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -154,8 +155,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(2 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 2))
+	if time.Now().Add(10 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 10))
 	}
 
 	// Create a new context with the updated deadline
@@ -183,8 +184,8 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(2 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 2))
+	if time.Now().Add(10 * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * 10))
 	}
 
 	// Create a new context with the updated deadline
@@ -304,6 +305,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	for {
 		select {
 		case <-ctx.Done():
+			fmt.Println("shotuna time", time.Now())
 			// Ensure that function returns at latest when context times out
 			returnedStatus.TimedOut = true
 			return returnedStatus
@@ -322,7 +324,9 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 				return tx
 			}
 		case res := <-responseChannel:
+			fmt.Println("shotuna 7", res)
 			returnedStatus.Status = res.Status
+			fmt.Println("shotuna st", returnedStatus, time.Now())
 
 			if span != nil {
 				span.AddEvent("status change", trace.WithAttributes(attribute.String("status", returnedStatus.Status.String())))
@@ -333,22 +337,26 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			}
 
 			if res.Err != nil {
+				fmt.Println("shotuna 23")
 				returnedStatus.RejectReason = res.Err.Error()
 				// Note: return here so that user doesn't have to wait for timeout in case of an error
 				return returnedStatus
 			} else {
+				fmt.Println("shotuna 24")
 				returnedStatus.RejectReason = ""
 				if res.Status == metamorph_api.Status_MINED {
+					fmt.Println("shotuna 26")
 					var tx *metamorph_api.TransactionStatus
 					tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 						Txid: txID,
 					})
 					if err != nil {
+						fmt.Println("shotuna 28")
 						s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
 						returnedStatus.RejectReason = err.Error()
 						return returnedStatus
 					}
-
+					fmt.Println("shotuna 20")
 					return tx
 				}
 			}

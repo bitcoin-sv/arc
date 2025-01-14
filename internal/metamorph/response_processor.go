@@ -2,7 +2,9 @@ package metamorph
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
@@ -26,11 +28,12 @@ func (r *StatusResponse) UpdateStatus(statusAndError StatusAndError) {
 	if r.statusCh == nil || r.ctx == nil {
 		return
 	}
-
+	fmt.Println("shotuna sending status")
 	select {
 	case <-r.ctx.Done():
 		return
 	default:
+		fmt.Println("shotuna sending status", statusAndError.Status)
 		r.statusCh <- StatusAndError{
 			Hash:         r.Hash,
 			Status:       statusAndError.Status,
@@ -53,6 +56,9 @@ func (p *ResponseProcessor) Add(statusResponse *StatusResponse) {
 		return
 	}
 
+	dl, ok := statusResponse.ctx.Deadline()
+	fmt.Println("shota registering 2", dl, ok)
+
 	_, loaded := p.resMap.LoadOrStore(*statusResponse.Hash, statusResponse)
 	if loaded {
 		return
@@ -61,20 +67,30 @@ func (p *ResponseProcessor) Add(statusResponse *StatusResponse) {
 	// we no longer need status response object after response has been returned
 	go func() {
 		<-statusResponse.ctx.Done()
+		fmt.Println("shota expired", time.Now())
 		p.resMap.Delete(*statusResponse.Hash)
 	}()
 }
 
 func (p *ResponseProcessor) UpdateStatus(hash *chainhash.Hash, statusAndError StatusAndError) (found bool) {
 	val, ok := p.resMap.Load(*hash)
+	p.resMap.Range(func(key, value any) bool {
+		fmt.Println(key, value)
+		return true
+	})
 	if !ok {
+		fmt.Println("shota hash not found")
 		return false
 	}
 
 	statusResponse, ok := val.(*StatusResponse)
+	fmt.Println("shota hash not found 2")
+
 	if !ok {
 		return false
 	}
+
+	fmt.Println("shota hash  found 3")
 
 	go statusResponse.UpdateStatus(statusAndError)
 	return true

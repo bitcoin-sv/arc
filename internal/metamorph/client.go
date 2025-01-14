@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -283,7 +284,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	deadline, _ := ctx.Deadline()
 	// increase time to make sure that expiration happens from inside the metramorph function
-	newDeadline := deadline.Add(time.Second * 2)
+	newDeadline := deadline.Add(time.Second * 10)
 
 	// Create a new context with the updated deadline
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
@@ -293,6 +294,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("shotuna response", response)
 	txStatus = &TransactionStatus{
 		TxID:         response.GetTxid(),
 		Status:       response.GetStatus().String(),
@@ -345,7 +347,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	deadline, _ := ctx.Deadline()
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second * 5)
+	newDeadline := deadline.Add(time.Second * 10)
 
 	// increase time to make sure that expiration happens from inside the metramorph function
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)

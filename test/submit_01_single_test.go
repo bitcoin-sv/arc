@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
@@ -166,8 +168,30 @@ func TestSubmitMined(t *testing.T) {
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)
 
-		callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
-		defer shutdown()
+		lis, err := net.Listen("tcp", ":9000")
+		require.NoError(t, err)
+		mux := http.NewServeMux()
+		defer func() {
+			t.Log("closing listener")
+			err = lis.Close()
+			require.NoError(t, err)
+		}()
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		defer func() {
+			t.Log("closing channels")
+
+			close(callbackReceivedChan)
+			close(callbackErrChan)
+		}()
+
+		go func() {
+			t.Logf("starting callback server")
+			err = http.Serve(lis, mux)
+			if err != nil {
+				t.Log("callback server stopped")
+			}
+		}()
 
 		// when
 		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
@@ -284,7 +308,7 @@ func TestCallback(t *testing.T) {
 
 	type callbackServer struct {
 		url, token   string
-		responseChan chan *TransactionResponse
+		responseChan chan TransactionResponse
 		errChan      chan error
 	}
 
@@ -292,15 +316,30 @@ func TestCallback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 
+			lis, err := net.Listen("tcp", ":9000")
+			require.NoError(t, err)
+			mux := http.NewServeMux()
+			defer func() {
+				err = lis.Close()
+				require.NoError(t, err)
+			}()
 			// setup callback servers
 			const callbacksNumber = 2 // cannot be greater than 5
 
 			callbackServers := make([]*callbackServer, 0, tc.numberOfCallbackServers)
 
 			for range tc.numberOfCallbackServers {
-				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareCallback(t, callbacksNumber)
-				callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
-				defer shutdown()
+				callbackReceivedChan := make(chan TransactionResponse, 100) // do not block callback server responses
+				callbackErrChan := make(chan error, 100)
+
+				callbackResponseFn := getResponseFunc[TransactionResponse](t, callbacksNumber)
+				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, callbackResponseFn, mux)
+				defer func() {
+					t.Log("closing channels")
+
+					close(callbackReceivedChan)
+					close(callbackErrChan)
+				}()
 
 				callbackServers = append(callbackServers, &callbackServer{
 					url:          callbackURL,
@@ -309,6 +348,14 @@ func TestCallback(t *testing.T) {
 					errChan:      callbackErrChan,
 				})
 			}
+
+			go func() {
+				t.Logf("starting callback server")
+				err = http.Serve(lis, mux)
+				if err != nil {
+					t.Log("callback server stopped")
+				}
+			}()
 
 			// create transactions
 			address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)
@@ -348,6 +395,8 @@ func TestCallback(t *testing.T) {
 
 			// then
 
+			var errs []error
+
 			// verify callbacks were received correctly
 			for i, srv := range callbackServers {
 				t.Logf("listen callbacks on server %s", srv.url)
@@ -365,7 +414,7 @@ func TestCallback(t *testing.T) {
 					case callback := <-srv.responseChan:
 						require.NotNil(t, callback)
 
-						t.Logf("callback server %d iteration %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
+						t.Logf("callback received - server: %d, iteration: %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
 
 						visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
 						require.True(t, expectedTx)
@@ -378,11 +427,17 @@ func TestCallback(t *testing.T) {
 
 						require.Equal(t, StatusMined, callback.TxStatus)
 
-					case err := <-srv.errChan:
-						t.Fatalf("callback server %d received - failed to parse %d callback %v", i, j, err)
+					case err = <-srv.errChan:
+						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						t.Fail()
 					case <-callbackTimeout:
-						t.Fatalf("callback server %d not received %d callback - timeout", i, j)
+						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))
+						t.Fail()
 					}
+				}
+
+				for _, err = range errs {
+					assert.NoError(t, err)
 				}
 
 				require.Empty(t, expectedTxsCallbacks) // ensure all expected callbacks were received
@@ -428,7 +483,7 @@ func TestBatchCallback(t *testing.T) {
 
 	type callbackServer struct {
 		url, token   string
-		responseChan chan *CallbackBatchResponse
+		responseChan chan CallbackBatchResponse
 		errChan      chan error
 	}
 
@@ -440,12 +495,25 @@ func TestBatchCallback(t *testing.T) {
 			const callbacksNumber = 2 // cannot be greater than 5
 
 			callbackServers := make([]*callbackServer, 0, tc.numberOfCallbackServers)
-
+			lis, err := net.Listen("tcp", ":9000")
+			require.NoError(t, err)
+			mux := http.NewServeMux()
+			defer func() {
+				err = lis.Close()
+				require.NoError(t, err)
+			}()
 			for range tc.numberOfCallbackServers {
-				callbackReceivedChan, callbackErrChan, calbackResponseFn := prepareBatchCallback(t, callbacksNumber)
-				callbackURL, token, shutdown := startBatchCallbackSrv(t, callbackReceivedChan, callbackErrChan, calbackResponseFn)
-				defer shutdown()
+				callbackReceivedChan := make(chan CallbackBatchResponse, 100) // do not block callback server responses
+				callbackErrChan := make(chan error, 100)
 
+				calbackResponseFn := getResponseFunc[CallbackBatchResponse](t, callbacksNumber)
+				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, calbackResponseFn, mux)
+				defer func() {
+					t.Log("closing channels")
+
+					close(callbackReceivedChan)
+					close(callbackErrChan)
+				}()
 				callbackServers = append(callbackServers, &callbackServer{
 					url:          callbackURL,
 					token:        token,
@@ -453,6 +521,14 @@ func TestBatchCallback(t *testing.T) {
 					errChan:      callbackErrChan,
 				})
 			}
+
+			go func() {
+				t.Logf("starting callback server")
+				err = http.Serve(lis, mux)
+				if err != nil {
+					t.Log("callback server stopped")
+				}
+			}()
 
 			// create transactions
 			address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)

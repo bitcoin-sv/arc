@@ -78,7 +78,6 @@ metamorph:
     fromAgo: 24h # start of moving time window
     untilAgo: 1h # end of moving time window
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
-  checkUtxos: false # force check each utxo for validity. If enabled ARC connects to bitcoin node using rpc for each utxo
   health:
     serverDialAddr: localhost:8005 # address at which the grpc health server is exposed
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy

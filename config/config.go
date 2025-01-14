@@ -109,7 +109,6 @@ type MetamorphConfig struct {
 	ProcessStatusUpdateInterval             time.Duration `mapstructure:"processStatusUpdateInterval"`
 	RecheckSeen                             RecheckSeen   `mapstructure:"recheckSeen"`
 	MonitorPeers                            bool          `mapstructure:"monitorPeers"`
-	CheckUtxos                              bool          `mapstructure:"checkUtxos"`
 	Health                                  *HealthConfig `mapstructure:"health"`
 	RejectCallbackContaining                []string      `mapstructure:"rejectCallbackContaining"`
 	Stats                                   *StatsConfig  `mapstructure:"stats"`

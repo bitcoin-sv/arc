@@ -68,7 +68,6 @@ metamorph:
   checkSeenOnNetworkOlderThan: 3h
   checkSeenOnNetworkPeriod: 4h
   monitorPeers: true
-  checkUtxos: false
   profilerAddr: localhost:9992
   health:
     serverDialAddr: localhost:8005
@@ -98,7 +97,7 @@ blocktx:
   registerTxsInterval: 200ms
   fillGaps:
     enabled: true
-    interval: 1s
+    interval: 30s
   maxAllowedBlockHeightMismatch: 3
 
 api:

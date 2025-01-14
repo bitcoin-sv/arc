@@ -4,6 +4,7 @@ package test
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
@@ -32,8 +33,29 @@ func TestBeef(t *testing.T) {
 		callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
 		callbackErrChan := make(chan error, expectedCallbacks)
 
-		callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
-		defer shutdown()
+		lis, err := net.Listen("tcp", ":9000")
+		require.NoError(t, err)
+		mux := http.NewServeMux()
+		defer func() {
+			err = lis.Close()
+			require.NoError(t, err)
+		}()
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		defer func() {
+			t.Log("closing channels")
+
+			close(callbackReceivedChan)
+			close(callbackErrChan)
+		}()
+
+		go func() {
+			t.Logf("starting callback server")
+			err = http.Serve(lis, mux)
+			if err != nil {
+				t.Log("callback server stopped")
+			}
+		}()
 
 		waitForStatusTimeoutSeconds := 30
 

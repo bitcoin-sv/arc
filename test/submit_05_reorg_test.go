@@ -4,12 +4,14 @@ package test
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 func TestReorg(t *testing.T) {
@@ -54,12 +56,32 @@ func TestReorg(t *testing.T) {
 
 	tx2, err := node_client.CreateTx(privateKey, address, utxo)
 	require.NoError(t, err)
+	lis, err := net.Listen("tcp", ":9000")
+	require.NoError(t, err)
+	mux := http.NewServeMux()
+	defer func() {
+		err = lis.Close()
+		require.NoError(t, err)
+	}()
 
 	// prepare a callback server for tx2
 	callbackReceivedChan := make(chan *TransactionResponse)
 	callbackErrChan := make(chan error)
-	callbackURL, token, shutdown := startCallbackSrv(t, callbackReceivedChan, callbackErrChan, nil)
-	defer shutdown()
+	callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+	defer func() {
+		t.Log("closing channels")
+
+		close(callbackReceivedChan)
+		close(callbackErrChan)
+	}()
+
+	go func() {
+		t.Logf("starting callback server")
+		err = http.Serve(lis, mux)
+		if err != nil {
+			t.Log("callback server stopped")
+		}
+	}()
 
 	// submit tx2
 	rawTx, err = tx2.EFHex()

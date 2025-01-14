@@ -56,17 +56,8 @@ type Server struct {
 	processor           ProcessorI
 	store               store.MetamorphStore
 	checkStatusInterval time.Duration
-	bitcoinNode         BitcoinNode
-	forceCheckUtxos     bool
 	tracingEnabled      bool
 	tracingAttributes   []attribute.KeyValue
-}
-
-func WithForceCheckUtxos(bitcoinNode BitcoinNode) func(*Server) {
-	return func(s *Server) {
-		s.bitcoinNode = bitcoinNode
-		s.forceCheckUtxos = true
-	}
 }
 
 func WithCheckStatusInterval(d time.Duration) func(*Server) {
@@ -101,7 +92,6 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		processor:           processor,
 		store:               store,
 		checkStatusInterval: checkStatusIntervalDefault,
-		forceCheckUtxos:     false,
 	}
 
 	for _, opt := range opts {

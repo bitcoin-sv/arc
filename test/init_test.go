@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupSut() {
-	log.Printf("init tests")
+	log.Println("init tests")
 
 	if os.Getenv("TEST_LOCAL") != "" {
 		nodeHost = "localhost"

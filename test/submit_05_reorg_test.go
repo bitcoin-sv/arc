@@ -15,9 +15,6 @@ import (
 )
 
 func TestReorg(t *testing.T) {
-	// TODO: remove the skip when gaps are filling quickly again
-	t.Skip("Skipping until gaps are being processed quickly again")
-
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)

@@ -127,6 +127,7 @@ type BlocktxConfig struct {
 	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
 	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
+	IncomingIsLongest             bool                `mapstructure:"incomingIsLongest"`
 }
 
 type DbConfig struct {

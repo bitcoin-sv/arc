@@ -68,6 +68,7 @@ metamorph:
   checkSeenOnNetworkOlderThan: 3h
   checkSeenOnNetworkPeriod: 4h
   monitorPeers: true
+  incomingIsLongest: false
   profilerAddr: localhost:9992
   health:
     serverDialAddr: localhost:8005

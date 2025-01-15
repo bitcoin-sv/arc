@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	maxTimeout            = 30
 	timeoutSecondsDefault = 5
 	mapExpiryTimeDefault  = 24 * time.Hour
 )
@@ -41,7 +40,7 @@ var (
 	ErrCallbackURLNotAcceptable = errors.New("callback URL not acceptable")
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
-	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", maxTimeout)
+	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", metamorph.MaxTimeout)
 )
 
 type ArcDefaultHandler struct {
@@ -301,7 +300,7 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
 	timeout := m.defaultTimeout
-	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < metamorph.MaxTimeout {
 		timeout = time.Second * time.Duration(*params.XMaxTimeout)
 	}
 
@@ -484,7 +483,7 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
 	timeout := m.defaultTimeout
-	if params.XMaxTimeout != nil && *params.XMaxTimeout < maxTimeout {
+	if params.XMaxTimeout != nil && *params.XMaxTimeout < metamorph.MaxTimeout {
 		timeout = time.Second * time.Duration(*params.XMaxTimeout)
 	}
 

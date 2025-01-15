@@ -194,15 +194,16 @@ func TestSubmitMined(t *testing.T) {
 		}()
 
 		// when
-		_ = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
+		transactionResponse := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
 			map[string]string{
 				"X-WaitFor":       StatusMined,
 				"X-CallbackUrl":   callbackURL,
 				"X-CallbackToken": token,
+				"X-MaxTimeout":    "10",
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(10 * time.Second)
+		callbackTimeout := time.After(15 * time.Second)
 
 		select {
 		case status := <-callbackReceivedChan:
@@ -214,6 +215,75 @@ func TestSubmitMined(t *testing.T) {
 		case <-callbackTimeout:
 			t.Fatal("callback exceeded timeout")
 		}
+
+		require.Equal(t, rawTx.TxID, transactionResponse.Txid)
+		require.Equal(t, StatusMined, transactionResponse.TxStatus)
+		require.Equal(t, merklePathStr, *transactionResponse.MerklePath)
+	})
+}
+
+func TestReturnMinedStatus(t *testing.T) {
+	t.Run("submit mined tx", func(t *testing.T) {
+		// submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.
+
+		// given
+		address, _ := node_client.FundNewWallet(t, bitcoind)
+		utxos := node_client.GetUtxos(t, bitcoind, address)
+
+		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
+		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
+		exRawTx := tx.String()
+
+		callbackReceivedChan := make(chan *TransactionResponse)
+		callbackErrChan := make(chan error)
+
+		lis, err := net.Listen("tcp", ":9000")
+		require.NoError(t, err)
+		mux := http.NewServeMux()
+		defer func() {
+			t.Log("closing listener")
+			err = lis.Close()
+			require.NoError(t, err)
+		}()
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		defer func() {
+			t.Log("closing channels")
+
+			close(callbackReceivedChan)
+			close(callbackErrChan)
+		}()
+
+		go func() {
+			t.Logf("starting callback server")
+			err = http.Serve(lis, mux)
+			if err != nil {
+				t.Log("callback server stopped")
+			}
+		}()
+
+		transactionResponse := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),
+			map[string]string{
+				"X-WaitFor":       StatusMined,
+				"X-CallbackUrl":   callbackURL,
+				"X-CallbackToken": token,
+				"X-MaxTimeout":    "10",
+			}, http.StatusOK)
+
+		// wait for callback
+		callbackTimeout := time.After(15 * time.Second)
+
+		select {
+		case status := <-callbackReceivedChan:
+			require.Equal(t, rawTx.TxID, status.Txid)
+			require.Equal(t, StatusMined, status.TxStatus)
+		case err := <-callbackErrChan:
+			t.Fatalf("callback error: %v", err)
+		case <-callbackTimeout:
+			t.Fatal("callback exceeded timeout")
+		}
+
+		require.Equal(t, StatusMined, transactionResponse.TxStatus)
 	})
 }
 

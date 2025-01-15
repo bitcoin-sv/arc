@@ -30,6 +30,7 @@ import (
 const (
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
+	MaxTimeout                 = 30
 )
 
 var (
@@ -144,8 +145,8 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(2 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 2))
+	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
 	}
 
 	// Create a new context with the updated deadline
@@ -173,8 +174,8 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 
 	// decrease time to get initial deadline
 	newDeadline := deadline
-	if time.Now().Add(2 * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * 2))
+	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
+		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
 	}
 
 	// Create a new context with the updated deadline
@@ -298,17 +299,13 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case <-checkStatusTicker.C:
-
-			// Check in intervals whether the tx was seen on network & updated on DB by another metamorph instance
-			if waitForStatus != metamorph_api.Status_SEEN_ON_NETWORK {
-				continue
-			}
-
+			// it's possible the transaction status was received and updated in db by another metamorph
+			// check if that's the case and we have a new tx status to return
 			var tx *metamorph_api.TransactionStatus
 			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 				Txid: txID,
 			})
-			if err == nil && tx.Status == waitForStatus {
+			if err == nil && tx.Status >= waitForStatus {
 				return tx
 			}
 		case res := <-responseChannel:

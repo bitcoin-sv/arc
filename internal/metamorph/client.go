@@ -283,7 +283,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	deadline, _ := ctx.Deadline()
 	// increase time to make sure that expiration happens from inside the metramorph function
-	newDeadline := deadline.Add(time.Second * 2)
+	newDeadline := deadline.Add(time.Second * MaxTimeout)
 
 	// Create a new context with the updated deadline
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
@@ -345,7 +345,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	deadline, _ := ctx.Deadline()
 	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second * 5)
+	newDeadline := deadline.Add(time.Second * MaxTimeout)
 
 	// increase time to make sure that expiration happens from inside the metramorph function
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)

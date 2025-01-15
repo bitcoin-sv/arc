@@ -315,6 +315,12 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 
 	for _, data := range updatedData {
+		// if we have a pending request with given transaction hash, provide mined status
+		p.responseProcessor.UpdateStatus(data.Hash, StatusAndError{
+			Hash:   data.Hash,
+			Status: metamorph_api.Status_MINED,
+		})
+
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data)
 			for _, request := range requests {

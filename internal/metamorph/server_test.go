@@ -169,7 +169,6 @@ func TestPutTransaction(t *testing.T) {
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			actualStatus, err := sut.PutTransaction(timeoutCtx, txRequest)
-			fmt.Println("shota ", err)
 
 			// then
 			assert.NoError(t, err)

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
@@ -10,22 +11,20 @@ import (
 )
 
 var (
-	ErrNotFound                           = errors.New("not found")
-	ErrBlockProcessingDuplicateKey        = errors.New("block hash already exists")
-	ErrBlockNotFound                      = errors.New("block not found")
-	ErrUnableToPrepareStatement           = errors.New("unable to prepare statement")
-	ErrUnableToDeleteRows                 = errors.New("unable to delete rows")
-	ErrUnableToGetSQLConnection           = errors.New("unable to get or create sql connection")
-	ErrFailedToInsertBlock                = errors.New("failed to insert block")
-	ErrFailedToUpdateBlockStatuses        = errors.New("failed to update block statuses")
-	ErrFailedToOpenDB                     = errors.New("failed to open postgres database")
-	ErrFailedToInsertTransactions         = errors.New("failed to bulk insert transactions")
-	ErrFailedToGetRows                    = errors.New("failed to get rows")
-	ErrFailedToSetBlockProcessing         = errors.New("failed to set block processing")
-	ErrFailedToUpsertTransactions         = errors.New("failed to upsert transactions")
-	ErrFailedToUpsertBlockTransactionsMap = errors.New("failed to upsert block transactions map")
-	ErrFailedToParseHash                  = errors.New("failed to parse hash")
-	ErrMismatchedTxIDsAndMerklePathLength = errors.New("mismatched tx IDs and merkle path length")
+	ErrNotFound                      = errors.New("not found")
+	ErrBlockProcessingMaximumReached = errors.New("block processing maximum reached")
+	ErrBlockProcessingInProgress     = errors.New("block processing already in progress")
+	ErrBlockNotFound                 = errors.New("block not found")
+	ErrUnableToPrepareStatement      = errors.New("unable to prepare statement")
+	ErrUnableToDeleteRows            = errors.New("unable to delete rows")
+	ErrUnableToGetSQLConnection      = errors.New("unable to get or create sql connection")
+	ErrFailedToInsertBlock           = errors.New("failed to insert block")
+	ErrFailedToUpdateBlockStatuses   = errors.New("failed to update block statuses")
+	ErrFailedToOpenDB                = errors.New("failed to open postgres database")
+	ErrFailedToInsertTransactions    = errors.New("failed to bulk insert transactions")
+	ErrFailedToGetRows               = errors.New("failed to get rows")
+	ErrFailedToSetBlockProcessing    = errors.New("failed to set block processing")
+	ErrFailedToParseHash             = errors.New("failed to parse hash")
 )
 
 type Stats struct {
@@ -51,9 +50,7 @@ type BlocktxStore interface {
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
 
-	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (string, error)
-	GetBlockHashesProcessingInProgress(ctx context.Context, processedBy string) ([]*chainhash.Hash, error)
-	DelBlockProcessing(ctx context.Context, hash *chainhash.Hash, processedBy string) (int64, error)
+	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	Ping(ctx context.Context) error

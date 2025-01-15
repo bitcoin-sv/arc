@@ -27,9 +27,6 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			ClearRegisteredTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearRegisteredTransactions method")
 //			},
-//			DelUnfinishedBlockProcessingFunc: func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-//				panic("mock out the DelUnfinishedBlockProcessing method")
-//			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
@@ -48,9 +45,6 @@ type BlockTxAPIClientMock struct {
 
 	// ClearRegisteredTransactionsFunc mocks the ClearRegisteredTransactions method.
 	ClearRegisteredTransactionsFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
-
-	// DelUnfinishedBlockProcessingFunc mocks the DelUnfinishedBlockProcessing method.
-	DelUnfinishedBlockProcessingFunc func(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
@@ -78,15 +72,6 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// DelUnfinishedBlockProcessing holds details about calls to the DelUnfinishedBlockProcessing method.
-		DelUnfinishedBlockProcessing []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *blocktx_api.DelUnfinishedBlockProcessingRequest
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
 			// Ctx is the ctx argument value.
@@ -106,11 +91,10 @@ type BlockTxAPIClientMock struct {
 			Opts []grpc.CallOption
 		}
 	}
-	lockClearBlocks                  sync.RWMutex
-	lockClearRegisteredTransactions  sync.RWMutex
-	lockDelUnfinishedBlockProcessing sync.RWMutex
-	lockHealth                       sync.RWMutex
-	lockVerifyMerkleRoots            sync.RWMutex
+	lockClearBlocks                 sync.RWMutex
+	lockClearRegisteredTransactions sync.RWMutex
+	lockHealth                      sync.RWMutex
+	lockVerifyMerkleRoots           sync.RWMutex
 }
 
 // ClearBlocks calls ClearBlocksFunc.
@@ -190,46 +174,6 @@ func (mock *BlockTxAPIClientMock) ClearRegisteredTransactionsCalls() []struct {
 	mock.lockClearRegisteredTransactions.RLock()
 	calls = mock.calls.ClearRegisteredTransactions
 	mock.lockClearRegisteredTransactions.RUnlock()
-	return calls
-}
-
-// DelUnfinishedBlockProcessing calls DelUnfinishedBlockProcessingFunc.
-func (mock *BlockTxAPIClientMock) DelUnfinishedBlockProcessing(ctx context.Context, in *blocktx_api.DelUnfinishedBlockProcessingRequest, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
-	if mock.DelUnfinishedBlockProcessingFunc == nil {
-		panic("BlockTxAPIClientMock.DelUnfinishedBlockProcessingFunc: method is nil but BlockTxAPIClient.DelUnfinishedBlockProcessing was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *blocktx_api.DelUnfinishedBlockProcessingRequest
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockDelUnfinishedBlockProcessing.Lock()
-	mock.calls.DelUnfinishedBlockProcessing = append(mock.calls.DelUnfinishedBlockProcessing, callInfo)
-	mock.lockDelUnfinishedBlockProcessing.Unlock()
-	return mock.DelUnfinishedBlockProcessingFunc(ctx, in, opts...)
-}
-
-// DelUnfinishedBlockProcessingCalls gets all the calls that were made to DelUnfinishedBlockProcessing.
-// Check the length with:
-//
-//	len(mockedBlockTxAPIClient.DelUnfinishedBlockProcessingCalls())
-func (mock *BlockTxAPIClientMock) DelUnfinishedBlockProcessingCalls() []struct {
-	Ctx  context.Context
-	In   *blocktx_api.DelUnfinishedBlockProcessingRequest
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *blocktx_api.DelUnfinishedBlockProcessingRequest
-		Opts []grpc.CallOption
-	}
-	mock.lockDelUnfinishedBlockProcessing.RLock()
-	calls = mock.calls.DelUnfinishedBlockProcessing
-	mock.lockDelUnfinishedBlockProcessing.RUnlock()
 	return calls
 }
 

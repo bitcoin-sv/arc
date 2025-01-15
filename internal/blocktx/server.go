@@ -60,30 +60,16 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
+	_, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_processing")
+	if err != nil {
+		return nil, err
+	}
+
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
 }
 
 func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "registered_transactions")
-}
-
-func (s *Server) DelUnfinishedBlockProcessing(ctx context.Context, req *blocktx_api.DelUnfinishedBlockProcessingRequest) (*blocktx_api.RowsAffectedResponse, error) {
-	bhs, err := s.store.GetBlockHashesProcessingInProgress(ctx, req.GetProcessedBy())
-	if err != nil {
-		return &blocktx_api.RowsAffectedResponse{}, err
-	}
-
-	var rowsTotal int64
-	for _, bh := range bhs {
-		rows, err := s.store.DelBlockProcessing(ctx, bh, req.GetProcessedBy())
-		if err != nil {
-			return &blocktx_api.RowsAffectedResponse{}, err
-		}
-
-		rowsTotal += rows
-	}
-
-	return &blocktx_api.RowsAffectedResponse{Rows: rowsTotal}, nil
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {

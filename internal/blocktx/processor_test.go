@@ -177,8 +177,7 @@ func TestHandleBlock(t *testing.T) {
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
-				MarkBlockAsDoneFunc:                    func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) { return nil, nil },
+				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
 			}
 
 			storeMock.InsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error {
@@ -437,9 +436,6 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
 				},
-				DelBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
-					return 0, nil
-				},
 			}
 
 			// build peer manager and processor
@@ -511,9 +507,6 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error {
 					return registerErrTest
 				},
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return nil, nil
 				},
@@ -563,48 +556,35 @@ func TestStartBlockRequesting(t *testing.T) {
 		setBlockProcessingErr error
 		bhsProcInProg         []*chainhash.Hash
 
-		expectedSetBlockProcessingCalls                 int
-		expectedDelBlockProcessingCalls                 int
-		expectedDelBlockProcessingErrors                int
-		expectedGetBlockHashesProcessingInProgressCalls int
-		expectedPeerWriteMessageCalls                   int
+		expectedSetBlockProcessingCalls int
+		expectedPeerWriteMessageCalls   int
 	}{
 		{
 			name: "process block",
 
-			expectedSetBlockProcessingCalls:                 1,
-			expectedGetBlockHashesProcessingInProgressCalls: 1,
-			expectedPeerWriteMessageCalls:                   1,
+			expectedSetBlockProcessingCalls: 1,
+			expectedPeerWriteMessageCalls:   1,
 		},
 		{
-			name:                  "block already processed",
-			setBlockProcessingErr: store.ErrBlockProcessingDuplicateKey,
+			name:                  "block processing maximum reached",
+			setBlockProcessingErr: store.ErrBlockProcessingMaximumReached,
 
-			expectedSetBlockProcessingCalls:                 1,
-			expectedGetBlockHashesProcessingInProgressCalls: 1,
-			expectedPeerWriteMessageCalls:                   0,
+			expectedSetBlockProcessingCalls: 1,
+			expectedPeerWriteMessageCalls:   0,
+		},
+		{
+			name:                  "block processing already in progress",
+			setBlockProcessingErr: store.ErrBlockProcessingInProgress,
+
+			expectedSetBlockProcessingCalls: 1,
+			expectedPeerWriteMessageCalls:   0,
 		},
 		{
 			name:                  "failed to set block processing",
 			setBlockProcessingErr: errors.New("failed to set block processing"),
 
-			expectedSetBlockProcessingCalls:                 1,
-			expectedGetBlockHashesProcessingInProgressCalls: 1,
-			expectedPeerWriteMessageCalls:                   0,
-		},
-		{
-			name: "max blocks being processed reached",
-			bhsProcInProg: []*chainhash.Hash{
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-				testdata.Block1Hash, testdata.Block2Hash,
-			},
-
-			expectedSetBlockProcessingCalls:                 0,
-			expectedGetBlockHashesProcessingInProgressCalls: 1,
-			expectedPeerWriteMessageCalls:                   0,
+			expectedSetBlockProcessingCalls: 1,
+			expectedPeerWriteMessageCalls:   0,
 		},
 	}
 
@@ -612,21 +592,10 @@ func TestStartBlockRequesting(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			setBlockProcessingErrTest := tc.setBlockProcessingErr
-			bhsProcInProgErr := tc.bhsProcInProg
 			storeMock := &storeMocks.BlocktxStoreMock{
-				SetBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string) (string, error) {
+				SetBlockProcessingFunc: func(_ context.Context, _ *chainhash.Hash, _ string, _ time.Duration, _ int) (string, error) {
 					return "abc", setBlockProcessingErrTest
 				},
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return bhsProcInProgErr, nil
-				},
-			}
-			storeMock.DelBlockProcessingFunc = func(_ context.Context, _ *chainhash.Hash, _ string) (int64, error) {
-				j := len(storeMock.DelBlockProcessingCalls())
-				if j <= tc.expectedDelBlockProcessingErrors {
-					return 0, errors.New("DelBlockProcessing failed")
-				}
-				return 1, nil
 			}
 
 			peerMock := &mocks.PeerMock{
@@ -660,8 +629,6 @@ func TestStartBlockRequesting(t *testing.T) {
 			// then
 			defer sut.Shutdown()
 
-			require.Equal(t, tc.expectedGetBlockHashesProcessingInProgressCalls, len(storeMock.GetBlockHashesProcessingInProgressCalls()))
-			require.Equal(t, tc.expectedDelBlockProcessingCalls, len(storeMock.DelBlockProcessingCalls()))
 			require.Equal(t, tc.expectedSetBlockProcessingCalls, len(storeMock.SetBlockProcessingCalls()))
 			require.Equal(t, tc.expectedPeerWriteMessageCalls, len(peerMock.WriteMsgCalls()))
 		})
@@ -746,9 +713,6 @@ func TestStartProcessRequestTxs(t *testing.T) {
 						BlockHeight: 1,
 					}}, tc.getMinedErr
 				},
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
 					return []*chainhash.Hash{testdata.TX1Hash}, nil
 				},
@@ -816,12 +780,6 @@ func TestStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			storeMock := &storeMocks.BlocktxStoreMock{
-				GetBlockHashesProcessingInProgressFunc: func(_ context.Context, _ string) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
-			}
-
 			mqClient := &mocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, _ func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
@@ -832,7 +790,7 @@ func TestStart(t *testing.T) {
 				},
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger, nil, nil, nil, blocktx.WithMessageQueueClient(mqClient))
 			require.NoError(t, err)
 
 			// when

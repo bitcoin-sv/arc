@@ -3,8 +3,9 @@ package postgresql
 import (
 	"context"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]*store.BlockGap, error) {
@@ -15,10 +16,7 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 	//
 	// 2. Add to result from 1. all blocks from the blocks table that are unprocessed yet.
 	//
-	// 3. Combine the result from 1. and 2. with block_processing table and remove all
-	// results that are being currently processed.
-	//
-	// 4. Sort by height.
+	// 3. Sort by height descending
 	q := `
 		SELECT DISTINCT all_missing.missing_height, all_missing.missing_hash
 		FROM (
@@ -32,9 +30,7 @@ func (p *PostgreSQL) GetBlockGaps(ctx context.Context, blockHeightRange int) ([]
 				WHERE unprocessed.processed_at IS NULL
 						AND unprocessed.height > (SELECT max(height) - $1 FROM blocktx.blocks)
 		) AS all_missing
-		LEFT JOIN blocktx.block_processing bp ON bp.block_hash = all_missing.missing_hash
-		WHERE bp.block_hash IS NULL
-		ORDER BY all_missing.missing_height ASC;
+		ORDER BY all_missing.missing_height DESC;
 	`
 
 	rows, err := p.db.QueryContext(ctx, q, blockHeightRange)

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -12,14 +11,7 @@ import (
 )
 
 // check if Client implements all necessary interfaces
-var _ Watcher = &Client{}
 var _ MerkleRootsVerifier = &Client{}
-
-type Watcher interface {
-	Health(ctx context.Context) error
-	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
-	DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error)
-}
 
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
 type MerkleRootsVerifier interface {
@@ -42,31 +34,6 @@ func NewClient(client blocktx_api.BlockTxAPIClient) *Client {
 	}
 
 	return btc
-}
-
-func (btc *Client) Health(ctx context.Context) error {
-	_, err := btc.client.Health(ctx, &emptypb.Empty{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (btc *Client) DelUnfinishedBlockProcessing(ctx context.Context, processedBy string) (int64, error) {
-	resp, err := btc.client.DelUnfinishedBlockProcessing(ctx, &blocktx_api.DelUnfinishedBlockProcessingRequest{ProcessedBy: processedBy})
-	if err != nil {
-		return 0, err
-	}
-	return resp.Rows, nil
-}
-
-func (btc *Client) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
-	resp, err := btc.client.ClearBlocks(ctx, &blocktx_api.ClearData{RetentionDays: retentionDays})
-	if err != nil {
-		return 0, err
-	}
-	return resp.Rows, nil
 }
 
 func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error) {

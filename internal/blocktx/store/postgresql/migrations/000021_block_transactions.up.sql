@@ -19,8 +19,8 @@ CREATE INDEX IF NOT EXISTS ix_registered_transactions_inserted_at ON blocktx.reg
 INSERT INTO blocktx.registered_transactions
 SELECT t.hash AS hash FROM blocktx.transactions t WHERE t.is_registered = TRUE;
 
-DROP INDEX ix_block_transactions_map_inserted_at;
+DROP INDEX blocktx.ix_block_transactions_map_inserted_at;
 DROP TABLE blocktx.block_transactions_map;
-DROP INDEX ix_transactions_inserted_at;
-DROP INDEX ux_transactions_hash;
+DROP INDEX blocktx.ix_transactions_inserted_at;
+DROP INDEX blocktx.ux_transactions_hash;
 DROP TABLE blocktx.transactions;

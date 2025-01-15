@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -68,8 +67,6 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					return 3, nil
 				},
 			}
-			blocktxMock := &btxMocks.WatcherMock{}
-
 			iteration := 0
 			getPodNamesErrTest := tc.getPodNamesErr
 			podNamestTest := tc.podNames
@@ -96,7 +93,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				StopFunc: func() {},
 			}
 
-			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
+			watcher := k8s_watcher.New(metamorphMock, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker),
 				k8s_watcher.WithLogger(slog.Default()),
 				k8s_watcher.WithRetryInterval(20*time.Millisecond),
 			)
@@ -110,95 +107,6 @@ func TestStartMetamorphWatcher(t *testing.T) {
 			watcher.Shutdown()
 
 			require.Equal(t, tc.expectedMetamorphSetUnlockedByNameCalls, len(metamorphMock.SetUnlockedByNameCalls()))
-		})
-	}
-}
-
-func TestStartBlocktxWatcher(t *testing.T) {
-	tt := []struct {
-		name           string
-		podNames       []map[string]struct{}
-		getPodNamesErr error
-		setUnlockedErr error
-
-		expectedBlocktxDelUnfinishedBlockProcessingFunc int
-	}{
-		{
-			name: "unlock records for metamorph-pod-2",
-			podNames: []map[string]struct{}{
-				{"blocktx-pod-1": {}, "blocktx-pod-2": {}, "api-pod-1": {}, "metamorph-pod-1": {}},
-				{"blocktx-pod-1": {}, "metamorph-pod-1": {}},
-				{"blocktx-pod-1": {}, "blocktx-pod-3": {}, "api-pod-2": {}, "metamorph-pod-1": {}},
-			},
-
-			expectedBlocktxDelUnfinishedBlockProcessingFunc: 1,
-		},
-		{
-			name:           "error - get pod names",
-			podNames:       []map[string]struct{}{{"": {}}},
-			getPodNamesErr: errors.New("failed to get pod names"),
-
-			expectedBlocktxDelUnfinishedBlockProcessingFunc: 0,
-		},
-		{
-			name: "error - set unlocked",
-			podNames: []map[string]struct{}{
-				{"blocktx-pod-1": {}, "blocktx-pod-2": {}},
-				{"blocktx-pod-1": {}},
-				{"blocktx-pod-1": {}, "blocktx-pod-3": {}},
-			},
-			setUnlockedErr: errors.New("failed to set unlocked"),
-
-			expectedBlocktxDelUnfinishedBlockProcessingFunc: 1,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			metamorphMock := &mtmMocks.TransactionMaintainerMock{}
-			blocktxMock := &btxMocks.WatcherMock{
-				DelUnfinishedBlockProcessingFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-			}
-
-			iteration := 0
-			getPodNamesErrTest := tc.getPodNamesErr
-			podNamesTest := tc.podNames
-			k8sClientMock := &mocks.K8sClientMock{
-				GetRunningPodNamesFunc: func(_ context.Context, _ string, _ string) (map[string]struct{}, error) {
-					if getPodNamesErrTest != nil {
-						return nil, getPodNamesErrTest
-					}
-
-					podNames := podNamesTest[iteration]
-
-					iteration++
-
-					return podNames, nil
-				},
-			}
-
-			tickerChannel := make(chan time.Time, 1)
-
-			ticker := &mocks.TickerMock{
-				TickFunc: func() <-chan time.Time {
-					return tickerChannel
-				},
-				StopFunc: func() {},
-			}
-
-			watcher := k8s_watcher.New(metamorphMock, blocktxMock, k8sClientMock, "test-namespace", k8s_watcher.WithBlocktxTicker(ticker),
-				k8s_watcher.WithLogger(slog.Default()),
-			)
-			err := watcher.Start()
-			require.NoError(t, err)
-
-			for range tc.podNames {
-				tickerChannel <- time.Now()
-			}
-
-			watcher.Shutdown()
-
-			require.Equal(t, tc.expectedBlocktxDelUnfinishedBlockProcessingFunc, len(blocktxMock.DelUnfinishedBlockProcessingCalls()))
 		})
 	}
 }

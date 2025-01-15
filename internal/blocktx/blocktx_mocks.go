@@ -11,6 +11,3 @@ package blocktx
 
 // from client.go
 //go:generate moq -pkg mocks -out ./mocks/merkle_roots_verifier_mock.go . MerkleRootsVerifier
-
-// from client.go
-//go:generate moq -pkg mocks -out ./mocks/blocktx_client_mock.go . Watcher

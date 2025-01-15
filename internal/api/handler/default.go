@@ -265,7 +265,7 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		}
 	}
 
-	txs, successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
+	successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 	if e != nil {
 		if span != nil {
 			attr := e.GetSpanAttributes()
@@ -284,9 +284,6 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		}
 		return PostResponse{e.Status, e}
 	}
-
-	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
-	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 
 	res := successes[0]
 
@@ -454,7 +451,7 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 		return PostResponse{int(api.StatusOK), responses}
 	}
 
-	txs, successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
+	successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
 		if span != nil {
 			attr := e.GetSpanAttributes()
@@ -463,8 +460,6 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 		return PostResponse{e.Status, e}
 	}
 
-	sizingCtx := context.WithValue(reqCtx, ContextSizings, prepareSizingInfo(txs))
-	ctx.SetRequest(ctx.Request().WithContext(sizingCtx))
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 
@@ -612,14 +607,14 @@ func (m ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields) 
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
-func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (
-	submittedTxs []*sdkTx.Transaction, successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields,
-) {
+func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
+
+	var submittedTxs []*sdkTx.Transaction
 
 	// decode and validate txs
 	var txIDs []string
@@ -630,7 +625,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
 			if err != nil {
 				errStr := errors.Join(ErrDecodingBeef, err).Error()
-				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
+				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 
 			txsHex = remainingBytes
@@ -651,7 +646,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
-				return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
 
 			txsHex = txsHex[bytesUsed:]
@@ -668,13 +663,13 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	}
 
 	if len(submittedTxs) == 0 {
-		return nil, nil, fails, nil
+		return nil, fails, nil
 	}
 
 	// submit valid transactions to metamorph
 	txStatuses, e := m.submitTransactions(ctx, submittedTxs, options)
 	if e != nil {
-		return nil, nil, nil, e
+		return nil, nil, e
 	}
 
 	// prepare success results
@@ -703,7 +698,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		})
 	}
 
-	return submittedTxs, successes, fails, nil
+	return successes, fails, nil
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
@@ -846,42 +841,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	}
 
 	return status, arcError
-}
-
-func prepareSizingInfo(txs []*sdkTx.Transaction) [][]uint64 {
-	sizingInfo := make([][]uint64, 0, len(txs))
-	for _, btTx := range txs {
-		normalBytes, dataBytes, feeAmount := getSizings(btTx)
-		sizingInfo = append(sizingInfo, []uint64{normalBytes, dataBytes, feeAmount})
-	}
-
-	return sizingInfo
-}
-
-func getSizings(tx *sdkTx.Transaction) (uint64, uint64, uint64) {
-	var feeAmount uint64
-
-	for _, in := range tx.Inputs {
-		feeAmount += *in.SourceTxSatoshis()
-	}
-
-	var dataBytes uint64
-	for _, out := range tx.Outputs {
-		if feeAmount >= out.Satoshis {
-			feeAmount -= out.Satoshis
-		} else {
-			feeAmount = 0
-		}
-
-		script := *out.LockingScript
-		if out.Satoshis == 0 && len(script) > 0 && (script[0] == 0x6a || (script[0] == 0x00 && script[1] == 0x6a)) {
-			dataBytes += uint64(len(script))
-		}
-	}
-
-	normalBytes := uint64(len(tx.Bytes())) - dataBytes
-
-	return normalBytes, dataBytes, feeAmount
 }
 
 // ContextKey type.

@@ -98,7 +98,7 @@ blocktx:
   registerTxsInterval: 200ms
   fillGaps:
     enabled: true
-    interval: 30s
+    interval: 1s # This allows e2e tests to pass as there will be no gaps when initial blocks are created
   maxAllowedBlockHeightMismatch: 3
 
 api:

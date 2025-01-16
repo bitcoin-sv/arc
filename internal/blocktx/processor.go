@@ -48,7 +48,6 @@ const (
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
 	waitForBlockProcessing             = 5 * time.Minute
-	lockTime                           = 5 * time.Minute
 	parallellism                       = 5
 )
 
@@ -167,7 +166,7 @@ func (p *Processor) StartBlockRequesting() {
 				peer := req.Peer
 
 				// lock block for the current instance to process
-				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime, maxBlocksInProgress)
+				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, p.maxBlockProcessingDuration, maxBlocksInProgress)
 				if err != nil {
 					if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
 						p.logger.Debug("block processing maximum reached", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))

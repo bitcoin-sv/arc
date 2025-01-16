@@ -95,7 +95,7 @@ blocktx:
       sslMode: disable
   recordRetentionDays: 28
   registerTxsInterval: 200ms
-  maxBlockProcessingDuration: 5m
+  maxBlockProcessingDuration: 2s
   monitorPeers: true
   incomingIsLongest: false
   fillGaps:

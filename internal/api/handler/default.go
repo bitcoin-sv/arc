@@ -297,7 +297,11 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
 	timeout := m.defaultTimeout
-	if params.XMaxTimeout != nil && *params.XMaxTimeout < metamorph.MaxTimeout {
+	if params.XMaxTimeout != nil {
+		if *params.XMaxTimeout > metamorph.MaxTimeout {
+			e := api.NewErrorFields(api.ErrStatusBadRequest, ErrMaxTimeoutExceeded.Error())
+			return ctx.JSON(e.Status, e)
+		}
 		timeout = time.Second * time.Duration(*params.XMaxTimeout)
 	}
 
@@ -478,7 +482,11 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 // POSTTransactions ...
 func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
 	timeout := m.defaultTimeout
-	if params.XMaxTimeout != nil && *params.XMaxTimeout < metamorph.MaxTimeout {
+	if params.XMaxTimeout != nil {
+		if *params.XMaxTimeout > metamorph.MaxTimeout {
+			e := api.NewErrorFields(api.ErrStatusBadRequest, ErrMaxTimeoutExceeded.Error())
+			return ctx.JSON(e.Status, e)
+		}
 		timeout = time.Second * time.Duration(*params.XMaxTimeout)
 	}
 

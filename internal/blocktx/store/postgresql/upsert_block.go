@@ -55,8 +55,3 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 
 	return blockID, nil
 }
-
-//func (p *PostgreSQL) UpdateLongest(ctx context.Context, blockHash *chainhash.Hash) (err error) {
-//
-//	return nil
-//}

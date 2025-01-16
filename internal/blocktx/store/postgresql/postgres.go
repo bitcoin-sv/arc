@@ -13,20 +13,16 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
-var ErrNoTransaction = errors.New("sql: transaction has already been committed or rolled back")
-
 const (
-	postgresDriverName        = "pgx"
-	maxPostgresBulkInsertRows = 8192
+	postgresDriverName = "pgx"
 )
 
 type PostgreSQL struct {
-	db                        *sql.DB
-	conn                      *sql.Conn
-	now                       func() time.Time
-	maxPostgresBulkInsertRows int
-	tracingEnabled            bool
-	tracingAttributes         []attribute.KeyValue
+	db                *sql.DB
+	conn              *sql.Conn
+	now               func() time.Time
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
@@ -65,10 +61,9 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	}
 
 	p := &PostgreSQL{
-		db:                        db,
-		conn:                      conn,
-		now:                       time.Now,
-		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
+		db:   db,
+		conn: conn,
+		now:  time.Now,
 	}
 	for _, opt := range opts {
 		opt(p)

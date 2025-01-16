@@ -465,7 +465,7 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, expectedTxs, actualTxs)
+		require.ElementsMatch(t, expectedTxs, actualTxs)
 	})
 
 	t.Run("get registered txs by block hashes", func(t *testing.T) {
@@ -734,7 +734,6 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
 	defer sut.Close()
-	sut.maxPostgresBulkInsertRows = 5
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -863,7 +862,6 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	// given
 	ctx, _, sut := setupPostgresTest(t)
 	defer sut.Close()
-	sut.maxPostgresBulkInsertRows = 5
 
 	prepareDb(t, sut, "fixtures/insert_block_transactions")
 
@@ -896,7 +894,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 			TxHash:          txHash[:],
 			BlockHash:       testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
 			BlockHeight:     uint64(826481),
-			MerkleTreeIndex: int64(1),
+			MerkleTreeIndex: int64(0),
 			BlockStatus:     blocktx_api.Status_STALE,
 		},
 	}

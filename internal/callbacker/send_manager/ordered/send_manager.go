@@ -3,18 +3,12 @@ package ordered
 import (
 	"container/list"
 	"context"
-	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	//"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-)
-
-var (
-	ErrSendBatchedCallbacks = errors.New("failed to send batched callback")
 )
 
 type SendManager struct {
@@ -161,7 +155,6 @@ func (m *SendManager) StartProcessCallbackQueue() {
 
 		var callbackElements []*list.Element
 
-	mainLoop:
 		for {
 			select {
 			case <-m.ctx.Done():
@@ -227,39 +220,6 @@ func (m *SendManager) StartProcessCallbackQueue() {
 					continue
 				}
 
-				for callbackEntry.AllowBatch {
-					callbackElements = append(callbackElements, front)
-
-					callbackElement := front.Next()
-					if callbackElement != nil && len(callbackElements) < batchSize {
-						callbackEntry, ok = callbackElement.Value.(callbacker.CallbackEntry)
-						if !ok {
-							continue
-						}
-
-						continue
-					}
-
-					err = m.sendElementBatch(callbackElements)
-					if err != nil {
-						m.logger.Error("failed to send batched callbacks", slog.String("err", err.Error()))
-					} else {
-						callbackElements = callbackElements[:0]
-					}
-					continue mainLoop
-				}
-
-				// if entry is not a batched entry, but there are items in the batch, send them first to keep the order
-				if len(callbackElements) > 0 {
-					err = m.sendElementBatch(callbackElements)
-					if err != nil {
-						m.logger.Error("failed to send batched callbacks", slog.String("err", err.Error()))
-					} else {
-						callbackElements = callbackElements[:0]
-					}
-					continue mainLoop
-				}
-
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
 					m.callbackList.Remove(front)
@@ -269,28 +229,6 @@ func (m *SendManager) StartProcessCallbackQueue() {
 			}
 		}
 	}()
-}
-
-func (m *SendManager) sendElementBatch(callbackElements []*list.Element) error {
-	var callbackElement *list.Element
-	callbackBatch := make([]callbacker.CallbackEntry, 0, len(callbackElements))
-	for _, element := range callbackElements {
-		callback, ok := element.Value.(callbacker.CallbackEntry)
-		if !ok {
-			continue
-		}
-		callbackBatch = append(callbackBatch, callback)
-	}
-	success, retry := m.sendBatch(callbackBatch)
-	if !retry || success {
-		for _, callbackElement = range callbackElements {
-			m.callbackList.Remove(callbackElement)
-		}
-
-		return nil
-	}
-
-	return ErrSendBatchedCallbacks
 }
 
 func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retry bool) {

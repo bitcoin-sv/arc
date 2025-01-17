@@ -238,6 +238,43 @@ func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) 
 	return records, nil
 }
 
+func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
+	const q = `DELETE FROM callbacker.callbacks
+			WHERE id IN (
+				SELECT id FROM callbacker.callbacks
+				WHERE url = $1
+				ORDER BY timestamp DESC
+				LIMIT $2
+				FOR UPDATE
+			)
+			RETURNING
+				url
+				,token
+				,tx_id
+				,tx_status
+				,extra_info
+				,merkle_path
+				,block_hash
+				,block_height
+				,competing_txs
+				,timestamp
+				,allow_batch`
+
+	rows, err := p.db.QueryContext(ctx, q, url, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*store.CallbackData
+	records, err = scanCallbacks(rows, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
 func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) error {
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE postponed_until IS NOT NULL AND timestamp <= $1`

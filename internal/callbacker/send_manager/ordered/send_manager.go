@@ -38,9 +38,7 @@ type SendManager struct {
 	cancelAll context.CancelFunc
 	ctx       context.Context
 
-	singleSendInterval time.Duration
-	//batchSendInterval time.Duration
-	//delayDuration     time.Duration
+	singleSendInterval      time.Duration
 	backfillQueueInterval   time.Duration
 	sortByTimestampInterval time.Duration
 

@@ -5,14 +5,21 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"time"
+
+	"github.com/libsv/go-p2p/wire"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/multicast"
-	"github.com/libsv/go-p2p/wire"
 )
 
 var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to blockchain.BlockMessage")
+
+const (
+	lockTime            = 5 * time.Minute
+	maxBlocksInProgress = 1
+)
 
 var _ multicast.MessageHandlerI = (*Listener)(nil)
 
@@ -83,11 +90,12 @@ func (l *Listener) OnReceive(msg wire.Message) {
 		hash := blockMsg.Hash
 
 		l.logger.Info("Received BLOCK msg from multicast group", slog.String("hash", hash.String()))
-
-		processedBy, err := l.store.SetBlockProcessing(context.Background(), hash, l.hostname)
+		processedBy, err := l.store.SetBlockProcessing(context.Background(), hash, l.hostname, lockTime, maxBlocksInProgress)
 		if err != nil {
-			// block is already being processed by another blocktx instance
-			if errors.Is(err, store.ErrBlockProcessingDuplicateKey) {
+			if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
+				l.logger.Debug("block processing maximum reached", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+				return
+			} else if errors.Is(err, store.ErrBlockProcessingInProgress) {
 				l.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 				return
 			}
@@ -95,8 +103,6 @@ func (l *Listener) OnReceive(msg wire.Message) {
 			l.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 			return
 		}
-
-		// p.startBlockProcessGuard(p.ctx, hash) // handle it somehow
 
 		l.receiveCh <- blockMsg
 	}

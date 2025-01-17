@@ -3,6 +3,7 @@ package ordered
 import (
 	"container/list"
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -40,7 +41,8 @@ type SendManager struct {
 	singleSendInterval time.Duration
 	//batchSendInterval time.Duration
 	//delayDuration     time.Duration
-	backfillQueueInterval time.Duration
+	backfillQueueInterval   time.Duration
+	sortByTimestampInterval time.Duration
 
 	bufferSize   int
 	callbackList *list.List
@@ -49,11 +51,12 @@ type SendManager struct {
 }
 
 const (
-	entriesBufferSize            = 10000
-	batchSendIntervalDefault     = 5 * time.Second
-	singleSendIntervalDefault    = 5 * time.Second
-	backfillQueueIntervalDefault = 5 * time.Second
-	expirationDefault            = 24 * time.Hour
+	entriesBufferSize = 10000
+
+	singleSendIntervalDefault      = 5 * time.Second
+	backfillQueueIntervalDefault   = 5 * time.Second
+	expirationDefault              = 24 * time.Hour
+	sortByTimestampIntervalDefault = 10 * time.Second
 )
 
 func WithNow(nowFunc func() time.Time) func(*SendManager) {
@@ -86,6 +89,12 @@ func WithExpiration(d time.Duration) func(*SendManager) {
 	}
 }
 
+func WithSortByTimestampInterval(d time.Duration) func(*SendManager) {
+	return func(m *SendManager) {
+		m.sortByTimestampInterval = d
+	}
+}
+
 func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *slog.Logger, opts ...func(*SendManager)) *SendManager {
 	m := &SendManager{
 		url:    url,
@@ -93,11 +102,10 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		store:  store,
 		logger: logger,
 
-		singleSendInterval: singleSendIntervalDefault,
-		//batchSendInterval: batchSendInterval,
-		//delayDuration:     sendingConfig.DelayDuration,
-		expiration:            expirationDefault,
-		backfillQueueInterval: backfillQueueIntervalDefault,
+		singleSendInterval:      singleSendIntervalDefault,
+		expiration:              expirationDefault,
+		backfillQueueInterval:   backfillQueueIntervalDefault,
+		sortByTimestampInterval: sortByTimestampIntervalDefault,
 
 		callbackList: list.New(),
 		bufferSize:   entriesBufferSize,
@@ -123,26 +131,35 @@ func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 	m.callbackList.PushBack(entry)
 }
 
-//func (m *SendManager) sortByTimestamp() {
-//	current := m.callbackList.Front()
-//	if m.callbackList.Front() == nil {
-//		return
-//	}
-//	for current != nil {
-//		index := current.Next()
-//		for index != nil {
-//			currentTime := current.Value.(*callbacker.CallbackEntry).Data.Timestamp
-//			indexTime := index.Value.(*callbacker.CallbackEntry).Data.Timestamp
-//			if currentTime.Before(indexTime) {
-//				temp := current.Value
-//				current.Value = index.Value
-//				index.Value = temp
-//			}
-//			index = index.Next()
-//		}
-//		current = current.Next()
-//	}
-//}
+func (m *SendManager) sortByTimestamp() error {
+	current := m.callbackList.Front()
+	if m.callbackList.Front() == nil {
+		return nil
+	}
+	for current != nil {
+		index := current.Next()
+		for index != nil {
+			currentTime, ok := current.Value.(callbacker.CallbackEntry)
+			if !ok {
+				return errors.New("callback entry is not a CallbackEntry")
+			}
+
+			indexTime, ok := index.Value.(callbacker.CallbackEntry)
+			if !ok {
+				return errors.New("callback entry is not a CallbackEntry")
+			}
+			if currentTime.Data.Timestamp.Before(indexTime.Data.Timestamp) {
+				temp := current.Value
+				current.Value = index.Value
+				index.Value = temp
+			}
+			index = index.Next()
+		}
+		current = current.Next()
+	}
+
+	return nil
+}
 
 func (m *SendManager) CallbacksQueued() int {
 	return m.callbackList.Len()
@@ -150,7 +167,7 @@ func (m *SendManager) CallbacksQueued() int {
 
 func (m *SendManager) Start() {
 	queueTicker := time.NewTicker(m.singleSendInterval)
-	//sortTicker := time.NewTicker(10 * time.Second)
+	sortQueueTicker := time.NewTicker(m.sortByTimestampInterval)
 	backfillQueueTicker := time.NewTicker(m.backfillQueueInterval)
 
 	m.entriesWg.Add(1)
@@ -178,8 +195,11 @@ func (m *SendManager) Start() {
 			select {
 			case <-m.ctx.Done():
 				return
-			//case <-sortTicker.C:
-			//	m.sortByTimestamp()
+			case <-sortQueueTicker.C:
+				err = m.sortByTimestamp()
+				if err != nil {
+					m.logger.Error("Failed to sort by timestamp", slog.String("err", err.Error()))
+				}
 
 			case <-backfillQueueTicker.C:
 				m.backfillQueue()

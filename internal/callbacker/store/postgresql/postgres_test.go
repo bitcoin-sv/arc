@@ -174,6 +174,34 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
+	t.Run("get and delete", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_many")
+
+		ctx := context.Background()
+		var rowsBefore int
+		err = postgresDB.db.QueryRowContext(ctx,
+			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
+			"https://arc-callback-2/callback").Scan(&rowsBefore)
+		require.NoError(t, err)
+
+		require.Equal(t, 28, rowsBefore)
+
+		const popLimit = 10
+		records, err := postgresDB.GetAndDelete(ctx, "https://arc-callback-2/callback", popLimit)
+		require.NoError(t, err)
+
+		require.Len(t, records, popLimit)
+
+		var rowsAfter int
+		err = postgresDB.db.QueryRowContext(ctx,
+			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
+			"https://arc-callback-2/callback").Scan(&rowsAfter)
+		require.NoError(t, err)
+		require.Equal(t, 18, rowsAfter)
+	})
+
 	t.Run("pop many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)

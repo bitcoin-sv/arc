@@ -37,6 +37,7 @@ type CallbackEntry struct {
 	Token          string
 	Data           *Callback
 	postponedUntil *time.Time
+	AllowBatch     bool
 }
 
 type SendConfig struct {

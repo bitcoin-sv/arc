@@ -258,6 +258,7 @@ func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([
 				,block_height
 				,competing_txs
 				,timestamp
+				,postponed_until
 				,allow_batch`
 
 	rows, err := p.db.QueryContext(ctx, q, url, limit)

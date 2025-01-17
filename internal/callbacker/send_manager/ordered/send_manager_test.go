@@ -145,10 +145,10 @@ func TestSendManagerStart(t *testing.T) {
 
 					return nil
 				},
-				SetFunc: func(_ context.Context, data *store.CallbackData) error {
+				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
 					return nil
 				},
-				GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
+				GetAndDeleteFunc: func(_ context.Context, _ string, limit int) ([]*store.CallbackData, error) {
 					var callbacks []*store.CallbackData
 					for range limit {
 						callbacks = append(callbacks, &store.CallbackData{Timestamp: time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)})

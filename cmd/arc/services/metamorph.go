@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/ordishs/go-bitcoin"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -28,7 +26,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 )

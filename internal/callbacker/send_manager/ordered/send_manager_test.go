@@ -3,6 +3,7 @@ package ordered_test
 import (
 	"context"
 	"log/slog"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -15,13 +16,39 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
+var (
+	now       = time.Date(2025, 1, 10, 12, 0, 0, 0, time.UTC)
+	ts        = time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)
+	tsExpired = time.Date(2025, 1, 9, 12, 0, 0, 0, time.UTC)
+)
+
 func TestSendManagerStart(t *testing.T) {
+	callbackEntries10 := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		callbackEntries10[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: ts}}
+	}
+
+	callbackEntries15 := make([]callbacker.CallbackEntry, 15)
+	for i := range 15 {
+		callbackEntries15[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: ts}}
+	}
+
+	callbackEntries10Expired := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		callbackEntries10Expired[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: tsExpired}}
+	}
+
+	callbackEntriesUnsorted := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		callbackEntriesUnsorted[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, rand.Intn(31), rand.Intn(24), rand.Intn(59), 0, 0, time.UTC)}}
+	}
+
 	tcs := []struct {
-		name               string
-		callbacksEnqueued  int
-		singleSendInterval time.Duration
-		backfillInterval   time.Duration
-		callbackTimestamp  time.Time
+		name                    string
+		callbacksEnqueued       []callbacker.CallbackEntry
+		singleSendInterval      time.Duration
+		backfillInterval        time.Duration
+		sortByTimestampInterval time.Duration
 
 		expectedCallbacksEnqueued int
 		expectedSetManyCalls      int
@@ -29,11 +56,11 @@ func TestSendManagerStart(t *testing.T) {
 		expectedSendCalls         int
 	}{
 		{
-			name:               "enqueue 10 callbacks - 10ms interval",
-			callbacksEnqueued:  10,
-			singleSendInterval: 10 * time.Millisecond,
-			backfillInterval:   500 * time.Millisecond,
-			callbackTimestamp:  time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC),
+			name:                    "enqueue 10 callbacks - 10ms interval",
+			callbacksEnqueued:       callbackEntries10,
+			singleSendInterval:      10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
 			expectedSetManyCalls:      0,
@@ -41,11 +68,11 @@ func TestSendManagerStart(t *testing.T) {
 			expectedSendCalls:         10,
 		},
 		{
-			name:               "enqueue 10 callbacks - 100ms interval - store remaining at graceful stop",
-			callbacksEnqueued:  10,
-			singleSendInterval: 100 * time.Millisecond,
-			backfillInterval:   500 * time.Millisecond,
-			callbackTimestamp:  time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC),
+			name:                    "enqueue 10 callbacks - 100ms interval - store remaining at graceful stop",
+			callbacksEnqueued:       callbackEntries10,
+			singleSendInterval:      100 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
 			expectedSetManyCalls:      1,
@@ -53,11 +80,11 @@ func TestSendManagerStart(t *testing.T) {
 			expectedSendCalls:         1,
 		},
 		{
-			name:               "enqueue 10 callbacks - expired",
-			callbacksEnqueued:  10,
-			singleSendInterval: 10 * time.Millisecond,
-			backfillInterval:   500 * time.Millisecond,
-			callbackTimestamp:  time.Date(2025, 1, 9, 12, 0, 0, 0, time.UTC),
+			name:                    "enqueue 10 callbacks - expired",
+			callbacksEnqueued:       callbackEntries10Expired,
+			singleSendInterval:      10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
 			expectedSetManyCalls:      0,
@@ -65,11 +92,11 @@ func TestSendManagerStart(t *testing.T) {
 			expectedSendCalls:         0,
 		},
 		{
-			name:               "enqueue 15 callbacks - buffer size reached",
-			callbacksEnqueued:  15,
-			singleSendInterval: 10 * time.Millisecond,
-			backfillInterval:   500 * time.Millisecond,
-			callbackTimestamp:  time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC),
+			name:                    "enqueue 15 callbacks - buffer size reached",
+			callbacksEnqueued:       callbackEntries15,
+			singleSendInterval:      10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
 			expectedSetManyCalls:      0,
@@ -77,16 +104,28 @@ func TestSendManagerStart(t *testing.T) {
 			expectedSendCalls:         10,
 		},
 		{
-			name:               "enqueue 10 callbacks - 10ms interval - back fill queue",
-			callbacksEnqueued:  10,
-			singleSendInterval: 10 * time.Millisecond,
-			backfillInterval:   20 * time.Millisecond,
-			callbackTimestamp:  time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC),
+			name:                    "enqueue 10 callbacks - 10ms interval - back fill queue",
+			callbacksEnqueued:       callbackEntries10,
+			singleSendInterval:      10 * time.Millisecond,
+			backfillInterval:        20 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
 			expectedSetManyCalls:      1,
 			expectedSetCalls:          0,
 			expectedSendCalls:         15,
+		},
+		{
+			name:                    "enqueue 10 callbacks - 10ms interval - sort by timestamp",
+			callbacksEnqueued:       callbackEntriesUnsorted,
+			singleSendInterval:      200 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 20 * time.Millisecond,
+
+			expectedCallbacksEnqueued: 10,
+			expectedSetManyCalls:      1,
+			expectedSetCalls:          0,
+			expectedSendCalls:         0,
 		},
 	}
 
@@ -100,6 +139,10 @@ func TestSendManagerStart(t *testing.T) {
 
 			storeMock := &mocks.SendManagerStoreMock{
 				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
+					for i := 0; i < len(data)-1; i++ {
+						assert.GreaterOrEqual(t, data[i].Timestamp, data[i+1].Timestamp)
+					}
+
 					return nil
 				},
 				SetFunc: func(_ context.Context, data *store.CallbackData) error {
@@ -108,7 +151,7 @@ func TestSendManagerStart(t *testing.T) {
 				GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
 					var callbacks []*store.CallbackData
 					for range limit {
-						callbacks = append(callbacks, &store.CallbackData{Timestamp: tc.callbackTimestamp})
+						callbacks = append(callbacks, &store.CallbackData{Timestamp: time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)})
 					}
 					return callbacks, nil
 				},
@@ -117,18 +160,17 @@ func TestSendManagerStart(t *testing.T) {
 			sut := ordered.New("https://abcdefg.com", senderMock, storeMock, slog.Default(),
 				ordered.WithBufferSize(10),
 				ordered.WithNow(func() time.Time {
-					return time.Date(2025, 1, 10, 12, 0, 0, 0, time.UTC)
+					return now
 				}),
 				ordered.WithSingleSendInterval(tc.singleSendInterval),
 				ordered.WithExpiration(time.Hour),
 				ordered.WithBackfillQueueInterval(tc.backfillInterval),
+				ordered.WithSortByTimestampInterval(tc.sortByTimestampInterval),
 			)
 
 			// add callbacks before starting the manager to queue them
-			for range tc.callbacksEnqueued {
-				sut.Enqueue(callbacker.CallbackEntry{Data: &callbacker.Callback{
-					Timestamp: tc.callbackTimestamp,
-				}})
+			for _, cb := range tc.callbacksEnqueued {
+				sut.Enqueue(cb)
 			}
 			require.Equal(t, tc.expectedCallbacksEnqueued, sut.CallbacksQueued())
 

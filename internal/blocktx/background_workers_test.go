@@ -8,16 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/stretchr/testify/require"
-
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 

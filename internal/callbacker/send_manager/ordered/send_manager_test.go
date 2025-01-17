@@ -2,8 +2,10 @@ package ordered_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -43,102 +45,204 @@ func TestSendManagerStart(t *testing.T) {
 		callbackEntriesUnsorted[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, rand.Intn(31), rand.Intn(24), rand.Intn(59), 0, 0, time.UTC)}}
 	}
 
+	callbackEntriesBatch3Expired10 := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		if i >= 3 && i < 6 {
+			callbackEntriesBatch3Expired10[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: tsExpired}, AllowBatch: true}
+			continue
+		}
+		callbackEntriesBatch3Expired10[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: true}
+	}
+
+	callbackEntriesBatch10 := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		callbackEntriesBatch10[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: true}
+	}
+
+	callbackEntriesBatched10Mixed := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		if i >= 3 && i < 7 {
+			callbackEntriesBatched10Mixed[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: true}
+			continue
+		}
+		callbackEntriesBatched10Mixed[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: false}
+	}
+
+	callbackEntriesBatched10Mixed2 := make([]callbacker.CallbackEntry, 10)
+	for i := range 10 {
+		if i >= 2 && i < 8 {
+			callbackEntriesBatched10Mixed2[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: true}
+			continue
+		}
+		callbackEntriesBatched10Mixed2[i] = callbacker.CallbackEntry{Token: fmt.Sprintf("token: %d", i), Data: &callbacker.Callback{Timestamp: ts}, AllowBatch: false}
+	}
+
 	tcs := []struct {
 		name                    string
 		callbacksEnqueued       []callbacker.CallbackEntry
-		singleSendInterval      time.Duration
+		queueProcessInterval    time.Duration
 		backfillInterval        time.Duration
 		sortByTimestampInterval time.Duration
+		batchInterval           time.Duration
 
 		expectedCallbacksEnqueued int
-		expectedSetManyCalls      int
+		expectedSetMany           int
 		expectedSetCalls          int
 		expectedSendCalls         int
+		expectedSendBatchCalls    []int
 	}{
 		{
 			name:                    "enqueue 10 callbacks - 10ms interval",
 			callbacksEnqueued:       callbackEntries10,
-			singleSendInterval:      10 * time.Millisecond,
+			queueProcessInterval:    10 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
 			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      0,
 			expectedSetCalls:          0,
 			expectedSendCalls:         10,
 		},
 		{
 			name:                    "enqueue 10 callbacks - 100ms interval - store remaining at graceful stop",
 			callbacksEnqueued:       callbackEntries10,
-			singleSendInterval:      100 * time.Millisecond,
+			queueProcessInterval:    100 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
 			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      1,
+			expectedSetMany:           9,
 			expectedSetCalls:          0,
 			expectedSendCalls:         1,
 		},
 		{
 			name:                    "enqueue 10 callbacks - expired",
 			callbacksEnqueued:       callbackEntries10Expired,
-			singleSendInterval:      10 * time.Millisecond,
+			queueProcessInterval:    10 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
 			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      0,
 			expectedSetCalls:          0,
 			expectedSendCalls:         0,
 		},
 		{
 			name:                    "enqueue 15 callbacks - buffer size reached",
 			callbacksEnqueued:       callbackEntries15,
-			singleSendInterval:      10 * time.Millisecond,
+			queueProcessInterval:    10 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
 			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      0,
 			expectedSetCalls:          5,
 			expectedSendCalls:         10,
 		},
 		{
-			name:                    "enqueue 10 callbacks - 10ms interval - back fill queue",
+			name:                    "enqueue 10 callbacks - back fill queue",
 			callbacksEnqueued:       callbackEntries10,
-			singleSendInterval:      10 * time.Millisecond,
+			queueProcessInterval:    10 * time.Millisecond,
 			backfillInterval:        20 * time.Millisecond,
 			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      1,
+			expectedSetMany:           9,
 			expectedSetCalls:          0,
 			expectedSendCalls:         15,
 		},
 		{
-			name:                    "enqueue 10 callbacks - 10ms interval - sort by timestamp",
+			name:                    "enqueue 10 callbacks - sort by timestamp",
 			callbacksEnqueued:       callbackEntriesUnsorted,
-			singleSendInterval:      200 * time.Millisecond,
+			queueProcessInterval:    200 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
 			sortByTimestampInterval: 20 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
 
 			expectedCallbacksEnqueued: 10,
-			expectedSetManyCalls:      1,
+			expectedSetMany:           10,
 			expectedSetCalls:          0,
 			expectedSendCalls:         0,
+		},
+		{
+			name:                    "enqueue 10 batched callbacks - 3 expired",
+			callbacksEnqueued:       callbackEntriesBatch3Expired10,
+			queueProcessInterval:    10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
+
+			expectedCallbacksEnqueued: 10,
+			expectedSetMany:           2,
+			expectedSetCalls:          0,
+			expectedSendCalls:         0,
+			expectedSendBatchCalls:    []int{5},
+		},
+		{
+			name:                    "enqueue 10 batched callbacks - 60ms batch interval",
+			callbacksEnqueued:       callbackEntriesBatch10,
+			queueProcessInterval:    10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           60 * time.Millisecond,
+
+			expectedCallbacksEnqueued: 10,
+			expectedSetCalls:          0,
+			expectedSendCalls:         0,
+			expectedSendBatchCalls:    []int{5, 5},
+		},
+		{
+			name:                    "enqueue 10 batched callbacks - 4 batched, 6 single",
+			callbacksEnqueued:       callbackEntriesBatched10Mixed,
+			queueProcessInterval:    10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
+
+			expectedCallbacksEnqueued: 10,
+			expectedSetCalls:          0,
+			expectedSendCalls:         6,
+			expectedSendBatchCalls:    []int{4},
+		},
+		{
+			name:                    "enqueue 10 batched callbacks - 6 batched, 4 single",
+			callbacksEnqueued:       callbackEntriesBatched10Mixed2,
+			queueProcessInterval:    10 * time.Millisecond,
+			backfillInterval:        500 * time.Millisecond,
+			sortByTimestampInterval: 500 * time.Millisecond,
+			batchInterval:           500 * time.Millisecond,
+
+			expectedCallbacksEnqueued: 10,
+			expectedSetCalls:          0,
+			expectedSendCalls:         4,
+			expectedSendBatchCalls:    []int{5, 1},
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+
+			counter := 0
 			senderMock := &mocks.SenderMock{
-				SendFunc:      func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
-				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) (bool, bool) { return true, false },
+				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
+				SendBatchFunc: func(_, _ string, batch []*callbacker.Callback) (bool, bool) {
+					if counter >= len(tc.expectedSendBatchCalls) {
+						t.Fail()
+					} else {
+						assert.Equal(t, tc.expectedSendBatchCalls[counter], len(batch))
+						counter++
+					}
+					return true, false
+				},
 			}
 
 			storeMock := &mocks.SendManagerStoreMock{
 				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
+					assert.Equal(t, tc.expectedSetMany, len(data))
+
 					for i := 0; i < len(data)-1; i++ {
 						assert.GreaterOrEqual(t, data[i].Timestamp, data[i+1].Timestamp)
 					}
@@ -157,15 +261,19 @@ func TestSendManagerStart(t *testing.T) {
 				},
 			}
 
-			sut := ordered.New("https://abcdefg.com", senderMock, storeMock, slog.Default(),
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+			sut := ordered.New("https://abcdefg.com", senderMock, storeMock, logger,
 				ordered.WithBufferSize(10),
 				ordered.WithNow(func() time.Time {
 					return now
 				}),
-				ordered.WithSingleSendInterval(tc.singleSendInterval),
+				ordered.WithQueueProcessInterval(tc.queueProcessInterval),
 				ordered.WithExpiration(time.Hour),
 				ordered.WithBackfillQueueInterval(tc.backfillInterval),
 				ordered.WithSortByTimestampInterval(tc.sortByTimestampInterval),
+				ordered.WithBatchSendInterval(tc.batchInterval),
+				ordered.WithBatchSize(5),
 			)
 
 			// add callbacks before starting the manager to queue them
@@ -180,9 +288,10 @@ func TestSendManagerStart(t *testing.T) {
 			sut.GracefulStop()
 
 			assert.Equal(t, 0, sut.CallbacksQueued())
-			assert.Equal(t, tc.expectedSetManyCalls, len(storeMock.SetManyCalls()))
+			assert.Equal(t, tc.expectedSetMany > 0, len(storeMock.SetManyCalls()) == 1)
 			assert.Equal(t, tc.expectedSetCalls, len(storeMock.SetCalls()))
 			assert.Equal(t, tc.expectedSendCalls, len(senderMock.SendCalls()))
+			assert.Equal(t, len(tc.expectedSendBatchCalls), len(senderMock.SendBatchCalls()))
 		})
 	}
 }

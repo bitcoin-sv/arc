@@ -851,13 +851,6 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	return status, arcError
 }
 
-// ContextKey type.
-type ContextKey int
-
-const (
-	ContextSizings ContextKey = iota
-)
-
 // PtrTo returns a pointer to the given value.
 func PtrTo[T any](v T) *T {
 	return &v

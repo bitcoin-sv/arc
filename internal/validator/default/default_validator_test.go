@@ -233,8 +233,8 @@ func TestStandardCheckFees(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := standardCheckFees(tt.args.tx, tt.args.feeModel); (err != nil) != tt.wantErr {
-				t.Errorf("standardCheckFees() error = %v, wantErr %v", err, tt.wantErr)
+			if err := checkStandardFees(tt.args.tx, tt.args.feeModel); (err != nil) != tt.wantErr {
+				t.Errorf("checkStandardFees() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -248,7 +248,7 @@ func TestStandardCheckFeesTxs(t *testing.T) {
 		sut := &fees.SatoshisPerKilobyte{Satoshis: 50}
 
 		// when
-		actualError := standardCheckFees(tx, sut)
+		actualError := checkStandardFees(tx, sut)
 
 		// then
 		require.Nil(t, actualError)
@@ -438,7 +438,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			actualError := cumulativeCheckFees(context.TODO(), txFinder, tx, tc.feeModel, false)
+			actualError := checkCumulativeFees(context.TODO(), txFinder, tx, tc.feeModel, false)
 
 			// then
 			if tc.expectedErr == nil {

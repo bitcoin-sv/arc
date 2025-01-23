@@ -710,6 +710,7 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
 |X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
+|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
@@ -817,6 +818,7 @@ X-CallbackUrl: string
 X-FullStatusUpdates: true
 X-MaxTimeout: 0
 X-SkipFeeValidation: true
+X-ForceValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
@@ -837,6 +839,7 @@ const headers = {
   'X-FullStatusUpdates':'true',
   'X-MaxTimeout':'0',
   'X-SkipFeeValidation':'true',
+  'X-ForceValidation': 'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
@@ -895,6 +898,7 @@ func main() {
         "X-FullStatusUpdates": []string{"true"},
         "X-MaxTimeout": []string{"0"},
         "X-SkipFeeValidation": []string{"true"},
+        "X-ForceValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
         "X-CumulativeFeeValidation": []string{"true"},
@@ -927,6 +931,7 @@ headers = {
   'X-FullStatusUpdates' => 'true',
   'X-MaxTimeout' => '0',
   'X-SkipFeeValidation' => 'true',
+  'X-ForceValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
   'X-CumulativeFeeValidation' => 'true',
@@ -954,6 +959,7 @@ headers = {
   'X-FullStatusUpdates': 'true',
   'X-MaxTimeout': '0',
   'X-SkipFeeValidation': 'true',
+  'X-ForceValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
   'X-CumulativeFeeValidation': 'true',
@@ -979,6 +985,7 @@ curl -X POST https://arc.taal.com/v1/txs \
   -H 'X-FullStatusUpdates: true' \
   -H 'X-MaxTimeout: 0' \
   -H 'X-SkipFeeValidation: true' \
+  -H 'X-ForceValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
   -H 'X-CumulativeFeeValidation: true' \
@@ -1022,6 +1029,7 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
 |X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
+|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation or not.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|

@@ -99,6 +99,7 @@ paths:
         - $ref: '#/components/parameters/fullStatusUpdates'
         - $ref: '#/components/parameters/maxTimeout'
         - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/forceValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/cumulativeFeeValidation'
@@ -257,6 +258,7 @@ paths:
         - $ref: '#/components/parameters/fullStatusUpdates'
         - $ref: '#/components/parameters/maxTimeout'
         - $ref: '#/components/parameters/skipFeeValidation'
+        - $ref: '#/components/parameters/forceValidation'
         - $ref: '#/components/parameters/skipScriptValidation'
         - $ref: '#/components/parameters/skipTxValidation'
         - $ref: '#/components/parameters/cumulativeFeeValidation'
@@ -1052,6 +1054,14 @@ components:
       in: header
       description: >-
         Whether we should skip fee validation or not.
+      schema:
+        type: boolean
+
+    forceValidation:
+      name: X-ForceValidation
+      in: header
+      description: >-
+        Whether we should force submitted tx validation in any case.
       schema:
         type: boolean
 

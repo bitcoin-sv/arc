@@ -542,6 +542,14 @@ A callback with status `MINED_IN_STALE_BLOCK` will be sent for that transaction 
 | In longest chain, not in stale chain | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
 | In stale chain only (no reorg)       | `MINED_IN_STALE_BLOCK`      | Transaction will be rebroadcasted and cycle through statuses again until is found in the longest chain |
 
+## Forcing validation
+
+If the `X-ForceValidation` header is set, the tx will be validated regardless of the other header values.
+
+Example usage:
+```
+X-ForceValidation: true
+```
 
 ## Cumulative fees validation
 

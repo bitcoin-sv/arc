@@ -325,7 +325,7 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 				DeleteOlderThanFunc: func(_ context.Context, _ time.Time) error {
 					return tc.deleteFailedOlderThanErr
 				},
-				DeleteURLMappingFunc: func(ctx context.Context, instance string) error {
+				DeleteURLMappingFunc: func(_ context.Context, _ string) error {
 					return nil
 				},
 			}

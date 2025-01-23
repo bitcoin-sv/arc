@@ -91,6 +91,5 @@ func TestSendCallback(t *testing.T) {
 		assert.IsType(t, &emptypb.Empty{}, resp)
 		time.Sleep(100 * time.Millisecond)
 		require.Equal(t, 2, len(mockDispatcher.DispatchCalls()), "Expected two dispatch calls")
-
 	})
 }

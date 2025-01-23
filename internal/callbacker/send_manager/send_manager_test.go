@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -40,9 +39,12 @@ func TestSendManagerStart(t *testing.T) {
 		callbackEntries10Expired[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: tsExpired}}
 	}
 
-	callbackEntriesUnsorted := make([]callbacker.CallbackEntry, 10)
-	for i := range 10 {
-		callbackEntriesUnsorted[i] = callbacker.CallbackEntry{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, rand.Intn(31), rand.Intn(24), rand.Intn(59), 0, 0, time.UTC)}}
+	callbackEntriesUnsorted := []callbacker.CallbackEntry{
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 12, 24, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 11, 24, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 31, 24, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 17, 24, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 13, 24, 59, 0, 0, time.UTC)}},
 	}
 
 	callbackEntriesBatch3Expired10 := make([]callbacker.CallbackEntry, 10)
@@ -156,15 +158,15 @@ func TestSendManagerStart(t *testing.T) {
 		{
 			name:                    "enqueue 10 callbacks - sort by timestamp",
 			callbacksEnqueued:       callbackEntriesUnsorted,
-			queueProcessInterval:    200 * time.Millisecond,
+			queueProcessInterval:    18 * time.Millisecond,
 			backfillInterval:        500 * time.Millisecond,
-			sortByTimestampInterval: 20 * time.Millisecond,
+			sortByTimestampInterval: 10 * time.Millisecond,
 			batchInterval:           500 * time.Millisecond,
 
-			expectedCallbacksEnqueued: 10,
-			expectedSetMany:           10,
+			expectedCallbacksEnqueued: 5,
+			expectedSetMany:           0,
 			expectedSetCalls:          0,
-			expectedSendCalls:         0,
+			expectedSendCalls:         5,
 		},
 		{
 			name:                    "enqueue 10 batched callbacks - 3 expired",
@@ -226,8 +228,15 @@ func TestSendManagerStart(t *testing.T) {
 			// given
 
 			counter := 0
+			var lastData *callbacker.Callback
 			senderMock := &mocks2.SenderMock{
-				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
+				SendFunc: func(_, _ string, data *callbacker.Callback) (bool, bool) {
+					if lastData != nil {
+						assert.LessOrEqual(t, lastData.Timestamp, data.Timestamp)
+					}
+					lastData = data
+					return true, false
+				},
 				SendBatchFunc: func(_, _ string, batch []*callbacker.Callback) (bool, bool) {
 					if counter >= len(tc.expectedSendBatchCalls) {
 						t.Fail()

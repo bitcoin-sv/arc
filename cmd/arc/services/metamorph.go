@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"time"
 
@@ -160,10 +161,17 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections))
 
+	pc := arcConfig.PeerRPC
+	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
+	}
+
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
 		pm,
+		rpcURL,
 		statusMessageCh,
 		processorOpts...,
 	)

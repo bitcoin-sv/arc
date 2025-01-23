@@ -130,6 +130,44 @@ func TestSubmitSingle(t *testing.T) {
 	}
 }
 
+func TestRejectingOrphaned(t *testing.T) {
+	address, privateKey := node_client.FundNewWallet(t, bitcoind)
+	address2, _ := node_client.FundNewWallet(t, bitcoind)
+
+	node_client.SendToAddress(t, bitcoind, address, float64(10))
+
+	utxos := node_client.GetUtxos(t, bitcoind, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+	rawTx1, err := tx1.EFHex()
+	require.NoError(t, err)
+
+	tx2, err := node_client.CreateTx(privateKey, address2, utxos[0])
+	require.NoError(t, err)
+	rawTx2, err := tx2.EFHex()
+	require.NoError(t, err)
+
+	transactionResponse := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx1}),
+		map[string]string{
+			"X-MaxTimeout": "5",
+		}, http.StatusOK)
+
+	require.Equal(t, StatusSeenOnNetwork, transactionResponse.TxStatus)
+	node_client.Generate(t, bitcoind, 1)
+
+	statusResponse := getRequest[TransactionResponse](t, fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID()))
+	require.Equal(t, StatusMined, statusResponse.TxStatus)
+
+	transactionResponse2 := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx2}),
+		map[string]string{
+			"X-MaxTimeout": "30",
+		}, http.StatusOK)
+
+	require.Equal(t, StatusRejected, transactionResponse2.TxStatus)
+}
+
 func TestSubmitMined(t *testing.T) {
 	t.Run("submit mined tx + calculate merkle path", func(t *testing.T) {
 		// Submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.

@@ -234,22 +234,26 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		if err != nil {
 			// if we have error which is NOT ErrTransactionNotFound, return err
 			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
-				e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-				return PostResponse{e.Status, e}
+				m.logger.Error("Failed to get transaction status", slog.String("hash", txIDs[0]), slog.String("err", err.Error()))
 			}
 		} else {
-			// if we have found transaction skip the validation
+			// if transaction was found skip the validation
 			transactionOptions.SkipTxValidation = true
 
-			// now check if we need to skip the processing of the transaction
-			callbackAlreadyExists := false
-			for _, cb := range tx.Callbacks {
-				if cb.CallbackUrl == transactionOptions.CallbackURL {
-					callbackAlreadyExists = true
+			// check if all callbacks already exist
+			callbackAlreadyExists := true
+
+			if transactionOptions.CallbackURL != "" || transactionOptions.CallbackToken != "" {
+				for _, cb := range tx.Callbacks {
+					callbackAlreadyExists = false
+					if cb.CallbackUrl == transactionOptions.CallbackURL && cb.CallbackToken == transactionOptions.CallbackToken {
+						callbackAlreadyExists = true
+						break
+					}
 				}
 			}
 
-			// if LastSubmitted doesn't need to be updated and we already have provided callbacks - skip everything and return current status
+			// if tx has been last submitted less than expiry time ago and callbacks already exist, return current status
 			if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
 				return PostResponse{int(api.StatusOK), &api.TransactionResponse{
 					Status:       int(api.StatusOK),

@@ -2,15 +2,18 @@ package metamorph
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
@@ -18,7 +21,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 const (
@@ -65,6 +70,7 @@ type Processor struct {
 	hostname                  string
 	pm                        p2p.PeerManagerI
 	mqClient                  MessageQueue
+	nodeClient                *node_client.NodeClient
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
 	recheckSeenFromAgo        time.Duration
@@ -113,7 +119,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, rpcURL *url.URL, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
@@ -125,6 +131,20 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
+	}
+
+	var nodeClient *node_client.NodeClient
+	if rpcURL != nil {
+		bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
+		}
+
+		nc, err := node_client.New(bitcoinClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create node client: %v", err)
+		}
+		nodeClient = &nc
 	}
 
 	p := &Processor{
@@ -151,6 +171,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, st
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
 		waitGroup:                     &sync.WaitGroup{},
+		nodeClient:                    nodeClient,
 
 		statCollectionInterval:       statCollectionIntervalDefault,
 		processTransactionsInterval:  processTransactionsIntervalDefault,
@@ -400,6 +421,12 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				if msg.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL && p.nodeClient != nil {
+					err := p.CheckDoubleSpending(p.ctx, msg)
+					if err != nil {
+						p.logger.Warn("checking double spend attempt failed", slog.String("err", err.Error()))
+					}
+				}
 				// if we receive new update check if we have client connection waiting for status and send it
 				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 					Hash:         msg.Hash,
@@ -730,6 +757,76 @@ func (p *Processor) StartProcessExpiredTransactions() {
 			}
 		}
 	}()
+}
+
+// we receive Status_SEEN_IN_ORPHAN_MEMPOOL from ZMQ in two cases: when tx is orphaned (input transaction wasn't found) and
+// when input(s) is already spent in previous block. We need to check which case it is because in case of spending already spent
+// transaction we should reject the transaction as it can never be mined/successful. To check which case it is we are looping
+// over all the input transactions and check that they can be found, if they all can be found then it must be - spending already
+// spend input.
+func (p *Processor) CheckDoubleSpending(ctx context.Context, msg *TxStatusMessage) error {
+	// we must have tx already in db
+	data, err := p.store.Get(ctx, msg.Hash[:])
+	if err != nil {
+		return err
+	}
+
+	// we must be able to decode it
+	tx, err := sdkTx.NewTransactionFromBytes(data.RawTx)
+	if err != nil {
+		return err
+	}
+
+	for _, input := range tx.Inputs {
+		// inputTX, err := p.nodeClient.GetRawTransaction(ctx, hex.EncodeToString(input.SourceTXID))
+		// if err != nil {
+		// 	return err
+		// }
+
+		// txout, err := p.nodeClient.GetTXOut(ctx, inputTX.TxID(), 0, true)
+		// fmt.Println("shota mm", txout, err)
+
+		// fmt.Println("shota txid", tx.TxID())
+		// if inputTX == nil {
+		// 	// so if one of those transactions cannot be found the status was initially correct, it's orphaned transaction
+		// 	return nil
+		// }
+
+		// if input.SourceTxOutIndex >= uint32(inputTX.InputCount()) {
+		// 	return errors.New("incorrect output index in tx")
+		// }
+		// fmt.Println("shota 1")
+		// txout, err = p.nodeClient.GetTXOut(ctx, inputTX.TxID(), int(input.SourceTxOutIndex), false)
+		// if err != nil {
+		// 	return err
+		// }
+
+		// fmt.Println("shota 2", inputTX.InputCount())
+		// for k := 0; k < inputTX.InputCount(); k++ {
+		// 	txout, err := p.nodeClient.GetTXOut(ctx, inputTX.TxID(), int(input.SourceTxOutIndex), false)
+		// 	if err != nil {
+		// 		fmt.Println("shota ee", err)
+		// 		return err
+		// 	}
+		// 	fmt.Println("shota res", inputTX.TxID(), int(input.SourceTxOutIndex), txout)
+		// }
+
+		// // if tx output is spent - reject
+		// if txout == nil {
+		// 	msg.Status = metamorph_api.Status_REJECTED
+		// 	return nil
+		// }
+		tx, err := p.nodeClient.GetRawTransaction(ctx, hex.EncodeToString(input.SourceTXID))
+		if err != nil {
+			return err
+		}
+
+		if tx == nil || len(tx.Inputs) == 0 {
+			return nil
+		}
+	}
+	msg.Status = metamorph_api.Status_REJECTED
+	return nil
 }
 
 // GetPeers returns a list of connected and a list of disconnected peers

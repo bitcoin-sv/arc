@@ -51,7 +51,7 @@ func TestProcessor(t *testing.T) {
 		natsQueue := nats_core.New(natsMock)
 		statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
 
-		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, pm, statusMessageChannel,
+		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, pm, nil, statusMessageChannel,
 			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(natsQueue),
 		)

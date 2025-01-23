@@ -13,7 +13,7 @@ func getDefaultArcConfig() *ArcConfig {
 		ProfilerAddr:    "", // optional
 		Prometheus:      getDefaultPrometheusConfig(),
 		GrpcMessageSize: 100000000,
-		Network:         "regtest",
+		Network:         "testnet",
 		MessageQueue:    getDefaultMessageQueueConfig(),
 		Tracing:         getDefaultTracingConfig(),
 		PeerRPC:         getDefaultPeerRPCConfig(),
@@ -64,18 +64,6 @@ func getBroadcastingConfig() *BroadcastingConfig {
 					Port: &PeerPortConfig{
 						P2P: 18333,
 						ZMQ: 28332,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18334,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18335,
 					},
 				},
 			},

@@ -71,7 +71,7 @@ func TestNewProcessor(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.pm, nil,
+			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.pm, nil, nil,
 				metamorph.WithCacheExpiryTime(time.Second*5),
 				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
 			)
@@ -128,7 +128,7 @@ func TestStartLockTransactions(t *testing.T) {
 			cStore := cache.NewMemoryStore()
 
 			// when
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
 			require.NoError(t, err)
 			defer sut.Shutdown()
 			sut.StartLockTransactions()
@@ -244,7 +244,7 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(s, cStore, pm, nil, metamorph.WithMessageQueueClient(publisher))
+			sut, err := metamorph.NewProcessor(s, cStore, pm, nil, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -543,6 +543,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				metamorphStore,
 				cStore,
 				pm,
+				nil,
 				statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 				metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
@@ -694,7 +695,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 			const submittedTxsBuffer = 5
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
-			sut, err := metamorph.NewProcessor(s, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(s, cStore, pm, nil, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
@@ -822,7 +823,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
@@ -913,6 +914,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				cStore,
 				pm,
 				nil,
+				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
@@ -1000,7 +1002,7 @@ func TestProcessorHealth(t *testing.T) {
 			}
 			cStore := cache.NewMemoryStore()
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -1078,7 +1080,7 @@ func TestStart(t *testing.T) {
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 2)
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 2)
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, nil,
 				metamorph.WithMessageQueueClient(mqClient),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithMinedTxsChan(minedTxsChan),

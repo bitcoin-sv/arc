@@ -117,3 +117,17 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx
 
 	return rt, nil
 }
+
+func (n NodeClient) GetTXOut(ctx context.Context, id string, outputIndex int, includeMempool bool) (res *bitcoin.TXOut, err error) {
+	_, span := tracing.StartTracing(ctx, "NodeClient_GetRawTransaction", n.tracingEnabled, n.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	nTx, err := n.bitcoinClient.GetTxOut(id, outputIndex, includeMempool)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
+	}
+
+	return nTx, nil
+}

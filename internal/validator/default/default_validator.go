@@ -62,11 +62,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
+		if err = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err = cumulativeCheckFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
+		if err = checkCumulativeFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -107,7 +107,7 @@ func isExtended(tx *sdkTx.Transaction) bool {
 	return true
 }
 
-func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
+func checkStandardFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
 	feesOK, expFeesPaid, actualFeePaid, err := isFeePaidEnough(feeModel, tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
@@ -121,9 +121,9 @@ func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func cumulativeCheckFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
+func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
 	var spanErr error
-	ctx, span := tracing.StartTracing(ctx, "cumulativeCheckFees", tracingEnabled, tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "checkCumulativeFees", tracingEnabled, tracingAttributes...)
 	defer func() {
 		if vErr != nil {
 			spanErr = vErr.Err

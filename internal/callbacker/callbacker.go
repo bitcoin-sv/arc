@@ -9,6 +9,12 @@ type SenderI interface {
 	SendBatch(url, token string, callbacks []*Callback) (success, retry bool)
 }
 
+type SendManagerI interface {
+	Enqueue(entry CallbackEntry)
+	Start()
+	GracefulStop()
+}
+
 type Callback struct {
 	Timestamp time.Time `json:"timestamp"`
 

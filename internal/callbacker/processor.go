@@ -16,11 +16,12 @@ import (
 )
 
 type Dispatcher interface {
-	Dispatch(url string, dto *CallbackEntry, allowBatch bool)
+	Dispatch(url string, dto *CallbackEntry)
 }
 
 const (
-	syncInterval = 5 * time.Second
+	syncInterval                     = 5 * time.Second
+	dispatchPersistedIntervalDefault = 20 * time.Second
 )
 
 var (
@@ -31,29 +32,36 @@ var (
 )
 
 type Processor struct {
-	mqClient   MessageQueueClient
-	dispatcher Dispatcher
-	store      store.ProcessorStore
-	logger     *slog.Logger
-
-	hostName  string
-	waitGroup *sync.WaitGroup
-	cancelAll context.CancelFunc
-	ctx       context.Context
+	mqClient                  MessageQueueClient
+	dispatcher                Dispatcher
+	store                     store.ProcessorStore
+	logger                    *slog.Logger
+	dispatchPersistedInterval time.Duration
+	hostName                  string
+	waitGroup                 *sync.WaitGroup
+	cancelAll                 context.CancelFunc
+	ctx                       context.Context
 
 	mu         sync.RWMutex
 	urlMapping map[string]string
 }
 
+func WithDispatchPersistedInterval(interval time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.dispatchPersistedInterval = interval
+	}
+}
+
 func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
-		hostName:   hostName,
-		urlMapping: make(map[string]string),
-		dispatcher: dispatcher,
-		waitGroup:  &sync.WaitGroup{},
-		store:      processorStore,
-		logger:     logger,
-		mqClient:   mqClient,
+		hostName:                  hostName,
+		urlMapping:                make(map[string]string),
+		dispatcher:                dispatcher,
+		waitGroup:                 &sync.WaitGroup{},
+		store:                     processorStore,
+		logger:                    logger,
+		mqClient:                  mqClient,
+		dispatchPersistedInterval: dispatchPersistedIntervalDefault,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -72,7 +80,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 	request := &callbacker_api.SendRequest{}
 	err := proto.Unmarshal(msg.Data(), request)
 	if err != nil {
-		nakErr := msg.Nak()
+		nakErr := msg.Ack() // Ack instead of nak. The same message will always fail to be unmarshalled
 		if nakErr != nil {
 			return errors.Join(errors.Join(ErrUnmarshal, err), errors.Join(ErrNakMessage, nakErr))
 		}
@@ -119,7 +127,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 		p.logger.Debug("dispatching callback", "instance", p.hostName, "url", request.CallbackRouting.Url)
 		dto := sendRequestToDto(request)
 		if request.CallbackRouting.Url != "" {
-			p.dispatcher.Dispatch(request.CallbackRouting.Url, &CallbackEntry{Token: request.CallbackRouting.Token, Data: dto}, request.CallbackRouting.AllowBatch)
+			p.dispatcher.Dispatch(request.CallbackRouting.Url, &CallbackEntry{Token: request.CallbackRouting.Token, Data: dto, AllowBatch: request.CallbackRouting.AllowBatch})
 		}
 	} else {
 		p.logger.Debug("not dispatching callback", "instance", p.hostName, "url", request.CallbackRouting.Url)
@@ -142,6 +150,101 @@ func (p *Processor) Start() error {
 		return fmt.Errorf("failed to subscribe on %s topic: %v", CallbackTopic, err)
 	}
 	return nil
+}
+
+func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
+	ctx := context.Background()
+	ticker := time.NewTicker(interval)
+
+	p.waitGroup.Add(1)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				n := time.Now()
+				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
+				olderThan := midnight.Add(-1 * olderThanDuration)
+
+				err := p.store.DeleteOlderThan(ctx, olderThan)
+				if err != nil {
+					p.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
+				}
+
+			case <-p.ctx.Done():
+				p.waitGroup.Done()
+				return
+			}
+		}
+	}()
+}
+
+// DispatchPersistedCallbacks loads and dispatches persisted callbacks with unmapped URLs in intervals
+func (p *Processor) DispatchPersistedCallbacks() {
+	const batchSize = 100
+	ctx := context.Background()
+
+	ticker := time.NewTicker(p.dispatchPersistedInterval)
+
+	p.waitGroup.Add(1)
+	go func() {
+		defer func() {
+			ticker.Stop()
+			p.waitGroup.Done()
+		}()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				url, err := p.store.GetUnmappedURL(ctx)
+				if err != nil {
+					p.logger.Error("Failed to fetch unmapped url", slog.String("err", err.Error()))
+					continue
+				}
+
+				if url == "" {
+					continue
+				}
+
+				err = p.store.SetURLMapping(ctx, store.URLMapping{
+					URL:      url,
+					Instance: p.hostName,
+				})
+
+				if err != nil {
+					if errors.Is(err, store.ErrURLMappingDuplicateKey) {
+						p.logger.Debug("URL already mapped", slog.String("err", err.Error()))
+						continue
+					}
+
+					p.logger.Error("Failed to set URL mapping", slog.String("err", err.Error()))
+					continue
+				}
+
+				callbacks, err := p.store.GetAndDelete(ctx, url, batchSize)
+				if err != nil {
+					p.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+					continue
+				}
+
+				if len(callbacks) == 0 {
+					continue
+				}
+				p.logger.Info("Dispatching callbacks with unmapped URL", slog.String("url", url), slog.Int("callbacks", len(callbacks)))
+
+				for _, c := range callbacks {
+					callbackEntry := &CallbackEntry{
+						Token:      c.Token,
+						Data:       toCallback(c),
+						AllowBatch: c.AllowBatch,
+					}
+
+					p.dispatcher.Dispatch(c.URL, callbackEntry)
+				}
+			}
+		}
+	}()
 }
 
 func (p *Processor) startSyncURLMapping() {
@@ -171,6 +274,23 @@ func (p *Processor) startSyncURLMapping() {
 			}
 		}
 	}()
+}
+
+func toCallback(dto *store.CallbackData) *Callback {
+	d := &Callback{
+		Timestamp: dto.Timestamp,
+
+		CompetingTxs: dto.CompetingTxs,
+		TxID:         dto.TxID,
+		TxStatus:     dto.TxStatus,
+		ExtraInfo:    dto.ExtraInfo,
+		MerklePath:   dto.MerklePath,
+
+		BlockHash:   dto.BlockHash,
+		BlockHeight: dto.BlockHeight,
+	}
+
+	return d
 }
 
 func (p *Processor) GracefulStop() {

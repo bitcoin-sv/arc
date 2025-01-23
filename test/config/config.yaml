@@ -159,10 +159,12 @@ callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
   health:
-    serverDialAddr: localhost:8022
-  delay: 0s
-  pause: 0s
+    serverDialAddr: localhost:8025
+  pause: 10ms
   batchSendInterval: 5s
+  pruneOlderThan: 336h
+  pruneInterval: 24h
+  expiration: 24h
   db:
     mode: postgres
     postgres:
@@ -174,8 +176,3 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  pruneInterval: 24h
-  pruneOlderThan: 336h
-  failedCallbackCheckInterval: 1m
-  delayDuration: 5s
-  expiration: 24h

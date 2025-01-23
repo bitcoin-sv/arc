@@ -2,7 +2,6 @@ package tests
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,7 +27,6 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,block_height
 			,timestamp
 			,competing_txs
-			,postponed_until
 		FROM callbacker.callbacks`,
 	)
 
@@ -46,9 +44,8 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		var bh sql.NullString
 		var bheight sql.NullInt64
 		var competingTxs sql.NullString
-		var pUntil sql.NullTime
 
-		_ = r.Scan(&c.URL, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs, &pUntil)
+		_ = r.Scan(&c.URL, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs)
 
 		if ei.Valid {
 			c.ExtraInfo = &ei.String
@@ -65,41 +62,13 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		if competingTxs.Valid {
 			c.CompetingTxs = strings.Split(competingTxs.String, ",")
 		}
-		if pUntil.Valid {
-			c.PostponedUntil = ptrTo(pUntil.Time.UTC())
-		}
+
 		c.Timestamp = c.Timestamp.UTC()
 
 		callbacks = append(callbacks, c)
 	}
 
 	return callbacks
-}
-
-func CountCallbacks(t *testing.T, db *sql.DB) int {
-	t.Helper()
-
-	var count int
-	row := db.QueryRow("SELECT COUNT(1) FROM callbacker.callbacks")
-
-	if err := row.Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-
-	return count
-}
-
-func CountCallbacksWhere(t *testing.T, db *sql.DB, predicate string) int {
-	t.Helper()
-
-	var count int
-	row := db.QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM callbacker.callbacks WHERE %s", predicate))
-
-	if err := row.Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-
-	return count
 }
 
 func ptrTo[T any](v T) *T {

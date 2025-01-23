@@ -164,7 +164,7 @@ func TestProcessorStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			dispatcher := &mocks.DispatcherMock{
-				DispatchFunc: func(_ string, _ *callbacker.CallbackEntry, _ bool) {},
+				DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {},
 			}
 			processorStore := &mocks.ProcessorStoreMock{
 				SetURLMappingFunc:    func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
@@ -220,6 +220,126 @@ func TestProcessorStart(t *testing.T) {
 			require.Equal(t, tc.expectedMessageNakCalls, len(message.NakCalls()))
 			require.Equal(t, tc.expectedSetURLMappingCalls, len(processorStore.SetURLMappingCalls()))
 			require.Equal(t, tc.expectedDispatchCalls, len(dispatcher.DispatchCalls()))
+		})
+	}
+}
+
+func TestDispatchPersistedCallbacks(t *testing.T) {
+	tt := []struct {
+		name             string
+		storedCallbacks  []*store.CallbackData
+		getAndDeleteErr  error
+		setURLMappingErr error
+
+		expectedDispatch int
+	}{
+		{
+			name:            "success - no stored callbacks",
+			storedCallbacks: []*store.CallbackData{},
+
+			expectedDispatch: 0,
+		},
+		{
+			name: "success - 1 stored callback",
+			storedCallbacks: []*store.CallbackData{{
+				URL:   "https://test.com",
+				Token: "1234",
+			}},
+
+			expectedDispatch: 1,
+		},
+		{
+			name: "URL already mapped",
+			storedCallbacks: []*store.CallbackData{{
+				URL:   "https://test.com",
+				Token: "1234",
+			}},
+			setURLMappingErr: store.ErrURLMappingDuplicateKey,
+
+			expectedDispatch: 0,
+		},
+		{
+			name:            "error deleting failed older than",
+			getAndDeleteErr: errors.New("some error"),
+
+			expectedDispatch: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := slog.Default()
+			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {}}
+
+			mqClient := &mocks.MessageQueueClientMock{
+				SubscribeMsgFunc: func(_ string, _ func(_ jetstream.Msg) error) error {
+					return nil
+				},
+				ShutdownFunc: func() {},
+			}
+			processorStore := &mocks.ProcessorStoreMock{
+				SetURLMappingFunc:    func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
+				DeleteURLMappingFunc: func(_ context.Context, _ string) error { return nil },
+				GetURLMappingsFunc:   func(_ context.Context) (map[string]string, error) { return nil, nil },
+				GetUnmappedURLFunc:   func(_ context.Context) (string, error) { return "https://abcdefg.com", nil },
+				GetAndDeleteFunc: func(_ context.Context, _ string, _ int) ([]*store.CallbackData, error) {
+					return tc.storedCallbacks, tc.getAndDeleteErr
+				},
+			}
+			processor, err := callbacker.NewProcessor(dispatcher, processorStore, mqClient, "host1", logger, callbacker.WithDispatchPersistedInterval(20*time.Millisecond))
+			require.NoError(t, err)
+
+			defer processor.GracefulStop()
+
+			processor.DispatchPersistedCallbacks()
+			time.Sleep(30 * time.Millisecond)
+
+			require.Equal(t, tc.expectedDispatch, len(dispatcher.DispatchCalls()))
+		})
+	}
+}
+
+func TestStartCallbackStoreCleanup(t *testing.T) {
+	tt := []struct {
+		name                     string
+		deleteFailedOlderThanErr error
+
+		expectedIterations int
+	}{
+		{
+			name: "success",
+
+			expectedIterations: 4,
+		},
+		{
+			name:                     "error deleting failed older than",
+			deleteFailedOlderThanErr: errors.New("some error"),
+
+			expectedIterations: 4,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			cbStore := &mocks.ProcessorStoreMock{
+				DeleteOlderThanFunc: func(_ context.Context, _ time.Time) error {
+					return tc.deleteFailedOlderThanErr
+				},
+				DeleteURLMappingFunc: func(ctx context.Context, instance string) error {
+					return nil
+				},
+			}
+			dispatcher := &mocks.DispatcherMock{}
+
+			processor, err := callbacker.NewProcessor(dispatcher, cbStore, nil, "hostname", slog.Default())
+			require.NoError(t, err)
+			defer processor.GracefulStop()
+
+			processor.StartCallbackStoreCleanup(20*time.Millisecond, 50*time.Second)
+
+			time.Sleep(90 * time.Millisecond)
+
+			require.Equal(t, tc.expectedIterations, len(cbStore.DeleteOlderThanCalls()))
 		})
 	}
 }

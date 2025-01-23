@@ -31,7 +31,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
@@ -48,7 +48,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		callbackerStore *postgresql.PostgreSQL
 		sender          *callbacker.CallbackSender
 		dispatcher      *callbacker.CallbackDispatcher
-		workers         *callbacker.BackgroundWorkers
 		server          *callbacker.Server
 		healthServer    *grpc_opts.GrpcServer
 		mqClient        callbacker.MessageQueueClient
@@ -58,7 +57,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		dispose(logger, server, workers, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
+		dispose(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
 		logger.Info("Shutdown complete")
 	}
 
@@ -73,24 +72,18 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	sendConfig := callbacker.SendConfig{
-		Expiration:                         cfg.Expiration,
-		Delay:                              cfg.Delay,
-		DelayDuration:                      cfg.DelayDuration,
-		PauseAfterSingleModeSuccessfulSend: cfg.Pause,
-		BatchSendInterval:                  cfg.BatchSendInterval,
+	runNewManager := func(url string) callbacker.SendManagerI {
+		manager := send_manager.New(url, sender, callbackerStore, logger,
+			send_manager.WithQueueProcessInterval(cfg.Pause),
+			send_manager.WithBatchSendInterval(cfg.BatchSendInterval),
+			send_manager.WithExpiration(cfg.Expiration),
+		)
+		manager.Start()
+
+		return manager
 	}
 
-	dispatcher = callbacker.NewCallbackDispatcher(sender, callbackerStore, logger, &sendConfig)
-	workers = callbacker.NewBackgroundWorkers(callbackerStore, dispatcher, logger)
-	err = workers.DispatchPersistedCallbacks()
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to dispatch previously persisted callbacks: %v", err)
-	}
-
-	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
-	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
+	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
 
 	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
@@ -118,6 +111,9 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		stopFn()
 		return nil, err
 	}
+
+	processor.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
+	processor.DispatchPersistedCallbacks()
 
 	err = processor.Start()
 	if err != nil {
@@ -168,37 +164,31 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 	return s, err
 }
 
-func dispose(l *slog.Logger, server *callbacker.Server, workers *callbacker.BackgroundWorkers,
+func dispose(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store store.CallbackerStore, healthServer *grpc_opts.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
+	store *postgresql.PostgreSQL, healthServer *grpc_opts.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
-	// 2. background workers - ensure no callbacks from background will be accepted
-	// 3. dispatcher - ensure all already accepted callbacks are proccessed
+	// 2. dispatcher - ensure all already accepted callbacks are processed
+	// 3. processor - remove all URL mappings
 	// 4. sender - finally, stop the sender as there are no callbacks left to send
 	// 5. store
 
 	if server != nil {
 		server.GracefulStop()
 	}
-	if workers != nil {
-		workers.GracefulStop()
-	}
 	if dispatcher != nil {
 		dispatcher.GracefulStop()
+	}
+	if processor != nil {
+		processor.GracefulStop()
 	}
 	if sender != nil {
 		sender.GracefulStop()
 	}
-
-	if processor != nil {
-		processor.GracefulStop()
-	}
-
 	if mqClient != nil {
 		mqClient.Shutdown()
 	}
-
 	if store != nil {
 		err := store.Close()
 		if err != nil {

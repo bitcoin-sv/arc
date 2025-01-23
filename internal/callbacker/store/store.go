@@ -11,15 +11,6 @@ var (
 	ErrURLMappingDeleteFailed = errors.New("failed to delete URL mapping entry")
 )
 
-type CallbackerStore interface {
-	Set(ctx context.Context, dto *CallbackData) error
-	SetMany(ctx context.Context, data []*CallbackData) error
-	PopMany(ctx context.Context, limit int) ([]*CallbackData, error)
-	PopFailedMany(ctx context.Context, t time.Time, limit int) ([]*CallbackData, error) // TODO: find better name
-	DeleteFailedOlderThan(ctx context.Context, t time.Time) error
-	Close() error
-}
-
 type CallbackData struct {
 	URL   string
 	Token string
@@ -36,14 +27,16 @@ type CallbackData struct {
 	BlockHash   *string
 	BlockHeight *uint64
 
-	PostponedUntil *time.Time
-	AllowBatch     bool
+	AllowBatch bool
 }
 
 type ProcessorStore interface {
 	SetURLMapping(ctx context.Context, m URLMapping) error
 	GetURLMappings(ctx context.Context) (urlInstanceMappings map[string]string, err error)
 	DeleteURLMapping(ctx context.Context, instance string) error
+	GetUnmappedURL(ctx context.Context) (url string, err error)
+	GetAndDelete(ctx context.Context, url string, limit int) ([]*CallbackData, error)
+	DeleteOlderThan(ctx context.Context, t time.Time) error
 }
 
 type URLMapping struct {

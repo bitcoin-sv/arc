@@ -317,7 +317,7 @@ func (cl *Client) Shutdown() {
 			if err != nil {
 				cl.logger.Error("failed to delete consumer", slog.String("consumer", consumer), slog.String("stream", stream), slog.String("err", err.Error()))
 			} else {
-				cl.logger.Error("deleted consumer", slog.String("consumer", consumer), slog.String("stream", stream))
+				cl.logger.Info("deleted consumer", slog.String("consumer", consumer), slog.String("stream", stream))
 			}
 		}
 	}

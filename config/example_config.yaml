@@ -180,9 +180,11 @@ callbacker:
   dialAddr: localhost:8021 # address for other services to dial callbacker service
   health:
     serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
-  delay: 0s # delay before the callback (or batch of callbacks) is actually sent
-  pause: 0s # pause between sending next callback to the same receiver
+  pause: 1s # pause between sending next callback to the same receiver - must be greater 0s
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
+  pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)
+  pruneInterval: 24h # interval at which old or failed callbacks are pruned from the store
+  expiration: 24h # maximum time a callback can remain unsent before it's put as permanently failed
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres
@@ -194,8 +196,3 @@ callbacker:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
-  pruneInterval: 24h # interval at which old or failed callbacks are pruned from the store
-  pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)
-  failedCallbackCheckInterval: 1m # interval at which the store is checked for failed callbacks to be re-sent
-  delayDuration: 5s # we try callbacks a few times with this delay after which if it fails consistently we store them in db
-  expiration: 24h # maximum time a callback can remain unsent before it's put as permanently failed

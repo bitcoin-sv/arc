@@ -1,4 +1,4 @@
-package ordered
+package send_manager
 
 import (
 	"container/list"
@@ -39,7 +39,7 @@ type SendManager struct {
 	ctx       context.Context
 
 	queueProcessInterval    time.Duration
-	backfillQueueInterval   time.Duration
+	fillUpQueueInterval     time.Duration
 	sortByTimestampInterval time.Duration
 	batchSendInterval       time.Duration
 	batchSize               int
@@ -54,14 +54,15 @@ const (
 	entriesBufferSize              = 10000
 	batchSizeDefault               = 50
 	queueProcessIntervalDefault    = 5 * time.Second
-	backfillQueueIntervalDefault   = 5 * time.Second
+	fillUpQueueIntervalDefault     = 5 * time.Second
 	expirationDefault              = 24 * time.Hour
 	sortByTimestampIntervalDefault = 10 * time.Second
 	batchSendIntervalDefault       = 5 * time.Second
 )
 
 var (
-	ErrSendBatchedCallbacks = errors.New("failed to send batched callback")
+	ErrSendBatchedCallbacks      = errors.New("failed to send batched callback")
+	ErrElementIsNotCallbackEntry = errors.New("element is not a callback entry")
 )
 
 func WithNow(nowFunc func() time.Time) func(*SendManager) {
@@ -84,7 +85,7 @@ func WithQueueProcessInterval(d time.Duration) func(*SendManager) {
 
 func WithBackfillQueueInterval(d time.Duration) func(*SendManager) {
 	return func(m *SendManager) {
-		m.backfillQueueInterval = d
+		m.fillUpQueueInterval = d
 	}
 }
 
@@ -121,13 +122,15 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 
 		queueProcessInterval:    queueProcessIntervalDefault,
 		expiration:              expirationDefault,
-		backfillQueueInterval:   backfillQueueIntervalDefault,
+		fillUpQueueInterval:     fillUpQueueIntervalDefault,
 		sortByTimestampInterval: sortByTimestampIntervalDefault,
 		batchSendInterval:       batchSendIntervalDefault,
 		batchSize:               batchSizeDefault,
 
 		callbackQueue: list.New(),
 		bufferSize:    entriesBufferSize,
+
+		now: time.Now,
 	}
 
 	for _, opt := range opts {
@@ -150,7 +153,8 @@ func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 	m.callbackQueue.PushBack(entry)
 }
 
-func (m *SendManager) sortByTimestamp() error {
+// sortByTimestampAsc sorts the callback queue by timestamp in ascending order
+func (m *SendManager) sortByTimestampAsc() error {
 	current := m.callbackQueue.Front()
 	if m.callbackQueue.Front() == nil {
 		return nil
@@ -160,14 +164,14 @@ func (m *SendManager) sortByTimestamp() error {
 		for index != nil {
 			currentTime, ok := current.Value.(callbacker.CallbackEntry)
 			if !ok {
-				return errors.New("callback entry is not a CallbackEntry")
+				return ErrElementIsNotCallbackEntry
 			}
 
 			indexTime, ok := index.Value.(callbacker.CallbackEntry)
 			if !ok {
-				return errors.New("callback entry is not a CallbackEntry")
+				return ErrElementIsNotCallbackEntry
 			}
-			if currentTime.Data.Timestamp.Before(indexTime.Data.Timestamp) {
+			if currentTime.Data.Timestamp.After(indexTime.Data.Timestamp) {
 				temp := current.Value
 				current.Value = index.Value
 				index.Value = temp
@@ -187,7 +191,7 @@ func (m *SendManager) CallbacksQueued() int {
 func (m *SendManager) Start() {
 	queueTicker := time.NewTicker(m.queueProcessInterval)
 	sortQueueTicker := time.NewTicker(m.sortByTimestampInterval)
-	backfillQueueTicker := time.NewTicker(m.backfillQueueInterval)
+	backfillQueueTicker := time.NewTicker(m.fillUpQueueInterval)
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
@@ -228,13 +232,13 @@ func (m *SendManager) Start() {
 			case <-m.ctx.Done():
 				return
 			case <-sortQueueTicker.C:
-				err = m.sortByTimestamp()
+				err = m.sortByTimestampAsc()
 				if err != nil {
 					m.logger.Error("Failed to sort by timestamp", slog.String("err", err.Error()))
 				}
 
 			case <-backfillQueueTicker.C:
-				m.backfillQueue()
+				m.fillUpQueue()
 
 				m.logger.Debug("Callback queue backfilled", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 			case <-batchSendTicker.C:
@@ -347,7 +351,8 @@ func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retr
 	return m.sender.SendBatch(m.url, token, callbacks)
 }
 
-func (m *SendManager) backfillQueue() {
+// fillUpQueue calculates the capacity left in the queue and fills it up
+func (m *SendManager) fillUpQueue() {
 	capacityLeft := m.bufferSize - m.callbackQueue.Len()
 	if capacityLeft == 0 {
 		return
@@ -366,7 +371,7 @@ func (m *SendManager) backfillQueue() {
 
 func (m *SendManager) storeToDB(entry callbacker.CallbackEntry) {
 	callbackData := toStoreDto(m.url, entry)
-	err := m.store.Set(context.Background(), callbackData)
+	err := m.store.Set(m.ctx, callbackData)
 	if err != nil {
 		m.logger.Error("Failed to set callback data", slog.String("hash", callbackData.TxID), slog.String("status", callbackData.TxStatus), slog.String("err", err.Error()))
 	}
@@ -416,6 +421,7 @@ func (m *SendManager) dequeueAll() []callbacker.CallbackEntry {
 		next = front.Next()
 		entry, ok := front.Value.(callbacker.CallbackEntry)
 		if !ok {
+			m.callbackQueue.Remove(front)
 			continue
 		}
 		callbacks = append(callbacks, entry)

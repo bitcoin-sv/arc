@@ -5,20 +5,20 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager/ordered"
+	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"sync"
 )
 
-// Ensure, that SendManagerStoreMock does implement ordered.SendManagerStore.
+// Ensure, that SendManagerStoreMock does implement send_manager.SendManagerStore.
 // If this is not the case, regenerate this file with moq.
-var _ ordered.SendManagerStore = &SendManagerStoreMock{}
+var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 
-// SendManagerStoreMock is a mock implementation of ordered.SendManagerStore.
+// SendManagerStoreMock is a mock implementation of send_manager.SendManagerStore.
 //
 //	func TestSomethingThatUsesSendManagerStore(t *testing.T) {
 //
-//		// make and configure a mocked ordered.SendManagerStore
+//		// make and configure a mocked send_manager.SendManagerStore
 //		mockedSendManagerStore := &SendManagerStoreMock{
 //			GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
 //				panic("mock out the GetAndDelete method")
@@ -31,7 +31,7 @@ var _ ordered.SendManagerStore = &SendManagerStoreMock{}
 //			},
 //		}
 //
-//		// use mockedSendManagerStore in code that requires ordered.SendManagerStore
+//		// use mockedSendManagerStore in code that requires send_manager.SendManagerStore
 //		// and then make assertions.
 //
 //	}

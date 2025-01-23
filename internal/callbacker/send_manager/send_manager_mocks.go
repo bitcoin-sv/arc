@@ -1,4 +1,4 @@
-package ordered
+package send_manager
 
 //go:generate moq -pkg mocks -out ./mocks/store_mock.go . SendManagerStore
 

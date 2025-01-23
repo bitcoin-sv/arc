@@ -5,19 +5,19 @@ package mocks
 
 import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager/ordered"
+	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"sync"
 )
 
-// Ensure, that SenderMock does implement ordered.Sender.
+// Ensure, that SenderMock does implement send_manager.Sender.
 // If this is not the case, regenerate this file with moq.
-var _ ordered.Sender = &SenderMock{}
+var _ send_manager.Sender = &SenderMock{}
 
-// SenderMock is a mock implementation of ordered.Sender.
+// SenderMock is a mock implementation of send_manager.Sender.
 //
 //	func TestSomethingThatUsesSender(t *testing.T) {
 //
-//		// make and configure a mocked ordered.Sender
+//		// make and configure a mocked send_manager.Sender
 //		mockedSender := &SenderMock{
 //			SendFunc: func(url string, token string, callback *callbacker.Callback) (bool, bool) {
 //				panic("mock out the Send method")
@@ -27,7 +27,7 @@ var _ ordered.Sender = &SenderMock{}
 //			},
 //		}
 //
-//		// use mockedSender in code that requires ordered.Sender
+//		// use mockedSender in code that requires send_manager.Sender
 //		// and then make assertions.
 //
 //	}

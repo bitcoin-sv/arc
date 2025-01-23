@@ -1,4 +1,4 @@
-package ordered_test
+package send_manager_test
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager/ordered"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager/ordered/mocks"
+	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
+	mocks2 "github.com/bitcoin-sv/arc/internal/callbacker/send_manager/mocks"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
@@ -226,7 +226,7 @@ func TestSendManagerStart(t *testing.T) {
 			// given
 
 			counter := 0
-			senderMock := &mocks.SenderMock{
+			senderMock := &mocks2.SenderMock{
 				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) { return true, false },
 				SendBatchFunc: func(_, _ string, batch []*callbacker.Callback) (bool, bool) {
 					if counter >= len(tc.expectedSendBatchCalls) {
@@ -239,12 +239,12 @@ func TestSendManagerStart(t *testing.T) {
 				},
 			}
 
-			storeMock := &mocks.SendManagerStoreMock{
+			storeMock := &mocks2.SendManagerStoreMock{
 				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
 					assert.Equal(t, tc.expectedSetMany, len(data))
 
 					for i := 0; i < len(data)-1; i++ {
-						assert.GreaterOrEqual(t, data[i].Timestamp, data[i+1].Timestamp)
+						assert.LessOrEqual(t, data[i].Timestamp, data[i+1].Timestamp)
 					}
 
 					return nil
@@ -263,17 +263,17 @@ func TestSendManagerStart(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			sut := ordered.New("https://abcdefg.com", senderMock, storeMock, logger,
-				ordered.WithBufferSize(10),
-				ordered.WithNow(func() time.Time {
+			sut := send_manager.New("https://abcdefg.com", senderMock, storeMock, logger,
+				send_manager.WithBufferSize(10),
+				send_manager.WithNow(func() time.Time {
 					return now
 				}),
-				ordered.WithQueueProcessInterval(tc.queueProcessInterval),
-				ordered.WithExpiration(time.Hour),
-				ordered.WithBackfillQueueInterval(tc.backfillInterval),
-				ordered.WithSortByTimestampInterval(tc.sortByTimestampInterval),
-				ordered.WithBatchSendInterval(tc.batchInterval),
-				ordered.WithBatchSize(5),
+				send_manager.WithQueueProcessInterval(tc.queueProcessInterval),
+				send_manager.WithExpiration(time.Hour),
+				send_manager.WithBackfillQueueInterval(tc.backfillInterval),
+				send_manager.WithSortByTimestampInterval(tc.sortByTimestampInterval),
+				send_manager.WithBatchSendInterval(tc.batchInterval),
+				send_manager.WithBatchSize(5),
 			)
 
 			// add callbacks before starting the manager to queue them

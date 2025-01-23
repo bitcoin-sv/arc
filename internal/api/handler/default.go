@@ -228,40 +228,42 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		return PostResponse{e.Status, e}
 	}
 
-	// check if we already have the transaction in db (so no need to validate)
-	tx, err := m.getTransactionStatus(reqCtx, txIDs[0])
-	if err != nil {
-		// if we have error which is NOT ErrTransactionNotFound, return err
-		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
-			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			return PostResponse{e.Status, e}
-		}
-	} else {
-		// if we have found transaction skip the validation
-		transactionOptions.SkipTxValidation = true
-
-		// now check if we need to skip the processing of the transaction
-		callbackAlreadyExists := false
-		for _, cb := range tx.Callbacks {
-			if cb.CallbackUrl == transactionOptions.CallbackURL {
-				callbackAlreadyExists = true
+	if !transactionOptions.ForceValidation {
+		// check if we already have the transaction in db (so no need to validate)
+		tx, err := m.getTransactionStatus(reqCtx, txIDs[0])
+		if err != nil {
+			// if we have error which is NOT ErrTransactionNotFound, return err
+			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+				e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+				return PostResponse{e.Status, e}
 			}
-		}
+		} else {
+			// if we have found transaction skip the validation
+			transactionOptions.SkipTxValidation = true
 
-		// if LastSubmitted doesn't need to be updated and we already have provided callbacks - skip everything and return current status
-		if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
-			return PostResponse{int(api.StatusOK), &api.TransactionResponse{
-				Status:       int(api.StatusOK),
-				Title:        "OK",
-				BlockHash:    &tx.BlockHash,
-				BlockHeight:  &tx.BlockHeight,
-				TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
-				ExtraInfo:    &tx.ExtraInfo,
-				CompetingTxs: &tx.CompetingTxs,
-				Timestamp:    m.now(),
-				Txid:         txIDs[0],
-				MerklePath:   &tx.MerklePath,
-			}}
+			// now check if we need to skip the processing of the transaction
+			callbackAlreadyExists := false
+			for _, cb := range tx.Callbacks {
+				if cb.CallbackUrl == transactionOptions.CallbackURL {
+					callbackAlreadyExists = true
+				}
+			}
+
+			// if LastSubmitted doesn't need to be updated and we already have provided callbacks - skip everything and return current status
+			if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
+				return PostResponse{int(api.StatusOK), &api.TransactionResponse{
+					Status:       int(api.StatusOK),
+					Title:        "OK",
+					BlockHash:    &tx.BlockHash,
+					BlockHeight:  &tx.BlockHeight,
+					TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+					ExtraInfo:    &tx.ExtraInfo,
+					CompetingTxs: &tx.CompetingTxs,
+					Timestamp:    m.now(),
+					Txid:         txIDs[0],
+					MerklePath:   &tx.MerklePath,
+				}}
+			}
 		}
 	}
 
@@ -399,60 +401,62 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 		return PostResponse{e.Status, e}
 	}
 
-	// check if we already have the transactions in db (so no need to validate)
-	txStatuses, err := m.getTransactionStatuses(reqCtx, txIDs)
-	allTransactionsProcessed := false
-	if err != nil {
-		// if we have error which is NOT ErrTransactionNotFound, return err
-		if !errors.Is(err, metamorph.ErrTransactionNotFound) {
-			e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			return PostResponse{e.Status, e}
-		}
-	} else if len(txStatuses) == len(txIDs) {
-		// if we have found all the transactions, skip the validation
-		transactionOptions.SkipTxValidation = true
+	if !transactionOptions.ForceValidation {
+		// check if we already have the transactions in db (so no need to validate)
+		txStatuses, err := m.getTransactionStatuses(reqCtx, txIDs)
+		allTransactionsProcessed := false
+		if err != nil {
+			// if we have error which is NOT ErrTransactionNotFound, return err
+			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+				e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+				return PostResponse{e.Status, e}
+			}
+		} else if len(txStatuses) == len(txIDs) {
+			// if we have found all the transactions, skip the validation
+			transactionOptions.SkipTxValidation = true
 
-		// now check if we need to skip the processing of the transaction
-		allProcessed := true
-		for _, tx := range txStatuses {
-			exists := false
-			for _, cb := range tx.Callbacks {
-				if cb.CallbackUrl == transactionOptions.CallbackURL {
-					exists = true
+			// now check if we need to skip the processing of the transaction
+			allProcessed := true
+			for _, tx := range txStatuses {
+				exists := false
+				for _, cb := range tx.Callbacks {
+					if cb.CallbackUrl == transactionOptions.CallbackURL {
+						exists = true
+						break
+					}
+				}
+				if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
+					allProcessed = false
 					break
 				}
 			}
-			if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
-				allProcessed = false
-				break
-			}
+			allTransactionsProcessed = allProcessed
 		}
-		allTransactionsProcessed = allProcessed
-	}
 
-	// if nothing to update return
-	var successes []*api.TransactionResponse
-	if allTransactionsProcessed {
-		for _, tx := range txStatuses {
-			successes = append(successes, &api.TransactionResponse{
-				Status:       int(api.StatusOK),
-				Title:        "OK",
-				BlockHash:    &tx.BlockHash,
-				BlockHeight:  &tx.BlockHeight,
-				TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
-				ExtraInfo:    &tx.ExtraInfo,
-				CompetingTxs: &tx.CompetingTxs,
-				Timestamp:    m.now(),
-				Txid:         tx.TxID,
-				MerklePath:   &tx.MerklePath,
-			})
+		// if nothing to update return
+		var successes []*api.TransactionResponse
+		if allTransactionsProcessed {
+			for _, tx := range txStatuses {
+				successes = append(successes, &api.TransactionResponse{
+					Status:       int(api.StatusOK),
+					Title:        "OK",
+					BlockHash:    &tx.BlockHash,
+					BlockHeight:  &tx.BlockHeight,
+					TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+					ExtraInfo:    &tx.ExtraInfo,
+					CompetingTxs: &tx.CompetingTxs,
+					Timestamp:    m.now(),
+					Txid:         tx.TxID,
+					MerklePath:   &tx.MerklePath,
+				})
+			}
+			// merge success and fail results
+			responses := make([]any, 0, len(successes))
+			for _, o := range successes {
+				responses = append(responses, o)
+			}
+			return PostResponse{int(api.StatusOK), responses}
 		}
-		// merge success and fail results
-		responses := make([]any, 0, len(successes))
-		for _, o := range successes {
-			responses = append(responses, o)
-		}
-		return PostResponse{int(api.StatusOK), responses}
 	}
 
 	successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
@@ -584,6 +588,11 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 
 	if params.XFullStatusUpdates != nil {
 		transactionOptions.FullStatusUpdates = *params.XFullStatusUpdates
+	}
+
+	if params.XForceValidation != nil && *params.XForceValidation {
+		transactionOptions.SkipTxValidation = false
+		transactionOptions.ForceValidation = true
 	}
 
 	return transactionOptions, nil

@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
@@ -71,7 +69,7 @@ type Processor struct {
 	hostname                  string
 	pm                        p2p.PeerManagerI
 	mqClient                  MessageQueue
-	nodeClient                *node_client.NodeClient
+	nodeClient                node_client.NodeClientI
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
 	recheckSeenFromAgo        time.Duration
@@ -120,7 +118,7 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, rpcURL *url.URL, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, nodeClient node_client.NodeClientI, statusMessageChannel chan *TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
@@ -132,20 +130,6 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, pm p2p.PeerManagerI, rp
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
-	}
-
-	var nodeClient *node_client.NodeClient
-	if rpcURL != nil {
-		bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
-		}
-
-		nc, err := node_client.New(bitcoinClient)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create node client: %v", err)
-		}
-		nodeClient = &nc
 	}
 
 	p := &Processor{
@@ -780,16 +764,15 @@ func (p *Processor) CheckDoubleSpending(ctx context.Context, msg *TxStatusMessag
 
 	// If all inputs already exist, then the status is rejected as this transaction can not possibly be mined
 	for _, input := range tx.Inputs {
-		_, err := p.nodeClient.GetRawTransaction(ctx, hex.EncodeToString(input.SourceTXID))
+		txInfo, err := p.nodeClient.GetTransactionInfo(ctx, hex.EncodeToString(input.SourceTXID))
 		if err != nil {
-			if errors.Is(err, node_client.ErrTransactionNotFound) {
-				return nil
-			}
 			return err
 		}
-
+		if txInfo.BlockHash != "" || txInfo.BlockHeight > 0 {
+			msg.Status = metamorph_api.Status_REJECTED
+			return nil
+		}
 	}
-	msg.Status = metamorph_api.Status_REJECTED
 	return nil
 }
 

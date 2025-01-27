@@ -27,6 +27,26 @@ type NodeClient struct {
 	tracingAttributes []attribute.KeyValue
 }
 
+type NodeClientI interface {
+	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
+	GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error)
+	GetTransactionInfo(ctx context.Context, id string) (rt *Transaction, err error)
+}
+
+type Transaction struct {
+	Hex           string `json:"hex,omitempty"`
+	TxID          string `json:"txid"`
+	Hash          string `json:"hash"`
+	Version       int32  `json:"version"`
+	Size          uint32 `json:"size"`
+	LockTime      uint32 `json:"locktime"`
+	BlockHash     string `json:"blockhash,omitempty"`
+	Confirmations uint32 `json:"confirmations,omitempty"`
+	Time          int64  `json:"time,omitempty"`
+	Blocktime     int64  `json:"blocktime,omitempty"`
+	BlockHeight   uint64 `json:"blockheight,omitempty"`
+}
+
 func WithTracer(attr ...attribute.KeyValue) func(s *NodeClient) {
 	return func(p *NodeClient) {
 		p.tracingEnabled = true
@@ -117,6 +137,37 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx
 	rt, err = sdkTx.NewTransactionFromHex(nTx.Hex)
 	if err != nil {
 		return nil, err
+	}
+
+	return rt, nil
+}
+
+func (n NodeClient) GetTransactionInfo(ctx context.Context, id string) (rt *Transaction, err error) {
+	_, span := tracing.StartTracing(ctx, "NodeClient_GetRawTransaction", n.tracingEnabled, n.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	nTx, err := n.bitcoinClient.GetRawTransaction(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "No such mempool or blockchain transaction") {
+			return nil, errors.Join(ErrTransactionNotFound, err)
+		}
+		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
+	}
+
+	rt = &Transaction{
+		Hex:           nTx.Hex,
+		TxID:          nTx.TxID,
+		Hash:          nTx.Hash,
+		Version:       nTx.Version,
+		Size:          nTx.Size,
+		LockTime:      nTx.LockTime,
+		BlockHash:     nTx.BlockHash,
+		Confirmations: nTx.Confirmations,
+		Time:          nTx.Time,
+		Blocktime:     nTx.Blocktime,
+		BlockHeight:   nTx.BlockHeight,
 	}
 
 	return rt, nil

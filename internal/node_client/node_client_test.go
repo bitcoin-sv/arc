@@ -127,6 +127,30 @@ func TestNodeClient(t *testing.T) {
 		require.ErrorIs(t, err, node_client.ErrTransactionNotFound)
 	})
 
+	t.Run("get raw transaction", func(t *testing.T) {
+		// given
+		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
+		require.NoError(t, err)
+
+		expectedTxIDs := make([]string, len(txs))
+		for i, tx := range txs {
+			_, err := bitcoind.SendRawTransaction(tx.String())
+			require.NoError(t, err)
+
+			if i != len(txs) {
+				expectedTxIDs[i] = tx.TxID()
+			}
+		}
+
+		_, err = bitcoind.Generate(1)
+		require.NoError(t, err)
+
+		txInfo, err := sut.GetTransactionInfo(ctx, txs[0].TxID())
+		require.NoError(t, err)
+
+		require.True(t, txInfo.BlockHash != "")
+	})
+
 	t.Run("get mempool ancestors", func(t *testing.T) {
 		// given
 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)

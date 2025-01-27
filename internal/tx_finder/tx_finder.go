@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
@@ -23,16 +24,11 @@ var (
 
 type Finder struct {
 	transactionHandler metamorph.TransactionHandler
-	bitcoinClient      NodeClient
+	nodeClient         node_client.NodeClientI
 	wocClient          *woc_client.WocClient
 	logger             *slog.Logger
 	tracingEnabled     bool
 	tracingAttributes  []attribute.KeyValue
-}
-
-type NodeClient interface {
-	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
-	GetRawTransaction(ctx context.Context, id string) (*sdkTx.Transaction, error)
 }
 
 func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
@@ -48,12 +44,12 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 	}
 }
 
-func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
+func New(th metamorph.TransactionHandler, n node_client.NodeClientI, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
 	l = l.With(slog.String("module", "tx-finder"))
 
 	f := &Finder{
 		transactionHandler: th,
-		bitcoinClient:      n,
+		nodeClient:         n,
 		wocClient:          w,
 		logger:             l,
 	}
@@ -66,7 +62,7 @@ func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient,
 }
 
 func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
-	txIDs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+	txIDs, err := f.nodeClient.GetMempoolAncestors(ctx, ids)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 	}
@@ -115,9 +111,9 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	ids = getKeys(remainingIDs)
 
 	// try to get remaining txs from the node
-	if source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
+	if source.Has(validator.SourceNodes) && f.nodeClient != nil {
 		for _, id := range ids {
-			rawTx, err := f.bitcoinClient.GetRawTransaction(ctx, id)
+			rawTx, err := f.nodeClient.GetRawTransaction(ctx, id)
 			if err != nil {
 				f.logger.WarnContext(ctx, "failed to get transactions from bitcoin client", slog.String("id", id), slog.Any("err", err))
 				continue

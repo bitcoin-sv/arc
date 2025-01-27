@@ -8,12 +8,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/libsv/go-p2p"
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -167,11 +169,21 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
 	}
 
+	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
+	}
+
+	nodeClient, err := node_client.New(bitcoinClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
 		pm,
-		rpcURL,
+		nodeClient,
 		statusMessageCh,
 		processorOpts...,
 	)

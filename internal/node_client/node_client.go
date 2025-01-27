@@ -18,6 +18,7 @@ import (
 var (
 	ErrFailedToGetRawTransaction   = errors.New("failed to get raw transaction")
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+	ErrTransactionNotFound         = errors.New("transaction not found")
 )
 
 type NodeClient struct {
@@ -107,6 +108,9 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx
 
 	nTx, err := n.bitcoinClient.GetRawTransaction(id)
 	if err != nil {
+		if strings.Contains(err.Error(), "No such mempool or blockchain transaction") {
+			return nil, errors.Join(ErrTransactionNotFound, err)
+		}
 		return nil, errors.Join(ErrFailedToGetRawTransaction, err)
 	}
 

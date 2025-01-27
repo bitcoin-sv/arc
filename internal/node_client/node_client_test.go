@@ -120,6 +120,11 @@ func TestNodeClient(t *testing.T) {
 
 		// then
 		require.ErrorIs(t, err, node_client.ErrFailedToGetRawTransaction)
+
+		_, err = sut.GetRawTransaction(ctx, "798327761b8a31ba73252efb0a75096d8568b7d46aa05779d063380039a734a2")
+
+		// then
+		require.ErrorIs(t, err, node_client.ErrTransactionNotFound)
 	})
 
 	t.Run("get mempool ancestors", func(t *testing.T) {

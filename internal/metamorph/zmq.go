@@ -200,7 +200,6 @@ func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamo
 	}
 
 	if txInfo.IsMissingInputs {
-		fmt.Println("shota 1")
 		// Missing Inputs does not immediately mean it's an error. It may mean that transaction is temporarily waiting
 		// for its parents (e.g. in case of bulk submit). So we don't throw any error here, just update the status.
 		// If it's actually an error with transaction, it will be rejected when the parents arrive to node's memopool.

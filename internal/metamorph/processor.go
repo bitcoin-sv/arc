@@ -17,13 +17,14 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
+	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/tracing"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
 const (
@@ -424,7 +425,6 @@ func (p *Processor) StartSendStatusUpdate() {
 				if msg.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL && p.nodeClient != nil {
 					err := p.CheckDoubleSpending(p.ctx, msg)
 					if err != nil {
-						fmt.Println("shota e", err)
 						p.logger.Warn("checking double spend attempt failed", slog.String("err", err.Error()))
 					}
 				}
@@ -760,7 +760,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 	}()
 }
 
-// we receive Status_SEEN_IN_ORPHAN_MEMPOOL from ZMQ in two cases: when tx is orphaned (input transaction wasn't found) and
+// CheckDoubleSpending checks double spending in previous block. Status_SEEN_IN_ORPHAN_MEMPOOL is received from ZMQ in two cases: when tx is orphaned (input transaction wasn't found) and
 // when input(s) is already spent in previous block. We need to check which case it is because in case of spending already spent
 // transaction we should reject the transaction as it can never be mined/successful. To check which case it is we are looping
 // over all the input transactions and check that they can be found, if they all can be found then it must be - spending already
@@ -769,40 +769,27 @@ func (p *Processor) CheckDoubleSpending(ctx context.Context, msg *TxStatusMessag
 	// we must have tx already in db
 	data, err := p.store.Get(ctx, msg.Hash[:])
 	if err != nil {
-		fmt.Println("shota 0", err)
 		return err
 	}
 
 	// we must be able to decode it
 	tx, err := sdkTx.NewTransactionFromBytes(data.RawTx)
 	if err != nil {
-		fmt.Println("shota 8", err)
 		return err
 	}
 
+	// If all inputs already exist, then the status is rejected as this transaction can not possibly be mined
 	for _, input := range tx.Inputs {
-		inputTX, err := p.nodeClient.GetRawTransaction(ctx, hex.EncodeToString(input.SourceTXID))
+		_, err := p.nodeClient.GetRawTransaction(ctx, hex.EncodeToString(input.SourceTXID))
 		if err != nil {
+			if errors.Is(err, node_client.ErrTransactionNotFound) {
+				return nil
+			}
 			return err
 		}
 
-		fmt.Println("shota iq", inputTX)
-		if inputTX == nil {
-			// so if one of those transactions cannot be found the status was initially correct, it's orphaned transaction
-			return nil
-		}
-
-		txout, err := p.nodeClient.GetTXOut(ctx, inputTX.TxID(), int(input.SourceTxOutIndex), true)
-		if err != nil {
-			return err
-		}
-
-		if txout == nil {
-			msg.Status = metamorph_api.Status_REJECTED
-			return nil
-		}
 	}
-	fmt.Println("shota a 6")
+	msg.Status = metamorph_api.Status_REJECTED
 	return nil
 }
 

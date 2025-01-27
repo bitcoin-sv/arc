@@ -74,7 +74,7 @@ func TestDoubleSpend(t *testing.T) {
 		require.NoError(t, err)
 
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusSeenInOrphanMempool}, http.StatusOK)
-		require.Equal(t, StatusSeenInOrphanMempool, resp.TxStatus)
+		require.Equal(t, StatusRejected, resp.TxStatus)
 	})
 }
 

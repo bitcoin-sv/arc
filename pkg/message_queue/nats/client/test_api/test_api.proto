@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option go_package = ".;test_api";
+
+package test_api;
+
+message TestMessage {
+  bool ok = 1;
+}

@@ -13,12 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (
@@ -88,44 +86,38 @@ func TestNatsClient(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	txBlock := &blocktx_api.TransactionBlock{
-		BlockHash:       testdata.Block1Hash[:],
-		BlockHeight:     1,
-		TransactionHash: testdata.TX1Hash[:],
-		MerklePath:      "mp-1",
+	testMessage := &test_api.TestMessage{
+		Ok: true,
 	}
 
 	t.Run("publish", func(t *testing.T) {
 		// given
 		mqClient = nats_core.New(natsConnClient)
-		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl:   "callback.example.com",
-			CallbackToken: "test-token",
-			RawTx:         testdata.TX1Raw.Bytes(),
-			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		messageChan := make(chan *test_api.TestMessage, 100)
+		message := &test_api.TestMessage{
+			Ok: true,
 		}
 
 		// when
 		t.Log("subscribe to topic")
 		_, err := natsConnClient.QueueSubscribe(SubmitTxTopic, "queue", func(msg *nats.Msg) {
-			serialized := &metamorph_api.TransactionRequest{}
+			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
-			submittedTxsChan <- serialized
+			messageChan <- serialized
 		})
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
 		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, message)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, message)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, message)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), SubmitTxTopic, message)
 		require.NoError(t, err)
 
 		counter := 0
@@ -138,12 +130,9 @@ func TestNatsClient(t *testing.T) {
 			case <-time.NewTimer(500 * time.Millisecond).C:
 				t.Log("timer finished")
 				break loop
-			case data := <-submittedTxsChan:
+			case data := <-messageChan:
 				counter++
-				require.Equal(t, txRequest.CallbackUrl, data.CallbackUrl)
-				require.Equal(t, txRequest.CallbackToken, data.CallbackToken)
-				require.Equal(t, txRequest.RawTx, data.RawTx)
-				require.Equal(t, txRequest.WaitForStatus, data.WaitForStatus)
+				require.Equal(t, message.Ok, data.Ok)
 			}
 		}
 
@@ -153,19 +142,19 @@ func TestNatsClient(t *testing.T) {
 	t.Run("subscribe", func(t *testing.T) {
 		// given
 		mqClient = nats_core.New(natsConnClient)
-		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
+		messageChan := make(chan *test_api.TestMessage, 100)
 
 		// when
 		err := mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
-			serialized := &blocktx_api.TransactionBlock{}
+			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(msg, serialized)
 			require.NoError(t, err)
-			minedTxsChan <- serialized
+			messageChan <- serialized
 			return nil
 		})
 		require.NoError(t, err)
 
-		data, err := proto.Marshal(txBlock)
+		data, err := proto.Marshal(testMessage)
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
@@ -185,12 +174,9 @@ func TestNatsClient(t *testing.T) {
 			select {
 			case <-time.NewTimer(500 * time.Millisecond).C:
 				break loop
-			case minedTxBlock := <-minedTxsChan:
+			case message := <-messageChan:
 				counter++
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+				require.Equal(t, message.Ok, testMessage.Ok)
 			}
 		}
 		require.Equal(t, 3, counter)

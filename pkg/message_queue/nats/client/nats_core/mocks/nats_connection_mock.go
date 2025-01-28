@@ -4,7 +4,7 @@
 package mocks
 
 import (
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	"github.com/nats-io/nats.go"
 	"sync"
 )

@@ -5,7 +5,7 @@ import (
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 func (p *PostgreSQL) MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) (err error) {

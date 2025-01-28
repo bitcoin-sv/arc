@@ -24,15 +24,15 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
@@ -66,7 +66,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	shutdownFns := make([]func(), 0)
 
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing)
+		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

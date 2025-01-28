@@ -8,9 +8,10 @@ import (
 	"os"
 	"testing"
 
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/go-redis/redis/v8"
 	"github.com/ory/dockertest/v3"
+
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (

@@ -10,28 +10,24 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
 )
 
 const (
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
+	topic1 = "topic-1"
+	topic2 = "topic-2"
 )
 
 func TestPublishMarshal(t *testing.T) {
-	txBlock := &blocktx_api.TransactionBlock{
-		BlockHash:       testdata.Block1Hash[:],
-		BlockHeight:     1,
-		TransactionHash: testdata.TX1Hash[:],
-		MerklePath:      "mp-1",
+	message := &test_api.TestMessage{
+		Ok: true,
 	}
 
 	tt := []struct {
 		name       string
-		txsBlock   *blocktx_api.TransactionBlock
+		txsBlock   *test_api.TestMessage
 		publishErr error
 
 		expectedError        error
@@ -39,13 +35,13 @@ func TestPublishMarshal(t *testing.T) {
 	}{
 		{
 			name:     "success",
-			txsBlock: txBlock,
+			txsBlock: message,
 
 			expectedPublishCalls: 1,
 		},
 		{
 			name:       "publish err",
-			txsBlock:   txBlock,
+			txsBlock:   message,
 			publishErr: nats_core.ErrFailedToPublish,
 
 			expectedError:        nats_core.ErrFailedToPublish,
@@ -65,7 +61,7 @@ func TestPublishMarshal(t *testing.T) {
 			sut := nats_core.New(natsMock, nats_core.WithLogger(logger))
 
 			// when
-			err := sut.PublishMarshal(context.TODO(), MinedTxsTopic, tc.txsBlock)
+			err := sut.PublishMarshal(context.TODO(), topic2, tc.txsBlock)
 
 			// then
 			if tc.expectedError != nil {
@@ -115,7 +111,7 @@ func TestPublish(t *testing.T) {
 			)
 
 			// when
-			err := sut.Publish(context.TODO(), RegisterTxTopic, []byte("tx"))
+			err := sut.Publish(context.TODO(), topic1, []byte("tx"))
 
 			// then
 			if tc.expectedError != nil {
@@ -168,8 +164,8 @@ func TestSubscribe(t *testing.T) {
 
 			natsMock := &mocks.NatsConnectionMock{
 				QueueSubscribeFunc: func(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
-					require.Equal(t, "register-tx", subj)
-					require.Equal(t, "register-tx-group", queue)
+					require.Equal(t, "topic-1", subj)
+					require.Equal(t, "topic-1-group", queue)
 					msgHandler = cb
 					return nil, tc.subscribeErr
 				},
@@ -180,7 +176,7 @@ func TestSubscribe(t *testing.T) {
 			)
 
 			// when
-			err := sut.Subscribe(RegisterTxTopic, func(_ []byte) error { return tc.msgFuncErr })
+			err := sut.Subscribe(topic1, func(_ []byte) error { return tc.msgFuncErr })
 
 			// then
 			if tc.expectedError != nil {

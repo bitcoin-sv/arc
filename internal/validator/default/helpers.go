@@ -8,8 +8,8 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (

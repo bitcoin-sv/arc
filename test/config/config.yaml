@@ -63,12 +63,13 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   processorCacheExpiryTime: 24h
+  unseenTransactionRebroadcastingInterval: 60s
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
-  checkSeenOnNetworkOlderThan: 3h
-  checkSeenOnNetworkPeriod: 4h
+  recheckSeen:
+    fromAgo: 24h
+    untilAgo: 1h
   monitorPeers: true
-  profilerAddr: localhost:9992
   health:
     serverDialAddr: localhost:8005
     minimumHealthyConnections: 2
@@ -93,12 +94,15 @@ blocktx:
       maxOpenConns: 80
       sslMode: disable
   recordRetentionDays: 28
-  profilerAddr: localhost:9993
   registerTxsInterval: 200ms
+  maxBlockProcessingDuration: 2s
+  monitorPeers: true
+  incomingIsLongest: false
   fillGaps:
     enabled: true
-    interval: 30s
+    interval: 1s # This allows e2e tests to pass as there will be no gaps when initial blocks are created
   maxAllowedBlockHeightMismatch: 3
+  p2pReadBufferSize: 8388608
 
 api:
   address: 0.0.0.0:9090
@@ -142,6 +146,9 @@ callbacker:
   dialAddr: callbacker:8021
   health:
     serverDialAddr: localhost:8022
+  delay: 0s
+  pause: 0s
+  batchSendInterval: 5s
   db:
     mode: postgres
     postgres:
@@ -153,6 +160,8 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
+  pruneInterval: 24h
+  pruneOlderThan: 336h
   failedCallbackCheckInterval: 1m
   delayDuration: 5s
   expiration: 24h

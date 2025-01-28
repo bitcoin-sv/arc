@@ -247,9 +247,6 @@ func TestHandleBlock(t *testing.T) {
 }
 
 func TestHandleBlockReorgAndOrphans(t *testing.T) {
-	// TODO: remove the skip when gaps are filling quickly again
-	t.Skip("Skipping until gaps are being processed quickly again")
-
 	testCases := []struct {
 		name                     string
 		blockAlreadyExists       bool

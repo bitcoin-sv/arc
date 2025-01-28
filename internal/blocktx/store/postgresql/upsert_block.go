@@ -16,11 +16,11 @@ func (p *PostgreSQL) UpsertBlock(ctx context.Context, block *blocktx_api.Block) 
 	}()
 
 	// This query will insert a block ONLY if one of the 3 conditions is met:
-	// 1. Block being inserted is `ORPHANED` and there's no previous block in the database
+	// 1. Block being inserted is `ORPHANED` or `LONGEST` and there's no previous block in the database
 	// 2. The block being inserted has the same status as its previous block
 	// 3. The block being inserted has status `STALE` but the previous block was `LONGEST`
 	// Any other situation would mean an error in block processing
-	// (probably because of another block being inserted by other blocktx instance at the same time)
+	// (probably because of another block which is being inserted by another blocktx instance at the same time)
 	// and requires the block to be received and processed again.
 	qInsert := `
 		INSERT INTO blocktx.blocks (hash, prevhash, merkleroot, height, status, chainwork, is_longest)

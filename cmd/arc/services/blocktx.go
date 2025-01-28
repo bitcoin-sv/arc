@@ -126,6 +126,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),
+		blocktx.WithIncomingIsLongest(btxConfig.IncomingIsLongest),
 	)
 
 	blockRequestCh := make(chan blocktx.BlockRequest, blockProcessingBuffer)

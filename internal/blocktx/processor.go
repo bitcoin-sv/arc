@@ -48,7 +48,6 @@ const (
 	registerTxsBatchSizeDefault        = 100
 	registerRequestTxBatchSizeDefault  = 100
 	waitForBlockProcessing             = 5 * time.Minute
-	lockTime                           = 5 * time.Minute
 	parallellism                       = 5
 )
 
@@ -71,6 +70,7 @@ type Processor struct {
 	tracingAttributes           []attribute.KeyValue
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
+	incomingIsLongest           bool
 
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
@@ -166,7 +166,7 @@ func (p *Processor) StartBlockRequesting() {
 				peer := req.Peer
 
 				// lock block for the current instance to process
-				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, lockTime, maxBlocksInProgress)
+				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, p.maxBlockProcessingDuration, maxBlocksInProgress)
 				if err != nil {
 					if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
 						p.logger.Debug("block processing maximum reached", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
@@ -456,15 +456,17 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
-		Status:       blocktx_api.Status_LONGEST, // temporary fix (!), TODO: remove this when gaps are filling quickly again
 	}
 
-	// TODO: uncomment when gaps are filling quickly again
-	// err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
-	// if err != nil {
-	// 	p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
-	// 	return nil, err
-	// }
+	if p.incomingIsLongest {
+		incomingBlock.Status = blocktx_api.Status_LONGEST
+	} else {
+		err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
+		if err != nil {
+			p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
+			return nil, err
+		}
+	}
 
 	p.logger.Info("Inserting block", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("status", incomingBlock.Status.String()))
 
@@ -477,7 +479,6 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.Bloc
 	return incomingBlock, nil
 }
 
-//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Block, prevBlockHash chainhash.Hash) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "assignBlockStatus", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -538,7 +539,6 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 	return nil
 }
 
-//lint:ignore U1000 Ignored until gaps are filling quickly again TODO: remove this ignore
 func (p *Processor) longestTipExists(ctx context.Context) (bool, error) {
 	_, err := p.store.GetChainTip(ctx)
 	if err != nil && !errors.Is(err, store.ErrBlockNotFound) {

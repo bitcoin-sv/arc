@@ -46,9 +46,6 @@ import (
 )
 
 func TestReorg(t *testing.T) {
-	// TODO: remove the skip when gaps are filling quickly again
-	t.Skip("Skipping until gaps are being processed quickly again")
-
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -150,7 +147,7 @@ func TestReorg(t *testing.T) {
 			blockHash822015Fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
 			blockHash822016Fork = "032c3688bc7536b2d787f3a196b1145a09bf33183cd1448ff6b1a9dfbb022db8"
 
-			blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
+			blockHash822014StartOfChain = "67708796ef57464ed9eaf2a663d3da32372e4c2fb65558020000000000000000"
 			blockHash822015             = "c9b4e1e4dcf9188416027511671b9346be8ef93c0ddf59060000000000000000"
 			blockHash822016             = "e1df1273e6e7270f96b508545d7aa80aebda7d758dc82e080000000000000000"
 			blockHash822017             = "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000"

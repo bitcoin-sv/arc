@@ -137,8 +137,7 @@ func TestPostgresDB(t *testing.T) {
 
 		blockHash1 := testutils.RevChainhash(t, "000000000000000001b8adefc1eb98896c80e30e517b9e2655f1f929d9958a48")
 		blockHash2 := testutils.RevChainhash(t, "00000000000000000a081a539601645abe977946f8f6466a3c9e0c34d50be4a8")
-		// TODO: uncomment when all block gaps are filled
-		// blockHashViolating := testutils.RevChainhash(t, "00000000b69bd8e4dc60580117617a466d5c76ada85fb7b87e9baea01f9d9984")
+		blockHashViolating := testutils.RevChainhash(t, "00000000b69bd8e4dc60580117617a466d5c76ada85fb7b87e9baea01f9d9984")
 		merkleRoot := testutils.RevChainhash(t, "31e25c5ac7c143687f55fc49caf0f552ba6a16d4f785e4c9a9a842179a085f0c")
 		expectedBlock := &blocktx_api.Block{
 			Hash:         blockHash2[:],
@@ -148,14 +147,13 @@ func TestPostgresDB(t *testing.T) {
 			Status:       blocktx_api.Status_LONGEST,
 			Processed:    true,
 		}
-		// TODO: uncomment when all block gaps are filled
-		// expectedBlockViolatingUniqueIndex := &blocktx_api.Block{
-		// 	Hash:         blockHashViolating[:],
-		// 	PreviousHash: blockHash1[:],
-		// 	MerkleRoot:   merkleRoot[:],
-		// 	Height:       100,
-		// 	Status:       blocktx_api.Status_LONGEST,
-		// }
+		expectedBlockViolatingUniqueIndex := &blocktx_api.Block{
+			Hash:         blockHashViolating[:],
+			PreviousHash: blockHash1[:],
+			MerkleRoot:   merkleRoot[:],
+			Height:       100,
+			Status:       blocktx_api.Status_LONGEST,
+		}
 		expectedBlockOverrideStatus := &blocktx_api.Block{
 			Hash:         blockHash2[:],
 			PreviousHash: blockHash1[:],
@@ -178,11 +176,10 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expectedBlock, actualBlockResp)
 
-		// TODO: uncomment when all block gaps are filled
 		// when
-		// _, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
+		_, err = postgresDB.UpsertBlock(ctx, expectedBlockViolatingUniqueIndex)
 		// then
-		// require.ErrorIs(t, err, store.ErrFailedToInsertBlock)
+		require.ErrorIs(t, err, store.ErrFailedToInsertBlock)
 
 		// when
 		id, err = postgresDB.UpsertBlock(ctx, expectedBlockOverrideStatus)
@@ -394,11 +391,10 @@ func TestPostgresDB(t *testing.T) {
 			{Hash: hash4Stale[:], Status: blocktx_api.Status_LONGEST},
 		}
 
-		// TODO: uncomment when all block gaps are filled
-		// blockStatusUpdatesViolating := []store.BlockStatusUpdate{
-		// 	// there is already a LONGEST block at that height
-		// 	{Hash: hash1Longest[:], Status: blocktx_api.Status_LONGEST},
-		// }
+		blockStatusUpdatesViolating := []store.BlockStatusUpdate{
+			// there is already a LONGEST block at that height
+			{Hash: hash1Longest[:], Status: blocktx_api.Status_LONGEST},
+		}
 
 		// when
 		err := postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdates)
@@ -421,10 +417,9 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, blocktx_api.Status_LONGEST, stale4.Status)
 
-		// TODO: uncomment when all block gaps are filled
 		// when
-		// err = postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdatesViolating)
-		// require.ErrorIs(t, err, store.ErrFailedToUpdateBlockStatuses)
+		err = postgresDB.UpdateBlocksStatuses(ctx, blockStatusUpdatesViolating)
+		require.ErrorIs(t, err, store.ErrFailedToUpdateBlockStatuses)
 	})
 
 	t.Run("get mined txs", func(t *testing.T) {

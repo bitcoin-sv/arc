@@ -26,7 +26,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHan
 
 	blockProcessCh := make(chan *p2p.BlockMessage, 10)
 
-	requestTxChannel := make(chan []byte, 10)
+	registerTxChannel := make(chan []byte, 10)
 	publishedTxsCh := make(chan *blocktx_api.TransactionBlock, 10)
 
 	store, err := postgresql.New(dbInfo, 10, 80)
@@ -51,12 +51,12 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHan
 		nil,
 		blockProcessCh,
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithRequestTxChan(requestTxChannel),
-		blocktx.WithRegisterRequestTxsBatchSize(1), // process transaction immediately
+		blocktx.WithRegisterTxsChan(registerTxChannel),
+		blocktx.WithRegisterTxsBatchSize(1), // process transaction immediately
 	)
 	require.NoError(t, err)
 
-	return processor, p2pMsgHandler, store, requestTxChannel, publishedTxsCh
+	return processor, p2pMsgHandler, store, registerTxChannel, publishedTxsCh
 }
 
 func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlock) []*blocktx_api.TransactionBlock {

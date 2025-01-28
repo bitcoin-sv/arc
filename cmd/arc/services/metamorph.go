@@ -110,7 +110,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	if arcConfig.MessageQueue.Streaming.Enabled {
 		opts := []nats_jetstream.Option{
 			nats_jetstream.WithSubscribedWorkQueuePolicy(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
-			nats_jetstream.WithWorkQueuePolicy(metamorph.RegisterTxTopic, metamorph.RequestTxTopic),
+			nats_jetstream.WithWorkQueuePolicy(metamorph.RegisterTxTopic),
 			nats_jetstream.WithInterestPolicy(metamorph.CallbackTopic),
 		}
 		if arcConfig.MessageQueue.Streaming.FileStorage {

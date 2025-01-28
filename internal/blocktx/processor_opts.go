@@ -31,33 +31,15 @@ func WithRegisterTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithRegisterRequestTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.registerRequestTxsInterval = d
-	}
-}
-
 func WithRegisterTxsChan(registerTxsChan chan []byte) func(*Processor) {
 	return func(processor *Processor) {
 		processor.registerTxsChan = registerTxsChan
 	}
 }
 
-func WithRequestTxChan(requestTxChannel chan []byte) func(*Processor) {
-	return func(processor *Processor) {
-		processor.requestTxChannel = requestTxChannel
-	}
-}
-
 func WithRegisterTxsBatchSize(size int) func(*Processor) {
 	return func(processor *Processor) {
 		processor.registerTxsBatchSize = size
-	}
-}
-
-func WithRegisterRequestTxsBatchSize(size int) func(*Processor) {
-	return func(processor *Processor) {
-		processor.registerRequestTxsBatchSize = size
 	}
 }
 

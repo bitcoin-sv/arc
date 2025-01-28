@@ -633,124 +633,6 @@ func TestStartBlockRequesting(t *testing.T) {
 	}
 }
 
-func TestStartProcessRequestTxs(t *testing.T) {
-	tt := []struct {
-		name            string
-		requests        int
-		getMinedErr     error
-		publishMinedErr error
-		requestedTx     []byte
-
-		expectedGetMinedCalls     int
-		expectedPublishMinedCalls int
-	}{
-		{
-			name:        "success - 5 requests",
-			requests:    5,
-			requestedTx: testdata.TX1Hash[:],
-
-			expectedGetMinedCalls:     2,
-			expectedPublishMinedCalls: 2,
-		},
-		{
-			name:        "5 requests, error - get mined",
-			requests:    5,
-			getMinedErr: errors.New("get mined error"),
-			requestedTx: testdata.TX1Hash[:],
-
-			expectedGetMinedCalls:     4, // 3 times on the channel message, 1 time on ticker
-			expectedPublishMinedCalls: 0,
-		},
-		{
-			name:            "5 requests, error - publish mined",
-			requests:        5,
-			publishMinedErr: errors.New("publish mined error"),
-			requestedTx:     testdata.TX1Hash[:],
-
-			expectedGetMinedCalls:     4, // 3 times on the channel message, 1 time on ticker
-			expectedPublishMinedCalls: 4,
-		},
-		{
-			name:        "success - 2 requests",
-			requests:    2,
-			requestedTx: testdata.TX1Hash[:],
-
-			expectedGetMinedCalls:     1,
-			expectedPublishMinedCalls: 1,
-		},
-		{
-			name:        "success - 0 requests",
-			requests:    0,
-			requestedTx: testdata.TX1Hash[:],
-
-			expectedGetMinedCalls:     0,
-			expectedPublishMinedCalls: 0,
-		},
-		{
-			name:        "error - not a tx",
-			requests:    1,
-			requestedTx: []byte("not a tx"),
-
-			expectedGetMinedCalls:     0,
-			expectedPublishMinedCalls: 0,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			storeMock := &storeMocks.BlocktxStoreMock{
-				GetMinedTransactionsFunc: func(_ context.Context, hashes [][]byte, _ bool) ([]store.BlockTransaction, error) {
-					for _, hash := range hashes {
-						require.Equal(t, testdata.TX1Hash[:], hash)
-					}
-
-					return []store.BlockTransaction{{
-						TxHash:      testdata.TX1Hash[:],
-						BlockHash:   testdata.Block1Hash[:],
-						BlockHeight: 1,
-					}}, tc.getMinedErr
-				},
-				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
-					return []*chainhash.Hash{testdata.TX1Hash}, nil
-				},
-			}
-
-			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-					return tc.publishMinedErr
-				},
-			}
-
-			requestTxChannel := make(chan []byte, 5)
-
-			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-			// when
-			sut, err := blocktx.NewProcessor(logger, storeMock,
-				nil, nil,
-				blocktx.WithRegisterRequestTxsInterval(15*time.Millisecond),
-				blocktx.WithRegisterRequestTxsBatchSize(3),
-				blocktx.WithRequestTxChan(requestTxChannel),
-				blocktx.WithMessageQueueClient(mq))
-			require.NoError(t, err)
-
-			for i := 0; i < tc.requests; i++ {
-				requestTxChannel <- tc.requestedTx
-			}
-
-			// call tested function
-			sut.StartProcessRequestTxs()
-			time.Sleep(20 * time.Millisecond)
-			sut.Shutdown()
-
-			// then
-			require.Equal(t, tc.expectedGetMinedCalls, len(storeMock.GetMinedTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishMinedCalls, len(mq.PublishMarshalCalls()))
-		})
-	}
-}
-
 func TestStart(t *testing.T) {
 	tt := []struct {
 		name     string
@@ -764,12 +646,6 @@ func TestStart(t *testing.T) {
 		{
 			name:     "error - subscribe mined txs",
 			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
-
-			expectedError: blocktx.ErrFailedToSubscribeToTopic,
-		},
-		{
-			name:     "error - subscribe submit txs",
-			topicErr: map[string]error{blocktx.RequestTxTopic: errors.New("failed to subscribe")},
 
 			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},

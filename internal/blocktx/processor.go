@@ -46,7 +46,6 @@ const (
 	registerTxsIntervalDefault         = time.Second * 10
 	registerRequestTxsIntervalDefault  = time.Second * 5
 	registerTxsBatchSizeDefault        = 100
-	registerRequestTxBatchSizeDefault  = 100
 	waitForBlockProcessing             = 5 * time.Minute
 	parallellism                       = 5
 )
@@ -61,11 +60,9 @@ type Processor struct {
 	dataRetentionDays           int
 	mqClient                    MessageQueueClient
 	registerTxsChan             chan []byte
-	requestTxChannel            chan []byte
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
-	registerRequestTxsBatchSize int
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
 	stats                       *processorStats
@@ -101,7 +98,6 @@ func NewProcessor(
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
-		registerRequestTxsBatchSize: registerRequestTxBatchSizeDefault,
 		maxBlockProcessingDuration:  waitForBlockProcessing,
 		hostname:                    hostname,
 		stats:                       newProcessorStats(),
@@ -130,14 +126,6 @@ func (p *Processor) Start(statsEnabled bool) error {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RegisterTxTopic), err)
 	}
 
-	err = p.mqClient.Subscribe(RequestTxTopic, func(msg []byte) error {
-		p.requestTxChannel <- msg
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RequestTxTopic), err)
-	}
-
 	if statsEnabled {
 		err = p.StartCollectStats()
 		if err != nil {
@@ -147,7 +135,6 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
-	p.StartProcessRequestTxs()
 
 	return nil
 }
@@ -266,61 +253,6 @@ func (p *Processor) StartProcessRegisterTxs() {
 				p.registerTransactions(txHashes[:])
 				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
-			}
-		}
-	}()
-}
-
-func (p *Processor) StartProcessRequestTxs() {
-	p.waitGroup.Add(1)
-
-	txHashes := make([][]byte, 0, p.registerRequestTxsBatchSize)
-
-	ticker := time.NewTicker(p.registerRequestTxsInterval)
-
-	go func() {
-		defer p.waitGroup.Done()
-
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case txHash := <-p.requestTxChannel:
-				_, err := chainhash.NewHash(txHash)
-				if err != nil {
-					p.logger.Error("Failed to create hash from byte array", slog.String("err", err.Error()))
-					continue
-				}
-
-				txHashes = append(txHashes, txHash)
-
-				if len(txHashes) < p.registerRequestTxsBatchSize || len(txHashes) == 0 {
-					continue
-				}
-
-				err = p.publishMinedTxs(txHashes)
-				if err != nil {
-					p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					continue // retry, don't clear the txHashes slice
-				}
-
-				txHashes = make([][]byte, 0, p.registerRequestTxsBatchSize)
-				ticker.Reset(p.registerRequestTxsInterval)
-
-			case <-ticker.C:
-				if len(txHashes) == 0 {
-					continue
-				}
-
-				err := p.publishMinedTxs(txHashes)
-				if err != nil {
-					p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-					ticker.Reset(p.registerRequestTxsInterval)
-					continue // retry, don't clear the txHashes slice
-				}
-
-				txHashes = make([][]byte, 0, p.registerRequestTxsBatchSize)
-				ticker.Reset(p.registerRequestTxsInterval)
 			}
 		}
 	}()

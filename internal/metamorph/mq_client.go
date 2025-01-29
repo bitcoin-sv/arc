@@ -10,7 +10,6 @@ const (
 	SubmitTxTopic   = "submit-tx"
 	MinedTxsTopic   = "mined-txs"
 	RegisterTxTopic = "register-tx"
-	RequestTxTopic  = "request-tx"
 	CallbackTopic   = "callback"
 )
 

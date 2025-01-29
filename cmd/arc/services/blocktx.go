@@ -83,7 +83,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
-	requestTxChannel := make(chan []byte, chanBufferSize)
 
 	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
 	if err != nil {
@@ -93,7 +92,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
 		opts := []nats_jetstream.Option{
-			nats_jetstream.WithSubscribedWorkQueuePolicy(blocktx.RegisterTxTopic, blocktx.RequestTxTopic),
+			nats_jetstream.WithSubscribedWorkQueuePolicy(blocktx.RegisterTxTopic),
 			nats_jetstream.WithWorkQueuePolicy(blocktx.MinedTxsTopic),
 		}
 		if arcConfig.MessageQueue.Streaming.FileStorage {
@@ -122,7 +121,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
-		blocktx.WithRequestTxChan(requestTxChannel),
 		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),

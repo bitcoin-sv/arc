@@ -638,14 +638,14 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 
 					for _, tx := range seenOnNetworkTxs {
 						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.Publish(ctx, RequestTxTopic, tx.Hash[:]); err != nil {
-							p.logger.Error("failed to request tx from blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+						if err = p.mqClient.Publish(ctx, RegisterTxTopic, tx.Hash[:]); err != nil {
+							p.logger.Error("Failed to register tx in blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
 				}
 
 				if totalSeenOnNetworkTxs > 0 {
-					p.logger.Info("SEEN_ON_NETWORK txs being requested", slog.Int("number", totalSeenOnNetworkTxs))
+					p.logger.Info("Transactions seen on network re-registered", slog.Int("number", totalSeenOnNetworkTxs))
 				}
 
 				tracing.EndTracing(span, nil)

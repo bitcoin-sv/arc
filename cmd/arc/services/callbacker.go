@@ -34,8 +34,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
 func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {

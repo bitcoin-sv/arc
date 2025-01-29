@@ -14,12 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
-	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (
@@ -87,11 +85,8 @@ func TestNatsClient(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	txBlock := &blocktx_api.TransactionBlock{
-		BlockHash:       testdata.Block1Hash[:],
-		BlockHeight:     1,
-		TransactionHash: testdata.TX1Hash[:],
-		MerklePath:      "mp-1",
+	txBlock := &test_api.TestMessage{
+		Ok: true,
 	}
 	t.Run("publish - work queue policy", func(t *testing.T) {
 		// given
@@ -99,31 +94,28 @@ func TestNatsClient(t *testing.T) {
 		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
 
 		require.NoError(t, err)
-		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl:   "callback.example.com",
-			CallbackToken: "test-token",
-			RawTx:         testdata.TX1Raw.Bytes(),
-			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		messageChan := make(chan *test_api.TestMessage, 100)
+		testMessage := &test_api.TestMessage{
+			Ok: true,
 		}
 
 		// when
 		t.Log("subscribe to topic")
 		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-			serialized := &metamorph_api.TransactionRequest{}
+			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
-			submittedTxsChan <- serialized
+			messageChan <- serialized
 		})
 		require.NoError(t, err)
 		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
 
 		counter := 0
@@ -136,12 +128,9 @@ func TestNatsClient(t *testing.T) {
 			case <-time.NewTimer(500 * time.Millisecond).C:
 				t.Log("timer finished")
 				break loop
-			case data := <-submittedTxsChan:
+			case data := <-messageChan:
 				counter++
-				require.Equal(t, txRequest.CallbackUrl, data.CallbackUrl)
-				require.Equal(t, txRequest.CallbackToken, data.CallbackToken)
-				require.Equal(t, txRequest.RawTx, data.RawTx)
-				require.Equal(t, txRequest.WaitForStatus, data.WaitForStatus)
+				require.Equal(t, testMessage.Ok, data.Ok)
 			}
 		}
 
@@ -156,7 +145,7 @@ func TestNatsClient(t *testing.T) {
 		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
 		require.NoError(t, err)
 
-		minedTxsChan := make(chan *blocktx_api.TransactionBlock, 100)
+		messageChan := make(chan *test_api.TestMessage, 100)
 
 		// subscribe without initialized consumer, expect error
 		err = mqClient.Subscribe(topic, func(_ []byte) error {
@@ -169,12 +158,12 @@ func TestNatsClient(t *testing.T) {
 		require.NoError(t, err)
 
 		err = mqClient.Subscribe(topic, func(msg []byte) error {
-			serialized := &blocktx_api.TransactionBlock{}
+			serialized := &test_api.TestMessage{}
 			unmarshalErr := proto.Unmarshal(msg, serialized)
 			if unmarshalErr != nil {
 				return unmarshalErr
 			}
-			minedTxsChan <- serialized
+			messageChan <- serialized
 			return nil
 		})
 		require.NoError(t, err)
@@ -199,12 +188,9 @@ func TestNatsClient(t *testing.T) {
 			select {
 			case <-time.NewTimer(500 * time.Millisecond).C:
 				break loop
-			case minedTxBlock := <-minedTxsChan:
+			case minedTxBlock := <-messageChan:
 				counter++
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
 			}
 		}
 		require.Equal(t, 3, counter)
@@ -215,31 +201,28 @@ func TestNatsClient(t *testing.T) {
 		const topic = "interest-txs"
 		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithInterestPolicy(topic))
 		require.NoError(t, err)
-		submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 100)
-		txRequest := &metamorph_api.TransactionRequest{
-			CallbackUrl:   "callback.example.com",
-			CallbackToken: "test-token",
-			RawTx:         testdata.TX1Raw.Bytes(),
-			WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+		messageChan := make(chan *test_api.TestMessage, 100)
+		testMessage := &test_api.TestMessage{
+			Ok: true,
 		}
 
 		// when
 		t.Log("subscribe to topic")
 		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-			serialized := &metamorph_api.TransactionRequest{}
+			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(msg.Data, serialized)
 			require.NoError(t, err)
-			submittedTxsChan <- serialized
+			messageChan <- serialized
 		})
 		require.NoError(t, err)
 		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, txRequest)
+		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
 		require.NoError(t, err)
 
 		counter := 0
@@ -252,12 +235,9 @@ func TestNatsClient(t *testing.T) {
 			case <-time.NewTimer(500 * time.Millisecond).C:
 				t.Log("timer finished")
 				break loop
-			case data := <-submittedTxsChan:
+			case data := <-messageChan:
 				counter++
-				require.Equal(t, txRequest.CallbackUrl, data.CallbackUrl)
-				require.Equal(t, txRequest.CallbackToken, data.CallbackToken)
-				require.Equal(t, txRequest.RawTx, data.RawTx)
-				require.Equal(t, txRequest.WaitForStatus, data.WaitForStatus)
+				require.Equal(t, testMessage.Ok, data.Ok)
 			}
 		}
 
@@ -268,8 +248,8 @@ func TestNatsClient(t *testing.T) {
 		// given
 		var err error
 		const topic = "interest-blocks"
-		minedTxsChan1 := make(chan *blocktx_api.TransactionBlock, 100)
-		minedTxsChan2 := make(chan *blocktx_api.TransactionBlock, 100)
+		minedTxsChan1 := make(chan *test_api.TestMessage, 100)
+		minedTxsChan2 := make(chan *test_api.TestMessage, 100)
 
 		mqClient = mqClientSubscribe(t, topic, "host1", minedTxsChan1)
 		mqClient2 := mqClientSubscribe(t, topic, "host2", minedTxsChan2)
@@ -296,16 +276,10 @@ func TestNatsClient(t *testing.T) {
 				break loop
 			case minedTxBlock := <-minedTxsChan1:
 				counter++
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
 			case minedTxBlock := <-minedTxsChan2:
 				counter2++
-				require.Equal(t, minedTxBlock.BlockHash, txBlock.BlockHash)
-				require.Equal(t, minedTxBlock.BlockHeight, txBlock.BlockHeight)
-				require.Equal(t, minedTxBlock.TransactionHash, txBlock.TransactionHash)
-				require.Equal(t, minedTxBlock.MerklePath, txBlock.MerklePath)
+				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
 			}
 		}
 
@@ -314,11 +288,11 @@ func TestNatsClient(t *testing.T) {
 	})
 }
 
-func mqClientSubscribe(t *testing.T, topic string, hostName string, minedTxsChan chan *blocktx_api.TransactionBlock) *nats_jetstream.Client {
+func mqClientSubscribe(t *testing.T, topic string, hostName string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
 	client, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedInterestPolicy(hostName, []string{topic}, true))
 	require.NoError(t, err)
 	err = client.SubscribeMsg(topic, func(msg jetstream.Msg) error {
-		serialized := &blocktx_api.TransactionBlock{}
+		serialized := &test_api.TestMessage{}
 		unmarshlErr := proto.Unmarshal(msg.Data(), serialized)
 		require.NoError(t, unmarshlErr)
 

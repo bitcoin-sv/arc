@@ -6,10 +6,11 @@ import (
 	"os"
 	"testing"
 
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
+
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const migrationsPath = "file://../store/postgresql/migrations"

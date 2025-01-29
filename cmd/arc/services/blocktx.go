@@ -15,11 +15,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/version"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 const (
@@ -49,7 +49,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing)
+		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

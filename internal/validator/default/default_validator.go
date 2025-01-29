@@ -11,9 +11,9 @@ import (
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/fees"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (

@@ -13,7 +13,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (

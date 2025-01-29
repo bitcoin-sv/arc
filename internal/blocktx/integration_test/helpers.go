@@ -14,9 +14,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	nats_mock "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	nats_mock "github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx.PeerHandler, *postgresql.PostgreSQL, chan []byte, chan *blocktx_api.TransactionBlock) {

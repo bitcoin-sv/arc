@@ -7,7 +7,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 func (p *PostgreSQL) GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) (txHashes []*chainhash.Hash, err error) {

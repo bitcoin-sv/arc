@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -45,14 +44,14 @@ func NewTraceProvider(ctx context.Context, serviceName string, sample int, opts 
 	return tp, exporter, nil
 }
 
-func Enable(logger *slog.Logger, serviceName string, tracingConfig *config.TracingConfig) (func(), error) {
-	if tracingConfig.DialAddr == "" {
+func Enable(logger *slog.Logger, serviceName string, dialAddr string, sample int) (func(), error) {
+	if dialAddr == "" {
 		return nil, errors.New("tracing enabled, but tracing address empty")
 	}
 
 	ctx := context.Background()
 
-	tp, exporter, err := NewTraceProvider(ctx, serviceName, tracingConfig.Sample, otlptracegrpc.WithEndpointURL(tracingConfig.DialAddr), otlptracegrpc.WithInsecure())
+	tp, exporter, err := NewTraceProvider(ctx, serviceName, sample, otlptracegrpc.WithEndpointURL(dialAddr), otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace provider: %v", err)
 	}

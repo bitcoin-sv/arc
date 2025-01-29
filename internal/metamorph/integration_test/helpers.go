@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func pruneTables(t *testing.T, db *sql.DB) {

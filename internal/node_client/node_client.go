@@ -12,7 +12,7 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (

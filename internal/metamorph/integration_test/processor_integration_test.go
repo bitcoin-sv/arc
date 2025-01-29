@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	nats_mocks "github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	nats_mocks "github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
+
 	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"

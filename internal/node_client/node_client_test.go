@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (

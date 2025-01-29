@@ -13,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -22,7 +23,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/tracing"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"

@@ -12,6 +12,7 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
@@ -22,8 +23,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 )
 
 type Block struct {

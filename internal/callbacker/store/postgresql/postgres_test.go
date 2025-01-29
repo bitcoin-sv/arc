@@ -17,8 +17,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	tutils "github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql/internal/tests"
-	testutils "github.com/bitcoin-sv/arc/internal/test_utils"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (

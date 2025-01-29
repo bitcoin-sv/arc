@@ -13,16 +13,16 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/tracing"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/internal/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -61,7 +61,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	callbackerOpts := make([]callbacker.Option, 0)
 
 	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing)
+		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {

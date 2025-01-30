@@ -906,7 +906,6 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 			TxHash:      txHash[:],
 			BlockHash:   testutils.RevChainhash(t, "7258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
 			BlockHeight: uint64(826481),
-			MerklePath:  "merkle-path-2",
 			BlockStatus: blocktx_api.Status_STALE,
 		},
 	}

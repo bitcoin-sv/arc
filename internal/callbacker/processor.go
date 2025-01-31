@@ -147,7 +147,7 @@ func (p *Processor) Start() error {
 func (p *Processor) startSyncURLMapping() {
 	p.waitGroup.Add(1)
 	go func() {
-		timer := time.NewTimer(syncInterval)
+		timer := time.NewTicker(syncInterval)
 		defer func() {
 			timer.Stop()
 			p.waitGroup.Done()

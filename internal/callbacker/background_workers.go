@@ -113,7 +113,7 @@ func (w *BackgroundWorkers) DispatchPersistedCallbacks() error {
 	for {
 		callbacks, err := w.callbackerStore.PopMany(ctx, batchSize)
 		if err != nil {
-			return ErrFailedPopMany
+			return errors.Join(ErrFailedPopMany, err)
 		}
 
 		if len(callbacks) == 0 {

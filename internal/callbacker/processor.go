@@ -203,10 +203,6 @@ func (p *Processor) DispatchPersistedCallbacks() {
 					continue
 				}
 
-				if url == "" {
-					continue
-				}
-
 				err = p.store.SetURLMapping(ctx, store.URLMapping{
 					URL:      url,
 					Instance: p.hostName,

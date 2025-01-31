@@ -73,6 +73,10 @@ func WithNow(nowFunc func() time.Time) func(*SendManager) {
 
 func WithBufferSize(size int) func(*SendManager) {
 	return func(m *SendManager) {
+		if size >= entriesBufferSize {
+			m.bufferSize = entriesBufferSize
+			return
+		}
 		m.bufferSize = size
 	}
 }

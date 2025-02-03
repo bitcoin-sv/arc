@@ -14,8 +14,8 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
-	"github.com/stretchr/testify/require"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStartFillGaps(t *testing.T) {

@@ -100,19 +100,19 @@ type MetamorphConfig struct {
 }
 
 type BlocktxConfig struct {
-	ListenAddr                    string              `mapstructure:"listenAddr"`
-	DialAddr                      string              `mapstructure:"dialAddr"`
-	HealthServerDialAddr          string              `mapstructure:"healthServerDialAddr"`
-	Db                            *DbConfig           `mapstructure:"db"`
-	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
-	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
-	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
-	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
-	FillGaps                      *FillGapsConfig     `mapstructure:"fillGaps"`
-	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
-	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
-	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
-	IncomingIsLongest             bool                `mapstructure:"incomingIsLongest"`
+	ListenAddr                    string                             `mapstructure:"listenAddr"`
+	DialAddr                      string                             `mapstructure:"dialAddr"`
+	HealthServerDialAddr          string                             `mapstructure:"healthServerDialAddr"`
+	Db                            *DbConfig                          `mapstructure:"db"`
+	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
+	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
+	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
+	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
+	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
+	MaxAllowedBlockHeightMismatch int                                `mapstructure:"maxAllowedBlockHeightMismatch"`
+	MessageQueue                  *MessageQueueConfig                `mapstructure:"mq"`
+	P2pReadBufferSize             int                                `mapstructure:"p2pReadBufferSize"`
+	IncomingIsLongest             bool                               `mapstructure:"incomingIsLongest"`
 	BlockchainNetwork             *BlockchainNetwork[*BlocktxGroups] `mapstructure:"bcnet"`
 }
 

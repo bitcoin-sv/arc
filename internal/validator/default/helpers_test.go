@@ -90,14 +90,14 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 		{
 			name:             "tx finder returns rubbish",
 			txHex:            fixture.ValidTxRawHex,
-			mempoolAncestors: []string{fixture.ParentTx1.TxID(), fixture.RandomTx1.TxID()},
+			mempoolAncestors: []string{fixture.ParentTx1.TxID().String(), fixture.RandomTx1.TxID().String()},
 
 			expectedError: ErrParentNotFound,
 		},
 		{
 			name:             "with mined parents only",
 			txHex:            fixture.ValidTxRawHex,
-			mempoolAncestors: []string{fixture.ParentTx1.TxID()},
+			mempoolAncestors: []string{fixture.ParentTx1.TxID().String()},
 		},
 		{
 			name:                   "with mined parents only",

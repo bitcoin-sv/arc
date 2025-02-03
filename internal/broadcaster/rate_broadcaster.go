@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -126,7 +127,6 @@ func (b *UTXORateBroadcaster) Start() error {
 			case <-b.ctx.Done():
 				return
 			case <-submitBatchTicker.C:
-
 				txs, err := b.createSelfPayingTxs()
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
@@ -315,9 +315,14 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 			sat, found := b.satoshiMap.Load(res.Txid)
 			satoshis, isValid := sat.(uint64)
 
+			hash, _ := chainhash.NewHash(txIDBytes)
+			if err != nil {
+				b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+			}
+
 			if found && isValid {
 				newUtxo := &sdkTx.UTXO{
-					TxID:          txIDBytes,
+					TxID:          hash,
 					Vout:          0,
 					LockingScript: b.ks.Script,
 					Satoshis:      satoshis,

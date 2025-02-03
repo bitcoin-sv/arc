@@ -261,15 +261,15 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			putTxStatus: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:   tx1.TxID(),
+						Txid:   tx1.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx2.TxID(),
+						Txid:   tx2.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx3.TxID(),
+						Txid:   tx3.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 				},
@@ -277,17 +277,17 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			expectedStatuses: []*metamorph.TransactionStatus{
 				{
-					TxID:      tx1.TxID(),
+					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx2.TxID(),
+					TxID:      tx2.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx3.TxID(),
+					TxID:      tx3.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
@@ -301,15 +301,15 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			putTxStatus: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:   tx1.TxID(),
+						Txid:   tx1.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx2.TxID(),
+						Txid:   tx2.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx3.TxID(),
+						Txid:   tx3.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 				},
@@ -328,15 +328,15 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			putTxStatus: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:   tx1.TxID(),
+						Txid:   tx1.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx2.TxID(),
+						Txid:   tx2.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx3.TxID(),
+						Txid:   tx3.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 				},
@@ -349,17 +349,17 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			expectedStatuses: []*metamorph.TransactionStatus{
 				{
-					TxID:      tx1.TxID(),
+					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx2.TxID(),
+					TxID:      tx2.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx3.TxID(),
+					TxID:      tx3.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
@@ -373,15 +373,15 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			putTxStatus: &metamorph_api.TransactionStatuses{
 				Statuses: []*metamorph_api.TransactionStatus{
 					{
-						Txid:   tx1.TxID(),
+						Txid:   tx1.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx2.TxID(),
+						Txid:   tx2.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 					{
-						Txid:   tx3.TxID(),
+						Txid:   tx3.TxID().String(),
 						Status: metamorph_api.Status_RECEIVED,
 					},
 				},
@@ -391,17 +391,17 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			expectedStatuses: []*metamorph.TransactionStatus{
 				{
-					TxID:      tx1.TxID(),
+					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx2.TxID(),
+					TxID:      tx2.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx3.TxID(),
+					TxID:      tx3.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
 					Timestamp: now.Unix(),
 				},
@@ -416,17 +416,17 @@ func TestClient_SubmitTransactions(t *testing.T) {
 
 			expectedStatuses: []*metamorph.TransactionStatus{
 				{
-					TxID:      tx1.TxID(),
+					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_QUEUED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx2.TxID(),
+					TxID:      tx2.TxID().String(),
 					Status:    metamorph_api.Status_QUEUED.String(),
 					Timestamp: now.Unix(),
 				},
 				{
-					TxID:      tx3.TxID(),
+					TxID:      tx3.TxID().String(),
 					Status:    metamorph_api.Status_QUEUED.String(),
 					Timestamp: now.Unix(),
 				},

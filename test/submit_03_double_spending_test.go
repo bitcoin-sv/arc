@@ -40,7 +40,7 @@ func TestDoubleSpend(t *testing.T) {
 		// submit second transaction
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusDoubleSpendAttempted}, http.StatusOK)
 		require.Equal(t, StatusDoubleSpendAttempted, resp.TxStatus)
-		require.Equal(t, []string{tx1.TxID()}, *resp.CompetingTxs)
+		require.Equal(t, []string{tx1.TxID().String()}, *resp.CompetingTxs)
 
 		// give arc time to update the status of all competing transactions
 		time.Sleep(5 * time.Second)
@@ -50,7 +50,7 @@ func TestDoubleSpend(t *testing.T) {
 
 		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 		require.Equal(t, StatusDoubleSpendAttempted, statusResp.TxStatus)
-		require.Equal(t, []string{tx2.TxID()}, *statusResp.CompetingTxs)
+		require.Equal(t, []string{tx2.TxID().String()}, *statusResp.CompetingTxs)
 
 		// mine the first tx
 		node_client.Generate(t, bitcoind, 1)

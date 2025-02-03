@@ -473,7 +473,7 @@ func TestCallback(t *testing.T) {
 
 				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
 				for _, tx := range txs {
-					expectedTxsCallbacks[tx.TxID()] = 0
+					expectedTxsCallbacks[tx.TxID().String()] = 0
 				}
 
 				expectedCallbacksNumber := callbacksNumber * tc.numberOfTxs
@@ -645,8 +645,8 @@ func TestBatchCallback(t *testing.T) {
 
 				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
 				for _, tx := range txs {
-					t.Logf("expected callback - server: %d, tx ID: %s", i, tx.TxID())
-					expectedTxsCallbacks[tx.TxID()] = 0
+					t.Logf("expected callback - server: %d, tx ID: %s", i, tx.TxID().String())
+					expectedTxsCallbacks[tx.TxID().String()] = 0
 				}
 
 				expectedCallbacksNumber := callbacksNumber
@@ -868,7 +868,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				for i := 0; i < zeroChainCount; i++ {
 					output := parentTx.Outputs[0]
 					utxo := node_client.UnspentOutput{
-						Txid:         parentTx.TxID(),
+						Txid:         parentTx.TxID().String(),
 						Vout:         0,
 						Address:      address,
 						ScriptPubKey: output.LockingScript.String(),
@@ -927,7 +927,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 				parentTx := chain[len(chain)-1]
 				output := parentTx.Outputs[0]
 				utxo := node_client.UnspentOutput{
-					Txid:         parentTx.TxID(),
+					Txid:         parentTx.TxID().String(),
 					Vout:         0,
 					Address:      address,
 					ScriptPubKey: output.LockingScript.String(),

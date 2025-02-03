@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
@@ -147,11 +148,15 @@ func TestCheckInputs(t *testing.T) {
 	type args struct {
 		tx *sdkTx.Transaction
 	}
-
-	coinbaseInput := &sdkTx.TransactionInput{}
-	coinbaseInput.SetPrevTxFromOutput(&sdkTx.TransactionOutput{Satoshis: 100})
+	txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	require.NoError(t, err)
+	sourceTxHash, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
+	coinbaseInput := &sdkTx.TransactionInput{SourceTXID: sourceTxHash}
+	coinbaseInput.SetSourceTxOutput(&sdkTx.TransactionOutput{Satoshis: 100})
 	hexTxID, _ := hex.DecodeString(coinbaseTxID)
-	coinbaseInput.SourceTXID = hexTxID
+	hash, _ := chainhash.NewHash(hexTxID)
+	coinbaseInput.SourceTXID = hash
 
 	tests := []struct {
 		name    string
@@ -168,14 +173,14 @@ func TestCheckInputs(t *testing.T) {
 		{
 			name: "valid input",
 			args: args{
-				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: 100}}}}}},
+				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTXID: sourceTxHash, SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: 100}}}}}},
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid input satoshis",
 			args: args{
-				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis + 1}}}}}},
+				tx: &sdkTx.Transaction{Inputs: []*sdkTx.TransactionInput{{SourceTXID: sourceTxHash, SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis + 1}}}}}},
 			},
 			wantErr: true,
 		},
@@ -184,8 +189,10 @@ func TestCheckInputs(t *testing.T) {
 			args: args{
 				tx: &sdkTx.Transaction{
 					Inputs: []*sdkTx.TransactionInput{{
+						SourceTXID:        sourceTxHash,
 						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
 					}, {
+						SourceTXID:        sourceTxHash,
 						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
 					},
 					},

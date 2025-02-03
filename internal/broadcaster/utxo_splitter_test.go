@@ -75,10 +75,10 @@ func TestSplitUtxo(t *testing.T) {
 
 					txIDBytes, err := hex.DecodeString("842f1acda7a169f388765af73733dd3188e8c1cc52baa78fdac4279d53d98911")
 					require.NoError(t, err)
-					require.Equal(t, txIDBytes, tx.Inputs[0].SourceTXID)
+					require.Equal(t, txIDBytes, tx.Inputs[0].SourceTXID.CloneBytes())
 
 					return &metamorph_api.TransactionStatus{
-						Txid:   tx.TxID(),
+						Txid:   tx.TxID().String(),
 						Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					}, tc.broadcastTransactionsErr
 				},

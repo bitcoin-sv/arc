@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 func TestListenAndServe(t *testing.T) {

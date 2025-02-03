@@ -113,7 +113,6 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
-
 	operation := func() (sdkTx.UTXOs, error) {
 		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
@@ -130,7 +129,6 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	if err != nil {
 		return nil, err
 	}
-
 	return utxos, nil
 }
 
@@ -164,7 +162,6 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 		if err != nil {
 			return unspent, err
 		}
-
 		unspent[i] = &sdkTx.UTXO{
 			TxID:          h,
 			Vout:          utxo.Vout,

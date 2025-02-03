@@ -96,7 +96,7 @@ func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSource
 
 	// update cache
 	for _, tx := range foundTxs {
-		f.cacheStore.Set(tx.TxID(), *tx, cacheExpiration)
+		f.cacheStore.Set(tx.TxID().String(), *tx, cacheExpiration)
 	}
 
 	return append(cachedTxs, foundTxs...), nil

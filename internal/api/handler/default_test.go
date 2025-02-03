@@ -616,7 +616,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 						tx, _ := sdkTx.NewTransactionFromBytes(tc.getTx)
 
 						mt := metamorph.Transaction{
-							TxID:        tx.TxID(),
+							TxID:        tx.TxID().String(),
 							Bytes:       tc.getTx,
 							BlockHeight: 100,
 						}
@@ -1054,7 +1054,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
 				return []*metamorph.Transaction{
 					{
-						TxID:        tx.TxID(),
+						TxID:        tx.TxID().String(),
 						Bytes:       validTxParentBytes,
 						BlockHeight: 100,
 					},
@@ -1067,7 +1067,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				var res []*metamorph.TransactionStatus
 				for _, t := range txs {
 					txID := t.TxID()
-					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID }); found {
+					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
 						res = append(res, status)
 					}
 				}

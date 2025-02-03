@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
@@ -24,26 +25,31 @@ func TestStart(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
+	hash1, _ := chainhash.NewHash(testdata.TX1Hash[:])
+	hash2, _ := chainhash.NewHash(testdata.TX2Hash[:])
+	hash3, _ := chainhash.NewHash(testdata.TX3Hash[:])
+	hash4, _ := chainhash.NewHash(testdata.TX4Hash[:])
+
 	utxo1 := &sdkTx.UTXO{
-		TxID:          testdata.TX1Hash[:],
+		TxID:          hash1,
 		Vout:          0,
 		LockingScript: ks.Script,
 		Satoshis:      1000,
 	}
 	utxo2 := &sdkTx.UTXO{
-		TxID:          testdata.TX2Hash[:],
+		TxID:          hash2,
 		Vout:          0,
 		LockingScript: ks.Script,
 		Satoshis:      1000,
 	}
 	utxo3 := &sdkTx.UTXO{
-		TxID:          testdata.TX3Hash[:],
+		TxID:          hash3,
 		Vout:          0,
 		LockingScript: ks.Script,
 		Satoshis:      1000,
 	}
 	utxo4 := &sdkTx.UTXO{
-		TxID:          testdata.TX4Hash[:],
+		TxID:          hash4,
 		Vout:          0,
 		LockingScript: ks.Script,
 		Satoshis:      1000,
@@ -111,7 +117,7 @@ func TestStart(t *testing.T) {
 
 					for _, tx := range txs {
 						statuses = append(statuses, &metamorph_api.TransactionStatus{
-							Txid:   tx.TxID(),
+							Txid:   tx.TxID().String(),
 							Status: tc.responseStatus,
 						})
 					}

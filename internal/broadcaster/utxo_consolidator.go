@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -122,7 +123,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 						res.Status != metamorph_api.Status_SENT_TO_NETWORK {
 						b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
 						for _, tx := range batch {
-							if tx.TxID() == res.Txid {
+							if tx.TxID().String() == res.Txid {
 								b.logger.Debug(tx.String())
 								break
 							}
@@ -135,9 +136,14 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 						b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
 						return
 					}
+					hash, err := chainhash.NewHash(txIDBytes)
+					if err != nil {
+						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+						return
+					}
 
 					newUtxo := &sdkTx.UTXO{
-						TxID:          txIDBytes,
+						TxID:          hash,
 						Vout:          0,
 						LockingScript: b.keySet.Script,
 						Satoshis:      satoshiMap[res.Txid],
@@ -184,7 +190,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 				}
 
 				txsConsolidation = append(txsConsolidation, tx)
-				satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
+				satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 			}
 
 			if len(txsConsolidation) > 0 {
@@ -206,7 +212,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 
 			txsConsolidation = append(txsConsolidation, tx)
 
-			satoshiMap[tx.TxID()] = tx.TotalOutputSatoshis()
+			satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 			tx = sdkTx.NewTransaction()
 			txSatoshis = 0
 		}

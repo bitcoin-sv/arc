@@ -14,12 +14,13 @@ import (
 	"time"
 
 	"github.com/libsv/go-bc"
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -52,8 +53,8 @@ const (
 
 type Processor struct {
 	hostname                    string
-	blockRequestCh              chan BlockRequest
-	blockProcessCh              chan *p2p.BlockMessage
+	blockRequestCh              chan blocktx_p2p.BlockRequest
+	blockProcessCh              chan *bcnet.BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -80,8 +81,8 @@ type Processor struct {
 func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
-	blockRequestCh chan BlockRequest,
-	blockProcessCh chan *p2p.BlockMessage,
+	blockRequestCh chan blocktx_p2p.BlockRequest,
+	blockProcessCh chan *bcnet.BlockMessage,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -170,7 +171,7 @@ func (p *Processor) StartBlockRequesting() {
 				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
 				msg := wire.NewMsgGetDataSizeHint(1)
 				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
-				_ = peer.WriteMsg(msg)
+				peer.WriteMsg(msg)
 
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
@@ -192,7 +193,7 @@ func (p *Processor) StartBlockProcessing() {
 				var err error
 				timeStart := time.Now()
 
-				hash := blockMsg.Header.BlockHash()
+				hash := blockMsg.Hash
 
 				p.logger.Info("received block", slog.String("hash", hash.String()))
 
@@ -202,7 +203,7 @@ func (p *Processor) StartBlockProcessing() {
 					continue
 				}
 
-				storeErr := p.store.MarkBlockAsDone(p.ctx, &hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
+				storeErr := p.store.MarkBlockAsDone(p.ctx, hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
 				if storeErr != nil {
 					p.logger.Error("unable to mark block as processed", slog.String("hash", hash.String()), slog.String("err", storeErr.Error()))
 					continue
@@ -307,11 +308,11 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 	}
 }
 
-func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
-	blockHash := blockMsg.Header.BlockHash()
+	blockHash := blockMsg.Hash
 
 	ctx, span := tracing.StartTracing(ctx, "processBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -328,7 +329,7 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 	p.logger.Info("processing incoming block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockMsg.Height))
 
 	// check if we've already processed that block
-	existingBlock, _ := p.store.GetBlock(ctx, &blockHash)
+	existingBlock, _ := p.store.GetBlock(ctx, blockHash)
 
 	if existingBlock != nil {
 		p.logger.Warn("ignoring already existing block", slog.String("hash", blockHash.String()), slog.Uint64("height", blockMsg.Height))
@@ -371,13 +372,13 @@ func (p *Processor) processBlock(blockMsg *p2p.BlockMessage) (err error) {
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *p2p.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	blockHash := blockMsg.Header.BlockHash()
+	blockHash := blockMsg.Hash
 
 	previousBlockHash := blockMsg.Header.PrevBlock
 	merkleRoot := blockMsg.Header.MerkleRoot

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -46,8 +47,12 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 		return errors.Join(ErrFailedToDecodeTxID, err)
 	}
 
+	hash, err := chainhash.NewHash(txIDBytes)
+	if err != nil {
+		return err
+	}
 	utxo := &sdkTx.UTXO{
-		TxID:          txIDBytes,
+		TxID:          hash,
 		Vout:          vout,
 		LockingScript: b.fromKeySet.Script,
 		Satoshis:      satoshis,
@@ -88,19 +93,19 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 		return err
 	}
 
-	b.logger.Info("Splitting tx", slog.String("txid", tx.TxID()), slog.String("rawTx", tx.String()))
+	b.logger.Info("Splitting tx", slog.String("txid", tx.TxID().String()), slog.String("rawTx", tx.String()))
 	if dryrun {
 		return nil
 	}
 
-	b.logger.Info("Submit splitting tx", slog.String("txid", tx.TxID()))
+	b.logger.Info("Submit splitting tx", slog.String("txid", tx.TxID().String()))
 
 	resp, err := b.client.BroadcastTransaction(b.ctx, tx, metamorph_api.Status_SEEN_ON_NETWORK, "")
 	if err != nil {
 		return errors.Join(ErrFailedToBroadcastTx, err)
 	}
 
-	b.logger.Info("Splitting tx submitted", slog.String("txid", tx.TxID()), slog.String("status", resp.Status.String()))
+	b.logger.Info("Splitting tx submitted", slog.String("txid", tx.TxID().String()), slog.String("status", resp.Status.String()))
 
 	return nil
 }

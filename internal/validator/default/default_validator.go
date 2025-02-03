@@ -143,7 +143,12 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 
 	for _, txFromSet := range txSet {
 		cumulativeSize += txFromSet.Size()
-		totalInput := txFromSet.TotalInputSatoshis()
+		total, err := txFromSet.TotalInputSatoshis()
+		if err != nil {
+			e := fmt.Errorf("failed to get total input satoshis %w", err)
+			return validator.NewError(e, api.ErrStatusCumulativeFees)
+		}
+		totalInput := total
 		totalOutput := txFromSet.TotalOutputSatoshis()
 
 		if totalOutput > totalInput {
@@ -172,7 +177,11 @@ func isFeePaidEnough(feeModel sdkTx.FeeModel, tx *sdkTx.Transaction) (bool, uint
 		return false, 0, 0, err
 	}
 
-	totalInputSatoshis := tx.TotalInputSatoshis()
+	total, err := tx.TotalInputSatoshis()
+	if err != nil {
+		return false, 0, 0, err
+	}
+	totalInputSatoshis := total
 	totalOutputSatoshis := tx.TotalOutputSatoshis()
 
 	if totalInputSatoshis < totalOutputSatoshis {

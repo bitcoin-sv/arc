@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (
@@ -113,7 +113,7 @@ func TestNodeClient(t *testing.T) {
 		// then
 		require.NoError(t, err)
 
-		require.Equal(t, utxos[0].Txid, rawTx.TxID())
+		require.Equal(t, utxos[0].Txid, rawTx.TxID().String())
 
 		// when
 		_, err = sut.GetRawTransaction(ctx, "not areal id")
@@ -133,12 +133,12 @@ func TestNodeClient(t *testing.T) {
 			require.NoError(t, err)
 
 			if i != len(txs) {
-				expectedTxIDs[i] = tx.TxID()
+				expectedTxIDs[i] = tx.TxID().String()
 			}
 		}
 
 		// when
-		ancestorTxIDs, err := sut.GetMempoolAncestors(ctx, []string{txs[len(txs)-1].TxID()})
+		ancestorTxIDs, err := sut.GetMempoolAncestors(ctx, []string{txs[len(txs)-1].TxID().String()})
 
 		// then
 		require.NoError(t, err)

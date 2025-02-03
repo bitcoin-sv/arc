@@ -119,7 +119,7 @@ func checkOutputs(tx *sdkTx.Transaction) *Error {
 func checkInputs(tx *sdkTx.Transaction) *Error {
 	total := uint64(0)
 	for index, input := range tx.Inputs {
-		if input.PreviousTxIDStr() == coinbaseTxID {
+		if input.SourceTXID.String() == coinbaseTxID {
 			return NewError(errors.Join(ErrTxInputInvalid, fmt.Errorf("input %d is a coinbase input", index)), api.ErrStatusInputs)
 		}
 

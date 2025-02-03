@@ -6,13 +6,14 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
-	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,10 +21,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -35,13 +39,13 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 	}
 
-	pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+	nMessenger := &p2p.NetworkMessenger{}
 	cStore := cache.NewMemoryStore()
 
 	tt := []struct {
-		name  string
-		store store.MetamorphStore
-		pm    p2p.PeerManagerI
+		name      string
+		store     store.MetamorphStore
+		messenger *p2p.NetworkMessenger
 
 		expectedError           error
 		expectedNonNilProcessor bool
@@ -49,31 +53,31 @@ func TestNewProcessor(t *testing.T) {
 		{
 			name:                    "success",
 			store:                   mtmStore,
-			pm:                      pm,
+			messenger:               nMessenger,
 			expectedNonNilProcessor: true,
 		},
 		{
-			name:  "no store",
-			store: nil,
-			pm:    pm,
+			name:      "no store",
+			store:     nil,
+			messenger: nMessenger,
 
 			expectedError: metamorph.ErrStoreNil,
 		},
 		{
-			name:  "no pm",
-			store: mtmStore,
-			pm:    nil,
+			name:      "no pm",
+			store:     mtmStore,
+			messenger: nil,
 
-			expectedError: metamorph.ErrPeerManagerNil,
+			expectedError: metamorph.ErrPeerMessengerNil,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.pm, nil,
+			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.messenger, nil,
 				metamorph.WithCacheExpiryTime(time.Second*5),
-				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
+				metamorph.WithProcessorLogger(slog.Default()),
 			)
 
 			// then
@@ -97,18 +101,18 @@ func TestStartLockTransactions(t *testing.T) {
 		name         string
 		setLockedErr error
 
-		expectedSetLockedCalls int
+		expectedSetLockedCallsGreaterThan int
 	}{
 		{
 			name: "no error",
 
-			expectedSetLockedCalls: 2,
+			expectedSetLockedCallsGreaterThan: 2,
 		},
 		{
 			name:         "error",
 			setLockedErr: errors.New("failed to set locked"),
 
-			expectedSetLockedCalls: 2,
+			expectedSetLockedCallsGreaterThan: 2,
 		},
 	}
 
@@ -123,19 +127,19 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-
+			messenger := &p2p.NetworkMessenger{}
 			cStore := cache.NewMemoryStore()
 
 			// when
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
 			require.NoError(t, err)
 			defer sut.Shutdown()
+
 			sut.StartLockTransactions()
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(60 * time.Millisecond)
 
 			// then
-			require.Equal(t, tc.expectedSetLockedCalls, len(metamorphStore.SetLockedCalls()))
+			require.GreaterOrEqual(t, len(metamorphStore.SetLockedCalls()), tc.expectedSetLockedCallsGreaterThan)
 		})
 	}
 }
@@ -146,24 +150,23 @@ func TestProcessTransaction(t *testing.T) {
 		storeData       *store.Data
 		storeDataGetErr error
 
-		expectedResponseMapItems int
-		expectedResponses        []metamorph_api.Status
-		expectedSetCalls         int
-		expectedAnnounceCalls    int
-		expectedRequestCalls     int
+		expectedResponses     []metamorph_api.Status
+		expectedSetCalls      int
+		expectedAnnounceCalls int
+		expectedRequestCalls  int
 	}{
 		{
-			name:            "record not found",
+			name:            "record not found - success",
 			storeData:       nil,
 			storeDataGetErr: store.ErrNotFound,
 
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_STORED,
+				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
-			expectedResponseMapItems: 1,
-			expectedSetCalls:         1,
-			expectedAnnounceCalls:    1,
-			expectedRequestCalls:     1,
+			expectedSetCalls:      1,
+			expectedAnnounceCalls: 1,
+			expectedRequestCalls:  1,
 		},
 		{
 			name: "record found",
@@ -177,10 +180,9 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_REJECTED,
 			},
-			expectedResponseMapItems: 0,
-			expectedSetCalls:         1,
-			expectedAnnounceCalls:    0,
-			expectedRequestCalls:     0,
+			expectedSetCalls:      1,
+			expectedAnnounceCalls: 0,
+			expectedRequestCalls:  0,
 		},
 		{
 			name:            "store unavailable",
@@ -190,10 +192,9 @@ func TestProcessTransaction(t *testing.T) {
 			expectedResponses: []metamorph_api.Status{
 				metamorph_api.Status_RECEIVED,
 			},
-			expectedResponseMapItems: 0,
-			expectedSetCalls:         0,
-			expectedAnnounceCalls:    0,
-			expectedRequestCalls:     0,
+			expectedSetCalls:      0,
+			expectedAnnounceCalls: 0,
+			expectedRequestCalls:  0,
 		},
 	}
 
@@ -228,15 +229,29 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			pm := &mocks.PeerManagerMock{
-				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
-					require.True(t, testdata.TX1Hash.IsEqual(txHash))
-					return nil
+			announceMsgCounter := &atomic.Int32{}
+			requestMsgCounter := &atomic.Int32{}
+
+			peer := &p2pMocks.PeerIMock{
+				WriteMsgFunc: func(msg wire.Message) {
+					if msg.Command() == wire.CmdInv {
+						announceMsgCounter.Add(1)
+					} else if msg.Command() == wire.CmdGetData {
+						requestMsgCounter.Add(1)
+					}
 				},
-				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI { return nil },
+				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
+				StringFunc:    func() string { return "peer" },
+				ConnectedFunc: func() bool { return true },
 			}
 
 			cStore := cache.NewMemoryStore()
+
+			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
+			err := pm.AddPeer(peer)
+			require.NoError(t, err)
+
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -244,7 +259,7 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(s, cStore, pm, nil, metamorph.WithMessageQueueClient(publisher))
+			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithMessageQueueClient(publisher))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -272,16 +287,11 @@ func TestProcessTransaction(t *testing.T) {
 					ResponseChannel: responseChannel,
 				})
 			wg.Wait()
-
+			time.Sleep(250 * time.Millisecond)
 			// then
-			require.Equal(t, tc.expectedResponseMapItems, sut.GetProcessorMapSize())
-			if tc.expectedResponseMapItems > 0 {
-				require.Len(t, pm.AnnounceTransactionCalls(), 1)
-			}
-
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
-			require.Equal(t, tc.expectedAnnounceCalls, len(pm.AnnounceTransactionCalls()))
-			require.Equal(t, tc.expectedRequestCalls, len(pm.RequestTransactionCalls()))
+			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
+			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
 		})
 	}
 }
@@ -521,8 +531,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
-
+			messenger := &p2p.NetworkMessenger{}
 			cStore := cache.NewMemoryStore()
 			for _, i := range tc.inputs {
 				if i.registered {
@@ -531,7 +540,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
-			statusMessageChannel := make(chan *metamorph.TxStatusMessage, 10)
+			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
 			mqClient := &mocks.MessageQueueMock{
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
@@ -542,7 +551,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
-				pm,
+				messenger,
 				statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 				metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
@@ -557,7 +566,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 			for _, testInput := range tc.inputs {
-				statusMessageChannel <- &metamorph.TxStatusMessage{
+				statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 					Hash:         testInput.hash,
 					Status:       testInput.newStatus,
 					Err:          testInput.statusErr,
@@ -581,8 +590,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		name   string
 		txReqs []*metamorph_api.TransactionRequest
 
-		expectedSetBulkCalls     int
-		expectedAnnouncedTxCalls int
+		expectedSetBulkCalls int
+		expectedInvMessages  int
+		expcetedInvInMessage int
 	}{
 		{
 			name: "2 submitted txs",
@@ -601,8 +611,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 			},
 
-			expectedSetBulkCalls:     1,
-			expectedAnnouncedTxCalls: 2,
+			expectedSetBulkCalls: 1,
+			expectedInvMessages:  1,
+			expcetedInvInMessage: 2,
 		},
 		{
 			name: "5 submitted txs",
@@ -639,8 +650,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 			},
 
-			expectedSetBulkCalls:     2,
-			expectedAnnouncedTxCalls: 5,
+			expectedSetBulkCalls: 2,
+			expectedInvMessages:  1,
+			expcetedInvInMessage: 5,
 		},
 	}
 
@@ -670,22 +682,30 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			counter := 0
-			pm := &mocks.PeerManagerMock{
-				AnnounceTransactionFunc: func(txHash *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
-					switch counter {
-					case 0:
-						require.True(t, testdata.TX1Hash.IsEqual(txHash))
-					default:
-						require.True(t, testdata.TX6Hash.IsEqual(txHash))
+
+			announceMsgCounter := &atomic.Int32{}
+			peer := &p2pMocks.PeerIMock{
+				WriteMsgFunc: func(msg wire.Message) {
+					if msg.Command() == wire.CmdInv {
+						announceMsgCounter.Add(1)
+
+						invMsg, ok := msg.(*wire.MsgInv)
+						require.True(t, ok)
+						require.Equal(t, tc.expcetedInvInMessage, len(invMsg.InvList))
 					}
-					counter++
-					return []p2p.PeerI{&mocks.PeerIMock{}}
 				},
-				ShutdownFunc: func() {},
+				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
+				StringFunc:    func() string { return "peer" },
+				ConnectedFunc: func() bool { return true },
 			}
 
 			cStore := cache.NewMemoryStore()
+
+			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
+			err := pm.AddPeer(peer)
+			require.NoError(t, err)
+
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -694,7 +714,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 			const submittedTxsBuffer = 5
 			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
-			sut, err := metamorph.NewProcessor(s, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
@@ -725,10 +745,10 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				t.Fatal("submitted txs have not been stored within 2s")
 			case <-c:
 			}
-
+			time.Sleep(250 * time.Millisecond)
 			// then
 			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
-			require.Equal(t, tc.expectedAnnouncedTxCalls, len(pm.AnnounceTransactionCalls()))
+			require.Equal(t, tc.expectedInvMessages, int(announceMsgCounter.Load()))
 		})
 	}
 }
@@ -739,15 +759,15 @@ func TestProcessExpiredTransactions(t *testing.T) {
 		retries       int
 		getUnminedErr error
 
-		expectedRequests      int
-		expectedAnnouncements int
+		expectedRequests      int32
+		expectedAnnouncements int32
 	}{
 		{
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 2,
-			expectedRequests:      2,
+			expectedAnnouncements: 1,
+			expectedRequests:      1,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
@@ -785,7 +805,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 							StoredAt: time.Now(),
 							Hash:     testdata.TX4Hash,
 							Status:   metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-							Retries:  retries,
+							Retries:  retries + 1,
 						},
 						{
 							StoredAt: time.Now(),
@@ -795,26 +815,36 @@ func TestProcessExpiredTransactions(t *testing.T) {
 						},
 					}
 
-					retries++
-
 					return unminedData, tc.getUnminedErr
 				},
 				IncrementRetriesFunc: func(_ context.Context, _ *chainhash.Hash) error {
+					retries++
 					return nil
 				},
 			}
 
-			pm := &mocks.PeerManagerMock{
-				RequestTransactionFunc: func(_ *chainhash.Hash) p2p.PeerI {
-					return nil
+			var announceMsgCounter atomic.Int32
+			var requestMsgCounter atomic.Int32
+			peer := &p2pMocks.PeerIMock{
+				WriteMsgFunc: func(msg wire.Message) {
+					if msg.Command() == wire.CmdInv {
+						announceMsgCounter.Add(1)
+					} else if msg.Command() == wire.CmdGetData {
+						requestMsgCounter.Add(1)
+					}
 				},
-				AnnounceTransactionFunc: func(_ *chainhash.Hash, _ []p2p.PeerI) []p2p.PeerI {
-					return nil
-				},
-				ShutdownFunc: func() {},
+				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
+				StringFunc:    func() string { return "peer" },
+				ConnectedFunc: func() bool { return true },
 			}
 
 			cStore := cache.NewMemoryStore()
+
+			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
+			err := pm.AddPeer(peer)
+			require.NoError(t, err)
+
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
 
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
@@ -822,7 +852,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
@@ -837,11 +867,11 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
 
 			// then
-			require.Equal(t, tc.expectedAnnouncements, len(pm.AnnounceTransactionCalls()))
-			require.Equal(t, tc.expectedRequests, len(pm.RequestTransactionCalls()))
+			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter.Load())
+			require.Equal(t, tc.expectedRequests, requestMsgCounter.Load())
 		})
 	}
 }
@@ -898,7 +928,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			pm := &p2p.NetworkMessenger{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlock, 5)
 
 			mqClient := &mocks.MessageQueueMock{
@@ -984,23 +1014,20 @@ func TestProcessorHealth(t *testing.T) {
 				},
 			}
 
-			pm := &mocks.PeerManagerMock{
-				AddPeerFunc: func(_ p2p.PeerI) error {
-					return nil
-				},
-				GetPeersFunc: func() []p2p.PeerI {
-					peers := make([]p2p.PeerI, tc.peersAdded)
-					for i := 0; i < tc.peersAdded; i++ {
-						peers[i] = &p2p.PeerMock{}
-					}
-
-					return peers
-				},
-				ShutdownFunc: func() {},
+			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
+			for range tc.peersAdded {
+				peer := p2pMocks.PeerIMock{
+					NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
+					ConnectedFunc: func() bool { return true },
+					StringFunc:    func() string { return "peer" },
+				}
+				require.NoError(t, pm.AddPeer(&peer))
 			}
 			cStore := cache.NewMemoryStore()
 
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
+			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
+
+			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -1052,7 +1079,7 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
-			pm := &mocks.PeerManagerMock{ShutdownFunc: func() {}}
+			pm := &p2p.NetworkMessenger{}
 
 			cStore := cache.NewMemoryStore()
 

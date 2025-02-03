@@ -64,7 +64,7 @@ func handleRead(r *WireReader, pver uint32, bsvnet wire.BitcoinNet, result chan<
 		r.resetLimit()
 
 		if err != nil {
-			if strings.Contains(err.Error(), "unhandled command [") { // TODO: change it with new go-p2p version
+			if strings.Contains(err.Error(), "unhandled command [") {
 				// ignore unknown msg
 				continue
 			}

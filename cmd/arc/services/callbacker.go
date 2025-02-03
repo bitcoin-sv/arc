@@ -38,7 +38,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
-func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 
@@ -92,11 +92,21 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	workers.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
 	workers.StartFailedCallbacksDispatch(cfg.FailedCallbackCheckInterval)
 
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	clientClosedCh := make(chan struct{}, 1)
+
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
+
+	go func() {
+		select {
+		case <-clientClosedCh:
+			logger.Warn("message queue client closed")
+			shutdownCh <- "message queue client closed"
+		}
+	}()
 
 	hostname, err := os.Hostname()
 	if err != nil {

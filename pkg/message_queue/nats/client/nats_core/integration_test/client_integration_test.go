@@ -51,24 +51,19 @@ func testmain(m *testing.M) int {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = nats_connection.New(natsURL, logger)
+	natsConnClient, err = nats_connection.New(natsURL, logger, nil)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
 	}
 
-	natsConn, err = nats_connection.New(natsURL, logger)
+	natsConn, err = nats_connection.New(natsURL, logger, nil)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
 	}
 
 	defer func() {
-		err = natsConn.Drain()
-		if err != nil {
-			log.Fatalf("failed to drain nats connection: %v", err)
-		}
-
 		mqClient.Shutdown()
 
 		err = pool.Purge(resource)

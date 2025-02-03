@@ -48,7 +48,7 @@ func (td *TxData) IsMined() bool {
 
 func (td *TxData) GetTxID() string {
 	if len(td.txID) == 0 {
-		td.txID = td.Transaction.TxID()
+		td.txID = td.Transaction.TxID().String()
 	}
 
 	return td.txID
@@ -180,7 +180,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 		transactions = append(transactions, &TxData{
 			Transaction: tx,
 			BumpIndex:   pathIndex,
-			txID:        tx.TxID(),
+			txID:        tx.TxID().String(),
 		})
 	}
 

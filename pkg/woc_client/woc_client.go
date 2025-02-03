@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
@@ -159,8 +160,13 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 			return nil, errors.Join(ErrWOCFailedToDecodeHexString, err)
 		}
 
+		h, err := chainhash.NewHash(txIDBytes)
+		if err != nil {
+			return unspent, err
+		}
+
 		unspent[i] = &sdkTx.UTXO{
-			TxID:          txIDBytes,
+			TxID:          h,
 			Vout:          utxo.Vout,
 			LockingScript: lockingScript,
 			Satoshis:      utxo.Satoshis,

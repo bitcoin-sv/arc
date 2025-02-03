@@ -1,8 +1,10 @@
 package beef
 
 import (
+	"encoding/hex"
 	"errors"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
@@ -46,13 +48,21 @@ func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
 		for _, pe := range pathElement {
 			if pe.Txid != nil {
 				txID := pe.Hash.String()
-				mr, err := bump.ComputeRoot(&txID)
+				txIDBytes, err := hex.DecodeString(txID)
+				if err != nil {
+					return "", err
+				}
+				hash, err := chainhash.NewHash(txIDBytes)
+				if err != nil {
+					return "", err
+				}
+				mr, err := bump.ComputeRoot(hash)
 				if err != nil {
 					return "", err
 				}
 				if blockMerkleRoot == "" {
-					blockMerkleRoot = mr
-				} else if blockMerkleRoot != mr {
+					blockMerkleRoot = mr.String()
+				} else if blockMerkleRoot != mr.String() {
 					return "", ErrBUMPDifferentMerkleRoots
 				}
 			}

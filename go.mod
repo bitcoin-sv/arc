@@ -3,7 +3,7 @@ module github.com/bitcoin-sv/arc
 go 1.22.5
 
 require (
-	github.com/bitcoin-sv/go-sdk v1.0.0
+	github.com/bitcoin-sv/go-sdk v1.1.18
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/cenkalti/backoff/v4 v4.3.0
@@ -86,7 +86,6 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect

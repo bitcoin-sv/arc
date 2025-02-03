@@ -34,8 +34,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (

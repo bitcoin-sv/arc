@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/go-sdk/util"
-
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -24,8 +23,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 const (

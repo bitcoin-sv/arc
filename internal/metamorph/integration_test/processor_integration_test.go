@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/wire"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
@@ -14,12 +17,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
-
-	"github.com/libsv/go-p2p/wire"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	nats_mocks "github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
-	"github.com/stretchr/testify/require"
 )
 
 func TestProcessor(t *testing.T) {

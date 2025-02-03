@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"

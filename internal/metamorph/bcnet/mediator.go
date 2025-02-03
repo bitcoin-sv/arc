@@ -5,12 +5,13 @@ import (
 	"log/slog"
 	"runtime"
 
+	"github.com/libsv/go-p2p/wire"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/mcast"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/bitcoin-sv/arc/internal/tracing"
-	"github.com/libsv/go-p2p/wire"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 // Mediator acts as the central communication hub between metamorph processor and blockchain network,

@@ -35,7 +35,7 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
+func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store, shutdownCh chan string) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
 
@@ -105,11 +105,19 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	minedTxsChan := make(chan *blocktx_api.TransactionBlock, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
-	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	clientClosedCh := make(chan struct{}, 1)
+	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
+	go func() {
+		select {
+		case <-clientClosedCh:
+			logger.Warn("message queue client closed")
+			shutdownCh <- "message queue client closed"
+		}
+	}()
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
 		opts := []nats_jetstream.Option{

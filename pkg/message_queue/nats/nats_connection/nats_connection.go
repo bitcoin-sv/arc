@@ -12,7 +12,7 @@ import (
 
 var ErrNatsConnectionFailed = fmt.Errorf("failed to connect to NATS server")
 
-func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
+func New(natsURL string, logger *slog.Logger, clientClosedCh chan struct{}) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
@@ -22,7 +22,8 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	opts := []nats.Option{
+
+	natsOpts := []nats.Option{
 		nats.Name(hostname),
 		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
 			if err != nil {
@@ -33,16 +34,30 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 			logger.Info(fmt.Sprintf("Known servers: %v", nc.Servers()))
 			logger.Info(fmt.Sprintf("Discovered servers: %v", nc.DiscoveredServers()))
 		}),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			var args []any
 			if err != nil {
-				logger.Error("client disconnected", slog.String("err", err.Error()))
+				args = append(args, slog.String("err", err.Error()))
 			}
+			buffered, bufferedErr := nc.Buffered()
+			if bufferedErr == nil {
+				args = append(args, slog.Int("buffered", buffered))
+			}
+
+			logger.Error("client disconnected", args...)
+
 		}),
 		nats.ReconnectHandler(func(_ *nats.Conn) {
 			logger.Info("client reconnected")
 		}),
 		nats.ClosedHandler(func(_ *nats.Conn) {
-			logger.Info("client closed")
+			logger.Warn("client closed")
+			if clientClosedCh != nil {
+				select {
+				case clientClosedCh <- struct{}{}:
+				default:
+				}
+			}
 		}),
 		nats.RetryOnFailedConnect(true),
 		nats.PingInterval(30 * time.Second),
@@ -52,7 +67,7 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 		nats.ReconnectWait(2 * time.Second),
 	}
 
-	nc, err = nats.Connect(natsURL, opts...)
+	nc, err = nats.Connect(natsURL, natsOpts...)
 	if err != nil {
 		return nil, errors.Join(ErrNatsConnectionFailed, err)
 	}

@@ -31,7 +31,7 @@ const (
 	blockProcessingBuffer = 100
 )
 
-func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
 
@@ -84,11 +84,19 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	clientClosedCh := make(chan struct{}, 1)
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
+	go func() {
+		select {
+		case <-clientClosedCh:
+			logger.Warn("message queue client closed")
+			shutdownCh <- "message queue client closed"
+		}
+	}()
 
 	if arcConfig.MessageQueue.Streaming.Enabled {
 		opts := []nats_jetstream.Option{

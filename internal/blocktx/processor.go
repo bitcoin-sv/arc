@@ -304,7 +304,7 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 
 	err = p.publishMinedTxs(txHashes)
 	if err != nil {
-		p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
+		p.logger.Error("Failed to publish mined txs", slog.String("err", err.Error()))
 	}
 }
 
@@ -836,7 +836,7 @@ func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.Block
 
 		err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, txBlock)
 		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
+			p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("txHash", getHashStringNoErr(tx.TxHash)), slog.String("err", err.Error()))
 			publishErr = err
 		}
 	}

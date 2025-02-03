@@ -16,6 +16,8 @@ func New(natsURL string, logger *slog.Logger) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
+	logger.With(slog.String("module", "nats"))
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err

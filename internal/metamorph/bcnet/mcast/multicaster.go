@@ -4,11 +4,12 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/libsv/go-p2p/bsvutil"
+	"github.com/libsv/go-p2p/wire"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/multicast"
-	"github.com/libsv/go-p2p/bsvutil"
-	"github.com/libsv/go-p2p/wire"
 )
 
 var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
@@ -81,7 +82,6 @@ func (m *Multicaster) Disconnect() {
 func (m *Multicaster) SendTx(rawTx []byte) error {
 	tx, err := bsvutil.NewTxFromBytes(rawTx)
 	if err != nil {
-		//	m.logger.Error("failed to parse tx", slog.String("rawHex", hex.EncodeToString(rawTx)), slog.String("err", err.Error()))
 		return err
 	}
 

@@ -2,32 +2,32 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 
-	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/pkg/tracing"
-
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/mcast"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/bitcoin-sv/arc/internal/version"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 const (
@@ -43,7 +43,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	var (
 		metamorphStore  store.MetamorphStore
+		bcMediator      *bcnet.Mediator
 		pm              *p2p.PeerManager
+		messenger       *p2p.NetworkMessenger
+		multicaster     *mcast.Multicaster
 		statusMessageCh chan *metamorph_p2p.TxStatusMessage
 		mqClient        metamorph.MessageQueue
 		processor       *metamorph.Processor
@@ -58,6 +61,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
 	callbackerOpts := make([]callbacker.Option, 0)
+	bcMediatorOpts := make([]bcnet.Option, 0)
 
 	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
@@ -77,11 +81,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
 		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
 		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
+		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
 	}
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
-		disposeMtm(logger, server, processor, pm, mqClient, metamorphStore, healthServer, shutdownFns)
+		disposeMtm(logger, server, processor, pm, messenger, multicaster, mqClient, metamorphStore, healthServer, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
@@ -90,7 +95,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	pm, statusMessageCh, err = initPeerManager(logger, metamorphStore, arcConfig)
+	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, arcConfig, bcMediatorOpts)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -162,7 +167,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
-		p2p.NewNetworkMessenger(logger, pm),
+		bcMediator,
 		statusMessageCh,
 		processorOpts...,
 	)
@@ -188,7 +193,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	for i, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
+	for i, peerSetting := range arcConfig.Metamorph.BlockchainNetwork.Peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
 			logger.Warn("failed to get zmq URL for peer", slog.Int("index", i), slog.String("err", err.Error()))
@@ -255,53 +260,125 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 	return s, err
 }
 
-func initPeerManager(logger *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig) (*p2p.PeerManager, chan *metamorph_p2p.TxStatusMessage, error) {
-	network, err := config.GetNetwork(arcConfig.Network)
+// setupMtmBcNetworkCommunication initializes the Metamorph blockchain network communication, configuring it
+// to operate in either classic (P2P-only) or hybrid (P2P and multicast) mode.
+//
+// Parameters:
+// - `l *slog.Logger`: Logger instance for event logging.
+// - `s store.MetamorphStore`: Storage interface for Metamorph operations.
+// - `arcConfig *config.ArcConfig`: Configuration object for blockchain network settings.
+// - `mediatorOpts []bcnet.Option`: Additional options for the mediator.
+//
+// Returns:
+// - `mediator *bcnet.Mediator`: Coordinates communication between P2P and multicast layers.
+// - `messenger *p2p.NetworkMessenger`: Handles P2P message delivery - used by mediator only.
+// - `manager *p2p.PeerManager`: Manages the lifecycle of P2P peers.
+// - `multicaster *mcast.Multicaster`: Handles multicast message broadcasting and listening - used by mediator only.
+// - `messageCh chan *metamorph_p2p.TxStatusMessage`: Channel for handling transaction status messages.
+// - `err error`: Error if any part of the setup fails.
+//
+// Key Details:
+// - **Mode Handling**:
+//   - `"classic"`: Uses `metamorph_p2p.NewMsgHandler` for exclusive P2P communication.
+//   - `"hybrid"`: Uses `metamorph_p2p.NewHybridMsgHandler` for integration of P2P and multicast group communication.
+//
+// - **Error Cleanup**: Cleans up resources such as the messenger, manager, and multicaster on failure.
+// - **Peer Management**: Establishes connections to P2P peers and configures them with write handlers and buffer sizes.
+// - **Multicast Communication**: In hybrid mode, joins multicast groups for transaction and rejection messages.
+//
+// Message Handlers:
+// - `metamorph_p2p.NewMsgHandler`: Used in classic mode, handling all communication via P2P.
+// - `metamorph_p2p.NewHybridMsgHandler`: Used in hybrid mode, integrating P2P communication with multicast group updates.
+func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig, mediatorOpts []bcnet.Option) (
+	mediator *bcnet.Mediator, messenger *p2p.NetworkMessenger, manager *p2p.PeerManager, multicaster *mcast.Multicaster,
+	messageCh chan *metamorph_p2p.TxStatusMessage, err error) {
+	defer func() {
+		// cleanup on error
+		if err == nil {
+			return
+		}
+
+		if messenger != nil {
+			messenger.Shutdown()
+			messenger = nil
+		}
+
+		if manager != nil {
+			manager.Shutdown()
+			manager = nil
+		}
+
+		if multicaster != nil {
+			multicaster.Disconnect()
+			multicaster = nil
+		}
+	}()
+
+	cfg := arcConfig.Metamorph.BlockchainNetwork
+	network, err := config.GetNetwork(cfg.Network)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get network: %v", err)
+		return
 	}
 
-	logger.Info("Assuming bitcoin network", "network", network)
+	l.Info("Assuming bitcoin network", "network", network)
 
-	messageCh := make(chan *metamorph_p2p.TxStatusMessage, 10000)
-	var pmOpts []p2p.PeerManagerOptions
+	messageCh = make(chan *metamorph_p2p.TxStatusMessage, 10000)
+	var msgHandler p2p.MessageHandlerI
+
+	switch cfg.Mode {
+	case "classic":
+		msgHandler = metamorph_p2p.NewMsgHandler(l, s, messageCh)
+	case "hybrid":
+		l.Info("!!! Metamorph will communicate with blockchain in HYBRID mode (via p2p and multicast groups) !!!")
+		msgHandler = metamorph_p2p.NewHybridMsgHandler(l, messageCh)
+	default:
+		err = fmt.Errorf("unsupported communication type: %s", cfg.Mode)
+		return
+	}
+
+	// connect to peers
+	var managerOpts []p2p.PeerManagerOptions
 	if arcConfig.Metamorph.MonitorPeers {
-		pmOpts = append(pmOpts, p2p.WithRestartUnhealthyPeers())
+		managerOpts = append(managerOpts, p2p.WithRestartUnhealthyPeers())
 	}
 
-	pm := p2p.NewPeerManager(logger.With(slog.String("module", "peer-mng")), network, pmOpts...)
-
-	msgHandler := metamorph_p2p.NewMsgHandler(logger.With(slog.String("module", "peer-msg-handler")), s, messageCh)
-
-	peerOpts := []p2p.PeerOptions{
-		p2p.WithPingInterval(30*time.Second, 2*time.Minute),
+	manager = p2p.NewPeerManager(l.With(slog.String("module", "peer-mng")), network, managerOpts...)
+	peers, err := connectToPeers(l, network, msgHandler, cfg.Peers,
 		p2p.WithNrOfWriteHandlers(8),
-		p2p.WithWriteChannelSize(4096),
+		p2p.WithWriteChannelSize(4096))
+	if err != nil {
+		return
 	}
 
-	if version.Version != "" {
-		peerOpts = append(peerOpts, p2p.WithUserAgent("ARC", version.Version))
+	for _, p := range peers {
+		if err = manager.AddPeer(p); err != nil {
+			return
+		}
 	}
 
-	l := logger.With(slog.String("module", "peer"))
-	for _, peerSetting := range arcConfig.Broadcasting.Unicast.Peers {
-		peerURL, err := peerSetting.GetP2PUrl()
-		if err != nil {
-			return nil, nil, fmt.Errorf("error getting peer url: %v", err)
+	// connect to mcast
+	if cfg.Mode == "hybrid" {
+		if cfg.Mcast == nil {
+			err = errors.New("mcast config is required")
+			return
 		}
 
-		peer := p2p.NewPeer(l, msgHandler, peerURL, network, peerOpts...)
-		ok := peer.Connect()
+		// TODO: add interfaces
+		groups := mcast.GroupsAddresses{
+			McastTx:     cfg.Mcast.McastTx.Address,
+			McastReject: cfg.Mcast.McastReject.Address,
+		}
+		multicaster = mcast.NewMulticaster(l, groups, network, messageCh)
+		ok := multicaster.Connect()
 		if !ok {
-			return nil, nil, fmt.Errorf("cannot connect to peer %s", peerURL)
-		}
-
-		if err = pm.AddPeer(peer); err != nil {
-			return nil, nil, fmt.Errorf("error adding peer %s: %v", peerURL, err)
+			err = fmt.Errorf("error connecting to mcast: %w", err)
+			return
 		}
 	}
 
-	return pm, messageCh, nil
+	messenger = p2p.NewNetworkMessenger(l, manager)
+	mediator = bcnet.NewMediator(l, cfg.Mode == "classic", messenger, multicaster, mediatorOpts...)
+	return
 }
 
 func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
@@ -318,7 +395,7 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int,
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
-	peerManaager *p2p.PeerManager, mqClient metamorph.MessageQueueClient,
+	pm *p2p.PeerManager, messenger *p2p.NetworkMessenger, multicaster *mcast.Multicaster, mqClient metamorph.MessageQueueClient,
 	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
 	shutdownFns []func(),
 ) {
@@ -337,9 +414,19 @@ func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.P
 	if processor != nil {
 		processor.Shutdown()
 	}
-	if peerManaager != nil {
-		peerManaager.Shutdown()
+
+	if messenger != nil {
+		messenger.Shutdown()
 	}
+
+	if pm != nil {
+		pm.Shutdown()
+	}
+
+	if multicaster != nil {
+		multicaster.Disconnect()
+	}
+
 	if mqClient != nil {
 		mqClient.Shutdown()
 	}

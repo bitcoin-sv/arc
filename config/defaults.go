@@ -17,7 +17,6 @@ func getDefaultArcConfig() *ArcConfig {
 		MessageQueue:    getDefaultMessageQueueConfig(),
 		Tracing:         getDefaultTracingConfig(),
 		PeerRPC:         getDefaultPeerRPCConfig(),
-		Broadcasting:    getBroadcastingConfig(),
 		Metamorph:       getMetamorphConfig(),
 		Blocktx:         getBlocktxConfig(),
 		API:             getAPIConfig(),
@@ -54,40 +53,6 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 	}
 }
 
-func getBroadcastingConfig() *BroadcastingConfig {
-	return &BroadcastingConfig{
-		Mode: "unicast",
-		Unicast: &Unicast{
-			Peers: []*PeerConfig{
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18333,
-						ZMQ: 28332,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18334,
-					},
-				},
-				{
-					Host: "localhost",
-					Port: &PeerPortConfig{
-						P2P: 18335,
-					},
-				},
-			},
-		},
-		Multicast: &Mulsticast{
-			Ipv6Enabled:     false,
-			MulticastGroups: nil,
-			Interfaces:      nil,
-		},
-	}
-}
-
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
 		ListenAddr:                              "localhost:8001",
@@ -111,6 +76,19 @@ func getMetamorphConfig() *MetamorphConfig {
 			NotSeenTimeLimit:  10 * time.Minute,
 			NotFinalTimeLimit: 20 * time.Minute,
 		},
+		BlockchainNetwork: &BlockchainNetwork[*MetamorphGroups]{
+			Mode:    "classic",
+			Network: "regtest",
+			Peers: []*PeerConfig{
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -129,6 +107,19 @@ func getBlocktxConfig() *BlocktxConfig {
 		MessageQueue:                  &MessageQueueConfig{},
 		P2pReadBufferSize:             8 * 1024 * 1024,
 		IncomingIsLongest:             false,
+		BlockchainNetwork: &BlockchainNetwork[*BlocktxGroups]{
+			Mode:    "classic",
+			Network: "regtest",
+			Peers: []*PeerConfig{
+				{
+					Host: "localhost",
+					Port: &PeerPortConfig{
+						P2P: 18333,
+						ZMQ: 28332,
+					},
+				},
+			},
+		},
 	}
 }
 

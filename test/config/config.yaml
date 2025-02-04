@@ -1,13 +1,12 @@
 ---
-logLevel: INFO
 logFormat: tint
+logLevel: INFO
 profilerAddr: localhost:9999
 prometheus:
   enabled: true
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
-network: regtest
 messageQueue:
   streaming:
     enabled: true
@@ -23,23 +22,6 @@ peerRpc:
   user: bitcoin
   host: node1
   port: 18332
-
-broadcasting:
-  mode: unicast
-  unicast:
-    peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node3
-      port:
-        p2p: 18333
-        zmq: 28332
 
 cache:
   engine: redis
@@ -77,6 +59,22 @@ metamorph:
   stats:
     notSeenTimeLimit: 10m
     notFinalTimeLimit: 20m
+  bcnet:
+    mode: classic 
+    network: regtest 
+    peers: 
+    - host: node1
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node2
+      port:
+        p2p: 18333 
+        zmq: 28332 
+    - host: node3
+      port:
+        p2p: 18333 
+        zmq: 28332 
 
 blocktx:
   listenAddr: 0.0.0.0:8011
@@ -103,6 +101,22 @@ blocktx:
     interval: 1s # This allows e2e tests to pass as there will be no gaps when initial blocks are created
   maxAllowedBlockHeightMismatch: 3
   p2pReadBufferSize: 8388608
+  bcnet:
+    mode: classic
+    network: regtest
+    peers:
+    - host: node1
+      port:
+        p2p: 18333
+        zmq: 28332
+    - host: node2
+      port:
+        p2p: 18333
+        zmq: 28332
+    - host: node3
+      port:
+        p2p: 18333
+        zmq: 28332
 
 api:
   address: 0.0.0.0:9090

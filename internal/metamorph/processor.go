@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
-	metamorph_p2p "github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
+	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -65,7 +65,7 @@ type Processor struct {
 	store                     store.MetamorphStore
 	cacheStore                cache.Store
 	hostname                  string
-	messenger                 *p2p.NetworkMessenger
+	bcMediator                *bcnet.Mediator
 	mqClient                  MessageQueue
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
@@ -115,12 +115,12 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkMessenger, statusMessageChannel chan *metamorph_p2p.TxStatusMessage, opts ...Option) (*Processor, error) {
+func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator *bcnet.Mediator, statusMessageChannel chan *metamorph_p2p.TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}
 
-	if messenger == nil {
+	if bcMediator == nil {
 		return nil, ErrPeerMessengerNil
 	}
 
@@ -133,7 +133,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, messenger *p2p.NetworkM
 		store:                     s,
 		cacheStore:                c,
 		hostname:                  hostname,
-		messenger:                 messenger,
+		bcMediator:                bcMediator,
 		mapExpiryTime:             mapExpiryTimeDefault,
 		recheckSeenFromAgo:        recheckSeenFromAgo,
 		recheckSeenUntilAgo:       recheckSeenUntilAgoDefault,
@@ -712,13 +712,13 @@ func (p *Processor) StartProcessExpiredTransactions() {
 						if tx.Retries%2 != 0 {
 							// Send GETDATA to peers to see if they have it
 							p.logger.Debug("Re-getting expired tx", slog.String("hash", tx.Hash.String()))
-							p.messenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
+							p.bcMediator.AskForTxAsync(ctx, tx)
 							requested++
 							continue
 						}
 
 						p.logger.Debug("Re-announcing expired tx", slog.String("hash", tx.Hash.String()))
-						p.messenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
+						p.bcMediator.AnnounceTxAsync(ctx, tx)
 						announced++
 					}
 				}
@@ -735,7 +735,7 @@ func (p *Processor) StartProcessExpiredTransactions() {
 
 // GetPeers returns a list of connected and disconnected peers
 func (p *Processor) GetPeers() []p2p.PeerI {
-	return p.messenger.GetPeers()
+	return p.bcMediator.GetPeers()
 }
 
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
@@ -797,18 +797,18 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// register transaction in blocktx using message queue
-	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
-		p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-	}
-
 	// broadcast that transaction is stored to client
 	statusResponse.UpdateStatus(StatusAndError{
 		Status: metamorph_api.Status_STORED,
 	})
 
+	// register transaction in blocktx using message queue
+	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
+		p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
+	}
+
 	// Add this transaction to the map of transactions that client is listening to with open connection
-	ctx, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
+	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
 	p.responseProcessor.Add(statusResponse)
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
@@ -819,15 +819,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
 	}
 
-	// Send GETDATA to peers to see if they have it
-	_, requestTransactionSpan := tracing.StartTracing(ctx, "RequestWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
-	p.messenger.RequestWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
-	tracing.EndTracing(requestTransactionSpan, nil)
-
-	// Announce transaction to network peers
-	_, announceTransactionSpan := tracing.StartTracing(ctx, "AnnounceWithAutoBatch", p.tracingEnabled, p.tracingAttributes...)
-	p.messenger.AnnounceWithAutoBatch(req.Data.Hash, wire.InvTypeTx)
-	tracing.EndTracing(announceTransactionSpan, nil)
+	// ask network about the tx to see if they have it
+	p.bcMediator.AskForTxAsync(ctx, req.Data)
+	p.bcMediator.AnnounceTxAsync(ctx, req.Data)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -869,8 +863,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}
 
-		// Announce transaction to network and save peers
-		p.messenger.AnnounceWithAutoBatch(data.Hash, wire.InvTypeTx)
+		p.bcMediator.AnnounceTxAsync(ctx, data)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{
@@ -882,7 +875,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 }
 
 func (p *Processor) Health() error {
-	healthyConnections := int(p.messenger.CountConnectedPeers()) // #nosec G115
+	healthyConnections := int(p.bcMediator.CountConnectedPeers()) // #nosec G115
 
 	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))

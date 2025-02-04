@@ -22,7 +22,6 @@ type ArcConfig struct {
 	MessageQueue    *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing         *TracingConfig      `mapstructure:"tracing"`
 	PeerRPC         *PeerRPCConfig      `mapstructure:"peerRpc"`
-	Broadcasting    *BroadcastingConfig `mapstructure:"broadcasting"`
 	Metamorph       *MetamorphConfig    `mapstructure:"metamorph"`
 	Blocktx         *BlocktxConfig      `mapstructure:"blocktx"`
 	API             *APIConfig          `mapstructure:"api"`
@@ -39,21 +38,6 @@ type PrometheusConfig struct {
 
 func (p *PrometheusConfig) IsEnabled() bool {
 	return p.Enabled && p.Addr != "" && p.Endpoint != ""
-}
-
-type BroadcastingConfig struct {
-	Mode      string      `mapstructure:"mode"`
-	Multicast *Mulsticast `mapstructure:"multicast"`
-	Unicast   *Unicast    `mapstructure:"unicast"`
-}
-
-type Unicast struct {
-	Peers []*PeerConfig `mapstructure:"peers"`
-}
-type Mulsticast struct {
-	Ipv6Enabled     bool      `mapstructure:"ipv6Enabled"`
-	MulticastGroups []*string `mapstructure:"multicastGroups"`
-	Interfaces      []*string `mapstructure:"interfaces"`
 }
 
 type PeerConfig struct {
@@ -100,34 +84,57 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                              string        `mapstructure:"listenAddr"`
-	DialAddr                                string        `mapstructure:"dialAddr"`
-	Db                                      *DbConfig     `mapstructure:"db"`
-	ProcessorCacheExpiryTime                time.Duration `mapstructure:"processorCacheExpiryTime"`
-	UnseenTransactionRebroadcastingInterval time.Duration `mapstructure:"unseenTransactionRebroadcastingInterval"`
-	MaxRetries                              int           `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval             time.Duration `mapstructure:"processStatusUpdateInterval"`
-	RecheckSeen                             RecheckSeen   `mapstructure:"recheckSeen"`
-	MonitorPeers                            bool          `mapstructure:"monitorPeers"`
-	Health                                  *HealthConfig `mapstructure:"health"`
-	RejectCallbackContaining                []string      `mapstructure:"rejectCallbackContaining"`
-	Stats                                   *StatsConfig  `mapstructure:"stats"`
+	ListenAddr                              string                               `mapstructure:"listenAddr"`
+	DialAddr                                string                               `mapstructure:"dialAddr"`
+	Db                                      *DbConfig                            `mapstructure:"db"`
+	ProcessorCacheExpiryTime                time.Duration                        `mapstructure:"processorCacheExpiryTime"`
+	UnseenTransactionRebroadcastingInterval time.Duration                        `mapstructure:"unseenTransactionRebroadcastingInterval"`
+	MaxRetries                              int                                  `mapstructure:"maxRetries"`
+	ProcessStatusUpdateInterval             time.Duration                        `mapstructure:"processStatusUpdateInterval"`
+	RecheckSeen                             RecheckSeen                          `mapstructure:"recheckSeen"`
+	MonitorPeers                            bool                                 `mapstructure:"monitorPeers"`
+	Health                                  *HealthConfig                        `mapstructure:"health"`
+	RejectCallbackContaining                []string                             `mapstructure:"rejectCallbackContaining"`
+	Stats                                   *StatsConfig                         `mapstructure:"stats"`
+	BlockchainNetwork                       *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type BlocktxConfig struct {
-	ListenAddr                    string              `mapstructure:"listenAddr"`
-	DialAddr                      string              `mapstructure:"dialAddr"`
-	HealthServerDialAddr          string              `mapstructure:"healthServerDialAddr"`
-	Db                            *DbConfig           `mapstructure:"db"`
-	RecordRetentionDays           int                 `mapstructure:"recordRetentionDays"`
-	RegisterTxsInterval           time.Duration       `mapstructure:"registerTxsInterval"`
-	MaxBlockProcessingDuration    time.Duration       `mapstructure:"maxBlockProcessingDuration"`
-	MonitorPeers                  bool                `mapstructure:"monitorPeers"`
-	FillGaps                      *FillGapsConfig     `mapstructure:"fillGaps"`
-	MaxAllowedBlockHeightMismatch int                 `mapstructure:"maxAllowedBlockHeightMismatch"`
-	MessageQueue                  *MessageQueueConfig `mapstructure:"mq"`
-	P2pReadBufferSize             int                 `mapstructure:"p2pReadBufferSize"`
-	IncomingIsLongest             bool                `mapstructure:"incomingIsLongest"`
+	ListenAddr                    string                             `mapstructure:"listenAddr"`
+	DialAddr                      string                             `mapstructure:"dialAddr"`
+	HealthServerDialAddr          string                             `mapstructure:"healthServerDialAddr"`
+	Db                            *DbConfig                          `mapstructure:"db"`
+	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
+	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
+	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
+	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
+	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
+	MaxAllowedBlockHeightMismatch int                                `mapstructure:"maxAllowedBlockHeightMismatch"`
+	MessageQueue                  *MessageQueueConfig                `mapstructure:"mq"`
+	P2pReadBufferSize             int                                `mapstructure:"p2pReadBufferSize"`
+	IncomingIsLongest             bool                               `mapstructure:"incomingIsLongest"`
+	BlockchainNetwork             *BlockchainNetwork[*BlocktxGroups] `mapstructure:"bcnet"`
+}
+
+type BlockchainNetwork[McastT any] struct {
+	Mode    string        `mapstructure:"mode"`
+	Network string        `mapstructure:"network"`
+	Peers   []*PeerConfig `mapstructure:"peers"`
+	Mcast   McastT        `mapstructure:"mcast"`
+}
+
+type BlocktxGroups struct {
+	McastBlock McastGroup `mapstructure:"block"`
+}
+
+type MetamorphGroups struct {
+	McastTx     McastGroup `mapstructure:"tx"`
+	McastReject McastGroup `mapstructure:"reject"`
+}
+
+type McastGroup struct {
+	Address    string   `mapstructure:"address"`
+	Interfaces []string `mapstructure:"interfaces"`
 }
 
 type DbConfig struct {
@@ -149,10 +156,6 @@ type PostgresConfig struct {
 type CacheConfig struct {
 	Engine string       `mapstructure:"engine"`
 	Redis  *RedisConfig `mapstructure:"redis"`
-}
-
-type FreeCacheConfig struct {
-	Size int `mapstructure:"size"`
 }
 
 type RedisConfig struct {

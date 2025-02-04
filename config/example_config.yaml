@@ -1,6 +1,6 @@
 ---
-logFormat: text # format of logging. Value can be one of text | json | tint
 logLevel: DEBUG # mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR
+logFormat: text # format of logging. Value can be one of text | json | tint
 profilerAddr: localhost:9999 # address to start profiler server on (optional)
 prometheus:
   enabled: false # if true, then prometheus metrics are enabled
@@ -79,12 +79,12 @@ metamorph:
         p2p: 18335
     mcast: # multicast groups (required if mode: hybrid)
       tx:
-        address: "[]" # multicast group IPv6 address 
+        address: "[]" # multicast group IPv6 address
         interfaces:
         - "eth0"
         - "eth1"
       reject:
-        address: "[]" # multicast group IPv6 address 
+        address: "[]" # multicast group IPv6 address
         interfaces:
         - "eth0"
         - "eth1"
@@ -129,8 +129,8 @@ blocktx:
       port:
         p2p: 18335
     mcast: # multicast groups (required if mode: hybrid)
-      block: 
-        address: "[]" # multicast group IPv6 address 
+      block:
+        address: "[]" # multicast group IPv6 address
         interfaces:
         - "eth0"
         - "eth1"

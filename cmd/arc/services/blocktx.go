@@ -260,12 +260,13 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 
 	var msgHandler p2p.MessageHandlerI
 
-	if cfg.Mode == "classic" {
+	switch cfg.Mode {
+	case "classic":
 		msgHandler = blocktx_p2p.NewMsgHandler(l, blockRequestCh, blockProcessCh)
-	} else if cfg.Mode == "hybrid" {
+	case "hybrid":
 		l.Info("!!! Blocktx will communicate with blockchain in HYBRID mode (via p2p and multicast groups) !!!")
 		msgHandler = blocktx_p2p.NewHybridMsgHandler(l, blockProcessCh)
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("unsupported communication type: %s", cfg.Mode)
 	}
 

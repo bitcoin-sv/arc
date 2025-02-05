@@ -1,10 +1,10 @@
 package send_manager
 
 import (
-	"container/list"
 	"context"
 	"errors"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 
@@ -44,10 +44,11 @@ type SendManager struct {
 	batchSendInterval       time.Duration
 	batchSize               int
 
-	bufferSize    int
-	callbackQueue *list.List
+	bufferSize int
+	now        func() time.Time
 
-	now func() time.Time
+	mu            sync.Mutex
+	callbackQueue []*callbacker.CallbackEntry
 }
 
 const (
@@ -131,7 +132,7 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		batchSendInterval:       batchSendIntervalDefault,
 		batchSize:               batchSizeDefault,
 
-		callbackQueue: list.New(),
+		callbackQueue: make([]*callbacker.CallbackEntry, 0, entriesBufferSize),
 		bufferSize:    entriesBufferSize,
 
 		now: time.Now,
@@ -149,47 +150,19 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 }
 
 func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
-	if m.callbackQueue.Len() >= m.bufferSize {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.callbackQueue) >= m.bufferSize {
 		m.storeToDB(entry)
 		return
 	}
 
-	m.callbackQueue.PushBack(entry)
-}
-
-// sortByTimestampAsc sorts the callback queue by timestamp in ascending order
-func (m *SendManager) sortByTimestampAsc() error {
-	current := m.callbackQueue.Front()
-	if m.callbackQueue.Front() == nil {
-		return nil
-	}
-	for current != nil {
-		index := current.Next()
-		for index != nil {
-			currentTime, ok := current.Value.(callbacker.CallbackEntry)
-			if !ok {
-				return ErrElementIsNotCallbackEntry
-			}
-
-			indexTime, ok := index.Value.(callbacker.CallbackEntry)
-			if !ok {
-				return ErrElementIsNotCallbackEntry
-			}
-			if currentTime.Data.Timestamp.After(indexTime.Data.Timestamp) {
-				temp := current.Value
-				current.Value = index.Value
-				index.Value = temp
-			}
-			index = index.Next()
-		}
-		current = current.Next()
-	}
-
-	return nil
+	m.callbackQueue = append(m.callbackQueue, &entry)
 }
 
 func (m *SendManager) CallbacksQueued() int {
-	return m.callbackQueue.Len()
+	return len(m.callbackQueue)
 }
 
 func (m *SendManager) Start() {
@@ -199,25 +172,23 @@ func (m *SendManager) Start() {
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
-	var callbackBatch []*list.Element
+	var callbackBatch []*callbacker.CallbackEntry
 
 	go func() {
 		var err error
 		defer func() {
 			// read all from callback queue and store in database
-			data := make([]*store.CallbackData, m.callbackQueue.Len()+len(callbackBatch))
-
+			data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))
+			m.mu.Lock()
 			for _, callbackElement := range callbackBatch {
-				entry, ok := callbackElement.Value.(callbacker.CallbackEntry)
-				if !ok {
-					continue
-				}
-				m.callbackQueue.PushBack(entry)
+				m.callbackQueue = append(m.callbackQueue, callbackElement)
+			}
+			for i, entry := range m.callbackQueue {
+				data[i] = toStoreDto(m.url, *entry)
 			}
 
-			for i, entry := range m.dequeueAll() {
-				data[i] = toStoreDto(m.url, entry)
-			}
+			m.callbackQueue = m.callbackQueue[:0]
+			m.mu.Unlock()
 
 			if len(data) > 0 {
 				err = m.store.SetMany(context.Background(), data)
@@ -236,7 +207,11 @@ func (m *SendManager) Start() {
 			case <-m.ctx.Done():
 				return
 			case <-sortQueueTicker.C:
-				err = m.sortByTimestampAsc()
+				m.mu.Lock()
+				sort.Slice(m.callbackQueue, func(i, j int) bool {
+					return m.callbackQueue[j].Data.Timestamp.After(m.callbackQueue[i].Data.Timestamp)
+				})
+				m.mu.Unlock()
 				if err != nil {
 					m.logger.Error("Failed to sort by timestamp", slog.String("err", err.Error()))
 				}
@@ -244,7 +219,7 @@ func (m *SendManager) Start() {
 			case <-backfillQueueTicker.C:
 				m.fillUpQueue()
 
-				m.logger.Debug("Callback queue backfilled", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
+				m.logger.Debug("Callback queue filled up", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 			case <-batchSendTicker.C:
 				if len(callbackBatch) == 0 {
 					continue
@@ -259,20 +234,18 @@ func (m *SendManager) Start() {
 				callbackBatch = callbackBatch[:0]
 				m.logger.Debug("Batched callbacks sent on interval", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 			case <-queueTicker.C:
-				front := m.callbackQueue.Front()
-				if front == nil {
+				if len(m.callbackQueue) == 0 {
 					continue
 				}
-
-				callbackEntry, ok := front.Value.(callbacker.CallbackEntry)
-				if !ok {
+				callbackEntry := m.callbackQueue[0]
+				if callbackEntry == nil {
 					continue
 				}
 
 				// If item is expired - dequeue without storing
 				if m.now().Sub(callbackEntry.Data.Timestamp) > m.expiration {
 					m.logger.Warn("Callback expired", slog.Time("timestamp", callbackEntry.Data.Timestamp), slog.String("hash", callbackEntry.Data.TxID), slog.String("status", callbackEntry.Data.TxStatus))
-					m.callbackQueue.Remove(front)
+					m.callbackQueue = m.callbackQueue[1:]
 					continue
 				}
 
@@ -280,9 +253,9 @@ func (m *SendManager) Start() {
 					lastIterationWasBatch = true
 
 					if len(callbackBatch) < m.batchSize {
-						callbackBatch = append(callbackBatch, front)
+						callbackBatch = append(callbackBatch, callbackEntry)
 						queueTicker.Reset(m.queueProcessInterval)
-						m.callbackQueue.Remove(front)
+						m.callbackQueue = m.callbackQueue[1:]
 						continue
 					}
 
@@ -313,7 +286,7 @@ func (m *SendManager) Start() {
 
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
-					m.callbackQueue.Remove(front)
+					m.callbackQueue = m.callbackQueue[1:]
 					m.logger.Debug("Single callback sent", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 					continue
 				}
@@ -323,21 +296,22 @@ func (m *SendManager) Start() {
 	}()
 }
 
-func (m *SendManager) sendElementBatch(callbackElements []*list.Element) error {
-	var callbackElement *list.Element
+func (m *SendManager) sendElementBatch(callbackElements []*callbacker.CallbackEntry) error {
 	callbackBatch := make([]callbacker.CallbackEntry, 0, len(callbackElements))
-	for _, element := range callbackElements {
-		callback, ok := element.Value.(callbacker.CallbackEntry)
-		if !ok {
-			continue
-		}
-		callbackBatch = append(callbackBatch, callback)
+	for _, callback := range callbackElements {
+		callbackBatch = append(callbackBatch, *callback)
 	}
 	success, retry := m.sendBatch(callbackBatch)
 	if !retry || success {
-		for _, callbackElement = range callbackElements {
-			m.callbackQueue.Remove(callbackElement)
+		m.mu.Lock()
+		for _, callbackElement := range callbackElements {
+			for i, cb := range m.callbackQueue {
+				if cb == callbackElement {
+					m.callbackQueue = append(m.callbackQueue[:i], m.callbackQueue[i+1:]...)
+				}
+			}
 		}
+		m.mu.Unlock()
 
 		return nil
 	}
@@ -357,7 +331,7 @@ func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retr
 
 // fillUpQueue calculates the capacity left in the queue and fills it up
 func (m *SendManager) fillUpQueue() {
-	capacityLeft := m.bufferSize - m.callbackQueue.Len()
+	capacityLeft := m.bufferSize - len(m.callbackQueue)
 	if capacityLeft == 0 {
 		return
 	}
@@ -415,25 +389,6 @@ func toEntry(callbackData *store.CallbackData) callbacker.CallbackEntry {
 		},
 		AllowBatch: callbackData.AllowBatch,
 	}
-}
-
-func (m *SendManager) dequeueAll() []callbacker.CallbackEntry {
-	callbacks := make([]callbacker.CallbackEntry, 0, m.callbackQueue.Len())
-
-	var next *list.Element
-	for front := m.callbackQueue.Front(); front != nil; front = next {
-		next = front.Next()
-		entry, ok := front.Value.(callbacker.CallbackEntry)
-		if !ok {
-			m.callbackQueue.Remove(front)
-			continue
-		}
-		callbacks = append(callbacks, entry)
-
-		m.callbackQueue.Remove(front)
-	}
-
-	return callbacks
 }
 
 // GracefulStop On service termination, any unsent callbacks are persisted in the store, ensuring no loss of data during shutdown.

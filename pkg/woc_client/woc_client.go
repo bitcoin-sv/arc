@@ -10,12 +10,16 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 const (
@@ -35,12 +39,27 @@ var (
 )
 
 type WocClient struct {
-	client        http.Client
-	authorization string
-	net           string
-	logger        *slog.Logger
-	url           string
-	maxNumIDs     int
+	client            http.Client
+	authorization     string
+	net               string
+	logger            *slog.Logger
+	url               string
+	maxNumIDs         int
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
+}
+
+func WithTracer(attr ...attribute.KeyValue) func(s *WocClient) {
+	return func(p *WocClient) {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
+	}
 }
 
 func WithLogger(logger *slog.Logger) func(*WocClient) {
@@ -242,8 +261,11 @@ func (w *WocClient) TopUp(ctx context.Context, address string) error {
 	return nil
 }
 
-func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*WocRawTx, error) {
-	var result []*WocRawTx
+func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) (result []*WocRawTx, err error) {
+	_, span := tracing.StartTracing(ctx, "WocClient_GetRawTxs", w.tracingEnabled, append(w.tracingAttributes, attribute.Int("ids", len(ids)))...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 
 	for len(ids) > 0 {
 		bsize := min(w.maxNumIDs, len(ids))
@@ -256,14 +278,23 @@ func (w *WocClient) GetRawTxs(ctx context.Context, ids []string) ([]*WocRawTx, e
 
 		result = append(result, txs...)
 		ids = ids[bsize:] // move batch window
+
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	return result, nil
 }
 
-func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*WocRawTx, error) {
+func (w *WocClient) getRawTxs(ctx context.Context, batch []string) (res []*WocRawTx, err error) {
+	_, span := tracing.StartTracing(ctx, "WocClient_getRawTxs", w.tracingEnabled, append(w.tracingAttributes, attribute.Int("batch", len(batch)))...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
 	payload := map[string][]string{"txids": batch}
-	body, _ := json.Marshal(payload)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	req, err := w.httpRequest(ctx, "POST", "txs/hex", body)
 	if err != nil {
@@ -276,7 +307,6 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) ([]*WocRawTx,
 	}
 	defer resp.Body.Close()
 
-	var res []*WocRawTx
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, errors.Join(ErrWOCFailedToDecodeRawTxs, err)

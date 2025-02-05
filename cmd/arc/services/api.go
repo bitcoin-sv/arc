@@ -58,10 +58,12 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
+		apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime),
 	}
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
+	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(arcConfig.API.WocAPIKey)}
 
 	shutdownFns := make([]func(), 0)
 
@@ -82,10 +84,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		mtmOpts = append(mtmOpts, metamorph.WithClientTracer(attributes...))
 		apiOpts = append(apiOpts, apiHandler.WithTracer(attributes...))
-		apiOpts = append(apiOpts, apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime))
 		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
 		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
+		wocClientOpts = append(wocClientOpts, woc_client.WithTracer(attributes...))
 	}
 
 	conn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
@@ -110,7 +112,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		policy = arcConfig.API.DefaultPolicy
 	}
 
-	wocClient := woc_client.New(arcConfig.API.WocMainnet, woc_client.WithAuth(arcConfig.API.WocAPIKey))
+	wocClient := woc_client.New(arcConfig.API.WocMainnet, wocClientOpts...)
 
 	pc := arcConfig.PeerRPC
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))

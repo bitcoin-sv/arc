@@ -179,10 +179,9 @@ func (m *SendManager) Start() {
 		defer func() {
 			// read all from callback queue and store in database
 			data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))
+
 			m.mu.Lock()
-			for _, callbackElement := range callbackBatch {
-				m.callbackQueue = append(m.callbackQueue, callbackElement)
-			}
+			m.callbackQueue = append(m.callbackQueue, callbackBatch...)
 			for i, entry := range m.callbackQueue {
 				data[i] = toStoreDto(m.url, *entry)
 			}

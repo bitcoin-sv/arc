@@ -23,7 +23,7 @@ var _ validator.TxFinderI = &TxFinderIMock{}
 //			GetMempoolAncestorsFunc: func(ctx context.Context, ids []string) ([]string, error) {
 //				panic("mock out the GetMempoolAncestors method")
 //			},
-//			GetRawTxsFunc: func(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+//			GetRawTxsFunc: func(ctx context.Context, source validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 //				panic("mock out the GetRawTxs method")
 //			},
 //		}
@@ -37,7 +37,7 @@ type TxFinderIMock struct {
 	GetMempoolAncestorsFunc func(ctx context.Context, ids []string) ([]string, error)
 
 	// GetRawTxsFunc mocks the GetRawTxs method.
-	GetRawTxsFunc func(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error)
+	GetRawTxsFunc func(ctx context.Context, source validator.FindSourceFlag, ids []string) []*sdkTx.Transaction
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -99,7 +99,7 @@ func (mock *TxFinderIMock) GetMempoolAncestorsCalls() []struct {
 }
 
 // GetRawTxs calls GetRawTxsFunc.
-func (mock *TxFinderIMock) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+func (mock *TxFinderIMock) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 	if mock.GetRawTxsFunc == nil {
 		panic("TxFinderIMock.GetRawTxsFunc: method is nil but TxFinderI.GetRawTxs was just called")
 	}

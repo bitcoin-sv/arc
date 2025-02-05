@@ -16,9 +16,10 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -332,7 +333,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		getTx            []byte
 		submitTxResponse *metamorph.TransactionStatus
 		submitTxErr      error
-		getRawTxsErr     error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -404,16 +404,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			expectedStatus:   400,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "could not read varint type: EOF"),
-		},
-		{
-			name:         "valid tx - missing inputs, text/plain",
-			contentType:  contentTypes[0],
-			txHexString:  validTx,
-			getRawTxsErr: errors.New("failed to get raw txs"),
-
-			expectedStatus:   460,
-			expectedResponse: errFieldMissingInputs,
-			expectedError:    defaultvalidator.ErrFailedToGetRawTxs,
 		},
 		{
 			name:        "valid tx - fees too low",
@@ -651,7 +641,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				"8574e743bb64cf603dbd0e951e7287afd2a59593ff8837b3760e911f8fb38e35": tx,
 			}
 			finder := &mocks.TxFinderIMock{
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 					var rawTxs []*sdkTx.Transaction
 					for _, id := range ids {
 						rawTx, ok := txMap[id]
@@ -661,7 +651,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 						rawTxs = append(rawTxs, rawTx)
 					}
 
-					return rawTxs, tc.getRawTxsErr
+					return rawTxs
 				},
 			}
 
@@ -842,8 +832,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
-			return nil, errors.New("error getting raw transactions")
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+			return nil
 		}}
 		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, finder)
 		require.NoError(t, err)
@@ -869,8 +859,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			_ = json.Unmarshal(b, &bErr)
 
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
-
-			assert.ErrorContains(t, errors.New(*bErr[0].ExtraInfo), defaultvalidator.ErrFailedToGetRawTxs.Error())
 		}
 	})
 
@@ -1090,8 +1078,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
-			return nil, errors.New("error getting raw transactions")
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+			return nil
 		}}
 		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
 		require.NoError(t, err)
@@ -1162,8 +1150,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil, nil
 			},
 		}
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
-			return nil, errors.New("error getting raw transactions")
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+			return nil
 		}}
 		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
 		require.NoError(t, err)

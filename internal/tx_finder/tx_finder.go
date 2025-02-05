@@ -24,10 +24,14 @@ var (
 type Finder struct {
 	transactionHandler metamorph.TransactionHandler
 	bitcoinClient      NodeClient
-	wocClient          *woc_client.WocClient
+	wocClient          WocClient
 	logger             *slog.Logger
 	tracingEnabled     bool
 	tracingAttributes  []attribute.KeyValue
+}
+
+type WocClient interface {
+	GetRawTxs(ctx context.Context, ids []string) (result []*woc_client.WocRawTx, err error)
 }
 
 type NodeClient interface {
@@ -48,7 +52,7 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 	}
 }
 
-func New(th metamorph.TransactionHandler, n NodeClient, w *woc_client.WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
+func New(th metamorph.TransactionHandler, n NodeClient, w WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
 	l = l.With(slog.String("module", "tx-finder"))
 
 	f := &Finder{

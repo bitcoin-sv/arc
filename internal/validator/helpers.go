@@ -29,7 +29,7 @@ func (flag FindSourceFlag) Has(v FindSourceFlag) bool {
 }
 
 type TxFinderI interface {
-	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error)
+	GetRawTxs(ctx context.Context, source FindSourceFlag, ids []string) []*sdkTx.Transaction
 	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
 }
 

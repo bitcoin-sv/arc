@@ -76,11 +76,13 @@ func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string
 	return txIDs, nil
 }
 
-func (f Finder) getRawTxsFromTransactionHandler(ctx context.Context, foundTxs *[]*sdkTx.Transaction, remainingIDs map[string]struct{}) {
+func (f Finder) getRawTxsFromTransactionHandler(ctx context.Context, remainingIDs map[string]struct{}) []*sdkTx.Transaction {
 	ctx, span := tracing.StartTracing(ctx, "Finder_getRawTxsFromTransactionHandler", f.tracingEnabled, f.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, nil)
 	}()
+
+	var foundTxs []*sdkTx.Transaction
 
 	ids := getKeys(remainingIDs)
 	var thTxs []*metamorph.Transaction
@@ -98,16 +100,20 @@ func (f Finder) getRawTxsFromTransactionHandler(ctx context.Context, foundTxs *[
 			}
 
 			delete(remainingIDs, thTx.TxID)
-			*foundTxs = append(*foundTxs, rt)
+			foundTxs = append(foundTxs, rt)
 		}
 	}
+
+	return foundTxs
 }
 
-func (f Finder) getRawTxsFromNode(ctx context.Context, foundTxs *[]*sdkTx.Transaction, remainingIDs map[string]struct{}) {
+func (f Finder) getRawTxsFromNode(ctx context.Context, remainingIDs map[string]struct{}) []*sdkTx.Transaction {
 	ctx, span := tracing.StartTracing(ctx, "Finder_getRawTxsFromNode", f.tracingEnabled, f.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, nil)
 	}()
+
+	var foundTxs []*sdkTx.Transaction
 
 	ids := getKeys(remainingIDs)
 	for _, id := range ids {
@@ -118,15 +124,19 @@ func (f Finder) getRawTxsFromNode(ctx context.Context, foundTxs *[]*sdkTx.Transa
 		}
 
 		delete(remainingIDs, id)
-		*foundTxs = append(*foundTxs, rawTx)
+		foundTxs = append(foundTxs, rawTx)
 	}
+
+	return foundTxs
 }
 
-func (f Finder) getRawTxsFromWoc(ctx context.Context, foundTxs *[]*sdkTx.Transaction, remainingIDs map[string]struct{}) {
+func (f Finder) getRawTxsFromWoc(ctx context.Context, remainingIDs map[string]struct{}) []*sdkTx.Transaction {
 	ctx, span := tracing.StartTracing(ctx, "Finder_getRawTxsFromWoc", f.tracingEnabled, f.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, nil)
 	}()
+
+	var foundTxs []*sdkTx.Transaction
 
 	var wocTxs []*woc_client.WocRawTx
 	var err error
@@ -148,15 +158,17 @@ func (f Finder) getRawTxsFromWoc(ctx context.Context, foundTxs *[]*sdkTx.Transac
 				continue
 			}
 
-			*foundTxs = append(*foundTxs, tx)
+			foundTxs = append(foundTxs, tx)
 		}
 	}
+
+	return foundTxs
 }
 
-func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction, err error) {
+func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 	ctx, span := tracing.StartTracing(ctx, "Finder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 	defer func() {
-		tracing.EndTracing(span, err)
+		tracing.EndTracing(span, nil)
 	}()
 
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
@@ -167,22 +179,22 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 		remainingIDs[id] = struct{}{}
 	}
 
-	// first get transactions from the handler
+	// try to get transactions from the handler
 	if len(remainingIDs) > 0 && source.Has(validator.SourceTransactionHandler) {
-		f.getRawTxsFromTransactionHandler(ctx, &foundTxs, remainingIDs)
+		foundTxs = append(foundTxs, f.getRawTxsFromTransactionHandler(ctx, remainingIDs)...)
 	}
 
 	// try to get remaining txs from the node
 	if len(remainingIDs) > 0 && source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
-		f.getRawTxsFromNode(ctx, &foundTxs, remainingIDs)
+		foundTxs = append(foundTxs, f.getRawTxsFromNode(ctx, remainingIDs)...)
 	}
 
-	// at last try the WoC
+	// try WoC
 	if len(remainingIDs) > 0 && source.Has(validator.SourceWoC) {
-		f.getRawTxsFromWoc(ctx, &foundTxs, remainingIDs)
+		foundTxs = append(foundTxs, f.getRawTxsFromWoc(ctx, remainingIDs)...)
 	}
 
-	return foundTxs, nil
+	return foundTxs
 }
 
 func getKeys(uniqueMap map[string]struct{}) []string {

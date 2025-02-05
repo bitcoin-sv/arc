@@ -44,8 +44,8 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			txFinder := mocks.TxFinderIMock{
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
-					return tc.foundTransactions, nil
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+					return tc.foundTransactions
 				},
 			}
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
@@ -117,7 +117,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
 					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
 				},
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 					var rawTxs []*sdkTx.Transaction
 					for _, id := range ids {
 						rawTx, ok := txMap[id]
@@ -127,7 +127,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 						rawTxs = append(rawTxs, rawTx)
 					}
 
-					return rawTxs, nil
+					return rawTxs
 				},
 			}
 

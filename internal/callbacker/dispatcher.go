@@ -15,52 +15,34 @@ Graceful Shutdown: on service termination, the CallbackDispatcher ensures all ac
 */
 
 import (
-	"log/slog"
 	"sync"
-	"time"
-
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 type CallbackDispatcher struct {
 	sender SenderI
-	store  store.CallbackerStore
-	logger *slog.Logger
 
-	managers   map[string]*SendManager
+	runNewManager func(url string) SendManagerI
+
+	managers   map[string]SendManagerI
 	managersMu sync.Mutex
-
-	sendConfig *SendConfig
 }
 
 type CallbackEntry struct {
-	Token          string
-	Data           *Callback
-	postponedUntil *time.Time
-	AllowBatch     bool
+	Token      string
+	Data       *Callback
+	AllowBatch bool
 }
 
-type SendConfig struct {
-	Delay                              time.Duration
-	PauseAfterSingleModeSuccessfulSend time.Duration
-	DelayDuration                      time.Duration
-	BatchSendInterval                  time.Duration
-	Expiration                         time.Duration
-}
-
-func NewCallbackDispatcher(callbacker SenderI, cStore store.CallbackerStore, logger *slog.Logger,
-	sendingConfig *SendConfig) *CallbackDispatcher {
+func NewCallbackDispatcher(callbacker SenderI,
+	runNewManager func(url string) SendManagerI) *CallbackDispatcher {
 	return &CallbackDispatcher{
-		sender: callbacker,
-		store:  cStore,
-		logger: logger.With(slog.String("module", "dispatcher")),
-
-		sendConfig: sendingConfig,
-		managers:   make(map[string]*SendManager),
+		sender:        callbacker,
+		runNewManager: runNewManager,
+		managers:      make(map[string]SendManagerI),
 	}
 }
 
-func (d *CallbackDispatcher) GetLenMangers() int {
+func (d *CallbackDispatcher) GetLenManagers() int {
 	return len(d.managers)
 }
 
@@ -73,15 +55,15 @@ func (d *CallbackDispatcher) GracefulStop() {
 	}
 }
 
-func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry, allowBatch bool) {
+func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry) {
 	d.managersMu.Lock()
 	manager, ok := d.managers[url]
 
 	if !ok {
-		manager = RunNewSendManager(url, d.sender, d.store, d.logger, d.sendConfig)
+		manager = d.runNewManager(url)
 		d.managers[url] = manager
 	}
-	d.managersMu.Unlock()
+	manager.Enqueue(*dto)
 
-	manager.Add(dto, allowBatch)
+	d.managersMu.Unlock()
 }

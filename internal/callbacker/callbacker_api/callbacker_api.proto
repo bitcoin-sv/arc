@@ -47,6 +47,7 @@ message SendRequest {
   repeated string competing_txs = 6;
   string block_hash = 7;
   uint64 block_height = 8;
+  google.protobuf.Timestamp timestamp = 9;
 }
 
 // swagger:model SendCallbackRequest

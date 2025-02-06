@@ -3,8 +3,11 @@ package metamorph
 import (
 	"encoding/json"
 	"errors"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"log/slog"
+	"time"
+
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
@@ -184,7 +187,7 @@ func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.Up
 	return unprocessed
 }
 
-func toSendRequest(d *store.Data) []*callbacker_api.SendRequest {
+func toSendRequest(d *store.Data, timestamp time.Time) []*callbacker_api.SendRequest {
 	if len(d.Callbacks) == 0 {
 		return nil
 	}
@@ -209,6 +212,8 @@ func toSendRequest(d *store.Data) []*callbacker_api.SendRequest {
 
 				BlockHash:   getCallbackBlockHash(d),
 				BlockHeight: d.BlockHeight,
+
+				Timestamp: timestamppb.New(timestamp),
 			}
 			requests = append(requests, request)
 		}

@@ -2,22 +2,21 @@
   token: token
   tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:00
+  timestamp: 2024-09-01 12:30:00
 
 - url: https://arc-callback-1/callback
   token: token
   tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:00
+  timestamp: 2024-09-01 12:30:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
   tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:00
+  timestamp: 2024-09-01 12:30:00
 
 - url: https://arc-callback-2/callback
   token: token
@@ -26,7 +25,6 @@
   timestamp: 2024-09-01 12:01:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-1/callback
   token: token
@@ -41,7 +39,6 @@
   timestamp: 2024-09-01 12:01:01
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -62,7 +59,6 @@
   tx_id: 277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-1/callback
   token: token
@@ -77,7 +73,6 @@
   tx_id: 277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -100,7 +95,6 @@
   timestamp: 2024-09-01 12:01:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -115,7 +109,6 @@
   timestamp: 2024-09-01 12:01:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-1/callback
   token: token
@@ -130,7 +123,6 @@
   timestamp: 2024-09-01 12:01:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -151,7 +143,6 @@
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-1/callback
   token: token
@@ -166,7 +157,6 @@
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -203,7 +193,6 @@
   timestamp: 2024-09-01 12:01:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-1/callback
   token: token
@@ -218,14 +207,12 @@
   timestamp: 2024-09-01 12:01:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:31:10
 
 - url: https://arc-callback-2/callback
   token: token
   tx_id: c50eeb84c58780bb0eb39f430deb93e5f362fe16b73aa4f811c089e14a1815ae
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -254,7 +241,6 @@
   tx_id: 6de67f42990ab43f7cc480d6339f13932fe67fa8971a59aa34b93b5dac734c3e
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
-  postponed_until: 2024-09-01 12:11:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -277,7 +263,6 @@
   timestamp: 2024-09-01 12:01:03
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:31:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -390,7 +375,6 @@
   timestamp: 2024-09-01 12:01:04
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:31:10
 
 - url: https://arc-callback-2/callback
   token: token
@@ -405,4 +389,3 @@
   timestamp: 2024-09-01 12:01:04
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  postponed_until: 2024-09-01 12:31:10

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,8 +17,7 @@ const (
 )
 
 var (
-	ErrFailedToOpenDB   = errors.New("failed to open postgres DB")
-	ErrFailedToRollback = errors.New("failed to rollback")
+	ErrFailedToOpenDB = errors.New("failed to open postgres DB")
 )
 
 type PostgreSQL struct {
@@ -57,7 +55,6 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	blockHashes := make([]*string, len(data))
 	blockHeights := make([]sql.NullInt64, len(data))
 	competingTxs := make([]*string, len(data))
-	delayUntils := make([]sql.NullTime, len(data))
 	allowBatches := make([]bool, len(data))
 
 	for i, d := range data {
@@ -78,10 +75,6 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		if len(d.CompetingTxs) > 0 {
 			competingTxs[i] = ptrTo(strings.Join(d.CompetingTxs, ","))
 		}
-
-		if d.PostponedUntil != nil {
-			delayUntils[i] = sql.NullTime{Time: d.PostponedUntil.UTC(), Valid: true}
-		}
 	}
 
 	const query = `INSERT INTO callbacker.callbacks (
@@ -95,7 +88,6 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 				,block_height
 				,timestamp
 				,competing_txs
-				,postponed_until
 				,allow_batch
 				)
 				SELECT
@@ -109,8 +101,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])
 					,UNNEST($10::TEXT[])
-					,UNNEST($11::TIMESTAMPTZ[])
-					,UNNEST($12::BOOLEAN[])`
+					,UNNEST($11::BOOLEAN[])`
 
 	_, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),
@@ -123,127 +114,19 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(blockHeights),
 		pq.Array(timestamps),
 		pq.Array(competingTxs),
-		pq.Array(delayUntils),
 		pq.Array(allowBatches),
 	)
 
 	return err
 }
 
-func (p *PostgreSQL) PopMany(ctx context.Context, limit int) ([]*store.CallbackData, error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			if rErr := tx.Rollback(); rErr != nil {
-				err = errors.Join(ErrFailedToRollback, err, rErr)
-			}
-		}
-	}()
-
-	const q = `DELETE FROM callbacker.callbacks
-			WHERE id IN (
-				SELECT id FROM callbacker.callbacks
-				WHERE postponed_until IS NULL
-				ORDER BY id
-				LIMIT $1
-				FOR UPDATE
-			)
-			RETURNING
-				url
-				,token
-				,tx_id
-				,tx_status
-				,extra_info
-				,merkle_path
-				,block_hash
-				,block_height
-				,competing_txs
-				,timestamp
-				,postponed_until
-				,allow_batch`
-
-	rows, err := tx.QueryContext(ctx, q, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var records []*store.CallbackData
-	records, err = scanCallbacks(rows, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return records, nil
-}
-
-func (p *PostgreSQL) PopFailedMany(ctx context.Context, t time.Time, limit int) ([]*store.CallbackData, error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			if rErr := tx.Rollback(); rErr != nil {
-				err = errors.Join(err, fmt.Errorf("failed to rollback: %v", rErr))
-			}
-		}
-	}()
-
-	const q = `DELETE FROM callbacker.callbacks
-			WHERE id IN (
-				SELECT id FROM callbacker.callbacks
-				WHERE postponed_until IS NOT NULL AND postponed_until<= $1
-				ORDER BY id
-				LIMIT $2
-				FOR UPDATE
-			)
-			RETURNING
-				url
-				,token
-				,tx_id
-				,tx_status
-				,extra_info
-				,merkle_path
-				,block_hash
-				,block_height
-				,competing_txs
-				,timestamp
-				,postponed_until
-				,allow_batch`
-
-	rows, err := tx.QueryContext(ctx, q, t, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var records []*store.CallbackData
-	records, err = scanCallbacks(rows, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return records, nil
-}
-
+// GetAndDelete returns deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
 func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
 				WHERE url = $1
-				ORDER BY timestamp DESC
+				ORDER BY timestamp ASC
 				LIMIT $2
 				FOR UPDATE
 			)
@@ -258,7 +141,6 @@ func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([
 				,block_height
 				,competing_txs
 				,timestamp
-				,postponed_until
 				,allow_batch`
 
 	rows, err := p.db.QueryContext(ctx, q, url, limit)
@@ -276,9 +158,9 @@ func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([
 	return records, nil
 }
 
-func (p *PostgreSQL) DeleteFailedOlderThan(ctx context.Context, t time.Time) error {
+func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {
 	const q = `DELETE FROM callbacker.callbacks
-			WHERE postponed_until IS NOT NULL AND timestamp <= $1`
+			WHERE timestamp <= $1`
 
 	_, err := p.db.ExecContext(ctx, q, t)
 	return err
@@ -301,6 +183,21 @@ func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) erro
 	}
 
 	return nil
+}
+
+func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error) {
+	const q = `SELECT c.url FROM callbacker.callbacks c LEFT JOIN callbacker.url_mapping um ON um.url = c.url WHERE um.url IS NULL LIMIT 1;`
+
+	err = p.db.QueryRowContext(ctx, q).Scan(&url)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", err
+	}
+
+	return url, nil
 }
 
 func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) error {
@@ -348,13 +245,12 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		r := &store.CallbackData{}
 
 		var (
-			ts             time.Time
-			ei             sql.NullString
-			mp             sql.NullString
-			bh             sql.NullString
-			bHeight        sql.NullInt64
-			ctxs           sql.NullString
-			postponedUntil sql.NullTime
+			ts      time.Time
+			ei      sql.NullString
+			mp      sql.NullString
+			bh      sql.NullString
+			bHeight sql.NullInt64
+			ctxs    sql.NullString
 		)
 
 		err := rows.Scan(
@@ -368,7 +264,6 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			&bHeight,
 			&ctxs,
 			&ts,
-			&postponedUntil,
 			&r.AllowBatch,
 		)
 
@@ -392,9 +287,6 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		}
 		if ctxs.String != "" {
 			r.CompetingTxs = strings.Split(ctxs.String, ",")
-		}
-		if postponedUntil.Valid {
-			r.PostponedUntil = ptrTo(postponedUntil.Time.UTC())
 		}
 
 		records = append(records, r)

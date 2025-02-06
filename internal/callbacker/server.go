@@ -17,11 +17,11 @@ import (
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
 	grpc_opts.GrpcServer
-	dispatcher *CallbackDispatcher
+	dispatcher Dispatcher
 }
 
 // NewServer will return a server instance
-func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher *CallbackDispatcher, tracingConfig *config.TracingConfig) (*Server, error) {
+func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher Dispatcher, tracingConfig *config.TracingConfig) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, tracingConfig)
@@ -50,7 +50,7 @@ func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCal
 	dto := toCallbackDto(request)
 	for _, r := range request.CallbackRoutings {
 		if r.Url != "" {
-			s.dispatcher.Dispatch(r.Url, &CallbackEntry{Token: r.Token, Data: dto}, r.AllowBatch)
+			s.dispatcher.Dispatch(r.Url, &CallbackEntry{Token: r.Token, Data: dto, AllowBatch: r.AllowBatch})
 		}
 	}
 

@@ -3,11 +3,9 @@ package postgresql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -127,23 +125,21 @@ func TestPostgresDBt(t *testing.T) {
 				BlockHeight: ptrTo(uint64(4524235)),
 			},
 			{
-				URL:            "https://test-callback-3/",
-				TxID:           testdata.TX2,
-				TxStatus:       "MINED",
-				Timestamp:      now,
-				BlockHash:      &testdata.Block1,
-				BlockHeight:    ptrTo(uint64(4524235)),
-				PostponedUntil: ptrTo(now.Add(10 * time.Minute)),
+				URL:         "https://test-callback-3/",
+				TxID:        testdata.TX2,
+				TxStatus:    "MINED",
+				Timestamp:   now,
+				BlockHash:   &testdata.Block1,
+				BlockHeight: ptrTo(uint64(4524235)),
 			},
 
 			{
-				URL:            "https://test-callback-3/",
-				TxID:           testdata.TX3,
-				TxStatus:       "MINED",
-				Timestamp:      now,
-				BlockHash:      &testdata.Block1,
-				BlockHeight:    ptrTo(uint64(4524235)),
-				PostponedUntil: ptrTo(now.Add(10 * time.Minute)),
+				URL:         "https://test-callback-3/",
+				TxID:        testdata.TX3,
+				TxStatus:    "MINED",
+				Timestamp:   now,
+				BlockHash:   &testdata.Block1,
+				BlockHeight: ptrTo(uint64(4524235)),
 			},
 		}
 
@@ -177,7 +173,7 @@ func TestPostgresDBt(t *testing.T) {
 	t.Run("get and delete", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_many")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
 
 		ctx := context.Background()
 		var rowsBefore int
@@ -202,136 +198,26 @@ func TestPostgresDBt(t *testing.T) {
 		require.Equal(t, 18, rowsAfter)
 	})
 
-	t.Run("pop many", func(t *testing.T) {
+	t.Run("delete older than", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_many")
-
-		const concurentCalls = 5
-		const popLimit = 10
-
-		// count current records
-		count := tutils.CountCallbacks(t, postgresDB.db)
-		require.GreaterOrEqual(t, count, concurentCalls*popLimit)
-
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_older_than")
 		ctx := context.Background()
-		start := make(chan struct{})
-		rm := sync.Map{}
-		wg := sync.WaitGroup{}
 
-		// when
-		wg.Add(concurentCalls)
-		for i := range concurentCalls {
-			go func() {
-				defer wg.Done()
-				<-start
+		var rowsBefore int
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsBefore)
+		require.NoError(t, err)
+		require.Equal(t, 56, rowsBefore)
 
-				records, err := postgresDB.PopMany(ctx, popLimit)
-				require.NoError(t, err)
+		err := postgresDB.DeleteOlderThan(ctx, now)
+		require.NoError(t, err)
 
-				rm.Store(i, records)
-			}()
-		}
-
-		close(start) // signal all goroutines to start
-		wg.Wait()
+		var rowsAfter int
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsAfter)
+		require.NoError(t, err)
 
 		// then
-		count2 := tutils.CountCallbacks(t, postgresDB.db)
-		require.Equal(t, count-concurentCalls*popLimit, count2)
-
-		for i := range concurentCalls {
-			records, ok := rm.Load(i)
-			require.True(t, ok)
-
-			callbacks, ok := records.([]*store.CallbackData)
-			require.True(t, ok)
-			require.Equal(t, popLimit, len(callbacks))
-		}
-	})
-
-	t.Run("pop failed many", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/pop_failed_many")
-
-		const concurentCalls = 5
-		const popLimit = 10
-
-		// count current records
-		countAll := tutils.CountCallbacks(t, postgresDB.db)
-		require.GreaterOrEqual(t, countAll, concurentCalls*popLimit)
-		countToPop := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("postponed_until <= '%s'", now.Format(time.RFC3339)))
-		require.Greater(t, countToPop, popLimit)
-
-		ctx := context.Background()
-		start := make(chan struct{})
-		rm := sync.Map{}
-		wg := sync.WaitGroup{}
-
-		// when
-		wg.Add(concurentCalls)
-		for i := range concurentCalls {
-			go func() {
-				defer wg.Done()
-				<-start
-
-				records, err := postgresDB.PopFailedMany(ctx, now, popLimit)
-				require.NoError(t, err)
-
-				rm.Store(i, records)
-			}()
-		}
-
-		close(start) // signal all goroutines to start
-		wg.Wait()
-
-		// then
-		count2 := tutils.CountCallbacks(t, postgresDB.db)
-		require.Equal(t, countAll-countToPop, count2)
-
-		for i := range concurentCalls {
-			records, ok := rm.Load(i)
-			require.True(t, ok)
-
-			callbacks, ok := records.([]*store.CallbackData)
-			require.True(t, ok)
-			require.LessOrEqual(t, len(callbacks), popLimit)
-		}
-	})
-
-	t.Run("delete failed older than", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_failed_older_than")
-
-		const concurentCalls = 5
-
-		// count current records
-		countAll := tutils.CountCallbacks(t, postgresDB.db)
-		countToDelete := tutils.CountCallbacksWhere(t, postgresDB.db, fmt.Sprintf("timestamp <= '%s' AND postponed_until IS NOT NULL", now.Format(time.RFC3339)))
-
-		ctx := context.Background()
-		start := make(chan struct{})
-		wg := sync.WaitGroup{}
-
-		// when
-		wg.Add(concurentCalls)
-		for range concurentCalls {
-			go func() {
-				defer wg.Done()
-				<-start
-
-				err := postgresDB.DeleteFailedOlderThan(ctx, now)
-				require.NoError(t, err)
-			}()
-		}
-
-		close(start) // signal all goroutines to start
-		wg.Wait()
-
-		// then
-		require.Equal(t, countAll-countToDelete, tutils.CountCallbacks(t, postgresDB.db))
+		require.Equal(t, 3, rowsAfter)
 	})
 
 	t.Run("set URL mapping", func(t *testing.T) {

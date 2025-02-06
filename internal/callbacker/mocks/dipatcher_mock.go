@@ -18,7 +18,7 @@ var _ callbacker.Dispatcher = &DispatcherMock{}
 //
 //		// make and configure a mocked callbacker.Dispatcher
 //		mockedDispatcher := &DispatcherMock{
-//			DispatchFunc: func(url string, dto *callbacker.CallbackEntry, allowBatch bool)  {
+//			DispatchFunc: func(url string, dto *callbacker.CallbackEntry)  {
 //				panic("mock out the Dispatch method")
 //			},
 //		}
@@ -29,7 +29,7 @@ var _ callbacker.Dispatcher = &DispatcherMock{}
 //	}
 type DispatcherMock struct {
 	// DispatchFunc mocks the Dispatch method.
-	DispatchFunc func(url string, dto *callbacker.CallbackEntry, allowBatch bool)
+	DispatchFunc func(url string, dto *callbacker.CallbackEntry)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -39,31 +39,27 @@ type DispatcherMock struct {
 			URL string
 			// Dto is the dto argument value.
 			Dto *callbacker.CallbackEntry
-			// AllowBatch is the allowBatch argument value.
-			AllowBatch bool
 		}
 	}
 	lockDispatch sync.RWMutex
 }
 
 // Dispatch calls DispatchFunc.
-func (mock *DispatcherMock) Dispatch(url string, dto *callbacker.CallbackEntry, allowBatch bool) {
+func (mock *DispatcherMock) Dispatch(url string, dto *callbacker.CallbackEntry) {
 	if mock.DispatchFunc == nil {
 		panic("DispatcherMock.DispatchFunc: method is nil but Dispatcher.Dispatch was just called")
 	}
 	callInfo := struct {
-		URL        string
-		Dto        *callbacker.CallbackEntry
-		AllowBatch bool
+		URL string
+		Dto *callbacker.CallbackEntry
 	}{
-		URL:        url,
-		Dto:        dto,
-		AllowBatch: allowBatch,
+		URL: url,
+		Dto: dto,
 	}
 	mock.lockDispatch.Lock()
 	mock.calls.Dispatch = append(mock.calls.Dispatch, callInfo)
 	mock.lockDispatch.Unlock()
-	mock.DispatchFunc(url, dto, allowBatch)
+	mock.DispatchFunc(url, dto)
 }
 
 // DispatchCalls gets all the calls that were made to Dispatch.
@@ -71,14 +67,12 @@ func (mock *DispatcherMock) Dispatch(url string, dto *callbacker.CallbackEntry, 
 //
 //	len(mockedDispatcher.DispatchCalls())
 func (mock *DispatcherMock) DispatchCalls() []struct {
-	URL        string
-	Dto        *callbacker.CallbackEntry
-	AllowBatch bool
+	URL string
+	Dto *callbacker.CallbackEntry
 } {
 	var calls []struct {
-		URL        string
-		Dto        *callbacker.CallbackEntry
-		AllowBatch bool
+		URL string
+		Dto *callbacker.CallbackEntry
 	}
 	mock.lockDispatch.RLock()
 	calls = mock.calls.Dispatch

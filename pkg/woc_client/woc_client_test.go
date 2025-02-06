@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 )
@@ -101,6 +102,8 @@ func Test_GetUTXOs(t *testing.T) {
 
 	txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	require.NoError(t, err)
+	hash, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
 
 	tt := []struct {
 		name         string
@@ -123,7 +126,7 @@ func Test_GetUTXOs(t *testing.T) {
 			},
 
 			expected: sdkTx.UTXOs{{
-				TxID:     txIDbytes,
+				TxID:     hash,
 				Vout:     1,
 				Satoshis: 4,
 			}},

@@ -1,11 +1,14 @@
 package fees
 
 import (
+	"encoding/hex"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var validLockingScript = &script.Script{
@@ -13,6 +16,10 @@ var validLockingScript = &script.Script{
 }
 
 func TestComputeFee(t *testing.T) {
+	txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	require.NoError(t, err)
+	hash, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
 	tests := []struct {
 		name         string
 		satsPerKB    uint64
@@ -31,6 +38,7 @@ func TestComputeFee(t *testing.T) {
 			satsPerKB: 50,
 			tx: &sdkTx.Transaction{
 				Inputs: []*sdkTx.TransactionInput{{
+					SourceTXID: hash,
 					SourceTransaction: &sdkTx.Transaction{
 						Outputs: []*sdkTx.TransactionOutput{{
 							Satoshis: 150,
@@ -43,7 +51,7 @@ func TestComputeFee(t *testing.T) {
 					LockingScript: validLockingScript,
 				}},
 			},
-			estimatedFee: 4,
+			estimatedFee: 6,
 		},
 	}
 	for _, tt := range tests {

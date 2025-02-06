@@ -88,7 +88,7 @@ func NewFromExtendedKey(extendedKey *bip32.ExtendedKey, derivationPath string) (
 		Path:          derivationPath,
 		PrivateKey:    privateKey,
 		PublicKey:     publicKey,
-		PublicKeyHash: publicKey.SerializeCompressed(),
+		PublicKeyHash: publicKey.Compressed(),
 		Script:        p2pkhScript,
 	}, nil
 }

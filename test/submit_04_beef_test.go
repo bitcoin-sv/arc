@@ -83,10 +83,10 @@ func TestBeef(t *testing.T) {
 		for i := 0; i < expectedCallbacks; i++ {
 			select {
 			case status := <-callbackReceivedChan:
-				if status.Txid == middleTx.TxID() {
+				if status.Txid == middleTx.TxID().String() {
 					require.Equal(t, StatusMined, status.TxStatus)
 					middleTxCallbackReceived = true
-				} else if status.Txid == tx.TxID() {
+				} else if status.Txid == tx.TxID().String() {
 					require.Equal(t, StatusMined, status.TxStatus)
 					lastTxCallbackReceived = true
 				} else {
@@ -167,7 +167,7 @@ func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, pri
 	expectedCallbacks++
 
 	middleUtxo := node_client.UnspentOutput{
-		Txid:         middleTx.TxID(),
+		Txid:         middleTx.TxID().String(),
 		Vout:         0,
 		ScriptPubKey: middleTx.Outputs[0].LockingScriptHex(),
 		Amount:       float64(middleTx.Outputs[0].Satoshis) / 1e8, // satoshis to BSV

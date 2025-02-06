@@ -3,7 +3,7 @@ module github.com/bitcoin-sv/arc
 go 1.22.5
 
 require (
-	github.com/bitcoin-sv/go-sdk v1.0.0
+	github.com/bitcoin-sv/go-sdk v1.1.18
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/cenkalti/backoff/v4 v4.3.0

@@ -102,7 +102,7 @@ func TestReorg(t *testing.T) {
 
 	select {
 	case status := <-callbackReceivedChan:
-		require.Equal(t, tx2.TxID(), status.Txid)
+		require.Equal(t, tx2.TxID().String(), status.Txid)
 		require.Equal(t, StatusMined, status.TxStatus)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
@@ -183,7 +183,7 @@ func TestReorg(t *testing.T) {
 	// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
 	select {
 	case status := <-callbackReceivedChan:
-		require.Equal(t, tx2.TxID(), status.Txid)
+		require.Equal(t, tx2.TxID().String(), status.Txid)
 		require.Equal(t, StatusMinedInStaleBlock, status.TxStatus)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)

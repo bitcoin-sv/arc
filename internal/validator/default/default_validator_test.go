@@ -2,11 +2,13 @@ package defaultvalidator
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
 	"testing"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
@@ -135,7 +137,7 @@ func TestValidator(t *testing.T) {
 			parentTx, err := sdkTx.NewTransactionFromHex(parentHex)
 			require.NoError(t, err, "Could not parse parent tx hex")
 
-			in.SetPrevTxFromOutput(parentTx.Outputs[in.SourceTxOutIndex])
+			in.SetSourceTxOutput(parentTx.Outputs[in.SourceTxOutIndex])
 		}
 
 		policy := getPolicy(5)
@@ -180,6 +182,10 @@ func getPolicy(satoshisPerKB uint64) *bitcoin.Settings {
 
 // no need to extensively test this function, it's just calling isFeePaidEnough
 func TestStandardCheckFees(t *testing.T) {
+	txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	require.NoError(t, err)
+	sourceTxHash, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
 	type args struct {
 		tx       *sdkTx.Transaction
 		feeModel *fees.SatoshisPerKilobyte
@@ -194,6 +200,7 @@ func TestStandardCheckFees(t *testing.T) {
 			args: args{
 				tx: &sdkTx.Transaction{
 					Inputs: []*sdkTx.TransactionInput{{
+						SourceTXID: sourceTxHash,
 						SourceTransaction: &sdkTx.Transaction{
 							Outputs: []*sdkTx.TransactionOutput{{
 								Satoshis: 100,
@@ -214,6 +221,7 @@ func TestStandardCheckFees(t *testing.T) {
 			args: args{
 				tx: &sdkTx.Transaction{
 					Inputs: []*sdkTx.TransactionInput{{
+						SourceTXID: sourceTxHash,
 						SourceTransaction: &sdkTx.Transaction{
 							Outputs: []*sdkTx.TransactionOutput{{
 								Satoshis: 150,

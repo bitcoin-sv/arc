@@ -30,15 +30,15 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 		{
 			name: "all from finder",
 			fetchedTx: []*metamorph.Transaction{
-				{TxID: testdata.TX1Raw.TxID(), Bytes: testdata.TX1Raw.Bytes()},
-				{TxID: testdata.TX6Raw.TxID(), Bytes: testdata.TX6Raw.Bytes()},
+				{TxID: testdata.TX1Raw.TxID().String(), Bytes: testdata.TX1Raw.Bytes()},
+				{TxID: testdata.TX6Raw.TxID().String(), Bytes: testdata.TX6Raw.Bytes()},
 			},
 		},
 		{
 			name:     "cached and fetched mixed",
 			cachedTx: []sdkTx.Transaction{*testdata.TX1Raw},
 			fetchedTx: []*metamorph.Transaction{
-				{TxID: testdata.TX6Raw.TxID(), Bytes: testdata.TX6Raw.Bytes()},
+				{TxID: testdata.TX6Raw.TxID().String(), Bytes: testdata.TX6Raw.Bytes()},
 			},
 		},
 	}
@@ -54,7 +54,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 
 			c := cache.New(10*time.Second, 10*time.Second)
 			for _, r := range tc.cachedTx {
-				c.Set(r.TxID(), r, cache.DefaultExpiration)
+				c.Set(r.TxID().String(), r, cache.DefaultExpiration)
 			}
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			finder := New(thMq, nil, nil, logger)
@@ -62,7 +62,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 
 			// when
 			// try to find in cache or with TransactionHandler only
-			res, err := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{testdata.TX1Raw.TxID(), testdata.TX6Raw.TxID()})
+			res, err := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{testdata.TX1Raw.TxID().String(), testdata.TX6Raw.TxID().String()})
 
 			// then
 			require.NoError(t, err)

@@ -2,6 +2,7 @@ package broadcaster_test
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
@@ -58,6 +60,13 @@ func TestRateBroadcaster(t *testing.T) {
 		},
 	}
 
+	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash1, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
+
+	txIDbytes, _ = hex.DecodeString("1a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash2, err := chainhash.NewHash(txIDbytes)
+	require.NoError(t, err)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
@@ -72,13 +81,13 @@ func TestRateBroadcaster(t *testing.T) {
 
 					return sdkTx.UTXOs{
 						{
-							TxID:          []byte("sample-txid-1"),
+							TxID:          hash1,
 							Vout:          0,
 							LockingScript: lockingScript,
 							Satoshis:      1000,
 						},
 						{
-							TxID:          []byte("sample-txid-2"),
+							TxID:          hash2,
 							Vout:          1,
 							LockingScript: lockingScript,
 							Satoshis:      1000,
@@ -97,7 +106,7 @@ func TestRateBroadcaster(t *testing.T) {
 					var statuses []*metamorph_api.TransactionStatus
 					for _, tx := range txs {
 						statuses = append(statuses, &metamorph_api.TransactionStatus{
-							Txid:   tx.TxID(),
+							Txid:   tx.TxID().String(),
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
 					}

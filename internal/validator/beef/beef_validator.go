@@ -232,7 +232,7 @@ func findMinedAncestorsForInput(input *sdkTx.TransactionInput, ancestors []*beef
 }
 
 func findParentForInput(input *sdkTx.TransactionInput, parentTxs []*beef.TxData) *beef.TxData {
-	parentID := input.PreviousTxIDStr()
+	parentID := input.SourceTXID.String()
 
 	for _, ptx := range parentTxs {
 		if ptx.GetTxID() == parentID {

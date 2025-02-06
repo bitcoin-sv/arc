@@ -33,7 +33,7 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 	parentInputMap := make(map[string][]*sdkTx.TransactionInput)
 
 	for _, in := range rawTx.Inputs {
-		prevTxID := in.PreviousTxIDStr()
+		prevTxID := in.SourceTXID.String()
 
 		inputs, found := parentInputMap[prevTxID]
 		if !found {
@@ -60,7 +60,7 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 
 	// extend inputs with parents data
 	for _, p := range parentsTxs {
-		childInputs, found := parentInputMap[p.TxID()]
+		childInputs, found := parentInputMap[p.TxID().String()]
 		if !found {
 			return ErrParentNotFound
 		}
@@ -76,11 +76,11 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 func extendInputs(tx *sdkTx.Transaction, childInputs []*sdkTx.TransactionInput) error {
 	for _, input := range childInputs {
 		if len(tx.Outputs) < int(input.SourceTxOutIndex) {
-			return fmt.Errorf("output %d not found in transaction %s", input.SourceTxOutIndex, input.PreviousTxIDStr())
+			return fmt.Errorf("output %d not found in transaction %s", input.SourceTxOutIndex, input.SourceTXID.String())
 		}
 		output := tx.Outputs[input.SourceTxOutIndex]
 
-		input.SetPrevTxFromOutput(output)
+		input.SetSourceTxOutput(output)
 	}
 
 	return nil
@@ -99,7 +99,7 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 	parentInputMap := make(map[string]struct{})
 
 	for _, in := range tx.Inputs {
-		prevTxID := in.PreviousTxIDStr()
+		prevTxID := in.SourceTXID.String()
 		_, found := parentInputMap[prevTxID]
 		if !found {
 			// first occurrence of the parent
@@ -127,7 +127,7 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 			return nil, err
 		}
 
-		unmindedAncestorsSet[mempoolTx.TxID()] = mempoolTx
+		unmindedAncestorsSet[mempoolTx.TxID().String()] = mempoolTx
 	}
 
 	return unmindedAncestorsSet, nil

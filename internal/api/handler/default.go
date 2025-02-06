@@ -613,14 +613,14 @@ func (m ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields) 
 				return nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 			txsHex = remainingBytes
-			txIDs = append(txIDs, beefTx.GetLatestTx().TxID())
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
 				return nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
 			txsHex = txsHex[bytesUsed:]
-			txIDs = append(txIDs, transaction.TxID())
+			txIDs = append(txIDs, transaction.TxID().String())
 		}
 	}
 
@@ -663,7 +663,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				}
 			}
 
-			txIDs = append(txIDs, beefTx.GetLatestTx().TxID())
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
@@ -679,7 +679,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			submittedTxs = append(submittedTxs, transaction)
-			txIDs = append(txIDs, transaction.TxID())
+			txIDs = append(txIDs, transaction.TxID().String())
 		}
 	}
 
@@ -702,7 +702,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	for idx, tx := range txStatuses {
 		txID := tx.TxID
 		if txID == "" {
-			txID = submittedTxs[idx].TxID()
+			txID = submittedTxs[idx].TxID().String()
 		}
 
 		successes = append(successes, &api.TransactionResponse{
@@ -738,7 +738,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 	err = txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 		return arcError
 	}
 
@@ -761,7 +761,7 @@ func (m ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValida
 	errTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, errTx, err)
-		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 		return arcError
 	}
@@ -794,7 +794,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		status, err = m.TransactionHandler.SubmitTransaction(ctx, tx, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, tx, err)
-			m.logger.ErrorContext(ctx, "failed to submit transaction", slog.String("id", tx.TxID()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+			m.logger.ErrorContext(ctx, "failed to submit transaction", slog.String("id", tx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 			return nil, arcError
 		}
@@ -858,7 +858,7 @@ func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Trans
 	arcError := api.NewErrorFields(status, submitErr.Error())
 
 	if transaction != nil {
-		arcError.Txid = PtrTo(transaction.TxID())
+		arcError.Txid = PtrTo(transaction.TxID().String())
 	}
 
 	return status, arcError

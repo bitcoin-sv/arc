@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
@@ -112,7 +113,6 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
-
 	operation := func() (sdkTx.UTXOs, error) {
 		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
 		if err != nil {
@@ -129,7 +129,6 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 	if err != nil {
 		return nil, err
 	}
-
 	return utxos, nil
 }
 
@@ -159,8 +158,12 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 			return nil, errors.Join(ErrWOCFailedToDecodeHexString, err)
 		}
 
+		h, err := chainhash.NewHash(txIDBytes)
+		if err != nil {
+			return unspent, err
+		}
 		unspent[i] = &sdkTx.UTXO{
-			TxID:          txIDBytes,
+			TxID:          h,
 			Vout:          utxo.Vout,
 			LockingScript: lockingScript,
 			Satoshis:      utxo.Satoshis,

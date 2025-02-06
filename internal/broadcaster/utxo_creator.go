@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 )
 
@@ -137,7 +138,7 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 					if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
 						b.logger.Error("splitting tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
 						for _, tx := range batch {
-							if tx.TxID() == res.Txid {
+							if tx.TxID().String() == res.Txid {
 								b.logger.Debug(tx.String())
 								break
 							}
@@ -157,9 +158,14 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 						continue
 					}
 
+					hash, err := chainhash.NewHash(txIDBytes)
+					if err != nil {
+						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+						continue
+					}
 					for _, foundOutput := range foundOutputs {
 						newUtxo := &sdkTx.UTXO{
-							TxID:          txIDBytes,
+							TxID:          hash,
 							Vout:          foundOutput.vout,
 							LockingScript: b.keySet.Script,
 							Satoshis:      foundOutput.satoshis,
@@ -224,7 +230,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: uint32(i)}
 		}
 
-		satoshiMap[tx.TxID()] = txOutputs
+		satoshiMap[tx.TxID().String()] = txOutputs
 
 		if len(txsSplit) == b.batchSize {
 			txsSplitBatches = append(txsSplitBatches, txsSplit)

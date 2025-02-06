@@ -187,7 +187,7 @@ func CreateTxChain(privateKey string, utxo0 UnspentOutput, length int) ([]*sdkTx
 
 		batch[i] = tx
 
-		utxoTxID = tx.TxID()
+		utxoTxID = tx.TxID().String()
 		utxoVout = 0
 		utxoSatoshis = amountToSend
 		utxoScript = utxo0.ScriptPubKey
@@ -272,9 +272,14 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 	} else {
 		feeValue = 20 // Set your default fee value here
 	}
-	amountToSend := tx.TotalInputSatoshis() - feeValue
 
-	err := tx.PayToAddress(recipientAddress, amountToSend)
+	amount, err := tx.TotalInputSatoshis()
+	if err != nil {
+		return nil, err
+	}
+	amountToSend := amount - feeValue
+
+	err = tx.PayToAddress(recipientAddress, amountToSend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pay to address: %v", err)
 	}

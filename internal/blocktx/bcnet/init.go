@@ -6,7 +6,6 @@ import (
 
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
@@ -44,8 +43,8 @@ func init() {
 				return bytesRead, nil, nil, err
 			}
 			bytesRead += int(read)
-			txBytes = tx.TxIDBytes() // this returns the bytes in BigEndian
-			hash, err = chainhash.NewHash(util.ReverseBytes(txBytes))
+			txBytes = tx.TxID().CloneBytes()
+			hash, err = chainhash.NewHash(txBytes)
 			if err != nil {
 				return 0, nil, nil, err
 			}

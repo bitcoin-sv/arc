@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	transaction "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
@@ -23,6 +24,7 @@ func TestUTXOCreator(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	hash1, _ := chainhash.NewHash(testdata.TX1Hash[:])
 
 	tests := []struct {
 		name                   string
@@ -35,7 +37,7 @@ func TestUTXOCreator(t *testing.T) {
 	}{
 		{
 			name:         "success - creates correct UTXOs",
-			getUTXOsResp: sdkTx.UTXOs{{TxID: testdata.TX1Hash[:], Vout: 0, LockingScript: ks.Script, Satoshis: 401}},
+			getUTXOsResp: sdkTx.UTXOs{{TxID: hash1, Vout: 0, LockingScript: ks.Script, Satoshis: 401}},
 			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 				return 400, 0, nil
 			},
@@ -46,7 +48,7 @@ func TestUTXOCreator(t *testing.T) {
 		},
 		{
 			name:         "Insufficient balance",
-			getUTXOsResp: sdkTx.UTXOs{{TxID: testdata.TX1Hash[:], Vout: 0, LockingScript: ks.Script, Satoshis: 50}},
+			getUTXOsResp: sdkTx.UTXOs{{TxID: hash1, Vout: 0, LockingScript: ks.Script, Satoshis: 50}},
 			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
 				return 100, 0, nil
 			},
@@ -64,7 +66,7 @@ func TestUTXOCreator(t *testing.T) {
 				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _, _ string, _, _ bool) ([]*metamorph_api.TransactionStatus, error) {
 					statuses := make([]*metamorph_api.TransactionStatus, len(txs))
 					for i, tx := range txs {
-						statuses[i] = &metamorph_api.TransactionStatus{Txid: tx.TxID(), Status: metamorph_api.Status_SEEN_ON_NETWORK}
+						statuses[i] = &metamorph_api.TransactionStatus{Txid: tx.TxID().String(), Status: metamorph_api.Status_SEEN_ON_NETWORK}
 					}
 					return statuses, nil
 				},

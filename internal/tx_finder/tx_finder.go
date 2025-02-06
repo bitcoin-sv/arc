@@ -90,18 +90,18 @@ func (f Finder) getRawTxsFromTransactionHandler(ctx context.Context, remainingID
 	thTxs, err = f.transactionHandler.GetTransactions(ctx, ids)
 	if err != nil {
 		f.logger.WarnContext(ctx, "failed to get transactions from TransactionHandler", slog.Any("ids", ids), slog.String("err", err.Error()))
-	} else {
-		for _, thTx := range thTxs {
-			var rt *sdkTx.Transaction
-			rt, err = sdkTx.NewTransactionFromBytes(thTx.Bytes)
-			if err != nil {
-				f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", thTx.TxID), slog.String("err", err.Error()))
-				continue
-			}
-
-			delete(remainingIDs, thTx.TxID)
-			foundTxs = append(foundTxs, rt)
+		return foundTxs
+	}
+	for _, thTx := range thTxs {
+		var rt *sdkTx.Transaction
+		rt, err = sdkTx.NewTransactionFromBytes(thTx.Bytes)
+		if err != nil {
+			f.logger.Error("failed to parse TransactionHandler tx bytes to transaction", slog.Any("id", thTx.TxID), slog.String("err", err.Error()))
+			continue
 		}
+
+		delete(remainingIDs, thTx.TxID)
+		foundTxs = append(foundTxs, rt)
 	}
 
 	return foundTxs
@@ -144,22 +144,22 @@ func (f Finder) getRawTxsFromWoc(ctx context.Context, remainingIDs map[string]st
 	wocTxs, err = f.wocClient.GetRawTxs(ctx, ids)
 	if err != nil {
 		f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("err", err))
-	} else {
-		for _, wTx := range wocTxs {
-			if wTx.Error != "" {
-				f.logger.WarnContext(ctx, "WoC tx reports error", slog.Any("err", wTx.Error))
-				continue
-			}
-
-			var tx *sdkTx.Transaction
-			tx, err = sdkTx.NewTransactionFromHex(wTx.Hex)
-			if err != nil {
-				f.logger.WarnContext(ctx, "failed to parse WoC hex string to transaction", slog.Any("err", err.Error()))
-				continue
-			}
-
-			foundTxs = append(foundTxs, tx)
+		return foundTxs
+	}
+	for _, wTx := range wocTxs {
+		if wTx.Error != "" {
+			f.logger.WarnContext(ctx, "WoC tx reports error", slog.Any("err", wTx.Error))
+			continue
 		}
+
+		var tx *sdkTx.Transaction
+		tx, err = sdkTx.NewTransactionFromHex(wTx.Hex)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to parse WoC hex string to transaction", slog.Any("err", err.Error()))
+			continue
+		}
+
+		foundTxs = append(foundTxs, tx)
 	}
 
 	return foundTxs

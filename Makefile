@@ -51,7 +51,7 @@ test:
 
 .PHONY: install_lint
 install_lint:
-	go install honnef.co/go/tools/cmd/staticcheck@latest
+	go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
 
 .PHONY: lint
 lint:

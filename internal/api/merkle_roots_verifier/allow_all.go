@@ -13,7 +13,7 @@ func (c *allowAllMerkleRootsVerifier) VerifyMerkleRoots(_ context.Context, _ []b
 	return nil, nil
 }
 
-// Returns a MerkleRootsVerifier that accepts all merkle roots.
+// NewAllowAllVerifier Returns a MerkleRootsVerifier that accepts all merkle roots.
 // For test purposes only!
 func NewAllowAllVerifier() blocktx.MerkleRootsVerifier {
 	return &allowAllMerkleRootsVerifier{}

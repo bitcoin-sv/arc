@@ -10,7 +10,7 @@ func WithRestartUnhealthyPeers() PeerManagerOptions {
 	}
 }
 
-// Global setting
+// SetExcessiveBlockSize sets global setting for block size
 func SetExcessiveBlockSize(ebs uint64) {
 	wire.SetLimits(ebs)
 }

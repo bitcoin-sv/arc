@@ -89,7 +89,7 @@ func (m *Multicaster) SendTx(rawTx []byte) error {
 	return nil
 }
 
-// OnReceive should be fire & forget
+// OnReceiveFromMcast should be fire & forget
 func (m *Multicaster) OnReceiveFromMcast(msg wire.Message) {
 	if msg.Command() == wire.CmdReject {
 		rejectMsg, ok := msg.(*wire.MsgReject)
@@ -108,7 +108,7 @@ func (m *Multicaster) OnReceiveFromMcast(msg wire.Message) {
 	// ignore other messages
 }
 
-// OnSend should be fire & forget
+// OnSendToMcast should be fire & forget
 func (m *Multicaster) OnSendToMcast(msg wire.Message) {
 	if msg.Command() == wire.CmdTx {
 		txMsg, ok := msg.(*wire.MsgTx)

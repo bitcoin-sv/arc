@@ -25,7 +25,7 @@ const (
 
 var _ PeerI = (*Peer)(nil)
 
-// outgoing connection peer
+// Peer outgoing connection peer
 type Peer struct {
 	execWg        sync.WaitGroup
 	execCtx       context.Context

@@ -30,12 +30,13 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/libsv/go-p2p/wire"
+
 	"github.com/bitcoin-sv/arc/config"
 	arcLogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/multicast"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/libsv/go-p2p/wire"
 )
 
 func main() {
@@ -180,8 +181,7 @@ var (
 	_ p2p.MessageHandlerI       = (*MulticastP2PBridge)(nil)
 )
 
-// implement p2p.MessageHandlerI
-// OnReceive handles incoming messages depending on command type
+// OnReceive handles incoming messages depending on command type. Implements p2p.MessageHandlerI
 func (b *MulticastP2PBridge) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 	switch cmd {
@@ -262,8 +262,7 @@ func (b *MulticastP2PBridge) handleReceivedGetDataMsg(getMsg *wire.MsgGetData, p
 	}
 }
 
-// implement multicast.MessageHandlerI
-// OnReceiveFromMcast handles incoming messages from multicast group depending on command type
+// OnReceiveFromMcast handles incoming messages from multicast group depending on command type. Implements multicast.MessageHandlerI
 func (b *MulticastP2PBridge) OnReceiveFromMcast(msg wire.Message) {
 	cmd := msg.Command()
 	switch cmd {

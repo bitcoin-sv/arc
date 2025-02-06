@@ -1,4 +1,4 @@
-FROM golang:1.22.5-alpine3.20 AS build-stage
+FROM golang:1.23-alpine3.21 AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION

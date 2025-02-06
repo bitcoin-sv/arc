@@ -118,6 +118,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 			slog.String("token", token),
 			slog.String("hash", dto.TxID),
 			slog.String("status", dto.TxStatus),
+			slog.String("timestamp", dto.Timestamp.String()),
 			slog.String("err", err.Error()))
 		return false, false
 	}
@@ -130,7 +131,9 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 			slog.String("token", token),
 			slog.String("hash", dto.TxID),
 			slog.String("status", dto.TxStatus),
-			slog.Int("retries", retries))
+			slog.String("timestamp", dto.Timestamp.String()),
+			slog.Int("retries", retries),
+		)
 
 		p.updateSuccessStats(dto.TxStatus)
 		return success, retry
@@ -141,7 +144,9 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 		slog.String("token", token),
 		slog.String("hash", dto.TxID),
 		slog.String("status", dto.TxStatus),
-		slog.Int("retries", retries))
+		slog.String("timestamp", dto.Timestamp.String()),
+		slog.Int("retries", retries),
+	)
 
 	p.stats.callbackFailedCount.Inc()
 	return success, retry
@@ -167,15 +172,17 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 	success, retry, retries = p.sendCallbackWithRetries(url, token, payload)
 	p.stats.callbackBatchCount.Inc()
 	if success {
-		for _, c := range dtos {
-			p.logger.Info("Callback sent",
+		for _, dto := range dtos {
+			p.logger.Info("Callback sent in batch",
 				slog.String("url", url),
 				slog.String("token", token),
-				slog.String("hash", c.TxID),
-				slog.String("status", c.TxStatus),
-				slog.Int("retries", retries))
+				slog.String("hash", dto.TxID),
+				slog.String("status", dto.TxStatus),
+				slog.String("timestamp", dto.Timestamp.String()),
+				slog.Int("retries", retries),
+			)
 
-			p.updateSuccessStats(c.TxStatus)
+			p.updateSuccessStats(dto.TxStatus)
 		}
 		return success, retry
 	}

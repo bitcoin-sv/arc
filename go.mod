@@ -1,8 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.23.0
-
-toolchain go1.23.5
+go 1.23.5
 
 require (
 	github.com/bitcoin-sv/go-sdk v1.1.18

@@ -587,7 +587,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
-			Status:    dataBeforeUpdate.Status,
+			Status:    metamorph_api.Status_MINED,
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
 		unmined.Status = metamorph_api.Status_MINED
@@ -626,11 +626,11 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
 			&store.Status{
-				Status:    metamorph_api.Status_UNKNOWN,
+				Status:    metamorph_api.Status_QUEUED,
 				Timestamp: postgresDB.now(),
 			},
 			&store.Status{
-				Status:    metamorph_api.Status_QUEUED,
+				Status:    metamorph_api.Status_RECEIVED,
 				Timestamp: postgresDB.now(),
 			},
 		)
@@ -652,7 +652,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
-			Status:    metamorph_api.Status_RECEIVED,
+			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
@@ -675,7 +675,7 @@ func TestPostgresDB(t *testing.T) {
 
 		unmined.CompetingTxs = []string{"5678"}
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
-			Status:    unmined.Status,
+			Status:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			Timestamp: unmined.LastModified,
 		})
 		unmined.LastModified = postgresDB.now()
@@ -704,7 +704,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
-			Status:    unmined.Status,
+			Status:    metamorph_api.Status_MINED,
 			Timestamp: unmined.LastModified,
 		})
 		unmined.LastModified = postgresDB.now()
@@ -733,7 +733,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHash = testdata.Block2Hash
 		unmined.MerklePath = "merkle-path-1"
 		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
-			Status:    unmined.Status,
+			Status:    metamorph_api.Status_MINED_IN_STALE_BLOCK,
 			Timestamp: unmined.LastModified,
 		})
 		unmined.LastModified = postgresDB.now()

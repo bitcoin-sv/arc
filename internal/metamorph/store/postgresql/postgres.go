@@ -648,12 +648,12 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 				last_modified = $1,
 				status_history = status_history
 					|| COALESCE(
-						json_build_object(
-							'status', metamorph.transactions.status,
+						bulk_query.history_update || json_build_object(
+							'status', bulk_query.status,
 							'timestamp', bulk_query.timestamp
-						)::JSONB || bulk_query.history_update,
+						)::JSONB,
 						json_build_object(
-							'status', metamorph.transactions.status,
+							'status', bulk_query.status,
 							'timestamp', bulk_query.timestamp
 						)::JSONB
 					)
@@ -753,8 +753,8 @@ func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []stor
             SELECT jsonb_agg(new_status)
             FROM (
                 SELECT jsonb_build_object(
-                    'status', (new_status->>'status')::INT,
-                    'timestamp', (new_status->>'timestamp')::TIMESTAMP WITH TIME ZONE
+                   'status', (new_status->>'status')::INT,
+                   'timestamp', (new_status->>'timestamp')::TIMESTAMP WITH TIME ZONE
                 ) AS new_status
                 FROM jsonb_array_elements(COALESCE(bulk_query.history_update, '[]'::JSONB)) AS new_status
                 WHERE NOT EXISTS (
@@ -844,7 +844,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			competing_txs=bulk_query.competing_txs,
 			last_modified=$1,
 			status_history=status_history || json_build_object(
-				'status', metamorph.transactions.status,
+				'status', bulk_query.status,
 				'timestamp', last_modified
 			)::JSONB
 			FROM
@@ -977,7 +977,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 			  	merkle_path=bulk_query.merkle_path,
 			  	last_modified=$1,
 				status_history=status_history || json_build_object(
-					'status', status,
+					'status', bulk_query.mined_status,
 					'timestamp', last_modified
 				)::JSONB
 			FROM

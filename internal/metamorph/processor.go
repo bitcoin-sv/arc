@@ -425,7 +425,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					Status:       msg.Status,
 					Error:        msg.Err,
 					CompetingTxs: msg.CompetingTxs,
-					Timestamp:    msg.Start,
+					Timestamp:    p.now(),
 				}
 
 				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache

@@ -235,14 +235,21 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 }
 
 func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.TransactionRequest) *store.Data {
+	callbacks := make([]store.Callback, 0)
+	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {
+		callbacks = []store.Callback{
+			{
+				CallbackURL:   req.GetCallbackUrl(),
+				CallbackToken: req.GetCallbackToken(),
+				AllowBatch:    req.GetCallbackBatch(),
+			},
+		}
+	}
+
 	return &store.Data{
-		Hash:   hash,
-		Status: statusReceived,
-		Callbacks: []store.Callback{{
-			CallbackURL:   req.GetCallbackUrl(),
-			CallbackToken: req.GetCallbackToken(),
-			AllowBatch:    req.GetCallbackBatch(),
-		}},
+		Hash:              hash,
+		Status:            statusReceived,
+		Callbacks:         callbacks,
 		FullStatusUpdates: req.GetFullStatusUpdates(),
 		RawTx:             req.GetRawTx(),
 	}

@@ -129,7 +129,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		return nil, err
 	}
 
-	// Todo: remove as callbacks are being published asynchronously using message queue
 	server, err = callbacker.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger, dispatcher, callbackerStore, nil)
 	if err != nil {
 		stopFn()

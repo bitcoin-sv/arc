@@ -361,20 +361,23 @@ func (p *Processor) StartProcessSubmittedTxs() {
 					continue
 				}
 				now := p.now()
-				callback := store.Callback{
-					CallbackURL:   submittedTx.GetCallbackUrl(),
-					CallbackToken: submittedTx.GetCallbackToken(),
-				}
 				sReq := &store.Data{
-					Hash:   PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
-					Status: metamorph_api.Status_STORED,
-					Callbacks: []store.Callback{
-						callback,
-					},
+					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
+					Status:            metamorph_api.Status_STORED,
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
+					Callbacks:         []store.Callback{},
 					StoredAt:          now,
 					LastSubmittedAt:   now,
+				}
+
+				if submittedTx.GetCallbackUrl() != "" || submittedTx.GetCallbackToken() != "" {
+					sReq.Callbacks = []store.Callback{
+						{
+							CallbackURL:   submittedTx.GetCallbackUrl(),
+							CallbackToken: submittedTx.GetCallbackToken(),
+						},
+					}
 				}
 
 				reqs = append(reqs, sReq)
@@ -891,7 +894,7 @@ func (p *Processor) storeData(ctx context.Context, data *store.Data) error {
 }
 
 func addNewCallback(data, reqData *store.Data) {
-	if reqData.Callbacks == nil {
+	if len(reqData.Callbacks) == 0 {
 		return
 	}
 	reqCallback := reqData.Callbacks[0]

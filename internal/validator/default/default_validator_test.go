@@ -153,9 +153,8 @@ func TestValidator(t *testing.T) {
 	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
 		// given
 		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) ([]*sdkTx.Transaction, error) {
-				res := []*sdkTx.Transaction{fixture.ParentTx1}
-				return res, nil
+			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+				return []*sdkTx.Transaction{fixture.ParentTx1}
 			},
 		}
 
@@ -371,7 +370,6 @@ func TestCumulativeCheckFees(t *testing.T) {
 		feeModel               *fees.SatoshisPerKilobyte
 		mempoolAncestors       []string
 		getMempoolAncestorsErr error
-		getRawTxsErr           error
 
 		expectedErr *validation.Error
 	}{
@@ -427,7 +425,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
 					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
 				},
-				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) ([]*sdkTx.Transaction, error) {
+				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 					rawTxs := make([]*sdkTx.Transaction, len(ids))
 					for i, id := range ids {
 						rawTx, ok := txMap[id]
@@ -437,7 +435,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 						rawTxs[i] = rawTx
 					}
 
-					return rawTxs, tc.getRawTxsErr
+					return rawTxs
 				},
 			}
 			tx := fixture.ValidTx

@@ -62,10 +62,9 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 
 			// when
 			// try to find in cache or with TransactionHandler only
-			res, err := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{testdata.TX1Raw.TxID().String(), testdata.TX6Raw.TxID().String()})
+			res := sut.GetRawTxs(context.Background(), validator.SourceTransactionHandler, []string{testdata.TX1Raw.TxID().String(), testdata.TX6Raw.TxID().String()})
 
 			// then
-			require.NoError(t, err)
 			require.Len(t, res, len(tc.cachedTx)+len(tc.fetchedTx))
 
 			if len(tc.fetchedTx) > 0 {

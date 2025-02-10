@@ -14,7 +14,6 @@ import (
 
 var (
 	ErrParentNotFound              = errors.New("parent transaction not found")
-	ErrFailedToGetRawTxs           = errors.New("failed to get raw transactions for parent")
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from finder")
 )
 
@@ -49,11 +48,7 @@ func extendTx(ctx context.Context, txFinder validator.TxFinderI, rawTx *sdkTx.Tr
 	// get parents
 	const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
 
-	parentsTxs, err := txFinder.GetRawTxs(ctx, finderSource, parentsIDs)
-	if err != nil {
-		return errors.Join(ErrFailedToGetRawTxs, fmt.Errorf("failed to get raw transactions for parents %v: %w", parentsIDs, err))
-	}
-
+	parentsTxs := txFinder.GetRawTxs(ctx, finderSource, parentsIDs)
 	if len(parentsTxs) != len(parentsIDs) {
 		return ErrParentNotFound
 	}
@@ -115,10 +110,7 @@ func getUnminedAncestors(ctx context.Context, txFinder validator.TxFinderI, tx *
 	var allMempoolTxs []*sdkTx.Transaction
 	if len(mempoolAncestorTxIDs) > 0 {
 		const finderSource = validator.SourceTransactionHandler | validator.SourceNodes | validator.SourceWoC
-		allMempoolTxs, err = txFinder.GetRawTxs(ctx, finderSource, mempoolAncestorTxIDs)
-		if err != nil {
-			return nil, errors.Join(ErrFailedToGetRawTxs, err)
-		}
+		allMempoolTxs = txFinder.GetRawTxs(ctx, finderSource, mempoolAncestorTxIDs)
 	}
 
 	for _, mempoolTx := range allMempoolTxs {

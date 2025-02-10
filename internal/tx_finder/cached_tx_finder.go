@@ -62,10 +62,10 @@ func (f CachedFinder) GetMempoolAncestors(ctx context.Context, ids []string) ([]
 	return f.finder.GetMempoolAncestors(ctx, ids)
 }
 
-func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction, err error) {
+func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, ids []string) (txs []*sdkTx.Transaction) {
 	ctx, span := tracing.StartTracing(ctx, "CachedFinder_GetRawTxs", f.tracingEnabled, f.tracingAttributes...)
 	defer func() {
-		tracing.EndTracing(span, err)
+		tracing.EndTracing(span, nil)
 	}()
 
 	cachedTxs := make([]*sdkTx.Transaction, 0, len(ids))
@@ -85,19 +85,16 @@ func (f CachedFinder) GetRawTxs(ctx context.Context, source validator.FindSource
 	}
 
 	if len(toFindIDs) == 0 {
-		return cachedTxs, nil
+		return cachedTxs
 	}
 
 	// find txs
-	foundTxs, err := f.finder.GetRawTxs(ctx, source, toFindIDs)
-	if err != nil {
-		return nil, err
-	}
+	foundTxs := f.finder.GetRawTxs(ctx, source, toFindIDs)
 
 	// update cache
 	for _, tx := range foundTxs {
 		f.cacheStore.Set(tx.TxID().String(), *tx, cacheExpiration)
 	}
 
-	return append(cachedTxs, foundTxs...), nil
+	return append(cachedTxs, foundTxs...)
 }

@@ -217,7 +217,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	wg := &sync.WaitGroup{}
 	for hash, input := range processTxsInputMap {
 		wg.Add(1)
-		// TODO check the Context when API call ends
 		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
 			defer wg.Done()
 

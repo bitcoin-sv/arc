@@ -89,9 +89,13 @@ func TestRedisClient(t *testing.T) {
 		// when
 		res, err := redisStore.Get("key")
 		require.NoError(t, err)
-
 		// then
 		require.Equal(t, "value", string(res))
+		//when
+		res, err = redisStore.Get("NonExistingKey")
+		//then
+		require.ErrorIs(t, err, ErrCacheNotFound)
+
 	})
 
 	t.Run("del", func(t *testing.T) {
@@ -105,9 +109,14 @@ func TestRedisClient(t *testing.T) {
 
 		// when
 		err = redisStore.Del([]string{"key1", "key2", "key3"}...)
-
 		// then
 		require.NoError(t, err)
+
+		// when
+		err = redisStore.Del([]string{"nonExistingKey"}...)
+		// then
+		require.ErrorIs(t, err, ErrCacheNotFound)
+
 	})
 
 	t.Run("map set/get", func(t *testing.T) {

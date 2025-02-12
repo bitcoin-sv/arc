@@ -96,7 +96,6 @@ func TestRedisClient(t *testing.T) {
 		//then
 		require.ErrorIs(t, err, ErrCacheNotFound)
 		require.Nil(t, res)
-
 	})
 
 	t.Run("del", func(t *testing.T) {
@@ -117,7 +116,6 @@ func TestRedisClient(t *testing.T) {
 		err = redisStore.Del([]string{"nonExistingKey"}...)
 		// then
 		require.ErrorIs(t, err, ErrCacheNotFound)
-
 	})
 
 	t.Run("map set/get", func(t *testing.T) {

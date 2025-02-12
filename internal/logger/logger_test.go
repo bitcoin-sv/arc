@@ -92,7 +92,6 @@ func Test_NewLogger(t *testing.T) {
 				if tc.loglevel == "TRACE" {
 					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelInfo), true)
 				}
-
 			}
 		})
 	}

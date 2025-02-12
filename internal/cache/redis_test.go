@@ -95,6 +95,7 @@ func TestRedisClient(t *testing.T) {
 		res, err = redisStore.Get("NonExistingKey")
 		//then
 		require.ErrorIs(t, err, ErrCacheNotFound)
+		require.Nil(t, res)
 
 	})
 

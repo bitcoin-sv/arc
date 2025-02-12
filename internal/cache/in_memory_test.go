@@ -134,6 +134,7 @@ func TestInMemoryCacheLifeCycle(t *testing.T) {
 
 		//When the map length is checked against a non-existing map, then an error is expected
 		mapExtractAll, err = cStore.MapExtractAll("hash2")
+		require.Nil(t, mapVal)
 		require.ErrorIs(t, err, ErrCacheNotFound)
 
 	})

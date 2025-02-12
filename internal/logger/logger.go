@@ -51,14 +51,14 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 	switch logFormat {
 	case "json":
 		return slog.New(&ArcContextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slogLevel,
-			//ReplaceAttr: replaceAttr,
+			Level:       slogLevel,
+			ReplaceAttr: replaceAttr,
 		},
 		)}), nil
 	case "text":
 		return slog.New(&ArcContextHandler{slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slogLevel,
-			//ReplaceAttr: replaceAttr,
+			Level:       slogLevel,
+			ReplaceAttr: replaceAttr,
 		})}), nil
 	case "tint":
 		return slog.New(&ArcContextHandler{tint.NewHandler(os.Stdout, &tint.Options{

@@ -42,7 +42,6 @@ type natsConfig struct {
 
 func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) (*nats.Conn, error) {
 	var nc *nats.Conn
-	var err error
 
 	logger.With(slog.String("module", "nats"))
 
@@ -67,19 +66,29 @@ func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) 
 
 	natsOpts := []nats.Option{
 		nats.Name(hostname),
-		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
-			if err != nil {
-				logger.Error("connection error", slog.String("err", err.Error()))
+		nats.ErrorHandler(func(_ *nats.Conn, sub *nats.Subscription, natsErr error) {
+			if natsErr == nil {
+				return
+			}
+			logger.Error("Connection error", slog.String("err", natsErr.Error()))
+			if errors.Is(natsErr, nats.ErrSlowConsumer) {
+				pendingMsgs, _, pendingErr := sub.Pending()
+				if pendingErr != nil {
+					logger.Error("Failed to get pending messages", slog.String("err", pendingErr.Error()))
+					return
+				}
+				logger.Warn("Falling behind with pending messages on subject", slog.Int("messages", pendingMsgs), slog.String("subject", sub.Subject))
+				return
 			}
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
 			logger.Info(fmt.Sprintf("Known servers: %v", nc.Servers()))
 			logger.Info(fmt.Sprintf("Discovered servers: %v", nc.DiscoveredServers()))
 		}),
-		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+		nats.DisconnectErrHandler(func(nc *nats.Conn, disconnectErr error) {
 			var args []any
-			if err != nil {
-				args = append(args, slog.String("err", err.Error()))
+			if disconnectErr != nil {
+				args = append(args, slog.String("err", disconnectErr.Error()))
 			}
 			buffered, bufferedErr := nc.Buffered()
 			if bufferedErr == nil {

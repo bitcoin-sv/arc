@@ -1,4 +1,4 @@
-# ARC
+# Authoritative Response Component (ARC)
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in.
 
 ## Table of Contents

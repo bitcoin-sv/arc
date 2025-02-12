@@ -51,13 +51,13 @@ func testmain(m *testing.M) int {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = nats_connection.New(natsURL, logger, nil)
+	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
 	}
 
-	natsConn, err = nats_connection.New(natsURL, logger, nil)
+	natsConn, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1

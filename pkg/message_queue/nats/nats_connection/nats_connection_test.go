@@ -51,14 +51,19 @@ func testmain(m *testing.M) int {
 
 func TestNewNatsConnection(t *testing.T) {
 	t.Run("error - wrong URL", func(t *testing.T) {
-		_, err = New("wrong url", slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})), nil)
+		_, err = New("wrong url", slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 		require.ErrorIs(t, err, ErrNatsConnectionFailed)
 	})
 
 	t.Run("success", func(t *testing.T) {
 		clientClosedCh := make(chan struct{}, 1)
 
-		conn, err := New(natsURL, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})), clientClosedCh)
+		conn, err := New(natsURL,
+			slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+			WithClientClosedChannel(clientClosedCh),
+			WithMaxReconnects(1),
+			WithReconnectWait(100*time.Millisecond),
+		)
 		require.NoError(t, err)
 		testMessage := &test_api.TestMessage{
 			Ok: true,

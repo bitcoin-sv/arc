@@ -12,11 +12,53 @@ import (
 
 var ErrNatsConnectionFailed = fmt.Errorf("failed to connect to NATS server")
 
-func New(natsURL string, logger *slog.Logger, clientClosedCh chan struct{}) (*nats.Conn, error) {
+func WithMaxReconnects(maxReconnects int) func(config *natsConfig) {
+	return func(config *natsConfig) {
+		config.maxReconnects = maxReconnects
+	}
+}
+
+func WithClientClosedChannel(clientClosedCh chan struct{}) func(config *natsConfig) {
+	return func(config *natsConfig) {
+		config.clientClosedCh = clientClosedCh
+	}
+}
+
+func WithReconnectWait(reconnectWait time.Duration) func(config *natsConfig) {
+	return func(config *natsConfig) {
+		config.reconnectWait = reconnectWait
+	}
+}
+
+type natsConfig struct {
+	maxReconnects        int
+	pingInterval         time.Duration
+	reconnectBufSize     int
+	reconnectWait        time.Duration
+	maxPingsOutstanding  int
+	retryOnFailedConnect bool
+	clientClosedCh       chan struct{}
+}
+
+func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
 	logger.With(slog.String("module", "nats"))
+
+	cfg := &natsConfig{
+		maxReconnects:        10,
+		pingInterval:         15 * time.Second,
+		reconnectBufSize:     8 * 1024 * 1024,
+		reconnectWait:        2 * time.Second,
+		maxPingsOutstanding:  2,
+		retryOnFailedConnect: true,
+		clientClosedCh:       nil,
+	}
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -51,19 +93,19 @@ func New(natsURL string, logger *slog.Logger, clientClosedCh chan struct{}) (*na
 		}),
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			logger.Warn("client closed")
-			if clientClosedCh != nil {
+			if cfg.clientClosedCh != nil {
 				select {
-				case clientClosedCh <- struct{}{}:
+				case cfg.clientClosedCh <- struct{}{}:
 				default:
 				}
 			}
 		}),
-		nats.RetryOnFailedConnect(true),
-		nats.PingInterval(15 * time.Second),
-		nats.MaxPingsOutstanding(2),
-		nats.ReconnectBufSize(8 * 1024 * 1024),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(2 * time.Second),
+		nats.RetryOnFailedConnect(cfg.retryOnFailedConnect),
+		nats.PingInterval(cfg.pingInterval),
+		nats.MaxPingsOutstanding(cfg.maxPingsOutstanding),
+		nats.ReconnectBufSize(cfg.reconnectBufSize),
+		nats.MaxReconnects(cfg.maxReconnects),
+		nats.ReconnectWait(cfg.reconnectWait),
 	}
 
 	nc, err = nats.Connect(natsURL, natsOpts...)

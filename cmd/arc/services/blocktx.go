@@ -85,7 +85,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
 	clientClosedCh := make(chan struct{}, 1)
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
+	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)

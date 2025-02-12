@@ -106,7 +106,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
 
 	clientClosedCh := make(chan struct{}, 1)
-	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
+	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)

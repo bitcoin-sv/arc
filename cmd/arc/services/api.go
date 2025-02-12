@@ -229,7 +229,7 @@ func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig, clientClosedCh chan struct{}) (metamorph.MessageQueueClient, error) {
 	logger = logger.With("module", "nats")
 
-	conn, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, clientClosedCh)
+	conn, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}

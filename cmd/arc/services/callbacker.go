@@ -94,11 +94,9 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 	}
 
 	go func() {
-		select {
-		case <-clientClosedCh:
-			logger.Warn("message queue client closed")
-			shutdownCh <- "message queue client closed"
-		}
+		<-clientClosedCh
+		logger.Warn("message queue client closed")
+		shutdownCh <- "message queue client closed"
 	}()
 
 	hostname, err := os.Hostname()

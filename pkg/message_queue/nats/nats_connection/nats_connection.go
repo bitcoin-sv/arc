@@ -45,7 +45,6 @@ func New(natsURL string, logger *slog.Logger, clientClosedCh chan struct{}) (*na
 			}
 
 			logger.Error("client disconnected", args...)
-
 		}),
 		nats.ReconnectHandler(func(_ *nats.Conn) {
 			logger.Info("client reconnected")

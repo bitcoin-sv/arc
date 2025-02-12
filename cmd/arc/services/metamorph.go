@@ -111,12 +111,11 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}
+
 	go func() {
-		select {
-		case <-clientClosedCh:
-			logger.Warn("message queue client closed")
-			shutdownCh <- "message queue client closed"
-		}
+		<-clientClosedCh
+		logger.Warn("message queue client closed")
+		shutdownCh <- "message queue client closed"
 	}()
 
 	if arcConfig.MessageQueue.Streaming.Enabled {

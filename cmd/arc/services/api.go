@@ -54,11 +54,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 	}
 
 	go func() {
-		select {
-		case <-clientClosedCh:
-			logger.Warn("message queue client closed")
-			shutdownCh <- "message queue client closed"
-		}
+		<-clientClosedCh
+		logger.Warn("message queue client closed")
+		shutdownCh <- "message queue client closed"
 	}()
 
 	mtmOpts := []func(*metamorph.Metamorph){

@@ -60,10 +60,10 @@ func New(natsURL string, logger *slog.Logger, clientClosedCh chan struct{}) (*na
 			}
 		}),
 		nats.RetryOnFailedConnect(true),
-		nats.PingInterval(30 * time.Second),
+		nats.PingInterval(15 * time.Second),
 		nats.MaxPingsOutstanding(2),
 		nats.ReconnectBufSize(8 * 1024 * 1024),
-		nats.MaxReconnects(60),
+		nats.MaxReconnects(10),
 		nats.ReconnectWait(2 * time.Second),
 	}
 

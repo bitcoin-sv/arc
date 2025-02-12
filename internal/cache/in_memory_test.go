@@ -98,7 +98,7 @@ func TestInMemoryCacheLifeCycle(t *testing.T) {
 
 		//When a MapSet key/value is stored then no errors are expected to retrieve the existing value
 		err = cStore.MapSet("hash", "key1", []byte("value1"))
-		require.Nil(t, val)
+		require.NoError(t, err)
 
 		val, err = cStore.MapGet("hash", "key1")
 		require.NotNil(t, val)
@@ -111,23 +111,28 @@ func TestInMemoryCacheLifeCycle(t *testing.T) {
 		//When a MapGetaAll is invoked to retrieve all the items in the map then the error will depend on the map existing or not
 		mapVal, err := cStore.MapGetAll("hash")
 		require.NotNil(t, mapVal)
+		require.NoError(t, err)
 
 		mapVal, err = cStore.MapGetAll("notExistingHash")
+		require.Nil(t, mapVal)
 		require.ErrorIs(t, err, ErrCacheNotFound)
 
 		//When the map length is checked then a valid return is expected
 		mapLen, err := cStore.MapLen("hash")
 		require.Equal(t, mapLen, int64(1))
+		require.NoError(t, err)
 
-		//When the map length is checked against a non existing map, then an error is expected
+		//When the map length is checked against a non-existing map, then an error is expected
 		mapLen, err = cStore.MapLen("notExistingHash")
 		require.Equal(t, mapLen, int64(0))
+		require.NoError(t, err)
 
 		//When the map length is checked against an existing map, then a valid length is expected
 		mapExtractAll, err := cStore.MapExtractAll("hash")
 		require.NotNil(t, mapExtractAll)
+		require.NoError(t, err)
 
-		//When the map length is checked against a non existing map, then an error is expected
+		//When the map length is checked against a non-existing map, then an error is expected
 		mapExtractAll, err = cStore.MapExtractAll("hash2")
 		require.ErrorIs(t, err, ErrCacheNotFound)
 

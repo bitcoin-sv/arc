@@ -16,15 +16,39 @@ func Test_NewLogger(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name:          "valid logger",
+			name:          "valid logger - INFO",
 			loglevel:      "INFO",
 			logformat:     "text",
 			expectedError: nil,
 		},
 		{
-			name:          "valid logger",
+			name:          "valid logger - INFO",
 			loglevel:      "INFO",
 			logformat:     "json",
+			expectedError: nil,
+		},
+		{
+			name:          "valid logger - WARN",
+			loglevel:      "WARN",
+			logformat:     "text",
+			expectedError: nil,
+		},
+		{
+			name:          "valid logger - ERROR",
+			loglevel:      "ERROR",
+			logformat:     "text",
+			expectedError: nil,
+		},
+		{
+			name:          "valid logger - DEBUG",
+			loglevel:      "DEBUG",
+			logformat:     "text",
+			expectedError: nil,
+		},
+		{
+			name:          "valid logger - TRACE",
+			loglevel:      "TRACE",
+			logformat:     "tint",
 			expectedError: nil,
 		},
 		{
@@ -47,13 +71,28 @@ func Test_NewLogger(t *testing.T) {
 			sut, err := NewLogger(tc.loglevel, tc.logformat)
 
 			if sut != nil {
-				sut.Info("test")
+				sut.Info("test" + tc.name)
 			}
 
 			// then
 			assert.ErrorIs(t, err, tc.expectedError)
 			if tc.expectedError == nil {
-				assert.Equal(t, sut.Enabled(context.Background(), slog.LevelInfo), true)
+				if tc.loglevel == "ERROR" {
+					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelError), true)
+				}
+				if tc.loglevel == "INFO" {
+					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelInfo), true)
+				}
+				if tc.loglevel == "WARN" {
+					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelWarn), true)
+				}
+				if tc.loglevel == "DEBUG" {
+					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelDebug), true)
+				}
+				if tc.loglevel == "TRACE" {
+					assert.Equal(t, sut.Enabled(context.Background(), slog.LevelInfo), true)
+				}
+
 			}
 		})
 	}

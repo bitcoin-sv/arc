@@ -662,8 +662,8 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			// given
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
-				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error {
-					return registerErrTest
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) (int64, error) {
+					return 0, registerErrTest
 				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
 					return tc.getMinedTxs, tc.getMinedTxsErr

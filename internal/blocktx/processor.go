@@ -289,6 +289,7 @@ func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
 		}
 	}
 
+	p.logger.Info("published mined", slog.Int("hashes", len(minedTxsIncludingMP)))
 	if err != nil {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
@@ -301,14 +302,12 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 		return
 	}
 
-	p.logger.Info("registering tx hashes", "len", len(txHashes))
-
 	rowsAffected, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
 
-	p.logger.Info("registered new tx hashes", "len", rowsAffected)
+	p.logger.Info("registered new tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
 
 	err = p.publishMinedTxs(txHashes)
 	if err != nil {

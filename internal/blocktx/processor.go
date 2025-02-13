@@ -301,10 +301,14 @@ func (p *Processor) registerTransactions(txHashes [][]byte) {
 		return
 	}
 
-	err := p.store.RegisterTransactions(p.ctx, txHashes)
+	p.logger.Info("registering tx hashes", "len", len(txHashes))
+
+	rowsAffected, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
 	}
+
+	p.logger.Info("registered new tx hashes", "len", rowsAffected)
 
 	err = p.publishMinedTxs(txHashes)
 	if err != nil {

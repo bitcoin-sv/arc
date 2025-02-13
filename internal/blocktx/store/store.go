@@ -32,7 +32,7 @@ type Stats struct {
 }
 
 type BlocktxStore interface {
-	RegisterTransactions(ctx context.Context, txHashes [][]byte) error
+	RegisterTransactions(ctx context.Context, txHashes [][]byte) (rowsAffected int64, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)
 	GetChainTip(ctx context.Context) (*blocktx_api.Block, error)

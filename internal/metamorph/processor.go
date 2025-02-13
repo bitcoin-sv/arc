@@ -658,7 +658,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
-// StartProcessExpiredTransactions periodically reads transactions with status lower then SEEN_ON_NETWORK from database and announce them again
+// StartProcessExpiredTransactions periodically reads transactions with status lower than SEEN_ON_NETWORK from database and announce them again
 func (p *Processor) StartProcessExpiredTransactions() {
 	p.waitGroup.Add(1)
 

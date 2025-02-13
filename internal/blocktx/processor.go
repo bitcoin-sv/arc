@@ -813,7 +813,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	return true
 }
 
-func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.TransactionBlock) error {
+func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.BlockTransaction) error {
 	var publishErr error
 	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

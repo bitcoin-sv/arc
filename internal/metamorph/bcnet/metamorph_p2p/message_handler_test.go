@@ -110,7 +110,9 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 				WriteMsgFunc: func(_ wire.Message) {},
 			}
 
-			sut := NewMsgHandler(slog.Default(), store, messageCh)
+			sut := NewMsgHandler(slog.Default(), store, messageCh, WithNow(func() time.Time {
+				return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+			}))
 
 			// when
 			sut.OnReceive(tc.wireMsg, peer)
@@ -168,7 +170,9 @@ func Test_MessageHandlerOnSend(t *testing.T) {
 				StringFunc: func() string { return peerAddr },
 			}
 
-			sut := NewMsgHandler(slog.Default(), store, messageCh)
+			sut := NewMsgHandler(slog.Default(), store, messageCh, WithNow(func() time.Time {
+				return time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+			}))
 
 			// when
 			sut.OnSend(tc.wireMsg, peer)

@@ -33,9 +33,18 @@ type MsgHandler struct {
 	logger    *slog.Logger
 	store     store.MetamorphStore
 	messageCh chan<- *TxStatusMessage
+	now       func() time.Time
 }
 
-func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *TxStatusMessage) *MsgHandler {
+type Option func(f *MsgHandler)
+
+func WithNow(now func() time.Time) func(*MsgHandler) {
+	return func(h *MsgHandler) {
+		h.now = now
+	}
+}
+
+func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *TxStatusMessage, opts ...Option) *MsgHandler {
 	ph := &MsgHandler{
 		logger: l.With(
 			slog.String("module", "peer-msg-handler"),
@@ -43,6 +52,12 @@ func NewMsgHandler(l *slog.Logger, s store.MetamorphStore, messageCh chan<- *TxS
 		),
 		store:     s,
 		messageCh: messageCh,
+		now:       time.Now,
+	}
+
+	// apply options to MsgHandler
+	for _, opt := range opts {
+		opt(ph)
 	}
 
 	return ph
@@ -84,6 +99,7 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 			Hash:   &hash,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   peer.String(),
+			Start:  h.now(),
 		}
 	default:
 		// ignore other messages
@@ -104,6 +120,7 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 					Hash:   &iv.Hash,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
+					Start:  h.now(),
 				}:
 				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
 				}
@@ -124,6 +141,7 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 		Hash:   &hash,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
+		Start:  h.now(),
 	}
 }
 
@@ -138,6 +156,7 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) 
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
 		Err:    errors.Join(ErrTxRejectedByPeer, fmt.Errorf("peer: %s reason: %s", peer.String(), msg.Reason)),
+		Start:  h.now(),
 	}
 }
 
@@ -176,6 +195,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 				Hash:   tx.Hash(),
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   peer.String(),
+				Start:  h.now(),
 			}
 
 			wm := tx.MsgTx()

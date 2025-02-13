@@ -6,7 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 	"sync"
 )
 
@@ -20,7 +20,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked metamorph.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
-//			PublishMarshalFunc: func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
+//			PublishMarshalFunc: func(ctx context.Context, topic string, m proto.Message) error {
 //				panic("mock out the PublishMarshal method")
 //			},
 //			ShutdownFunc: func()  {
@@ -34,7 +34,7 @@ var _ metamorph.MessageQueueClient = &MessageQueueClientMock{}
 //	}
 type MessageQueueClientMock struct {
 	// PublishMarshalFunc mocks the PublishMarshal method.
-	PublishMarshalFunc func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error
+	PublishMarshalFunc func(ctx context.Context, topic string, m proto.Message) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -48,7 +48,7 @@ type MessageQueueClientMock struct {
 			// Topic is the topic argument value.
 			Topic string
 			// M is the m argument value.
-			M protoreflect.ProtoMessage
+			M proto.Message
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
@@ -59,14 +59,14 @@ type MessageQueueClientMock struct {
 }
 
 // PublishMarshal calls PublishMarshalFunc.
-func (mock *MessageQueueClientMock) PublishMarshal(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
+func (mock *MessageQueueClientMock) PublishMarshal(ctx context.Context, topic string, m proto.Message) error {
 	if mock.PublishMarshalFunc == nil {
 		panic("MessageQueueClientMock.PublishMarshalFunc: method is nil but MessageQueueClient.PublishMarshal was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
 		Topic string
-		M     protoreflect.ProtoMessage
+		M     proto.Message
 	}{
 		Ctx:   ctx,
 		Topic: topic,
@@ -85,12 +85,12 @@ func (mock *MessageQueueClientMock) PublishMarshal(ctx context.Context, topic st
 func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
 	Ctx   context.Context
 	Topic string
-	M     protoreflect.ProtoMessage
+	M     proto.Message
 } {
 	var calls []struct {
 		Ctx   context.Context
 		Topic string
-		M     protoreflect.ProtoMessage
+		M     proto.Message
 	}
 	mock.lockPublishMarshal.RLock()
 	calls = mock.calls.PublishMarshal

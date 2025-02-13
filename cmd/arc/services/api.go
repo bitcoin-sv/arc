@@ -36,7 +36,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 
 	e := setAPIEcho(logger, arcConfig)
@@ -46,10 +46,18 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// check the swagger definition against our requests
 	apiHandler.CheckSwagger(e)
 
-	mqClient, err := natsMqClient(logger, arcConfig)
+	clientClosedCh := make(chan struct{}, 1)
+
+	mqClient, err := natsMqClient(logger, arcConfig, clientClosedCh)
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		<-clientClosedCh
+		logger.Warn("message queue client closed")
+		shutdownCh <- "message queue client closed"
+	}()
 
 	mtmOpts := []func(*metamorph.Metamorph){
 		metamorph.WithMqClient(mqClient),
@@ -218,10 +226,10 @@ func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	return e
 }
 
-func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig) (metamorph.MessageQueueClient, error) {
+func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig, clientClosedCh chan struct{}) (metamorph.MessageQueueClient, error) {
 	logger = logger.With("module", "nats")
 
-	conn, err := nats_connection.New(arcConfig.MessageQueue.URL, logger)
+	conn, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
 	}

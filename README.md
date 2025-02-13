@@ -249,9 +249,9 @@ migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslm
 <a id="message-queue"></a>
 ## Message Queue
 
-For the communication between Metamorph and BlockTx a message queue is used. Currently the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run.
+For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. If for any reason the connection to the NATS server is closed after all reconnection attempts, ARC will shut down automatically.
 
-Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
+One instance where the message queue is used is the communication between Metamorph & Blocktx service. Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
 
 ![Message Queue](./doc/message_queue.png)
 

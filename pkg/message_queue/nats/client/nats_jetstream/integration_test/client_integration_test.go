@@ -63,11 +63,6 @@ func testmain(m *testing.M) int {
 	}
 
 	defer func() {
-		err = natsConn.Drain()
-		if err != nil {
-			log.Fatalf("failed to drain nats connection: %v", err)
-		}
-
 		mqClient.Shutdown()
 
 		err = pool.Purge(resource)

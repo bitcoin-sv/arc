@@ -5,15 +5,20 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (
-	natsURL string
+	natsURL  string
+	resource *dockertest.Resource
+	err      error
 )
 
 func TestMain(m *testing.M) {
@@ -28,49 +33,59 @@ func testmain(m *testing.M) int {
 	}
 
 	port := "4334"
-	resource, natsInfo, err := testutils.RunNats(pool, port, "")
+	resource, natsURL, err = testutils.RunNats(pool, port, "")
 	if err != nil {
 		log.Print(err)
 		return 1
 	}
 	defer func() {
-		err = pool.Purge(resource)
-		if err != nil {
-			log.Fatalf("failed to purge pool: %v", err)
+		purgeErr := pool.Purge(resource)
+		if purgeErr != nil {
+			log.Println(purgeErr)
 		}
 	}()
 
-	natsURL = natsInfo
+	time.Sleep(5 * time.Second)
 	return m.Run()
 }
 
 func TestNewNatsConnection(t *testing.T) {
-	tt := []struct {
-		name          string
-		url           string
-		expectedError error
-	}{
-		{
-			name: "success",
-			url:  natsURL,
-		},
-		{
-			name: "error",
-			url:  "wrong url",
+	t.Run("error - wrong URL", func(t *testing.T) {
+		_, err = New("wrong url", slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+		require.ErrorIs(t, err, ErrNatsConnectionFailed)
+	})
 
-			expectedError: ErrNatsConnectionFailed,
-		},
-	}
+	t.Run("success", func(t *testing.T) {
+		clientClosedCh := make(chan struct{}, 1)
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := New(tc.url, slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
-			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
-				return
-			}
+		conn, err := New(natsURL,
+			slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+			WithClientClosedChannel(clientClosedCh),
+			WithMaxReconnects(1),
+			WithReconnectWait(100*time.Millisecond),
+		)
+		require.NoError(t, err)
+		testMessage := &test_api.TestMessage{
+			Ok: true,
+		}
+		var data []byte
+		data, err = proto.Marshal(testMessage)
+		require.NoError(t, err)
 
-			require.NoError(t, err)
-		})
-	}
+		time.Sleep(1 * time.Second)
+
+		err = conn.Publish("abc", data)
+		require.NoError(t, err)
+
+		err = resource.Close()
+		require.NoError(t, err)
+		timer := time.NewTimer(15 * time.Second)
+		select {
+		case <-clientClosedCh:
+			t.Log("client closed signal received")
+		case <-timer.C:
+			t.Log("client closed signal not received")
+			t.Fail()
+		}
+	})
 }

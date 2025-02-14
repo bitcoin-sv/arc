@@ -10,6 +10,7 @@ import "google/protobuf/empty.proto";
 service CallbackerAPI{
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteURLMapping (DeleteURLMappingRequest) returns (google.protobuf.Empty) {}
 }
 
 // Note: Values of the statuses have a difference between them in case
@@ -60,6 +61,11 @@ message SendCallbackRequest {
   repeated string competing_txs = 6;
   string block_hash = 7;
   uint64 block_height = 8;
+}
+
+// swagger:model RemovePodMappings
+message DeleteURLMappingRequest {
+  string instance = 1;
 }
 
 // swagger:model CallbackRouting

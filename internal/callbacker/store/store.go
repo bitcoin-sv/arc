@@ -39,6 +39,10 @@ type ProcessorStore interface {
 	DeleteOlderThan(ctx context.Context, t time.Time) error
 }
 
+type CallbackStore interface {
+	DeleteURLMapping(ctx context.Context, instance string) error
+}
+
 type URLMapping struct {
 	URL      string
 	Instance string

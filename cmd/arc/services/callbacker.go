@@ -130,7 +130,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 	}
 
 	// Todo: remove as callbacks are being published asynchronously using message queue
-	server, err = callbacker.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger, dispatcher, nil)
+	server, err = callbacker.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger, dispatcher, callbackerStore, nil)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

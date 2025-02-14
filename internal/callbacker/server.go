@@ -11,6 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 )
 
@@ -18,10 +19,11 @@ type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
 	grpc_opts.GrpcServer
 	dispatcher Dispatcher
+	store      store.CallbackStore
 }
 
 // NewServer will return a server instance
-func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher Dispatcher, tracingConfig *config.TracingConfig) (*Server, error) {
+func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, tracingConfig *config.TracingConfig) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, tracingConfig)
@@ -32,6 +34,7 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, d
 	s := &Server{
 		GrpcServer: grpcServer,
 		dispatcher: dispatcher,
+		store:      callbackerStore,
 	}
 
 	callbacker_api.RegisterCallbackerAPIServer(s.GrpcServer.Srv, s)
@@ -55,6 +58,10 @@ func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCal
 	}
 
 	return nil, nil
+}
+
+func (s *Server) DeleteURLMapping(_ context.Context, request *callbacker_api.DeleteURLMappingRequest) (*emptypb.Empty, error) {
+	return nil, s.store.DeleteURLMapping(context.Background(), request.Instance)
 }
 
 func toCallbackDto(r *callbacker_api.SendCallbackRequest) *Callback {

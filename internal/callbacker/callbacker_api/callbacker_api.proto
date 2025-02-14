@@ -7,7 +7,7 @@ package callbacker_api;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-service CallbackerAPI{
+service CallbackerAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
   rpc DeleteURLMapping (DeleteURLMappingRequest) returns (google.protobuf.Empty) {}

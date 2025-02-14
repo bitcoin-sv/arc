@@ -21,7 +21,7 @@ func TestNewServer(t *testing.T) {
 		logger := slog.Default()
 
 		// When
-		server, err := callbacker.NewServer("", 0, logger, nil, nil)
+		server, err := callbacker.NewServer("", 0, logger, nil, nil, nil)
 
 		// Then
 		require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
 		// Given
-		sut, err := callbacker.NewServer("", 0, slog.Default(), nil, nil)
+		sut, err := callbacker.NewServer("", 0, slog.Default(), nil, nil, nil)
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -66,7 +66,7 @@ func TestSendCallback(t *testing.T) {
 			}
 		}}
 
-		server, err := callbacker.NewServer("", 0, slog.Default(), mockDispatcher, nil)
+		server, err := callbacker.NewServer("", 0, slog.Default(), mockDispatcher, nil, nil)
 		require.NoError(t, err)
 
 		request := &callbacker_api.SendCallbackRequest{

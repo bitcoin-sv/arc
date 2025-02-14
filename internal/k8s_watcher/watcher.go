@@ -156,14 +156,12 @@ func (c *Watcher) watchMetamorph() {
 								break retryLoop
 							}
 
-							_, err := c.callbackerClient.DeleteURLMapping(ctx, &callbacker_api.DeleteURLMappingRequest{
-								Instance: podName,
-							}, nil)
+							rows, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
 							if err != nil {
 								c.logger.Error("Failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
-							c.logger.Info("mapping removed for ", slog.String("pod-name", podName))
+							c.logger.Info("Records unlocked", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
 							break
 						}
 					}
@@ -217,12 +215,14 @@ func (c *Watcher) WatchCallbacker() {
 								break retryLoop
 							}
 
-							rows, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
+							_, err := c.callbackerClient.DeleteURLMapping(ctx, &callbacker_api.DeleteURLMappingRequest{
+								Instance: podName,
+							}, nil)
 							if err != nil {
 								c.logger.Error("Failed to unlock callbacker url mapping", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
-							c.logger.Info("Records unlocked", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
+							c.logger.Info("mapping removed", slog.String("pod-name", podName))
 							break
 						}
 					}
@@ -241,6 +241,10 @@ func (c *Watcher) Shutdown() {
 
 	if c.shutdownBlocktx != nil {
 		c.shutdownBlocktx()
+	}
+
+	if c.shutdownCallbacker != nil {
+		c.shutdownCallbacker()
 	}
 
 	c.waitGroup.Wait()

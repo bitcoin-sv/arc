@@ -26,8 +26,13 @@ func TestProcessorStart(t *testing.T) {
 			Token:      "1234",
 			AllowBatch: false,
 		},
-		Txid:   "e045bac7e7b3328dc4c986dafcffc1570830683518fd8fe8d6e94ff545d9ef5c",
-		Status: callbacker_api.Status_SEEN_ON_NETWORK,
+		Txid:         "e045bac7e7b3328dc4c986dafcffc1570830683518fd8fe8d6e94ff545d9ef5c",
+		BlockHash:    "0000000000000000102a010fea315fd594479fc4b1284288780c61a275ebc4f6",
+		ExtraInfo:    "Transaction Info",
+		BlockHeight:  782318,
+		MerklePath:   "0000",
+		CompetingTxs: []string{"tx1", "tx2"},
+		Status:       callbacker_api.Status_SEEN_ON_NETWORK,
 	}
 	data, err := proto.Marshal(request)
 	require.NoError(t, err)

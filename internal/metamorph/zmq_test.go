@@ -198,21 +198,17 @@ func StartPubServer(address string, messages chan string) (func(), error) {
 }
 
 func ZMQLibraryCreatePublisherAndPublishTopic(t *testing.T, topic string, url string) func() {
-
 	messages := make(chan string, 10)
 	//address := fmt.Sprintf("tcp://%s", url)
 	stopPubServer, err := StartPubServer(url, messages)
 	require.NoError(t, err)
-
 	time.Sleep(500 * time.Millisecond)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-
 		for i := range 3 {
 			messages <- fmt.Sprintf("%s Hello, World! #%d", topic, i)
 		}
 	}()
-
 	return stopPubServer
 }
 
@@ -256,7 +252,6 @@ func ZMQLibraryReceiveFromSocket(t *testing.T, subscriber *zmq.Socket, poller *z
 		}
 
 	}
-
 }
 func TestZMQHandler_prereqs(t *testing.T) {
 	_, cancel := context.WithCancel(context.Background())
@@ -324,20 +319,19 @@ func TestNewZMQHandlers(t *testing.T) {
 	_ = handler2.Subscribe(ZmqSecondTopic, messages)
 	_ = handler3.Subscribe(ZmqSecondTopic, messages)
 
-	/*TODO How to check errors in handlers e.g. duplicated topics /*
+	/*TODO How to check errors in handlers e.g. duplicated topics */
+}
 
-	}
-
-	func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		/* Test Case /*
-		Given I want to test metamorph handler
-		When I am testing subscribing and unsubscribing to topics
-		Then I want to make sure all the combinations work
+func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	/* Test Case /*
+	Given I want to test metamorph handler
+	When I am testing subscribing and unsubscribing to topics
+	Then I want to make sure all the combinations work
 	*/
-
 	// Given
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	handler := metamorph.NewZMQHandler(ctx, zmqURL1, logger)
 
 	messages2 := make(chan string, 10)
@@ -358,5 +352,4 @@ func TestNewZMQHandlers(t *testing.T) {
 	err = handler.Unsubscribe(ZmqFirstTopic, nil)
 	require.NoError(t, err)
 	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
-
 }

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -74,6 +75,7 @@ func (s *MemoryStore) startClearCache(interval time.Duration) {
 				if now.After(cacheItem.expiration) {
 					item, ok := key.(string)
 					if !ok {
+						fmt.Printf("key is not a string: %v", key)
 						return true
 					}
 					s.data.Delete(item)

@@ -9,8 +9,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"

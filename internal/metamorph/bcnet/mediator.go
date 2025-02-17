@@ -82,21 +82,24 @@ func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, 
 
 func (m *Mediator) AskForTxAsync(ctx context.Context, tx *store.Data) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, nil)
+	}()
 
 	m.p2pMessenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
-	tracing.EndTracing(span, nil)
 }
 
 func (m *Mediator) AnnounceTxAsync(ctx context.Context, tx *store.Data) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, nil)
+	}()
 
 	if m.classic {
 		m.p2pMessenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
 	} else {
 		_ = m.mcaster.SendTx(tx.RawTx)
 	}
-
-	tracing.EndTracing(span, nil)
 }
 
 func (m *Mediator) GetPeers() []p2p.PeerI {

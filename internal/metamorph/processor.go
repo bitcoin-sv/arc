@@ -350,20 +350,23 @@ func (p *Processor) rebroadcastStaleTxs(ctx context.Context, txsBlocks []*blockt
 	defer tracing.EndTracing(span, nil)
 
 	for _, tx := range txsBlocks {
-		if tx.BlockStatus == blocktx_api.Status_STALE {
-			txHash, err := chainhash.NewHash(tx.TransactionHash)
-			if err != nil {
-				p.logger.Warn("error parsing transaction hash")
-				continue
-			}
-
-			p.logger.Debug("Re-announcing stale tx", slog.String("hash", txHash.String()))
-
-			peers := p.pm.AnnounceTransaction(txHash, nil)
-			if len(peers) == 0 {
-				p.logger.Warn("transaction was not announced to any peer during rebroadcast", slog.String("hash", txHash.String()))
-			}
+		if tx.BlockStatus != blocktx_api.Status_STALE {
+			continue
 		}
+		txHash, err := chainhash.NewHash(tx.TransactionHash)
+		if err != nil {
+			p.logger.Warn("error parsing transaction hash")
+			continue
+		}
+
+		p.logger.Debug("Re-announcing stale tx", slog.String("hash", txHash.String()))
+
+		tx, err := p.store.Get(ctx, txHash[:])
+		if err != nil {
+			p.logger.Error("Failed to get transaction", slog.String("hash", txHash.String()))
+			continue
+		}
+		p.bcMediator.AnnounceTxAsync(ctx, tx)
 	}
 }
 

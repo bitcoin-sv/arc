@@ -79,7 +79,6 @@ func replaceAttr(_ []string, a slog.Attr) slog.Attr {
 			a.Value = slog.StringValue("TRACE")
 		}
 	}
-
 	return a
 }
 

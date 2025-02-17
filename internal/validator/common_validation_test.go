@@ -46,6 +46,16 @@ func TestCheckTxSize(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid tx size, zero MaxTxSizePolicy",
+			args: args{
+				txSize: 100,
+				policy: &bitcoin.Settings{
+					MaxTxSizePolicy: 0,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid tx size",
 			args: args{
 				txSize: maxBlockSize + 1,
@@ -215,6 +225,8 @@ func TestSigOpsCheck(t *testing.T) {
 		tx     *sdkTx.Transaction
 		policy *bitcoin.Settings
 	}
+	validUnlockingBytes, _ := hex.DecodeString("4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089")
+	validUnlockingScript := script.Script(validUnlockingBytes)
 	tests := []struct {
 		name    string
 		args    args
@@ -228,6 +240,34 @@ func TestSigOpsCheck(t *testing.T) {
 				},
 				policy: &bitcoin.Settings{
 					MaxTxSigopsCountsPolicy: 4294967295,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid sigops with inputs",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: &validUnlockingScript,
+					}},
+					Outputs: []*sdkTx.TransactionOutput{{LockingScript: validLockingScript}},
+				},
+				policy: &bitcoin.Settings{
+					MaxTxSigopsCountsPolicy: 4294967295,
+				},
+			},
+			wantErr: false,
+		},
+
+		{
+			name: "valid sigops, zero MaxTxSigopsCountsPolicy",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Outputs: []*sdkTx.TransactionOutput{{LockingScript: validLockingScript}},
+				},
+				policy: &bitcoin.Settings{
+					MaxTxSigopsCountsPolicy: 0,
 				},
 			},
 			wantErr: false,
@@ -305,6 +345,16 @@ func TestPushDataCheck(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid push data - invalid unlocking script",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: nil,
+					}},
+				},
+			},
+			wantErr: true,
+		}, {
 			name: "invalid push data",
 			args: args{
 				tx: &sdkTx.Transaction{

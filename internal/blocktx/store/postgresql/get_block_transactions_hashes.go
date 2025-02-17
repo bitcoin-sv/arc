@@ -22,6 +22,7 @@ func (p *PostgreSQL) GetBlockTransactionsHashes(ctx context.Context, blockHash [
 		FROM blocktx.block_transactions AS bt
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id
 		WHERE b.hash = $1
+		ORDER BY bt.merkle_tree_index ASC
 	`
 
 	rows, err := p.db.QueryContext(ctx, q, blockHash)

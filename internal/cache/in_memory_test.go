@@ -78,10 +78,6 @@ func TestInMemoryCacheLifeCycle(t *testing.T) {
 		require.Nil(t, val)
 		require.ErrorIs(t, err, ErrCacheNotFound)
 
-		// when cache is cleared then ErrCacheNotFound is expected
-		//err = cStore.startClearCache(1 * time.Millisecond)
-		//require.Nil(t, val)
-
 		//when a MapSet key/value is stored then no errors are expected
 		err = cStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)

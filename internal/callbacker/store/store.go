@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"time"
 )
 
@@ -49,9 +48,4 @@ type CallbackStore interface {
 type URLMapping struct {
 	URL      string
 	Instance string
-}
-
-type StatusWithTimestamp struct {
-	Status    metamorph_api.Status `json:"status"`
-	Timestamp time.Time            `json:"timestamp"`
 }

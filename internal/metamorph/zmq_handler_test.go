@@ -74,17 +74,13 @@ func TestNewZMQHandler(t *testing.T) {
 	// Given I want to test metamorph handler
 	// When the publisher is down
 	// Then I want to make sure the handler safely fails
-	go func() {
-		srv.Close()
-		cli.Close()
-		err = handler.Subscribe("hashblock", zmqMessages)
-		require.NoError(t, err)
-	}()
+	srv.Close()
+	cli.Close()
+	err = handler.Subscribe("hashblock", zmqMessages)
+	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
-	go func() {
-		err = handler.Unsubscribe("hashtx2", zmqMessages)
-		require.NoError(t, err)
-	}()
+	err = handler.Unsubscribe("hashtx2", zmqMessages)
+	require.NoError(t, err)
 }
 
 func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {

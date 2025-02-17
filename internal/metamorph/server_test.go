@@ -347,6 +347,273 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 }
 
+func TestServer_GetTransactionStatuses(t *testing.T) {
+	errFailedToGetTxData := errors.New("failed to get transaction data")
+
+	tests := []struct {
+		name               string
+		req                *metamorph_api.TransactionsStatusRequest
+		getTxMerklePathErr error
+		getErr             error
+		status             metamorph_api.Status
+		competingTxs       []string
+
+		want    *metamorph_api.TransactionStatuses
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "GetTransactionStatuses - error: not found",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			getErr: store.ErrNotFound,
+
+			want: nil,
+			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+				return assert.ErrorIs(t, err, metamorph.ErrNotFound, rest...)
+			},
+		},
+		{
+			name: "GetTransactionStatuses - error: failed to get tx data",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			getErr: errFailedToGetTxData,
+
+			want: nil,
+			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+				return assert.ErrorIs(t, err, errFailedToGetTxData, rest...)
+			},
+		},
+		{
+			name: "GetTransactionStatuses - test.TX1, text.TX2",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			status: metamorph_api.Status_SENT_TO_NETWORK,
+
+			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX1Hash.String(),
+					Status:        metamorph_api.Status_SENT_TO_NETWORK,
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX2Hash.String(),
+					Status:        metamorph_api.Status_SENT_TO_NETWORK,
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+			}},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatuses - double spend attempted",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			competingTxs: []string{"1234"},
+
+			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX1Hash.String(),
+					Status:        metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					CompetingTxs:  []string{"1234"},
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX2Hash.String(),
+					Status:        metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+			}},
+
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatuses - mined - previously double spend attempted",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			status:       metamorph_api.Status_MINED,
+			competingTxs: []string{"1234"},
+
+			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX1Hash.String(),
+					Status:        metamorph_api.Status_MINED,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX2Hash.String(),
+					Status:        metamorph_api.Status_MINED,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+			}},
+
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatuses - test.TX1 - error",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			status:             metamorph_api.Status_SENT_TO_NETWORK,
+			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
+
+			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX1Hash.String(),
+					Status:        metamorph_api.Status_SENT_TO_NETWORK,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX2Hash.String(),
+					Status:        metamorph_api.Status_SENT_TO_NETWORK,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+			}},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "GetTransactionStatuses - test.TX1 - tx not found for Merkle path",
+			req: &metamorph_api.TransactionsStatusRequest{
+				TxIDs: []string{
+					testdata.TX1Hash.String(),
+					testdata.TX2Hash.String(),
+				},
+			},
+			status:             metamorph_api.Status_MINED,
+			getTxMerklePathErr: errors.New("merkle path not found for transaction"),
+
+			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX1Hash.String(),
+					Status:        metamorph_api.Status_MINED,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+				{
+					StoredAt:      timestamppb.New(testdata.Time),
+					Txid:          testdata.TX2Hash.String(),
+					Status:        metamorph_api.Status_MINED,
+					CompetingTxs:  []string{},
+					RejectReason:  "previously double spend attempted",
+					MerklePath:    "00000",
+					Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
+					LastSubmitted: timestamppb.New(testdata.Time),
+				},
+			}},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.Data, error) {
+					data := []*store.Data{
+						{
+							StoredAt:        testdata.Time,
+							Hash:            testdata.TX1Hash,
+							Status:          tt.status,
+							CompetingTxs:    tt.competingTxs,
+							Callbacks:       []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+							MerklePath:      "00000",
+							LastSubmittedAt: time.Time(testdata.Time),
+						},
+						{
+							StoredAt:        testdata.Time,
+							Hash:            testdata.TX2Hash,
+							Status:          tt.status,
+							CompetingTxs:    tt.competingTxs,
+							Callbacks:       []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+							MerklePath:      "00000",
+							LastSubmittedAt: time.Time(testdata.Time),
+						},
+					}
+					if tt.want != nil {
+						data[0].RejectReason = tt.want.Statuses[0].RejectReason
+						data[1].RejectReason = tt.want.Statuses[1].RejectReason
+						data[0].CompetingTxs = tt.want.Statuses[0].CompetingTxs
+						data[1].CompetingTxs = tt.want.Statuses[1].CompetingTxs
+
+						return data, tt.getErr
+					}
+					return []*store.Data{}, tt.getErr
+				},
+			}
+
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			// when
+			got, err := sut.GetTransactionStatuses(context.Background(), tt.req)
+
+			// then
+			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetTransactionStatus(%v)", tt.req)
+		})
+	}
+}
+
 func TestPostTransactions(t *testing.T) {
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
@@ -793,4 +1060,103 @@ func TestGetTransactions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetTransaction(t *testing.T) {
+	tcs := []struct {
+		name    string
+		request *metamorph_api.TransactionStatusRequest
+
+		getFromStoreErr           error
+		getFromStoreResponseCount int
+	}{
+		{
+			name: "found tx - success",
+			request: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			getFromStoreResponseCount: 1,
+		},
+		{
+			name: "not found",
+			request: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			getFromStoreErr: errors.New("not found"),
+		},
+		{
+			name: "failed to get data from the store",
+			request: &metamorph_api.TransactionStatusRequest{
+				Txid: testdata.TX1Hash.String(),
+			},
+			getFromStoreResponseCount: 0,
+			getFromStoreErr:           errors.New("test error"),
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			store := storeMocks.MetamorphStoreMock{
+				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
+					if tc.getFromStoreErr != nil {
+						return nil, tc.getFromStoreErr
+					}
+
+					res := make([]*store.Data, 0)
+					h, _ := chainhash.NewHashFromStr(tc.request.Txid)
+					d := store.Data{
+						Hash: h,
+					}
+
+					res = append(res, &d)
+					res = res[:tc.getFromStoreResponseCount]
+					if len(res) > 0 {
+						return res[0], nil
+					}
+					return &store.Data{}, nil
+				},
+			}
+			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			// when
+			res, err := sut.GetTransaction(context.TODO(), tc.request)
+
+			// then
+			if tc.getFromStoreErr != nil {
+				require.Equal(t, tc.getFromStoreErr, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				if tc.getFromStoreResponseCount > 0 {
+					require.NotNil(t, res.Txid)
+				}
+			}
+		})
+	}
+}
+
+func TestClearData(t *testing.T) {
+	t.Run("ClearData", func(t *testing.T) {
+		// given
+		store := storeMocks.MetamorphStoreMock{
+			ClearDataFunc: func(_ context.Context, _ int32) (int64, error) {
+				return 1, nil
+			},
+		}
+		sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
+		require.NoError(t, err)
+		defer sut.GracefulStop()
+
+		// when
+		res, err := sut.ClearData(context.TODO(), &metamorph_api.ClearDataRequest{
+			RetentionDays: 1,
+		})
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, res)
+	})
 }

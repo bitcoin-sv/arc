@@ -1228,7 +1228,7 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 			bytes:    100000,
 		},
 		{
-			name:     "0.001 sats per KB - for Craig",
+			name:     "0.001 sats per KB",
 			feePerKB: 0.00000000001,
 			satoshis: 1,
 			bytes:    1000000,

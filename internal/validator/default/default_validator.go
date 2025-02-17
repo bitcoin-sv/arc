@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	ErrTxFeeTooLow = fmt.Errorf("transaction fee is too low")
+	ErrTxFeeTooLow = errors.New("transaction fee is too low")
 )
 
 type DefaultValidator struct {

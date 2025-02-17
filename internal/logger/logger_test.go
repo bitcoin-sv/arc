@@ -52,6 +52,11 @@ func Test_NewLogger(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name:          "valid logger - TRACE",
+			loglevel:      "TRACE",
+			logformat:     "json",
+			expectedError: nil,
+		}, {
 			name:          "invalid log format",
 			loglevel:      "INFO",
 			logformat:     "invalid format",
@@ -71,7 +76,11 @@ func Test_NewLogger(t *testing.T) {
 			sut, err := NewLogger(tc.loglevel, tc.logformat)
 
 			if sut != nil {
-				sut.Info("test" + tc.name)
+				if tc.loglevel == "TRACE" {
+					sut.Log(context.Background(), -8, "test"+tc.name)
+				} else {
+					sut.Info("test" + tc.name)
+				}
 			}
 
 			// then

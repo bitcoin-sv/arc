@@ -26,8 +26,9 @@ import (
 )
 
 var (
-	ErrGRPCFailedToRegisterPanics = errors.New("failed to register panics total metric")
-	once                          sync.Once
+	ErrGRPCFailedToRegisterPanics            = errors.New("failed to register panics total metric")
+	ErrGRPCFailedToRegisterGRPCServerMetrics = errors.New("failed to register grpc server metrics")
+	once                                     sync.Once
 )
 
 func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
@@ -40,6 +41,7 @@ func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.Serve
 			prometheus.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
+
 	// Function that will run only once
 	once.Do(func() {
 		err := prometheusclient.Register(srvMetrics)

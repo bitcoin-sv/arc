@@ -27,19 +27,18 @@ type K8sClient interface {
 }
 
 type Watcher struct {
-	metamorphClient   metamorph.TransactionMaintainer
-	callbackerClient  callbacker_api.CallbackerAPIClient
-	k8sClient         K8sClient
-	logger            *slog.Logger
-	tickerMetamorph   Ticker
-	tickerBlocktx     Ticker
-	tickerCallbacker  Ticker
-	namespace         string
-	waitGroup         *sync.WaitGroup
-	shutdownMetamorph context.CancelFunc
-	cancellations     []context.CancelFunc
-	shutdownBlocktx   context.CancelFunc
-	retryInterval     time.Duration
+	metamorphClient  metamorph.TransactionMaintainer
+	callbackerClient callbacker_api.CallbackerAPIClient
+	k8sClient        K8sClient
+	logger           *slog.Logger
+	tickerMetamorph  Ticker
+	tickerBlocktx    Ticker
+	tickerCallbacker Ticker
+	namespace        string
+	waitGroup        *sync.WaitGroup
+	cancellations    []context.CancelFunc
+	shutdownBlocktx  context.CancelFunc
+	retryInterval    time.Duration
 }
 
 func WithLogger(logger *slog.Logger) func(*Watcher) {

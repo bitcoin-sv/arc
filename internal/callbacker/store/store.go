@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/go-sdk/chainhash"
 	"time"
 )
 
@@ -12,6 +14,35 @@ var (
 	ErrURLMappingsDeleteFailed = errors.New("failed to delete URL mapping entries")
 	ErrNoUnmappedURLsFound     = errors.New("no unmapped URLs found")
 )
+
+type Stats struct {
+	StatusStored               int64
+	StatusAnnouncedToNetwork   int64
+	StatusRequestedByNetwork   int64
+	StatusSentToNetwork        int64
+	StatusAcceptedByNetwork    int64
+	StatusSeenInOrphanMempool  int64
+	StatusSeenOnNetwork        int64
+	StatusDoubleSpendAttempted int64
+	StatusRejected             int64
+	StatusMined                int64
+	StatusNotSeen              int64
+	StatusNotFinal             int64
+	StatusSeenOnNetworkTotal   int64
+	StatusMinedTotal           int64
+}
+
+type UpdateStatus struct {
+	Hash          chainhash.Hash        `json:"-"`
+	Status        metamorph_api.Status  `json:"status"`
+	Error         error                 `json:"-"`
+	CompetingTxs  []string              `json:"competing_txs"`
+	StatusHistory []StatusWithTimestamp `json:"status_history"`
+	Timestamp     time.Time             `json:"timestamp"`
+	// Fields for marshalling
+	HashStr  string `json:"hash"`
+	ErrorStr string `json:"error"`
+}
 
 type CallbackData struct {
 	URL   string
@@ -48,4 +79,9 @@ type CallbackStore interface {
 type URLMapping struct {
 	URL      string
 	Instance string
+}
+
+type StatusWithTimestamp struct {
+	Status    metamorph_api.Status `json:"status"`
+	Timestamp time.Time            `json:"timestamp"`
 }

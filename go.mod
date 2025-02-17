@@ -33,6 +33,7 @@ require (
 	github.com/ordishs/go-bitcoin v1.0.87
 	github.com/ory/dockertest/v3 v3.11.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/pebbe/zmq4 v1.2.11
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/cobra v1.8.1

@@ -27,19 +27,19 @@ type K8sClient interface {
 }
 
 type Watcher struct {
-	metamorphClient    metamorph.TransactionMaintainer
-	callbackerClient   callbacker_api.CallbackerAPIClient
-	k8sClient          K8sClient
-	logger             *slog.Logger
-	tickerMetamorph    Ticker
-	tickerBlocktx      Ticker
-	tickerCallbacker   Ticker
-	namespace          string
-	waitGroup          *sync.WaitGroup
-	shutdownMetamorph  context.CancelFunc
-	shutdownCallbacker context.CancelFunc
-	shutdownBlocktx    context.CancelFunc
-	retryInterval      time.Duration
+	metamorphClient   metamorph.TransactionMaintainer
+	callbackerClient  callbacker_api.CallbackerAPIClient
+	k8sClient         K8sClient
+	logger            *slog.Logger
+	tickerMetamorph   Ticker
+	tickerBlocktx     Ticker
+	tickerCallbacker  Ticker
+	namespace         string
+	waitGroup         *sync.WaitGroup
+	shutdownMetamorph context.CancelFunc
+	cancellations     []context.CancelFunc
+	shutdownBlocktx   context.CancelFunc
+	retryInterval     time.Duration
 }
 
 func WithLogger(logger *slog.Logger) func(*Watcher) {
@@ -108,14 +108,23 @@ func WithCallbackerTicker(t Ticker) func(*Watcher) {
 }
 
 func (c *Watcher) Start() error {
-	c.watchMetamorph()
-	c.WatchCallbacker()
+	c.watch(metamorphService, c.tickerMetamorph, func(podName string) error {
+		_, err := c.metamorphClient.SetUnlockedByName(context.Background(), podName)
+		return err
+	})
+
+	c.watch(callbackerService, c.tickerCallbacker, func(podName string) error {
+		_, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
+			Instance: podName,
+		}, nil)
+		return err
+	})
 	return nil
 }
 
-func (c *Watcher) watchMetamorph() {
+func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod func(string) error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	c.shutdownMetamorph = cancel
+	c.cancellations = append(c.cancellations, cancel)
 	c.waitGroup.Add(1)
 	go func() {
 		defer c.waitGroup.Done()
@@ -125,78 +134,18 @@ func (c *Watcher) watchMetamorph() {
 			select {
 			case <-ctx.Done():
 				return
-			case <-c.tickerMetamorph.Tick():
+			case <-ticker.Tick():
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
-				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, metamorphService)
+				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, watchedService)
 				if err != nil {
 					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
 					continue
 				}
 
 				for podName := range runningPods {
-					// Ignore all other services than metamorph
-					if !strings.Contains(podName, metamorphService) {
-						continue
-					}
-
-					_, found := runningPodsK8s[podName]
-					if !found {
-						// A previously running pod has been terminated => set records locked by this pod unlocked
-
-						retryTicker := time.NewTicker(c.retryInterval)
-						i := 0
-
-					retryLoop:
-						for range retryTicker.C {
-							i++
-
-							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("Failed to unlock metamorph records after %d retries", maxRetries), slog.String("pod-name", podName))
-								break retryLoop
-							}
-
-							rows, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
-							if err != nil {
-								c.logger.Error("Failed to unlock metamorph records", slog.String("pod-name", podName), slog.String("err", err.Error()))
-								continue
-							}
-							c.logger.Info("Records unlocked", slog.Int64("rows-affected", rows), slog.String("pod-name", podName))
-							break
-						}
-					}
-				}
-
-				runningPods = runningPodsK8s
-			}
-		}
-	}()
-}
-
-func (c *Watcher) WatchCallbacker() {
-	ctx, cancel := context.WithCancel(context.Background())
-	c.shutdownCallbacker = cancel
-	c.waitGroup.Add(1)
-	go func() {
-		defer c.waitGroup.Done()
-		var runningPods map[string]struct{}
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.tickerCallbacker.Tick():
-				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
-				ctx := context.Background()
-				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, callbackerService)
-				if err != nil {
-					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
-					continue
-				}
-
-				for podName := range runningPods {
-					// Ignore all other services than callbacker
-					if !strings.Contains(podName, callbackerService) {
+					// Ignore all other services than watchedService
+					if !strings.Contains(podName, watchedService) {
 						continue
 					}
 
@@ -211,15 +160,13 @@ func (c *Watcher) WatchCallbacker() {
 							i++
 
 							if i > maxRetries {
-								c.logger.Error(fmt.Sprintf("Failed to unlock callbacker records after %d retries", maxRetries), slog.String("pod-name", podName))
+								c.logger.Error(fmt.Sprintf("Failed to process after %d retries", maxRetries), slog.String("pod-name", podName))
 								break retryLoop
 							}
 
-							_, err := c.callbackerClient.DeleteURLMapping(ctx, &callbacker_api.DeleteURLMappingRequest{
-								Instance: podName,
-							}, nil)
+							err := processMissingPod(podName)
 							if err != nil {
-								c.logger.Error("Failed to unlock callbacker url mapping", slog.String("pod-name", podName), slog.String("err", err.Error()))
+								c.logger.Error("Failed to process missing pod", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
 							c.logger.Info("mapping removed", slog.String("pod-name", podName))
@@ -235,16 +182,12 @@ func (c *Watcher) WatchCallbacker() {
 }
 
 func (c *Watcher) Shutdown() {
-	if c.shutdownMetamorph != nil {
-		c.shutdownMetamorph()
-	}
-
 	if c.shutdownBlocktx != nil {
 		c.shutdownBlocktx()
 	}
 
-	if c.shutdownCallbacker != nil {
-		c.shutdownCallbacker()
+	for _, cancel := range c.cancellations {
+		cancel()
 	}
 
 	c.waitGroup.Wait()

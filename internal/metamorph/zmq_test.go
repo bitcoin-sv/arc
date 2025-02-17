@@ -248,9 +248,7 @@ func ZMQLibraryReceiveFromSocket(t *testing.T, subscriber *zmq.Socket, poller *z
 			} else {
 				t.Error("Message not received in time")
 			}
-
 		}
-
 	}
 }
 func TestZMQHandler_prereqs(t *testing.T) {

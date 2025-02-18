@@ -864,6 +864,7 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 				BlockHeight:     tx.BlockHeight,
 				MerkleTreeIndex: tx.MerkleTreeIndex,
 				BlockStatus:     tx.BlockStatus,
+				MerkleRoot:      tx.MerkleRoot,
 			},
 		}
 
@@ -918,9 +919,14 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 				continue
 			}
 
-			_, err = path.ComputeRootHex(&txID)
+			root, err := path.ComputeRootHex(&txID)
 			if err != nil {
 				p.logger.Error("Failed to compute root for tx", slog.String("hash", txID), slog.Int64("merkle tree index", tx.MerkleTreeIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				continue
+			}
+
+			if root != hex.EncodeToString(tx.MerkleRoot) {
+				p.logger.Error("Comparison of Merkle roots failed", slog.String("hash", txID), slog.Int64("merkle tree index", tx.MerkleTreeIndex), slog.String("block hash", bh))
 				continue
 			}
 

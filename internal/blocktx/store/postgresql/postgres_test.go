@@ -431,7 +431,8 @@ func TestPostgresDB(t *testing.T) {
 
 		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
 		blockHash2 := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
-
+		merkleRoot := testutils.RevChainhash(t, "7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483")
+		merkleRoot2 := testutils.RevChainhash(t, "3eeee879a8a08fc537a04682178687bb0e58a5103938eafc349705a2acb06410")
 		expectedTxs := []store.BlockTransaction{
 			{
 				TxHash:          txHash1[:],
@@ -439,6 +440,7 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight:     822013,
 				MerkleTreeIndex: int64(1),
 				BlockStatus:     blocktx_api.Status_LONGEST,
+				MerkleRoot:      merkleRoot[:],
 			},
 			{
 				TxHash:          txHash2[:],
@@ -446,6 +448,7 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight:     822013,
 				MerkleTreeIndex: int64(2),
 				BlockStatus:     blocktx_api.Status_LONGEST,
+				MerkleRoot:      merkleRoot[:],
 			},
 			{
 				TxHash:          txHash3[:],
@@ -453,6 +456,7 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight:     822012,
 				MerkleTreeIndex: int64(6),
 				BlockStatus:     blocktx_api.Status_STALE,
+				MerkleRoot:      merkleRoot2[:],
 			},
 		}
 

@@ -27,6 +27,7 @@ type BlockTransaction struct {
 	BlockHeight     uint64
 	MerkleTreeIndex int64
 	BlockStatus     blocktx_api.Status
+	MerkleRoot      []byte
 }
 
 type BlockStatusUpdate struct {

@@ -888,7 +888,7 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 		merkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
 
 		for _, tx := range blockTxs {
-			if tx.MerkleTreeIndex == -1 {
+			if tx.MerkleTreeIndex < 0 {
 				p.logger.Warn("missing merkle tree index for transaction", slog.String("hash", getHashStringNoErr(tx.TxHash)))
 				continue
 			}

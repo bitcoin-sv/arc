@@ -925,8 +925,9 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 				continue
 			}
 
-			if root != hex.EncodeToString(tx.MerkleRoot) {
-				p.logger.Error("Comparison of Merkle roots failed", slog.String("hash", txID), slog.Int64("merkle tree index", tx.MerkleTreeIndex), slog.String("block hash", bh))
+			merkleRoot := tx.GetMerkleRootString()
+			if root != merkleRoot {
+				p.logger.Error("Comparison of Merkle roots failed", slog.String("calc root", root), slog.String("block root", merkleRoot), slog.String("hash", txID), slog.Int64("merkle tree index", tx.MerkleTreeIndex), slog.String("block hash", bh))
 				continue
 			}
 

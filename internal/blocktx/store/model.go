@@ -1,6 +1,9 @@
 package store
 
 import (
+	"encoding/hex"
+	"slices"
+
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -33,4 +36,13 @@ type BlockTransaction struct {
 type BlockStatusUpdate struct {
 	Hash   []byte
 	Status blocktx_api.Status
+}
+
+func (b *BlockTransaction) GetMerkleRootString() string {
+	txMerkleRoot := make([]byte, len(b.MerkleRoot))
+	copy(txMerkleRoot, b.MerkleRoot)
+	slices.Reverse(txMerkleRoot)
+	merkleRoot := hex.EncodeToString(txMerkleRoot)
+
+	return merkleRoot
 }

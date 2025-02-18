@@ -101,7 +101,8 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 			b.hash,
 			b.height,
 			bt.merkle_tree_index,
-			b.status
+			b.status,
+			b.merkleroot
 		FROM blocktx.registered_transactions AS r
 			JOIN blocktx.block_transactions AS bt ON r.hash = bt.hash
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -98,12 +99,41 @@ func PruneTables(t testing.TB, db *sql.DB, tables ...string) {
 	}
 }
 
+func HexDecodeString(t *testing.T, hashString string) []byte {
+	t.Helper()
+
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+
+	return hash
+}
+
+func RevHexDecodeString(t *testing.T, hashString string) []byte {
+	t.Helper()
+
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+
+	slices.Reverse(hash)
+
+	return hash
+}
+
 func RevChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	t.Helper()
 
 	hash, err := hex.DecodeString(hashString)
 	require.NoError(t, err)
 	txHash, err := chainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
+}
+
+func Chainhash(t *testing.T, hashString string) *chainhash.Hash {
+	t.Helper()
+
+	txHash, err := chainhash.NewHashFromStr(hashString)
 	require.NoError(t, err)
 
 	return txHash

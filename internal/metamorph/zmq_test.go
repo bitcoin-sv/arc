@@ -22,7 +22,15 @@ import (
 
 var zmqURL1, errZMQURL1 = url.Parse("tcp://127.0.0.1:5555")
 var zmqURL2, errZMQURL2 = url.Parse("tcp://127.0.0.1:5556")
-var zmqNonExistingURL, errZMQNonExistingURL = url.Parse("tcp://nonexisting.url:5556")
+
+// TODO when it is not possible to connect to a URL either because it is doesn't exist or because of other technical problems
+// The handler will keep retrying without a timeout and that limits the possibility of checking errors or coverage in tests
+// var zmqNonExistingURL, _ = url.Parse("tcp://nonexisting.url:5556")
+var validURLS = []*url.URL{zmqURL1}
+
+var statusMessageCh chan *metamorph_p2p.TxStatusMessage
+var zmqMessages = make(chan []string, 10)
+var validTopics = []string{"hashblock", "hashblock2", "hashtx", "discardedfrommempool", "hashtx2", "invalidtx", "rawblock", "rawblock2", "rawtx", "rawtx2", "removedfrommempoolblock"}
 
 const (
 	msgMissingInputs = "7b2266726f6d426c6f636b223a2066616c73652c22736f75726365223a2022703270222c2261646472657373223a20223132372e302e302e313a3135323234222c226e6f64654964223a2037303139352c2274786964223a202234616531643230396131616165326134616137303365326164646166393133356634613162316364306438373032303033376561353631396434393566373137222c2273697a65223a203139322c22686578223a2022303130303030303030316133376534386661616133613438353966363233313631353035336534323930396532383734646537643738346666376133303430303030303030303030303030313030303030303662343833303435303232313030653530373933303264636632626336326635326265653862333031626565313666373538396336343934613638383337313065343631633439383334656266333032323037663933663361636563626566626465373965343763653334336330663763653731373866323338313166316262303566356234323763313931323630373431343132313033386662386464386534336664663664353036333339623335623563326234396435303930646538613637343239376437346463333838663766333164646631346666666666666666303133373033303030303030303030303030313937366139313435306331663839393031336364353030363231666131366533613932326334663035616261346164383861633030303030303030222c226973496e76616c6964223a20747275652c22697356616c69646174696f6e4572726f72223a2066616c73652c2269734d697373696e67496e70757473223a20747275652c226973446f75626c655370656e644465746563746564223a2066616c73652c2269734d656d706f6f6c436f6e666c6963744465746563746564223a2066616c73652c2269734e6f6e46696e616c223a2066616c73652c22697356616c69646174696f6e54696d656f75744578636565646564223a2066616c73652c2269735374616e646172645478223a20747275652c2272656a656374696f6e436f6465223a20302c2272656a656374696f6e526561736f6e223a2022222c22636f6c6c6964656457697468223a205b5d2c2272656a656374696f6e54696d65223a2022323032332d31312d31335431333a33393a32365a227d"
@@ -199,15 +207,15 @@ func StartPubServer(address string, messages chan string) (func(), error) {
 	return func() { close(stop) }, nil
 }
 
-func ZMQLibraryCreatePublisherAndPublishTopic(t *testing.T, topic string, url string) func() {
-	messages := make(chan string, 10)
+func ZMQLibraryCreatePublisherAndPublishTopic(t *testing.T, topic string, url string, numMessages int) func() {
 	//address := fmt.Sprintf("tcp://%s", url)
+	var messages = make(chan string, 10)
 	stopPubServer, err := StartPubServer(url, messages)
 	require.NoError(t, err)
 	time.Sleep(500 * time.Millisecond)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		for i := range 3 {
+		for i := range numMessages {
 			messages <- fmt.Sprintf("%s Hello, World! #%d", topic, i)
 		}
 	}()
@@ -263,7 +271,7 @@ func TestZMQHandler_prereqs(t *testing.T) {
 	*/
 	defer cancel()
 	CommonSetupAndValidations(t)
-	stopPubServer1 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String())
+	stopPubServer1 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String(), 4)
 	subscriber1, poller1 := ZMQLibrarySusbscribeToTopic(t, ZmqFirstTopic, zmqURL1.String())
 	defer func() {
 		stopPubServer1()
@@ -275,7 +283,7 @@ func TestZMQHandler_prereqs(t *testing.T) {
 	//Expect the fourth one to be empty
 	ZMQLibraryReceiveFromSocket(t, subscriber1, poller1, 1, false)
 
-	stopPubServer2 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqSecondTopic, zmqURL2.String())
+	stopPubServer2 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqSecondTopic, zmqURL2.String(), 4)
 	subscriber2, poller2 := ZMQLibrarySusbscribeToTopic(t, ZmqSecondTopic, zmqURL2.String())
 
 	defer func() {
@@ -290,64 +298,41 @@ func TestNewZMQHandlers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	/* Test Case /*
-	Given I want to test metamorph handler
+	Given I want to test metamorph
 	When I am testing new handlers
 	Then I want to test that it can support several of them
 	*/
-
-	stopPubServer1 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String())
-	subscriber1, poller1 := ZMQLibrarySusbscribeToTopic(t, ZmqFirstTopic, zmqURL1.String())
-	stopPubServer2 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqSecondTopic, zmqURL2.String())
-	defer func() {
-		stopPubServer1()
-		_ = subscriber1.Close()
-		stopPubServer2()
-	}()
-	//Expect the three first messages to be successfully retrieved
-	ZMQLibraryReceiveFromSocket(t, subscriber1, poller1, 3, true)
-
+	//create the publishers for the valid URLs, otherwise you cannot connect to them with the NewZMQ handler
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	messages := make(chan []string, 10)
-	handler1 := metamorph.NewZMQHandler(ctx, zmqURL1, logger)
-	assert.NotNil(t, handler1)
+	var handlers [3]*metamorph.ZMQHandler
+	var zmqs [3]*metamorph.ZMQ
+	for _, topic := range validTopics {
+		for i, handleURL := range validURLS {
+			stopPubServer := ZMQLibraryCreatePublisherAndPublishTopic(t, topic, handleURL.String(), 1)
 
-	handler2 := metamorph.NewZMQHandler(ctx, zmqURL2, logger)
-	assert.NotNil(t, handler2)
+			handlers[i] = metamorph.NewZMQHandler(ctx, handleURL, logger)
+			assert.NotNil(t, handlers[i])
+			var err error
+			zmqs[i], err = metamorph.NewZMQ(handleURL, statusMessageCh, handlers[i], logger)
+			if err != nil {
+				logger.Error("failed to create ZMQ: %v")
+			}
+			logger.Info("Listening to ZMQ", slog.String("host", handleURL.Hostname()), slog.String("port", handleURL.Port()))
+			_, err = zmqs[i].Start()
 
-	handler3 := metamorph.NewZMQHandler(ctx, zmqNonExistingURL, logger)
-	assert.NotNil(t, handler3)
+			err = handlers[i].Subscribe(topic, zmqMessages)
+			require.NoError(t, err)
+			time.Sleep(1000 * time.Millisecond)
 
-	err := handler1.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
-	err = handler2.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
-	err = handler3.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
-	//subscribing for a second time
-	err = handler1.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
-	err = handler2.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
-	err = handler3.Subscribe(ZmqFirstTopic, messages)
-	require.NoError(t, err)
+			err = handlers[i].Unsubscribe(topic, nil)
+			require.NoError(t, err)
+			time.Sleep(1000 * time.Millisecond)
+			//Reset so we can bind again next iteration without having performance issues or the tests stalling
+			stopPubServer()
+			time.Sleep(1000 * time.Millisecond)
 
-	//subscribing to an invalid topic
-	err = handler1.Subscribe(ZmqInvalidTopid, messages)
-	require.Error(t, err)
-	err = handler2.Subscribe(ZmqInvalidTopid, messages)
-	require.Error(t, err)
-	err = handler3.Subscribe(ZmqInvalidTopid, messages)
-	require.Error(t, err)
-	err = handler1.Unsubscribe(ZmqFirstTopic, nil)
-	require.NoError(t, err)
-	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
-	err = handler1.Unsubscribe(ZmqFirstTopic, nil)
-	require.NoError(t, err)
-	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
-	err = handler1.Unsubscribe(ZmqInvalidTopid, nil)
-	require.Error(t, err)
-	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
-
+		}
+	}
 	/*TODO How to check errors in handlers e.g. duplicated topics */
 }
 
@@ -371,14 +356,16 @@ func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	//Adding a subscriber
-	_ = handler.Subscribe(ZmqFirstTopic, nil)
+	err = handler.Subscribe(ZmqFirstTopic, nil)
+	require.NoError(t, err)
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		messages2 <- fmt.Sprintf("%s Hello, World!", ZmqFirstTopic)
+		messages2 <- fmt.Sprintf("%s - Handler alredy subscribed", ZmqFirstTopic)
 	}()
 
 	// When
 	err = handler.Unsubscribe(ZmqFirstTopic, nil)
 	require.NoError(t, err)
 	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
+	messages2 <- fmt.Sprintf("%s - Handler alredy unsubscribed", ZmqFirstTopic)
 }

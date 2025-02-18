@@ -32,12 +32,10 @@ type Watcher struct {
 	k8sClient        K8sClient
 	logger           *slog.Logger
 	tickerMetamorph  Ticker
-	tickerBlocktx    Ticker
 	tickerCallbacker Ticker
 	namespace        string
 	waitGroup        *sync.WaitGroup
 	cancellations    []context.CancelFunc
-	shutdownBlocktx  context.CancelFunc
 	retryInterval    time.Duration
 }
 
@@ -66,7 +64,6 @@ func New(metamorphClient metamorph.TransactionMaintainer, callbackerClient callb
 		logger:           slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "k8s-watcher")),
 		tickerMetamorph:  NewDefaultTicker(intervalDefault),
 		tickerCallbacker: NewDefaultTicker(intervalDefault),
-		tickerBlocktx:    NewDefaultTicker(intervalDefault),
 		waitGroup:        &sync.WaitGroup{},
 		retryInterval:    retryIntervalDefault,
 	}
@@ -181,10 +178,6 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 }
 
 func (c *Watcher) Shutdown() {
-	if c.shutdownBlocktx != nil {
-		c.shutdownBlocktx()
-	}
-
 	for _, cancel := range c.cancellations {
 		cancel()
 	}

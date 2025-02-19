@@ -131,6 +131,7 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 			case <-ctx.Done():
 				return
 			case <-ticker.Tick():
+				fmt.Println("ticker ... ", watchedService)
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
 				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, watchedService)
@@ -144,7 +145,7 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 					if !strings.Contains(podName, watchedService) {
 						continue
 					}
-
+					fmt.Println(watchedService, podName, " running")
 					_, found := runningPodsK8s[podName]
 					if !found {
 						// A previously running pod has been terminated => set records locked by this pod unlocked

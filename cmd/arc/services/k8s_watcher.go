@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -10,12 +11,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	fmt.Println("callbacker dial addr: ", arcConfig.Callbacker.DialAddr)
 	callbackerConn, err := metamorph.DialGRPC(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -27,13 +28,16 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	}
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(mtmConn))
+	callbackerClient := callbacker_api.NewCallbackerAPIClient(callbackerConn)
+	a, err := callbackerClient.Health(context.Background(), &emptypb.Empty{})
+	fmt.Println("shota ...  ", a.String(), err)
 
 	k8sClient, err := k8s_client.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k8s-client: %v", err)
 	}
 
-	k8sWatcher := k8s_watcher.New(metamorphClient, callbacker_api.NewCallbackerAPIClient(callbackerConn), k8sClient, arcConfig.K8sWatcher.Namespace, k8s_watcher.WithLogger(logger))
+	k8sWatcher := k8s_watcher.New(metamorphClient, callbackerClient, k8sClient, arcConfig.K8sWatcher.Namespace, k8s_watcher.WithLogger(logger))
 	err = k8sWatcher.Start()
 	if err != nil {
 		return nil, fmt.Errorf("faile to start k8s-watcher: %v", err)

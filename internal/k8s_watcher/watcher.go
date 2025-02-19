@@ -11,6 +11,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -110,6 +111,8 @@ func (c *Watcher) Start() error {
 	})
 
 	c.watch(callbackerService, c.tickerCallbacker, func(podName string) error {
+		a, b := c.callbackerClient.Health(context.Background(), &emptypb.Empty{})
+		fmt.Println("ticker wwww ... ", a.Timestamp.String(), b)
 		_, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
 		}, nil)
@@ -131,7 +134,8 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 			case <-ctx.Done():
 				return
 			case <-ticker.Tick():
-				fmt.Println("ticker ... ", watchedService)
+				a, b := c.callbackerClient.Health(context.Background(), &emptypb.Empty{})
+				fmt.Println("ticker ... ", watchedService, a.Timestamp.String(), b)
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
 				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, watchedService)

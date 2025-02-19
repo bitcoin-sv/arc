@@ -112,7 +112,7 @@ func (c *Watcher) Start() error {
 	c.watch(callbackerService, c.tickerCallbacker, func(podName string) error {
 		_, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
-		}, nil)
+		})
 		return err
 	})
 	return nil

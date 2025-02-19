@@ -11,7 +11,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -132,7 +131,6 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 			case <-ctx.Done():
 				return
 			case <-ticker.Tick():
-				a, b := c.callbackerClient.Health(context.Background(), &emptypb.Empty{})
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
 				ctx := context.Background()
 				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, watchedService)

@@ -38,7 +38,8 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			b.hash,
 			b.height,
 			bt.merkle_tree_index,
-			b.status
+			b.status,
+			b.merkleroot
 		FROM blocktx.block_transactions AS bt
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id
 	`
@@ -61,6 +62,7 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 		var blockHeight uint64
 		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
+		var merkleRoot []byte
 
 		err := rows.Scan(
 			&txHash,
@@ -68,6 +70,7 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 			&blockHeight,
 			&merkleTreeIndex,
 			&blockStatus,
+			&merkleRoot,
 		)
 		if err != nil {
 			return nil, err
@@ -79,6 +82,7 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 			BlockHeight:     blockHeight,
 			MerkleTreeIndex: merkleTreeIndex,
 			BlockStatus:     blockStatus,
+			MerkleRoot:      merkleRoot,
 		})
 	}
 
@@ -97,7 +101,8 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 			b.hash,
 			b.height,
 			bt.merkle_tree_index,
-			b.status
+			b.status,
+			b.merkleroot
 		FROM blocktx.registered_transactions AS r
 			JOIN blocktx.block_transactions AS bt ON r.hash = bt.hash
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id

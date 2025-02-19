@@ -1,0 +1,2 @@
+
+DROP INDEX blocktx.ix_block_transactions_hash_merkle_tree;

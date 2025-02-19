@@ -23,6 +23,7 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func TestHandleBlock(t *testing.T) {
@@ -478,22 +479,181 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 }
 
 func TestStartProcessRegisterTxs(t *testing.T) {
+	tx1 := testutils.Chainhash(t, "ff2ea4f998a94d5128ac7663824b2331cc7f95ca60611103f49163d4a4eb547c")
+	tx2 := testutils.Chainhash(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883")
+	tx3 := testutils.Chainhash(t, "e2d3bbb6005671db9a47767d2278ebe0d7a5515f5891facbd16dc3963bded337")
+	tx4 := testutils.Chainhash(t, "24c23a8213eec1f735384c1056757c2784794474b4b534232d3114526b192e1e")
+	tx5 := testutils.Chainhash(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")
+	tx6 := testutils.Chainhash(t, "4bb96ac67fad56ef2ea6213a139c0144c86de2f71f6679c832b918e409e46008")
+	tx7 := testutils.Chainhash(t, "b3024ceba94a32eeb6c20f2a6fb1442703d090393977997c4e6287e6b8731323")
+	tx8 := testutils.Chainhash(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3")
+	tx9 := testutils.Chainhash(t, "bf272086e71d381269b33deea4e92b1730bda919b04497aed919694c0d29d264")
+	merkleRoot1 := testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0")
+	blockHash1 := testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44")
 	tt := []struct {
-		name        string
-		registerErr error
+		name                string
+		batchSize           int
+		registerErr         error
+		getMinedTxs         []store.BlockTransaction
+		getMinedTxsErr      error
+		getBlockTxHashes    []*chainhash.Hash
+		getBlockTxHashesErr error
+		registeredHashes    [][]byte
 
+		expectedPublishCalls     int
 		expectedRegisterTxsCalls int
 	}{
 		{
-			name: "success",
+			name:             "no mined txs",
+			registeredHashes: [][]byte{},
 
-			expectedRegisterTxsCalls: 2,
+			expectedRegisterTxsCalls: 0,
+			expectedPublishCalls:     0,
 		},
 		{
-			name:        "error",
-			registerErr: errors.New("failed to register"),
+			name:             "error - failed to register",
+			batchSize:        1,
+			registerErr:      errors.New("failed to register"),
+			registeredHashes: [][]byte{tx5[:]},
 
-			expectedRegisterTxsCalls: 2,
+			expectedRegisterTxsCalls: 1,
+			expectedPublishCalls:     0,
+		},
+		{
+			name:                "error - failed to get block tx hashes",
+			batchSize:           1,
+			getBlockTxHashesErr: errors.New("failed to get block tx hashes"),
+			registeredHashes:    [][]byte{tx5[:]},
+			getMinedTxs: []store.BlockTransaction{
+				{
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 4,
+					BlockStatus:     10,
+				},
+			},
+
+			expectedRegisterTxsCalls: 1,
+			expectedPublishCalls:     0,
+		},
+		{
+			name:             "error - failed to get mined txs",
+			batchSize:        1,
+			registeredHashes: [][]byte{tx5[:]},
+			getMinedTxsErr:   errors.New("failed to get mined txs"),
+
+			expectedRegisterTxsCalls: 1,
+			expectedPublishCalls:     0,
+		},
+		{
+			name:             "found 0 block tx hashes",
+			batchSize:        1,
+			registeredHashes: [][]byte{tx5[:]},
+			getBlockTxHashes: []*chainhash.Hash{},
+			getMinedTxs: []store.BlockTransaction{
+				{
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 4,
+					BlockStatus:     10,
+					MerkleRoot:      merkleRoot1,
+				},
+			},
+
+			expectedRegisterTxsCalls: 1,
+			expectedPublishCalls:     0,
+		},
+		{
+			name:      "wrong order of block tx hashes - BUMP does not contain the txid",
+			batchSize: 3,
+			getMinedTxs: []store.BlockTransaction{
+				{
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 4,
+					BlockStatus:     10,
+					MerkleRoot:      merkleRoot1,
+				},
+			},
+			registeredHashes: [][]byte{
+				tx5[:],
+				tx8[:],
+				tx2[:],
+			},
+			getBlockTxHashes: []*chainhash.Hash{
+				tx6,
+				tx7,
+				tx8,
+				tx9,
+				tx1,
+				tx2,
+				tx3,
+				tx4,
+				tx5,
+			},
+
+			expectedPublishCalls:     0,
+			expectedRegisterTxsCalls: 1,
+		},
+		{
+			name:      "correct order of block tx hashes - success",
+			batchSize: 4,
+			getMinedTxs: []store.BlockTransaction{
+				{
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: -1,
+					BlockStatus:     10,
+					MerkleRoot:      merkleRoot1,
+				},
+				{
+					TxHash:          []byte("not valid"),
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 4,
+					BlockStatus:     10,
+					MerkleRoot:      merkleRoot1,
+				},
+				{
+					TxHash:          tx8[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 7,
+					BlockStatus:     10,
+					MerkleRoot:      merkleRoot1,
+				},
+				{
+					TxHash:          tx2[:],
+					BlockHash:       blockHash1,
+					BlockHeight:     1661719,
+					MerkleTreeIndex: 1,
+					BlockStatus:     10,
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+				},
+			},
+			registeredHashes: [][]byte{
+				tx5[:],
+				tx8[:],
+				tx2[:],
+			},
+			getBlockTxHashes: []*chainhash.Hash{
+				tx1,
+				tx2,
+				tx3,
+				tx4,
+				tx5,
+				tx6,
+				tx7,
+				tx8,
+				tx9,
+			},
+
+			expectedRegisterTxsCalls: 1,
+			expectedPublishCalls:     2,
 		},
 	}
 
@@ -505,20 +665,24 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error {
 					return registerErrTest
 				},
-				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
-					return nil, nil
-				},
 				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
-					return nil, nil
+					return tc.getMinedTxs, tc.getMinedTxsErr
+				},
+				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
+					return tc.getBlockTxHashes, tc.getBlockTxHashesErr
+				},
+			}
+			mqClient := &mocks.MessageQueueClientMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
 				},
 			}
 
 			txChan := make(chan []byte, 10)
 
-			txChan <- testdata.TX1Hash[:]
-			txChan <- testdata.TX2Hash[:]
-			txChan <- testdata.TX3Hash[:]
-			txChan <- testdata.TX4Hash[:]
+			for _, txHash := range tc.registeredHashes {
+				txChan <- txHash
+			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
@@ -528,9 +692,10 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				storeMock,
 				nil,
 				nil,
-				blocktx.WithRegisterTxsInterval(time.Millisecond*20),
+				blocktx.WithRegisterTxsInterval(time.Millisecond*80),
 				blocktx.WithRegisterTxsChan(txChan),
-				blocktx.WithRegisterTxsBatchSize(3),
+				blocktx.WithRegisterTxsBatchSize(tc.batchSize),
+				blocktx.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -541,6 +706,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }

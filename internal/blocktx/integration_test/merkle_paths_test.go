@@ -21,11 +21,11 @@ func TestMerklePaths(t *testing.T) {
 
 		processor, _, _, registerTxChannel, publishedTxsCh := setupSut(t, dbInfo)
 
-		txWithoutMerklePath := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
-		expectedMerklePath := "fefe8a0c0003020002cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853010021132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e010100f883cc2d3bb5d4485accaa3502cf834934420616d8556b204da5658456b48b21010100e2277e52528e1a5e6117e45300e3f5f169b1712292399d065bc5167c54b8e0b5"
+		registeredTxHash := testutils.RevHexDecodeString(t, "ff2ea4f998a94d5128ac7663824b2331cc7f95ca60611103f49163d4a4eb547c")
+		expectedMerklePath := "fe175b1900040200027c54eba4d46391f403116160ca957fcc31234b826376ac28514da998f9a42eff01008308c059d119b87a9520a9fd3d765f8b74f726e96c77a1a6623d71796cc8c207010100333ff2bf5a4128823576d192e3e7f4a78e287b1acd0716127d28a890b7fd37930101006b473b8dc8557542d316becceae316b142f21b0ba4d08d17da55cf4b7b6817c90101009ea3342e55faab48aaa301e3f1935428b0bba92931e0ad24081d2ebae70bc160"
 
 		// when
-		registerTxChannel <- txWithoutMerklePath[:]
+		registerTxChannel <- registeredTxHash[:]
 		processor.StartProcessRegisterTxs()
 
 		// give blocktx time to pull all transactions from block and calculate the merkle path
@@ -33,8 +33,9 @@ func TestMerklePaths(t *testing.T) {
 
 		// then
 		publishedTxs := getPublishedTxs(publishedTxsCh)
+		require.Len(t, publishedTxs, 1)
 		tx := publishedTxs[0]
-		require.Equal(t, txWithoutMerklePath[:], tx.GetTransactionHash())
+		require.Equal(t, registeredTxHash, tx.GetTransactionHash())
 		require.Equal(t, expectedMerklePath, tx.GetMerklePath())
 	})
 }

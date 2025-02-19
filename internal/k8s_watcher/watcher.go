@@ -106,6 +106,9 @@ func WithCallbackerTicker(t Ticker) func(*Watcher) {
 func (c *Watcher) Start() error {
 	c.watch(metamorphService, c.tickerMetamorph, func(podName string) error {
 		_, err := c.metamorphClient.SetUnlockedByName(context.Background(), podName)
+		if err == nil {
+			c.logger.Info("record unlocked", slog.String("pod-name", podName))
+		}
 		return err
 	})
 
@@ -113,6 +116,9 @@ func (c *Watcher) Start() error {
 		_, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
 		})
+		if err == nil {
+			c.logger.Info("mapping removed", slog.String("pod-name", podName))
+		}
 		return err
 	})
 	return nil
@@ -164,7 +170,6 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 								c.logger.Error("Failed to process missing pod", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue
 							}
-							c.logger.Info("mapping removed", slog.String("pod-name", podName))
 							break
 						}
 					}

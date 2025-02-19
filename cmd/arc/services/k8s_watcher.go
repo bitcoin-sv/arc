@@ -15,7 +15,8 @@ import (
 func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	callbackerConn, err := metamorph.DialGRPC(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	fmt.Println("callbacker dial addr: ", arcConfig.Callbacker.DialAddr)
+	callbackerConn, err := metamorph.DialGRPC(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}

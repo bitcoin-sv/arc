@@ -131,7 +131,7 @@ func GetGRPCClientOpts(prometheusEndpoint string, grpcMessageSize int, tracingCo
 	})
 
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	opts = append(opts, grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...))
+	// opts = append(opts, grpc.WithChainUnaryInterceptor(chainUnaryInterceptors...))
 	opts = append(opts, grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`)) // This sets the initial balancing policy.
 	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMessageSize)))
 

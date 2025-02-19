@@ -479,6 +479,17 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 }
 
 func TestStartProcessRegisterTxs(t *testing.T) {
+	tx1 := testutils.Chainhash(t, "ff2ea4f998a94d5128ac7663824b2331cc7f95ca60611103f49163d4a4eb547c")
+	tx2 := testutils.Chainhash(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883")
+	tx3 := testutils.Chainhash(t, "e2d3bbb6005671db9a47767d2278ebe0d7a5515f5891facbd16dc3963bded337")
+	tx4 := testutils.Chainhash(t, "24c23a8213eec1f735384c1056757c2784794474b4b534232d3114526b192e1e")
+	tx5 := testutils.Chainhash(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")
+	tx6 := testutils.Chainhash(t, "4bb96ac67fad56ef2ea6213a139c0144c86de2f71f6679c832b918e409e46008")
+	tx7 := testutils.Chainhash(t, "b3024ceba94a32eeb6c20f2a6fb1442703d090393977997c4e6287e6b8731323")
+	tx8 := testutils.Chainhash(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3")
+	tx9 := testutils.Chainhash(t, "bf272086e71d381269b33deea4e92b1730bda919b04497aed919694c0d29d264")
+	merkleRoot1 := testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0")
+	blockHash1 := testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44")
 	tt := []struct {
 		name                string
 		batchSize           int
@@ -503,7 +514,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			name:             "error - failed to register",
 			batchSize:        1,
 			registerErr:      errors.New("failed to register"),
-			registeredHashes: [][]byte{testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")},
+			registeredHashes: [][]byte{tx5[:]},
 
 			expectedRegisterTxsCalls: 1,
 			expectedPublishCalls:     0,
@@ -512,11 +523,11 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			name:                "error - failed to get block tx hashes",
 			batchSize:           1,
 			getBlockTxHashesErr: errors.New("failed to get block tx hashes"),
-			registeredHashes:    [][]byte{testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")},
+			registeredHashes:    [][]byte{tx5[:]},
 			getMinedTxs: []store.BlockTransaction{
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
@@ -529,7 +540,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 		{
 			name:             "error - failed to get mined txs",
 			batchSize:        1,
-			registeredHashes: [][]byte{testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")},
+			registeredHashes: [][]byte{tx5[:]},
 			getMinedTxsErr:   errors.New("failed to get mined txs"),
 
 			expectedRegisterTxsCalls: 1,
@@ -538,16 +549,16 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 		{
 			name:             "found 0 block tx hashes",
 			batchSize:        1,
-			registeredHashes: [][]byte{testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08")},
+			registeredHashes: [][]byte{tx5[:]},
 			getBlockTxHashes: []*chainhash.Hash{},
 			getMinedTxs: []store.BlockTransaction{
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+					MerkleRoot:      merkleRoot1,
 				},
 			},
 
@@ -559,29 +570,29 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			batchSize: 3,
 			getMinedTxs: []store.BlockTransaction{
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+					MerkleRoot:      merkleRoot1,
 				},
 			},
 			registeredHashes: [][]byte{
-				testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-				testutils.HexDecodeString(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
-				testutils.HexDecodeString(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
+				tx5[:],
+				tx8[:],
+				tx2[:],
 			},
 			getBlockTxHashes: []*chainhash.Hash{
-				testutils.Chainhash(t, "4bb96ac67fad56ef2ea6213a139c0144c86de2f71f6679c832b918e409e46008"),
-				testutils.Chainhash(t, "b3024ceba94a32eeb6c20f2a6fb1442703d090393977997c4e6287e6b8731323"),
-				testutils.Chainhash(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
-				testutils.Chainhash(t, "bf272086e71d381269b33deea4e92b1730bda919b04497aed919694c0d29d264"),
-				testutils.Chainhash(t, "ff2ea4f998a94d5128ac7663824b2331cc7f95ca60611103f49163d4a4eb547c"),
-				testutils.Chainhash(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
-				testutils.Chainhash(t, "e2d3bbb6005671db9a47767d2278ebe0d7a5515f5891facbd16dc3963bded337"),
-				testutils.Chainhash(t, "24c23a8213eec1f735384c1056757c2784794474b4b534232d3114526b192e1e"),
-				testutils.Chainhash(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
+				tx6,
+				tx7,
+				tx8,
+				tx9,
+				tx1,
+				tx2,
+				tx3,
+				tx4,
+				tx5,
 			},
 
 			expectedPublishCalls:     0,
@@ -592,32 +603,32 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			batchSize: 4,
 			getMinedTxs: []store.BlockTransaction{
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx5[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: -1,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+					MerkleRoot:      merkleRoot1,
 				},
 				{
 					TxHash:          []byte("not valid"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+					MerkleRoot:      merkleRoot1,
 				},
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx8[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 7,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
+					MerkleRoot:      merkleRoot1,
 				},
 				{
-					TxHash:          testutils.RevHexDecodeString(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
-					BlockHash:       testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44"),
+					TxHash:          tx2[:],
+					BlockHash:       blockHash1,
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 1,
 					BlockStatus:     10,
@@ -625,20 +636,20 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				},
 			},
 			registeredHashes: [][]byte{
-				testutils.HexDecodeString(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-				testutils.HexDecodeString(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
-				testutils.HexDecodeString(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
+				tx5[:],
+				tx8[:],
+				tx2[:],
 			},
 			getBlockTxHashes: []*chainhash.Hash{
-				testutils.Chainhash(t, "ff2ea4f998a94d5128ac7663824b2331cc7f95ca60611103f49163d4a4eb547c"),
-				testutils.Chainhash(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
-				testutils.Chainhash(t, "e2d3bbb6005671db9a47767d2278ebe0d7a5515f5891facbd16dc3963bded337"),
-				testutils.Chainhash(t, "24c23a8213eec1f735384c1056757c2784794474b4b534232d3114526b192e1e"),
-				testutils.Chainhash(t, "ff1374619d6d6a7b30f35560f76a97aa430c016459034afa6d6cbd19a428ce08"),
-				testutils.Chainhash(t, "4bb96ac67fad56ef2ea6213a139c0144c86de2f71f6679c832b918e409e46008"),
-				testutils.Chainhash(t, "b3024ceba94a32eeb6c20f2a6fb1442703d090393977997c4e6287e6b8731323"),
-				testutils.Chainhash(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
-				testutils.Chainhash(t, "bf272086e71d381269b33deea4e92b1730bda919b04497aed919694c0d29d264"),
+				tx1,
+				tx2,
+				tx3,
+				tx4,
+				tx5,
+				tx6,
+				tx7,
+				tx8,
+				tx9,
 			},
 
 			expectedRegisterTxsCalls: 1,

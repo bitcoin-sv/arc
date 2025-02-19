@@ -8,7 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
 // check if BtxClient implements all necessary interfaces
@@ -71,7 +71,7 @@ func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) erro
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingConfig)
+	dialOpts, err := grpc_utils.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

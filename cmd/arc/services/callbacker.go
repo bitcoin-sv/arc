@@ -33,7 +33,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
@@ -49,7 +49,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		sender          *callbacker.CallbackSender
 		dispatcher      *callbacker.CallbackDispatcher
 		server          *callbacker.Server
-		healthServer    *grpc_opts.GrpcServer
+		healthServer    *grpc_utils.GrpcServer
 		mqClient        callbacker.MessageQueueClient
 		processor       *callbacker.Processor
 		err             error
@@ -148,7 +148,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, cfg.Health.SeverDialAddr)
+	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, cfg.Health.SeverDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -180,7 +180,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_opts.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
+	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. dispatcher - ensure all already accepted callbacks are processed

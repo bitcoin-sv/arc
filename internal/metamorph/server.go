@@ -19,7 +19,9 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -50,7 +52,7 @@ type ProcessorI interface {
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	grpc_opts.GrpcServer
+	grpc_utils.GrpcServer
 
 	logger              *slog.Logger
 	processor           ProcessorI
@@ -98,6 +100,7 @@ func NewServer(logger *slog.Logger, store store.MetamorphStore, processor Proces
 	}
 
 	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, "metamorph", prometheusEndpoint, maxMsgSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

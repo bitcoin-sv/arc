@@ -11,12 +11,12 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
-	grpc_opts.GrpcServer
+	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
 }

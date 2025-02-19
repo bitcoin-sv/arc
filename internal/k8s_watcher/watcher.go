@@ -116,9 +116,6 @@ func (c *Watcher) Start() error {
 		deleteMappingResponse, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
 		})
-		if err == nil {
-			c.logger.Info("mapping removed", slog.String("pod-name", podName), slog.Int64("rows", deleteMappingResponse.Rows))
-		}
 		return err
 	})
 	return nil

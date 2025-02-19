@@ -11,14 +11,14 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
-	grpc_opts.GrpcServer
+	grpc_utils.GrpcServer
 
 	logger                        *slog.Logger
 	pm                            *p2p.PeerManager
@@ -31,6 +31,7 @@ type Server struct {
 func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_opts.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, tracingConfig)
 	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err

@@ -11,12 +11,9 @@ import (
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
@@ -107,20 +104,6 @@ func NewClient(client metamorph_api.MetaMorphAPIClient, opts ...func(client *Met
 	}
 
 	return m
-}
-
-func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) (*grpc.ClientConn, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMessageSize, tracingConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := grpc.NewClient(address, dialOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
 }
 
 // GetTransaction gets the transaction bytes from metamorph.

@@ -15,12 +15,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
-	nats_mocks "github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
@@ -51,22 +50,19 @@ func TestProcessor(t *testing.T) {
 		defer messenger.Shutdown()
 		mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
-		natsMock := &nats_mocks.NatsConnectionMock{
-			DrainFunc: func() error {
-				return nil
-			},
-			PublishFunc: func(_ string, _ []byte) error {
+		mqClient := &mocks.MessageQueueClientMock{
+			PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 				return nil
 			},
 		}
-		natsQueue := nats_core.New(natsMock)
+
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
 		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, mediator, statusMessageChannel,
 			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
-			metamorph.WithMessageQueueClient(natsQueue),
+			metamorph.WithMessageQueueClient(mqClient),
 			metamorph.WithBlocktxClient(blocktxClient),
 		)
 		require.NoError(t, err)

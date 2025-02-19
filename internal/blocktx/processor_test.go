@@ -547,7 +547,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 			},
 
@@ -564,7 +564,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 			},
 			registeredHashes: [][]byte{
@@ -597,7 +597,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: -1,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 				{
 					TxHash:          []byte("not valid"),
@@ -605,7 +605,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 4,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 				{
 					TxHash:          testutils.RevHexDecodeString(t, "d828d1d8b8a53c17b6251bc357ff65771b3df5d28b5f009ee97d860b730502d3"),
@@ -613,7 +613,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 7,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 				{
 					TxHash:          testutils.RevHexDecodeString(t, "07c2c86c79713d62a6a1776ce926f7748b5f763dfda920957ab819d159c00883"),
@@ -621,7 +621,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					BlockHeight:     1661719,
 					MerkleTreeIndex: 1,
 					BlockStatus:     10,
-					MerkleRoot:      testutils.HexDecodeString(t, "d0f2f708a6bddcd2974eb0a3242e1fb38a5ac8139b009b7787c36674f5fc91c9"),
+					MerkleRoot:      testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0"),
 				},
 			},
 			registeredHashes: [][]byte{

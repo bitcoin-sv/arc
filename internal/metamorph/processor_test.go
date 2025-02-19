@@ -1013,7 +1013,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			name: "success",
 
 			expectedGetSeenCalls:  5,
-			expectedRegisterCalls: 9,
+			expectedRegisterCalls: 6,
 		},
 		{
 			name:       "failed to get seen on network transactions",
@@ -1056,7 +1056,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			pm := &bcnet.Mediator{}
 
 			blockTxClient := &btxMocks.ClientMock{
-				RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil },
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return nil },
 			}
 
 			cStore := cache.NewMemoryStore()
@@ -1067,6 +1067,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
 				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+				metamorph.WithRegisterBatchSizeDefault(2),
 			)
 			require.NoError(t, err)
 
@@ -1078,7 +1079,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
-			require.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionCalls()))
+			require.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
 		})
 	}
 }

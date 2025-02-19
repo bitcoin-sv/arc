@@ -90,3 +90,11 @@ func (s *Server) RegisterTransaction(_ context.Context, req *blocktx_api.Transac
 	s.processor.RegisterTransaction(req.Hash)
 	return nil, nil
 }
+
+func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transactions) (*emptypb.Empty, error) {
+	for _, tx := range req.GetTransactions() {
+		s.processor.RegisterTransaction(tx.GetHash())
+	}
+
+	return nil, nil
+}

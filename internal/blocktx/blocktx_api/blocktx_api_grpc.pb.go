@@ -25,6 +25,7 @@ const (
 	BlockTxAPI_ClearRegisteredTransactions_FullMethodName = "/blocktx_api.BlockTxAPI/ClearRegisteredTransactions"
 	BlockTxAPI_VerifyMerkleRoots_FullMethodName           = "/blocktx_api.BlockTxAPI/VerifyMerkleRoots"
 	BlockTxAPI_RegisterTransaction_FullMethodName         = "/blocktx_api.BlockTxAPI/RegisterTransaction"
+	BlockTxAPI_RegisterTransactions_FullMethodName        = "/blocktx_api.BlockTxAPI/RegisterTransactions"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -39,8 +40,10 @@ type BlockTxAPIClient interface {
 	ClearRegisteredTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	VerifyMerkleRoots(ctx context.Context, in *MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*MerkleRootVerificationResponse, error)
-	// RegisterTransaction registers a transaction with the API.
+	// RegisterTransaction registers a transaction in blocktx
 	RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// RegisterTransactions registers multiple transactions in blocktx
+	RegisterTransactions(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type blockTxAPIClient struct {
@@ -101,6 +104,16 @@ func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *Transact
 	return out, nil
 }
 
+func (c *blockTxAPIClient) RegisterTransactions(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, BlockTxAPI_RegisterTransactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility.
@@ -113,8 +126,10 @@ type BlockTxAPIServer interface {
 	ClearRegisteredTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	VerifyMerkleRoots(context.Context, *MerkleRootsVerificationRequest) (*MerkleRootVerificationResponse, error)
-	// RegisterTransaction registers a transaction with the API.
+	// RegisterTransaction registers a transaction in blocktx
 	RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error)
+	// RegisterTransactions registers multiple transactions in blocktx
+	RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -139,6 +154,9 @@ func (UnimplementedBlockTxAPIServer) VerifyMerkleRoots(context.Context, *MerkleR
 }
 func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
+}
+func (UnimplementedBlockTxAPIServer) RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransactions not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 func (UnimplementedBlockTxAPIServer) testEmbeddedByValue()                    {}
@@ -251,6 +269,24 @@ func _BlockTxAPI_RegisterTransaction_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_RegisterTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Transactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).RegisterTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_RegisterTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).RegisterTransactions(ctx, req.(*Transactions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -277,6 +313,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterTransaction",
 			Handler:    _BlockTxAPI_RegisterTransaction_Handler,
+		},
+		{
+			MethodName: "RegisterTransactions",
+			Handler:    _BlockTxAPI_RegisterTransactions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

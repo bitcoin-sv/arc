@@ -19,6 +19,7 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
@@ -124,6 +125,23 @@ func (p *Processor) Start() error {
 	})
 	if err != nil {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
+	}
+
+	err = p.mqClient.Subscribe(mq.RegisterTxsTopic, func(msg []byte) error {
+		serialized := &blocktx_api.Transactions{}
+		err := proto.Unmarshal(msg, serialized)
+		if err != nil {
+			return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
+		}
+
+		for _, tx := range serialized.Transactions {
+			p.registerTxsChan <- tx.Hash
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
 	}
 
 	p.StartBlockRequesting()

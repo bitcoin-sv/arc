@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	CallbackTopic   = "callback"
+	SubmitTxTopic    = "submit-tx"
+	MinedTxsTopic    = "mined-txs"
+	RegisterTxTopic  = "register-tx"
+	RegisterTxsTopic = "register-txs"
+	CallbackTopic    = "callback"
 )
 
 type MessageQueueClient interface {

@@ -20,8 +20,11 @@ service BlockTxAPI {
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	rpc VerifyMerkleRoots(MerkleRootsVerificationRequest) returns (MerkleRootVerificationResponse) {}
 
-  // RegisterTransaction registers a transaction with the API.
+  // RegisterTransaction registers a transaction in blocktx
   rpc RegisterTransaction (Transaction) returns (google.protobuf.Empty) {}
+
+  // RegisterTransactions registers multiple transactions in blocktx
+  rpc RegisterTransactions (Transactions) returns (google.protobuf.Empty) {}
 
 }
 

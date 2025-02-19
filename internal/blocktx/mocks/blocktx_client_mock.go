@@ -22,6 +22,9 @@ var _ blocktx.Client = &ClientMock{}
 //			RegisterTransactionFunc: func(ctx context.Context, hash []byte) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
+//			RegisterTransactionsFunc: func(ctx context.Context, hashes [][]byte) error {
+//				panic("mock out the RegisterTransactions method")
+//			},
 //		}
 //
 //		// use mockedClient in code that requires blocktx.Client
@@ -32,6 +35,9 @@ type ClientMock struct {
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, hash []byte) error
 
+	// RegisterTransactionsFunc mocks the RegisterTransactions method.
+	RegisterTransactionsFunc func(ctx context.Context, hashes [][]byte) error
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
@@ -41,8 +47,16 @@ type ClientMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
+		// RegisterTransactions holds details about calls to the RegisterTransactions method.
+		RegisterTransactions []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hashes is the hashes argument value.
+			Hashes [][]byte
+		}
 	}
-	lockRegisterTransaction sync.RWMutex
+	lockRegisterTransaction  sync.RWMutex
+	lockRegisterTransactions sync.RWMutex
 }
 
 // RegisterTransaction calls RegisterTransactionFunc.
@@ -78,5 +92,41 @@ func (mock *ClientMock) RegisterTransactionCalls() []struct {
 	mock.lockRegisterTransaction.RLock()
 	calls = mock.calls.RegisterTransaction
 	mock.lockRegisterTransaction.RUnlock()
+	return calls
+}
+
+// RegisterTransactions calls RegisterTransactionsFunc.
+func (mock *ClientMock) RegisterTransactions(ctx context.Context, hashes [][]byte) error {
+	if mock.RegisterTransactionsFunc == nil {
+		panic("ClientMock.RegisterTransactionsFunc: method is nil but Client.RegisterTransactions was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Hashes [][]byte
+	}{
+		Ctx:    ctx,
+		Hashes: hashes,
+	}
+	mock.lockRegisterTransactions.Lock()
+	mock.calls.RegisterTransactions = append(mock.calls.RegisterTransactions, callInfo)
+	mock.lockRegisterTransactions.Unlock()
+	return mock.RegisterTransactionsFunc(ctx, hashes)
+}
+
+// RegisterTransactionsCalls gets all the calls that were made to RegisterTransactions.
+// Check the length with:
+//
+//	len(mockedClient.RegisterTransactionsCalls())
+func (mock *ClientMock) RegisterTransactionsCalls() []struct {
+	Ctx    context.Context
+	Hashes [][]byte
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Hashes [][]byte
+	}
+	mock.lockRegisterTransactions.RLock()
+	calls = mock.calls.RegisterTransactions
+	mock.lockRegisterTransactions.RUnlock()
 	return calls
 }

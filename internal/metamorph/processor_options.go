@@ -163,3 +163,9 @@ func WithProcessSeenOnNetworkTxsInterval(d time.Duration) func(*Processor) {
 		p.processSeenOnNetworkTxsInterval = d
 	}
 }
+
+func WithRegisterBatchSizeDefault(size int) func(*Processor) {
+	return func(p *Processor) {
+		p.registerBatchSize = size
+	}
+}

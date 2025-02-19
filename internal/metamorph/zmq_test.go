@@ -22,6 +22,7 @@ import (
 
 var zmqURL1, errZMQURL1 = url.Parse("tcp://127.0.0.1:5555")
 var zmqURL2, errZMQURL2 = url.Parse("tcp://127.0.0.1:5556")
+var zmqURLDOWN, errZMQURLDOWN = url.Parse("tcp://URLDOWN:5556")
 
 // TODO when it is not possible to connect to a URL either because it is doesn't exist or because of other technical problems
 // The handler will keep retrying without a timeout and that limits the possibility of checking errors or coverage in tests
@@ -38,7 +39,6 @@ const (
 	msgDoubleSpendAttempted = "7b2266726f6d426c6f636b223a2066616c73652c22736f75726365223a2022703270222c2261646472657373223a20226e6f6465323a3138333333222c226e6f64654964223a20312c2274786964223a202238653735616531306638366438613433303434613534633363353764363630643230636462373465323333626534623563393062613735326562646337653838222c2273697a65223a203139312c22686578223a202230313030303030303031313134386239653931646336383232313635306539363861366164613863313531373135656135373864623130376336623563333362363762376636376630323030303030303030366134373330343430323230313863396166396334626634653736383932376263363335363233623434383362656261656334343433396165613838356363666430363163373731636435613032323034613839626531333534613038613539643466316636323235343937366532373466316333333334383334373137363462623936633565393837626539663365343132313033303830373637393438326663343533323461386133326166643832333730646337316365383966373936376536636635646139646430356330366665356137616666666666666666303130613030303030303030303030303030313937366139313434613037363038353032653464646131363662333830343130613633663066653962383830666532383861633030303030303030222c226973496e76616c6964223a20747275652c22697356616c69646174696f6e4572726f72223a2066616c73652c2269734d697373696e67496e70757473223a2066616c73652c226973446f75626c655370656e644465746563746564223a2066616c73652c2269734d656d706f6f6c436f6e666c6963744465746563746564223a20747275652c2269734e6f6e46696e616c223a2066616c73652c22697356616c69646174696f6e54696d656f75744578636565646564223a2066616c73652c2269735374616e646172645478223a20747275652c2272656a656374696f6e436f6465223a203235382c2272656a656374696f6e526561736f6e223a202274786e2d6d656d706f6f6c2d636f6e666c696374222c22636f6c6c6964656457697468223a205b7b2274786964223a202264363461646663653662313035646336626466343735343934393235626630363830326134316130353832353836663333633262313664353337613062376236222c2273697a65223a203139312c22686578223a202230313030303030303031313134386239653931646336383232313635306539363861366164613863313531373135656135373864623130376336623563333362363762376636376630323030303030303030366134373330343430323230376361326162353332623936303130333362316464636138303838353433396366343433666264663262616463656637303964383930616434373661346162353032323032653730666565353935313462313763353635336138313834643730646232646363643062613339623731663730643239386231643939313764333837396663343132313033303830373637393438326663343533323461386133326166643832333730646337316365383966373936376536636635646139646430356330366665356137616666666666666666303130613030303030303030303030303030313937366139313435313335306233653933363037613437616136623161653964343937616336656135366130623132383861633030303030303030227d5d2c2272656a656374696f6e54696d65223a2022323032342d30372d32355431313a30313a35365a227d"
 	ZmqFirstTopic           = "hashblock"
 	ZmqSecondTopic          = "secondtopic"
-	ZmqInvalidTopid         = "invalid"
 )
 
 func TestZMQ(t *testing.T) {
@@ -298,28 +298,26 @@ func TestNewZMQHandlers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	/* Test Case /*
-	Given I want to test metamorph
-	When I am testing new handlers
-	Then I want to test that it can support several of them
+	Given I want to test metamorph handler
+	When I have a ZMQ publisher up
+	Then I want to make sure the handler can
+	subscribe and unsubscribe to all topics
 	*/
-	//create the publishers for the valid URLs, otherwise you cannot connect to them with the NewZMQ handler
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	var handlers [3]*metamorph.ZMQHandler
 	var zmqs [3]*metamorph.ZMQ
 	for _, topic := range validTopics {
 		for i, handleURL := range validURLS {
+			var err error
 			stopPubServer := ZMQLibraryCreatePublisherAndPublishTopic(t, topic, handleURL.String(), 1)
-
 			handlers[i] = metamorph.NewZMQHandler(ctx, handleURL, logger)
 			assert.NotNil(t, handlers[i])
-			var err error
 			zmqs[i], err = metamorph.NewZMQ(handleURL, statusMessageCh, handlers[i], logger)
 			if err != nil {
 				logger.Error("failed to create ZMQ: %v")
 			}
 			logger.Info("Listening to ZMQ", slog.String("host", handleURL.Hostname()), slog.String("port", handleURL.Port()))
-			_, err = zmqs[i].Start()
-
+			zmqs[i].Start()
 			err = handlers[i].Subscribe(topic, zmqMessages)
 			require.NoError(t, err)
 			time.Sleep(1000 * time.Millisecond)
@@ -330,10 +328,8 @@ func TestNewZMQHandlers(t *testing.T) {
 			//Reset so we can bind again next iteration without having performance issues or the tests stalling
 			stopPubServer()
 			time.Sleep(1000 * time.Millisecond)
-
 		}
 	}
-	/*TODO How to check errors in handlers e.g. duplicated topics */
 }
 
 func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
@@ -341,10 +337,10 @@ func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
 	defer cancel()
 	/* Test Case /*
 	Given I want to test metamorph handler
-	When I am testing subscribing and unsubscribing to topics
-	Then I want to make sure all the combinations work
+	When I have a ZMQ publisher up
+	Then I want to make sure I can use it to
+	subscribe and unsubscribe to all topics
 	*/
-	// Given
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	handler := metamorph.NewZMQHandler(ctx, zmqURL1, logger)
 
@@ -368,4 +364,35 @@ func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
 	messages2 <- fmt.Sprintf("%s - Handler alredy unsubscribed", ZmqFirstTopic)
+}
+
+func TestZMQHandler_No_Error_Service_Down(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	/* Test Case /*
+	Given I want to test metamorph handler
+	When I am using a URL that is not valid or is down
+	Then I want to make sure that the appropriate error arises
+	*/
+
+	stopPubServer := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String(), 1)
+	time.Sleep(500 * time.Millisecond)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	handler := metamorph.NewZMQHandler(ctx, zmqURLDOWN, logger)
+	zmqObj, err := metamorph.NewZMQ(zmqURLDOWN, statusMessageCh, handler, logger)
+	if err != nil {
+		logger.Error("failed to create ZMQ: %v")
+	} else {
+		logger.Info("No error was raised using a made up URL")
+	}
+	zmqObj.Start()
+
+	err = handler.Subscribe(ZmqFirstTopic, zmqMessages)
+	require.NoError(t, err)
+	time.Sleep(1000 * time.Millisecond)
+
+	err = handler.Unsubscribe(ZmqFirstTopic, nil)
+	require.NoError(t, err)
+	stopPubServer()
+
 }

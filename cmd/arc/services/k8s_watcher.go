@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -29,8 +27,6 @@ func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(mtmConn))
 	callbackerClient := callbacker_api.NewCallbackerAPIClient(callbackerConn)
-	a, err := callbackerClient.Health(context.Background(), &emptypb.Empty{})
-	fmt.Println("shota ...  ", a.String(), err)
 
 	k8sClient, err := k8s_client.New()
 	if err != nil {

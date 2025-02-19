@@ -899,10 +899,11 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	expected := []store.BlockTransaction{
 		{
 			TxHash:          txHash[:],
-			BlockHash:       testutils.RevChainhash(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000")[:],
+			BlockHash:       testutils.HexDecodeString(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000"),
 			BlockHeight:     uint64(826481),
 			BlockStatus:     blocktx_api.Status_LONGEST,
 			MerkleTreeIndex: int64(1),
+			MerkleRoot:      testutils.HexDecodeString(t, "0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb"),
 		},
 	}
 

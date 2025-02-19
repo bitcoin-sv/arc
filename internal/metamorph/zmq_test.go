@@ -22,7 +22,7 @@ import (
 
 var zmqURL1, errZMQURL1 = url.Parse("tcp://127.0.0.1:5555")
 var zmqURL2, errZMQURL2 = url.Parse("tcp://127.0.0.1:5556")
-var zmqURLDOWN, errZMQURLDOWN = url.Parse("tcp://URLDOWN:5556")
+var zmqURLDOWN, _ = url.Parse("tcp://URLDOWN:5556")
 
 // TODO when it is not possible to connect to a URL either because it is doesn't exist or because of other technical problems
 // The handler will keep retrying without a timeout and that limits the possibility of checking errors or coverage in tests
@@ -317,7 +317,8 @@ func TestNewZMQHandlers(t *testing.T) {
 				logger.Error("failed to create ZMQ: %v")
 			}
 			logger.Info("Listening to ZMQ", slog.String("host", handleURL.Hostname()), slog.String("port", handleURL.Port()))
-			zmqs[i].Start()
+			_, err = zmqs[i].Start()
+			require.NoError(t, err)
 			err = handlers[i].Subscribe(topic, zmqMessages)
 			require.NoError(t, err)
 			time.Sleep(1000 * time.Millisecond)
@@ -385,7 +386,8 @@ func TestZMQHandler_No_Error_Service_Down(t *testing.T) {
 	} else {
 		logger.Info("No error was raised using a made up URL")
 	}
-	zmqObj.Start()
+	_, err = zmqObj.Start()
+	require.NoError(t, err)
 
 	err = handler.Subscribe(ZmqFirstTopic, zmqMessages)
 	require.NoError(t, err)
@@ -394,5 +396,4 @@ func TestZMQHandler_No_Error_Service_Down(t *testing.T) {
 	err = handler.Unsubscribe(ZmqFirstTopic, nil)
 	require.NoError(t, err)
 	stopPubServer()
-
 }

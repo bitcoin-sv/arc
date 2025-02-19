@@ -110,7 +110,7 @@ func checkOutputs(tx *sdkTx.Transaction) *Error {
 	}
 
 	if total > maxSatoshis {
-		return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output total satoshis is too high")), api.ErrStatusOutputs)
+		return NewError(errors.Join(ErrTxOutputInvalid, errors.New("output total satoshis is too high")), api.ErrStatusOutputs)
 	}
 
 	return nil
@@ -134,7 +134,7 @@ func checkInputs(tx *sdkTx.Transaction) *Error {
 		total += inputSatoshis
 	}
 	if total > maxSatoshis {
-		return NewError(errors.Join(ErrTxInputInvalid, fmt.Errorf("input total satoshis is too high")), api.ErrStatusInputs)
+		return NewError(errors.Join(ErrTxInputInvalid, errors.New("input total satoshis is too high")), api.ErrStatusInputs)
 	}
 
 	return nil

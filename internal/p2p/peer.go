@@ -129,9 +129,9 @@ func (p *Peer) Shutdown() {
 		return
 	}
 
-	p.l.Info("Shutting down")
+	p.l.Info("Shutting down peer")
 	p.disconnect()
-	p.l.Info("Shutdown complete")
+	p.l.Info("Shutdown peer complete")
 }
 
 func (p *Peer) IsUnhealthyCh() <-chan struct{} {

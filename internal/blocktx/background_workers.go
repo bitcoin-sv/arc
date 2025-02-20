@@ -33,12 +33,12 @@ func NewBackgroundWorkers(store store.BlocktxStore, logger *slog.Logger) *Backgr
 }
 
 func (w *BackgroundWorkers) GracefulStop() {
-	w.logger.Info("Shutting down")
+	w.logger.Info("Shutting down background worker")
 
 	w.cancelAll()
 	w.workersWg.Wait()
 
-	w.logger.Info("Shutdown complete")
+	w.logger.Info("Shutdown background worker complete")
 }
 
 func (w *BackgroundWorkers) StartFillGaps(peers []p2p.PeerI, interval time.Duration, retentionDays int, blockRequestingCh chan<- blocktx_p2p.BlockRequest) {

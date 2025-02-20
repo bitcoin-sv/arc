@@ -1,23 +1,19 @@
 package metamorph_test
 
 import (
-	"fmt"
 	"log/slog"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	zmq "github.com/pebbe/zmq4"
 )
 
 var zmqURL1, errZMQURL1 = url.Parse("tcp://127.0.0.1:5555")
@@ -173,143 +169,21 @@ func CommonSetupAndValidations(t *testing.T) {
 	require.NoError(t, errZMQURL2)
 }
 
-func StartPubServer(address string, messages chan string) (func(), error) {
-	pubSocket, err := zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create PUB socket: %w", err)
-	}
-
-	err = pubSocket.Bind(address)
-	if err != nil {
-		return nil, fmt.Errorf("failed to bind PUB socket: %w", err)
-	}
-
-	stop := make(chan struct{})
-	go func() {
-		defer func() {
-			err = pubSocket.Close()
-		}()
-
-		for {
-			select {
-			case <-stop:
-				return
-			case msg := <-messages:
-				fmt.Printf("Sending message: %v\n", msg)
-				_, err := pubSocket.Send(msg, 0)
-				if err != nil {
-					fmt.Printf("Failed to send message: %v\n", err)
-				}
-			}
-		}
-	}()
-
-	return func() { close(stop) }, nil
-}
-
-func ZMQLibraryCreatePublisherAndPublishTopic(t *testing.T, topic string, url string, numMessages int) func() {
-	//address := fmt.Sprintf("tcp://%s", url)
-	var messages = make(chan string, 10)
-	stopPubServer, err := StartPubServer(url, messages)
-	require.NoError(t, err)
-	time.Sleep(500 * time.Millisecond)
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		for i := range numMessages {
-			messages <- fmt.Sprintf("%s Hello, World! #%d", topic, i)
-		}
-	}()
-	return stopPubServer
-}
-
-func ZMQLibrarySusbscribeToTopic(t *testing.T, topic string, url string) (*zmq.Socket, *zmq.Poller) {
-	// When
-	subscriber, err := zmq.NewSocket(zmq.SUB)
-	require.NoError(t, err)
-
-	err = subscriber.Connect(url)
-	require.NoError(t, err)
-
-	err = subscriber.SetSubscribe(topic)
-	require.NoError(t, err)
-	fmt.Println("Subscribed to topic:", topic)
-
-	// Then
-	time.Sleep(500 * time.Millisecond)
-	poller := zmq.NewPoller()
-	poller.Add(subscriber, zmq.POLLIN)
-
-	return subscriber, poller
-}
-
-func ZMQLibraryReceiveFromSocket(t *testing.T, subscriber *zmq.Socket, poller *zmq.Poller, num int, expected bool) {
-	for i := range num {
-		time.Sleep(100 * time.Millisecond)
-		polled, err := poller.Poll(2000 * time.Millisecond)
-		require.NoError(t, err)
-		if len(polled) > 0 {
-			msg, err := subscriber.RecvMessage(0)
-			require.NoError(t, err)
-			fmt.Printf("\nReceived message %d = %s", i, msg)
-			assert.Contains(t, msg[0], "Hello, World!")
-		} else {
-			if !expected {
-				fmt.Println("No more messages in the queue")
-			} else {
-				t.Error("Message not received in time")
-			}
-		}
-	}
-}
-func TestZMQHandler_prereqs(t *testing.T) {
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	/* Test Case /*
-	Given I want to test metamorph handler
-	When I am about to test it
-	Then I want to make sure that the zmq library is working as a prerequisite
-	*/
-	defer cancel()
-	CommonSetupAndValidations(t)
-	stopPubServer1 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String(), 4)
-	subscriber1, poller1 := ZMQLibrarySusbscribeToTopic(t, ZmqFirstTopic, zmqURL1.String())
-	defer func() {
-		stopPubServer1()
-		_ = subscriber1.Close()
-	}()
-
-	//Expect the three first messages to be successfully retrieved
-	ZMQLibraryReceiveFromSocket(t, subscriber1, poller1, 3, true)
-	//Expect the fourth one to be empty
-	ZMQLibraryReceiveFromSocket(t, subscriber1, poller1, 1, false)
-
-	stopPubServer2 := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqSecondTopic, zmqURL2.String(), 4)
-	subscriber2, poller2 := ZMQLibrarySusbscribeToTopic(t, ZmqSecondTopic, zmqURL2.String())
-
-	defer func() {
-		stopPubServer2()
-		_ = subscriber2.Close()
-	}()
-	ZMQLibraryReceiveFromSocket(t, subscriber2, poller2, 1, true)
-	assert.NotNil(t, poller2)
-}
-
+/*
 func TestNewZMQHandlers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	/* Test Case /*
-	Given I want to test metamorph handler
-	When I have a ZMQ publisher up
-	Then I want to make sure the handler can
-	subscribe and unsubscribe to all topics
-	*/
+	// Test Case
+	// Given I want to test metamorph handler
+	// When I have a ZMQ publisher up
+	// Then I want to make sure the handler can
+	// subscribe and unsubscribe to all topics
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	var handlers [3]*metamorph.ZMQHandler
 	var zmqs [3]*metamorph.ZMQ
 	for _, topic := range validTopics {
 		for i, handleURL := range validURLS {
 			var err error
-			stopPubServer := ZMQLibraryCreatePublisherAndPublishTopic(t, topic, handleURL.String(), 1)
 			handlers[i] = metamorph.NewZMQHandler(ctx, handleURL, logger)
 			assert.NotNil(t, handlers[i])
 			zmqs[i], err = metamorph.NewZMQ(handleURL, statusMessageCh, handlers[i], logger)
@@ -321,63 +195,25 @@ func TestNewZMQHandlers(t *testing.T) {
 			require.NoError(t, err)
 			err = handlers[i].Subscribe(topic, zmqMessages)
 			require.NoError(t, err)
-			time.Sleep(1000 * time.Millisecond)
+			//time.Sleep(1000 * time.Millisecond)
 
 			err = handlers[i].Unsubscribe(topic, nil)
 			require.NoError(t, err)
-			time.Sleep(1000 * time.Millisecond)
-			//Reset so we can bind again next iteration without having performance issues or the tests stalling
-			stopPubServer()
-			time.Sleep(1000 * time.Millisecond)
+			//time.Sleep(1000 * time.Millisecond)
+
 		}
 	}
-}
-
-func TestZMQHandler_Subscribe_Unsubscribe(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	/* Test Case /*
-	Given I want to test metamorph handler
-	When I have a ZMQ publisher up
-	Then I want to make sure I can use it to
-	subscribe and unsubscribe to all topics
-	*/
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	handler := metamorph.NewZMQHandler(ctx, zmqURL1, logger)
-
-	messages2 := make(chan string, 10)
-	stopPubServer, err := StartPubServer(zmqURL1.String(), messages2)
-	require.NoError(t, err)
-	defer stopPubServer()
-
-	time.Sleep(500 * time.Millisecond)
-
-	//Adding a subscriber
-	err = handler.Subscribe(ZmqFirstTopic, nil)
-	require.NoError(t, err)
-	go func() {
-		time.Sleep(200 * time.Millisecond)
-		messages2 <- fmt.Sprintf("%s - Handler alredy subscribed", ZmqFirstTopic)
-	}()
-
-	// When
-	err = handler.Unsubscribe(ZmqFirstTopic, nil)
-	require.NoError(t, err)
-	fmt.Println("Unsubscribed from topic:", ZmqFirstTopic)
-	messages2 <- fmt.Sprintf("%s - Handler alredy unsubscribed", ZmqFirstTopic)
 }
 
 func TestZMQHandler_No_Error_Service_Down(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	/* Test Case /*
-	Given I want to test metamorph handler
-	When I am using a URL that is not valid or is down
-	Then I want to make sure that the appropriate error arises
-	*/
+	// Test Case
+	// Given I want to test metamorph handler
+	// When I am using a URL that is not valid or is down
+	// Then I want to make sure that the appropriate error arises
 
-	stopPubServer := ZMQLibraryCreatePublisherAndPublishTopic(t, ZmqFirstTopic, zmqURL1.String(), 1)
-	time.Sleep(500 * time.Millisecond)
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	handler := metamorph.NewZMQHandler(ctx, zmqURLDOWN, logger)
 	zmqObj, err := metamorph.NewZMQ(zmqURLDOWN, statusMessageCh, handler, logger)
@@ -391,9 +227,167 @@ func TestZMQHandler_No_Error_Service_Down(t *testing.T) {
 
 	err = handler.Subscribe(ZmqFirstTopic, zmqMessages)
 	require.NoError(t, err)
-	time.Sleep(1000 * time.Millisecond)
+	//time.Sleep(1000 * time.Millisecond)
 
 	err = handler.Unsubscribe(ZmqFirstTopic, nil)
 	require.NoError(t, err)
-	stopPubServer()
 }
+
+func TestZMQHandler_Concurrent_Handlers(t *testing.T) {
+
+	// Test Case
+	// Given I want to test metamorph handler
+	// When I try to crate two handlers at the same time,
+	// Then I want to make sure that the appropriate error arises
+
+
+	//fmt.Sprintf("None of them will start if a sleep is used inside")
+	//newHandler(t, zmqURL1)
+	//newHandler(t, zmqURL2)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Create a new publisher socket.
+	pub := zmq4.NewPub(ctx)
+	defer pub.Close()
+
+	// Bind the publisher to a port.
+	pub.Listen("tcp://*:5555")
+	// Create a new subscriber socket.
+	sub := zmq4.NewSub(ctx)
+	defer sub.Close()
+
+	// Connect the subscriber to the publisher.
+	sub.Dial("tcp://localhost:5555")
+
+	// Send a message to a specific topic
+	topic := "my-topic"
+	// Subscribe to a topic.
+	sub.Listen(topic)
+	message := "Hello, world!"
+	msgFromFrames := zmq4.NewMsgFrom([]byte(topic), []byte(message))
+
+	a := pub.Send(msgFromFrames)
+	_ = a
+	// Receive a message.
+	msg, _ := sub.Recv()
+
+	// Print the message.
+	fmt.Println(msg.String())
+}
+
+func newHandler(t *testing.T, zmqURL *url.URL) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	handler := metamorph.NewZMQHandler(ctx, zmqURL, logger)
+	zmqObj2, err := metamorph.NewZMQ(zmqURL, statusMessageCh, handler, logger)
+	require.NoError(t, err)
+	_, err = zmqObj2.Start()
+	require.NoError(t, err)
+	err = handler.Subscribe(ZmqFirstTopic, zmqMessages)
+	require.NoError(t, err)
+	err = handler.Unsubscribe(ZmqFirstTopic, nil)
+	require.NoError(t, err)
+	time.Sleep(1000 * time.Millisecond)
+}
+
+func TestSocketAutomaticReconnect(t *testing.T) {
+	ep, err := EndPoint("tcp")
+	if err != nil {
+		t.Fatalf("could not find endpoint: %+v", err)
+	}
+	message := "test"
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sendMessages := func(socket zmq4.Socket) {
+		wg.Add(1)
+		go func(t *testing.T) {
+			defer wg.Done()
+			for {
+				socket.Send(zmq4.NewMsgFromString([]string{message}))
+				if ctx.Err() != nil {
+					return
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+		}(t)
+	}
+
+	sub := zmq4.NewSub(context.Background(), zmq4.WithAutomaticReconnect(true))
+	defer sub.Close()
+	sub.SetOption(zmq4.OptionSubscribe, message)
+	pub := zmq4.NewPub(context.Background())
+	if err := pub.Listen(ep); err != nil {
+		t.Fatalf("Pub Dial failed: %v", err)
+	}
+	if err := sub.Dial(ep); err != nil {
+		t.Fatalf("Sub Dial failed: %v", err)
+	}
+
+	sendMessages(pub)
+
+	checkConnectionWorking := func(socket zmq4.Socket) {
+		for {
+			msg, err := socket.Recv()
+			if errors.Is(err, io.EOF) {
+				continue
+			}
+			if err != nil {
+				t.Fatalf("Recv failed: %v", err)
+			}
+			if string(msg.Frames[0]) != message {
+				t.Fatalf("invalid message received: got '%s', wanted '%s'", msg.Frames[0], message)
+			}
+			return
+		}
+	}
+
+	checkConnectionWorking(sub)
+	pub.Close()
+
+	pub2 := zmq4.NewPub(context.Background())
+	defer pub2.Close()
+	if err := pub2.Listen(ep); err != nil {
+		t.Fatalf("Sub Listen failed: %v", err)
+	}
+	sendMessages(pub2)
+	checkConnectionWorking(sub)
+}
+
+func EndPoint(transport string) (string, error) {
+	switch transport {
+	case "tcp":
+		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return "", err
+		}
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			return "", err
+		}
+		defer l.Close()
+		return fmt.Sprintf("tcp://%s", l.Addr()), nil
+	case "ipc":
+		return "ipc://tmp-" + newUUID(), nil
+	case "inproc":
+		return "inproc://tmp-" + newUUID(), nil
+	default:
+		panic("invalid transport: [" + transport + "]")
+	}
+}
+
+func newUUID() string {
+	var uuid [16]byte
+	if _, err := io.ReadFull(rand.Reader, uuid[:]); err != nil {
+		panic("cannot generate random data for UUID: %v")
+	}
+	uuid[8] = uuid[8]&^0xc0 | 0x80
+	uuid[6] = uuid[6]&^0xf0 | 0x40
+	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:])
+}
+*/

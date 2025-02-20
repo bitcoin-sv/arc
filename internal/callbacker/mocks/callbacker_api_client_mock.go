@@ -21,6 +21,9 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //
 //		// make and configure a mocked callbacker_api.CallbackerAPIClient
 //		mockedCallbackerAPIClient := &CallbackerAPIClientMock{
+//			DeleteURLMappingFunc: func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+//				panic("mock out the DeleteURLMapping method")
+//			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
@@ -34,6 +37,9 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //
 //	}
 type CallbackerAPIClientMock struct {
+	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
+	DeleteURLMappingFunc func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error)
 
@@ -42,6 +48,15 @@ type CallbackerAPIClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// DeleteURLMapping holds details about calls to the DeleteURLMapping method.
+		DeleteURLMapping []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *callbacker_api.DeleteURLMappingRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
 			// Ctx is the ctx argument value.
@@ -61,8 +76,49 @@ type CallbackerAPIClientMock struct {
 			Opts []grpc.CallOption
 		}
 	}
-	lockHealth       sync.RWMutex
-	lockSendCallback sync.RWMutex
+	lockDeleteURLMapping sync.RWMutex
+	lockHealth           sync.RWMutex
+	lockSendCallback     sync.RWMutex
+}
+
+// DeleteURLMapping calls DeleteURLMappingFunc.
+func (mock *CallbackerAPIClientMock) DeleteURLMapping(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	if mock.DeleteURLMappingFunc == nil {
+		panic("CallbackerAPIClientMock.DeleteURLMappingFunc: method is nil but CallbackerAPIClient.DeleteURLMapping was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *callbacker_api.DeleteURLMappingRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockDeleteURLMapping.Lock()
+	mock.calls.DeleteURLMapping = append(mock.calls.DeleteURLMapping, callInfo)
+	mock.lockDeleteURLMapping.Unlock()
+	return mock.DeleteURLMappingFunc(ctx, in, opts...)
+}
+
+// DeleteURLMappingCalls gets all the calls that were made to DeleteURLMapping.
+// Check the length with:
+//
+//	len(mockedCallbackerAPIClient.DeleteURLMappingCalls())
+func (mock *CallbackerAPIClientMock) DeleteURLMappingCalls() []struct {
+	Ctx  context.Context
+	In   *callbacker_api.DeleteURLMappingRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *callbacker_api.DeleteURLMappingRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockDeleteURLMapping.RLock()
+	calls = mock.calls.DeleteURLMapping
+	mock.lockDeleteURLMapping.RUnlock()
+	return calls
 }
 
 // Health calls HealthFunc.

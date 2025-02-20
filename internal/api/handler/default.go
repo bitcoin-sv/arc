@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -291,6 +292,9 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		return PostResponse{e.Status, e}
 	}
 
+	if len(successes) == 0 {
+		m.logger.Info("zero successes", slog.String("hex", hex.EncodeToString(txHex)))
+	}
 	res := successes[0]
 
 	if span != nil {

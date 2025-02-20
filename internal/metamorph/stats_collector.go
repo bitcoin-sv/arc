@@ -17,7 +17,7 @@ const (
 	notFinalLimitDefault          = 20 * time.Minute
 )
 
-var ErrFailedToRegisterStats = fmt.Errorf("failed to register stats collector")
+var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
 
 type processorStats struct {
 	notSeenLimit  time.Duration

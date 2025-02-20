@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrLoggerInvalidLogLevel  = fmt.Errorf("invalid log level")
-	ErrLoggerInvalidLogFormat = fmt.Errorf("invalid log format")
+	ErrLoggerInvalidLogLevel  = errors.New("invalid log level")
+	ErrLoggerInvalidLogFormat = errors.New("invalid log format")
 )
 
 const (

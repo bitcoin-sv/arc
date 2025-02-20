@@ -290,9 +290,11 @@ func toCallback(dto *store.CallbackData) *Callback {
 }
 
 func (p *Processor) GracefulStop() {
-	err := p.store.DeleteURLMapping(p.ctx, p.hostName)
+	rowsAffected, err := p.store.DeleteURLMapping(p.ctx, p.hostName)
 	if err != nil {
-		p.logger.Error("failed to delete URL mapping", slog.String("err", err.Error()))
+		p.logger.Error("Failed to delete URL mapping", slog.String("err", err.Error()))
+	} else {
+		p.logger.Info("Deleted URL mapping", slog.String("hostname", p.hostName), slog.Int64("rows", rowsAffected))
 	}
 
 	p.cancelAll()

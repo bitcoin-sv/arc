@@ -256,8 +256,9 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		err = postgresDB.DeleteURLMapping(ctx, "host1")
+		rowsAffected, err := postgresDB.DeleteURLMapping(ctx, "host1")
 		require.NoError(t, err)
+		require.Equal(t, int64(1), rowsAffected)
 
 		// then
 		mappings, err := postgresDB.GetURLMappings(ctx)

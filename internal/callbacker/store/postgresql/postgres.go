@@ -200,16 +200,21 @@ func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error)
 	return url, nil
 }
 
-func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) error {
+func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error) {
 	const q = `DELETE FROM callbacker.url_mapping
 			WHERE instance=$1`
 
-	_, err := p.db.ExecContext(ctx, q, instance)
+	rows, err := p.db.ExecContext(ctx, q, instance)
 	if err != nil {
-		return store.ErrURLMappingDeleteFailed
+		return 0, store.ErrURLMappingDeleteFailed
 	}
 
-	return nil
+	rowsAffected, err = rows.RowsAffected()
+	if err != nil {
+		return 0, nil
+	}
+
+	return rowsAffected, nil
 }
 
 func (p *PostgreSQL) GetURLMappings(ctx context.Context) (map[string]string, error) {

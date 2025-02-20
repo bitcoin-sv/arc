@@ -113,11 +113,11 @@ func (c *Watcher) Start() error {
 	})
 
 	c.watch(callbackerService, c.tickerCallbacker, func(podName string) error {
-		_, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
+		deleteMappingResponse, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
 		})
 		if err == nil {
-			c.logger.Info("mapping removed", slog.String("pod-name", podName))
+			c.logger.Info("mapping removed", slog.String("pod-name", podName), slog.Int64("rows", deleteMappingResponse.Rows))
 		}
 		return err
 	})

@@ -23,7 +23,7 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			DeleteOlderThanFunc: func(ctx context.Context, t time.Time) error {
 //				panic("mock out the DeleteOlderThan method")
 //			},
-//			DeleteURLMappingFunc: func(ctx context.Context, instance string) error {
+//			DeleteURLMappingFunc: func(ctx context.Context, instance string) (int64, error) {
 //				panic("mock out the DeleteURLMapping method")
 //			},
 //			GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
@@ -49,7 +49,7 @@ type ProcessorStoreMock struct {
 	DeleteOlderThanFunc func(ctx context.Context, t time.Time) error
 
 	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
-	DeleteURLMappingFunc func(ctx context.Context, instance string) error
+	DeleteURLMappingFunc func(ctx context.Context, instance string) (int64, error)
 
 	// GetAndDeleteFunc mocks the GetAndDelete method.
 	GetAndDeleteFunc func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error)
@@ -151,7 +151,7 @@ func (mock *ProcessorStoreMock) DeleteOlderThanCalls() []struct {
 }
 
 // DeleteURLMapping calls DeleteURLMappingFunc.
-func (mock *ProcessorStoreMock) DeleteURLMapping(ctx context.Context, instance string) error {
+func (mock *ProcessorStoreMock) DeleteURLMapping(ctx context.Context, instance string) (int64, error) {
 	if mock.DeleteURLMappingFunc == nil {
 		panic("ProcessorStoreMock.DeleteURLMappingFunc: method is nil but ProcessorStore.DeleteURLMapping was just called")
 	}

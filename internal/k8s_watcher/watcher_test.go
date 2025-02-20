@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	cbcMocks "github.com/bitcoin-sv/arc/internal/callbacker/mocks"
@@ -101,11 +100,11 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				},
 			}
 			callbackerClient := &cbcMocks.CallbackerAPIClientMock{
-				DeleteURLMappingFunc: func(_ context.Context, _ *callbacker_api.DeleteURLMappingRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+				DeleteURLMappingFunc: func(_ context.Context, _ *callbacker_api.DeleteURLMappingRequest, _ ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
 					if setUnlockedErrTest != nil {
 						return nil, setUnlockedErrTest
 					}
-					return nil, nil
+					return &callbacker_api.DeleteURLMappingResponse{Rows: 20}, nil
 				},
 			}
 

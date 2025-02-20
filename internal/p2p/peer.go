@@ -215,7 +215,7 @@ func (p *Peer) handshake(c net.Conn) (ok bool) {
 
 	err = wire.WriteMessage(c, verMsg, wire.ProtocolVersion, p.network)
 	if err != nil {
-		p.l.Error("Handshake failed.",
+		p.l.Error("Handshake failed",
 			slog.String("reason", "failed to write VER message"),
 			slog.String(errKey, err.Error()),
 		)
@@ -259,12 +259,12 @@ handshakeLoop:
 			return false
 
 		case <-time.After(1 * time.Minute):
-			p.l.Error("Handshake failed.", slog.String("reason", "handshake timeout"))
+			p.l.Error("Handshake failed", slog.String("reason", "handshake timeout"))
 			return false
 
 		case result := <-read:
 			if result.err != nil {
-				p.l.Error("Handshake failed.", slog.String(errKey, result.err.Error()))
+				p.l.Error("Handshake failed", slog.String(errKey, result.err.Error()))
 				return false
 			}
 
@@ -290,7 +290,7 @@ handshakeLoop:
 				ackMsg := wire.NewMsgVerAck()
 				err = wire.WriteMessage(c, ackMsg, wire.ProtocolVersion, p.network)
 				if err != nil {
-					p.l.Error("Handshake failed.",
+					p.l.Error("Handshake failed",
 						slog.String("reason", "failed to write VERACK message"),
 						slog.String(errKey, err.Error()),
 					)

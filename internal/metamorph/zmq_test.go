@@ -164,7 +164,6 @@ func TestZMQDoubleSpend(t *testing.T) {
 }
 
 func TestNewZMQHandler(t *testing.T) {
-
 	// Test Case
 	// Given I want to test metamorph handler
 	// When I have a ZMQ publisher up
@@ -178,14 +177,14 @@ func TestNewZMQHandler(t *testing.T) {
 	handler = metamorph.NewZMQHandler(context.Background(), zmqEndpointURL, logger)
 	assert.NotNil(t, handler)
 	zmq, err := metamorph.NewZMQ(zmqEndpointURL, statusMessageCh, handler, logger)
-	close, err := zmq.Start()
+	require.NoError(t, err)
+	closezmq, err := zmq.Start()
 	if err != nil {
 		logger.Error("failed to create ZMQ: %v")
 	}
 	logger.Info("Listening to ZMQ", slog.String("host", zmqEndpointURL.Hostname()), slog.String("port", zmqEndpointURL.Port()))
 	wg.Add(1)
 	go func() {
-
 		err = handler.Subscribe("notvalid", zmqMessages)
 		require.Error(t, err)
 
@@ -218,32 +217,7 @@ func TestNewZMQHandler(t *testing.T) {
 		wg.Done()
 	}()
 	wg.Wait()
-	defer close()
-
-}
-
-func TestNewZMQHandlerStop(t *testing.T) {
-
-	NewZMQHandlerStopPanic(t)
-
-}
-
-func NewZMQHandlerStopPanic(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	var handler *metamorph.ZMQHandler
-	for i := 0; i < 5; i++ {
-		handler = metamorph.NewZMQHandler(context.Background(), zmqEndpointURL, logger)
-		assert.NotNil(t, handler)
-
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Info("Recovered:", r)
-		}
-	}()
-
-	panic("This is a panic")
+	defer closezmq()
 }
 
 func TestZMQHandlerNoErrorServiceDown(t *testing.T) {

@@ -1,3 +1,5 @@
+//go:build multicast_test
+
 package multicast_test
 
 import (
@@ -5,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/multicast"
-	"github.com/bitcoin-sv/arc/internal/multicast/mocks"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/multicast"
+	"github.com/bitcoin-sv/arc/internal/multicast/mocks"
 )
 
 var (

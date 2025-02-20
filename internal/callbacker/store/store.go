@@ -40,7 +40,7 @@ type ProcessorStore interface {
 }
 
 type CallbackStore interface {
-	DeleteURLMapping(ctx context.Context, instance string) error
+	DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error)
 }
 
 type URLMapping struct {

@@ -31,7 +31,7 @@ const (
 type CallbackerAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*DeleteURLMappingResponse, error)
 }
 
 type callbackerAPIClient struct {
@@ -62,9 +62,9 @@ func (c *callbackerAPIClient) SendCallback(ctx context.Context, in *SendCallback
 	return out, nil
 }
 
-func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*DeleteURLMappingResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteURLMappingResponse)
 	err := c.cc.Invoke(ctx, CallbackerAPI_DeleteURLMapping_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteUR
 type CallbackerAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error)
-	DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*emptypb.Empty, error)
+	DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error)
 	mustEmbedUnimplementedCallbackerAPIServer()
 }
 
@@ -95,7 +95,7 @@ func (UnimplementedCallbackerAPIServer) Health(context.Context, *emptypb.Empty) 
 func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCallback not implemented")
 }
-func (UnimplementedCallbackerAPIServer) DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*emptypb.Empty, error) {
+func (UnimplementedCallbackerAPIServer) DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteURLMapping not implemented")
 }
 func (UnimplementedCallbackerAPIServer) mustEmbedUnimplementedCallbackerAPIServer() {}

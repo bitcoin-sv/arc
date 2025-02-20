@@ -167,8 +167,10 @@ func TestProcessorStart(t *testing.T) {
 				DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {},
 			}
 			processorStore := &mocks.ProcessorStoreMock{
-				SetURLMappingFunc:    func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
-				DeleteURLMappingFunc: func(_ context.Context, _ string) error { return nil },
+				SetURLMappingFunc: func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
+				DeleteURLMappingFunc: func(_ context.Context, _ string) (int64, error) {
+					return 0, nil
+				},
 				GetURLMappingsFunc: func(_ context.Context) (map[string]string, error) {
 					return tc.mappings, nil
 				},
@@ -278,10 +280,12 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 				ShutdownFunc: func() {},
 			}
 			processorStore := &mocks.ProcessorStoreMock{
-				SetURLMappingFunc:    func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
-				DeleteURLMappingFunc: func(_ context.Context, _ string) error { return nil },
-				GetURLMappingsFunc:   func(_ context.Context) (map[string]string, error) { return nil, nil },
-				GetUnmappedURLFunc:   func(_ context.Context) (string, error) { return "https://abcdefg.com", nil },
+				SetURLMappingFunc: func(_ context.Context, _ store.URLMapping) error { return tc.setURLMappingErr },
+				DeleteURLMappingFunc: func(_ context.Context, _ string) (int64, error) {
+					return 0, nil
+				},
+				GetURLMappingsFunc: func(_ context.Context) (map[string]string, error) { return nil, nil },
+				GetUnmappedURLFunc: func(_ context.Context) (string, error) { return "https://abcdefg.com", nil },
 				GetAndDeleteFunc: func(_ context.Context, _ string, _ int) ([]*store.CallbackData, error) {
 					return tc.storedCallbacks, tc.getAndDeleteErr
 				},
@@ -325,8 +329,8 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 				DeleteOlderThanFunc: func(_ context.Context, _ time.Time) error {
 					return tc.deleteFailedOlderThanErr
 				},
-				DeleteURLMappingFunc: func(_ context.Context, _ string) error {
-					return nil
+				DeleteURLMappingFunc: func(_ context.Context, _ string) (int64, error) {
+					return 0, nil
 				},
 			}
 			dispatcher := &mocks.DispatcherMock{}

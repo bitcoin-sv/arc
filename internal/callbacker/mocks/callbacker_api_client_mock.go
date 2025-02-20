@@ -21,7 +21,7 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //
 //		// make and configure a mocked callbacker_api.CallbackerAPIClient
 //		mockedCallbackerAPIClient := &CallbackerAPIClientMock{
-//			DeleteURLMappingFunc: func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+//			DeleteURLMappingFunc: func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
 //				panic("mock out the DeleteURLMapping method")
 //			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error) {
@@ -38,7 +38,7 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //	}
 type CallbackerAPIClientMock struct {
 	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
-	DeleteURLMappingFunc func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteURLMappingFunc func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error)
@@ -82,7 +82,7 @@ type CallbackerAPIClientMock struct {
 }
 
 // DeleteURLMapping calls DeleteURLMappingFunc.
-func (mock *CallbackerAPIClientMock) DeleteURLMapping(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (mock *CallbackerAPIClientMock) DeleteURLMapping(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
 	if mock.DeleteURLMappingFunc == nil {
 		panic("CallbackerAPIClientMock.DeleteURLMappingFunc: method is nil but CallbackerAPIClient.DeleteURLMapping was just called")
 	}

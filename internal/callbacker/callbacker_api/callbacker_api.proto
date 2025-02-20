@@ -10,7 +10,7 @@ import "google/protobuf/empty.proto";
 service CallbackerAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
-  rpc DeleteURLMapping (DeleteURLMappingRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteURLMapping (DeleteURLMappingRequest) returns (DeleteURLMappingResponse) {}
 }
 
 // Note: Values of the statuses have a difference between them in case
@@ -36,6 +36,11 @@ enum Status {
 // swagger:model HealthResponse
 message HealthResponse {
   google.protobuf.Timestamp timestamp = 1;
+}
+
+// swagger:model DeleteURLMappingResponse
+message DeleteURLMappingResponse {
+  int64 rows = 1;
 }
 
 // swagger:model SendRequest

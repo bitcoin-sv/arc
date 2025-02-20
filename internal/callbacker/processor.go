@@ -87,6 +87,16 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 		return errors.Join(ErrUnmarshal, err)
 	}
 
+	if request.CallbackRouting.Url == "" {
+		p.logger.Warn("Empty URL in callback", slog.String("hash", request.Txid), slog.String("timestamp", request.Timestamp.String()), slog.String("status", request.Status.String()))
+
+		errAck := msg.Ack()
+		if errAck != nil {
+			return errors.Join(ErrAckMessage, errAck)
+		}
+		return nil
+	}
+
 	// check if this processor the first URL of this request is mapped to this instance
 	p.mu.Lock()
 	instance, found := p.urlMapping[(request.CallbackRouting.Url)]

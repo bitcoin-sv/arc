@@ -85,7 +85,7 @@ func (s *GrpcServer) ListenAndServe(address string) error {
 }
 
 func (s *GrpcServer) GracefulStop() {
-	s.logger.Info("Shutting down")
+	s.logger.Info("Shutting down gRPC server")
 
 	s.Srv.GracefulStop()
 
@@ -93,5 +93,5 @@ func (s *GrpcServer) GracefulStop() {
 		s.cleanup()
 	}
 
-	s.logger.Info("Shutdown complete")
+	s.logger.Info("Shutdown gRPC server complete")
 }

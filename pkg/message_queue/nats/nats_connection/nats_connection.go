@@ -82,8 +82,7 @@ func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) 
 			}
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
-			logger.Info(fmt.Sprintf("Known servers: %v", nc.Servers()))
-			logger.Info(fmt.Sprintf("Discovered servers: %v", nc.DiscoveredServers()))
+			logger.Info("Servers", "known", nc.Servers(), "discovered", nc.DiscoveredServers())
 		}),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, disconnectErr error) {
 			var args []any

@@ -104,7 +104,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 					if setUnlockedErrTest != nil {
 						return nil, setUnlockedErrTest
 					}
-					return nil, nil
+					return &callbacker_api.DeleteURLMappingResponse{Rows: 20}, nil
 				},
 			}
 

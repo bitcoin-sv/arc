@@ -229,7 +229,6 @@ func (p *Processor) RegisterTransaction(txHash []byte) {
 	select {
 	case p.registerTxsChan <- txHash:
 	default:
-
 	}
 }
 

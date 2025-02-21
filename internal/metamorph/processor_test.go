@@ -713,6 +713,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
+			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+
 			publisher := &mocks.MessageQueueMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
@@ -726,6 +728,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
 				metamorph.WithProcessTransactionsInterval(20*time.Millisecond),
 				metamorph.WithProcessTransactionsBatchSize(4),
+				metamorph.WithBlocktxClient(blocktxClient),
 			)
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())

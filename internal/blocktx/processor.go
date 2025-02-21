@@ -243,7 +243,10 @@ func (p *Processor) StartProcessRegisterTxs() {
 					continue
 				}
 
-				p.registerTransactions(txHashes[:])
+				err := p.processTransactions(txHashes[:])
+				if err != nil {
+					p.logger.Error("Failed to process transactions", slog.String("err", err.Error()))
+				}
 				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 
@@ -252,7 +255,10 @@ func (p *Processor) StartProcessRegisterTxs() {
 					continue
 				}
 
-				p.registerTransactions(txHashes[:])
+				err := p.processTransactions(txHashes[:])
+				if err != nil {
+					p.logger.Error("Failed to process transactions", slog.String("err", err.Error()))
+				}
 				txHashes = txHashes[:0]
 				ticker.Reset(p.registerTxsInterval)
 			}
@@ -260,10 +266,21 @@ func (p *Processor) StartProcessRegisterTxs() {
 	}()
 }
 
-func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
+func (p *Processor) processTransactions(txHashes [][]byte) error {
+	if len(txHashes) == 0 {
+		return nil
+	}
+
+	rowsAffected, err := p.store.RegisterTransactions(p.ctx, txHashes)
+	if err != nil {
+		return fmt.Errorf("failed to register transactions: %v", err)
+	}
+
+	p.logger.Info("registered tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
+
 	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes, false)
 	if err != nil {
-		return fmt.Errorf("failed to get mined transactions: %v", err)
+		return fmt.Errorf("failed to get mined txs: %v", err)
 	}
 
 	if len(minedTxs) == 0 {
@@ -272,35 +289,17 @@ func (p *Processor) publishMinedTxs(txHashes [][]byte) error {
 
 	minedTxsIncludingMP, err := p.calculateMerklePaths(p.ctx, minedTxs)
 	if err != nil {
-		return errors.Join(ErrFailedToCalculateMissingMerklePaths, err)
+		return fmt.Errorf("failed to calculate Merkle paths: %v", err)
 	}
 
-	err = p.publishTxsToMetamorph(p.ctx, minedTxs)
+	err = p.publishMinedTxs(p.ctx, minedTxsIncludingMP)
 	if err != nil {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
 
-	p.logger.Info("published mined", slog.Int("hashes", len(minedTxsIncludingMP)))
+	p.logger.Info("published mined txs", slog.Int("hashes", len(minedTxsIncludingMP)))
 
 	return nil
-}
-
-func (p *Processor) registerTransactions(txHashes [][]byte) {
-	if len(txHashes) == 0 {
-		return
-	}
-
-	rowsAffected, err := p.store.RegisterTransactions(p.ctx, txHashes)
-	if err != nil {
-		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))
-	}
-
-	p.logger.Info("registered new tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
-
-	err = p.publishMinedTxs(txHashes)
-	if err != nil {
-		p.logger.Error("Failed to publish mined txs", slog.String("err", err.Error()))
-	}
 }
 
 func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
@@ -362,7 +361,10 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return ErrFailedToCalculateMissingMerklePaths
 	}
 
-	p.publishTxsToMetamorph(ctx, txsToPublish)
+	err = p.publishMinedTxs(ctx, txsToPublish)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -813,7 +815,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 	return true
 }
 
-func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.BlockTransaction) error {
+func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
 	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -836,7 +838,7 @@ func (p *Processor) publishTxsToMetamorph(ctx context.Context, txs []store.Block
 
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
-		if len(msg.TransactionBlocks) == messageSize {
+		if len(msg.TransactionBlocks) >= messageSize {
 			err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, msg)
 			if err != nil {
 				p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))

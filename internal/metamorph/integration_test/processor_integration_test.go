@@ -9,6 +9,7 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -61,9 +62,12 @@ func TestProcessor(t *testing.T) {
 		natsQueue := nats_core.New(natsMock)
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
+		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, mediator, statusMessageChannel,
 			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(natsQueue),
+			metamorph.WithBlocktxClient(blocktxClient),
 		)
 		require.NoError(t, err)
 		defer sut.Shutdown()

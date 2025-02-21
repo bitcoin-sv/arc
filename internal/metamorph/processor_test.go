@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -262,7 +263,9 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher))
+			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+
+			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 

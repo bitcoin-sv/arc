@@ -197,8 +197,14 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
-	server, err = metamorph.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
-		metamorphStore, processor, arcConfig.Tracing, optsServer...)
+	serverCfg := grpc_opts.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "metamorph",
+	}
+
+	server, err = metamorph.NewServer(logger, metamorphStore, processor, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

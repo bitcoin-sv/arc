@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
+	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
@@ -70,7 +71,7 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil)
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_opts.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -140,7 +141,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer("", 0, slog.Default(), metamorphStore, processor, nil)
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_opts.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

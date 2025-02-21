@@ -160,7 +160,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
-	server, err = blocktx.NewServer(logger, blockStore, pm, processor, arcConfig)
+	serverCfg := grpc_opts.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "blocktx",
+	}
+
+	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

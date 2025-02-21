@@ -9,7 +9,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -29,10 +28,10 @@ type Server struct {
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg *config.ArcConfig) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_opts.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", cfg.Prometheus.Endpoint, cfg.GrpcMessageSize, cfg.Tracing)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +42,7 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 		logger:                        logger,
 		pm:                            pm,
 		processor:                     processor,
-		maxAllowedBlockHeightMismatch: cfg.Blocktx.MaxAllowedBlockHeightMismatch,
+		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 
 	blocktx_api.RegisterBlockTxAPIServer(s.GrpcServer.Srv, s)

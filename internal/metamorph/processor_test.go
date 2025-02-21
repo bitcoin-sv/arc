@@ -151,11 +151,13 @@ func TestProcessTransaction(t *testing.T) {
 		name            string
 		storeData       *store.Data
 		storeDataGetErr error
+		registerTxErr   error
 
 		expectedResponses     []metamorph_api.Status
 		expectedSetCalls      int
 		expectedAnnounceCalls int
 		expectedRequestCalls  int
+		expectedPublishCalls  int
 	}{
 		{
 			name:            "record not found - success",
@@ -169,6 +171,21 @@ func TestProcessTransaction(t *testing.T) {
 			expectedSetCalls:      1,
 			expectedAnnounceCalls: 1,
 			expectedRequestCalls:  1,
+		},
+		{
+			name:            "record not found - register tx with blocktx client failed",
+			storeData:       nil,
+			storeDataGetErr: store.ErrNotFound,
+			registerTxErr:   errors.New("failed to register tx"),
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_STORED,
+				metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+			},
+			expectedSetCalls:      1,
+			expectedAnnounceCalls: 1,
+			expectedRequestCalls:  1,
+			expectedPublishCalls:  1,
 		},
 		{
 			name: "record found",
@@ -263,7 +280,7 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return tc.registerTxErr }}
 
 			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
 			require.NoError(t, err)
@@ -298,6 +315,7 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
 			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
+			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCalls()))
 		})
 	}
 }

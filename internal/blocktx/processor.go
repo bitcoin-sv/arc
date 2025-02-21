@@ -50,6 +50,7 @@ const (
 	registerTxsBatchSizeDefault        = 100
 	waitForBlockProcessing             = 5 * time.Minute
 	parallellism                       = 5
+	publishMinedMessageSizeDefault     = 256
 )
 
 type Processor struct {
@@ -70,6 +71,7 @@ type Processor struct {
 	stats                       *processorStats
 	statCollectionInterval      time.Duration
 	incomingIsLongest           bool
+	publishMinedMessageSize     int
 
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
@@ -104,6 +106,7 @@ func NewProcessor(
 		hostname:                    hostname,
 		stats:                       newProcessorStats(),
 		statCollectionInterval:      statCollectionIntervalDefault,
+		publishMinedMessageSize:     publishMinedMessageSizeDefault,
 		now:                         time.Now,
 		waitGroup:                   &sync.WaitGroup{},
 	}
@@ -822,9 +825,8 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		tracing.EndTracing(span, publishErr)
 	}()
 
-	const messageSize = 256
 	msg := &blocktx_api.TransactionBlocks{
-		TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, messageSize),
+		TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, p.publishMinedMessageSize),
 	}
 
 	for _, tx := range txs {
@@ -838,7 +840,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
-		if len(msg.TransactionBlocks) >= messageSize {
+		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
 			err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, msg)
 			if err != nil {
 				p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
@@ -846,7 +848,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 			}
 
 			msg = &blocktx_api.TransactionBlocks{
-				TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, messageSize),
+				TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, p.publishMinedMessageSize),
 			}
 		}
 	}

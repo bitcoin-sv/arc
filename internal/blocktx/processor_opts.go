@@ -67,3 +67,9 @@ func WithIncomingIsLongest(enabled bool) func(*Processor) {
 		processor.incomingIsLongest = enabled
 	}
 }
+
+func WithPublishMinedMessageSize(size int) func(*Processor) {
+	return func(processor *Processor) {
+		processor.publishMinedMessageSize = size
+	}
+}

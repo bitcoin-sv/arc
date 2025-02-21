@@ -31,6 +31,17 @@ func TestProcessorStart(t *testing.T) {
 	data, err := proto.Marshal(request)
 	require.NoError(t, err)
 
+	requestEmptyURL := &callbacker_api.SendRequest{
+		CallbackRouting: &callbacker_api.CallbackRouting{
+			Url: "",
+		},
+		Txid:   "e045bac7e7b3328dc4c986dafcffc1570830683518fd8fe8d6e94ff545d9ef5c",
+		Status: callbacker_api.Status_SEEN_ON_NETWORK,
+	}
+
+	dataEmptyURL, err := proto.Marshal(requestEmptyURL)
+	require.NoError(t, err)
+
 	tt := []struct {
 		name             string
 		setURLMappingErr error
@@ -54,6 +65,16 @@ func TestProcessorStart(t *testing.T) {
 			expectedMessageNakCalls:    0,
 			expectedSetURLMappingCalls: 0,
 			expectedDispatchCalls:      1,
+		},
+		{
+			name:        "empty URL",
+			mappings:    map[string]string{"https://callbacks.com": "host1"},
+			messageData: dataEmptyURL,
+
+			expectedMessageAckCalls:    1,
+			expectedMessageNakCalls:    0,
+			expectedSetURLMappingCalls: 0,
+			expectedDispatchCalls:      0,
 		},
 		{
 			name:        "URL found & matching - ack err",

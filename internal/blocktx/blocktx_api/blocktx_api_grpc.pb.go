@@ -24,6 +24,7 @@ const (
 	BlockTxAPI_ClearBlocks_FullMethodName                 = "/blocktx_api.BlockTxAPI/ClearBlocks"
 	BlockTxAPI_ClearRegisteredTransactions_FullMethodName = "/blocktx_api.BlockTxAPI/ClearRegisteredTransactions"
 	BlockTxAPI_VerifyMerkleRoots_FullMethodName           = "/blocktx_api.BlockTxAPI/VerifyMerkleRoots"
+	BlockTxAPI_RegisterTransaction_FullMethodName         = "/blocktx_api.BlockTxAPI/RegisterTransaction"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -38,6 +39,8 @@ type BlockTxAPIClient interface {
 	ClearRegisteredTransactions(ctx context.Context, in *ClearData, opts ...grpc.CallOption) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	VerifyMerkleRoots(ctx context.Context, in *MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*MerkleRootVerificationResponse, error)
+	// RegisterTransaction registers a transaction with the API.
+	RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type blockTxAPIClient struct {
@@ -88,6 +91,16 @@ func (c *blockTxAPIClient) VerifyMerkleRoots(ctx context.Context, in *MerkleRoot
 	return out, nil
 }
 
+func (c *blockTxAPIClient) RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, BlockTxAPI_RegisterTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility.
@@ -100,6 +113,8 @@ type BlockTxAPIServer interface {
 	ClearRegisteredTransactions(context.Context, *ClearData) (*RowsAffectedResponse, error)
 	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
 	VerifyMerkleRoots(context.Context, *MerkleRootsVerificationRequest) (*MerkleRootVerificationResponse, error)
+	// RegisterTransaction registers a transaction with the API.
+	RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -121,6 +136,9 @@ func (UnimplementedBlockTxAPIServer) ClearRegisteredTransactions(context.Context
 }
 func (UnimplementedBlockTxAPIServer) VerifyMerkleRoots(context.Context, *MerkleRootsVerificationRequest) (*MerkleRootVerificationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyMerkleRoots not implemented")
+}
+func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransaction not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 func (UnimplementedBlockTxAPIServer) testEmbeddedByValue()                    {}
@@ -215,6 +233,24 @@ func _BlockTxAPI_VerifyMerkleRoots_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_RegisterTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Transaction)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).RegisterTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_RegisterTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).RegisterTransaction(ctx, req.(*Transaction))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -237,6 +273,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VerifyMerkleRoots",
 			Handler:    _BlockTxAPI_VerifyMerkleRoots_Handler,
+		},
+		{
+			MethodName: "RegisterTransaction",
+			Handler:    _BlockTxAPI_RegisterTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

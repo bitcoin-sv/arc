@@ -83,7 +83,7 @@ func TestClient_RegisterTransaction(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
-				RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+				RegisterTransactionFunc: func(_ context.Context, _ *blocktx_api.Transaction, _ ...grpc.CallOption) (*emptypb.Empty, error) {
 					return &emptypb.Empty{}, tc.registerErr
 				},
 			}

@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -107,6 +108,8 @@ type Processor struct {
 
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
+
+	blocktxClient blocktx.Client
 }
 
 type Option func(f *Processor)
@@ -646,8 +649,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 					for _, tx := range seenOnNetworkTxs {
-						// by requesting tx, blocktx checks if it has the transaction mined in the database and sends it back
-						if err = p.mqClient.Publish(ctx, RegisterTxTopic, tx.Hash[:]); err != nil {
+						err = p.registerTransaction(ctx, tx.Hash)
+						if err != nil {
 							p.logger.Error("Failed to register tx in blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
@@ -746,6 +749,22 @@ func (p *Processor) GetPeers() []p2p.PeerI {
 	return p.bcMediator.GetPeers()
 }
 
+func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Hash) error {
+	err := p.blocktxClient.RegisterTransaction(ctx, hash[:])
+	if err == nil {
+		return nil
+	}
+
+	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
+
+	err = p.mqClient.Publish(ctx, RegisterTxTopic, hash[:])
+	if err != nil {
+		return fmt.Errorf("failed to publish hash on topic %s: %w", RegisterTxTopic, err)
+	}
+
+	return nil
+}
+
 func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorRequest) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransaction", p.tracingEnabled, p.tracingAttributes...)
@@ -811,7 +830,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	})
 
 	// register transaction in blocktx using message queue
-	if err = p.mqClient.Publish(ctx, RegisterTxTopic, req.Data.Hash[:]); err != nil {
+	err = p.registerTransaction(ctx, req.Data.Hash)
+	if err != nil {
 		p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
@@ -866,7 +886,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 		}
 
 		// register transaction in blocktx using message queue
-		err = p.mqClient.Publish(ctx, RegisterTxTopic, data.Hash[:])
+		err = p.registerTransaction(ctx, data.Hash)
 		if err != nil {
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}

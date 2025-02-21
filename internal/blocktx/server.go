@@ -25,14 +25,14 @@ type Server struct {
 	pm                            *p2p.PeerManager
 	store                         store.BlocktxStore
 	maxAllowedBlockHeightMismatch int
+	processor                     *Processor
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
-	store store.BlocktxStore, pm *p2p.PeerManager, maxAllowedBlockHeightMismatch int, tracingConfig *config.TracingConfig) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg *config.ArcConfig) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, tracingConfig)
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, "blocktx", cfg.Prometheus.Endpoint, cfg.GrpcMessageSize, cfg.Tracing)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,8 @@ func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger,
 		store:                         store,
 		logger:                        logger,
 		pm:                            pm,
-		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
+		processor:                     processor,
+		maxAllowedBlockHeightMismatch: cfg.Blocktx.MaxAllowedBlockHeightMismatch,
 	}
 
 	blocktx_api.RegisterBlockTxAPIServer(s.GrpcServer.Srv, s)
@@ -75,7 +76,7 @@ func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleR
 	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots(), s.maxAllowedBlockHeightMismatch)
 }
 
-func (s *Server) RegisterTransaction(ctx context.Context, req *blocktx_api.Transaction) (*emptypb.Empty, error) {
-	// Todo: register transaction
+func (s *Server) RegisterTransaction(_ context.Context, req *blocktx_api.Transaction) (*emptypb.Empty, error) {
+	s.processor.RegisterTransaction(req.Hash)
 	return nil, nil
 }

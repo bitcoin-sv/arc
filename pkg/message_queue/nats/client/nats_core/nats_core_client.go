@@ -113,7 +113,7 @@ func (c Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	_, err := c.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
 		err := msgFunc(msg.Data)
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic))
+			c.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic), slog.String("err", err.Error()))
 		}
 	})
 	if err != nil {

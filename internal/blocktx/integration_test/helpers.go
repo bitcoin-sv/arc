@@ -20,22 +20,22 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
-func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan []byte, chan *blocktx_api.TransactionBlock) {
+func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan []byte, chan *blocktx_api.TransactionBlocks) {
 	t.Helper()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 
+	publishedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
 	registerTxChannel := make(chan []byte, 10)
-	publishedTxsCh := make(chan *blocktx_api.TransactionBlock, 10)
 
 	store, err := postgresql.New(dbInfo, 10, 80)
 	require.NoError(t, err)
 
 	mockNatsConn := &nats_mock.NatsConnectionMock{
 		PublishFunc: func(_ string, data []byte) error {
-			serialized := &blocktx_api.TransactionBlock{}
+			serialized := &blocktx_api.TransactionBlocks{}
 			err := proto.Unmarshal(data, serialized)
 			require.NoError(t, err)
 
@@ -60,13 +60,13 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 	return processor, p2pMsgHandler, store, registerTxChannel, publishedTxsCh
 }
 
-func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlock) []*blocktx_api.TransactionBlock {
+func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlocks) []*blocktx_api.TransactionBlock {
 	publishedTxs := make([]*blocktx_api.TransactionBlock, 0)
 
 	for {
 		select {
 		case tx := <-publishedTxsCh:
-			publishedTxs = append(publishedTxs, tx)
+			publishedTxs = append(publishedTxs, tx.TransactionBlocks...)
 		default:
 			return publishedTxs
 		}

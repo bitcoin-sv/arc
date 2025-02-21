@@ -89,7 +89,7 @@ type Processor struct {
 
 	lockTransactionsInterval time.Duration
 
-	minedTxsChan     chan *blocktx_api.TransactionBlock
+	minedTxsChan     chan *blocktx_api.TransactionBlocks
 	submittedTxsChan chan *metamorph_api.TransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
@@ -185,7 +185,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator *bcnet.Media
 
 func (p *Processor) Start(statsEnabled bool) error {
 	err := p.mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.TransactionBlock{}
+		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", MinedTxsTopic), err)
@@ -259,7 +259,7 @@ func (p *Processor) unlockRecords() error {
 
 func (p *Processor) StartProcessMinedCallbacks() {
 	p.waitGroup.Add(1)
-	var txsBlocks []*blocktx_api.TransactionBlock
+	var txsBlocksBuffer []*blocktx_api.TransactionBlock
 	ticker := time.NewTicker(p.processMinedInterval)
 	go func() {
 		defer p.waitGroup.Done()
@@ -267,31 +267,36 @@ func (p *Processor) StartProcessMinedCallbacks() {
 			select {
 			case <-p.ctx.Done():
 				return
-			case txBlock := <-p.minedTxsChan:
-				if txBlock == nil {
+			case msg := <-p.minedTxsChan:
+				if msg == nil {
 					continue
 				}
 
-				txsBlocks = append(txsBlocks, txBlock)
-
-				if len(txsBlocks) < p.processMinedBatchSize {
+				if len(msg.TransactionBlocks) >= p.processMinedBatchSize {
+					p.updateMined(p.ctx, msg.TransactionBlocks)
 					continue
 				}
 
-				p.updateMined(p.ctx, txsBlocks)
-				txsBlocks = []*blocktx_api.TransactionBlock{}
+				txsBlocksBuffer = append(txsBlocksBuffer, msg.TransactionBlocks...)
+
+				if len(txsBlocksBuffer) < p.processMinedBatchSize {
+					continue
+				}
+
+				p.updateMined(p.ctx, txsBlocksBuffer)
+				txsBlocksBuffer = []*blocktx_api.TransactionBlock{}
 
 				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 				ticker.Reset(p.processMinedInterval)
 
 			case <-ticker.C:
-				if len(txsBlocks) == 0 {
+				if len(txsBlocksBuffer) == 0 {
 					continue
 				}
 
-				p.updateMined(p.ctx, txsBlocks)
-				txsBlocks = []*blocktx_api.TransactionBlock{}
+				p.updateMined(p.ctx, txsBlocksBuffer)
+				txsBlocksBuffer = []*blocktx_api.TransactionBlock{}
 
 				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
@@ -658,7 +663,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	}()
 }
 
-// StartProcessExpiredTransactions periodically reads transactions with status lower then SEEN_ON_NETWORK from database and announce them again
+// StartProcessExpiredTransactions periodically reads transactions with status lower than SEEN_ON_NETWORK from database and announce them again
 func (p *Processor) StartProcessExpiredTransactions() {
 	p.waitGroup.Add(1)
 

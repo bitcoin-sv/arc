@@ -929,6 +929,8 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 	tcs := []struct {
 		name string
 		txs  [][]byte
+
+		exptectedRowsAffected int64
 	}{
 		{
 			name: "register new transactions",
@@ -938,6 +940,8 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 				testdata.TX3Hash[:],
 				testdata.TX4Hash[:],
 			},
+
+			exptectedRowsAffected: 4,
 		},
 		{
 			name: "register already registered transactions",
@@ -947,6 +951,8 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 				testutils.RevChainhash(t, "952f80e20a0330f3b9c2dfd1586960064e797218b5c5df665cada221452c17eb")[:],
 				testutils.RevChainhash(t, "861a281b27de016e50887288de87eab5ca56a1bb172cdff6dba965474ce0f608")[:],
 			},
+
+			exptectedRowsAffected: 0,
 		},
 	}
 
@@ -960,8 +966,9 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 			prepareDb(t, sut, "fixtures/register_transactions")
 
 			// when
-			err := sut.RegisterTransactions(ctx, tc.txs)
+			rowsAffected, err := sut.RegisterTransactions(ctx, tc.txs)
 			require.NoError(t, err)
+			require.Equal(t, tc.exptectedRowsAffected, rowsAffected)
 
 			// then
 			// assert data are correctly saved in the store

@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/grpc"
 
@@ -19,6 +20,10 @@ type MerkleRootsVerifier interface {
 	// VerifyMerkleRoots verifies the merkle roots existence in blocktx db and returns unverified block heights.
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
+
+var (
+	ErrRegisterTransaction = errors.New("failed to register transaction")
+)
 
 type Client interface {
 	RegisterTransaction(ctx context.Context, hash []byte) error
@@ -59,7 +64,7 @@ func (btc *BtxClient) VerifyMerkleRoots(ctx context.Context, merkleRootVerificat
 func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) error {
 	_, err := btc.client.RegisterTransaction(ctx, &blocktx_api.Transaction{Hash: hash})
 	if err != nil {
-		return err
+		return errors.Join(ErrRegisterTransaction, err)
 	}
 
 	return nil

@@ -9,7 +9,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
@@ -23,10 +22,8 @@ type Server struct {
 }
 
 // NewServer will return a server instance
-func NewServer(prometheusEndpoint string, maxMsgSize int, logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, tracingConfig *config.TracingConfig) (*Server, error) {
-	logger = logger.With(slog.String("module", "server"))
-
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, "callbacker", prometheusEndpoint, maxMsgSize, tracingConfig)
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_opts.ServerConfig) (*Server, error) {
+	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}

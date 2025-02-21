@@ -7,6 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
@@ -147,5 +148,11 @@ func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 		if ok {
 			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
 		}
+	}
+}
+
+func WithBlocktxClient(client blocktx.Client) func(*Processor) {
+	return func(p *Processor) {
+		p.blocktxClient = client
 	}
 }

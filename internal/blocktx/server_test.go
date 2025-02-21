@@ -29,7 +29,7 @@ func TestListenAndServe(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &p2p.PeerManager{}
 
-			sut, err := blocktx.NewServer("", 0, logger, storeMock, pm, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

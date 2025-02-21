@@ -30,6 +30,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
+//			RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+//				panic("mock out the RegisterTransaction method")
+//			},
 //			VerifyMerkleRootsFunc: func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
 //				panic("mock out the VerifyMerkleRoots method")
 //			},
@@ -48,6 +51,9 @@ type BlockTxAPIClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
+
+	// RegisterTransactionFunc mocks the RegisterTransaction method.
+	RegisterTransactionFunc func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
 	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
 	VerifyMerkleRootsFunc func(ctx context.Context, in *blocktx_api.MerkleRootsVerificationRequest, opts ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error)
@@ -81,6 +87,15 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
+		// RegisterTransaction holds details about calls to the RegisterTransaction method.
+		RegisterTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *blocktx_api.Transaction
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// VerifyMerkleRoots holds details about calls to the VerifyMerkleRoots method.
 		VerifyMerkleRoots []struct {
 			// Ctx is the ctx argument value.
@@ -94,6 +109,7 @@ type BlockTxAPIClientMock struct {
 	lockClearBlocks                 sync.RWMutex
 	lockClearRegisteredTransactions sync.RWMutex
 	lockHealth                      sync.RWMutex
+	lockRegisterTransaction         sync.RWMutex
 	lockVerifyMerkleRoots           sync.RWMutex
 }
 
@@ -214,6 +230,46 @@ func (mock *BlockTxAPIClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// RegisterTransaction calls RegisterTransactionFunc.
+func (mock *BlockTxAPIClientMock) RegisterTransaction(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	if mock.RegisterTransactionFunc == nil {
+		panic("BlockTxAPIClientMock.RegisterTransactionFunc: method is nil but BlockTxAPIClient.RegisterTransaction was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *blocktx_api.Transaction
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockRegisterTransaction.Lock()
+	mock.calls.RegisterTransaction = append(mock.calls.RegisterTransaction, callInfo)
+	mock.lockRegisterTransaction.Unlock()
+	return mock.RegisterTransactionFunc(ctx, in, opts...)
+}
+
+// RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
+// Check the length with:
+//
+//	len(mockedBlockTxAPIClient.RegisterTransactionCalls())
+func (mock *BlockTxAPIClientMock) RegisterTransactionCalls() []struct {
+	Ctx  context.Context
+	In   *blocktx_api.Transaction
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *blocktx_api.Transaction
+		Opts []grpc.CallOption
+	}
+	mock.lockRegisterTransaction.RLock()
+	calls = mock.calls.RegisterTransaction
+	mock.lockRegisterTransaction.RUnlock()
 	return calls
 }
 

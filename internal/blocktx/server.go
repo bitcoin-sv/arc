@@ -74,3 +74,8 @@ func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blo
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	return s.store.VerifyMerkleRoots(ctx, req.GetMerkleRoots(), s.maxAllowedBlockHeightMismatch)
 }
+
+func (s *Server) RegisterTransaction(ctx context.Context, req *blocktx_api.Transaction) (*emptypb.Empty, error) {
+	// Todo: register transaction
+	return nil, nil
+}

@@ -348,7 +348,7 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 			opts...)
 		ok := p.Connect()
 		if !ok {
-			return nil, fmt.Errorf("error connecting peer %s: %w", url, err)
+			return nil, fmt.Errorf("error connecting peer %s", url)
 		}
 
 		peers = append(peers, p)

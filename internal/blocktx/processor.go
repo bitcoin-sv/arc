@@ -229,7 +229,11 @@ func (p *Processor) StartBlockProcessing() {
 }
 
 func (p *Processor) RegisterTransaction(txHash []byte) {
-	p.registerTxsChan <- txHash
+	select {
+	case p.registerTxsChan <- txHash:
+	default:
+
+	}
 }
 
 func (p *Processor) StartProcessRegisterTxs() {

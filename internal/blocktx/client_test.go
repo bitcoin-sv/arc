@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 
 	"github.com/stretchr/testify/require"
@@ -56,6 +58,44 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, []uint64{81190, 89022}, res)
+		})
+	}
+}
+
+func TestClient_RegisterTransaction(t *testing.T) {
+	tt := []struct {
+		name        string
+		registerErr error
+
+		expectedError error
+	}{
+		{
+			name:        "success",
+			registerErr: nil,
+		},
+		{
+			name:          "err",
+			registerErr:   errors.New("failed to register"),
+			expectedError: blocktx.ErrRegisterTransaction,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			apiClient := &mocks.BlockTxAPIClientMock{
+				RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, tc.registerErr
+				},
+			}
+			client := blocktx.NewClient(apiClient)
+
+			err := client.RegisterTransaction(context.Background(), []byte("hash"))
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }

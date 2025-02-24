@@ -255,7 +255,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 			feeModel: func() *fees.SatoshisPerKilobyte {
 				return &fees.SatoshisPerKilobyte{Satoshis: 5}
 			}(),
-			expectedError: validation.NewError(errors.New("cumulative transaction fee of 5 sat is too low - minimum expected fee is 8 sat"), api.ErrStatusCumulativeFees),
+			expectedError: validation.NewError(errors.New("cumulative transaction fee of 5 sat is too low - minimum expected fee is 11 sat"), api.ErrStatusCumulativeFees),
 		},
 		{
 			name:    "cumulative (at least one unmined parent) fees sufficient",

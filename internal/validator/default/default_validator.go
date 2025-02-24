@@ -143,6 +143,7 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 
 	for _, txFromSet := range txSet {
 		cumulativeSize += txFromSet.Size()
+		fmt.Println("cumulativeSize", txFromSet.Size())
 		total, err := txFromSet.TotalInputSatoshis()
 		if err != nil {
 			e := fmt.Errorf("failed to get total input satoshis %w", err)
@@ -156,6 +157,7 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 		}
 
 		cumulativePaidFee += totalInput - totalOutput
+		fmt.Println("cumulativePaidFee totalInput totalOutput", cumulativePaidFee, totalInput, totalOutput)
 	}
 
 	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))
@@ -163,6 +165,7 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 
+	fmt.Println("expectedFee, cumulativePaidFee", expectedFee, cumulativePaidFee)
 	if expectedFee > cumulativePaidFee {
 		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFee))
 		return validator.NewError(err, api.ErrStatusCumulativeFees)

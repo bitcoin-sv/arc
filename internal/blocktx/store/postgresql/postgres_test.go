@@ -461,14 +461,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, true)
-
-		// then
-		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
-
-		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, false)
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
@@ -915,7 +908,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
+	actual, err := sut.GetMinedTransactionsOnlyLongest(ctx, [][]byte{txHash[:]})
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)

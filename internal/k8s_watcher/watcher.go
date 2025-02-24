@@ -24,6 +24,7 @@ const (
 
 type K8sClient interface {
 	GetRunningPodNames(ctx context.Context, namespace string, service string) (map[string]struct{}, error)
+	GetRunningPodNamesSlice(ctx context.Context, namespace string, podName string) ([]string, error)
 }
 
 type Watcher struct {
@@ -104,24 +105,81 @@ func WithCallbackerTicker(t Ticker) func(*Watcher) {
 }
 
 func (c *Watcher) Start() error {
-	c.watch(metamorphService, c.tickerMetamorph, func(ctx context.Context, podName string) error {
-		_, err := c.metamorphClient.SetUnlockedByName(ctx, podName)
+	c.watch(metamorphService, c.tickerMetamorph, func(podName string) error {
+		_, err := c.metamorphClient.SetUnlockedByName(context.Background(), podName)
 		if err == nil {
 			c.logger.Info("record unlocked", slog.String("pod-name", podName))
 		}
 		return err
 	})
 
-	c.watch(callbackerService, c.tickerCallbacker, func(ctx context.Context, podName string) error {
-		_, err := c.callbackerClient.DeleteURLMapping(ctx, &callbacker_api.DeleteURLMappingRequest{
+	c.watch(callbackerService, c.tickerCallbacker, func(podName string) error {
+		deleteMappingResponse, err := c.callbackerClient.DeleteURLMapping(context.Background(), &callbacker_api.DeleteURLMappingRequest{
 			Instance: podName,
 		})
+		if err == nil {
+			c.logger.Info("mapping removed", slog.String("pod-name", podName), slog.Int64("rows", deleteMappingResponse.Rows))
+		}
 		return err
 	})
+
+	c.update(callbackerService, c.tickerCallbacker, func(ctx context.Context, podNames []string) error {
+		response, err := c.callbackerClient.ProcessRunningPods(ctx, &callbacker_api.ProcessRunningPodsRequest{Instances: podNames})
+		if err == nil && response.Response != "" {
+			c.logger.Info("processed running pods", slog.String("response", response.Response))
+		}
+
+		return err
+	})
+
 	return nil
 }
 
-func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod func(context.Context, string) error) {
+func (c *Watcher) update(updatedService string, ticker Ticker, processRunningPods func(context.Context, []string) error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	c.cancellations = append(c.cancellations, cancel)
+	c.waitGroup.Add(1)
+	go func() {
+		defer c.waitGroup.Done()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.Tick():
+				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
+				runningPodsK8s, err := c.k8sClient.GetRunningPodNamesSlice(ctx, c.namespace, updatedService)
+				if err != nil {
+					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
+					continue
+				}
+
+				retryTicker := time.NewTicker(c.retryInterval)
+				iteration := 0
+
+			retryLoop:
+				for range retryTicker.C {
+					iteration++
+
+					if iteration > maxRetries {
+						c.logger.Error(fmt.Sprintf("Failed to process after %d retries", maxRetries))
+						break retryLoop
+					}
+
+					err := processRunningPods(ctx, runningPodsK8s)
+					if err != nil {
+						c.logger.Error("Failed to process running pods", slog.String("err", err.Error()))
+						continue
+					}
+					break
+				}
+
+			}
+		}
+	}()
+}
+
+func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod func(string) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancellations = append(c.cancellations, cancel)
 	c.waitGroup.Add(1)
@@ -135,6 +193,7 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 				return
 			case <-ticker.Tick():
 				// Update the list of running pods. Detect those which have been terminated and unlock records for these pods
+				ctx := context.Background()
 				runningPodsK8s, err := c.k8sClient.GetRunningPodNames(ctx, c.namespace, watchedService)
 				if err != nil {
 					c.logger.Error("failed to get pods", slog.String("err", err.Error()))
@@ -161,7 +220,7 @@ func (c *Watcher) watch(watchedService string, ticker Ticker, processMissingPod 
 								break retryLoop
 							}
 
-							err := processMissingPod(ctx, podName)
+							err := processMissingPod(podName)
 							if err != nil {
 								c.logger.Error("Failed to process missing pod", slog.String("pod-name", podName), slog.String("err", err.Error()))
 								continue

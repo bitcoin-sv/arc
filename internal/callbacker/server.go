@@ -57,13 +57,22 @@ func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCal
 	return nil, nil
 }
 
-func (s *Server) DeleteURLMapping(_ context.Context, request *callbacker_api.DeleteURLMappingRequest) (*callbacker_api.DeleteURLMappingResponse, error) {
-	rowsAffected, err := s.store.DeleteURLMapping(context.Background(), request.Instance)
+func (s *Server) DeleteURLMapping(ctx context.Context, request *callbacker_api.DeleteURLMappingRequest) (*callbacker_api.DeleteURLMappingResponse, error) {
+	rowsAffected, err := s.store.DeleteURLMapping(ctx, request.Instance)
 	if err != nil {
 		return nil, err
 	}
 
 	return &callbacker_api.DeleteURLMappingResponse{Rows: rowsAffected}, nil
+}
+
+func (s *Server) ProcessRunningPods(ctx context.Context, request *callbacker_api.ProcessRunningPodsRequest) (*callbacker_api.ProcessRunningPodsResponse, error) {
+	rowsAffected, err := s.store.DeleteAllURLMappingExcept(ctx, request.Instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return &callbacker_api.ProcessRunningPodsResponse{Rows: rowsAffected}, nil
 }
 
 func toCallbackDto(r *callbacker_api.SendCallbackRequest) *Callback {

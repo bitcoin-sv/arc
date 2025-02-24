@@ -47,3 +47,21 @@ func (k *K8sClient) GetRunningPodNames(ctx context.Context, namespace string, po
 
 	return podNames, nil
 }
+
+func (k *K8sClient) GetRunningPodNamesSlice(ctx context.Context, namespace string, podName string) ([]string, error) {
+	pods, err := k.client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/instance=%s", podName),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	podNames := make([]string, len(pods.Items))
+	for i, item := range pods.Items {
+		if item.Status.Phase == v1.PodRunning {
+			podNames[i] = item.Name
+		}
+	}
+
+	return podNames, nil
+}

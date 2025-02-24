@@ -41,6 +41,7 @@ type ProcessorStore interface {
 
 type CallbackStore interface {
 	DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error)
+	DeleteAllURLMappingExcept(ctx context.Context, except []string) (rowsAffected int64, err error)
 }
 
 type URLMapping struct {

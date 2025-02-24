@@ -20,9 +20,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CallbackerAPI_Health_FullMethodName           = "/callbacker_api.CallbackerAPI/Health"
-	CallbackerAPI_SendCallback_FullMethodName     = "/callbacker_api.CallbackerAPI/SendCallback"
-	CallbackerAPI_DeleteURLMapping_FullMethodName = "/callbacker_api.CallbackerAPI/DeleteURLMapping"
+	CallbackerAPI_Health_FullMethodName             = "/callbacker_api.CallbackerAPI/Health"
+	CallbackerAPI_SendCallback_FullMethodName       = "/callbacker_api.CallbackerAPI/SendCallback"
+	CallbackerAPI_DeleteURLMapping_FullMethodName   = "/callbacker_api.CallbackerAPI/DeleteURLMapping"
+	CallbackerAPI_ProcessRunningPods_FullMethodName = "/callbacker_api.CallbackerAPI/ProcessRunningPods"
 )
 
 // CallbackerAPIClient is the client API for CallbackerAPI service.
@@ -32,6 +33,7 @@ type CallbackerAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*DeleteURLMappingResponse, error)
+	ProcessRunningPods(ctx context.Context, in *ProcessRunningPodsRequest, opts ...grpc.CallOption) (*ProcessRunningPodsResponse, error)
 }
 
 type callbackerAPIClient struct {
@@ -72,6 +74,16 @@ func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteUR
 	return out, nil
 }
 
+func (c *callbackerAPIClient) ProcessRunningPods(ctx context.Context, in *ProcessRunningPodsRequest, opts ...grpc.CallOption) (*ProcessRunningPodsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProcessRunningPodsResponse)
+	err := c.cc.Invoke(ctx, CallbackerAPI_ProcessRunningPods_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CallbackerAPIServer is the server API for CallbackerAPI service.
 // All implementations must embed UnimplementedCallbackerAPIServer
 // for forward compatibility.
@@ -79,6 +91,7 @@ type CallbackerAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error)
 	DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error)
+	ProcessRunningPods(context.Context, *ProcessRunningPodsRequest) (*ProcessRunningPodsResponse, error)
 	mustEmbedUnimplementedCallbackerAPIServer()
 }
 
@@ -97,6 +110,9 @@ func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendCallb
 }
 func (UnimplementedCallbackerAPIServer) DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteURLMapping not implemented")
+}
+func (UnimplementedCallbackerAPIServer) ProcessRunningPods(context.Context, *ProcessRunningPodsRequest) (*ProcessRunningPodsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessRunningPods not implemented")
 }
 func (UnimplementedCallbackerAPIServer) mustEmbedUnimplementedCallbackerAPIServer() {}
 func (UnimplementedCallbackerAPIServer) testEmbeddedByValue()                       {}
@@ -173,6 +189,24 @@ func _CallbackerAPI_DeleteURLMapping_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CallbackerAPI_ProcessRunningPods_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessRunningPodsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CallbackerAPIServer).ProcessRunningPods(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CallbackerAPI_ProcessRunningPods_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CallbackerAPIServer).ProcessRunningPods(ctx, req.(*ProcessRunningPodsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CallbackerAPI_ServiceDesc is the grpc.ServiceDesc for CallbackerAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -191,6 +225,10 @@ var CallbackerAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteURLMapping",
 			Handler:    _CallbackerAPI_DeleteURLMapping_Handler,
+		},
+		{
+			MethodName: "ProcessRunningPods",
+			Handler:    _CallbackerAPI_ProcessRunningPods_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

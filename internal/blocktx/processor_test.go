@@ -171,7 +171,7 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
@@ -427,7 +427,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
@@ -680,7 +680,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) (int64, error) {
 					return 0, registerErrTest
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return tc.getMinedTxs, tc.getMinedTxsErr
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {

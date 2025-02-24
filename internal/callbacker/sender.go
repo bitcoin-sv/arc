@@ -139,7 +139,7 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 		return success, retry
 	}
 
-	p.logger.Warn("Failed to send callback with retries",
+	p.logger.Info("Failed to send callback with retries",
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.String("hash", dto.TxID),
@@ -187,7 +187,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 		return success, retry
 	}
 
-	p.logger.Warn("Failed to send callback with retries",
+	p.logger.Info("Failed to send callback with retries",
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.Bool("batch", true),
@@ -230,7 +230,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 			}
 
 			if errors.Is(err, ErrHTTPSendFailed) {
-				p.logger.Warn("Failed to send callback",
+				p.logger.Error("Failed to send callback",
 					slog.String("url", url),
 					slog.String("token", token),
 					slog.String("err", err.Error()))
@@ -240,7 +240,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 			}
 		}
 
-		p.logger.Warn("Callback response not successful",
+		p.logger.Info("Callback response not successful",
 			slog.String("url", url),
 			slog.String("token", token),
 			slog.Int("status", statusCode))

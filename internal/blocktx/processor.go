@@ -293,6 +293,8 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 		return fmt.Errorf("failed to get mined txs: %v", err)
 	}
 
+	p.logger.Info("mined tx hashes", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
+
 	if len(minedTxs) == 0 {
 		return nil
 	}

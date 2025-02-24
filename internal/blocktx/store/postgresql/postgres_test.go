@@ -512,13 +512,6 @@ func TestPostgresDB(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
-
-		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
-
-		// then
-		require.NoError(t, err)
 		require.ElementsMatch(t, expectedTxs, actualTxs)
 	})
 

@@ -421,6 +421,53 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrFailedToUpdateBlockStatuses)
 	})
 
+	t.Run("get mined txs 2", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB, "fixtures/get_transactions")
+
+		txHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
+		txHash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		txHash3 := testutils.RevChainhash(t, "213a8c87c5460e82b5ae529212956b853c7ce6bf06e56b2e040eb063cf9a49f0") // from STALE block
+
+		blockHash := testutils.RevChainhash(t, "000000000000000005aa39a25e7e8bf440c270ec9a1bd30e99ab026f39207ef9")
+		blockHash2 := testutils.RevChainhash(t, "0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7")
+		merkleRoot := testutils.RevChainhash(t, "7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483")
+		merkleRoot2 := testutils.RevChainhash(t, "3eeee879a8a08fc537a04682178687bb0e58a5103938eafc349705a2acb06410")
+		expectedTxs := []store.BlockTransaction{
+			{
+				TxHash:          txHash1[:],
+				BlockHash:       blockHash[:],
+				BlockHeight:     822013,
+				MerkleTreeIndex: int64(1),
+				BlockStatus:     blocktx_api.Status_LONGEST,
+				MerkleRoot:      merkleRoot[:],
+			},
+			{
+				TxHash:          txHash2[:],
+				BlockHash:       blockHash[:],
+				BlockHeight:     822013,
+				MerkleTreeIndex: int64(2),
+				BlockStatus:     blocktx_api.Status_LONGEST,
+				MerkleRoot:      merkleRoot[:],
+			},
+			{
+				TxHash:          txHash3[:],
+				BlockHash:       blockHash2[:],
+				BlockHeight:     822012,
+				MerkleTreeIndex: int64(6),
+				BlockStatus:     blocktx_api.Status_STALE,
+				MerkleRoot:      merkleRoot2[:],
+			},
+		}
+
+		// when
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
+
+		// then
+		require.NoError(t, err)
+		require.ElementsMatch(t, expectedTxs, actualTxs)
+	})
+
 	t.Run("get mined txs", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_transactions")
@@ -461,14 +508,14 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, true)
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
 
 		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, false)
+		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
@@ -915,7 +962,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
+	actual, err := sut.GetMinedTransactionsOnlyLongest(ctx, [][]byte{txHash[:]})
 	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)

@@ -49,7 +49,7 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 		}
 	}
 
-	slog.Default().Info("get mined transactions", "q", q, "len", len(hashes), "hashes", first5)
+	p.logger.Info("get mined transactions", slog.Int("len", len(hashes)), "hashes", first5)
 
 	return p.getBlockTransactions(rows)
 }

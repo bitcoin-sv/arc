@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
+	"os"
 	"runtime"
 	"time"
 
@@ -27,11 +29,18 @@ type PostgreSQL struct {
 	maxPostgresBulkInsertRows int
 	tracingEnabled            bool
 	tracingAttributes         []attribute.KeyValue
+	logger                    *slog.Logger
 }
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	return func(p *PostgreSQL) {
 		p.now = nowFunc
+	}
+}
+
+func WithLogger(logger *slog.Logger) func(*PostgreSQL) {
+	return func(p *PostgreSQL) {
+		p.logger = logger
 	}
 }
 
@@ -69,6 +78,7 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 		conn:                      conn,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
+		logger:                    slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
 	for _, opt := range opts {
 		opt(p)

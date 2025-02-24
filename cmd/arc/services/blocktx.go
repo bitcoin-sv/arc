@@ -203,7 +203,8 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 			postgres.User, postgres.Password, postgres.Name, postgres.Host, postgres.Port, postgres.SslMode,
 		)
 
-		var postgresOpts []func(handler *postgresql.PostgreSQL)
+		postgresOpts := []func(handler *postgresql.PostgreSQL){postgresql.WithLogger(logger)}
+
 		if tracingConfig != nil && tracingConfig.IsEnabled() {
 			postgresOpts = append(postgresOpts, postgresql.WithTracer(tracingConfig.KeyValueAttributes...))
 		}

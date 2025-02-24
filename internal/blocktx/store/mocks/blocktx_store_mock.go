@@ -70,7 +70,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
 //			},
-//			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) error {
+//			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) (int64, error) {
 //				panic("mock out the RegisterTransactions method")
 //			},
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
@@ -141,7 +141,7 @@ type BlocktxStoreMock struct {
 	PingFunc func(ctx context.Context) error
 
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
-	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) error
+	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) (int64, error)
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
@@ -912,7 +912,7 @@ func (mock *BlocktxStoreMock) PingCalls() []struct {
 }
 
 // RegisterTransactions calls RegisterTransactionsFunc.
-func (mock *BlocktxStoreMock) RegisterTransactions(ctx context.Context, txHashes [][]byte) error {
+func (mock *BlocktxStoreMock) RegisterTransactions(ctx context.Context, txHashes [][]byte) (int64, error) {
 	if mock.RegisterTransactionsFunc == nil {
 		panic("BlocktxStoreMock.RegisterTransactionsFunc: method is nil but BlocktxStore.RegisterTransactions was just called")
 	}

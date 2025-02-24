@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
-func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte) error {
+func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte) (int64, error) {
 	const q = `
 		INSERT INTO blocktx.registered_transactions (hash)
 			SELECT hash
@@ -17,10 +17,15 @@ func (p *PostgreSQL) RegisterTransactions(ctx context.Context, txHashes [][]byte
 		ON CONFLICT (hash) DO NOTHING
 	`
 
-	_, err := p.db.ExecContext(ctx, q, pq.Array(txHashes))
+	res, err := p.db.ExecContext(ctx, q, pq.Array(txHashes))
 	if err != nil {
-		return errors.Join(store.ErrFailedToInsertTransactions, err)
+		return 0, errors.Join(store.ErrFailedToInsertTransactions, err)
 	}
 
-	return nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, nil
+	}
+
+	return rowsAffected, nil
 }

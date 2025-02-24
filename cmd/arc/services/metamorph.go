@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -157,6 +158,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	callbacker := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
+	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
+	}
+	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
+
 	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
 		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),
 		metamorph.WithRecheckSeenUntilAgo(mtmConfig.RecheckSeen.UntilAgo),
@@ -169,7 +176,9 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
-		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections))
+		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
+		metamorph.WithBlocktxClient(blockTxClient),
+	)
 
 	processor, err = metamorph.NewProcessor(
 		metamorphStore,
@@ -188,8 +197,14 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
-	server, err = metamorph.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
-		metamorphStore, processor, arcConfig.Tracing, optsServer...)
+	serverCfg := grpc_opts.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "metamorph",
+	}
+
+	server, err = metamorph.NewServer(logger, metamorphStore, processor, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

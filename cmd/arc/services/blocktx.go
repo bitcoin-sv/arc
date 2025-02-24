@@ -160,8 +160,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
-	server, err = blocktx.NewServer(arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, logger,
-		blockStore, pm, btxConfig.MaxAllowedBlockHeightMismatch, arcConfig.Tracing)
+	serverCfg := grpc_opts.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "blocktx",
+	}
+
+	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -348,7 +354,7 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 			opts...)
 		ok := p.Connect()
 		if !ok {
-			return nil, fmt.Errorf("error connecting peer %s: %w", url, err)
+			return nil, fmt.Errorf("error connecting peer %s", url)
 		}
 
 		peers = append(peers, p)

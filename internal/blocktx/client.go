@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/grpc"
 
@@ -10,8 +11,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_opts"
 )
 
-// check if Client implements all necessary interfaces
-var _ MerkleRootsVerifier = &Client{}
+// check if BtxClient implements all necessary interfaces
+var _ MerkleRootsVerifier = &BtxClient{}
+var _ Client = &BtxClient{}
 
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
 type MerkleRootsVerifier interface {
@@ -19,24 +21,32 @@ type MerkleRootsVerifier interface {
 	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 
+var (
+	ErrRegisterTransaction = errors.New("failed to register transaction")
+)
+
+type Client interface {
+	RegisterTransaction(ctx context.Context, hash []byte) error
+}
+
 type MerkleRootVerificationRequest struct {
 	MerkleRoot  string
 	BlockHeight uint64
 }
 
-type Client struct {
+type BtxClient struct {
 	client blocktx_api.BlockTxAPIClient
 }
 
-func NewClient(client blocktx_api.BlockTxAPIClient) *Client {
-	btc := &Client{
+func NewClient(client blocktx_api.BlockTxAPIClient) *BtxClient {
+	btc := &BtxClient{
 		client: client,
 	}
 
 	return btc
 }
 
-func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error) {
+func (btc *BtxClient) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error) {
 	merkleRoots := make([]*blocktx_api.MerkleRootVerificationRequest, 0)
 
 	for _, mr := range merkleRootVerificationRequest {
@@ -49,6 +59,15 @@ func (btc *Client) VerifyMerkleRoots(ctx context.Context, merkleRootVerification
 	}
 
 	return resp.UnverifiedBlockHeights, nil
+}
+
+func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) error {
+	_, err := btc.client.RegisterTransaction(ctx, &blocktx_api.Transaction{Hash: hash})
+	if err != nil {
+		return errors.Join(ErrRegisterTransaction, err)
+	}
+
+	return nil
 }
 
 func DialGRPC(address string, prometheusEndpoint string, grpcMessageSize int, tracingConfig *config.TracingConfig) (*grpc.ClientConn, error) {

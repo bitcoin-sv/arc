@@ -228,6 +228,13 @@ func (p *Processor) StartBlockProcessing() {
 	}()
 }
 
+func (p *Processor) RegisterTransaction(txHash []byte) {
+	select {
+	case p.registerTxsChan <- txHash:
+	default:
+	}
+}
+
 func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
 	txHashes := make([][]byte, 0, p.registerTxsBatchSize)

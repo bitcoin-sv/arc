@@ -26,7 +26,7 @@ import (
 
 var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
 
-func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessageSize int, service string, tracingConfig *config.TracingConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
+func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
 	rpcLogger := logger.With(slog.String("service", "gRPC/server"))
 
@@ -39,7 +39,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 
 	// Setup metric for panic recoveries.
 	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
-		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", service),
+		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", cfg.Name),
 		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 
@@ -49,7 +49,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	}
 	opts := make([]grpc.ServerOption, 0)
 
-	if tracingConfig != nil && tracingConfig.IsEnabled() {
+	if cfg.TracingConfig != nil && cfg.TracingConfig.IsEnabled() {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	}
 
@@ -61,7 +61,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 
 	var chainUnaryInterceptors []grpc.UnaryServerInterceptor
 
-	if prometheusEndpoint != "" {
+	if cfg.PrometheusEndpoint != "" {
 		exemplarFromContext := func(ctx context.Context) prometheusclient.Labels {
 			if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
 				return prometheusclient.Labels{"traceID": span.TraceID().String()}
@@ -88,7 +88,7 @@ func GetGRPCServerOpts(logger *slog.Logger, prometheusEndpoint string, grpcMessa
 	})
 
 	opts = append(opts, grpc.ChainUnaryInterceptor(chainUnaryInterceptors...))
-	opts = append(opts, grpc.MaxRecvMsgSize(grpcMessageSize))
+	opts = append(opts, grpc.MaxRecvMsgSize(cfg.MaxMsgSize))
 
 	cleanup := func() {
 		prometheusclient.Unregister(panicsTotal)

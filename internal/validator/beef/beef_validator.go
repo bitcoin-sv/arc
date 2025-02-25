@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/beef"
-	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
@@ -98,7 +98,7 @@ func standardCheckFees(tx *sdkTx.Transaction, beefTx *beef.BEEF, feeModel sdkTx.
 	return nil
 }
 
-func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *fees.SatoshisPerKilobyte) *validator.Error {
+func cumulativeCheckFees(beefTx *beef.BEEF, feeModel *feemodel.SatoshisPerKilobyte) *validator.Error {
 	cumulativePaidFee := uint64(0)
 	expectedFees := uint64(0)
 

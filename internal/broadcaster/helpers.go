@@ -1,6 +1,8 @@
 package broadcaster
 
 import (
+	"math"
+
 	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
@@ -58,4 +60,44 @@ func EstimateSize(tx *sdkTx.Transaction) int {
 	size += 34 // change
 
 	return size
+}
+
+type FeeModel interface {
+	ComputeFee(tx *sdkTx.Transaction) (uint64, error)
+	ComputeFeeBasedOnSize(txSize uint64) (uint64, error)
+}
+
+type SatoshisPerKilobyte struct {
+	Satoshis uint64
+}
+
+// ComputeFee calculates the transaction fee based on its size in bytes.
+func (s SatoshisPerKilobyte) ComputeFee(tx *sdkTx.Transaction) (uint64, error) {
+	txSize := tx.Size()
+
+	feesRequiredRounded := computeFee(uint64(txSize), s)
+
+	return feesRequiredRounded, nil
+}
+
+// ComputeFeeBasedOnSize calculates the transaction fee based on the transaction size in bytes.
+func (s SatoshisPerKilobyte) ComputeFeeBasedOnSize(txSize uint64) (uint64, error) {
+	feesRequiredRounded := computeFee(txSize, s)
+
+	return feesRequiredRounded, nil
+}
+
+func DefaultSatoshisPerKilobyte() SatoshisPerKilobyte {
+	return SatoshisPerKilobyte{Satoshis: 1}
+}
+
+func computeFee(txSize uint64, s SatoshisPerKilobyte) uint64 {
+	fee := float64(txSize) * float64(s.Satoshis) / 1000
+
+	// the minimum fees required is 1 satoshi
+	feesRequiredRounded := uint64(math.Round(fee))
+	if feesRequiredRounded < 1 {
+		feesRequiredRounded = 1
+	}
+	return feesRequiredRounded
 }

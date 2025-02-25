@@ -1,10 +1,10 @@
 package api
 
 import (
-	"github.com/bitcoin-sv/arc/internal/fees"
+	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 )
 
-func FeesToFeeModel(minMiningFee float64) *fees.SatoshisPerKilobyte {
+func FeesToFeeModel(minMiningFee float64) *feemodel.SatoshisPerKilobyte {
 	satoshisPerKB := int(minMiningFee * 1e8)
-	return &fees.SatoshisPerKilobyte{Satoshis: uint64(satoshisPerKB)}
+	return &feemodel.SatoshisPerKilobyte{Satoshis: uint64(satoshisPerKB)}
 }

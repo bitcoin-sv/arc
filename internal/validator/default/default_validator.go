@@ -170,7 +170,7 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		cumulativePaidFeeAncestors += totalInput - totalOutput
 	}
 
-	if expectedFee-cumulativePaidFeeAncestors > paidFeeTx {
+	if expectedFee > paidFeeTx+cumulativePaidFeeAncestors {
 		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFeeAncestors))
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}

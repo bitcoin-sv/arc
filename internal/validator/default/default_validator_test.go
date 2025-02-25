@@ -13,14 +13,12 @@ import (
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	validation "github.com/bitcoin-sv/arc/internal/validator"
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 var validLockingScript = &script.Script{
@@ -477,133 +475,66 @@ func TestGetUnminedAncestors(t *testing.T) {
 	}
 }
 
-func TestExtendTxCheckCumulativeFees(t *testing.T) {
-	txMap := map[string]*sdkTx.Transaction{
-		fixture.ParentTxID1:              fixture.ParentTx1,
-		fixture.AncestorTxID1:            fixture.AncestorTx1,
-		fixture.AncestorOfAncestorTx1ID1: fixture.AncestorOfAncestor1Tx1,
-	}
-	tx := fixture.ValidTx
+func TestCheckCumulativeFees(t *testing.T) {
+	tt := []struct {
+		name                string
+		tx                  *sdkTx.Transaction
+		feeModel            *feemodel.SatoshisPerKilobyte
+		txString            string
+		ancestorTxSetString map[string]string
 
-	tcs := []struct {
-		name                   string
-		feeModel               *feemodel.SatoshisPerKilobyte
-		mempoolAncestors       []string
-		getMempoolAncestorsErr error
-
-		expectedErr *validation.Error
+		expectedErr       error
+		expectedErrString string
 	}{
 		{
-			name: "no unmined ancestors - valid fee",
-			feeModel: func() *feemodel.SatoshisPerKilobyte {
-				return &feemodel.SatoshisPerKilobyte{Satoshis: 1}
-			}(),
-			mempoolAncestors: []string{},
+			name: "chained txs - cumulative fee sufficient",
+			ancestorTxSetString: map[string]string{"88c7b4f34fe57762c2f4897f40d371460c10c8cce0a88ba45fd13ece5f7ee73e": "010000000000000000ef0136a6e3c2d1822ce4f716a4232f3e1e58e575497cd04bdb0426b34d2de5f56950000000006a473044022010403b51e0c5b4335fb28483b0e3805eda7fdbd6eb53fede4e901c2db949f6c30220446bbf6a5d68d904f267f6ac93165d1fe7ad4dc3f8a47976b74f33efc157c80141210207f8079c8aea3197bdb0c3cc55757076931461853b5973a20bea9c68457d2457fffffffff8240100000000001976a914b9a45a7ebbbbebf93bc9fe9e7eb36daf5fc277ec88ac04204e0000000000001976a914feb9fdc7373775c8394fe776653090cafc09d82f88ac10270000000000001976a9143cc9d7e15b7b5ac3daae45dcd146deca380da95088acb80b0000000000001976a9143f4ffc7d7b1903b01b521d2f673cedca4f593a3588ac0fa40000000000001976a914158ef65fec41d6c7bbcfc09916ea594767c2dfcb88ac00000000",
+				"b3c5a7048a4d149666766d8281d3d54b347ae7802a1a9941a0797d673300d5fd": "010000000000000000ef015339f0fa4937e7282faa88bafcf5dcccdc81ccef80066b279427b78f7d4c73a7010000006a47304402203023167b537c11a9c9394027e23b63d93b45ebf65b0fb88c4417e8c9ce77f33d022061d0401462f98a77a0cd54a30526d7c5fbda5dd79e079a19899dbc324936128541210360a71004d9304e841139ef4fd0199cd6ca4b23982e7e22cc26790eaf41f9b1b2fffffffff9870500000000001976a91429b35c8345fc59ec01b279bf0fd2d231dcc5267a88ac03f8240100000000001976a9141c968e8ca2f47871b8544569e584eaf6d35a0e7488ac76310200000000001976a914caa9ec451498eaa6ff6322d36abc9ee1803793a988ac8a310200000000001976a914caa9ec451498eaa6ff6322d36abc9ee1803793a988ac00000000"},
+			txString: txString,
+			feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 1},
 		},
 		{
-			name: "no unmined ancestors - too low fee",
-			feeModel: func() *feemodel.SatoshisPerKilobyte {
-				return &feemodel.SatoshisPerKilobyte{Satoshis: 50}
-			}(),
-			mempoolAncestors: []string{},
+			name:                "chained txs - cumulative fee too low",
+			ancestorTxSetString: txSetChain,
+			txString:            txString,
+			feeModel:            &feemodel.SatoshisPerKilobyte{Satoshis: 1},
 
-			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
-		},
-		{
-			name: "cumulative fees too low",
-			feeModel: func() *feemodel.SatoshisPerKilobyte {
-				return &feemodel.SatoshisPerKilobyte{Satoshis: 50}
-			}(),
-			mempoolAncestors: []string{fixture.AncestorTxID1},
-
-			expectedErr: validation.NewError(ErrTxFeeTooLow, api.ErrStatusCumulativeFees),
-		},
-		{
-			name: "cumulative fees sufficient",
-			feeModel: func() *feemodel.SatoshisPerKilobyte {
-				return &feemodel.SatoshisPerKilobyte{Satoshis: 1}
-			}(),
-			mempoolAncestors: []string{fixture.AncestorTxID1},
-		},
-		{
-			name: "failed to get mempool ancestors",
-			feeModel: func() *feemodel.SatoshisPerKilobyte {
-				return &feemodel.SatoshisPerKilobyte{Satoshis: 5}
-			}(),
-			getMempoolAncestorsErr: errors.New("some error"),
-
-			expectedErr: validation.NewError(
-				ErrFailedToGetMempoolAncestors,
-				api.ErrStatusCumulativeFees),
+			expectedErrString: "minimum expected cumulative fee: 31, actual fee: 20",
+			expectedErr:       ErrTxFeeTooLow,
 		},
 	}
 
-	for _, tc := range tcs {
+	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
-			txFinder := &mocks.TxFinderIMock{
-				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
-					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
-				},
-				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) []*sdkTx.Transaction {
-					rawTxs := make([]*sdkTx.Transaction, len(ids))
-					for i, id := range ids {
-						rawTx, ok := txMap[id]
-						if !ok {
-							t.Fatalf("tx id %s not found", id)
-						}
-						rawTxs[i] = rawTx
-					}
+			ancestorTxSet := map[string]*sdkTx.Transaction{}
 
-					return rawTxs
-				},
+			for key, value := range tc.ancestorTxSetString {
+				newTx, err := sdkTx.NewTransactionFromHex(value)
+				require.NoError(t, err)
+
+				ancestorTxSet[key] = newTx
 			}
 
-			err := extendTx(context.TODO(), txFinder, tx, false)
+			tx, err := sdkTx.NewTransactionFromHex(tc.txString)
 			require.NoError(t, err)
 
-			// when
-			actualError := checkCumulativeFees(context.TODO(), txMap, tx, tc.feeModel, false)
+			vErr := checkCumulativeFees(context.TODO(), ancestorTxSet, tx, tc.feeModel, false)
 
-			// then
-			if tc.expectedErr == nil {
-				require.NoError(t, actualError)
-			} else {
-				require.NotNil(t, actualError)
-				assert.ErrorIs(t, actualError.Err, tc.expectedErr.Err)
-				assert.Equal(t, tc.expectedErr.ArcErrorStatus, actualError.ArcErrorStatus)
+			if tc.expectedErr != nil {
+				require.NotNil(t, vErr)
+				require.ErrorIs(t, vErr.Err, tc.expectedErr)
+				require.ErrorContains(t, vErr.Err, tc.expectedErrString)
+				return
 			}
+
+			require.Nil(t, vErr)
 		})
 	}
 }
 
-func TestCheckCumulativeFees(t *testing.T) {
-	t.Run("chained txs", func(t *testing.T) {
-		txSet := map[string]*sdkTx.Transaction{}
-		var tx *sdkTx.Transaction
-		var feeModel = &feemodel.SatoshisPerKilobyte{Satoshis: 1}
-		var err error
-
-		for key, value := range txSetString {
-			newTx, err := sdkTx.NewTransactionFromHex(value)
-			require.NoError(t, err)
-
-			txSet[key] = newTx
-		}
-
-		tx, err = sdkTx.NewTransactionFromHex("010000000000000000ef014d576b0afb43187212360592d12dd04f63b6147d9aec39c01d5638c390d91a4d020000006a4730440220460d4b28667e6a126e3bd88056bed4e4c45077a2ae435812d577606a4d15575c0220650aecfe1483a839ef1c0ac1a0566914b44cb19692fa78541f71607873731cc54121035c14baa37bcb08808d2e384f4695a50e7db3f472f6655cc23baee855c8a0f240ffffffff77690000000000001976a914b35e5c4f05976458be36d78d7a20149f51507e3e88ac03204e0000000000001976a9145394dfb37952a362598e815e89c44d877a2b53e288aca00f0000000000001976a914a6771db04fb78fe0845311800a53ab9c0a44d8b388acb60b0000000000001976a9149b48f6e263a505930f1e6fdc157c9771492786c588ac00000000")
-		require.NoError(t, err)
-
-		vErr := checkCumulativeFees(context.TODO(), txSet, tx, feeModel, false)
-
-		require.NotNil(t, vErr)
-		require.ErrorIs(t, vErr.Err, ErrTxFeeTooLow)
-		require.ErrorContains(t, vErr.Err, "minimum expected cumulative fee: 31, actual fee: 20")
-	})
-}
-
 var (
-	txSetString = map[string]string{
+	txString   = "010000000000000000ef014d576b0afb43187212360592d12dd04f63b6147d9aec39c01d5638c390d91a4d020000006a4730440220460d4b28667e6a126e3bd88056bed4e4c45077a2ae435812d577606a4d15575c0220650aecfe1483a839ef1c0ac1a0566914b44cb19692fa78541f71607873731cc54121035c14baa37bcb08808d2e384f4695a50e7db3f472f6655cc23baee855c8a0f240ffffffff77690000000000001976a914b35e5c4f05976458be36d78d7a20149f51507e3e88ac03204e0000000000001976a9145394dfb37952a362598e815e89c44d877a2b53e288aca00f0000000000001976a914a6771db04fb78fe0845311800a53ab9c0a44d8b388acb60b0000000000001976a9149b48f6e263a505930f1e6fdc157c9771492786c588ac00000000"
+	txSetChain = map[string]string{
 		"7cc40d25faf0625d0aa548c5e8c96d5dce7d22bdbf4b5f313f33b2a1fca81d30": "010000000000000000ef017d4ad8a21caf35335187dbe6336ead2582b77405ca95ea3e86f9a376ac36428e010000006a473044022042b31adde0ac3bcb02d0434521073d34729fcfc41b8b4846ad75549f7eae5e3802204f5673cb0089d0b7475caa316ccd8b23ea654987c44e0cedffe52797b16a689f4121030ad8bb821c95c09afcb1095ba1e5daecac233b4c7accf9a5d645185fadbe4cfcffffffff7b920000000000001976a9144cbce37df1fe2e2692010b47c2f42dcd8069b5b888ac02e4570000000000001976a9142b6bdd30e74ce66a48839237e8e92b6e79faa94888ac963a0000000000001976a914566e38ba79db2e6f59d9c63399b15e5729d02ffa88ac00000000",
 		"9bc38c17da3e275178d1c796194e4453aad4d74f76847bc3cdb66f3df4ff2b77": "010000000000000000ef049e10f72baabe0aeb2128482456bfb882c929eb9441ca0632f8a76202e6c18765010000006b483045022100f79db803ffb0c988a986e3b086ec6ff021f1ccf0ccfef14398a7afebad5392bd02206741288739403ba7cd92d0773012df4cf366589fca64c735e553173d0a5c832541210265a7cb93ac0b3088d18af114854ddeb25e31b41a71339c7e88ffc88c7d9ad78affffffff97280000000000001976a9146b84588f97d12dfd6873c0f09dc1d5df211cc5c688ac9e10f72baabe0aeb2128482456bfb882c929eb9441ca0632f8a76202e6c18765020000006b483045022100d8b83572efdac780864b9571233609a42d1265c881cb65e7cb5359a4ea317266022037627f2895f91861e9d4b9b09d2d6d7a4e42f294fcbec66736993f1f45e89ab541210265a7cb93ac0b3088d18af114854ddeb25e31b41a71339c7e88ffc88c7d9ad78affffffffab280000000000001976a9146b84588f97d12dfd6873c0f09dc1d5df211cc5c688ac2bad7d6fe367696b927b221ef16983f14432f24da43b396503b1035ee1ff9995010000006a47304402202d5f10e5da1ff4dbe3ca4cdd7100511c9ce8adc899e138b448076f4e7aa4c15b022022e0ad041da9ce46f6c78eeb9c1c594cd39901fac3ec17786f242895e2af9a3441210265a7cb93ac0b3088d18af114854ddeb25e31b41a71339c7e88ffc88c7d9ad78affffffff34860000000000001976a9146b84588f97d12dfd6873c0f09dc1d5df211cc5c688acada6ccdf4b285a406e7478e2d1e64b64712863b41458c3c188d90ed73551e685010000006a47304402203691681a8203ad30d6897765360a3813f32925bbfe3060c7dd5f8fc1dd5851c002206fa1a6e9ea40aa4334fccc043d7f686a655bcc7924e446de136b950772cff31e41210265a7cb93ac0b3088d18af114854ddeb25e31b41a71339c7e88ffc88c7d9ad78affffffff39860000000000001976a9146b84588f97d12dfd6873c0f09dc1d5df211cc5c688ac02f8240100000000001976a9148e55e19306521b1925853d5df0f8fbc3e155b87388acb6380000000000001976a914fd0d93743a6233bce87968f581bca17c09f2ad2b88ac00000000",
 		"0a2aa3d468013b65208223f3c4a2bbad6137eb2ca4b843af3ea015f09e36abb3": "010000000000000000ef04f9ccbcc9b3b248872295edd4f463a66028a3a82d2b0eaf355f2156d56f3bbc1e010000006a47304402206b9252446c0c40beadf46fdbbe48074cf15f3d69f88601328dff70cac84328250220050256df5e8913ed9b781fcc2d050b9a064878cc65f9770615539a1bd18cfa65412102a6449568536e8f31e5a3f3f22018ff58e0970ff26e8f9b3bc0fe58e391e51ed3ffffffff4b1e0000000000001976a914caa9ec451498eaa6ff6322d36abc9ee1803793a988ac2b7990d27b100320b7c6a51bafd815fd21414fb1db038b0e63d35a3cc8147868020000006a4730440220764e985b60e03e932e6d68970a70346d08d80d47ec1176589efa0d47aaf87d6102204b6fb508cb62432c43a06d212a84ba3b60d7a8aefb99ffac4f00b39bdea2447041210265a7cb93ac0b3088d18af114854ddeb25e31b41a71339c7e88ffc88c7d9ad78affffffff164e0000000000001976a9146b84588f97d12dfd6873c0f09dc1d5df211cc5c688ac301da8fca1b2333f315f4bbfbd227dce5d6dc9e8c548a50a5d62f0fa250dc47c000000006a47304402201ff1233583048e0bb5ef8f7676fe0d776d774036ef69ea0c0096cf5e6173d58f0220178b92c801c7105b786cb165f0c61b8e91b1a35ac1c984668587e4babfcd0f1d412102ed226031b4e89b348bc641ce07c9589f3fc87d7bc9ea75a0d93edcf3370260d9ffffffffe4570000000000001976a9142b6bdd30e74ce66a48839237e8e92b6e79faa94888ac9c2e2c9dcd8bfe1c3d4252cfff22e1f18fd3ff6074efe94ec92fe49527cafdb5000000006a473044022005966cb1feced76e593a881b08e9771c42a017b13311e357e4bac8e00cd94bd602206f514d5941cc00528bb21dc258e6d0f164b60a23db46dc5ac8a3e27773f81717412102ed226031b4e89b348bc641ce07c9589f3fc87d7bc9ea75a0d93edcf3370260d9ffffffff7c920000000000001976a9142b6bdd30e74ce66a48839237e8e92b6e79faa94888ac02f8240100000000001976a914e8fc63df35216a12bb8bfafc1eda1f84e81b5c6688acc8310000000000001976a9141d3c80e5da9da1d88db1717727f36aa0855850c388ac00000000",

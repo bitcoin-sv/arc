@@ -137,6 +137,7 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		tracing.EndTracing(span, spanErr)
 	}()
 
+	expectedFee := uint64(0)
 	cumulativePaidFeeAncestors := uint64(0)
 
 	totalInputTx, err := tx.TotalInputSatoshis()
@@ -145,7 +146,6 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		return validator.NewError(e, api.ErrStatusCumulativeFees)
 	}
 	totalOutputTx := tx.TotalOutputSatoshis()
-	expectedFee := uint64(0)
 	paidFeeTx := totalInputTx - totalOutputTx
 
 	for _, txFromSet := range txSet {

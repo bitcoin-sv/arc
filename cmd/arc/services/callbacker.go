@@ -57,8 +57,8 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		dispose(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
-		logger.Info("Shutdown complete")
+		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
+		logger.Info("Shutdown callbacker complete")
 	}
 
 	callbackerStore, err = newStore(cfg.Db)
@@ -178,7 +178,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 	return s, err
 }
 
-func dispose(l *slog.Logger, server *callbacker.Server,
+func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
 	store *postgresql.PostgreSQL, healthServer *grpc_opts.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
 	// dispose the dependencies in the correct order:

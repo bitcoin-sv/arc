@@ -193,6 +193,8 @@ func (m *SendManager) Start() {
 				err = m.store.SetMany(context.Background(), data)
 				if err != nil {
 					m.logger.Error("Failed to set remaining callbacks from queue", slog.String("err", err.Error()))
+				} else {
+					m.logger.Info("Stored remaining callbacks from queue", slog.Int("length", len(data)))
 				}
 			}
 

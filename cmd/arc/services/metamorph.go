@@ -88,7 +88,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
 		disposeMtm(logger, server, processor, pm, messenger, multicaster, mqClient, metamorphStore, healthServer, shutdownFns)
-		logger.Info("Shutdown complete")
+		logger.Info("Shutdown metamorph complete")
 	}
 
 	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, arcConfig.Tracing)

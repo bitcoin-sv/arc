@@ -154,7 +154,7 @@ func run() error {
 }
 
 func appCleanup(logger *slog.Logger, shutdownFns []func()) {
-	logger.Info("Shutting down")
+	logger.Info("cleaning up")
 	for _, fn := range shutdownFns {
 		fn()
 	}

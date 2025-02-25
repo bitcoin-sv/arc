@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
-	"github.com/bitcoin-sv/arc/internal/fees"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -66,8 +66,14 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err = checkCumulativeFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
-			return err
+		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)
+		if err != nil {
+			e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
+			return validator.NewError(e, api.ErrStatusCumulativeFees)
+		}
+		vErr := checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...)
+		if vErr != nil {
+			return vErr
 		}
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
@@ -121,9 +127,9 @@ func checkStandardFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
+func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transaction, tx *sdkTx.Transaction, feeModel *feemodel.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
 	var spanErr error
-	ctx, span := tracing.StartTracing(ctx, "checkCumulativeFees", tracingEnabled, tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "checkCumulativeFees", tracingEnabled, tracingAttributes...)
 	defer func() {
 		if vErr != nil {
 			spanErr = vErr.Err
@@ -131,21 +137,27 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 		tracing.EndTracing(span, spanErr)
 	}()
 
-	txSet, err := getUnminedAncestors(ctx, txFinder, tx, tracingEnabled, tracingAttributes...)
+	cumulativePaidFeeAncestors := uint64(0)
+
+	totalInputTx, err := tx.TotalInputSatoshis()
 	if err != nil {
-		e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
+		e := fmt.Errorf("failed to get total input satoshis: %w", err)
 		return validator.NewError(e, api.ErrStatusCumulativeFees)
 	}
-	txSet[""] = tx // do not need to care about key in the set
-
-	cumulativeSize := 0
-	cumulativePaidFee := uint64(0)
+	totalOutputTx := tx.TotalOutputSatoshis()
+	expectedFee := uint64(0)
+	paidFeeTx := totalInputTx - totalOutputTx
 
 	for _, txFromSet := range txSet {
-		cumulativeSize += txFromSet.Size()
+		expectedFeeTx, err := feeModel.ComputeFee(txFromSet)
+		if err != nil {
+			e := fmt.Errorf("failed to compute fee: %w", err)
+			return validator.NewError(e, api.ErrStatusCumulativeFees)
+		}
+		expectedFee += expectedFeeTx
 		total, err := txFromSet.TotalInputSatoshis()
 		if err != nil {
-			e := fmt.Errorf("failed to get total input satoshis %w", err)
+			e := fmt.Errorf("failed to get total input satoshis: %w", err)
 			return validator.NewError(e, api.ErrStatusCumulativeFees)
 		}
 		totalInput := total
@@ -155,16 +167,11 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 			return validator.NewError(fmt.Errorf("total outputs %d is larger than total inputs %d for tx %s", totalOutput, totalInput, tx.TxID()), api.ErrStatusCumulativeFees)
 		}
 
-		cumulativePaidFee += totalInput - totalOutput
+		cumulativePaidFeeAncestors += totalInput - totalOutput
 	}
 
-	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))
-	if err != nil {
-		return validator.NewError(err, api.ErrStatusCumulativeFees)
-	}
-
-	if expectedFee > cumulativePaidFee {
-		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFee))
+	if expectedFee-cumulativePaidFeeAncestors > paidFeeTx {
+		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFeeAncestors))
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

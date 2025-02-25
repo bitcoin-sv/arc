@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
@@ -23,12 +25,14 @@ var (
 type DefaultValidator struct {
 	policy   *bitcoin.Settings
 	txFinder validator.TxFinderI
+	logger   *slog.Logger
 }
 
 func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator {
 	return &DefaultValidator{
 		policy:   policy,
 		txFinder: finder,
+		logger:   slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
 	}
 }
 
@@ -66,7 +70,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 	case validator.CumulativeFeeValidation:
-		if err = checkCumulativeFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
+		if err = v.checkCumulativeFees(ctx, v.txFinder, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...); err != nil {
 			return err
 		}
 	case validator.NoneFeeValidation:
@@ -121,7 +125,7 @@ func checkStandardFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validato
 	return nil
 }
 
-func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
+func (v *DefaultValidator) checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *sdkTx.Transaction, feeModel *fees.SatoshisPerKilobyte, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (vErr *validator.Error) {
 	var spanErr error
 	ctx, span := tracing.StartTracing(ctx, "checkCumulativeFees", tracingEnabled, tracingAttributes...)
 	defer func() {
@@ -141,7 +145,9 @@ func checkCumulativeFees(ctx context.Context, txFinder validator.TxFinderI, tx *
 	cumulativeSize := 0
 	cumulativePaidFee := uint64(0)
 
-	for _, txFromSet := range txSet {
+	for key, txFromSet := range txSet {
+		v.logger.Info("key", key, "hex", txFromSet.Hex())
+
 		cumulativeSize += txFromSet.Size()
 		total, err := txFromSet.TotalInputSatoshis()
 		if err != nil {

@@ -683,6 +683,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		}
 	}
 
+	return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, "test")
+
 	if len(submittedTxs) == 0 {
 		return nil, fails, nil
 	}

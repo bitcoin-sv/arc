@@ -146,7 +146,12 @@ func (v *DefaultValidator) checkCumulativeFees(ctx context.Context, txFinder val
 	cumulativePaidFee := uint64(0)
 
 	for key, txFromSet := range txSet {
-		v.logger.Info("key", key, "hex", txFromSet.Hex())
+		efHex, err := txFromSet.EFHex()
+		if err != nil {
+			v.logger.Error("failed to convert tx from set to hex", "err", err)
+			continue
+		}
+		v.logger.Info("key", key, "hex", efHex)
 
 		cumulativeSize += txFromSet.Size()
 		total, err := txFromSet.TotalInputSatoshis()

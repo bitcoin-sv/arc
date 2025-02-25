@@ -398,6 +398,85 @@ func TestNeedExtension(t *testing.T) {
 	}
 }
 
+func TestGetUnminedAncestors(t *testing.T) {
+	txMap := map[string]*sdkTx.Transaction{
+		fixture.ParentTxID1:              fixture.ParentTx1,
+		fixture.AncestorTxID1:            fixture.AncestorTx1,
+		fixture.AncestorOfAncestorTx1ID1: fixture.AncestorOfAncestor1Tx1,
+	}
+	tx := fixture.ValidTx
+
+	tcs := []struct {
+		name                   string
+		feeModel               *feemodel.SatoshisPerKilobyte
+		mempoolAncestors       []string
+		getMempoolAncestorsErr error
+
+		expectedTxSet map[string]*sdkTx.Transaction
+		expectedErr   error
+	}{
+		{
+			name: "no unmined ancestors - valid fee",
+			feeModel: func() *feemodel.SatoshisPerKilobyte {
+				return &feemodel.SatoshisPerKilobyte{Satoshis: 1}
+			}(),
+			mempoolAncestors: []string{},
+			expectedTxSet:    map[string]*sdkTx.Transaction{},
+		},
+		{
+			name: "cumulative fees sufficient",
+			feeModel: func() *feemodel.SatoshisPerKilobyte {
+				return &feemodel.SatoshisPerKilobyte{Satoshis: 1}
+			}(),
+			mempoolAncestors: []string{fixture.AncestorTxID1},
+			expectedTxSet:    map[string]*sdkTx.Transaction{"147a55659a647b9931d8d4797dfbdd2ca8d34e56940e2463f818e8801e3ff003": fixture.AncestorTx1},
+		},
+		{
+			name: "failed to get mempool ancestors",
+			feeModel: func() *feemodel.SatoshisPerKilobyte {
+				return &feemodel.SatoshisPerKilobyte{Satoshis: 5}
+			}(),
+			getMempoolAncestorsErr: errors.New("some error"),
+
+			expectedErr: ErrFailedToGetMempoolAncestors,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			txFinder := &mocks.TxFinderIMock{
+				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
+					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
+				},
+				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) []*sdkTx.Transaction {
+					rawTxs := make([]*sdkTx.Transaction, len(ids))
+					for i, id := range ids {
+						rawTx, ok := txMap[id]
+						if !ok {
+							t.Fatalf("tx id %s not found", id)
+						}
+						rawTxs[i] = rawTx
+					}
+
+					return rawTxs
+				},
+			}
+
+			actualTxSet, actualError := getUnminedAncestors(context.TODO(), txFinder, tx, false)
+
+			// then
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, actualError, tc.expectedErr)
+				return
+			}
+
+			require.NoError(t, actualError)
+			require.Equal(t, tc.expectedTxSet, actualTxSet)
+		})
+	}
+}
+
 func TestExtendTxCheckCumulativeFees(t *testing.T) {
 	txMap := map[string]*sdkTx.Transaction{
 		fixture.ParentTxID1:              fixture.ParentTx1,

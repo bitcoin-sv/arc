@@ -18,6 +18,7 @@ import (
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -78,7 +79,7 @@ func main() {
 	}
 
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := metamorph.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	conn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -86,7 +87,7 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := blocktx.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	btcConn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}

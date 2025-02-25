@@ -28,11 +28,10 @@ type Server struct {
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_opts.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
-	grpcServer, err := grpc_utils.NewGrpcServer(logger, "blocktx", prometheusEndpoint, maxMsgSize, tracingConfig)
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}

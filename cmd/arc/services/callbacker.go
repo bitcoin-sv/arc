@@ -129,7 +129,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		return nil, err
 	}
 
-	serverCfg := grpc_opts.ServerConfig{
+	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
 		MaxMsgSize:         arcConfig.GrpcMessageSize,
 		TracingConfig:      arcConfig.Tracing,

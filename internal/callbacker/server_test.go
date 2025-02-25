@@ -13,7 +13,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
 func TestNewServer(t *testing.T) {
@@ -21,7 +21,7 @@ func TestNewServer(t *testing.T) {
 		// Given
 
 		// When
-		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_opts.ServerConfig{})
+		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
 
 		// Then
 		require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
 		// Given
-		sut, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_opts.ServerConfig{})
+		sut, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -66,7 +66,7 @@ func TestSendCallback(t *testing.T) {
 			}
 		}}
 
-		server, err := callbacker.NewServer(slog.Default(), mockDispatcher, nil, grpc_opts.ServerConfig{})
+		server, err := callbacker.NewServer(slog.Default(), mockDispatcher, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 
 		request := &callbacker_api.SendCallbackRequest{

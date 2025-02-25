@@ -22,8 +22,8 @@ type Server struct {
 }
 
 // NewServer will return a server instance
-func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_opts.ServerConfig) (*Server, error) {
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_utils.ServerConfig) (*Server, error) {
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}

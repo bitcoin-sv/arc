@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	validation "github.com/bitcoin-sv/arc/internal/validator"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 )
@@ -33,103 +33,72 @@ const (
 func TestValidator(t *testing.T) {
 	t.Parallel()
 
-	//tt := []struct {
-	//	name  string
-	//	txHex string
-	//
-	//	expectedError error
-	//}{
-	//	{
-	//		name:  "valid tx",
-	//		txHex: "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
-	//	},
-	//	{
-	//		name:  "invalid tx",
-	//		txHex: "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
-	//
-	//		expectedError: validation.ErrScriptExecutionFailed,
-	//	},
-	//}
-	//
-	//for _, tc := range tt {
-	//	t.Run(tc.name, func(t *testing.T) {
-	//		// given
-	//		// extended tx
-	//		tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
-	//		policy := getPolicy(500)
-	//		sut := New(policy, nil)
-	//
-	//		// when
-	//		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
-	//
-	//		// then
-	//
-	//		if tc.expectedError != nil {
-	//			require.ErrorIs(t, actualError, tc.expectedError)
-	//			return
-	//		}
-	//		require.NoError(t, actualError)
-	//	})
-	//}
+	tt := []struct {
+		name     string
+		txHex    string
+		satPerKb uint64
+		finder   validator.TxFinderI
 
-	t.Run("valid tx", func(t *testing.T) {
-		// given
-		// extended tx
-		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
-		policy := getPolicy(500)
-		sut := New(policy, nil)
+		expectedError error
+	}{
+		{
+			name:     "valid tx",
+			txHex:    "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
+			satPerKb: 500,
+		},
+		{
+			name:     "invalid tx",
+			txHex:    "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
+			satPerKb: 500,
 
-		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+			expectedError: validator.ErrScriptExecutionFailed,
+		},
+		{
+			name:     "low fee error",
+			txHex:    "010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000",
+			satPerKb: 500,
 
-		// then
-		require.NoError(t, actualError)
-	})
+			expectedError: ErrTxFeeTooLow,
+		},
+		{
+			name:     "valid tx 2",
+			txHex:    "010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000",
+			satPerKb: 5,
+		},
+		{
+			name:     "valid Raw Format tx - expect success",
+			txHex:    fixture.ValidTxRawHex,
+			satPerKb: 5,
+			finder: &mocks.TxFinderIMock{
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+					return []*sdkTx.Transaction{fixture.ParentTx1}
+				},
+			},
 
-	t.Run("invalid tx", func(t *testing.T) {
-		// given
-		// extended tx
-		tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00e40b5402000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
-		policy := getPolicy(500)
-		sut := New(policy, nil)
+			expectedError: ErrTxFeeTooLow,
+		},
+	}
 
-		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			// extended tx
+			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
+			policy := getPolicy(tc.satPerKb)
+			sut := New(policy, tc.finder)
 
-		// then
-		require.Error(t, actualError, "Validation should have returned an error")
-		if actualError != nil {
-			require.ErrorContains(t, actualError, validation.ErrScriptExecutionFailed.Error())
-		}
-	})
+			// when
+			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 
-	t.Run("low fee error", func(t *testing.T) {
-		// given
-		// extended tx
-		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
-		policy := getPolicy(500)
-		sut := New(policy, nil)
-
-		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
-
-		// then
-		require.Error(t, actualError)
-	})
-
-	t.Run("valid tx 2", func(t *testing.T) {
-		// given
-		// extended tx
-		tx, _ := sdkTx.NewTransactionFromHex("010000000000000000ef01a7968c39fe10ae04686061ab99dc6774f0ebbd8679e521e6fc944d919d9d19a1020000006a4730440220318d23e6fd7dd5ace6e8dc1888b363a053552f48ecc166403a1cc65db5e16aca02203a9ad254cb262f50c89487ffd72e8ddd8536c07f4b230d13a2ccd1435898e89b412102dd7dce95e52345704bbb4df4e4cfed1f8eaabf8260d33597670e3d232c491089ffffffff44040000000000001976a914cd43ba65ce83778ef04b207de14498440f3bd46c88ac013a040000000000001976a9141754f52fc862c7a6106c964c35db7d92a57fec2488ac00000000")
-		policy := getPolicy(5)
-		sut := New(policy, nil)
-
-		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
-
-		// then
-		require.NoError(t, actualError)
-	})
+			// then
+			if tc.expectedError != nil {
+				require.Error(t, actualError)
+				require.ErrorContains(t, actualError, tc.expectedError.Error())
+				return
+			}
+			require.NoError(t, actualError)
+		})
+	}
 
 	t.Run("valid tx multi", func(t *testing.T) {
 		// given
@@ -147,7 +116,7 @@ func TestValidator(t *testing.T) {
 			sut := New(policy, nil)
 
 			// when
-			actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 
 			// then
 			require.NoError(t, actualError, "Failed to validate tx %d", txIndex)
@@ -181,30 +150,10 @@ func TestValidator(t *testing.T) {
 		sut := New(policy, nil)
 
 		// when
-		actualError := sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 
 		// then
 		require.NoError(t, actualError, "Failed to validate tx")
-	})
-
-	t.Run("valid Raw Format tx - expect success", func(t *testing.T) {
-		// given
-		txFinder := mocks.TxFinderIMock{
-			GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, _ []string) []*sdkTx.Transaction {
-				return []*sdkTx.Transaction{fixture.ParentTx1}
-			},
-		}
-
-		rawTx := fixture.ValidTx
-
-		sut := New(getPolicy(5), &txFinder)
-
-		// when
-		actualError := sut.ValidateTransaction(context.TODO(), rawTx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
-
-		// then
-		//require.ErrorIs(t, actualError, ErrTxFeeTooLow)
-		require.ErrorContains(t, actualError, "minimum expected fee: 5, actual fee: 1")
 	})
 }
 
@@ -333,7 +282,7 @@ func BenchmarkValidator(b *testing.B) {
 	sut := New(policy, nil)
 
 	for i := 0; i < b.N; i++ {
-		_ = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 	}
 }
 
@@ -345,7 +294,7 @@ func TestFeeCalculation(t *testing.T) {
 	sut := New(policy, nil)
 
 	// when
-	err = sut.ValidateTransaction(context.TODO(), tx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 
 	// then
 	t.Log(err)
@@ -355,29 +304,29 @@ func TestNeedExtension(t *testing.T) {
 	tcs := []struct {
 		name           string
 		txHex          string
-		feeOpt         validation.FeeValidation
-		scriptOpt      validation.ScriptValidation
+		feeOpt         validator.FeeValidation
+		scriptOpt      validator.ScriptValidation
 		expectedResult bool
 	}{
 		{
 			name:           "raw hex - expect true",
 			txHex:          testdata.TX1RawString,
-			feeOpt:         validation.StandardFeeValidation,
-			scriptOpt:      validation.StandardScriptValidation,
+			feeOpt:         validator.StandardFeeValidation,
+			scriptOpt:      validator.StandardScriptValidation,
 			expectedResult: true,
 		},
 		{
 			name:           "ef hex - expect false",
 			txHex:          "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
-			feeOpt:         validation.StandardFeeValidation,
-			scriptOpt:      validation.StandardScriptValidation,
+			feeOpt:         validator.StandardFeeValidation,
+			scriptOpt:      validator.StandardScriptValidation,
 			expectedResult: false,
 		},
 		{
 			name:           "raw hex, skip fee and script validation - expect false",
 			txHex:          testdata.TX1RawString,
-			feeOpt:         validation.NoneFeeValidation,
-			scriptOpt:      validation.NoneScriptValidation,
+			feeOpt:         validator.NoneFeeValidation,
+			scriptOpt:      validator.NoneScriptValidation,
 			expectedResult: false,
 		},
 	}
@@ -447,7 +396,7 @@ func TestGetUnminedAncestors(t *testing.T) {
 				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
 					return tc.mempoolAncestors, tc.getMempoolAncestorsErr
 				},
-				GetRawTxsFunc: func(_ context.Context, _ validation.FindSourceFlag, ids []string) []*sdkTx.Transaction {
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
 					rawTxs := make([]*sdkTx.Transaction, len(ids))
 					for i, id := range ids {
 						rawTx, ok := txMap[id]

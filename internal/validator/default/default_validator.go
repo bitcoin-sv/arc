@@ -164,6 +164,8 @@ func (v *DefaultValidator) checkCumulativeFees(ctx context.Context, txFinder val
 		cumulativePaidFee += totalInput - totalOutput
 	}
 
+	v.logger.Info("fee", slog.Uint64("sat", feeModel.Satoshis))
+
 	expectedFee, err := feeModel.ComputeFeeBasedOnSize(uint64(cumulativeSize))
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusCumulativeFees)

@@ -448,7 +448,7 @@ func TestCheckCumulativeFees(t *testing.T) {
 			txString:            txString,
 			feeModel:            &feemodel.SatoshisPerKilobyte{Satoshis: 1},
 
-			expectedErrString: "minimum expected cumulative fee: 31, actual fee: 20",
+			expectedErrString: "minimum expected cumulative fee: 31, actual cumulative fee: 21",
 			expectedErr:       ErrTxFeeTooLow,
 		},
 		{

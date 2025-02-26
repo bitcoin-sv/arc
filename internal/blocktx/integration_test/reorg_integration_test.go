@@ -251,8 +251,6 @@ func TestReorg(t *testing.T) {
 			blockHash822021        = "d46bf0a189927b62c8ff785d393a545093ca01af159aed771a8d94749f06c060"
 			blockHash822022Orphan  = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
 			blockHash822023Orphan  = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
-
-			txhash822019 = "71fbb8fb5c0f978e3c221bc6ac235587f3c26fa10e231b54fce972d4a5c30e5e"
 		)
 
 		blockHash := testutils.RevChainhash(t, blockHash822021)

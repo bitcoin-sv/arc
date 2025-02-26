@@ -634,14 +634,14 @@ func TestSetUnlockedByName(t *testing.T) {
 		recordsAffected int64
 		errSetUnlocked  error
 
-		expectedRecordsAffected int
-		expectedErrorStr        string
+		expectedResp     string
+		expectedErrorStr string
 	}{
 		{
 			name:            "success",
 			recordsAffected: 5,
 
-			expectedRecordsAffected: 5,
+			expectedResp: "test",
 		},
 		{
 			name: "error",
@@ -668,8 +668,8 @@ func TestSetUnlockedByName(t *testing.T) {
 			defer sut.GracefulStop()
 
 			// when
-			response, err := sut.SetUnlockedByName(context.Background(), &metamorph_api.SetUnlockedByNameRequest{
-				Name: "test",
+			response, err := sut.UpdateInstances(context.Background(), &metamorph_api.UpdateInstancesRequest{
+				Instances: []string{"test"},
 			})
 
 			// then
@@ -679,7 +679,7 @@ func TestSetUnlockedByName(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedRecordsAffected, int(response.GetRecordsAffected()))
+			require.Equal(t, tc.expectedResp, response.GetResponse())
 		})
 	}
 }

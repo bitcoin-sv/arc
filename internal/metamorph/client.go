@@ -31,11 +31,6 @@ type TransactionHandler interface {
 	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
 }
 
-type TransactionMaintainer interface {
-	ClearData(ctx context.Context, retentionDays int32) (int64, error)
-	SetUnlockedByName(ctx context.Context, name string) (int64, error)
-}
-
 // TransactionStatus defines model for TransactionStatus.
 type TransactionStatus struct {
 	TxID          string
@@ -352,34 +347,6 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		})
 	}
 	return txStatuses, nil
-}
-
-func (m *Metamorph) ClearData(ctx context.Context, retentionDays int32) (rowsAffected int64, err error) {
-	ctx, span := tracing.StartTracing(ctx, "ClearData", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	resp, err := m.client.ClearData(ctx, &metamorph_api.ClearDataRequest{RetentionDays: retentionDays})
-	if err != nil {
-		return 0, err
-	}
-
-	return resp.RecordsAffected, nil
-}
-
-func (m *Metamorph) SetUnlockedByName(ctx context.Context, name string) (rowsAffected int64, err error) {
-	ctx, span := tracing.StartTracing(ctx, "SetUnlockedByName", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	resp, err := m.client.SetUnlockedByName(ctx, &metamorph_api.SetUnlockedByNameRequest{Name: name})
-	if err != nil {
-		return 0, err
-	}
-
-	return resp.RecordsAffected, nil
 }
 
 func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.TransactionRequest {

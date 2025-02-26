@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	cbcMocks "github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 )
 
@@ -69,15 +71,9 @@ func TestStartMetamorphWatcher(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnlockedErrTest := tc.setUnlockedErr
-			metamorphMock := &mtmMocks.TransactionMaintainerMock{
-				SetUnlockedByNameFunc: func(_ context.Context, name string) (int64, error) {
-					require.Equal(t, "metamorph-pod-2", name)
-
-					if setUnlockedErrTest != nil {
-						return 0, setUnlockedErrTest
-					}
-
-					return 3, nil
+			metamorphMock := &mtmMocks.MetaMorphAPIClientMock{
+				UpdateInstancesFunc: func(_ context.Context, _ *metamorph_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*metamorph_api.UpdateInstancesResponse, error) {
+					return &metamorph_api.UpdateInstancesResponse{Response: "response"}, nil
 				},
 			}
 			iteration := 0
@@ -108,39 +104,16 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				},
 			}
 
-			tickerChannel := make(chan time.Time, 1)
-			ticker := &mocks.TickerMock{
-				TickFunc: func() <-chan time.Time {
-					return tickerChannel
-				},
-				StopFunc: func() {},
-			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			tickerChannel2 := make(chan time.Time, 1)
-			ticker2 := &mocks.TickerMock{
-				TickFunc: func() <-chan time.Time {
-					return tickerChannel2
-				},
-				StopFunc: func() {},
-			}
-
-			watcher := k8s_watcher.New(metamorphMock, callbackerClient, k8sClientMock, "test-namespace", k8s_watcher.WithMetamorphTicker(ticker), k8s_watcher.WithCallbackerTicker(ticker2),
-				k8s_watcher.WithLogger(slog.Default()),
-				k8s_watcher.WithRetryInterval(20*time.Millisecond),
-			)
+			watcher := k8s_watcher.New(logger, metamorphMock, callbackerClient, k8sClientMock, "test-namespace")
 			err := watcher.Start()
 			require.NoError(t, err)
-
-			for range 3 {
-				tickerChannel <- time.Now()
-				tickerChannel2 <- time.Now()
-				time.Sleep(50 * time.Millisecond)
-			}
 
 			time.Sleep(100 * time.Millisecond)
 			watcher.Shutdown()
 
-			require.Equal(t, tc.expectedMetamorphSetUnlockedByNameCalls, len(metamorphMock.SetUnlockedByNameCalls()))
+			require.Equal(t, tc.expectedMetamorphSetUnlockedByNameCalls, len(metamorphMock.UpdateInstancesCalls()))
 			require.Equal(t, tc.expectedCallbackerUnmappingCalls, len(callbackerClient.UpdateInstancesCalls()))
 		})
 	}

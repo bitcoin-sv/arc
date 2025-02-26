@@ -67,6 +67,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
 //			},
+//			SetUnlockedByNameExceptFunc: func(ctx context.Context, except []string) (int64, error) {
+//				panic("mock out the SetUnlockedByNameExcept method")
+//			},
 //			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
 //				panic("mock out the UpdateDoubleSpend method")
 //			},
@@ -130,6 +133,9 @@ type MetamorphStoreMock struct {
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
+
+	// SetUnlockedByNameExceptFunc mocks the SetUnlockedByNameExcept method.
+	SetUnlockedByNameExceptFunc func(ctx context.Context, except []string) (int64, error)
 
 	// UpdateDoubleSpendFunc mocks the UpdateDoubleSpend method.
 	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
@@ -262,6 +268,13 @@ type MetamorphStoreMock struct {
 			// LockedBy is the lockedBy argument value.
 			LockedBy string
 		}
+		// SetUnlockedByNameExcept holds details about calls to the SetUnlockedByNameExcept method.
+		SetUnlockedByNameExcept []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Except is the except argument value.
+			Except []string
+		}
 		// UpdateDoubleSpend holds details about calls to the UpdateDoubleSpend method.
 		UpdateDoubleSpend []struct {
 			// Ctx is the ctx argument value.
@@ -306,6 +319,7 @@ type MetamorphStoreMock struct {
 	lockSetBulk                 sync.RWMutex
 	lockSetLocked               sync.RWMutex
 	lockSetUnlockedByName       sync.RWMutex
+	lockSetUnlockedByNameExcept sync.RWMutex
 	lockUpdateDoubleSpend       sync.RWMutex
 	lockUpdateMined             sync.RWMutex
 	lockUpdateStatusBulk        sync.RWMutex
@@ -873,6 +887,42 @@ func (mock *MetamorphStoreMock) SetUnlockedByNameCalls() []struct {
 	mock.lockSetUnlockedByName.RLock()
 	calls = mock.calls.SetUnlockedByName
 	mock.lockSetUnlockedByName.RUnlock()
+	return calls
+}
+
+// SetUnlockedByNameExcept calls SetUnlockedByNameExceptFunc.
+func (mock *MetamorphStoreMock) SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error) {
+	if mock.SetUnlockedByNameExceptFunc == nil {
+		panic("MetamorphStoreMock.SetUnlockedByNameExceptFunc: method is nil but MetamorphStore.SetUnlockedByNameExcept was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Except []string
+	}{
+		Ctx:    ctx,
+		Except: except,
+	}
+	mock.lockSetUnlockedByNameExcept.Lock()
+	mock.calls.SetUnlockedByNameExcept = append(mock.calls.SetUnlockedByNameExcept, callInfo)
+	mock.lockSetUnlockedByNameExcept.Unlock()
+	return mock.SetUnlockedByNameExceptFunc(ctx, except)
+}
+
+// SetUnlockedByNameExceptCalls gets all the calls that were made to SetUnlockedByNameExcept.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetUnlockedByNameExceptCalls())
+func (mock *MetamorphStoreMock) SetUnlockedByNameExceptCalls() []struct {
+	Ctx    context.Context
+	Except []string
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Except []string
+	}
+	mock.lockSetUnlockedByNameExcept.RLock()
+	calls = mock.calls.SetUnlockedByNameExcept
+	mock.lockSetUnlockedByNameExcept.RUnlock()
 	return calls
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -571,23 +572,13 @@ func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.Transac
 	return s.store.GetMany(ctx, keys)
 }
 
-func (s *Server) SetUnlockedByName(ctx context.Context, req *metamorph_api.SetUnlockedByNameRequest) (result *metamorph_api.SetUnlockedByNameResponse, err error) {
-	ctx, span := tracing.StartTracing(ctx, "SetUnlockedByName", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	recordsAffected, err := s.store.SetUnlockedByName(ctx, req.GetName())
+func (s *Server) UpdateInstances(ctx context.Context, request *metamorph_api.UpdateInstancesRequest) (*metamorph_api.UpdateInstancesResponse, error) {
+	rowsAffected, err := s.store.SetUnlockedByNameExcept(ctx, request.Instances)
 	if err != nil {
-		s.logger.Error("failed to set unlocked by name", slog.String("name", req.GetName()), slog.String("err", err.Error()))
 		return nil, err
 	}
 
-	result = &metamorph_api.SetUnlockedByNameResponse{
-		RecordsAffected: recordsAffected,
-	}
-
-	return result, nil
+	return &metamorph_api.UpdateInstancesResponse{Response: fmt.Sprintf("Removed %d URL mappings", rowsAffected)}, nil
 }
 
 func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (result *metamorph_api.ClearDataResponse, err error) {

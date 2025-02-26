@@ -641,7 +641,7 @@ func TestSetUnlockedByName(t *testing.T) {
 			name:            "success",
 			recordsAffected: 5,
 
-			expectedResp: "test",
+			expectedResp: "Removed 5 URL mappings",
 		},
 		{
 			name: "error",
@@ -655,10 +655,7 @@ func TestSetUnlockedByName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
-					return &store.Data{}, nil
-				},
-				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) {
+				SetUnlockedByNameExceptFunc: func(_ context.Context, _ []string) (int64, error) {
 					return tc.recordsAffected, tc.errSetUnlocked
 				},
 			}

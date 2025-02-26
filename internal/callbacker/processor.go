@@ -99,7 +99,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 	// check if this processor the first URL of this request is mapped to this instance
 	p.mu.Lock()
-	instance, found := p.urlMapping[(request.CallbackRouting.Url)]
+	instance, found := p.urlMapping[request.CallbackRouting.Url]
 	p.mu.Unlock()
 	if !found {
 		p.logger.Debug("setting URL mapping", "instance", p.hostName, "url", request.CallbackRouting.Url)
@@ -109,7 +109,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 		})
 		if err != nil {
 			if errors.Is(err, store.ErrURLMappingDuplicateKey) {
-				p.logger.Debug("URL already mapped", slog.String("err", err.Error()))
+				p.logger.Debug("URL already mapped", slog.String("url", request.CallbackRouting.Url), slog.String("err", err.Error()))
 
 				errAck := msg.Ack()
 				if errAck != nil {
@@ -209,7 +209,9 @@ func (p *Processor) DispatchPersistedCallbacks() {
 			case <-ticker.C:
 				url, err := p.store.GetUnmappedURL(ctx)
 				if err != nil {
-					p.logger.Error("Failed to fetch unmapped url", slog.String("err", err.Error()))
+					if !errors.Is(err, store.ErrNoUnmappedURLsFound) {
+						p.logger.Error("Failed to fetch unmapped url", slog.String("err", err.Error()))
+					}
 					continue
 				}
 
@@ -220,7 +222,7 @@ func (p *Processor) DispatchPersistedCallbacks() {
 
 				if err != nil {
 					if errors.Is(err, store.ErrURLMappingDuplicateKey) {
-						p.logger.Debug("URL already mapped", slog.String("err", err.Error()))
+						p.logger.Debug("URL already mapped", slog.String("url", url), slog.String("err", err.Error()))
 						continue
 					}
 

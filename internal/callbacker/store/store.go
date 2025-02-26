@@ -10,6 +10,7 @@ var (
 	ErrURLMappingDuplicateKey  = errors.New("URL mapping duplicate key")
 	ErrURLMappingDeleteFailed  = errors.New("failed to delete URL mapping entry")
 	ErrURLMappingsDeleteFailed = errors.New("failed to delete URL mapping entries")
+	ErrNoUnmappedURLsFound     = errors.New("no unmapped URLs found")
 )
 
 type CallbackData struct {

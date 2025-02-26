@@ -185,13 +185,14 @@ func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) erro
 	return nil
 }
 
+// GetUnmappedURL Returns unmapped URLs for which there exists a pending callback in the callbacks table
 func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error) {
 	const q = `SELECT c.url FROM callbacker.callbacks c LEFT JOIN callbacker.url_mapping um ON um.url = c.url WHERE um.url IS NULL LIMIT 1;`
 
 	err = p.db.QueryRowContext(ctx, q).Scan(&url)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
+			return "", store.ErrNoUnmappedURLsFound
 		}
 
 		return "", err

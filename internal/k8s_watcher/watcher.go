@@ -3,6 +3,7 @@ package k8s_watcher
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 const (
 	metamorphService  = "metamorph"
 	callbackerService = "callbacker"
-	intervalDefault   = 15 * time.Second
+	intervalDefault   = 30 * time.Second
 )
 
 type K8sClient interface {
@@ -60,27 +61,21 @@ func New(logger *slog.Logger, metamorphClient metamorph_api.MetaMorphAPIClient, 
 
 func (c *Watcher) Start() error {
 	c.updateRunningPods(metamorphService, c.updateInterval, func(ctx context.Context, podNames []string) error {
-		response, err := c.metamorphClient.UpdateInstances(ctx, &metamorph_api.UpdateInstancesRequest{Instances: podNames})
-		if err == nil && response.Response != "" {
-			if response.Response != "" {
-				c.logger.Info("Updated instances", slog.String("service", metamorphService), slog.String("response", response.Response))
-			}
-			c.logger.Debug("Updated instances", slog.String("service", metamorphService), slog.String("response", response.Response))
+		_, err := c.metamorphClient.UpdateInstances(ctx, &metamorph_api.UpdateInstancesRequest{Instances: podNames})
+		if err != nil {
+			return err
 		}
-
-		return err
+		c.logger.Debug("Updated instances", slog.String("service", metamorphService), slog.String("pod-names", strings.Join(podNames, ",")))
+		return nil
 	})
 
 	c.updateRunningPods(callbackerService, c.updateInterval, func(ctx context.Context, podNames []string) error {
-		response, err := c.callbackerClient.UpdateInstances(ctx, &callbacker_api.UpdateInstancesRequest{Instances: podNames})
-		if err == nil {
-			if response.Response != "" {
-				c.logger.Info("Updated instances", slog.String("service", callbackerService), slog.String("response", response.Response))
-			}
-			c.logger.Debug("Updated instances", slog.String("service", callbackerService), slog.String("response", response.Response))
+		_, err := c.callbackerClient.UpdateInstances(ctx, &callbacker_api.UpdateInstancesRequest{Instances: podNames})
+		if err != nil {
+			return err
 		}
-
-		return err
+		c.logger.Debug("Updated instances", slog.String("service", metamorphService), slog.String("pod-names", strings.Join(podNames, ",")))
+		return nil
 	})
 
 	return nil

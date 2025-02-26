@@ -42,7 +42,7 @@ type MetaMorphAPIClient interface {
 	GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 	GetTransactionStatuses(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*TransactionStatuses, error)
-	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*UpdateInstancesResponse, error)
+	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error)
 }
 
@@ -124,9 +124,9 @@ func (c *metaMorphAPIClient) GetTransactionStatuses(ctx context.Context, in *Tra
 	return out, nil
 }
 
-func (c *metaMorphAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*UpdateInstancesResponse, error) {
+func (c *metaMorphAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateInstancesResponse)
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, MetaMorphAPI_UpdateInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ type MetaMorphAPIServer interface {
 	GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error)
-	UpdateInstances(context.Context, *UpdateInstancesRequest) (*UpdateInstancesResponse, error)
+	UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error)
 	ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
 }
@@ -188,7 +188,7 @@ func (UnimplementedMetaMorphAPIServer) GetTransactionStatus(context.Context, *Tr
 func (UnimplementedMetaMorphAPIServer) GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionStatuses not implemented")
 }
-func (UnimplementedMetaMorphAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*UpdateInstancesResponse, error) {
+func (UnimplementedMetaMorphAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateInstances not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error) {

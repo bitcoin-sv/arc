@@ -31,7 +31,7 @@ const (
 type CallbackerAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*UpdateInstancesResponse, error)
+	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type callbackerAPIClient struct {
@@ -62,9 +62,9 @@ func (c *callbackerAPIClient) SendCallback(ctx context.Context, in *SendCallback
 	return out, nil
 }
 
-func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*UpdateInstancesResponse, error) {
+func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateInstancesResponse)
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, CallbackerAPI_UpdateInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateIns
 type CallbackerAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error)
-	UpdateInstances(context.Context, *UpdateInstancesRequest) (*UpdateInstancesResponse, error)
+	UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCallbackerAPIServer()
 }
 
@@ -95,7 +95,7 @@ func (UnimplementedCallbackerAPIServer) Health(context.Context, *emptypb.Empty) 
 func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCallback not implemented")
 }
-func (UnimplementedCallbackerAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*UpdateInstancesResponse, error) {
+func (UnimplementedCallbackerAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateInstances not implemented")
 }
 func (UnimplementedCallbackerAPIServer) mustEmbedUnimplementedCallbackerAPIServer() {}

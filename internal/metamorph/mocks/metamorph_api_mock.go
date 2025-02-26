@@ -45,7 +45,7 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //			PutTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 //				panic("mock out the PutTransactions method")
 //			},
-//			UpdateInstancesFunc: func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*metamorph_api.UpdateInstancesResponse, error) {
+//			UpdateInstancesFunc: func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the UpdateInstances method")
 //			},
 //		}
@@ -80,7 +80,7 @@ type MetaMorphAPIClientMock struct {
 	PutTransactionsFunc func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error)
 
 	// UpdateInstancesFunc mocks the UpdateInstances method.
-	UpdateInstancesFunc func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*metamorph_api.UpdateInstancesResponse, error)
+	UpdateInstancesFunc func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -498,7 +498,7 @@ func (mock *MetaMorphAPIClientMock) PutTransactionsCalls() []struct {
 }
 
 // UpdateInstances calls UpdateInstancesFunc.
-func (mock *MetaMorphAPIClientMock) UpdateInstances(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*metamorph_api.UpdateInstancesResponse, error) {
+func (mock *MetaMorphAPIClientMock) UpdateInstances(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	if mock.UpdateInstancesFunc == nil {
 		panic("MetaMorphAPIClientMock.UpdateInstancesFunc: method is nil but MetaMorphAPIClient.UpdateInstances was just called")
 	}

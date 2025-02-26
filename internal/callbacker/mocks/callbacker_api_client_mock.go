@@ -27,7 +27,7 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //			SendCallbackFunc: func(ctx context.Context, in *callbacker_api.SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the SendCallback method")
 //			},
-//			UpdateInstancesFunc: func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
+//			UpdateInstancesFunc: func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the UpdateInstances method")
 //			},
 //		}
@@ -44,7 +44,7 @@ type CallbackerAPIClientMock struct {
 	SendCallbackFunc func(ctx context.Context, in *callbacker_api.SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
 	// UpdateInstancesFunc mocks the UpdateInstances method.
-	UpdateInstancesFunc func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error)
+	UpdateInstancesFunc func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -162,7 +162,7 @@ func (mock *CallbackerAPIClientMock) SendCallbackCalls() []struct {
 }
 
 // UpdateInstances calls UpdateInstancesFunc.
-func (mock *CallbackerAPIClientMock) UpdateInstances(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
+func (mock *CallbackerAPIClientMock) UpdateInstances(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	if mock.UpdateInstancesFunc == nil {
 		panic("CallbackerAPIClientMock.UpdateInstancesFunc: method is nil but CallbackerAPIClient.UpdateInstances was just called")
 	}

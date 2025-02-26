@@ -9,7 +9,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 

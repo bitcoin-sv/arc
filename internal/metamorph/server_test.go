@@ -634,14 +634,11 @@ func TestSetUnlockedByName(t *testing.T) {
 		recordsAffected int64
 		errSetUnlocked  error
 
-		expectedResp     string
 		expectedErrorStr string
 	}{
 		{
 			name:            "success",
 			recordsAffected: 5,
-
-			expectedResp: "Removed 5 URL mappings",
 		},
 		{
 			name: "error",
@@ -665,7 +662,7 @@ func TestSetUnlockedByName(t *testing.T) {
 			defer sut.GracefulStop()
 
 			// when
-			response, err := sut.UpdateInstances(context.Background(), &metamorph_api.UpdateInstancesRequest{
+			_, err = sut.UpdateInstances(context.Background(), &metamorph_api.UpdateInstancesRequest{
 				Instances: []string{"test"},
 			})
 
@@ -676,7 +673,6 @@ func TestSetUnlockedByName(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedResp, response.GetResponse())
 		})
 	}
 }

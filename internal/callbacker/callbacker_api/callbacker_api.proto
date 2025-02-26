@@ -10,7 +10,7 @@ import "google/protobuf/empty.proto";
 service CallbackerAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
-  rpc UpdateInstances(UpdateInstancesRequest) returns (UpdateInstancesResponse) {}
+  rpc UpdateInstances(UpdateInstancesRequest) returns (google.protobuf.Empty) {}
 }
 
 // Note: Values of the statuses have a difference between them in case
@@ -66,11 +66,6 @@ message SendCallbackRequest {
 // swagger:model UpdateInstancesRequest
 message UpdateInstancesRequest {
   repeated string instances = 1;
-}
-
-// swagger:model UpdateInstancesResponse
-message UpdateInstancesResponse {
-  string response = 1;
 }
 
 // swagger:model CallbackRouting

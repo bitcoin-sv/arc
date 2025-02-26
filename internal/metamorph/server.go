@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -572,13 +571,17 @@ func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.Transac
 	return s.store.GetMany(ctx, keys)
 }
 
-func (s *Server) UpdateInstances(ctx context.Context, request *metamorph_api.UpdateInstancesRequest) (*metamorph_api.UpdateInstancesResponse, error) {
+func (s *Server) UpdateInstances(ctx context.Context, request *metamorph_api.UpdateInstancesRequest) (*emptypb.Empty, error) {
 	rowsAffected, err := s.store.SetUnlockedByNameExcept(ctx, request.Instances)
 	if err != nil {
-		return nil, err
+		return &emptypb.Empty{}, err
 	}
 
-	return &metamorph_api.UpdateInstancesResponse{Response: fmt.Sprintf("Removed %d URL mappings", rowsAffected)}, nil
+	if rowsAffected > 0 {
+		s.logger.Info("unlocked items", slog.Int64("items", rowsAffected))
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequest) (result *metamorph_api.ClearDataResponse, err error) {

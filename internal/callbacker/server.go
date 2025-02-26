@@ -2,7 +2,6 @@ package callbacker
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -20,6 +19,7 @@ type Server struct {
 	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
+	logger     *slog.Logger
 }
 
 // NewServer will return a server instance
@@ -33,6 +33,7 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 		GrpcServer: grpcServer,
 		dispatcher: dispatcher,
 		store:      callbackerStore,
+		logger:     logger,
 	}
 
 	callbacker_api.RegisterCallbackerAPIServer(s.GrpcServer.Srv, s)
@@ -58,13 +59,17 @@ func (s *Server) SendCallback(_ context.Context, request *callbacker_api.SendCal
 	return nil, nil
 }
 
-func (s *Server) UpdateInstances(ctx context.Context, request *callbacker_api.UpdateInstancesRequest) (*callbacker_api.UpdateInstancesResponse, error) {
+func (s *Server) UpdateInstances(ctx context.Context, request *callbacker_api.UpdateInstancesRequest) (*emptypb.Empty, error) {
 	rowsAffected, err := s.store.DeleteURLMappingsExcept(ctx, request.Instances)
 	if err != nil {
 		return nil, err
 	}
 
-	return &callbacker_api.UpdateInstancesResponse{Response: fmt.Sprintf("Removed %d URL mappings", rowsAffected)}, nil
+	if rowsAffected > 0 {
+		s.logger.Info("URL mappings deleted", slog.Int64("items", rowsAffected))
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 func toCallbackDto(r *callbacker_api.SendCallbackRequest) *Callback {

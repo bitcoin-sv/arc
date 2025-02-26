@@ -35,7 +35,7 @@ service MetaMorphAPI {
   rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
   rpc GetTransactionStatuses (TransactionsStatusRequest) returns (TransactionStatuses) {}
-  rpc UpdateInstances(UpdateInstancesRequest) returns (UpdateInstancesResponse) {}
+  rpc UpdateInstances(UpdateInstancesRequest) returns (google.protobuf.Empty) {}
   rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
 }
 
@@ -120,11 +120,6 @@ message TransactionStatusRequest {
 // swagger:model UpdateInstancesRequest
 message UpdateInstancesRequest {
   repeated string instances = 1;
-}
-
-// swagger:model UpdateInstancesResponse
-message UpdateInstancesResponse {
-  string response = 1;
 }
 
 // swagger:model ClearDataRequest

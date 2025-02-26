@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	cbcMocks "github.com/bitcoin-sv/arc/internal/callbacker/mocks"
@@ -56,13 +57,13 @@ func TestStartWatcher(t *testing.T) {
 				},
 			}
 			metamorphMock := &mtmMocks.MetaMorphAPIClientMock{
-				UpdateInstancesFunc: func(_ context.Context, _ *metamorph_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*metamorph_api.UpdateInstancesResponse, error) {
-					return &metamorph_api.UpdateInstancesResponse{Response: "response"}, nil
+				UpdateInstancesFunc: func(_ context.Context, _ *metamorph_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, nil
 				},
 			}
 			callbackerClient := &cbcMocks.CallbackerAPIClientMock{
-				UpdateInstancesFunc: func(_ context.Context, _ *callbacker_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
-					return &callbacker_api.UpdateInstancesResponse{Response: "response"}, nil
+				UpdateInstancesFunc: func(_ context.Context, _ *callbacker_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, nil
 				},
 			}
 

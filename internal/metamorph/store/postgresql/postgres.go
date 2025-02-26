@@ -69,7 +69,7 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 func (p *PostgreSQL) SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error) {
 	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE NOT locked_by = ANY($1::TEXT[]);"
 
-	param := "{" + strings.Join(except, ",") + "}"
+	param := "{" + strings.Join(append(except, "NONE"), ",") + "}"
 	rows, err := p.db.ExecContext(ctx, q, param)
 	if err != nil {
 		return 0, err

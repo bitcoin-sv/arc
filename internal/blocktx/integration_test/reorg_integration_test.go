@@ -293,12 +293,11 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
 		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_ORPHANED)
 
-		bh := testutils.RevChainhash(t, blockHash822019Orphan)
 		expectedTxs := []*blocktx_api.TransactionBlock{
 			{
-				BlockHash:       bh[:],
-				BlockHeight:     822019,
-				TransactionHash: testutils.RevChainhash(t, txhash822019)[:],
+				BlockHash:       blockHash[:],
+				BlockHeight:     822021,
+				TransactionHash: txHash[:],
 				BlockStatus:     blocktx_api.Status_STALE,
 			},
 		}

@@ -137,7 +137,7 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		tracing.EndTracing(span, spanErr)
 	}()
 
-	expectedFee := uint64(0)
+	expectedCumulativeFee := uint64(0)
 	cumulativePaidFeeAncestors := uint64(0)
 
 	totalInputTx, err := tx.TotalInputSatoshis()
@@ -146,6 +146,10 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		return validator.NewError(e, api.ErrStatusCumulativeFees)
 	}
 	totalOutputTx := tx.TotalOutputSatoshis()
+	if totalOutputTx > totalInputTx {
+		return validator.NewError(fmt.Errorf("total outputs %d is larger than total inputs %d for tx %s", totalOutputTx, totalInputTx, tx.TxID()), api.ErrStatusCumulativeFees)
+	}
+
 	paidFeeTx := totalInputTx - totalOutputTx
 
 	for _, txFromSet := range txSet {
@@ -154,7 +158,7 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 			e := fmt.Errorf("failed to compute fee: %w", err)
 			return validator.NewError(e, api.ErrStatusCumulativeFees)
 		}
-		expectedFee += expectedFeeTx
+		expectedCumulativeFee += expectedFeeTx
 		total, err := txFromSet.TotalInputSatoshis()
 		if err != nil {
 			e := fmt.Errorf("failed to get total input satoshis: %w", err)
@@ -164,14 +168,16 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 		totalOutput := txFromSet.TotalOutputSatoshis()
 
 		if totalOutput > totalInput {
-			return validator.NewError(fmt.Errorf("total outputs %d is larger than total inputs %d for tx %s", totalOutput, totalInput, tx.TxID()), api.ErrStatusCumulativeFees)
+			return validator.NewError(fmt.Errorf("total outputs %d is larger than total inputs %d for tx %s", totalOutput, totalInput, txFromSet.TxID()), api.ErrStatusCumulativeFees)
 		}
 
 		cumulativePaidFeeAncestors += totalInput - totalOutput
 	}
 
-	if expectedFee-cumulativePaidFeeAncestors > paidFeeTx {
-		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual fee: %d", expectedFee, cumulativePaidFeeAncestors))
+	actualCumulativeFee := paidFeeTx + cumulativePaidFeeAncestors
+
+	if expectedCumulativeFee > paidFeeTx+cumulativePaidFeeAncestors {
+		err = errors.Join(ErrTxFeeTooLow, fmt.Errorf("minimum expected cumulative fee: %d, actual cumulative fee: %d", expectedCumulativeFee, actualCumulativeFee))
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

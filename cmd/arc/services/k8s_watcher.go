@@ -6,6 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/k8s_client"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -15,12 +16,12 @@ import (
 func StartK8sWatcher(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	callbackerConn, err := metamorph.DialGRPC(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
+	callbackerConn, err := grpc_utils.DialGRPC(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
 
-	mtmConn, err := metamorph.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
+	mtmConn, err := grpc_utils.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}

@@ -11,19 +11,19 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
-	grpc_opts.GrpcServer
+	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
 }
 
 // NewServer will return a server instance
-func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_opts.ServerConfig) (*Server, error) {
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_utils.ServerConfig) (*Server, error) {
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}

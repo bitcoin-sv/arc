@@ -1,4 +1,4 @@
-package grpc_opts
+package grpc_utils
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts/common_api"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils/common_api"
 
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )

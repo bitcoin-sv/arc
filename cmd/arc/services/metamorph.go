@@ -16,7 +16,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/mcast"
@@ -52,7 +52,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		mqClient        metamorph.MessageQueue
 		processor       *metamorph.Processor
 		server          *metamorph.Server
-		healthServer    *grpc_opts.GrpcServer
+		healthServer    *grpc_utils.GrpcServer
 
 		err error
 	)
@@ -158,7 +158,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	callbacker := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
-	btcConn, err := blocktx.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
@@ -197,7 +197,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
-	serverCfg := grpc_opts.ServerConfig{
+	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
 		MaxMsgSize:         arcConfig.GrpcMessageSize,
 		TracingConfig:      arcConfig.Tracing,
@@ -242,7 +242,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 	}
 
-	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
+	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -404,7 +404,7 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcC
 }
 
 func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_opts.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingConfig)
+	dialOpts, err := grpc_utils.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +418,7 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int,
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
 	pm *p2p.PeerManager, messenger *p2p.NetworkMessenger, multicaster *mcast.Multicaster, mqClient metamorph.MessageQueueClient,
-	metamorphStore store.MetamorphStore, healthServer *grpc_opts.GrpcServer,
+	metamorphStore store.MetamorphStore, healthServer *grpc_utils.GrpcServer,
 	shutdownFns []func(),
 ) {
 	// dispose the dependencies in the correct order:

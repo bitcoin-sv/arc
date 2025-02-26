@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -50,7 +50,7 @@ type ProcessorI interface {
 // Server type carries the zmqLogger within it
 type Server struct {
 	metamorph_api.UnimplementedMetaMorphAPIServer
-	grpc_opts.GrpcServer
+	grpc_utils.GrpcServer
 
 	logger              *slog.Logger
 	processor           ProcessorI
@@ -83,7 +83,7 @@ func WithServerTracer(attr ...attribute.KeyValue) func(s *Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, cfg grpc_opts.ServerConfig, opts ...ServerOption) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{
@@ -97,7 +97,7 @@ func NewServer(logger *slog.Logger, store store.MetamorphStore, processor Proces
 		opt(s)
 	}
 
-	grpcServer, err := grpc_opts.NewGrpcServer(logger, cfg)
+	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
 	}

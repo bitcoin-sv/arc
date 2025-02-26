@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -68,7 +68,7 @@ func TestCheck(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			pm := &p2p.PeerManager{}
-			serverCfg := grpc_opts.ServerConfig{}
+			serverCfg := grpc_utils.ServerConfig{}
 			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
@@ -133,7 +133,7 @@ func TestWatch(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			pm := &p2p.PeerManager{}
-			serverCfg := grpc_opts.ServerConfig{}
+			serverCfg := grpc_utils.ServerConfig{}
 			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
 			require.NoError(t, err)
 			defer sut.GracefulStop()

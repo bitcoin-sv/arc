@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
@@ -30,7 +30,7 @@ func TestListenAndServe(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &p2p.PeerManager{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_opts.ServerConfig{}, 0)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

@@ -17,7 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/mcast"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/internal/grpc_opts"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
@@ -44,7 +44,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		pm            *p2p.PeerManager
 		mcastListener *mcast.Listener
 		server        *blocktx.Server
-		healthServer  *grpc_opts.GrpcServer
+		healthServer  *grpc_utils.GrpcServer
 		workers       *blocktx.BackgroundWorkers
 
 		err error
@@ -160,7 +160,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
-	serverCfg := grpc_opts.ServerConfig{
+	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
 		MaxMsgSize:         arcConfig.GrpcMessageSize,
 		TracingConfig:      arcConfig.Tracing,
@@ -179,7 +179,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
 	}
 
-	healthServer, err = grpc_opts.ServeNewHealthServer(logger, server, btxConfig.HealthServerDialAddr)
+	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, btxConfig.HealthServerDialAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start health server: %v", err)
@@ -365,7 +365,7 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
 	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient blocktx.MessageQueueClient,
-	store store.BlocktxStore, healthServer *grpc_opts.GrpcServer, workers *blocktx.BackgroundWorkers,
+	store store.BlocktxStore, healthServer *grpc_utils.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {
 	// dispose the dependencies in the correct order:

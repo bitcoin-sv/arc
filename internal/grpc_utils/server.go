@@ -1,4 +1,4 @@
-package grpc_opts
+package grpc_utils
 
 import (
 	"errors"

@@ -510,12 +510,12 @@ X-CallbackUrl: string
 X-FullStatusUpdates: true
 X-MaxTimeout: 0
 X-SkipFeeValidation: true
+X-ForceValidation: true
 X-SkipScriptValidation: true
 X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
 X-CallbackToken: string
 X-CallbackBatch: true
-X-WaitForStatus: 0
 X-WaitFor: string
 
 ```
@@ -529,12 +529,12 @@ const headers = {
   'X-FullStatusUpdates':'true',
   'X-MaxTimeout':'0',
   'X-SkipFeeValidation':'true',
+  'X-ForceValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
   'X-CallbackBatch':'true',
-  'X-WaitForStatus':'0',
   'X-WaitFor':'string',
   'Authorization':'Bearer {access-token}'
 };
@@ -587,12 +587,12 @@ func main() {
         "X-FullStatusUpdates": []string{"true"},
         "X-MaxTimeout": []string{"0"},
         "X-SkipFeeValidation": []string{"true"},
+        "X-ForceValidation": []string{"true"},
         "X-SkipScriptValidation": []string{"true"},
         "X-SkipTxValidation": []string{"true"},
         "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-CallbackBatch": []string{"true"},
-        "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
         "Authorization": []string{"Bearer {access-token}"},
     }
@@ -619,12 +619,12 @@ headers = {
   'X-FullStatusUpdates' => 'true',
   'X-MaxTimeout' => '0',
   'X-SkipFeeValidation' => 'true',
+  'X-ForceValidation' => 'true',
   'X-SkipScriptValidation' => 'true',
   'X-SkipTxValidation' => 'true',
   'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-CallbackBatch' => 'true',
-  'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
   'Authorization' => 'Bearer {access-token}'
 }
@@ -646,12 +646,12 @@ headers = {
   'X-FullStatusUpdates': 'true',
   'X-MaxTimeout': '0',
   'X-SkipFeeValidation': 'true',
+  'X-ForceValidation': 'true',
   'X-SkipScriptValidation': 'true',
   'X-SkipTxValidation': 'true',
   'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
   'X-CallbackBatch': 'true',
-  'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
   'Authorization': 'Bearer {access-token}'
 }
@@ -671,12 +671,12 @@ curl -X POST https://arc.taal.com/v1/tx \
   -H 'X-FullStatusUpdates: true' \
   -H 'X-MaxTimeout: 0' \
   -H 'X-SkipFeeValidation: true' \
+  -H 'X-ForceValidation: true' \
   -H 'X-SkipScriptValidation: true' \
   -H 'X-SkipTxValidation: true' \
   -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-CallbackBatch: true' \
-  -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
   -H 'Authorization: Bearer {access-token}'
 
@@ -710,13 +710,12 @@ This endpoint is used to send a raw transaction to a miner for inclusion in the 
 |X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
 |X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
-|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation or not.|
+|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation in any case.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-CallbackBatch|header|boolean|false|Callback will be send in a batch|
-|X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|true|Transaction hex string|
 
@@ -824,7 +823,6 @@ X-SkipTxValidation: true
 X-CumulativeFeeValidation: true
 X-CallbackToken: string
 X-CallbackBatch: true
-X-WaitForStatus: 0
 X-WaitFor: string
 
 ```
@@ -839,13 +837,12 @@ const headers = {
   'X-FullStatusUpdates':'true',
   'X-MaxTimeout':'0',
   'X-SkipFeeValidation':'true',
-  'X-ForceValidation': 'true',
+  'X-ForceValidation':'true',
   'X-SkipScriptValidation':'true',
   'X-SkipTxValidation':'true',
   'X-CumulativeFeeValidation':'true',
   'X-CallbackToken':'string',
   'X-CallbackBatch':'true',
-  'X-WaitForStatus':'0',
   'X-WaitFor':'string',
   'Authorization':'Bearer {access-token}'
 };
@@ -904,7 +901,6 @@ func main() {
         "X-CumulativeFeeValidation": []string{"true"},
         "X-CallbackToken": []string{"string"},
         "X-CallbackBatch": []string{"true"},
-        "X-WaitForStatus": []string{"0"},
         "X-WaitFor": []string{"string"},
         "Authorization": []string{"Bearer {access-token}"},
     }
@@ -937,7 +933,6 @@ headers = {
   'X-CumulativeFeeValidation' => 'true',
   'X-CallbackToken' => 'string',
   'X-CallbackBatch' => 'true',
-  'X-WaitForStatus' => '0',
   'X-WaitFor' => 'string',
   'Authorization' => 'Bearer {access-token}'
 }
@@ -965,7 +960,6 @@ headers = {
   'X-CumulativeFeeValidation': 'true',
   'X-CallbackToken': 'string',
   'X-CallbackBatch': 'true',
-  'X-WaitForStatus': '0',
   'X-WaitFor': 'string',
   'Authorization': 'Bearer {access-token}'
 }
@@ -991,7 +985,6 @@ curl -X POST https://arc.taal.com/v1/txs \
   -H 'X-CumulativeFeeValidation: true' \
   -H 'X-CallbackToken: string' \
   -H 'X-CallbackBatch: true' \
-  -H 'X-WaitForStatus: 0' \
   -H 'X-WaitFor: string' \
   -H 'Authorization: Bearer {access-token}'
 
@@ -1029,13 +1022,12 @@ This endpoint is used to send multiple raw transactions to a miner for inclusion
 |X-FullStatusUpdates|header|boolean|false|Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).|
 |X-MaxTimeout|header|integer|false|Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)|
 |X-SkipFeeValidation|header|boolean|false|Whether we should skip fee validation or not.|
-|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation or not.|
+|X-ForceValidation|header|boolean|false|Whether we should force submitted tx validation in any case.|
 |X-SkipScriptValidation|header|boolean|false|Whether we should skip script validation or not.|
 |X-SkipTxValidation|header|boolean|false|Whether we should skip overall tx validation or not.|
 |X-CumulativeFeeValidation|header|boolean|false|Whether we should perform cumulative fee validation for fee consolidation txs or not.|
 |X-CallbackToken|header|string|false|Access token for notification callback endpoint. It will be used as a Authorization header for the http callback|
 |X-CallbackBatch|header|boolean|false|Callback will be send in a batch|
-|X-WaitForStatus|header|integer|false|DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)|
 |X-WaitFor|header|string|false|Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')|
 |body|body|string|false|none|
 

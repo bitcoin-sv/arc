@@ -105,7 +105,6 @@ paths:
         - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/callbackBatch'
-        - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
       requestBody:
         required: true
@@ -264,7 +263,6 @@ paths:
         - $ref: '#/components/parameters/cumulativeFeeValidation'
         - $ref: '#/components/parameters/callbackToken'
         - $ref: '#/components/parameters/callbackBatch'
-        - $ref: '#/components/parameters/waitForStatus'
         - $ref: '#/components/parameters/waitFor'
       requestBody:
         description: ''
@@ -1118,13 +1116,6 @@ components:
       description: Callback will be send in a batch
       schema:
         type: boolean
-
-    waitForStatus:
-      name: X-WaitForStatus
-      in: header
-      description: "DEPRECATED, soon will become unsupported, please use 'X-WaitFor' header. Which status to wait for from the server before returning (2 = RECEIVED, 3 = STORED, 4 = ANNOUNCED_TO_NETWORK, 5 = REQUESTED_BY_NETWORK, 6 = SENT_TO_NETWORK, 7 = ACCEPTED_BY_NETWORK, 8 = SEEN_ON_NETWORK)"
-      schema:
-        type: integer
 
     waitFor:
       name: X-WaitFor

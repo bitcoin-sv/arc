@@ -100,11 +100,11 @@ func TestStartMetamorphWatcher(t *testing.T) {
 				},
 			}
 			callbackerClient := &cbcMocks.CallbackerAPIClientMock{
-				DeleteURLMappingFunc: func(_ context.Context, _ *callbacker_api.DeleteURLMappingRequest, _ ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
+				UpdateInstancesFunc: func(_ context.Context, _ *callbacker_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
 					if setUnlockedErrTest != nil {
 						return nil, setUnlockedErrTest
 					}
-					return &callbacker_api.DeleteURLMappingResponse{Rows: 20}, nil
+					return &callbacker_api.UpdateInstancesResponse{Response: "response"}, nil
 				},
 			}
 
@@ -141,7 +141,7 @@ func TestStartMetamorphWatcher(t *testing.T) {
 			watcher.Shutdown()
 
 			require.Equal(t, tc.expectedMetamorphSetUnlockedByNameCalls, len(metamorphMock.SetUnlockedByNameCalls()))
-			require.Equal(t, tc.expectedCallbackerUnmappingCalls, len(callbackerClient.DeleteURLMappingCalls()))
+			require.Equal(t, tc.expectedCallbackerUnmappingCalls, len(callbackerClient.UpdateInstancesCalls()))
 		})
 	}
 }

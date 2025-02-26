@@ -10,8 +10,7 @@ import "google/protobuf/empty.proto";
 service CallbackerAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
   rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
-  rpc DeleteURLMapping (DeleteURLMappingRequest) returns (DeleteURLMappingResponse) {}
-  rpc ProcessRunningPods(ProcessRunningPodsRequest) returns (ProcessRunningPodsResponse) {}
+  rpc UpdateInstances(UpdateInstancesRequest) returns (UpdateInstancesResponse) {}
 }
 
 // Note: Values of the statuses have a difference between them in case
@@ -39,16 +38,6 @@ message HealthResponse {
   google.protobuf.Timestamp timestamp = 1;
 }
 
-// swagger:model DeleteURLMappingResponse
-message DeleteURLMappingResponse {
-  int64 rows = 1;
-}
-
-// swagger:model ProcessRunningPodsResponse
-message ProcessRunningPodsResponse {
-  string response = 1;
-}
-
 // swagger:model SendRequest
 message SendRequest {
   CallbackRouting callback_routing = 1;
@@ -74,14 +63,14 @@ message SendCallbackRequest {
   uint64 block_height = 8;
 }
 
-// swagger:model RemovePodMappings
-message DeleteURLMappingRequest {
-  string instance = 1;
+// swagger:model UpdateInstancesRequest
+message UpdateInstancesRequest {
+  repeated string instances = 1;
 }
 
-// swagger:model ProcessRunningPodsRequest
-message ProcessRunningPodsRequest {
-  repeated string instances = 1;
+// swagger:model UpdateInstancesResponse
+message UpdateInstancesResponse {
+  string response = 1;
 }
 
 // swagger:model CallbackRouting

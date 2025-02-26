@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrURLMappingDuplicateKey = errors.New("URL mapping duplicate key")
-	ErrURLMappingDeleteFailed = errors.New("failed to delete URL mapping entry")
+	ErrURLMappingDuplicateKey  = errors.New("URL mapping duplicate key")
+	ErrURLMappingDeleteFailed  = errors.New("failed to delete URL mapping entry")
+	ErrURLMappingsDeleteFailed = errors.New("failed to delete URL mapping entries")
 )
 
 type CallbackData struct {
@@ -40,8 +41,7 @@ type ProcessorStore interface {
 }
 
 type CallbackStore interface {
-	DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error)
-	DeleteAllURLMappingExcept(ctx context.Context, except []string) (rowsAffected int64, err error)
+	DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error)
 }
 
 type URLMapping struct {

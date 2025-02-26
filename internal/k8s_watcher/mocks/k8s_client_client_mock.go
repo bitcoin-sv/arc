@@ -22,6 +22,9 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 //			GetRunningPodNamesFunc: func(ctx context.Context, namespace string, service string) (map[string]struct{}, error) {
 //				panic("mock out the GetRunningPodNames method")
 //			},
+//			GetRunningPodNamesSliceFunc: func(ctx context.Context, namespace string, podName string) ([]string, error) {
+//				panic("mock out the GetRunningPodNamesSlice method")
+//			},
 //		}
 //
 //		// use mockedK8sClient in code that requires k8s_watcher.K8sClient
@@ -31,6 +34,9 @@ var _ k8s_watcher.K8sClient = &K8sClientMock{}
 type K8sClientMock struct {
 	// GetRunningPodNamesFunc mocks the GetRunningPodNames method.
 	GetRunningPodNamesFunc func(ctx context.Context, namespace string, service string) (map[string]struct{}, error)
+
+	// GetRunningPodNamesSliceFunc mocks the GetRunningPodNamesSlice method.
+	GetRunningPodNamesSliceFunc func(ctx context.Context, namespace string, podName string) ([]string, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -43,8 +49,18 @@ type K8sClientMock struct {
 			// Service is the service argument value.
 			Service string
 		}
+		// GetRunningPodNamesSlice holds details about calls to the GetRunningPodNamesSlice method.
+		GetRunningPodNamesSlice []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Namespace is the namespace argument value.
+			Namespace string
+			// PodName is the podName argument value.
+			PodName string
+		}
 	}
-	lockGetRunningPodNames sync.RWMutex
+	lockGetRunningPodNames      sync.RWMutex
+	lockGetRunningPodNamesSlice sync.RWMutex
 }
 
 // GetRunningPodNames calls GetRunningPodNamesFunc.
@@ -84,5 +100,45 @@ func (mock *K8sClientMock) GetRunningPodNamesCalls() []struct {
 	mock.lockGetRunningPodNames.RLock()
 	calls = mock.calls.GetRunningPodNames
 	mock.lockGetRunningPodNames.RUnlock()
+	return calls
+}
+
+// GetRunningPodNamesSlice calls GetRunningPodNamesSliceFunc.
+func (mock *K8sClientMock) GetRunningPodNamesSlice(ctx context.Context, namespace string, podName string) ([]string, error) {
+	if mock.GetRunningPodNamesSliceFunc == nil {
+		panic("K8sClientMock.GetRunningPodNamesSliceFunc: method is nil but K8sClient.GetRunningPodNamesSlice was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		Namespace string
+		PodName   string
+	}{
+		Ctx:       ctx,
+		Namespace: namespace,
+		PodName:   podName,
+	}
+	mock.lockGetRunningPodNamesSlice.Lock()
+	mock.calls.GetRunningPodNamesSlice = append(mock.calls.GetRunningPodNamesSlice, callInfo)
+	mock.lockGetRunningPodNamesSlice.Unlock()
+	return mock.GetRunningPodNamesSliceFunc(ctx, namespace, podName)
+}
+
+// GetRunningPodNamesSliceCalls gets all the calls that were made to GetRunningPodNamesSlice.
+// Check the length with:
+//
+//	len(mockedK8sClient.GetRunningPodNamesSliceCalls())
+func (mock *K8sClientMock) GetRunningPodNamesSliceCalls() []struct {
+	Ctx       context.Context
+	Namespace string
+	PodName   string
+} {
+	var calls []struct {
+		Ctx       context.Context
+		Namespace string
+		PodName   string
+	}
+	mock.lockGetRunningPodNamesSlice.RLock()
+	calls = mock.calls.GetRunningPodNamesSlice
+	mock.lockGetRunningPodNamesSlice.RUnlock()
 	return calls
 }

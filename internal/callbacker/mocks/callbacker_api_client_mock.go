@@ -21,14 +21,14 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //
 //		// make and configure a mocked callbacker_api.CallbackerAPIClient
 //		mockedCallbackerAPIClient := &CallbackerAPIClientMock{
-//			DeleteURLMappingFunc: func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
-//				panic("mock out the DeleteURLMapping method")
-//			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
 //			SendCallbackFunc: func(ctx context.Context, in *callbacker_api.SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the SendCallback method")
+//			},
+//			UpdateInstancesFunc: func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
+//				panic("mock out the UpdateInstances method")
 //			},
 //		}
 //
@@ -37,26 +37,17 @@ var _ callbacker_api.CallbackerAPIClient = &CallbackerAPIClientMock{}
 //
 //	}
 type CallbackerAPIClientMock struct {
-	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
-	DeleteURLMappingFunc func(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error)
-
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*callbacker_api.HealthResponse, error)
 
 	// SendCallbackFunc mocks the SendCallback method.
 	SendCallbackFunc func(ctx context.Context, in *callbacker_api.SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
+	// UpdateInstancesFunc mocks the UpdateInstances method.
+	UpdateInstancesFunc func(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error)
+
 	// calls tracks calls to the methods.
 	calls struct {
-		// DeleteURLMapping holds details about calls to the DeleteURLMapping method.
-		DeleteURLMapping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// In is the in argument value.
-			In *callbacker_api.DeleteURLMappingRequest
-			// Opts is the opts argument value.
-			Opts []grpc.CallOption
-		}
 		// Health holds details about calls to the Health method.
 		Health []struct {
 			// Ctx is the ctx argument value.
@@ -75,50 +66,19 @@ type CallbackerAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
+		// UpdateInstances holds details about calls to the UpdateInstances method.
+		UpdateInstances []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *callbacker_api.UpdateInstancesRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 	}
-	lockDeleteURLMapping sync.RWMutex
-	lockHealth           sync.RWMutex
-	lockSendCallback     sync.RWMutex
-}
-
-// DeleteURLMapping calls DeleteURLMappingFunc.
-func (mock *CallbackerAPIClientMock) DeleteURLMapping(ctx context.Context, in *callbacker_api.DeleteURLMappingRequest, opts ...grpc.CallOption) (*callbacker_api.DeleteURLMappingResponse, error) {
-	if mock.DeleteURLMappingFunc == nil {
-		panic("CallbackerAPIClientMock.DeleteURLMappingFunc: method is nil but CallbackerAPIClient.DeleteURLMapping was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		In   *callbacker_api.DeleteURLMappingRequest
-		Opts []grpc.CallOption
-	}{
-		Ctx:  ctx,
-		In:   in,
-		Opts: opts,
-	}
-	mock.lockDeleteURLMapping.Lock()
-	mock.calls.DeleteURLMapping = append(mock.calls.DeleteURLMapping, callInfo)
-	mock.lockDeleteURLMapping.Unlock()
-	return mock.DeleteURLMappingFunc(ctx, in, opts...)
-}
-
-// DeleteURLMappingCalls gets all the calls that were made to DeleteURLMapping.
-// Check the length with:
-//
-//	len(mockedCallbackerAPIClient.DeleteURLMappingCalls())
-func (mock *CallbackerAPIClientMock) DeleteURLMappingCalls() []struct {
-	Ctx  context.Context
-	In   *callbacker_api.DeleteURLMappingRequest
-	Opts []grpc.CallOption
-} {
-	var calls []struct {
-		Ctx  context.Context
-		In   *callbacker_api.DeleteURLMappingRequest
-		Opts []grpc.CallOption
-	}
-	mock.lockDeleteURLMapping.RLock()
-	calls = mock.calls.DeleteURLMapping
-	mock.lockDeleteURLMapping.RUnlock()
-	return calls
+	lockHealth          sync.RWMutex
+	lockSendCallback    sync.RWMutex
+	lockUpdateInstances sync.RWMutex
 }
 
 // Health calls HealthFunc.
@@ -198,5 +158,45 @@ func (mock *CallbackerAPIClientMock) SendCallbackCalls() []struct {
 	mock.lockSendCallback.RLock()
 	calls = mock.calls.SendCallback
 	mock.lockSendCallback.RUnlock()
+	return calls
+}
+
+// UpdateInstances calls UpdateInstancesFunc.
+func (mock *CallbackerAPIClientMock) UpdateInstances(ctx context.Context, in *callbacker_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*callbacker_api.UpdateInstancesResponse, error) {
+	if mock.UpdateInstancesFunc == nil {
+		panic("CallbackerAPIClientMock.UpdateInstancesFunc: method is nil but CallbackerAPIClient.UpdateInstances was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *callbacker_api.UpdateInstancesRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockUpdateInstances.Lock()
+	mock.calls.UpdateInstances = append(mock.calls.UpdateInstances, callInfo)
+	mock.lockUpdateInstances.Unlock()
+	return mock.UpdateInstancesFunc(ctx, in, opts...)
+}
+
+// UpdateInstancesCalls gets all the calls that were made to UpdateInstances.
+// Check the length with:
+//
+//	len(mockedCallbackerAPIClient.UpdateInstancesCalls())
+func (mock *CallbackerAPIClientMock) UpdateInstancesCalls() []struct {
+	Ctx  context.Context
+	In   *callbacker_api.UpdateInstancesRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *callbacker_api.UpdateInstancesRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockUpdateInstances.RLock()
+	calls = mock.calls.UpdateInstances
+	mock.lockUpdateInstances.RUnlock()
 	return calls
 }

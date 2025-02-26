@@ -206,7 +206,7 @@ func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (row
 
 	rows, err := p.db.ExecContext(ctx, q, instance)
 	if err != nil {
-		return 0, store.ErrURLMappingDeleteFailed
+		return 0, errors.Join(store.ErrURLMappingDeleteFailed, err)
 	}
 
 	rowsAffected, err = rows.RowsAffected()
@@ -217,13 +217,14 @@ func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (row
 	return rowsAffected, nil
 }
 
-func (p *PostgreSQL) DeleteAllURLMappingExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
+func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
 	const q = `DELETE FROM callbacker.url_mapping
-			WHERE instance NOT IN ($1)`
+			WHERE NOT instance = ANY($1::TEXT[])`
 
-	rows, err := p.db.ExecContext(ctx, q, except)
+	param := "{" + strings.Join(except, ",") + "}"
+	rows, err := p.db.ExecContext(ctx, q, param)
 	if err != nil {
-		return 0, store.ErrURLMappingDeleteFailed
+		return 0, errors.Join(store.ErrURLMappingsDeleteFailed, err)
 	}
 
 	rowsAffected, err = rows.RowsAffected()

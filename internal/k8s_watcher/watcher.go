@@ -17,7 +17,6 @@ const (
 )
 
 type K8sClient interface {
-	GetRunningPodNames(ctx context.Context, namespace string, service string) (map[string]struct{}, error)
 	GetRunningPodNamesSlice(ctx context.Context, namespace string, podName string) ([]string, error)
 }
 
@@ -30,6 +29,12 @@ type Watcher struct {
 	namespace        string
 	waitGroup        *sync.WaitGroup
 	cancellations    []context.CancelFunc
+}
+
+func WithUpdateInterval(d time.Duration) func(*Watcher) {
+	return func(p *Watcher) {
+		p.updateInterval = d
+	}
 }
 
 type ServerOption func(f *Watcher)
@@ -57,7 +62,10 @@ func (c *Watcher) Start() error {
 	c.updateRunningPods(metamorphService, c.updateInterval, func(ctx context.Context, podNames []string) error {
 		response, err := c.metamorphClient.UpdateInstances(ctx, &metamorph_api.UpdateInstancesRequest{Instances: podNames})
 		if err == nil && response.Response != "" {
-			c.logger.Info("Updated instances", slog.String("service", metamorphService), slog.String("response", response.Response))
+			if response.Response != "" {
+				c.logger.Info("Updated instances", slog.String("service", metamorphService), slog.String("response", response.Response))
+			}
+			c.logger.Debug("Updated instances", slog.String("service", metamorphService), slog.String("response", response.Response))
 		}
 
 		return err
@@ -65,8 +73,11 @@ func (c *Watcher) Start() error {
 
 	c.updateRunningPods(callbackerService, c.updateInterval, func(ctx context.Context, podNames []string) error {
 		response, err := c.callbackerClient.UpdateInstances(ctx, &callbacker_api.UpdateInstancesRequest{Instances: podNames})
-		if err == nil && response.Response != "" {
-			c.logger.Info("Updated instances", slog.String("service", callbackerService), slog.String("response", response.Response))
+		if err == nil {
+			if response.Response != "" {
+				c.logger.Info("Updated instances", slog.String("service", callbackerService), slog.String("response", response.Response))
+			}
+			c.logger.Debug("Updated instances", slog.String("service", callbackerService), slog.String("response", response.Response))
 		}
 
 		return err

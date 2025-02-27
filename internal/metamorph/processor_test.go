@@ -1024,10 +1024,9 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			iterations := 0
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenOnNetworkFunc: func(_ context.Context, _ time.Time, _ time.Time, limit int64, offset int64) ([]*store.Data, error) {
+				GetSeenOnNetworkFunc: func(_ context.Context, _ time.Time, _ time.Time, limit int64, _ int64) ([]*store.Data, error) {
 					require.Equal(t, int64(5000), limit)
 
 					if iterations >= 3 {
@@ -1071,7 +1070,6 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			require.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
 		})
 	}
-
 }
 
 func TestProcessorHealth(t *testing.T) {

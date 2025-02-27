@@ -942,6 +942,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
 
 		records, err = postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 100)
+		require.NoError(t, err)
 		require.Equal(t, 0, len(records))
 	})
 

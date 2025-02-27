@@ -35,7 +35,7 @@ service MetaMorphAPI {
   rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}
   rpc GetTransactionStatus (TransactionStatusRequest) returns (TransactionStatus) {}
   rpc GetTransactionStatuses (TransactionsStatusRequest) returns (TransactionStatuses) {}
-  rpc SetUnlockedByName (SetUnlockedByNameRequest) returns (SetUnlockedByNameResponse) {}
+  rpc UpdateInstances(UpdateInstancesRequest) returns (google.protobuf.Empty) {}
   rpc ClearData (ClearDataRequest) returns (ClearDataResponse) {}
 }
 
@@ -117,14 +117,9 @@ message TransactionStatusRequest {
   string event_id = 2;
 }
 
-// swagger:model SetUnlockedByNameRequest
-message SetUnlockedByNameRequest {
-  string name = 1;
-}
-
-// swagger:model SetUnlockedRequest
-message SetUnlockedByNameResponse {
-  int64 records_affected = 1;
+// swagger:model UpdateInstancesRequest
+message UpdateInstancesRequest {
+  repeated string instances = 1;
 }
 
 // swagger:model ClearDataRequest

@@ -249,18 +249,23 @@ func TestProcessorStart(t *testing.T) {
 
 func TestDispatchPersistedCallbacks(t *testing.T) {
 	tt := []struct {
-		name             string
-		storedCallbacks  []*store.CallbackData
-		getAndDeleteErr  error
-		setURLMappingErr error
+		name              string
+		storedCallbacks   []*store.CallbackData
+		getAndDeleteErr   error
+		setURLMappingErr  error
+		getUnmappedURLErr error
 
-		expectedDispatch int
+		expectedDispatch           int
+		expectedSetURLMappingCalls int
+		expectedGetAndDeleteCalls  int
 	}{
 		{
 			name:            "success - no stored callbacks",
 			storedCallbacks: []*store.CallbackData{},
 
-			expectedDispatch: 0,
+			expectedDispatch:           0,
+			expectedSetURLMappingCalls: 1,
+			expectedGetAndDeleteCalls:  1,
 		},
 		{
 			name: "success - 1 stored callback",
@@ -269,7 +274,9 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 				Token: "1234",
 			}},
 
-			expectedDispatch: 1,
+			expectedDispatch:           1,
+			expectedSetURLMappingCalls: 1,
+			expectedGetAndDeleteCalls:  1,
 		},
 		{
 			name: "URL already mapped",
@@ -279,13 +286,25 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 			}},
 			setURLMappingErr: store.ErrURLMappingDuplicateKey,
 
-			expectedDispatch: 0,
+			expectedDispatch:           0,
+			expectedSetURLMappingCalls: 1,
+			expectedGetAndDeleteCalls:  0,
 		},
 		{
 			name:            "error deleting failed older than",
 			getAndDeleteErr: errors.New("some error"),
 
-			expectedDispatch: 0,
+			expectedDispatch:           0,
+			expectedSetURLMappingCalls: 1,
+			expectedGetAndDeleteCalls:  1,
+		},
+		{
+			name:              "error - no unmapped URL callbacks",
+			getUnmappedURLErr: errors.New("failed to get unmapped URL callbacks"),
+
+			expectedDispatch:           0,
+			expectedSetURLMappingCalls: 0,
+			expectedGetAndDeleteCalls:  0,
 		},
 	}
 
@@ -306,7 +325,7 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 					return 0, nil
 				},
 				GetURLMappingsFunc: func(_ context.Context) (map[string]string, error) { return nil, nil },
-				GetUnmappedURLFunc: func(_ context.Context) (string, error) { return "https://abcdefg.com", nil },
+				GetUnmappedURLFunc: func(_ context.Context) (string, error) { return "https://abcdefg.com", tc.getUnmappedURLErr },
 				GetAndDeleteFunc: func(_ context.Context, _ string, _ int) ([]*store.CallbackData, error) {
 					return tc.storedCallbacks, tc.getAndDeleteErr
 				},
@@ -320,6 +339,8 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 			time.Sleep(30 * time.Millisecond)
 
 			require.Equal(t, tc.expectedDispatch, len(dispatcher.DispatchCalls()))
+			require.Equal(t, tc.expectedSetURLMappingCalls, len(processorStore.SetURLMappingCalls()))
+			require.Equal(t, tc.expectedGetAndDeleteCalls, len(processorStore.GetAndDeleteCalls()))
 		})
 	}
 }

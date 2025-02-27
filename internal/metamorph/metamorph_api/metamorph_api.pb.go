@@ -781,28 +781,28 @@ func (x *TransactionStatusRequest) GetEventId() string {
 	return ""
 }
 
-// swagger:model SetUnlockedByNameRequest
-type SetUnlockedByNameRequest struct {
+// swagger:model UpdateInstancesRequest
+type UpdateInstancesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Instances     []string               `protobuf:"bytes,1,rep,name=instances,proto3" json:"instances,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetUnlockedByNameRequest) Reset() {
-	*x = SetUnlockedByNameRequest{}
+func (x *UpdateInstancesRequest) Reset() {
+	*x = UpdateInstancesRequest{}
 	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetUnlockedByNameRequest) String() string {
+func (x *UpdateInstancesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetUnlockedByNameRequest) ProtoMessage() {}
+func (*UpdateInstancesRequest) ProtoMessage() {}
 
-func (x *SetUnlockedByNameRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateInstancesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -814,61 +814,16 @@ func (x *SetUnlockedByNameRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetUnlockedByNameRequest.ProtoReflect.Descriptor instead.
-func (*SetUnlockedByNameRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateInstancesRequest.ProtoReflect.Descriptor instead.
+func (*UpdateInstancesRequest) Descriptor() ([]byte, []int) {
 	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *SetUnlockedByNameRequest) GetName() string {
+func (x *UpdateInstancesRequest) GetInstances() []string {
 	if x != nil {
-		return x.Name
+		return x.Instances
 	}
-	return ""
-}
-
-// swagger:model SetUnlockedRequest
-type SetUnlockedByNameResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	RecordsAffected int64                  `protobuf:"varint,1,opt,name=records_affected,json=recordsAffected,proto3" json:"records_affected,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *SetUnlockedByNameResponse) Reset() {
-	*x = SetUnlockedByNameResponse{}
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetUnlockedByNameResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetUnlockedByNameResponse) ProtoMessage() {}
-
-func (x *SetUnlockedByNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetUnlockedByNameResponse.ProtoReflect.Descriptor instead.
-func (*SetUnlockedByNameResponse) Descriptor() ([]byte, []int) {
-	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *SetUnlockedByNameResponse) GetRecordsAffected() int64 {
-	if x != nil {
-		return x.RecordsAffected
-	}
-	return 0
+	return nil
 }
 
 // swagger:model ClearDataRequest
@@ -881,7 +836,7 @@ type ClearDataRequest struct {
 
 func (x *ClearDataRequest) Reset() {
 	*x = ClearDataRequest{}
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[10]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +848,7 @@ func (x *ClearDataRequest) String() string {
 func (*ClearDataRequest) ProtoMessage() {}
 
 func (x *ClearDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[10]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +861,7 @@ func (x *ClearDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearDataRequest.ProtoReflect.Descriptor instead.
 func (*ClearDataRequest) Descriptor() ([]byte, []int) {
-	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{10}
+	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ClearDataRequest) GetRetentionDays() int32 {
@@ -926,7 +881,7 @@ type ClearDataResponse struct {
 
 func (x *ClearDataResponse) Reset() {
 	*x = ClearDataResponse{}
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[11]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -938,7 +893,7 @@ func (x *ClearDataResponse) String() string {
 func (*ClearDataResponse) ProtoMessage() {}
 
 func (x *ClearDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[11]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -951,7 +906,7 @@ func (x *ClearDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearDataResponse.ProtoReflect.Descriptor instead.
 func (*ClearDataResponse) Descriptor() ([]byte, []int) {
-	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{11}
+	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ClearDataResponse) GetRecordsAffected() int64 {
@@ -971,7 +926,7 @@ type TransactionsStatusRequest struct {
 
 func (x *TransactionsStatusRequest) Reset() {
 	*x = TransactionsStatusRequest{}
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[12]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +938,7 @@ func (x *TransactionsStatusRequest) String() string {
 func (*TransactionsStatusRequest) ProtoMessage() {}
 
 func (x *TransactionsStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[12]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +951,7 @@ func (x *TransactionsStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionsStatusRequest.ProtoReflect.Descriptor instead.
 func (*TransactionsStatusRequest) Descriptor() ([]byte, []int) {
-	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{12}
+	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TransactionsStatusRequest) GetTxIDs() []string {
@@ -1016,7 +971,7 @@ type Transactions struct {
 
 func (x *Transactions) Reset() {
 	*x = Transactions{}
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[13]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1028,7 +983,7 @@ func (x *Transactions) String() string {
 func (*Transactions) ProtoMessage() {}
 
 func (x *Transactions) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[13]
+	mi := &file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1041,7 +996,7 @@ func (x *Transactions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transactions.ProtoReflect.Descriptor instead.
 func (*Transactions) Descriptor() ([]byte, []int) {
-	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{13}
+	return file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Transactions) GetTransactions() []*Transaction {
@@ -1187,14 +1142,10 @@ var file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc = string([
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x78, 0x69, 0x64, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x78, 0x69, 0x64, 0x12, 0x19, 0x0a, 0x08, 0x65, 0x76, 0x65,
 	0x6e, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x65, 0x76, 0x65,
-	0x6e, 0x74, 0x49, 0x64, 0x22, 0x2e, 0x0a, 0x18, 0x53, 0x65, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63,
-	0x6b, 0x65, 0x64, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
-	0x6e, 0x61, 0x6d, 0x65, 0x22, 0x46, 0x0a, 0x19, 0x53, 0x65, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63,
-	0x6b, 0x65, 0x64, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x29, 0x0a, 0x10, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x5f, 0x61, 0x66, 0x66,
-	0x65, 0x63, 0x74, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0f, 0x72, 0x65, 0x63,
-	0x6f, 0x72, 0x64, 0x73, 0x41, 0x66, 0x66, 0x65, 0x63, 0x74, 0x65, 0x64, 0x22, 0x38, 0x0a, 0x10,
+	0x6e, 0x74, 0x49, 0x64, 0x22, 0x36, 0x0a, 0x16, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x49, 0x6e,
+	0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c,
+	0x0a, 0x09, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x09, 0x52, 0x09, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x73, 0x22, 0x38, 0x0a, 0x10,
 	0x43, 0x6c, 0x65, 0x61, 0x72, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x12, 0x24, 0x0a, 0x0d, 0x72, 0x65, 0x74, 0x65, 0x6e, 0x74, 0x69, 0x6f, 0x6e, 0x44, 0x61, 0x79,
 	0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0d, 0x72, 0x65, 0x74, 0x65, 0x6e, 0x74, 0x69,
@@ -1228,7 +1179,7 @@ var file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc = string([
 	0x50, 0x54, 0x45, 0x44, 0x10, 0x64, 0x12, 0x0c, 0x0a, 0x08, 0x52, 0x45, 0x4a, 0x45, 0x43, 0x54,
 	0x45, 0x44, 0x10, 0x6e, 0x12, 0x18, 0x0a, 0x14, 0x4d, 0x49, 0x4e, 0x45, 0x44, 0x5f, 0x49, 0x4e,
 	0x5f, 0x53, 0x54, 0x41, 0x4c, 0x45, 0x5f, 0x42, 0x4c, 0x4f, 0x43, 0x4b, 0x10, 0x73, 0x12, 0x09,
-	0x0a, 0x05, 0x4d, 0x49, 0x4e, 0x45, 0x44, 0x10, 0x78, 0x32, 0xc7, 0x06, 0x0a, 0x0c, 0x4d, 0x65,
+	0x0a, 0x05, 0x4d, 0x49, 0x4e, 0x45, 0x44, 0x10, 0x78, 0x32, 0xb1, 0x06, 0x0a, 0x0c, 0x4d, 0x65,
 	0x74, 0x61, 0x4d, 0x6f, 0x72, 0x70, 0x68, 0x41, 0x50, 0x49, 0x12, 0x41, 0x0a, 0x06, 0x48, 0x65,
 	0x61, 0x6c, 0x74, 0x68, 0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72,
 	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x1d, 0x2e, 0x6d,
@@ -1269,20 +1220,19 @@ var file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc = string([
 	0x69, 0x6f, 0x6e, 0x73, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x1a, 0x22, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70,
 	0x69, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61,
-	0x74, 0x75, 0x73, 0x65, 0x73, 0x22, 0x00, 0x12, 0x68, 0x0a, 0x11, 0x53, 0x65, 0x74, 0x55, 0x6e,
-	0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x27, 0x2e, 0x6d,
-	0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x53, 0x65, 0x74,
-	0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70,
-	0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x53, 0x65, 0x74, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65,
-	0x64, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x00, 0x12, 0x50, 0x0a, 0x09, 0x43, 0x6c, 0x65, 0x61, 0x72, 0x44, 0x61, 0x74, 0x61, 0x12, 0x1f,
-	0x2e, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x43,
-	0x6c, 0x65, 0x61, 0x72, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x20, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e,
-	0x43, 0x6c, 0x65, 0x61, 0x72, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x00, 0x42, 0x11, 0x5a, 0x0f, 0x2e, 0x3b, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72,
-	0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x75, 0x73, 0x65, 0x73, 0x22, 0x00, 0x12, 0x52, 0x0a, 0x0f, 0x55, 0x70, 0x64, 0x61, 0x74,
+	0x65, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x73, 0x12, 0x25, 0x2e, 0x6d, 0x65, 0x74,
+	0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x55, 0x70, 0x64, 0x61, 0x74,
+	0x65, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x50, 0x0a, 0x09, 0x43,
+	0x6c, 0x65, 0x61, 0x72, 0x44, 0x61, 0x74, 0x61, 0x12, 0x1f, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x6d,
+	0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x43, 0x6c, 0x65, 0x61, 0x72, 0x44, 0x61,
+	0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x6d, 0x65, 0x74, 0x61,
+	0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69, 0x2e, 0x43, 0x6c, 0x65, 0x61, 0x72, 0x44,
+	0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x11, 0x5a,
+	0x0f, 0x2e, 0x3b, 0x6d, 0x65, 0x74, 0x61, 0x6d, 0x6f, 0x72, 0x70, 0x68, 0x5f, 0x61, 0x70, 0x69,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 })
 
 var (
@@ -1298,7 +1248,7 @@ func file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDescGZIP() []b
 }
 
 var file_internal_metamorph_metamorph_api_metamorph_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_internal_metamorph_metamorph_api_metamorph_api_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_internal_metamorph_metamorph_api_metamorph_api_proto_goTypes = []any{
 	(Status)(0),                       // 0: metamorph_api.Status
 	(*HealthResponse)(nil),            // 1: metamorph_api.HealthResponse
@@ -1309,47 +1259,46 @@ var file_internal_metamorph_metamorph_api_metamorph_api_proto_goTypes = []any{
 	(*TransactionStatus)(nil),         // 6: metamorph_api.TransactionStatus
 	(*TransactionStatuses)(nil),       // 7: metamorph_api.TransactionStatuses
 	(*TransactionStatusRequest)(nil),  // 8: metamorph_api.TransactionStatusRequest
-	(*SetUnlockedByNameRequest)(nil),  // 9: metamorph_api.SetUnlockedByNameRequest
-	(*SetUnlockedByNameResponse)(nil), // 10: metamorph_api.SetUnlockedByNameResponse
-	(*ClearDataRequest)(nil),          // 11: metamorph_api.ClearDataRequest
-	(*ClearDataResponse)(nil),         // 12: metamorph_api.ClearDataResponse
-	(*TransactionsStatusRequest)(nil), // 13: metamorph_api.TransactionsStatusRequest
-	(*Transactions)(nil),              // 14: metamorph_api.Transactions
-	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),             // 16: google.protobuf.Empty
+	(*UpdateInstancesRequest)(nil),    // 9: metamorph_api.UpdateInstancesRequest
+	(*ClearDataRequest)(nil),          // 10: metamorph_api.ClearDataRequest
+	(*ClearDataResponse)(nil),         // 11: metamorph_api.ClearDataResponse
+	(*TransactionsStatusRequest)(nil), // 12: metamorph_api.TransactionsStatusRequest
+	(*Transactions)(nil),              // 13: metamorph_api.Transactions
+	(*timestamppb.Timestamp)(nil),     // 14: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),             // 15: google.protobuf.Empty
 }
 var file_internal_metamorph_metamorph_api_metamorph_api_proto_depIdxs = []int32{
-	15, // 0: metamorph_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
+	14, // 0: metamorph_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 1: metamorph_api.TransactionRequest.wait_for_status:type_name -> metamorph_api.Status
 	2,  // 2: metamorph_api.TransactionRequests.Transactions:type_name -> metamorph_api.TransactionRequest
-	15, // 3: metamorph_api.Transaction.stored_at:type_name -> google.protobuf.Timestamp
-	15, // 4: metamorph_api.Transaction.announced_at:type_name -> google.protobuf.Timestamp
-	15, // 5: metamorph_api.Transaction.mined_at:type_name -> google.protobuf.Timestamp
+	14, // 3: metamorph_api.Transaction.stored_at:type_name -> google.protobuf.Timestamp
+	14, // 4: metamorph_api.Transaction.announced_at:type_name -> google.protobuf.Timestamp
+	14, // 5: metamorph_api.Transaction.mined_at:type_name -> google.protobuf.Timestamp
 	0,  // 6: metamorph_api.Transaction.status:type_name -> metamorph_api.Status
-	15, // 7: metamorph_api.TransactionStatus.stored_at:type_name -> google.protobuf.Timestamp
+	14, // 7: metamorph_api.TransactionStatus.stored_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: metamorph_api.TransactionStatus.status:type_name -> metamorph_api.Status
-	15, // 9: metamorph_api.TransactionStatus.last_submitted:type_name -> google.protobuf.Timestamp
+	14, // 9: metamorph_api.TransactionStatus.last_submitted:type_name -> google.protobuf.Timestamp
 	5,  // 10: metamorph_api.TransactionStatus.callbacks:type_name -> metamorph_api.callback
 	6,  // 11: metamorph_api.TransactionStatuses.Statuses:type_name -> metamorph_api.TransactionStatus
 	4,  // 12: metamorph_api.Transactions.transactions:type_name -> metamorph_api.Transaction
-	16, // 13: metamorph_api.MetaMorphAPI.Health:input_type -> google.protobuf.Empty
+	15, // 13: metamorph_api.MetaMorphAPI.Health:input_type -> google.protobuf.Empty
 	2,  // 14: metamorph_api.MetaMorphAPI.PutTransaction:input_type -> metamorph_api.TransactionRequest
 	3,  // 15: metamorph_api.MetaMorphAPI.PutTransactions:input_type -> metamorph_api.TransactionRequests
 	8,  // 16: metamorph_api.MetaMorphAPI.GetTransaction:input_type -> metamorph_api.TransactionStatusRequest
-	13, // 17: metamorph_api.MetaMorphAPI.GetTransactions:input_type -> metamorph_api.TransactionsStatusRequest
+	12, // 17: metamorph_api.MetaMorphAPI.GetTransactions:input_type -> metamorph_api.TransactionsStatusRequest
 	8,  // 18: metamorph_api.MetaMorphAPI.GetTransactionStatus:input_type -> metamorph_api.TransactionStatusRequest
-	13, // 19: metamorph_api.MetaMorphAPI.GetTransactionStatuses:input_type -> metamorph_api.TransactionsStatusRequest
-	9,  // 20: metamorph_api.MetaMorphAPI.SetUnlockedByName:input_type -> metamorph_api.SetUnlockedByNameRequest
-	11, // 21: metamorph_api.MetaMorphAPI.ClearData:input_type -> metamorph_api.ClearDataRequest
+	12, // 19: metamorph_api.MetaMorphAPI.GetTransactionStatuses:input_type -> metamorph_api.TransactionsStatusRequest
+	9,  // 20: metamorph_api.MetaMorphAPI.UpdateInstances:input_type -> metamorph_api.UpdateInstancesRequest
+	10, // 21: metamorph_api.MetaMorphAPI.ClearData:input_type -> metamorph_api.ClearDataRequest
 	1,  // 22: metamorph_api.MetaMorphAPI.Health:output_type -> metamorph_api.HealthResponse
 	6,  // 23: metamorph_api.MetaMorphAPI.PutTransaction:output_type -> metamorph_api.TransactionStatus
 	7,  // 24: metamorph_api.MetaMorphAPI.PutTransactions:output_type -> metamorph_api.TransactionStatuses
 	4,  // 25: metamorph_api.MetaMorphAPI.GetTransaction:output_type -> metamorph_api.Transaction
-	14, // 26: metamorph_api.MetaMorphAPI.GetTransactions:output_type -> metamorph_api.Transactions
+	13, // 26: metamorph_api.MetaMorphAPI.GetTransactions:output_type -> metamorph_api.Transactions
 	6,  // 27: metamorph_api.MetaMorphAPI.GetTransactionStatus:output_type -> metamorph_api.TransactionStatus
 	7,  // 28: metamorph_api.MetaMorphAPI.GetTransactionStatuses:output_type -> metamorph_api.TransactionStatuses
-	10, // 29: metamorph_api.MetaMorphAPI.SetUnlockedByName:output_type -> metamorph_api.SetUnlockedByNameResponse
-	12, // 30: metamorph_api.MetaMorphAPI.ClearData:output_type -> metamorph_api.ClearDataResponse
+	15, // 29: metamorph_api.MetaMorphAPI.UpdateInstances:output_type -> google.protobuf.Empty
+	11, // 30: metamorph_api.MetaMorphAPI.ClearData:output_type -> metamorph_api.ClearDataResponse
 	22, // [22:31] is the sub-list for method output_type
 	13, // [13:22] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
@@ -1368,7 +1317,7 @@ func file_internal_metamorph_metamorph_api_metamorph_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc), len(file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

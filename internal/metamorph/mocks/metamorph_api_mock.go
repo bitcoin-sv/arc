@@ -45,8 +45,8 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //			PutTransactionsFunc: func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 //				panic("mock out the PutTransactions method")
 //			},
-//			SetUnlockedByNameFunc: func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
-//				panic("mock out the SetUnlockedByName method")
+//			UpdateInstancesFunc: func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+//				panic("mock out the UpdateInstances method")
 //			},
 //		}
 //
@@ -79,8 +79,8 @@ type MetaMorphAPIClientMock struct {
 	// PutTransactionsFunc mocks the PutTransactions method.
 	PutTransactionsFunc func(ctx context.Context, in *metamorph_api.TransactionRequests, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error)
 
-	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
-	SetUnlockedByNameFunc func(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error)
+	// UpdateInstancesFunc mocks the UpdateInstances method.
+	UpdateInstancesFunc func(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -156,12 +156,12 @@ type MetaMorphAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// SetUnlockedByName holds details about calls to the SetUnlockedByName method.
-		SetUnlockedByName []struct {
+		// UpdateInstances holds details about calls to the UpdateInstances method.
+		UpdateInstances []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// In is the in argument value.
-			In *metamorph_api.SetUnlockedByNameRequest
+			In *metamorph_api.UpdateInstancesRequest
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -174,7 +174,7 @@ type MetaMorphAPIClientMock struct {
 	lockHealth                 sync.RWMutex
 	lockPutTransaction         sync.RWMutex
 	lockPutTransactions        sync.RWMutex
-	lockSetUnlockedByName      sync.RWMutex
+	lockUpdateInstances        sync.RWMutex
 }
 
 // ClearData calls ClearDataFunc.
@@ -497,42 +497,42 @@ func (mock *MetaMorphAPIClientMock) PutTransactionsCalls() []struct {
 	return calls
 }
 
-// SetUnlockedByName calls SetUnlockedByNameFunc.
-func (mock *MetaMorphAPIClientMock) SetUnlockedByName(ctx context.Context, in *metamorph_api.SetUnlockedByNameRequest, opts ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
-	if mock.SetUnlockedByNameFunc == nil {
-		panic("MetaMorphAPIClientMock.SetUnlockedByNameFunc: method is nil but MetaMorphAPIClient.SetUnlockedByName was just called")
+// UpdateInstances calls UpdateInstancesFunc.
+func (mock *MetaMorphAPIClientMock) UpdateInstances(ctx context.Context, in *metamorph_api.UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	if mock.UpdateInstancesFunc == nil {
+		panic("MetaMorphAPIClientMock.UpdateInstancesFunc: method is nil but MetaMorphAPIClient.UpdateInstances was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
-		In   *metamorph_api.SetUnlockedByNameRequest
+		In   *metamorph_api.UpdateInstancesRequest
 		Opts []grpc.CallOption
 	}{
 		Ctx:  ctx,
 		In:   in,
 		Opts: opts,
 	}
-	mock.lockSetUnlockedByName.Lock()
-	mock.calls.SetUnlockedByName = append(mock.calls.SetUnlockedByName, callInfo)
-	mock.lockSetUnlockedByName.Unlock()
-	return mock.SetUnlockedByNameFunc(ctx, in, opts...)
+	mock.lockUpdateInstances.Lock()
+	mock.calls.UpdateInstances = append(mock.calls.UpdateInstances, callInfo)
+	mock.lockUpdateInstances.Unlock()
+	return mock.UpdateInstancesFunc(ctx, in, opts...)
 }
 
-// SetUnlockedByNameCalls gets all the calls that were made to SetUnlockedByName.
+// UpdateInstancesCalls gets all the calls that were made to UpdateInstances.
 // Check the length with:
 //
-//	len(mockedMetaMorphAPIClient.SetUnlockedByNameCalls())
-func (mock *MetaMorphAPIClientMock) SetUnlockedByNameCalls() []struct {
+//	len(mockedMetaMorphAPIClient.UpdateInstancesCalls())
+func (mock *MetaMorphAPIClientMock) UpdateInstancesCalls() []struct {
 	Ctx  context.Context
-	In   *metamorph_api.SetUnlockedByNameRequest
+	In   *metamorph_api.UpdateInstancesRequest
 	Opts []grpc.CallOption
 } {
 	var calls []struct {
 		Ctx  context.Context
-		In   *metamorph_api.SetUnlockedByNameRequest
+		In   *metamorph_api.UpdateInstancesRequest
 		Opts []grpc.CallOption
 	}
-	mock.lockSetUnlockedByName.RLock()
-	calls = mock.calls.SetUnlockedByName
-	mock.lockSetUnlockedByName.RUnlock()
+	mock.lockUpdateInstances.RLock()
+	calls = mock.calls.UpdateInstances
+	mock.lockUpdateInstances.RUnlock()
 	return calls
 }

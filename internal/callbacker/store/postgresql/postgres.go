@@ -185,13 +185,14 @@ func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) erro
 	return nil
 }
 
+// GetUnmappedURL Returns unmapped URLs for which there exists a pending callback in the callbacks table
 func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error) {
 	const q = `SELECT c.url FROM callbacker.callbacks c LEFT JOIN callbacker.url_mapping um ON um.url = c.url WHERE um.url IS NULL LIMIT 1;`
 
 	err = p.db.QueryRowContext(ctx, q).Scan(&url)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
+			return "", store.ErrNoUnmappedURLsFound
 		}
 
 		return "", err
@@ -206,7 +207,25 @@ func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (row
 
 	rows, err := p.db.ExecContext(ctx, q, instance)
 	if err != nil {
-		return 0, store.ErrURLMappingDeleteFailed
+		return 0, errors.Join(store.ErrURLMappingDeleteFailed, err)
+	}
+
+	rowsAffected, err = rows.RowsAffected()
+	if err != nil {
+		return 0, nil
+	}
+
+	return rowsAffected, nil
+}
+
+func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
+	const q = `DELETE FROM callbacker.url_mapping
+			WHERE NOT instance = ANY($1::TEXT[])`
+
+	param := "{" + strings.Join(except, ",") + "}"
+	rows, err := p.db.ExecContext(ctx, q, param)
+	if err != nil {
+		return 0, errors.Join(store.ErrURLMappingsDeleteFailed, err)
 	}
 
 	rowsAffected, err = rows.RowsAffected()

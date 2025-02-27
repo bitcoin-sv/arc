@@ -267,6 +267,29 @@ func TestPostgresDBt(t *testing.T) {
 		require.Len(t, mappings, 0)
 	})
 
+	t.Run("delete URL mappings except", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_url_mappings_except")
+		ctx := context.Background()
+
+		// when
+		rowsAffected, err := postgresDB.DeleteURLMappingsExcept(ctx, []string{"host3", "host5"})
+		require.NoError(t, err)
+		require.Equal(t, int64(5), rowsAffected)
+
+		// then
+		mappings, err := postgresDB.GetURLMappings(ctx)
+		require.NoError(t, err)
+		expectedMappings := map[string]string{
+			"https://abc3.com/callback": "host3",
+			"https://abc4.com/callback": "host3",
+			"https://abc8.com/callback": "host5",
+		}
+
+		require.Equal(t, expectedMappings, mappings)
+	})
+
 	t.Run("get URL mappings", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)

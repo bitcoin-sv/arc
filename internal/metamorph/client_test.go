@@ -10,55 +10,15 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 
-	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/testdata"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/internal/testdata"
 )
-
-func TestClient_SetUnlockedByName(t *testing.T) {
-	tt := []struct {
-		name           string
-		setUnlockedErr error
-
-		expectedErrorStr string
-	}{
-		{
-			name: "success",
-		},
-		{
-			name:           "err",
-			setUnlockedErr: errors.New("failed to clear data"),
-
-			expectedErrorStr: "failed to clear data",
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			// Given
-			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				SetUnlockedByNameFunc: func(_ context.Context, _ *metamorph_api.SetUnlockedByNameRequest, _ ...grpc.CallOption) (*metamorph_api.SetUnlockedByNameResponse, error) {
-					return &metamorph_api.SetUnlockedByNameResponse{RecordsAffected: 5}, tc.setUnlockedErr
-				},
-			}
-
-			client := metamorph.NewClient(apiClient)
-			// When
-			res, err := client.SetUnlockedByName(context.Background(), "test-1")
-			// Then
-			if tc.expectedErrorStr != "" {
-				require.ErrorContains(t, err, tc.expectedErrorStr)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, int64(5), res)
-		})
-	}
-}
 
 func TestClient_SubmitTransaction(t *testing.T) {
 	now := time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC)

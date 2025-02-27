@@ -27,7 +27,7 @@ const (
 	MetaMorphAPI_GetTransactions_FullMethodName        = "/metamorph_api.MetaMorphAPI/GetTransactions"
 	MetaMorphAPI_GetTransactionStatus_FullMethodName   = "/metamorph_api.MetaMorphAPI/GetTransactionStatus"
 	MetaMorphAPI_GetTransactionStatuses_FullMethodName = "/metamorph_api.MetaMorphAPI/GetTransactionStatuses"
-	MetaMorphAPI_SetUnlockedByName_FullMethodName      = "/metamorph_api.MetaMorphAPI/SetUnlockedByName"
+	MetaMorphAPI_UpdateInstances_FullMethodName        = "/metamorph_api.MetaMorphAPI/UpdateInstances"
 	MetaMorphAPI_ClearData_FullMethodName              = "/metamorph_api.MetaMorphAPI/ClearData"
 )
 
@@ -42,7 +42,7 @@ type MetaMorphAPIClient interface {
 	GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
 	GetTransactionStatus(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
 	GetTransactionStatuses(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*TransactionStatuses, error)
-	SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error)
+	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ClearData(ctx context.Context, in *ClearDataRequest, opts ...grpc.CallOption) (*ClearDataResponse, error)
 }
 
@@ -124,10 +124,10 @@ func (c *metaMorphAPIClient) GetTransactionStatuses(ctx context.Context, in *Tra
 	return out, nil
 }
 
-func (c *metaMorphAPIClient) SetUnlockedByName(ctx context.Context, in *SetUnlockedByNameRequest, opts ...grpc.CallOption) (*SetUnlockedByNameResponse, error) {
+func (c *metaMorphAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetUnlockedByNameResponse)
-	err := c.cc.Invoke(ctx, MetaMorphAPI_SetUnlockedByName_FullMethodName, in, out, cOpts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, MetaMorphAPI_UpdateInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ type MetaMorphAPIServer interface {
 	GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error)
 	GetTransactionStatus(context.Context, *TransactionStatusRequest) (*TransactionStatus, error)
 	GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error)
-	SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error)
+	UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error)
 	ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error)
 	mustEmbedUnimplementedMetaMorphAPIServer()
 }
@@ -188,8 +188,8 @@ func (UnimplementedMetaMorphAPIServer) GetTransactionStatus(context.Context, *Tr
 func (UnimplementedMetaMorphAPIServer) GetTransactionStatuses(context.Context, *TransactionsStatusRequest) (*TransactionStatuses, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionStatuses not implemented")
 }
-func (UnimplementedMetaMorphAPIServer) SetUnlockedByName(context.Context, *SetUnlockedByNameRequest) (*SetUnlockedByNameResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetUnlockedByName not implemented")
+func (UnimplementedMetaMorphAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateInstances not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) ClearData(context.Context, *ClearDataRequest) (*ClearDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearData not implemented")
@@ -341,20 +341,20 @@ func _MetaMorphAPI_GetTransactionStatuses_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MetaMorphAPI_SetUnlockedByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetUnlockedByNameRequest)
+func _MetaMorphAPI_UpdateInstances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateInstancesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MetaMorphAPIServer).SetUnlockedByName(ctx, in)
+		return srv.(MetaMorphAPIServer).UpdateInstances(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MetaMorphAPI_SetUnlockedByName_FullMethodName,
+		FullMethod: MetaMorphAPI_UpdateInstances_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetaMorphAPIServer).SetUnlockedByName(ctx, req.(*SetUnlockedByNameRequest))
+		return srv.(MetaMorphAPIServer).UpdateInstances(ctx, req.(*UpdateInstancesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -413,8 +413,8 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MetaMorphAPI_GetTransactionStatuses_Handler,
 		},
 		{
-			MethodName: "SetUnlockedByName",
-			Handler:    _MetaMorphAPI_SetUnlockedByName_Handler,
+			MethodName: "UpdateInstances",
+			Handler:    _MetaMorphAPI_UpdateInstances_Handler,
 		},
 		{
 			MethodName: "ClearData",

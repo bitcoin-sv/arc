@@ -20,9 +20,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CallbackerAPI_Health_FullMethodName           = "/callbacker_api.CallbackerAPI/Health"
-	CallbackerAPI_SendCallback_FullMethodName     = "/callbacker_api.CallbackerAPI/SendCallback"
-	CallbackerAPI_DeleteURLMapping_FullMethodName = "/callbacker_api.CallbackerAPI/DeleteURLMapping"
+	CallbackerAPI_Health_FullMethodName          = "/callbacker_api.CallbackerAPI/Health"
+	CallbackerAPI_SendCallback_FullMethodName    = "/callbacker_api.CallbackerAPI/SendCallback"
+	CallbackerAPI_UpdateInstances_FullMethodName = "/callbacker_api.CallbackerAPI/UpdateInstances"
 )
 
 // CallbackerAPIClient is the client API for CallbackerAPI service.
@@ -31,7 +31,7 @@ const (
 type CallbackerAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
 	SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*DeleteURLMappingResponse, error)
+	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type callbackerAPIClient struct {
@@ -62,10 +62,10 @@ func (c *callbackerAPIClient) SendCallback(ctx context.Context, in *SendCallback
 	return out, nil
 }
 
-func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteURLMappingRequest, opts ...grpc.CallOption) (*DeleteURLMappingResponse, error) {
+func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteURLMappingResponse)
-	err := c.cc.Invoke(ctx, CallbackerAPI_DeleteURLMapping_FullMethodName, in, out, cOpts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, CallbackerAPI_UpdateInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (c *callbackerAPIClient) DeleteURLMapping(ctx context.Context, in *DeleteUR
 type CallbackerAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
 	SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error)
-	DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error)
+	UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCallbackerAPIServer()
 }
 
@@ -95,8 +95,8 @@ func (UnimplementedCallbackerAPIServer) Health(context.Context, *emptypb.Empty) 
 func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCallback not implemented")
 }
-func (UnimplementedCallbackerAPIServer) DeleteURLMapping(context.Context, *DeleteURLMappingRequest) (*DeleteURLMappingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteURLMapping not implemented")
+func (UnimplementedCallbackerAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateInstances not implemented")
 }
 func (UnimplementedCallbackerAPIServer) mustEmbedUnimplementedCallbackerAPIServer() {}
 func (UnimplementedCallbackerAPIServer) testEmbeddedByValue()                       {}
@@ -155,20 +155,20 @@ func _CallbackerAPI_SendCallback_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CallbackerAPI_DeleteURLMapping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteURLMappingRequest)
+func _CallbackerAPI_UpdateInstances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateInstancesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CallbackerAPIServer).DeleteURLMapping(ctx, in)
+		return srv.(CallbackerAPIServer).UpdateInstances(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: CallbackerAPI_DeleteURLMapping_FullMethodName,
+		FullMethod: CallbackerAPI_UpdateInstances_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CallbackerAPIServer).DeleteURLMapping(ctx, req.(*DeleteURLMappingRequest))
+		return srv.(CallbackerAPIServer).UpdateInstances(ctx, req.(*UpdateInstancesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -189,8 +189,8 @@ var CallbackerAPI_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CallbackerAPI_SendCallback_Handler,
 		},
 		{
-			MethodName: "DeleteURLMapping",
-			Handler:    _CallbackerAPI_DeleteURLMapping_Handler,
+			MethodName: "UpdateInstances",
+			Handler:    _CallbackerAPI_UpdateInstances_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

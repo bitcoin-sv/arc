@@ -326,6 +326,7 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	return resp, nil
 }
 
+// toStoreData deprecated, Todo: remove
 func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.TransactionRequest) *store.Data {
 	callbacks := make([]store.Callback, 0)
 	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {

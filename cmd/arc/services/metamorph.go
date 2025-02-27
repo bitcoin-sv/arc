@@ -104,7 +104,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	// maximum amount of messages that could be coming from a single block
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
-	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
+	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
 	clientClosedCh := make(chan struct{}, 1)
 	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))

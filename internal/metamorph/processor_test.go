@@ -612,7 +612,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 func TestStartProcessSubmittedTxs(t *testing.T) {
 	tt := []struct {
 		name   string
-		txReqs []*metamorph_api.TransactionRequest
+		txReqs []*metamorph_api.PostTransactionRequest
 
 		expectedSetBulkCalls int
 		expectedInvMessages  int
@@ -620,7 +620,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 	}{
 		{
 			name: "2 submitted txs",
-			txReqs: []*metamorph_api.TransactionRequest{
+			txReqs: []*metamorph_api.PostTransactionRequest{
 				{
 					CallbackUrl:   "callback-1.example.com",
 					CallbackToken: "token-1",
@@ -641,7 +641,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		},
 		{
 			name: "5 submitted txs",
-			txReqs: []*metamorph_api.TransactionRequest{
+			txReqs: []*metamorph_api.PostTransactionRequest{
 				{
 					CallbackUrl:   "callback-1.example.com",
 					CallbackToken: "token-1",
@@ -739,7 +739,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 			}
 			const submittedTxsBuffer = 5
-			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, submittedTxsBuffer)
+			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, submittedTxsBuffer)
 			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
@@ -1133,7 +1133,7 @@ func TestStart(t *testing.T) {
 				},
 			}
 
-			submittedTxsChan := make(chan *metamorph_api.TransactionRequest, 2)
+			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, 2)
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 2)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
@@ -1161,7 +1161,7 @@ func TestStart(t *testing.T) {
 			_ = subscribeMinedTxsFunction([]byte("invalid data"))
 			_ = subscribeMinedTxsFunction(data)
 
-			txRequest := &metamorph_api.TransactionRequest{}
+			txRequest := &metamorph_api.PostTransactionRequest{}
 			data, err = proto.Marshal(txRequest)
 			require.NoError(t, err)
 			_ = subscribeSubmitTxsFunction([]byte("invalid data"))

@@ -496,7 +496,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		WHERE t.hash IN (
 		   SELECT t2.hash
 		   FROM metamorph.transactions t2
-		   WHERE t2.locked_by = 'NONE' AND t2.status < $3 AND last_submitted_at > $4
+		   WHERE t2.locked_by = 'NONE' AND t2.status <= $3 AND last_submitted_at > $4
 		   ORDER BY hash
 		   LIMIT $2
 		   FOR UPDATE SKIP LOCKED

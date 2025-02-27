@@ -614,6 +614,7 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
+// StartRequestingSeenOnNetworkTxs periodically loads SEEN_ON_NETWORK transactions and registers them
 func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 	p.waitGroup.Add(1)
@@ -628,15 +629,15 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-ticker.C:
 				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.tracingAttributes...)
 
-				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkFrom := p.now().Add(-1 * p.recheckSeenFromAgo)
 				getSeenOnNetworkUntil := p.now().Add(-1 * p.recheckSeenUntilAgo)
 				var offset int64
 				var totalSeenOnNetworkTxs int
+				var seenOnNetworkTxs []*store.Data
+				var err error
 
 				for {
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkFrom, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
-					offset += loadSeenOnNetworkLimit
+					seenOnNetworkTxs, err = p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkFrom, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
 						break
@@ -646,6 +647,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 						break
 					}
 
+					offset += loadSeenOnNetworkLimit
 					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 					for _, tx := range seenOnNetworkTxs {
@@ -654,6 +656,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 							p.logger.Error("Failed to register tx in blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
+
+					time.Sleep(100 * time.Millisecond)
 				}
 
 				if totalSeenOnNetworkTxs > 0 {

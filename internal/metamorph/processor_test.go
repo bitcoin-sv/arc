@@ -999,6 +999,81 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 }
 
+func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
+	tt := []struct {
+		name       string
+		getSeenErr error
+
+		expectedGetSeenCalls  int
+		expectedRegisterCalls int
+	}{
+		{
+			name: "success",
+
+			expectedGetSeenCalls:  5,
+			expectedRegisterCalls: 9,
+		},
+		{
+			name:       "failed to get seen on network transactions",
+			getSeenErr: errors.New("failed to get seen txs"),
+
+			expectedGetSeenCalls:  6,
+			expectedRegisterCalls: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			iterations := 0
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetSeenOnNetworkFunc: func(_ context.Context, _ time.Time, _ time.Time, limit int64, offset int64) ([]*store.Data, error) {
+					require.Equal(t, int64(5000), limit)
+
+					if iterations >= 3 {
+						return []*store.Data{}, nil
+					}
+
+					iterations++
+					return []*store.Data{
+						{Hash: testdata.TX1Hash},
+						{Hash: testdata.TX1Hash},
+						{Hash: testdata.TX1Hash},
+					}, tc.getSeenErr
+				},
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+			}
+			pm := &bcnet.Mediator{}
+
+			blockTxClient := &btxMocks.ClientMock{
+				RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil },
+			}
+
+			cStore := cache.NewMemoryStore()
+			sut, err := metamorph.NewProcessor(
+				metamorphStore,
+				cStore,
+				pm,
+				nil,
+				metamorph.WithBlocktxClient(blockTxClient),
+				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+			)
+			require.NoError(t, err)
+
+			// when
+			sut.StartRequestingSeenOnNetworkTxs()
+
+			time.Sleep(320 * time.Millisecond)
+			sut.Shutdown()
+
+			// then
+			require.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionCalls()))
+			require.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
+		})
+	}
+
+}
+
 func TestProcessorHealth(t *testing.T) {
 	tt := []struct {
 		name       string

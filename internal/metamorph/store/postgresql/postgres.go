@@ -555,43 +555,9 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 		tracing.EndTracing(span, err)
 	}()
 
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = tx.Exec(`SELECT hash
-	FROM metamorph.transactions
-	WHERE (locked_by = $6 OR locked_by = 'NONE')
-	AND status = $1
-	AND last_submitted_at > $2
-	AND last_submitted_at <= $3
-	ORDER BY hash
-	LIMIT $4 OFFSET $5
-	FOR UPDATE`, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
-	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
-		return nil, err
-	}
-
-	q := `UPDATE metamorph.transactions
-		SET locked_by=$6
-		FROM (
-			SELECT hash
-			FROM metamorph.transactions
-			WHERE (locked_by = $6 OR locked_by = 'NONE')
-			AND status = $1
-			AND last_submitted_at >= $2
-			AND last_submitted_at <= $3
-			ORDER BY hash
-			LIMIT $4 OFFSET $5)
-		as t
-		WHERE metamorph.transactions.hash = t.hash
-		RETURNING
-			stored_at
-			,t.hash
+	q := `SELECT
+    		stored_at
+			,hash
 			,status
 			,block_height
 			,block_hash
@@ -604,26 +570,23 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 			,merkle_path
 			,retries
 			,status_history
-			,last_modified;`
+			,last_modified
+	FROM metamorph.transactions
+	WHERE locked_by = $6
+	AND status = $1
+	AND last_submitted_at > $2
+	AND last_submitted_at <= $3
+	LIMIT $4 OFFSET $5
+	`
 
-	rows, err := tx.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
 	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
-	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
-		}
-		return nil, err
-	}
-
-	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}

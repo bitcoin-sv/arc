@@ -57,7 +57,7 @@
   last_submitted_at: 2023-10-01 14:00:00
 - hash: 0x319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743
   locked_by: NONE
-  status: 60
+  status: 90
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
 - hash: 0x392ea135503bf49f46eb421af01153a2bdcedeba0ee13aa1dd36983861cc5ddd
@@ -81,7 +81,7 @@
   stored_at: 2023-09-01 14:00:00
   last_submitted_at: 2023-09-01 14:00:00
 - hash: 0x855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f
-  locked_by: NONE
+  locked_by: metamorph-1
   status: 90
   stored_at: 2023-01-01 02:00:00
   last_submitted_at: 2023-01-01 02:00:00

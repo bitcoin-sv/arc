@@ -164,6 +164,18 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	return p, nil
 }
 
+func (cl *Client) SetConn(nc *nats.Conn) error {
+	cl.nc = nc
+	js, err := jetstream.New(nc)
+	if err != nil {
+		return err
+	}
+
+	cl.js = js
+
+	return nil
+}
+
 func (cl *Client) getStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy) (jetstream.Stream, error) {
 	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

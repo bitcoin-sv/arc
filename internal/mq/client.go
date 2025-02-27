@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -30,7 +31,12 @@ type MessageQueueClient interface {
 	Shutdown()
 }
 
-func NewMqClient(ctx context.Context, logger *slog.Logger, arcConfig *config.ArcConfig, opts ...nats_jetstream.Option) (MessageQueueClient, error) {
+func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig,
+	jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+	if mqCfg == nil {
+		return nil, errors.New("mqCfg is required")
+	}
+
 	logger = logger.With("module", "nats")
 
 	clientClosedCh := make(chan struct{}, 1)
@@ -38,43 +44,58 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, arcConfig *config.Arc
 	var conn *nats.Conn
 	var err error
 
-	conn, err = nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
+	connOpts = append(connOpts, nats_connection.WithClientClosedChannel(clientClosedCh))
+
+	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", mqCfg.URL, err)
+	}
+	if !mqCfg.Streaming.Enabled {
+		return nil, errors.New("currently only message queue with streaming supported")
+	}
+	if mqCfg.Streaming.FileStorage {
+		jsOpts = append(jsOpts, nats_jetstream.WithFileStorage())
+	}
+
+	if tracingCfg != nil && tracingCfg.Enabled {
+		jsOpts = append(jsOpts, nats_jetstream.WithTracer(tracingCfg.KeyValueAttributes...))
+	}
+
+	var mqClient *nats_jetstream.Client
+	mqClient, err = nats_jetstream.New(conn, logger, jsOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create nats client: %v", err)
 	}
 
 	// recreate connection if it closes
-	go func() {
+	go func(natsConn *nats.Conn) {
 		for {
 			select {
 			case <-clientClosedCh:
-				// Todo: create connection
-				//conn, err = nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-				//if err != nil {
-				//	logger.Error("Failed to create connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
-				//}
+				for {
+					logger.Warn("Message queue connection closed - recreating connection")
+					conn, err = nats_connection.New(mqCfg.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
+					if err != nil {
+						logger.Error("Failed to create connection to message queue at URL %s: %v", mqCfg.URL, err)
+						time.Sleep(10 * time.Second)
+						continue
+					}
+
+					err = mqClient.SetConn(conn)
+					if err != nil {
+						logger.Error("Failed to set connection to message queue at URL %s: %v", mqCfg.URL, err)
+						time.Sleep(10 * time.Second)
+						continue
+					}
+
+					logger.Info("Message queue connection established successfully")
+					break
+				}
 			case <-ctx.Done():
 				return
 			}
 		}
-	}()
-
-	var mqClient MessageQueueClient
-	if !arcConfig.MessageQueue.Streaming.Enabled {
-		return nil, errors.New("currently only message queue with streaming supported")
-	}
-	if arcConfig.MessageQueue.Streaming.FileStorage {
-		opts = append(opts, nats_jetstream.WithFileStorage())
-	}
-
-	if arcConfig.Tracing.Enabled {
-		opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-	}
-
-	mqClient, err = nats_jetstream.New(conn, logger, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create nats client: %v", err)
-	}
+	}(conn)
 
 	return mqClient, nil
 }

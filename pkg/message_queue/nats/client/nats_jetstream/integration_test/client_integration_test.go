@@ -87,7 +87,6 @@ func TestNatsClient(t *testing.T) {
 		// given
 		const topic = "submit-tx"
 		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
-
 		require.NoError(t, err)
 		messageChan := make(chan *test_api.TestMessage, 100)
 		testMessage := &test_api.TestMessage{

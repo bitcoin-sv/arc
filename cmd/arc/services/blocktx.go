@@ -91,7 +91,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		nats_jetstream.WithWorkQueuePolicy(mq.MinedTxsTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig, opts...)
+	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -113,7 +113,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		nats_jetstream.WithInterestPolicy(mq.CallbackTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig, opts...)
+	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil)
 	if err != nil {
 		return nil, err
 	}

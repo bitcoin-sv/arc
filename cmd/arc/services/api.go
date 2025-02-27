@@ -66,7 +66,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig, opts...)
+	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil)
 	if err != nil {
 		return nil, err
 	}

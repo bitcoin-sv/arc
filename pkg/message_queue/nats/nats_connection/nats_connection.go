@@ -12,40 +12,42 @@ import (
 
 var ErrNatsConnectionFailed = errors.New("failed to connect to NATS server")
 
-func WithMaxReconnects(maxReconnects int) func(config *natsConfig) {
-	return func(config *natsConfig) {
+func WithMaxReconnects(maxReconnects int) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
 		config.maxReconnects = maxReconnects
 	}
 }
 
-func WithClientClosedChannel(clientClosedCh chan struct{}) func(config *natsConfig) {
-	return func(config *natsConfig) {
-		config.clientClosedCh = clientClosedCh
+func WithClientClosedChannel(clientClosedCh chan struct{}) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.clientClosedCh = append(config.clientClosedCh, clientClosedCh)
 	}
 }
 
-func WithReconnectWait(reconnectWait time.Duration) func(config *natsConfig) {
-	return func(config *natsConfig) {
+func WithReconnectWait(reconnectWait time.Duration) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
 		config.reconnectWait = reconnectWait
 	}
 }
 
-type natsConfig struct {
+type NatsConfig struct {
 	maxReconnects        int
 	pingInterval         time.Duration
 	reconnectBufSize     int
 	reconnectWait        time.Duration
 	maxPingsOutstanding  int
 	retryOnFailedConnect bool
-	clientClosedCh       chan struct{}
+	clientClosedCh       []chan struct{}
 }
 
-func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) (*nats.Conn, error) {
+type Option func(config *NatsConfig)
+
+func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error) {
 	var nc *nats.Conn
 
 	logger.With(slog.String("module", "nats"))
 
-	cfg := &natsConfig{
+	cfg := &NatsConfig{
 		maxReconnects:        10,
 		pingInterval:         15 * time.Second,
 		reconnectBufSize:     8 * 1024 * 1024,
@@ -101,10 +103,12 @@ func New(natsURL string, logger *slog.Logger, opts ...func(config *natsConfig)) 
 		}),
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			logger.Warn("client closed")
-			if cfg.clientClosedCh != nil {
-				select {
-				case cfg.clientClosedCh <- struct{}{}:
-				default:
+			if len(cfg.clientClosedCh) > 0 {
+				for _, ch := range cfg.clientClosedCh {
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 				}
 			}
 		}),

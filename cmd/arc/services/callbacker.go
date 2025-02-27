@@ -96,7 +96,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{mq.CallbackTopic}, true),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig, opts...)
+	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil)
 	if err != nil {
 		return nil, err
 	}

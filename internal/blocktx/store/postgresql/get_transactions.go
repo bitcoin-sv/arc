@@ -41,34 +41,6 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 	return p.getBlockTransactions(rows)
 }
 
-func (p *PostgreSQL) GetMinedTransactionsOnlyLongest(ctx context.Context, hashes [][]byte) (minedTransactions []store.BlockTransaction, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	q := `
-		SELECT
-			bt.hash,
-			b.hash,
-			b.height,
-			bt.merkle_tree_index,
-			b.status,
-			b.merkleroot
-		FROM blocktx.block_transactions AS bt
-			JOIN blocktx.blocks AS b ON bt.block_id = b.id
-		WHERE bt.hash = ANY($1) AND b.is_longest = true
-	`
-
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return p.getBlockTransactions(rows)
-}
-
 func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransaction, error) {
 	transactionBlocks := make([]store.BlockTransaction, 0)
 	for rows.Next() {

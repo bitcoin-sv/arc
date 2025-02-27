@@ -37,10 +37,10 @@ func (k *K8sClient) GetRunningPodNamesSlice(ctx context.Context, namespace strin
 	if err != nil {
 		return nil, err
 	}
-	podNames := make([]string, len(pods.Items))
-	for i, item := range pods.Items {
-		if item.Status.Phase == v1.PodRunning {
-			podNames[i] = item.Name
+	var podNames []string
+	for _, item := range pods.Items {
+		if item.Status.Phase == v1.PodRunning && item.Name != "" {
+			podNames = append(podNames, item.Name)
 		}
 	}
 

@@ -332,7 +332,7 @@ func TestPostgresDB(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
-		rows, err := postgresDB.SetUnlockedByNameExcept(ctx, []string{"metamorph-1"})
+		rows, err := postgresDB.SetUnlockedByNameExcept(ctx, []string{"metamorph-1", ""})
 		require.NoError(t, err)
 		require.Equal(t, int64(4), rows)
 

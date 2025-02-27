@@ -30,6 +30,12 @@ func WithReconnectWait(reconnectWait time.Duration) func(config *NatsConfig) {
 	}
 }
 
+func WithRetryOnFailedConnect(retryOnFailedConnect bool) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.retryOnFailedConnect = retryOnFailedConnect
+	}
+}
+
 type NatsConfig struct {
 	maxReconnects        int
 	pingInterval         time.Duration

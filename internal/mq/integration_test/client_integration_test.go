@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -26,14 +29,26 @@ func TestNatsClient(t *testing.T) {
 		pool, err := dockertest.NewPool("")
 		require.NoError(t, err)
 
+		ctx := context.Background()
 		port := "4337"
 		enableJetStreamCmd := "--js"
 		name := "nats-jetstream"
 
 		resource, natsURL, err := testutils.RunNats(pool, port, name, enableJetStreamCmd)
 		require.NoError(t, err)
+		defer pool.Purge(resource)
 
 		t.Log("nats url:", natsURL)
+
+		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		require.NoError(t, err)
+
+		list, err := dockerClient.ContainerList(ctx, container.ListOptions{})
+		require.NoError(t, err)
+
+		for _, cont := range list {
+			t.Log(cont.Names)
+		}
 
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
@@ -41,15 +56,18 @@ func TestNatsClient(t *testing.T) {
 		require.NoError(t, err)
 		oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
 		require.NoError(t, err)
-		err = oppositeClient.Subscribe(mq.SubmitTxTopic, func(bytes []byte) error {
+
+		receivedCounter := 0
+		msgReceived := func(bytes []byte) error {
 			logger.Info("message received", "msg", string(bytes))
+			receivedCounter++
 			return nil
-		})
+		}
+
+		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
 		require.NoError(t, err)
 
 		time.Sleep(5 * time.Second)
-
-		ctx := context.Background()
 
 		cfg := &config.MessageQueueConfig{
 			Streaming: config.MessageQueueStreaming{
@@ -65,6 +83,8 @@ func TestNatsClient(t *testing.T) {
 
 		connOpts := []nats_connection.Option{
 			nats_connection.WithMaxReconnects(1),
+			nats_connection.WithReconnectWait(100 * time.Millisecond),
+			nats_connection.WithRetryOnFailedConnect(false),
 		}
 
 		mqClient, err := mq.NewMqClient(ctx, logger, cfg, nil, jsOpts, connOpts)
@@ -72,25 +92,27 @@ func TestNatsClient(t *testing.T) {
 		defer mqClient.Shutdown()
 		t.Log("message client created")
 
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, []byte("abc"))
+		var newMessage = []byte("new message")
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 		require.NoError(t, err)
 
 		time.Sleep(5 * time.Second)
 
-		err = resource.Close()
+		err = dockerClient.ContainerPause(ctx, resource.Container.ID)
+		require.NoError(t, err)
+		t.Log("message queue paused")
 
-		t.Log("message queue removed")
-
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, []byte("abc"))
+		time.Sleep(5 * time.Second)
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 		require.Error(t, err)
+		t.Log("publishing failed")
+		time.Sleep(60 * time.Second)
 
-		resource, natsURL, err = testutils.RunNats(pool, port, name, enableJetStreamCmd)
+		err = dockerClient.ContainerUnpause(ctx, resource.Container.ID)
 		require.NoError(t, err)
-		t.Log("message queue recreated")
+		t.Log("message queue unpaused")
 
 		time.Sleep(5 * time.Second)
-
-		t.Log("nats url:", natsURL)
 
 		natsConn, err = nats_connection.New(natsURL, logger)
 		require.NoError(t, err)
@@ -98,16 +120,16 @@ func TestNatsClient(t *testing.T) {
 		oppositeClient, err = nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
 		require.NoError(t, err)
 
-		err = oppositeClient.Subscribe(mq.SubmitTxTopic, func(bytes []byte) error {
-			logger.Info("message received", "msg", string(bytes))
-			return nil
-		})
+		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
 		require.NoError(t, err)
 
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, []byte("abc"))
-		require.NoError(t, err)
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+		assert.NoError(t, err)
 
-		//err = pool.Purge(resource)
-		//require.NoError(t, err)
+		mqClient.Shutdown()
+		oppositeClient.Shutdown()
+		time.Sleep(5 * time.Second)
+
+		require.Equal(t, 3, receivedCounter)
 	})
 }

@@ -31,13 +31,12 @@ type MessageQueueClient interface {
 	Shutdown()
 }
 
-func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig,
-	jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
 
-	logger = logger.With("module", "nats")
+	logger = logger.With("module", "message-queue")
 
 	clientClosedCh := make(chan struct{}, 1)
 
@@ -67,7 +66,7 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 		return nil, fmt.Errorf("failed to create nats client: %v", err)
 	}
 
-	// recreate connection if it closes
+	//recreate connection if it closes
 	go func(natsConn *nats.Conn) {
 		for {
 			select {
@@ -88,7 +87,7 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 						continue
 					}
 
-					logger.Info("Message queue connection established successfully")
+					logger.Info("Message queue connection recreated")
 					break
 				}
 			case <-ctx.Done():

@@ -25,6 +25,7 @@ type Client struct {
 	ctx                            context.Context
 	cancelAll                      context.CancelFunc
 	removableStreamConsumerMapping map[string]string
+	opts                           []Option
 
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
@@ -41,7 +42,7 @@ var (
 	ErrFailedToSubscribe      = errors.New("failed to subscribe")
 )
 
-func WithSubscribedWorkQueuePolicy(topics ...string) func(handler *Client) error {
+func WithSubscribedWorkQueuePolicy(topics ...string) func(*Client) error {
 	return func(c *Client) error {
 		for _, topic := range topics {
 			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
@@ -61,7 +62,7 @@ func WithSubscribedWorkQueuePolicy(topics ...string) func(handler *Client) error
 	}
 }
 
-func WithWorkQueuePolicy(topics ...string) func(handler *Client) error {
+func WithWorkQueuePolicy(topics ...string) func(*Client) error {
 	return func(c *Client) error {
 		for _, topic := range topics {
 			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
@@ -73,7 +74,7 @@ func WithWorkQueuePolicy(topics ...string) func(handler *Client) error {
 	}
 }
 
-func WithSubscribedInterestPolicy(hostName string, topics []string, cleanUpConsumer bool) func(handler *Client) error {
+func WithSubscribedInterestPolicy(hostName string, topics []string, cleanUpConsumer bool) func(*Client) error {
 	return func(c *Client) error {
 		for _, topic := range topics {
 			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
@@ -100,7 +101,7 @@ func WithSubscribedInterestPolicy(hostName string, topics []string, cleanUpConsu
 	}
 }
 
-func WithInterestPolicy(topics ...string) func(handler *Client) error {
+func WithInterestPolicy(topics ...string) func(*Client) error {
 	return func(c *Client) error {
 		for _, topic := range topics {
 			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
@@ -112,7 +113,7 @@ func WithInterestPolicy(topics ...string) func(handler *Client) error {
 	}
 }
 
-func WithFileStorage() func(handler *Client) error {
+func WithFileStorage() func(*Client) error {
 	return func(c *Client) error {
 		c.storageType = jetstream.FileStorage
 		return nil
@@ -146,6 +147,7 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 		ctx:                            ctx,
 		cancelAll:                      cancel,
 		removableStreamConsumerMapping: map[string]string{},
+		opts:                           opts,
 	}
 
 	js, err := jetstream.New(nc)
@@ -173,6 +175,12 @@ func (cl *Client) SetConn(nc *nats.Conn) error {
 
 	cl.js = js
 
+	for _, opt := range cl.opts {
+		err = opt(cl)
+		if err != nil {
+			return errors.Join(ErrFailedToApplyOption, err)
+		}
+	}
 	return nil
 }
 

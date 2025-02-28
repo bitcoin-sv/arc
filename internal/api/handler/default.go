@@ -652,6 +652,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txsHex = remainingBytes
 
 			v := beefValidator.New(m.NodePolicy, m.mrVerifier)
+			fmt.Println("shota api 41")
 			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -673,6 +674,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txsHex = txsHex[bytesUsed:]
 
 			v := defaultValidator.New(m.NodePolicy, m.txFinder)
+			fmt.Println("shota api 42")
 			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -734,7 +736,7 @@ func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidato
 	}
 
 	feeOpts, scriptOpts := toValidationOpts(options)
-
+	fmt.Println("shota valid 1")
 	err = txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, transaction, err)

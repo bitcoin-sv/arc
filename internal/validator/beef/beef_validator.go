@@ -29,7 +29,7 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *Valida
 
 func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
 	feeModel := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
-
+	fmt.Println("shota val 3")
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 		if btx.IsMined() {

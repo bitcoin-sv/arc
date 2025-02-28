@@ -35,6 +35,7 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error { //nolint:funlen - mostly comments
 	var err *validator.Error
 	var spanErr error
+	fmt.Println("shota val 2")
 	ctx, span := tracing.StartTracing(ctx, "ValidateTransaction", tracingEnabled, tracingAttributes...)
 	defer func() {
 		if err != nil {

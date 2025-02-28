@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -26,6 +27,12 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 

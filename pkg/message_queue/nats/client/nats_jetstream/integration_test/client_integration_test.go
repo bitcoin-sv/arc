@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"flag"
 	"log"
 	"log/slog"
 	"os"
@@ -28,6 +29,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 

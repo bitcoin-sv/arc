@@ -83,7 +83,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestNatsClient(t *testing.T) {
+func TestNatsCoreClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}

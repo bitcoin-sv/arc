@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -43,9 +44,9 @@ func testmain(m *testing.M) int {
 		return 1
 	}
 
-	port := "4337"
+	port := "4338"
 	enableJetStreamCmd := "--js"
-	name := "nats-jetstream"
+	name := "message-queue"
 	var resource *dockertest.Resource
 
 	resource, natsURL, err = testutils.RunNats(pool, port, name, enableJetStreamCmd)
@@ -66,7 +67,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestNatsClient(t *testing.T) {
+func TestMessageQueueClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -89,10 +90,11 @@ func TestNatsClient(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	receivedCounter := 0
+	receivedCounter := &atomic.Int32{}
+
 	msgReceived := func(bytes []byte) error {
 		logger.Info("message received", "msg", string(bytes))
-		receivedCounter++
+		receivedCounter.Add(1)
 		return nil
 	}
 
@@ -101,7 +103,7 @@ func TestNatsClient(t *testing.T) {
 		autoReconnect bool
 
 		expectedPublishErr      error
-		expectedReceivedCounter int
+		expectedReceivedCounter int32
 	}{
 		{
 			name:          "auto reconnect enabled",
@@ -206,7 +208,7 @@ func TestNatsClient(t *testing.T) {
 
 			time.Sleep(waitTime)
 
-			require.Equal(t, tc.expectedReceivedCounter, receivedCounter)
+			require.Equal(t, tc.expectedReceivedCounter, receivedCounter.Load())
 		})
 	}
 }

@@ -71,6 +71,7 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 	if txSize < minTxSizeBytes {
 		return NewError(ErrTxSizeLessThanMinSize, api.ErrStatusMalformed)
 	}
+	fmt.Println("shota size 52")
 
 	// 8) The number of signature operations (SIGOPS) contained in the transaction is less than the signature operation limit
 	if err := sigOpsCheck(tx, policy); err != nil {
@@ -151,7 +152,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 	if maxSigOps == 0 {
 		maxSigOps = int64(maxTxSigopsCountPolicyAfterGenesis)
 	}
-
+	fmt.Println("shota size 57")
 	parser := interpreter.DefaultOpcodeParser{}
 	numSigOps := int64(0)
 
@@ -167,7 +168,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 			}
 		}
 	}
-
+	fmt.Println("shota size 53")
 	for _, output := range tx.Outputs {
 		parsedLockingScript, err := parser.Parse(output.LockingScript)
 		if err != nil {

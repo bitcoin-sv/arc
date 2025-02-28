@@ -31,7 +31,7 @@ type MessageQueueClient interface {
 	Shutdown()
 }
 
-func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option, autoReconnect bool) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
@@ -66,8 +66,12 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 		return nil, fmt.Errorf("failed to create nats client: %v", err)
 	}
 
+	if !autoReconnect {
+		return mqClient, nil
+	}
+
 	//recreate connection if it closes
-	go func(natsConn *nats.Conn) {
+	go func() {
 		for {
 			select {
 			case <-clientClosedCh:
@@ -94,7 +98,7 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 				return
 			}
 		}
-	}(conn)
+	}()
 
 	return mqClient, nil
 }

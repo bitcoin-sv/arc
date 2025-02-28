@@ -2,6 +2,8 @@ package integration_test
 
 import (
 	"context"
+	"flag"
+	"log"
 	"log/slog"
 	"os"
 	"testing"
@@ -10,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -20,132 +21,192 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
+var (
+	natsURL     string
+	containerID string
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
+	os.Exit(testmain(m))
+}
+
+func testmain(m *testing.M) int {
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		log.Print(err)
+		return 1
+	}
+
+	port := "4337"
+	enableJetStreamCmd := "--js"
+	name := "nats-jetstream"
+	var resource *dockertest.Resource
+
+	resource, natsURL, err = testutils.RunNats(pool, port, name, enableJetStreamCmd)
+	if err != nil {
+		log.Print(err)
+		return 1
+	}
+
+	containerID = resource.Container.ID
+
+	defer func() {
+		err = pool.Purge(resource)
+		if err != nil {
+			log.Print(err)
+		}
+	}()
+	time.Sleep(5 * time.Second)
+	return m.Run()
+}
+
 func TestNatsClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("publish - work queue policy", func(t *testing.T) {
-		pool, err := dockertest.NewPool("")
-		require.NoError(t, err)
+	ctx := context.Background()
 
-		ctx := context.Background()
-		port := "4337"
-		enableJetStreamCmd := "--js"
-		name := "nats-jetstream"
+	t.Log("nats url:", natsURL)
 
-		resource, natsURL, err := testutils.RunNats(pool, port, name, enableJetStreamCmd)
-		require.NoError(t, err)
-		defer pool.Purge(resource)
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	require.NoError(t, err)
 
-		t.Log("nats url:", natsURL)
+	list, err := dockerClient.ContainerList(ctx, container.ListOptions{})
+	require.NoError(t, err)
 
-		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-		require.NoError(t, err)
+	for _, cont := range list {
+		t.Log(cont.Names)
+	}
 
-		list, err := dockerClient.ContainerList(ctx, container.ListOptions{})
-		require.NoError(t, err)
+	const waitTime = 2 * time.Second
 
-		for _, cont := range list {
-			t.Log(cont.Names)
-		}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-		const waitTime = 2 * time.Second
+	receivedCounter := 0
+	msgReceived := func(bytes []byte) error {
+		logger.Info("message received", "msg", string(bytes))
+		receivedCounter++
+		return nil
+	}
 
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	tt := []struct {
+		name          string
+		autoReconnect bool
 
-		natsConn, err := nats_connection.New(natsURL, logger)
-		require.NoError(t, err)
-		oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
-		require.NoError(t, err)
-		defer oppositeClient.Shutdown()
+		expectedPublishErr      error
+		expectedReceivedCounter int
+	}{
+		{
+			name:          "auto reconnect enabled",
+			autoReconnect: true,
 
-		receivedCounter := 0
-		msgReceived := func(bytes []byte) error {
-			logger.Info("message received", "msg", string(bytes))
-			receivedCounter++
-			return nil
-		}
+			expectedReceivedCounter: 6,
+		},
+		{
+			name:          "auto reconnect disabled",
+			autoReconnect: false,
 
-		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
-		require.NoError(t, err)
+			expectedPublishErr:      nats_jetstream.ErrFailedToPublish,
+			expectedReceivedCounter: 2,
+		},
+	}
 
-		cfg := &config.MessageQueueConfig{
-			Streaming: config.MessageQueueStreaming{
-				Enabled:     true,
-				FileStorage: false,
-			},
-			URL: natsURL,
-		}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			natsConn, err := nats_connection.New(natsURL, logger)
+			require.NoError(t, err)
+			oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
+			require.NoError(t, err)
+			defer oppositeClient.Shutdown()
 
-		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
-		}
+			err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
+			require.NoError(t, err)
 
-		closedCh := make(chan struct{}, 1)
-		connOpts := []nats_connection.Option{
-			nats_connection.WithMaxReconnects(1),
-			nats_connection.WithReconnectWait(100 * time.Millisecond),
-			nats_connection.WithRetryOnFailedConnect(false),
-			nats_connection.WithClientClosedChannel(closedCh),
-			nats_connection.WithPingInterval(500 * time.Millisecond),
-			nats_connection.WithMaxPingsOutstanding(1),
-		}
+			cfg := &config.MessageQueueConfig{
+				Streaming: config.MessageQueueStreaming{
+					Enabled:     true,
+					FileStorage: false,
+				},
+				URL: natsURL,
+			}
 
-		time.Sleep(waitTime)
+			jsOpts := []nats_jetstream.Option{
+				nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
+			}
 
-		mqClient, err := mq.NewMqClient(ctx, logger, cfg, nil, jsOpts, connOpts)
-		require.NoError(t, err)
-		defer mqClient.Shutdown()
-		t.Log("message client created")
+			closedCh := make(chan struct{}, 1)
+			connOpts := []nats_connection.Option{
+				nats_connection.WithMaxReconnects(1),
+				nats_connection.WithReconnectWait(100 * time.Millisecond),
+				nats_connection.WithRetryOnFailedConnect(false),
+				nats_connection.WithClientClosedChannel(closedCh),
+				nats_connection.WithPingInterval(500 * time.Millisecond),
+				nats_connection.WithMaxPingsOutstanding(1),
+			}
 
-		var newMessage = []byte("new message")
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		require.NoError(t, err)
+			time.Sleep(waitTime)
 
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		require.NoError(t, err)
+			mqClient, err := mq.NewMqClient(ctx, logger, cfg, nil, jsOpts, connOpts, tc.autoReconnect)
+			require.NoError(t, err)
+			defer mqClient.Shutdown()
+			t.Log("message client created")
 
-		err = dockerClient.ContainerPause(ctx, resource.Container.ID)
-		require.NoError(t, err)
-		t.Log("message queue paused")
+			var newMessage = []byte("new message")
+			err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+			require.NoError(t, err)
 
-		time.Sleep(waitTime)
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		require.Error(t, err)
-		t.Log("publishing failed")
-		t.Log("waiting for connection to be closed")
+			err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+			require.NoError(t, err)
 
-		<-closedCh
-		t.Log("connection closed")
+			err = dockerClient.ContainerPause(ctx, containerID)
+			require.NoError(t, err)
+			t.Log("message queue paused")
 
-		time.Sleep(waitTime)
+			time.Sleep(waitTime)
+			err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+			require.Error(t, err)
+			t.Log("publishing failed")
+			t.Log("waiting for connection to be closed")
 
-		err = dockerClient.ContainerUnpause(ctx, resource.Container.ID)
-		require.NoError(t, err)
-		t.Log("message queue unpaused")
+			<-closedCh
+			t.Log("connection closed")
 
-		time.Sleep(waitTime)
+			time.Sleep(waitTime)
 
-		natsConn, err = nats_connection.New(natsURL, logger)
-		require.NoError(t, err)
+			err = dockerClient.ContainerUnpause(ctx, containerID)
+			require.NoError(t, err)
+			t.Log("message queue unpaused")
 
-		oppositeClient, err = nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
-		require.NoError(t, err)
+			time.Sleep(waitTime)
 
-		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
-		require.NoError(t, err)
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		assert.NoError(t, err)
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		assert.NoError(t, err)
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		assert.NoError(t, err)
-		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
-		assert.NoError(t, err)
+			natsConn, err = nats_connection.New(natsURL, logger)
+			require.NoError(t, err)
 
-		time.Sleep(waitTime)
+			oppositeClient, err = nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
+			require.NoError(t, err)
 
-		require.Equal(t, 6, receivedCounter)
-	})
+			err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
+			require.NoError(t, err)
+
+			for range 4 {
+				err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+				if tc.expectedPublishErr != nil {
+					require.ErrorIs(t, err, tc.expectedPublishErr)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+
+			time.Sleep(waitTime)
+
+			require.Equal(t, tc.expectedReceivedCounter, receivedCounter)
+		})
+	}
 }

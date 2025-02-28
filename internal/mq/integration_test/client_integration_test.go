@@ -89,8 +89,7 @@ func TestMessageQueueClient(t *testing.T) {
 	const waitTime = 2 * time.Second
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
-	receivedCounter := &atomic.Int32{}
+	var receivedCounter *atomic.Int32
 
 	msgReceived := func(bytes []byte) error {
 		logger.Info("message received", "msg", string(bytes))
@@ -122,6 +121,8 @@ func TestMessageQueueClient(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			receivedCounter = &atomic.Int32{}
+
 			natsConn, err := nats_connection.New(natsURL, logger)
 			require.NoError(t, err)
 			oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))

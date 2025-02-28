@@ -175,6 +175,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 			fmt.Println("shota ", len(*output.LockingScript))
 		}
 		parsedLockingScript, err := parser.Parse(output.LockingScript)
+		fmt.Println("shota si ", err)
 		if err != nil {
 			return err
 		}

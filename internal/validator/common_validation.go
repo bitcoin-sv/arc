@@ -169,23 +169,28 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 		}
 	}
 	fmt.Println("shota size 53")
-	for _, output := range tx.Outputs {
+	for i, output := range tx.Outputs {
+		fmt.Println("-- shota ", i)
+		if output.LockingScript != nil {
+			fmt.Println("shota ", len(*output.LockingScript))
+		}
 		parsedLockingScript, err := parser.Parse(output.LockingScript)
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("-- shota2 ", i)
 		for _, op := range parsedLockingScript {
 			if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
 				numSigOps++
 			}
 		}
 	}
-
+	fmt.Println("shota size 54")
 	if numSigOps > maxSigOps {
 		return errors.Join(ErrUnlockingScriptHasTooManySigOps, fmt.Errorf("sigops: %d", numSigOps))
 	}
-
+	fmt.Println("shota size 55")
 	return nil
 }
 

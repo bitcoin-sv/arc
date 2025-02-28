@@ -255,12 +255,13 @@ func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req 
 }
 func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, txID string) *metamorph_api.TransactionStatus {
 	var err error
+	fmt.Println("shota mtm 12")
 	ctx, span := tracing.StartTracing(ctx, "processTransaction", s.tracingEnabled, s.tracingAttributes...)
 	returnedStatus := &metamorph_api.TransactionStatus{
 		Txid:   txID,
 		Status: metamorph_api.Status_RECEIVED,
 	}
-
+	fmt.Println("shota mtm 13")
 	for _, cb := range data.Callbacks {
 		if cb.CallbackURL != "" {
 			returnedStatus.Callbacks = append(returnedStatus.Callbacks, &metamorph_api.Callback{
@@ -281,7 +282,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		}
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shota mtm 14")
 	// to avoid false negatives first check if ctx is expired
 	select {
 	case <-ctx.Done():

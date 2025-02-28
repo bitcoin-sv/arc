@@ -36,6 +36,18 @@ func WithRetryOnFailedConnect(retryOnFailedConnect bool) func(config *NatsConfig
 	}
 }
 
+func WithPingInterval(d time.Duration) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.pingInterval = d
+	}
+}
+
+func WithMaxPingsOutstanding(maxPingsOutstanding int) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.maxPingsOutstanding = maxPingsOutstanding
+	}
+}
+
 type NatsConfig struct {
 	maxReconnects        int
 	pingInterval         time.Duration

@@ -50,12 +50,15 @@ func TestNatsClient(t *testing.T) {
 			t.Log(cont.Names)
 		}
 
+		const waitTime = 2 * time.Second
+
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 		natsConn, err := nats_connection.New(natsURL, logger)
 		require.NoError(t, err)
 		oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
 		require.NoError(t, err)
+		defer oppositeClient.Shutdown()
 
 		receivedCounter := 0
 		msgReceived := func(bytes []byte) error {
@@ -66,8 +69,6 @@ func TestNatsClient(t *testing.T) {
 
 		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
 		require.NoError(t, err)
-
-		time.Sleep(5 * time.Second)
 
 		cfg := &config.MessageQueueConfig{
 			Streaming: config.MessageQueueStreaming{
@@ -81,11 +82,17 @@ func TestNatsClient(t *testing.T) {
 			nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
 		}
 
+		closedCh := make(chan struct{}, 1)
 		connOpts := []nats_connection.Option{
 			nats_connection.WithMaxReconnects(1),
 			nats_connection.WithReconnectWait(100 * time.Millisecond),
 			nats_connection.WithRetryOnFailedConnect(false),
+			nats_connection.WithClientClosedChannel(closedCh),
+			nats_connection.WithPingInterval(500 * time.Millisecond),
+			nats_connection.WithMaxPingsOutstanding(1),
 		}
+
+		time.Sleep(waitTime)
 
 		mqClient, err := mq.NewMqClient(ctx, logger, cfg, nil, jsOpts, connOpts)
 		require.NoError(t, err)
@@ -96,23 +103,29 @@ func TestNatsClient(t *testing.T) {
 		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 		require.NoError(t, err)
 
-		time.Sleep(5 * time.Second)
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+		require.NoError(t, err)
 
 		err = dockerClient.ContainerPause(ctx, resource.Container.ID)
 		require.NoError(t, err)
 		t.Log("message queue paused")
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitTime)
 		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 		require.Error(t, err)
 		t.Log("publishing failed")
-		time.Sleep(60 * time.Second)
+		t.Log("waiting for connection to be closed")
+
+		<-closedCh
+		t.Log("connection closed")
+
+		time.Sleep(waitTime)
 
 		err = dockerClient.ContainerUnpause(ctx, resource.Container.ID)
 		require.NoError(t, err)
 		t.Log("message queue unpaused")
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitTime)
 
 		natsConn, err = nats_connection.New(natsURL, logger)
 		require.NoError(t, err)
@@ -122,14 +135,17 @@ func TestNatsClient(t *testing.T) {
 
 		err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
 		require.NoError(t, err)
-
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+		assert.NoError(t, err)
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+		assert.NoError(t, err)
+		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+		assert.NoError(t, err)
 		err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 		assert.NoError(t, err)
 
-		mqClient.Shutdown()
-		oppositeClient.Shutdown()
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitTime)
 
-		require.Equal(t, 3, receivedCounter)
+		require.Equal(t, 6, receivedCounter)
 	})
 }

@@ -194,7 +194,7 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 
 func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTransactionParams) PostResponse {
 	var err error
-
+	fmt.Println("shota api 1")
 	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -215,7 +215,7 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 		}
 		return PostResponse{e.Status, e}
 	}
-
+	fmt.Println("shota api 2")
 	// Now we check if we have the transaction present in db, if so we skip validation (as we must have already validated it)
 	// if LastSubmitted is not too old and callbacks are the same then we just stop processing transaction as there is nothing new
 	txIDs, e := m.getTxIDs(txHex)
@@ -270,7 +270,7 @@ func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTran
 			}
 		}
 	}
-
+	fmt.Println("shota api 3")
 	successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
 	if e != nil {
 		if span != nil {
@@ -636,7 +636,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	}()
 
 	var submittedTxs []*sdkTx.Transaction
-
+	fmt.Println("shota api 4")
 	// decode and validate txs
 	var txIDs []string
 	for len(txsHex) != 0 {
@@ -682,7 +682,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txIDs = append(txIDs, transaction.TxID().String())
 		}
 	}
-
+	fmt.Println("shota api 5")
 	if len(submittedTxs) == 0 {
 		return nil, fails, nil
 	}
@@ -775,7 +775,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shota api 7")
 	var submitStatuses []*metamorph.TransactionStatus
 
 	// to avoid false negatives first check if ctx is expired
@@ -791,6 +791,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 
 		// SubmitTransaction() used to avoid performance issue
 		var status *metamorph.TransactionStatus
+		fmt.Println("shota api 8")
 		status, err = m.TransactionHandler.SubmitTransaction(ctx, tx, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, tx, err)
@@ -801,6 +802,7 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 
 		submitStatuses = append(submitStatuses, status)
 	} else {
+		fmt.Println("shota api 9")
 		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
 		if err != nil {
 			statusCode, arcError := m.handleError(ctx, nil, err)

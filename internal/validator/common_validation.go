@@ -39,28 +39,31 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 	//
 	txSize := tx.Size()
 
+	fmt.Println("shota size ", txSize)
 	// 1) Neither lists of inputs or outputs are empty
 	if len(tx.Inputs) == 0 || len(tx.Outputs) == 0 {
 		return NewError(ErrNoInputsOrOutputs, api.ErrStatusInputs)
 	}
-
+	fmt.Println("shota size 1")
 	// 2) The transaction size in bytes is less than maxtxsizepolicy.
 	if err := checkTxSize(txSize, policy); err != nil {
 		return NewError(err, api.ErrStatusTxSize)
 	}
-
+	fmt.Println("shota size 2")
 	// 3) check that each input value, as well as the sum, are in the allowed range of values (less than 21m coins)
 	// 5) None of the inputs have hash=0, N=–1 (coinbase transactions should not be relayed)
 	if err := checkInputs(tx); err != nil {
 		return NewError(err, api.ErrStatusInputs)
 	}
 
+	fmt.Println("shota size 3")
 	// 4) Each output value, as well as the total, must be within the allowed range of values (less than 21m coins,
 	//    more than the dust threshold if 1 unless it's OP_RETURN, which is allowed to be 0)
 	if err := checkOutputs(tx); err != nil {
 		return NewError(err, api.ErrStatusOutputs)
 	}
 
+	fmt.Println("shota size 4")
 	// 6) nLocktime is equal to INT_MAX, or nLocktime and nSequence values are satisfied according to MedianTimePast
 	//    => checked by the node, we do not want to have to know the current block height
 
@@ -74,11 +77,13 @@ func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) 
 		return NewError(err, api.ErrStatusMalformed)
 	}
 
+	fmt.Println("shota size 5")
 	// 9) The unlocking script (scriptSig) can only push numbers on the stack
 	if err := pushDataCheck(tx); err != nil {
 		return NewError(err, api.ErrStatusMalformed)
 	}
 
+	fmt.Println("shota size 6")
 	// everything checks out
 	return nil
 }

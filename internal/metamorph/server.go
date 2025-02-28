@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -140,7 +141,7 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 
 func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
 	deadline, ok := ctx.Deadline()
-
+	fmt.Println("shota 3")
 	// decrease time to get initial deadline
 	newDeadline := deadline
 	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
@@ -164,6 +165,7 @@ func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.Transact
 
 	// Convert gRPC req to store.Data struct...
 	sReq := toStoreData(hash, statusReceived, req)
+	fmt.Println("shota 4")
 	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
 }
 
@@ -286,7 +288,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 		return nil
 	default:
 	}
-
+	fmt.Println("shota 5")
 	responseChannel := make(chan StatusAndError, 10)
 	s.processor.ProcessTransaction(ctx, &ProcessorRequest{Data: data, ResponseChannel: responseChannel})
 

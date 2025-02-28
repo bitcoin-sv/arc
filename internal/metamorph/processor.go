@@ -771,7 +771,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shota 7")
 	statusResponse := NewStatusResponse(ctx, req.Data.Hash, req.ResponseChannel)
 
 	// check if tx already stored, return it
@@ -812,7 +812,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	sh := &store.Status{Status: req.Data.Status, Timestamp: p.now()}
 	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
 	req.Data.Status = metamorph_api.Status_STORED
-
+	fmt.Println("shota 8")
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
@@ -829,6 +829,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Status: metamorph_api.Status_STORED,
 	})
 
+	fmt.Println("shota 9")
 	// register transaction in blocktx using message queue
 	err = p.registerTransaction(ctx, req.Data.Hash)
 	if err != nil {
@@ -862,6 +863,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		Timestamp: p.now(),
 	}
+	fmt.Println("shota 10")
 }
 
 // ProcessTransactions processes txs submitted to message queue

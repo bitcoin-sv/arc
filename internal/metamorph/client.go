@@ -3,6 +3,7 @@ package metamorph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -249,7 +250,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shota 1")
 	request := transactionRequest(tx.Bytes(), options)
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, request)
@@ -271,7 +272,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	// Create a new context with the updated deadline
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
 	defer newCancel()
-
+	fmt.Println("shota 2")
 	response, err := m.client.PutTransaction(newCtx, request)
 	if err != nil {
 		return nil, err

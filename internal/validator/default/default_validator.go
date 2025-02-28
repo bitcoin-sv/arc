@@ -36,6 +36,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	var err *validator.Error
 	var spanErr error
 	fmt.Println("shota val 2")
+	defer fmt.Println("shota val 2 ended")
 	ctx, span := tracing.StartTracing(ctx, "ValidateTransaction", tracingEnabled, tracingAttributes...)
 	defer func() {
 		if err != nil {
@@ -43,7 +44,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		}
 		tracing.EndTracing(span, spanErr)
 	}()
-
+	fmt.Println("shota val 3")
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
@@ -53,6 +54,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		}
 	}
 
+	fmt.Println("shota val 4")
 	// The rest of the validation steps
 	err = validator.CommonValidateTransaction(v.policy, tx)
 	if err != nil {
@@ -61,6 +63,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
+	fmt.Println("shota val 5")
 	switch feeValidation {
 	case validator.StandardFeeValidation:
 		if err = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {

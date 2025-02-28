@@ -15,9 +15,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -50,7 +50,7 @@ func TestProcessor(t *testing.T) {
 		defer messenger.Shutdown()
 		mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
-		mqClient := &mocks.MessageQueueClientMock{
+		mqClient := &mqMocks.MessageQueueClientMock{
 			PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 				return nil
 			},

@@ -29,6 +29,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -275,7 +276,7 @@ func TestProcessTransaction(t *testing.T) {
 			defer messenger.Shutdown()
 			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mqMocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -567,7 +568,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
@@ -734,7 +735,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mqMocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -874,7 +875,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
-			publisher := &mocks.MessageQueueClientMock{
+			publisher := &mqMocks.MessageQueueClientMock{
 				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
 					return nil
 				},
@@ -962,7 +963,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
 			}
 
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
@@ -1199,7 +1200,7 @@ func TestStart(t *testing.T) {
 
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 					switch topic {
 					case mq.MinedTxsTopic:

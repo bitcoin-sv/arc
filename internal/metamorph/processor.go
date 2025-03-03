@@ -341,6 +341,33 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 		p.delTxFromCache(data.Hash)
 	}
+
+	p.rebroadcastStaleTxs(ctx, txsBlocks)
+}
+
+func (p *Processor) rebroadcastStaleTxs(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) {
+	_, span := tracing.StartTracing(ctx, "rebroadcastStaleTxs", p.tracingEnabled, p.tracingAttributes...)
+	defer tracing.EndTracing(span, nil)
+
+	for _, tx := range txsBlocks {
+		if tx.BlockStatus != blocktx_api.Status_STALE {
+			continue
+		}
+		txHash, err := chainhash.NewHash(tx.TransactionHash)
+		if err != nil {
+			p.logger.Warn("error parsing transaction hash")
+			continue
+		}
+
+		p.logger.Debug("Re-announcing stale tx", slog.String("hash", txHash.String()))
+
+		txData, err := p.store.Get(ctx, txHash[:])
+		if err != nil {
+			p.logger.Error("Failed to get transaction", slog.String("hash", txHash.String()))
+			continue
+		}
+		p.bcMediator.AnnounceTxAsync(ctx, txData)
+	}
 }
 
 // StartProcessSubmittedTxs starts processing txs submitted to message queue

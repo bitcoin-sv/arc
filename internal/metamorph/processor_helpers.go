@@ -119,15 +119,11 @@ func (p *Processor) getStatusUpdateCount() (int, error) {
 }
 
 func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
-	if new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
-		return true
-	}
-
-	return false
+	return new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs)
 }
 
 func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	return new.Status > found.Status
+	return new.Status > found.Status || found.Status == metamorph_api.Status_MINED_IN_STALE_BLOCK
 }
 
 // unorderedEqual checks if two string slices contain

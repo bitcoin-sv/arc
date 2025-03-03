@@ -156,3 +156,9 @@ func WithBlocktxClient(client blocktx.Client) func(*Processor) {
 		p.blocktxClient = client
 	}
 }
+
+func WithProcessSeenOnNetworkTxsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processSeenOnNetworkTxsInterval = d
+	}
+}

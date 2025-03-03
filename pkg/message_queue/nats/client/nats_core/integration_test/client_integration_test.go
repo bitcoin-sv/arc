@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"flag"
 	"log"
 	"log/slog"
 	"os"
@@ -31,6 +32,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 
@@ -76,7 +83,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestNatsClient(t *testing.T) {
+func TestNatsCoreClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}

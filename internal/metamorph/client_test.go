@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -165,7 +166,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
 			if tc.withMqClient {
-				mqClient := &apiMocks.MessageQueueClientMock{
+				mqClient := &mqMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
 				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
@@ -421,7 +422,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
 			if tc.withMqClient {
-				mqClient := &apiMocks.MessageQueueClientMock{
+				mqClient := &mqMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 						return tc.publishSubmitTxErr
 					},

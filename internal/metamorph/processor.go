@@ -20,6 +20,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
@@ -67,7 +68,7 @@ type Processor struct {
 	cacheStore                cache.Store
 	hostname                  string
 	bcMediator                *bcnet.Mediator
-	mqClient                  MessageQueue
+	mqClient                  mq.MessageQueueClient
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
 	recheckSeenFromAgo        time.Duration
@@ -187,32 +188,32 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator *bcnet.Media
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.Subscribe(MinedTxsTopic, func(msg []byte) error {
+	err := p.mqClient.Subscribe(mq.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", MinedTxsTopic), err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.MinedTxsTopic), err)
 		}
 
 		p.minedTxsChan <- serialized
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", MinedTxsTopic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.MinedTxsTopic), err)
 	}
 
-	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
+	err = p.mqClient.Subscribe(mq.SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.PostTransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", SubmitTxTopic), err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.SubmitTxTopic), err)
 		}
 
 		p.submittedTxsChan <- serialized
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", SubmitTxTopic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.SubmitTxTopic), err)
 	}
 
 	p.StartLockTransactions()
@@ -332,7 +333,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, CallbackTopic, request)
+				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
 				if err != nil {
 					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
 				}
@@ -583,7 +584,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		if sendCallback && len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, CallbackTopic, request)
+				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
 				if err != nil {
 					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
 				}
@@ -761,9 +762,9 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	err = p.mqClient.Publish(ctx, RegisterTxTopic, hash[:])
+	err = p.mqClient.Publish(ctx, mq.RegisterTxTopic, hash[:])
 	if err != nil {
-		return fmt.Errorf("failed to publish hash on topic %s: %w", RegisterTxTopic, err)
+		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
 	}
 
 	return nil

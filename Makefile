@@ -49,6 +49,10 @@ run_e2e_mcast_tests:
 test:
 	go test -race -count=1 ./...
 
+.PHONY: test_short
+test_short:
+	go test -race -short -count=1 ./...
+
 .PHONY: install_lint
 install_lint:
 	go install honnef.co/go/tools/cmd/staticcheck@2024.1.1

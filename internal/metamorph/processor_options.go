@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration) func(*Processor) {
@@ -102,7 +103,7 @@ func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	}
 }
 
-func WithMessageQueueClient(mqClient MessageQueue) func(processor *Processor) {
+func WithMessageQueueClient(mqClient mq.MessageQueueClient) func(processor *Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient
 	}

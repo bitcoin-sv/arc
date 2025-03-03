@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
-func WithMessageQueueClient(mqClient MessageQueueClient) func(*Processor) {
+func WithMessageQueueClient(mqClient mq.MessageQueueClient) func(*Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient
 	}

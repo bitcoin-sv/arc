@@ -24,6 +24,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -61,7 +62,7 @@ type Processor struct {
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
 	dataRetentionDays           int
-	mqClient                    MessageQueueClient
+	mqClient                    mq.MessageQueueClient
 	registerTxsChan             chan []byte
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
@@ -123,12 +124,12 @@ func NewProcessor(
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.Subscribe(RegisterTxTopic, func(msg []byte) error {
+	err := p.mqClient.Subscribe(mq.RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", RegisterTxTopic), err)
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
 	}
 
 	if statsEnabled {
@@ -850,9 +851,9 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, msg)
+			err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
 			if err != nil {
-				p.logger.Error("failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
+				p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
 				publishErr = errors.Join(publishErr, err)
 			}
 
@@ -863,7 +864,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		err := p.mqClient.PublishMarshal(ctx, MinedTxsTopic, msg)
+		err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 			publishErr = errors.Join(publishErr, err)

@@ -21,6 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -826,7 +827,7 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{mq.RegisterTxTopic: errors.New("failed to subscribe")},
 
 			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},

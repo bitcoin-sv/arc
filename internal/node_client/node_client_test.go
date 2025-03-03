@@ -2,6 +2,7 @@ package node_client_test
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"strconv"
@@ -31,6 +32,12 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 

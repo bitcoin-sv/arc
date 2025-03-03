@@ -27,44 +27,54 @@ import (
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
+func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
+	logger.Info("Starting")
+	var (
+		mqClient   mq.MessageQueueClient
+		echoServer *echo.Echo
+		err        error
+	)
 
-	e := setAPIEcho(logger, arcConfig)
+	echoServer = setAPIEcho(logger, arcConfig.API)
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
 	// check the swagger definition against our requests
-	apiHandler.CheckSwagger(e)
+	apiHandler.CheckSwagger(echoServer)
 
-	clientClosedCh := make(chan struct{}, 1)
+	shutdownFns := make([]func(), 0)
+	stopFn := func() {
+		logger.Info("Shutting down api")
+		disposeAPI(logger, echoServer, mqClient, shutdownFns)
+		logger.Info("Shutdown complete")
+	}
 
-	mqClient, err := natsMqClient(logger, arcConfig, clientClosedCh)
+	opts := []nats_jetstream.Option{
+		nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
+	}
+
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
 		return nil, err
 	}
-
-	go func() {
-		<-clientClosedCh
-		logger.Warn("message queue client closed")
-		shutdownCh <- "message queue client closed"
-	}()
 
 	mtmOpts := []func(*metamorph.Metamorph){
 		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	}
-	// TODO: WithSecurityConfig(appConfig.Security)
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 		apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime),
@@ -73,8 +83,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
 	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(arcConfig.API.WocAPIKey)}
-
-	shutdownFns := make([]func(), 0)
 
 	if arcConfig.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
@@ -101,16 +109,18 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 
 	conn, err := grpc_utils.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
-	metamorphClient := metamorph.NewClient(
+	mtmClient := metamorph.NewClient(
 		metamorph_api.NewMetaMorphAPIClient(conn),
 		mtmOpts...,
 	)
 
 	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
@@ -126,34 +136,38 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 	pc := arcConfig.PeerRPC
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
 	}
 
 	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
 	}
 
 	nodeClient, err := node_client.New(bitcoinClient, nodeClientOpts...)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to create node client: %v", err)
 	}
 
-	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger, finderOpts...)
+	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
 	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	apiHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, policy, cachedFinder, apiOpts...)
+	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, apiOpts...)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
 	// Register the ARC API
-	api.RegisterHandlers(e, apiHandler)
+	api.RegisterHandlers(echoServer, defaultAPIHandler)
 
 	// Serve HTTP until the world ends.
 	go func() {
 		logger.Info("Starting API server", slog.String("address", arcConfig.API.Address))
-		err := e.Start(arcConfig.API.Address)
+		err := echoServer.Start(arcConfig.API.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")
@@ -165,23 +179,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 		}
 	}()
 
-	return func() {
-		logger.Info("Shutting down api service")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := e.Shutdown(ctx); err != nil {
-			logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
-		}
-
-		mqClient.Shutdown()
-
-		for _, fn := range shutdownFns {
-			fn()
-		}
-	}, nil
+	return stopFn, nil
 }
 
-func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
+func setAPIEcho(logger *slog.Logger, cfg *config.APIConfig) *echo.Echo {
 	// Set up a basic Echo router
 	e := echo.New()
 	e.HideBanner = true
@@ -211,7 +212,7 @@ func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	e.Use(otelecho.Middleware("api-server"))
 
 	// Log info about requests
-	e.Use(logRequestMiddleware(logger, arcConfig.API.RequestExtendedLogs))
+	e.Use(logRequestMiddleware(logger, cfg.RequestExtendedLogs))
 
 	// add prometheus metrics
 	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
@@ -227,48 +228,25 @@ func setAPIEcho(logger *slog.Logger, arcConfig *config.ArcConfig) *echo.Echo {
 	return e
 }
 
-func natsMqClient(logger *slog.Logger, arcConfig *config.ArcConfig, clientClosedCh chan struct{}) (metamorph.MessageQueueClient, error) {
-	logger = logger.With("module", "nats")
-
-	conn, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
-	}
-
-	var mqClient metamorph.MessageQueueClient
-	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{
-			nats_jetstream.WithWorkQueuePolicy(metamorph.SubmitTxTopic),
-		}
-		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
-		}
-
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-
-		mqClient, err = nats_jetstream.New(conn, logger, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create nats client: %v", err)
-		}
-	} else {
-		opts := []nats_core.Option{nats_core.WithLogger(logger)}
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-		mqClient = nats_core.New(conn, opts...)
-	}
-
-	return mqClient, nil
-}
-
 func logRequestMiddleware(logger *slog.Logger, extendLog bool) echo.MiddlewareFunc {
 	if extendLog {
 		return echomiddleware.RequestLoggerWithConfig(extendRequestLogConfig(logger))
 	}
 
 	return echomiddleware.RequestLoggerWithConfig(requestLogConfig(logger))
+}
+
+func disposeAPI(logger *slog.Logger, echoServer *echo.Echo, mqClient mq.MessageQueueClient, shutdownFns []func()) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := echoServer.Shutdown(ctx); err != nil {
+		logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
+	}
+	mqClient.Shutdown()
+
+	for _, fn := range shutdownFns {
+		fn()
+	}
 }
 
 func requestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerConfig {

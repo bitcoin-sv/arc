@@ -133,7 +133,6 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check success", func(t *testing.T) {
-
 		apiOpts := []Option{}
 		apiOpts = append(apiOpts, WithReadinessCheck(func() error {
 			return nil
@@ -152,7 +151,13 @@ func TestGETHealth(t *testing.T) {
 
 		// then
 		require.Nil(t, err)
-		assert.Equal(t, http.StatusOK, rec.Code)
+
+		bPolicy := rec.Body.Bytes()
+		var health api.Health
+		_ = json.Unmarshal(bPolicy, &health)
+
+		require.Equal(t, true, *health.Healthy)
+		require.Equal(t, (*string)(nil), health.Reason)
 	})
 
 	t.Run("health check fail", func(t *testing.T) {
@@ -173,8 +178,15 @@ func TestGETHealth(t *testing.T) {
 		err = sut.GETHealth(ctx)
 
 		// then
-		require.Contains(t, err.Error(), "some connection error")
-		assert.Equal(t, http.StatusOK, rec.Code)
+		require.Nil(t, err)
+
+		bPolicy := rec.Body.Bytes()
+		var health api.Health
+		_ = json.Unmarshal(bPolicy, &health)
+
+		require.Equal(t, false, *health.Healthy)
+		require.NotEqual(t, health.Reason, nil)
+		require.Contains(t, *health.Reason, "some connection error")
 	})
 }
 

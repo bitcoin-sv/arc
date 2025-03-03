@@ -267,7 +267,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
 	defer newCancel()
 
-	response, err := m.client.PutTransaction(newCtx, request)
+	response, err := m.client.PostTransaction(newCtx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +293,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	}()
 
 	// prepare transaction inputs
-	in := new(metamorph_api.TransactionRequests)
-	in.Transactions = make([]*metamorph_api.TransactionRequest, 0)
+	in := new(metamorph_api.PostTransactionsRequest)
+	in.Transactions = make([]*metamorph_api.PostTransactionRequest, 0)
 	for _, tx := range txs {
 		in.Transactions = append(in.Transactions, transactionRequest(tx.Bytes(), options))
 	}
@@ -329,7 +329,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
 	defer newCancel()
 
-	responses, err = m.client.PutTransactions(newCtx, in)
+	responses, err = m.client.PostTransactions(newCtx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -349,8 +349,8 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	return txStatuses, nil
 }
 
-func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.TransactionRequest {
-	return &metamorph_api.TransactionRequest{
+func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.PostTransactionRequest {
+	return &metamorph_api.PostTransactionRequest{
 		RawTx:             rawTx,
 		CallbackUrl:       options.CallbackURL,
 		CallbackToken:     options.CallbackToken,

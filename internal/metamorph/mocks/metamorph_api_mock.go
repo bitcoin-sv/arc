@@ -39,6 +39,12 @@ var _ metamorph_api.MetaMorphAPIClient = &MetaMorphAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*metamorph_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
+//			PostTransactionFunc: func(ctx context.Context, in *metamorph_api.PostTransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+//				panic("mock out the PostTransaction method")
+//			},
+//			PostTransactionsFunc: func(ctx context.Context, in *metamorph_api.PostTransactionsRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+//				panic("mock out the PostTransactions method")
+//			},
 //			PutTransactionFunc: func(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 //				panic("mock out the PutTransaction method")
 //			},
@@ -72,6 +78,12 @@ type MetaMorphAPIClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*metamorph_api.HealthResponse, error)
+
+	// PostTransactionFunc mocks the PostTransaction method.
+	PostTransactionFunc func(ctx context.Context, in *metamorph_api.PostTransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error)
+
+	// PostTransactionsFunc mocks the PostTransactions method.
+	PostTransactionsFunc func(ctx context.Context, in *metamorph_api.PostTransactionsRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error)
 
 	// PutTransactionFunc mocks the PutTransaction method.
 	PutTransactionFunc func(ctx context.Context, in *metamorph_api.TransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error)
@@ -138,6 +150,24 @@ type MetaMorphAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
+		// PostTransaction holds details about calls to the PostTransaction method.
+		PostTransaction []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *metamorph_api.PostTransactionRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
+		// PostTransactions holds details about calls to the PostTransactions method.
+		PostTransactions []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *metamorph_api.PostTransactionsRequest
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// PutTransaction holds details about calls to the PutTransaction method.
 		PutTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -172,6 +202,8 @@ type MetaMorphAPIClientMock struct {
 	lockGetTransactionStatuses sync.RWMutex
 	lockGetTransactions        sync.RWMutex
 	lockHealth                 sync.RWMutex
+	lockPostTransaction        sync.RWMutex
+	lockPostTransactions       sync.RWMutex
 	lockPutTransaction         sync.RWMutex
 	lockPutTransactions        sync.RWMutex
 	lockUpdateInstances        sync.RWMutex
@@ -414,6 +446,86 @@ func (mock *MetaMorphAPIClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// PostTransaction calls PostTransactionFunc.
+func (mock *MetaMorphAPIClientMock) PostTransaction(ctx context.Context, in *metamorph_api.PostTransactionRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+	if mock.PostTransactionFunc == nil {
+		panic("MetaMorphAPIClientMock.PostTransactionFunc: method is nil but MetaMorphAPIClient.PostTransaction was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *metamorph_api.PostTransactionRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockPostTransaction.Lock()
+	mock.calls.PostTransaction = append(mock.calls.PostTransaction, callInfo)
+	mock.lockPostTransaction.Unlock()
+	return mock.PostTransactionFunc(ctx, in, opts...)
+}
+
+// PostTransactionCalls gets all the calls that were made to PostTransaction.
+// Check the length with:
+//
+//	len(mockedMetaMorphAPIClient.PostTransactionCalls())
+func (mock *MetaMorphAPIClientMock) PostTransactionCalls() []struct {
+	Ctx  context.Context
+	In   *metamorph_api.PostTransactionRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *metamorph_api.PostTransactionRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockPostTransaction.RLock()
+	calls = mock.calls.PostTransaction
+	mock.lockPostTransaction.RUnlock()
+	return calls
+}
+
+// PostTransactions calls PostTransactionsFunc.
+func (mock *MetaMorphAPIClientMock) PostTransactions(ctx context.Context, in *metamorph_api.PostTransactionsRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+	if mock.PostTransactionsFunc == nil {
+		panic("MetaMorphAPIClientMock.PostTransactionsFunc: method is nil but MetaMorphAPIClient.PostTransactions was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *metamorph_api.PostTransactionsRequest
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockPostTransactions.Lock()
+	mock.calls.PostTransactions = append(mock.calls.PostTransactions, callInfo)
+	mock.lockPostTransactions.Unlock()
+	return mock.PostTransactionsFunc(ctx, in, opts...)
+}
+
+// PostTransactionsCalls gets all the calls that were made to PostTransactions.
+// Check the length with:
+//
+//	len(mockedMetaMorphAPIClient.PostTransactionsCalls())
+func (mock *MetaMorphAPIClientMock) PostTransactionsCalls() []struct {
+	Ctx  context.Context
+	In   *metamorph_api.PostTransactionsRequest
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *metamorph_api.PostTransactionsRequest
+		Opts []grpc.CallOption
+	}
+	mock.lockPostTransactions.RLock()
+	calls = mock.calls.PostTransactions
+	mock.lockPostTransactions.RUnlock()
 	return calls
 }
 

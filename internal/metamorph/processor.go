@@ -91,7 +91,7 @@ type Processor struct {
 	lockTransactionsInterval time.Duration
 
 	minedTxsChan     chan *blocktx_api.TransactionBlocks
-	submittedTxsChan chan *metamorph_api.TransactionRequest
+	submittedTxsChan chan *metamorph_api.PostTransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
 	processStatusUpdatesInterval  time.Duration
@@ -202,7 +202,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	}
 
 	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
-		serialized := &metamorph_api.TransactionRequest{}
+		serialized := &metamorph_api.PostTransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", SubmitTxTopic), err)

@@ -153,7 +153,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionFunc: func(_ context.Context, _ *metamorph_api.TransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+				PostTransactionFunc: func(_ context.Context, _ *metamorph_api.PostTransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
@@ -409,7 +409,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionsFunc: func(_ context.Context, _ *metamorph_api.TransactionRequests, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+				PostTransactionsFunc: func(_ context.Context, _ *metamorph_api.PostTransactionsRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {

@@ -1,4 +1,4 @@
-# ARC
+# **ARC** - Authoritative Response Component
 > Transaction processor for Bitcoin
 
 ## Overview

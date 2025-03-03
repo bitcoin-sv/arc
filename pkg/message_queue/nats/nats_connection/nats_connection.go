@@ -2,7 +2,6 @@ package nats_connection
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"

@@ -1284,50 +1284,6 @@ func TestGetTransactionOptions(t *testing.T) {
 			expectedError: ErrInvalidCallbackURL,
 		},
 		{
-			// NOTE: deprecated, to be removed soon
-			name: "wait for status - QUEUED",
-			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(1),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_QUEUED,
-			},
-		},
-		{
-			// NOTE: deprecated, to be removed soon
-			name: "wait for status - RECEIVED",
-			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(2),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_RECEIVED,
-			},
-		},
-		{
-			// NOTE: deprecated, to be removed soon
-			name: "wait for status - SENT_TO_NETWORK",
-			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(6),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
-			},
-		},
-		{
-			// NOTE: deprecated, to be removed soon
-			name: "wait for status - ACCEPTED_BY_NETWORK",
-			params: api.POSTTransactionParams{
-				XWaitForStatus: PtrTo(7),
-			},
-
-			expectedOptions: &metamorph.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			},
-		},
-		{
 			name: "wait for - QUEUED",
 			params: api.POSTTransactionParams{
 				XWaitFor: PtrTo("QUEUED"),

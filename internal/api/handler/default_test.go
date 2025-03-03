@@ -132,15 +132,14 @@ func TestGETPolicy(t *testing.T) {
 }
 
 func TestGETHealth(t *testing.T) {
-	t.Run("health check", func(t *testing.T) {
-		// given
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
+	t.Run("health check success", func(t *testing.T) {
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
+		apiOpts := []Option{}
+		apiOpts = append(apiOpts, WithReadinessCheck(func() error {
+			return nil
+		}))
+
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, apiOpts...)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -153,6 +152,28 @@ func TestGETHealth(t *testing.T) {
 
 		// then
 		require.Nil(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("health check fail", func(t *testing.T) {
+		apiOpts := []Option{}
+		apiOpts = append(apiOpts, WithReadinessCheck(func() error {
+			return errors.New("some connection error")
+		}))
+
+		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, apiOpts...)
+		require.NoError(t, err)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+
+		// when
+		err = sut.GETHealth(ctx)
+
+		// then
+		require.Contains(t, err.Error(), "some connection error")
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }

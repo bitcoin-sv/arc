@@ -24,7 +24,7 @@ import (
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
-var ErrGRPCFailedToRegisterPanics = fmt.Errorf("failed to register panics total metric")
+var ErrGRPCFailedToRegisterPanics = errors.New("failed to register panics total metric")
 
 func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.

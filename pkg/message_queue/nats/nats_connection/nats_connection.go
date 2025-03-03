@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-var ErrNatsConnectionFailed = fmt.Errorf("failed to connect to NATS server")
+var ErrNatsConnectionFailed = errors.New("failed to connect to NATS server")
 
 func WithMaxReconnects(maxReconnects int) func(config *natsConfig) {
 	return func(config *natsConfig) {

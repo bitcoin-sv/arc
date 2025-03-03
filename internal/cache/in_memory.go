@@ -72,7 +72,11 @@ func (s *MemoryStore) startClearCache(interval time.Duration) {
 					return true // continue iteration
 				}
 				if now.After(cacheItem.expiration) {
-					s.data.Delete(key.(string))
+					item, ok := key.(string)
+					if !ok {
+						return true
+					}
+					s.data.Delete(item)
 				}
 				return true // continue iteration
 			})

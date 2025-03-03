@@ -162,12 +162,6 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
-	reqCtx := ctx.Request().Context()
-	reqCtx, span := tracing.StartTracing(reqCtx, "GETHealth", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
 	if m.ready != nil {
 		err := m.ready()
 		healthy := (err == nil)

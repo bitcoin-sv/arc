@@ -32,6 +32,7 @@ import (
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
@@ -52,12 +53,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// check the swagger definition against our requests
 	apiHandler.CheckSwagger(echoServer)
 
-	cancelCtx, cancelMqClient := context.WithCancel(context.Background())
-
 	shutdownFns := make([]func(), 0)
 	stopFn := func() {
 		logger.Info("Shutting down api")
-		cancelMqClient()
 		disposeAPI(logger, echoServer, mqClient, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
@@ -66,7 +64,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil, true)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
 		return nil, err
 	}

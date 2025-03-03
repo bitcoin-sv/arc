@@ -27,6 +27,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -56,7 +57,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		err error
 	)
 
-	cancelCtx, cancel := context.WithCancel(context.Background())
 	shutdownFns := make([]func(), 0)
 
 	optsServer := make([]metamorph.ServerOption, 0)
@@ -87,7 +87,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
-		cancel()
 		disposeMtm(logger, server, processor, pm, messenger, multicaster, mqClient, metamorphStore, healthServer, shutdownFns)
 		logger.Info("Shutdown metamorph complete")
 	}
@@ -113,7 +112,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		nats_jetstream.WithInterestPolicy(mq.CallbackTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil, true)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
 		return nil, err
 	}

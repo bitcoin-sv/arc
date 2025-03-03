@@ -23,7 +23,6 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 */
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -37,6 +36,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
 func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -53,11 +53,8 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		err             error
 	)
 
-	cancelCtx, cancel := context.WithCancel(context.Background())
-
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		cancel()
 		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
 		logger.Info("Shutdown callbacker complete")
 	}
@@ -96,7 +93,8 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{mq.CallbackTopic}, true),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil, true)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
 		return nil, err
 	}

@@ -108,7 +108,7 @@ func TestMessageQueueClient(t *testing.T) {
 			name:          "auto reconnect enabled",
 			autoReconnect: true,
 
-			expectedReceivedCounter: 6,
+			expectedReceivedCounter: 8,
 		},
 		{
 			name:          "auto reconnect disabled",
@@ -123,7 +123,7 @@ func TestMessageQueueClient(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			receivedCounter = &atomic.Int32{}
 
-			natsConn, err := nats_connection.New(natsURL, logger)
+			natsConn, err := nats_connection.New(natsURL, logger, nats_connection.WithMaxReconnects(-1))
 			require.NoError(t, err)
 			oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
 			require.NoError(t, err)
@@ -146,7 +146,6 @@ func TestMessageQueueClient(t *testing.T) {
 
 			closedCh := make(chan struct{}, 1)
 			connOpts := []nats_connection.Option{
-				nats_connection.WithMaxReconnects(1),
 				nats_connection.WithReconnectWait(100 * time.Millisecond),
 				nats_connection.WithRetryOnFailedConnect(false),
 				nats_connection.WithClientClosedChannel(closedCh),
@@ -154,9 +153,15 @@ func TestMessageQueueClient(t *testing.T) {
 				nats_connection.WithMaxPingsOutstanding(1),
 			}
 
+			maxReconnects := nats_connection.WithMaxReconnects(1)
+			if tc.autoReconnect {
+				maxReconnects = nats_connection.WithMaxReconnects(-1)
+			}
+			connOpts = append(connOpts, maxReconnects)
+
 			time.Sleep(waitTime)
 
-			mqClient, err := mq.NewMqClient(ctx, logger, cfg, nil, jsOpts, connOpts, tc.autoReconnect)
+			mqClient, err := mq.NewMqClient(logger, cfg, nil, jsOpts, connOpts)
 			require.NoError(t, err)
 			defer mqClient.Shutdown()
 			t.Log("message client created")
@@ -176,10 +181,20 @@ func TestMessageQueueClient(t *testing.T) {
 			err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
 			require.Error(t, err)
 			t.Log("publishing failed")
-			t.Log("waiting for connection to be closed")
 
-			<-closedCh
-			t.Log("connection closed")
+			err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)
+			require.Error(t, err)
+			t.Log("publishing failed")
+
+			if !tc.autoReconnect {
+				t.Log("waiting for connection to be closed")
+				select {
+				case <-closedCh:
+					t.Log("connection closed")
+				case <-time.NewTimer(10 * time.Second).C:
+					t.Fatal("connection was not closed")
+				}
+			}
 
 			time.Sleep(waitTime)
 
@@ -188,15 +203,6 @@ func TestMessageQueueClient(t *testing.T) {
 			t.Log("message queue unpaused")
 
 			time.Sleep(waitTime)
-
-			natsConn, err = nats_connection.New(natsURL, logger)
-			require.NoError(t, err)
-
-			oppositeClient, err = nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
-			require.NoError(t, err)
-
-			err = oppositeClient.Subscribe(mq.SubmitTxTopic, msgReceived)
-			require.NoError(t, err)
 
 			for range 4 {
 				err = mqClient.Publish(ctx, mq.SubmitTxTopic, newMessage)

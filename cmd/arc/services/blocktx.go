@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -70,11 +70,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		processorOpts = append(processorOpts, blocktx.WithTracer(attributes...))
 	}
 
-	cancelCtx, cancelMqClient := context.WithCancel(context.Background())
-
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		cancelMqClient()
 		disposeBlockTx(logger, server, processor, pm, mcastListener, mqClient, blockStore, healthServer, workers, shutdownFns)
 		logger.Info("Shutdown blocktx complete")
 	}
@@ -91,7 +88,8 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		nats_jetstream.WithWorkQueuePolicy(mq.MinedTxsTopic),
 	}
 
-	mqClient, err = mq.NewMqClient(cancelCtx, logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, nil, true)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -31,7 +30,7 @@ type MessageQueueClient interface {
 	Shutdown()
 }
 
-func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option, autoReconnect bool) (MessageQueueClient, error) {
+func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
@@ -44,7 +43,6 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 	var err error
 
 	connOpts = append(connOpts, nats_connection.WithClientClosedChannel(clientClosedCh))
-
 	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", mqCfg.URL, err)
@@ -65,40 +63,6 @@ func NewMqClient(ctx context.Context, logger *slog.Logger, mqCfg *config.Message
 	if err != nil {
 		return nil, fmt.Errorf("failed to create nats client: %v", err)
 	}
-
-	if !autoReconnect {
-		return mqClient, nil
-	}
-
-	//recreate connection if it closes
-	go func() {
-		for {
-			select {
-			case <-clientClosedCh:
-				for {
-					logger.Warn("Message queue connection closed - recreating connection")
-					conn, err = nats_connection.New(mqCfg.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-					if err != nil {
-						logger.Error("Failed to create connection to message queue at URL %s: %v", mqCfg.URL, err)
-						time.Sleep(10 * time.Second)
-						continue
-					}
-
-					err = mqClient.SetConn(conn)
-					if err != nil {
-						logger.Error("Failed to set connection to message queue at URL %s: %v", mqCfg.URL, err)
-						time.Sleep(10 * time.Second)
-						continue
-					}
-
-					logger.Info("Message queue connection recreated")
-					break
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	return mqClient, nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
@@ -120,6 +121,26 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 	if err != nil {
 		policy = arcConfig.API.DefaultPolicy
 	}
+
+	apiOpts = append(apiOpts, apiHandler.WithReadinessCheck(func() error {
+		// Set a timeout for the health check
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		// Perform the health check
+		_, err := grpc_health_v1.NewHealthClient(conn).Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: "metamorph"})
+		if err != nil {
+			return err
+		}
+
+		// Perform the health check
+		_, err = grpc_health_v1.NewHealthClient(btcConn).Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: "blocktx"})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
 
 	wocClient := woc_client.New(arcConfig.API.WocMainnet, wocClientOpts...)
 

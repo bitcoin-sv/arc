@@ -41,6 +41,7 @@ var (
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
 	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", metamorph.MaxTimeout)
+	ReadinessNotDefined         = string("readiness check not defined")
 )
 
 type ArcDefaultHandler struct {
@@ -49,6 +50,7 @@ type ArcDefaultHandler struct {
 
 	logger                        *slog.Logger
 	now                           func() time.Time
+	ready                         func() error
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mapExpiryTime                 time.Duration
@@ -84,6 +86,12 @@ func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler)
 func WithCacheExpiryTime(d time.Duration) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.mapExpiryTime = d
+	}
+}
+
+func WithReadinessCheck(f func() error) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.ready = f
 	}
 }
 
@@ -160,20 +168,26 @@ func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
 		tracing.EndTracing(span, err)
 	}()
 
-	err = m.TransactionHandler.Health(reqCtx)
-	if err != nil {
-		reason := err.Error()
+	if m.ready != nil {
+		err := m.ready()
+		healthy := (err == nil)
+		var reason *string
+		if err != nil {
+			r := err.Error()
+			reason = &r
+		}
+
 		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: PtrTo(false),
+			Healthy: PtrTo(healthy),
 			Version: &version.Version,
-			Reason:  &reason,
+			Reason:  reason,
 		})
 	}
 
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(true),
+		Healthy: PtrTo(false),
 		Version: &version.Version,
-		Reason:  nil,
+		Reason:  &ReadinessNotDefined,
 	})
 }
 

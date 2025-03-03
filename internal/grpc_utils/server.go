@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
@@ -35,6 +36,10 @@ func NewGrpcServer(logger *slog.Logger, cfg ServerConfig) (GrpcServer, error) {
 	}
 
 	grpcSrv := grpc.NewServer(grpcOpts...)
+
+	// register health server endpoint
+	grpc_health_v1.RegisterHealthServer(grpcSrv, health.NewServer())
+
 	metrics.InitializeMetrics(grpcSrv)
 
 	return GrpcServer{

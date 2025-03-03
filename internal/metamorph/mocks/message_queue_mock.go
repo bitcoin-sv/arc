@@ -6,6 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
@@ -29,6 +30,9 @@ var _ metamorph.MessageQueue = &MessageQueueMock{}
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
+//			StatusFunc: func() nats.Status {
+//				panic("mock out the Status method")
+//			},
 //			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 //				panic("mock out the Subscribe method")
 //			},
@@ -47,6 +51,9 @@ type MessageQueueMock struct {
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
+
+	// StatusFunc mocks the Status method.
+	StatusFunc func() nats.Status
 
 	// SubscribeFunc mocks the Subscribe method.
 	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
@@ -74,6 +81,9 @@ type MessageQueueMock struct {
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
+		// Status holds details about calls to the Status method.
+		Status []struct {
+		}
 		// Subscribe holds details about calls to the Subscribe method.
 		Subscribe []struct {
 			// Topic is the topic argument value.
@@ -85,6 +95,7 @@ type MessageQueueMock struct {
 	lockPublish        sync.RWMutex
 	lockPublishMarshal sync.RWMutex
 	lockShutdown       sync.RWMutex
+	lockStatus         sync.RWMutex
 	lockSubscribe      sync.RWMutex
 }
 
@@ -192,6 +203,33 @@ func (mock *MessageQueueMock) ShutdownCalls() []struct {
 	mock.lockShutdown.RLock()
 	calls = mock.calls.Shutdown
 	mock.lockShutdown.RUnlock()
+	return calls
+}
+
+// Status calls StatusFunc.
+func (mock *MessageQueueMock) Status() nats.Status {
+	if mock.StatusFunc == nil {
+		panic("MessageQueueMock.StatusFunc: method is nil but MessageQueue.Status was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockStatus.Lock()
+	mock.calls.Status = append(mock.calls.Status, callInfo)
+	mock.lockStatus.Unlock()
+	return mock.StatusFunc()
+}
+
+// StatusCalls gets all the calls that were made to Status.
+// Check the length with:
+//
+//	len(mockedMessageQueue.StatusCalls())
+func (mock *MessageQueueMock) StatusCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockStatus.RLock()
+	calls = mock.calls.Status
+	mock.lockStatus.RUnlock()
 	return calls
 }
 

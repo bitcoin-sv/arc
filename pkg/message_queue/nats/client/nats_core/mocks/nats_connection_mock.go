@@ -28,6 +28,9 @@ var _ nats_core.NatsConnection = &NatsConnectionMock{}
 //			QueueSubscribeFunc: func(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error) {
 //				panic("mock out the QueueSubscribe method")
 //			},
+//			StatusFunc: func() nats.Status {
+//				panic("mock out the Status method")
+//			},
 //		}
 //
 //		// use mockedNatsConnection in code that requires nats_core.NatsConnection
@@ -43,6 +46,9 @@ type NatsConnectionMock struct {
 
 	// QueueSubscribeFunc mocks the QueueSubscribe method.
 	QueueSubscribeFunc func(subj string, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
+
+	// StatusFunc mocks the Status method.
+	StatusFunc func() nats.Status
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -65,10 +71,14 @@ type NatsConnectionMock struct {
 			// Cb is the cb argument value.
 			Cb nats.MsgHandler
 		}
+		// Status holds details about calls to the Status method.
+		Status []struct {
+		}
 	}
 	lockDrain          sync.RWMutex
 	lockPublish        sync.RWMutex
 	lockQueueSubscribe sync.RWMutex
+	lockStatus         sync.RWMutex
 }
 
 // Drain calls DrainFunc.
@@ -171,5 +181,32 @@ func (mock *NatsConnectionMock) QueueSubscribeCalls() []struct {
 	mock.lockQueueSubscribe.RLock()
 	calls = mock.calls.QueueSubscribe
 	mock.lockQueueSubscribe.RUnlock()
+	return calls
+}
+
+// Status calls StatusFunc.
+func (mock *NatsConnectionMock) Status() nats.Status {
+	if mock.StatusFunc == nil {
+		panic("NatsConnectionMock.StatusFunc: method is nil but NatsConnection.Status was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockStatus.Lock()
+	mock.calls.Status = append(mock.calls.Status, callInfo)
+	mock.lockStatus.Unlock()
+	return mock.StatusFunc()
+}
+
+// StatusCalls gets all the calls that were made to Status.
+// Check the length with:
+//
+//	len(mockedNatsConnection.StatusCalls())
+func (mock *NatsConnectionMock) StatusCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockStatus.RLock()
+	calls = mock.calls.Status
+	mock.lockStatus.RUnlock()
 	return calls
 }

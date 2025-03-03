@@ -204,7 +204,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		Name:               "metamorph",
 	}
 
-	server, err = metamorph.NewServer(logger, metamorphStore, processor, serverCfg, optsServer...)
+	server, err = metamorph.NewServer(logger, metamorphStore, processor, mqClient, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

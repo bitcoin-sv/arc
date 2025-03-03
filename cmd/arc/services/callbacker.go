@@ -136,7 +136,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		Name:               "blocktx",
 	}
 
-	server, err = callbacker.NewServer(logger, dispatcher, callbackerStore, serverCfg)
+	server, err = callbacker.NewServer(logger, dispatcher, callbackerStore, mqClient, serverCfg)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

@@ -45,6 +45,7 @@ message HealthResponse {
   int32 mapSize = 2;
   string PeersConnected = 3;
   string PeersDisconnected = 4;
+  string nats = 5;
 }
 
 // swagger:model TransactionRequest

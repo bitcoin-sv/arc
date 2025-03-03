@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/nats-io/nats.go"
 )
 
 type Server struct {
@@ -19,11 +20,12 @@ type Server struct {
 	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
+	mqClient   MessageQueueClient
 	logger     *slog.Logger
 }
 
 // NewServer will return a server instance
-func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_utils.ServerConfig) (*Server, error) {
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, mqClient MessageQueueClient, cfg grpc_utils.ServerConfig) (*Server, error) {
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
@@ -43,7 +45,12 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {
+	status := nats.DISCONNECTED
+	if s.mqClient != nil {
+		status = s.mqClient.Status()
+	}
 	return &callbacker_api.HealthResponse{
+		Nats:      uint64(status),
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

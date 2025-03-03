@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,7 +22,7 @@ func TestNewServer(t *testing.T) {
 		// Given
 
 		// When
-		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
+		server, err := callbacker.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
 
 		// Then
 		require.NoError(t, err)
@@ -35,7 +36,7 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
 		// Given
-		sut, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
+		sut, err := callbacker.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -46,6 +47,7 @@ func TestHealth(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, stats)
 		assert.NotNil(t, stats.Timestamp)
+		assert.Equal(t, nats.CONNECTED, stats)
 
 		now := time.Now().Unix()
 		assert.InDelta(t, now, stats.Timestamp.Seconds, 1, "Timestamp should be close to the current time")
@@ -66,7 +68,7 @@ func TestSendCallback(t *testing.T) {
 			}
 		}}
 
-		server, err := callbacker.NewServer(slog.Default(), mockDispatcher, nil, grpc_utils.ServerConfig{})
+		server, err := callbacker.NewServer(slog.Default(), mockDispatcher, nil, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 
 		request := &callbacker_api.SendCallbackRequest{

@@ -1,6 +1,7 @@
 package callbacker
 
 import (
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -10,5 +11,6 @@ const (
 
 type MessageQueueClient interface {
 	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+	Status() nats.Status
 	Shutdown()
 }

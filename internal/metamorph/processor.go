@@ -361,12 +361,12 @@ func (p *Processor) rebroadcastStaleTxs(ctx context.Context, txsBlocks []*blockt
 
 		p.logger.Debug("Re-announcing stale tx", slog.String("hash", txHash.String()))
 
-		tx, err := p.store.Get(ctx, txHash[:])
+		txData, err := p.store.Get(ctx, txHash[:])
 		if err != nil {
 			p.logger.Error("Failed to get transaction", slog.String("hash", txHash.String()))
 			continue
 		}
-		p.bcMediator.AnnounceTxAsync(ctx, tx)
+		p.bcMediator.AnnounceTxAsync(ctx, txData)
 	}
 }
 

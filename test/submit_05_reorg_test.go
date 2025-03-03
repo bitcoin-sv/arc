@@ -145,7 +145,7 @@ func TestReorg(t *testing.T) {
 	// verify that stale tx is still SEEN_ON_NETWORK
 	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txStale.TxID())
 	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusSeenOnNetwork, statusResp.TxStatus)
+	require.Equal(t, StatusMinedInStaleBlock, statusResp.TxStatus)
 
 	// verify that nothing changed so far with previous mined txs
 	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())

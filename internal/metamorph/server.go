@@ -53,6 +53,7 @@ type Server struct {
 	grpc_utils.GrpcServer
 
 	logger              *slog.Logger
+	mq                  MessageQueue
 	processor           ProcessorI
 	store               store.MetamorphStore
 	checkStatusInterval time.Duration
@@ -83,7 +84,7 @@ func WithServerTracer(attr ...attribute.KeyValue) func(s *Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, mq MessageQueue, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{
@@ -91,6 +92,7 @@ func NewServer(logger *slog.Logger, store store.MetamorphStore, processor Proces
 		processor:           processor,
 		store:               store,
 		checkStatusInterval: checkStatusIntervalDefault,
+		mq:                  mq,
 	}
 
 	for _, opt := range opts {
@@ -130,7 +132,13 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		}
 	}
 
+	status := ""
+	if s.mq != nil {
+		status = s.mq.Status().String()
+	}
+
 	return &metamorph_api.HealthResponse{
+		Nats:              status,
 		Timestamp:         timestamppb.New(time.Now()),
 		MapSize:           int32(processorMapSize),
 		PeersConnected:    strings.Join(peersConnected, ","),

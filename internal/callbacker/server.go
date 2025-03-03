@@ -36,6 +36,7 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 		dispatcher: dispatcher,
 		store:      callbackerStore,
 		logger:     logger,
+		mqClient:   mqClient,
 	}
 
 	callbacker_api.RegisterCallbackerAPIServer(s.GrpcServer.Srv, s)
@@ -45,12 +46,12 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {
-	status := nats.DISCONNECTED
+	status := nats.DISCONNECTED.String()
 	if s.mqClient != nil {
-		status = s.mqClient.Status()
+		status = s.mqClient.Status().String()
 	}
 	return &callbacker_api.HealthResponse{
-		Nats:      uint64(status),
+		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

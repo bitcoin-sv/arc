@@ -35,8 +35,14 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
+		mqClient := &mocks.MessageQueueClientMock{
+			StatusFunc: func() nats.Status {
+				return nats.CONNECTED
+			},
+		}
+
 		// Given
-		sut, err := callbacker.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
+		sut, err := callbacker.NewServer(slog.Default(), nil, nil, mqClient, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -47,7 +53,7 @@ func TestHealth(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, stats)
 		assert.NotNil(t, stats.Timestamp)
-		assert.Equal(t, nats.CONNECTED, stats)
+		assert.Equal(t, nats.CONNECTED.String(), stats.Nats)
 
 		now := time.Now().Unix()
 		assert.InDelta(t, now, stats.Timestamp.Seconds, 1, "Timestamp should be close to the current time")

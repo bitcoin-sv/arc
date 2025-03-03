@@ -167,7 +167,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 		Name:               "blocktx",
 	}
 
-	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch)
+	server, err = blocktx.NewServer(logger, blockStore, pm, processor, mqClient, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

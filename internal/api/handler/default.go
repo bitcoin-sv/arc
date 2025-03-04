@@ -542,33 +542,6 @@ func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackU
 		transactionOptions.CallbackBatch = *params.XCallbackBatch
 	}
 
-	// NOTE: deprecated header, to be removed soon
-	if params.XWaitForStatus != nil {
-		oldStatusesMap := map[int]string{
-			1:   "QUEUED",
-			2:   "RECEIVED",
-			3:   "STORED",
-			4:   "ANNOUNCED_TO_NETWORK",
-			5:   "REQUESTED_BY_NETWORK",
-			6:   "SENT_TO_NETWORK",
-			7:   "ACCEPTED_BY_NETWORK",
-			8:   "SEEN_ON_NETWORK",
-			9:   "MINED",
-			10:  "SEEN_IN_ORPHAN_MEMPOOL",
-			108: "CONFIRMED",
-			109: "REJECTED",
-		}
-		statusString, ok := oldStatusesMap[*params.XWaitForStatus]
-		if !ok {
-			return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %d", *params.XWaitForStatus))
-		}
-		newStatusValue, ok := metamorph_api.Status_value[statusString]
-		if !ok {
-			return nil, errors.Join(ErrStatusNotSupported, fmt.Errorf("status: %s", statusString))
-		}
-		transactionOptions.WaitForStatus = metamorph_api.Status(newStatusValue)
-	}
-
 	if params.XWaitFor != nil {
 		value, ok := metamorph_api.Status_value[*params.XWaitFor]
 		if !ok {

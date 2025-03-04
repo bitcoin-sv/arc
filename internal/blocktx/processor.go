@@ -288,10 +288,12 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 
 	p.logger.Info("registered tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
 
-	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes, false)
+	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
 		return fmt.Errorf("failed to get mined txs: %v", err)
 	}
+
+	p.logger.Info("mined tx hashes", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
 
 	if len(minedTxs) == 0 {
 		return nil

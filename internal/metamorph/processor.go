@@ -91,7 +91,7 @@ type Processor struct {
 	lockTransactionsInterval time.Duration
 
 	minedTxsChan     chan *blocktx_api.TransactionBlocks
-	submittedTxsChan chan *metamorph_api.TransactionRequest
+	submittedTxsChan chan *metamorph_api.PostTransactionRequest
 
 	storageStatusUpdateCh         chan store.UpdateStatus
 	processStatusUpdatesInterval  time.Duration
@@ -202,7 +202,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	}
 
 	err = p.mqClient.Subscribe(SubmitTxTopic, func(msg []byte) error {
-		serialized := &metamorph_api.TransactionRequest{}
+		serialized := &metamorph_api.PostTransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", SubmitTxTopic), err)
@@ -614,6 +614,7 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
+// StartRequestingSeenOnNetworkTxs periodically loads SEEN_ON_NETWORK transactions and registers them
 func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 	ticker := time.NewTicker(p.processSeenOnNetworkTxsInterval)
 	p.waitGroup.Add(1)
@@ -628,15 +629,15 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 			case <-ticker.C:
 				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.tracingAttributes...)
 
-				// Periodically read SEEN_ON_NETWORK transactions from database check their status in blocktx
 				getSeenOnNetworkFrom := p.now().Add(-1 * p.recheckSeenFromAgo)
 				getSeenOnNetworkUntil := p.now().Add(-1 * p.recheckSeenUntilAgo)
 				var offset int64
 				var totalSeenOnNetworkTxs int
+				var seenOnNetworkTxs []*store.Data
+				var err error
 
 				for {
-					seenOnNetworkTxs, err := p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkFrom, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
-					offset += loadSeenOnNetworkLimit
+					seenOnNetworkTxs, err = p.store.GetSeenOnNetwork(ctx, getSeenOnNetworkFrom, getSeenOnNetworkUntil, loadSeenOnNetworkLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
 						break
@@ -646,6 +647,7 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 						break
 					}
 
+					offset += loadSeenOnNetworkLimit
 					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 					for _, tx := range seenOnNetworkTxs {
@@ -654,6 +656,8 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 							p.logger.Error("Failed to register tx in blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
 						}
 					}
+
+					time.Sleep(100 * time.Millisecond)
 				}
 
 				if totalSeenOnNetworkTxs > 0 {

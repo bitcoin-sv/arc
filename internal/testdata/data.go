@@ -18,6 +18,10 @@ var (
 	TX1Raw, _    = sdkTx.NewTransactionFromHex(TX1RawString)
 	TX1Hash, _   = chainhash.NewHashFromStr(TX1Raw.TxID().String())
 
+	ValidTXRawString = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1a0386c40b2f7461616c2e636f6d2f00cf47ad9c7af83836000000ffffffff0117564425000000001976a914522cf9e7626d9bd8729e5a1398ece40dad1b6a2f88ac00000000"
+	ValidTXRaw, _    = sdkTx.NewTransactionFromHex(ValidTXRawString)
+	ValidTXHash, _   = chainhash.NewHashFromStr(ValidTXRaw.TxID().String())
+
 	TX2        = "1a8fda8c35b8fc30885e88d6eb0214e2b3a74c96c82c386cb463905446011fdf"
 	TX2Hash, _ = chainhash.NewHashFromStr(TX2)
 

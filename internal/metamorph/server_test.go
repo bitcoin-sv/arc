@@ -56,7 +56,7 @@ func TestHealth(t *testing.T) {
 	})
 }
 
-func TestPutTransaction(t *testing.T) {
+func TestPostTransaction(t *testing.T) {
 	testCases := []struct {
 		name                string
 		processorResponse   metamorph.StatusAndError
@@ -158,17 +158,16 @@ func TestPutTransaction(t *testing.T) {
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
-			txRequest := &metamorph_api.TransactionRequest{
+			txRequest := &metamorph_api.PostTransactionRequest{
 				RawTx:         testdata.TX1Raw.Bytes(),
 				WaitForStatus: tc.waitForStatus,
 			}
 
 			// when
-			// when
 			ctx := context.Background()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			actualStatus, err := sut.PutTransaction(timeoutCtx, txRequest)
+			actualStatus, err := sut.PostTransaction(timeoutCtx, txRequest)
 
 			// then
 			assert.NoError(t, err)
@@ -348,7 +347,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 	}
 }
 
-func TestPutTransactions(t *testing.T) {
+func TestPostTransactions(t *testing.T) {
 	hash0, err := chainhash.NewHashFromStr("9b58926ec7eed21ec2f3ca518d5fc0c6ccbf963e25c3e7ac496c99867d97599a")
 	require.NoError(t, err)
 
@@ -372,7 +371,7 @@ func TestPutTransactions(t *testing.T) {
 		name              string
 		processorResponse map[string]*metamorph.StatusAndError
 		transactionFound  map[int]*store.Data
-		requests          *metamorph_api.TransactionRequests
+		requests          *metamorph_api.PostTransactionsRequest
 		getErr            error
 
 		expectedErrorStr                         string
@@ -381,8 +380,8 @@ func TestPutTransactions(t *testing.T) {
 	}{
 		{
 			name: "single new transaction response seen on network - wait for sent to network status",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
 					{
 						RawTx:         tx0.Bytes(),
 						WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
@@ -407,8 +406,8 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction - double spend attempted",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
 					{
 						RawTx:         tx0.Bytes(),
 						WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
@@ -435,8 +434,8 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction response with error",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
 					{
 						RawTx:         tx0.Bytes(),
 						WaitForStatus: metamorph_api.Status_STORED,
@@ -462,8 +461,8 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction - wait for received status",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{{
 					RawTx:         tx0.Bytes(),
 					WaitForStatus: metamorph_api.Status_RECEIVED,
 				}},
@@ -482,8 +481,9 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "single new transaction - time out",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{{RawTx: tx0.Bytes()}},
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
+					{RawTx: tx0.Bytes()}},
 			},
 
 			expectedProcessorProcessTransactionCalls: 1,
@@ -499,8 +499,8 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "batch of 3 transactions",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
 					{
 						RawTx:         tx0.Bytes(),
 						WaitForStatus: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
@@ -556,8 +556,8 @@ func TestPutTransactions(t *testing.T) {
 		},
 		{
 			name: "failed to get tx",
-			requests: &metamorph_api.TransactionRequests{
-				Transactions: []*metamorph_api.TransactionRequest{
+			requests: &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
 					{
 						RawTx:         tx0.Bytes(),
 						WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
@@ -609,7 +609,7 @@ func TestPutTransactions(t *testing.T) {
 			ctx := context.Background()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			statuses, err := sut.PutTransactions(timeoutCtx, tc.requests)
+			statuses, err := sut.PostTransactions(timeoutCtx, tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {
 				require.ErrorContains(t, err, tc.expectedErrorStr)
 				return

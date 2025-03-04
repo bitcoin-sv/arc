@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	ErrFailedToPublish   = fmt.Errorf("failed to publish")
-	ErrFailedToSubscribe = fmt.Errorf("failed to subscribe")
+	ErrFailedToPublish   = errors.New("failed to publish")
+	ErrFailedToSubscribe = errors.New("failed to subscribe")
 )
 
 type NatsConnection interface {

@@ -173,7 +173,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get many", func(t *testing.T) {
 		// when
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		keys := [][]byte{
 			testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
@@ -250,7 +250,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get unmined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		// locked by metamorph-1
 		expectedHash0 := testutils2.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
@@ -269,7 +269,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set locked by", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
 		require.NoError(t, err)
@@ -493,7 +493,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update mined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)
@@ -915,7 +915,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("clear data", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
@@ -929,7 +929,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get seen on network txs", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures")
+		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		txHash := testutils2.RevChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
 		require.NoError(t, err)
@@ -937,9 +937,13 @@ func TestPostgresDB(t *testing.T) {
 		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
 		require.NoError(t, err)
 
-		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, 1, len(records))
+		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
+
+		records, err = postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 100)
+		require.NoError(t, err)
+		require.Equal(t, 0, len(records))
 	})
 
 	t.Run("get stats", func(t *testing.T) {

@@ -114,7 +114,7 @@ func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(pro
 	}
 }
 
-func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.TransactionRequest) func(processor *Processor) {
+func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.PostTransactionRequest) func(processor *Processor) {
 	return func(p *Processor) {
 		p.submittedTxsChan = submittedTxsChan
 	}
@@ -154,5 +154,11 @@ func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 func WithBlocktxClient(client blocktx.Client) func(*Processor) {
 	return func(p *Processor) {
 		p.blocktxClient = client
+	}
+}
+
+func WithProcessSeenOnNetworkTxsInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.processSeenOnNetworkTxsInterval = d
 	}
 }

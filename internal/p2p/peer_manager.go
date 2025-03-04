@@ -2,7 +2,7 @@ package p2p
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"sort"
 	"sync"
@@ -11,7 +11,7 @@ import (
 	"github.com/libsv/go-p2p/wire"
 )
 
-var ErrPeerNetworkMismatch = fmt.Errorf("peer network mismatch")
+var ErrPeerNetworkMismatch = errors.New("peer network mismatch")
 
 type PeerManager struct {
 	execWg        sync.WaitGroup

@@ -21,9 +21,6 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 - [Message Queue](#message-queue)
 - [K8s-Watcher](#k8s-watcher)
 - [Broadcaster-cli](#broadcaster-cli)
-  - [Installation](#installation)
-  - [Configuration](#configuration-1)
-  - [How to use broadcaster-cli to send batches of transactions to ARC](#how-to-use-broadcaster-cli-to-send-batches-of-transactions-to-arc)
 - [Tests](#tests)
   - [Unit tests](#unit-tests)
   - [Integration tests](#integration-tests)
@@ -133,7 +130,7 @@ The API http server as well as all gRPC servers of each service has dual-stack c
 
 API is the REST API microservice for interacting with ARC. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html) for more information.
 
-The API takes care of authentication, validation, and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round robin load balancing.
+The API takes care of authentication, validation, and sending transactions to Metamorph. The API talks to one or more Metamorph instances using client-based, round-robin load balancing.
 
 To register a callback, the client must add the `X-CallbackUrl` header to the
 request. The callbacker will then send a POST request to the URL specified in the header, with the transaction ID in
@@ -269,7 +266,7 @@ go run main.go -callbacker=true
 
 ## K8s-Watcher
 
-The K8s-Watcher is a service which is needed for a special use case. If ARC runs on a Kubernetes cluster, then the K8s-Watcher can be run as a safety measure. Due to the centralisation of `metamorph` storage, each `metamorph` pod has to ensure the exclusive processing of records by locking the records. If `metamorph` shuts down gracefully it will unlock all the records it holds in memory. The graceful shutdown is not guaranteed though. For this eventuality the K8s-Watcher can be run in a separate pod. K8s-Watcher detects when `metamorph` pods are terminated and will additionally call on the `metamorph` service to unlock the records of that terminated `metamorph` pod. This ensures that no records will stay in a locked state.
+If ARC runs on a Kubernetes cluster, then the K8s-Watcher can be run as a safety measure in case that graceful shutdown was not successful. K8s-watcher keeps an up-to-date list of `callbacker` and `metamorph` pods. It sends this list in intervals to each of the service using the `UpdateInstances` rpc call. Both `callbacker` and `metamorph` run any remaining cleanup procedures.
 
 The K8s-Watcher can be started as follows
 
@@ -298,7 +295,7 @@ These integration tests can be excluded from execution with `go test ./...` by a
 The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc and 3 nodes using the provided docker-compose file.
 The tests can be executed like this:
 ```
-make clean_restart_e2e_test
+make run_e2e_tests
 ```
 
 The [docker-compose](./test/docker-compose.yaml) file also shows the minimum setup that is needed for ARC to run.

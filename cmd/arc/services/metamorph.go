@@ -242,12 +242,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		}
 	}
 
-	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to start health server: %v", err)
-	}
-
 	return stopFn, nil
 }
 

@@ -132,7 +132,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh
 		if err != nil {
 			return fmt.Errorf("health check failed for metamorph grpc: %v", err)
 		}
-
 		if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
 			return fmt.Errorf("metamorph grpc server not serving: %v", resp.Status)
 		}

@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/bitcoin-sv/arc/config"
 )
@@ -47,29 +46,6 @@ func NewGrpcServer(logger *slog.Logger, cfg ServerConfig) (GrpcServer, error) {
 		logger:  logger,
 		cleanup: cleanupFn,
 	}, nil
-}
-
-func NewHealthServer(logger *slog.Logger, serv grpc_health_v1.HealthServer) *GrpcServer {
-	grpcSrv := grpc.NewServer()
-
-	grpc_health_v1.RegisterHealthServer(grpcSrv, serv)
-	reflection.Register(grpcSrv)
-
-	return &GrpcServer{
-		Srv:    grpcSrv,
-		logger: logger.With(slog.String("service", "health-server")),
-	}
-}
-
-func ServeNewHealthServer(logger *slog.Logger, serv grpc_health_v1.HealthServer, address string) (*GrpcServer, error) {
-	srv := NewHealthServer(logger, serv)
-
-	if err := srv.ListenAndServe(address); err != nil {
-		srv.GracefulStop()
-		return nil, err
-	}
-
-	return srv, nil
 }
 
 func (s *GrpcServer) ListenAndServe(address string) error {

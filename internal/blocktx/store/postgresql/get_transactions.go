@@ -11,27 +11,12 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
-func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte, onlyLongestChain bool) (minedTransactions []store.BlockTransaction, err error) {
+func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) (minedTransactions []store.BlockTransaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMinedTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	if onlyLongestChain {
-		predicate := "WHERE bt.hash = ANY($1) AND b.is_longest = true"
-		return p.getTransactionBlocksByPredicate(ctx, predicate, pq.Array(hashes))
-	}
-
-	predicate := "WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL"
-
-	return p.getTransactionBlocksByPredicate(ctx, predicate,
-		pq.Array(hashes),
-		blocktx_api.Status_LONGEST,
-		blocktx_api.Status_STALE,
-	)
-}
-
-func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predicate string, predicateParams ...any) ([]store.BlockTransaction, error) {
 	q := `
 		SELECT
 			bt.hash,
@@ -42,10 +27,12 @@ func (p *PostgreSQL) getTransactionBlocksByPredicate(ctx context.Context, predic
 			b.merkleroot
 		FROM blocktx.block_transactions AS bt
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+		WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL
 	`
-	q += " " + predicate
 
-	rows, err := p.db.QueryContext(ctx, q, predicateParams...)
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes),
+		blocktx_api.Status_LONGEST,
+		blocktx_api.Status_STALE)
 	if err != nil {
 		return nil, err
 	}

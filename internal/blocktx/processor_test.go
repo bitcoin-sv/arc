@@ -21,6 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -171,7 +172,7 @@ func TestHandleBlock(t *testing.T) {
 				UpsertBlockFunc: func(_ context.Context, _ *blocktx_api.Block) (uint64, error) {
 					return 0, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
@@ -427,7 +428,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				GetRegisteredTxsByBlockHashesFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return nil, nil
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
@@ -680,7 +681,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) (int64, error) {
 					return 0, registerErrTest
 				},
-				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte, _ bool) ([]store.BlockTransaction, error) {
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
 					return tc.getMinedTxs, tc.getMinedTxsErr
 				},
 				GetBlockTransactionsHashesFunc: func(_ context.Context, _ []byte) ([]*chainhash.Hash, error) {
@@ -826,7 +827,7 @@ func TestStart(t *testing.T) {
 		},
 		{
 			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{blocktx.RegisterTxTopic: errors.New("failed to subscribe")},
+			topicErr: map[string]error{mq.RegisterTxTopic: errors.New("failed to subscribe")},
 
 			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},

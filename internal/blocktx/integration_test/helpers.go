@@ -14,9 +14,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
-	nats_mock "github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core/mocks"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
@@ -33,17 +32,15 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 	store, err := postgresql.New(dbInfo, 10, 80)
 	require.NoError(t, err)
 
-	mockNatsConn := &nats_mock.NatsConnectionMock{
-		PublishFunc: func(_ string, data []byte) error {
-			serialized := &blocktx_api.TransactionBlocks{}
-			err := proto.Unmarshal(data, serialized)
-			require.NoError(t, err)
+	mqClient := &mocks.MessageQueueClientMock{
+		PublishMarshalFunc: func(_ context.Context, _ string, m proto.Message) error {
+			serialized, ok := m.(*blocktx_api.TransactionBlocks)
+			require.True(t, ok)
 
 			publishedTxsCh <- serialized
 			return nil
 		},
 	}
-	mqClient := nats_core.New(mockNatsConn, nats_core.WithLogger(logger))
 
 	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 	processor, err := blocktx.NewProcessor(

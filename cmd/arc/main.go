@@ -61,8 +61,6 @@ func run() error {
 
 	shutdownFns := make([]func(), 0)
 
-	shutdownCh := make(chan string, 1)
-
 	go func() {
 		if arcConfig.ProfilerAddr != "" {
 			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.ProfilerAddr))
@@ -95,7 +93,7 @@ func run() error {
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig, shutdownCh)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -104,7 +102,7 @@ func run() error {
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore, shutdownCh)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
 		if err != nil {
 			return fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -113,7 +111,7 @@ func run() error {
 
 	if startAPI {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig, shutdownCh)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start api: %v", err)
 		}
@@ -131,7 +129,7 @@ func run() error {
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig, shutdownCh)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
 		if err != nil {
 			return fmt.Errorf("failed to start callbacker: %v", err)
 		}
@@ -142,12 +140,7 @@ func run() error {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
-	select {
-	case reason := <-shutdownCh:
-		logger.Info("Received shutdown signal", slog.String("reason", reason))
-	case sig := <-signalChan:
-		logger.Info("Received shutdown signal", slog.String("reason", sig.String()))
-	}
+	<-signalChan
 	appCleanup(logger, shutdownFns)
 
 	return nil

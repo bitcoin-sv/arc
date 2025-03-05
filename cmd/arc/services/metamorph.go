@@ -24,8 +24,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -36,7 +36,7 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store, shutdownCh chan string) (func(), error) {
+func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
 
@@ -49,7 +49,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		messenger       *p2p.NetworkMessenger
 		multicaster     *mcast.Multicaster
 		statusMessageCh chan *metamorph_p2p.TxStatusMessage
-		mqClient        metamorph.MessageQueue
+		mqClient        mq.MessageQueueClient
 		processor       *metamorph.Processor
 		server          *metamorph.Server
 		healthServer    *grpc_utils.GrpcServer
@@ -104,48 +104,18 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	// maximum amount of messages that could be coming from a single block
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
-	submittedTxsChan := make(chan *metamorph_api.TransactionRequest, chanBufferSize)
+	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	clientClosedCh := make(chan struct{}, 1)
-	natsClient, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
+	opts := []nats_jetstream.Option{
+		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.MinedTxsTopic, mq.SubmitTxTopic),
+		nats_jetstream.WithWorkQueuePolicy(mq.RegisterTxTopic),
+		nats_jetstream.WithInterestPolicy(mq.CallbackTopic),
 	}
 
-	go func() {
-		<-clientClosedCh
-		logger.Warn("message queue client closed")
-		shutdownCh <- "message queue client closed"
-	}()
-
-	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{
-			nats_jetstream.WithSubscribedWorkQueuePolicy(metamorph.MinedTxsTopic, metamorph.SubmitTxTopic),
-			nats_jetstream.WithWorkQueuePolicy(metamorph.RegisterTxTopic),
-			nats_jetstream.WithInterestPolicy(metamorph.CallbackTopic),
-		}
-		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
-		}
-
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-
-		mqClient, err = nats_jetstream.New(natsClient, logger,
-			opts...,
-		)
-		if err != nil {
-			stopFn()
-			return nil, fmt.Errorf("failed to create nats client: %v", err)
-		}
-	} else {
-		opts := []nats_core.Option{nats_core.WithLogger(logger)}
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-		mqClient = nats_core.New(natsClient, opts...)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	if err != nil {
+		return nil, err
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
@@ -411,7 +381,7 @@ func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int,
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
-	pm *p2p.PeerManager, messenger *p2p.NetworkMessenger, multicaster *mcast.Multicaster, mqClient metamorph.MessageQueueClient,
+	pm *p2p.PeerManager, messenger *p2p.NetworkMessenger, multicaster *mcast.Multicaster, mqClient mq.MessageQueueClient,
 	metamorphStore store.MetamorphStore, healthServer *grpc_utils.GrpcServer,
 	shutdownFns []func(),
 ) {

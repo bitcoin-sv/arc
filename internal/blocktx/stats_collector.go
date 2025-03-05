@@ -2,7 +2,6 @@ package blocktx
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"runtime/debug"
 	"sync"
@@ -15,7 +14,7 @@ const (
 	statCollectionIntervalDefault = 60 * time.Second
 )
 
-var ErrFailedToRegisterStats = fmt.Errorf("failed to register stats collector")
+var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
 
 type processorStats struct {
 	mu                    sync.RWMutex

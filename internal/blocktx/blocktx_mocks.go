@@ -7,7 +7,7 @@ package blocktx
 //go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go . HealthWatchServer
 
 // from nats_core_client.go
-//go:generate moq -pkg mocks -out ./mocks/mq_client_mock.go . MessageQueueClient
+//go:generate moq -pkg mocks -out ./mocks/mq_client_mock.go ../mq MessageQueueClient
 
 // from client.go
 //go:generate moq -pkg mocks -out ./mocks/merkle_roots_verifier_mock.go . MerkleRootsVerifier

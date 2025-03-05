@@ -13,6 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
 type Dispatcher interface {
@@ -32,7 +33,7 @@ var (
 )
 
 type Processor struct {
-	mqClient                  MessageQueueClient
+	mqClient                  mq.MessageQueueClient
 	dispatcher                Dispatcher
 	store                     store.ProcessorStore
 	logger                    *slog.Logger
@@ -52,7 +53,7 @@ func WithDispatchPersistedInterval(interval time.Duration) func(*Processor) {
 	}
 }
 
-func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
+func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
 		hostName:                  hostName,
 		urlMapping:                make(map[string]string),
@@ -155,9 +156,9 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 func (p *Processor) Start() error {
 	p.startSyncURLMapping()
 
-	err := p.mqClient.SubscribeMsg(CallbackTopic, p.handleCallbackMessage)
+	err := p.mqClient.SubscribeMsg(mq.CallbackTopic, p.handleCallbackMessage)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe on %s topic: %v", CallbackTopic, err)
+		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
 	}
 	return nil
 }

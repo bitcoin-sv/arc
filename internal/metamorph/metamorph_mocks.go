@@ -3,9 +3,6 @@ package metamorph
 // from ./metamorph_api/
 //go:generate moq -pkg mocks -out ./mocks/metamorph_api_mock.go ./metamorph_api MetaMorphAPIClient
 
-// from health_check.go
-//go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go . HealthWatchServer
-
 // from processor.go
 //go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
 

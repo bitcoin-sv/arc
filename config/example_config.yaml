@@ -10,7 +10,7 @@ grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
 messageQueue:
   streaming:
-    enabled: false  # if enabled, message queue can store messages
+    enabled: true  # if enabled, message queue can store messages - currently ARC only supports message queue with streaming enabled
     fileStorage: false # if enabled messages are persisted on disk instead of in memory
   URL: nats://nats:4222 # URL for message queue
 tracing: # (optional)

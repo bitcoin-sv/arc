@@ -38,7 +38,7 @@ func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
 		URL: "nats://nats:4222",
 		Streaming: MessageQueueStreaming{
-			Enabled:     false,
+			Enabled:     true,
 			FileStorage: false,
 		},
 	}

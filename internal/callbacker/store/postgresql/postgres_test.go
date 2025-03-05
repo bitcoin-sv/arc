@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"log"
 	"os"
 	"reflect"
@@ -26,6 +27,12 @@ const (
 var dbInfo string
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 

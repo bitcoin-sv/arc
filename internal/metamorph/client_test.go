@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -153,7 +154,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionFunc: func(_ context.Context, _ *metamorph_api.TransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
+				PostTransactionFunc: func(_ context.Context, _ *metamorph_api.PostTransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
@@ -165,7 +166,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
 			if tc.withMqClient {
-				mqClient := &apiMocks.MessageQueueClientMock{
+				mqClient := &mqMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
 				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
@@ -409,7 +410,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PutTransactionsFunc: func(_ context.Context, _ *metamorph_api.TransactionRequests, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+				PostTransactionsFunc: func(_ context.Context, _ *metamorph_api.PostTransactionsRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
 					return tc.putTxStatus, tc.putTxErr
 				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
@@ -421,7 +422,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
 			if tc.withMqClient {
-				mqClient := &apiMocks.MessageQueueClientMock{
+				mqClient := &mqMocks.MessageQueueClientMock{
 					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 						return tc.publishSubmitTxErr
 					},

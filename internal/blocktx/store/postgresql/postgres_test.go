@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"flag"
 	"log"
 	"os"
 	"testing"
@@ -62,6 +63,12 @@ const (
 var dbInfo string
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	os.Exit(testmain(m))
 }
 
@@ -461,14 +468,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, true)
-
-		// then
-		require.NoError(t, err)
-		require.ElementsMatch(t, expectedTxs[:2], actualTxs)
-
-		// when
-		actualTxs, err = postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]}, false)
+		actualTxs, err := postgresDB.GetMinedTransactions(ctx, [][]byte{txHash1[:], txHash2[:], txHash3[:]})
 
 		// then
 		require.NoError(t, err)
@@ -896,17 +896,6 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 		},
 	}
 
-	expected := []store.BlockTransaction{
-		{
-			TxHash:          txHash[:],
-			BlockHash:       testutils.HexDecodeString(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000"),
-			BlockHeight:     uint64(826481),
-			BlockStatus:     blocktx_api.Status_LONGEST,
-			MerkleTreeIndex: int64(1),
-			MerkleRoot:      testutils.HexDecodeString(t, "0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb"),
-		},
-	}
-
 	// when
 	err := sut.InsertBlockTransactions(ctx, testBlockID, txsWithMerklePaths)
 	require.NoError(t, err)
@@ -915,10 +904,38 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	// then
-	actual, err := sut.GetMinedTransactions(ctx, [][]byte{txHash[:]}, true)
+	d, err := sqlx.Open("postgres", dbInfo)
 	require.NoError(t, err)
 
-	require.ElementsMatch(t, expected, actual)
+	type MinedTx struct {
+		TxHash          []byte             `db:"tx_hash"`
+		BlockHash       []byte             `db:"block_hash"`
+		BlockHeight     uint64             `db:"block_height"`
+		MerkleTreeIndex int64              `db:"merkle_tree_index"`
+		BlockStatus     blocktx_api.Status `db:"block_status"`
+		MerkleRoot      []byte             `db:"merkle_root"`
+	}
+	var actual MinedTx
+	q := `
+		SELECT
+			bt.hash as tx_hash
+			,b.hash as block_hash
+			,b.height as block_height
+			,bt.merkle_tree_index as merkle_tree_index
+			,b.status as block_status
+			,b.merkleroot as merkle_root
+		FROM blocktx.block_transactions AS bt
+			JOIN blocktx.blocks AS b ON bt.block_id = b.id
+		WHERE bt.hash = $1 AND b.is_longest = true`
+	err = d.Get(&actual, q, txHash[:])
+
+	require.NoError(t, err)
+	require.Equal(t, txHash[:], actual.TxHash)
+	require.Equal(t, testutils.HexDecodeString(t, "6258b02da70a3e367e4c993b049fa9b76ef8f090ef9fd2010000000000000000"), actual.BlockHash)
+	require.Equal(t, uint64(826481), actual.BlockHeight)
+	require.Equal(t, int64(1), actual.MerkleTreeIndex)
+	require.Equal(t, blocktx_api.Status_LONGEST, actual.BlockStatus)
+	require.Equal(t, testutils.HexDecodeString(t, "0d72bf92e7862df18d1935c171ca4dbb70d268b0f025e46716e913bc7e4f2bdb"), actual.MerkleRoot)
 }
 
 func TestPostgresStore_RegisterTransactions(t *testing.T) {

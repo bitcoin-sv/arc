@@ -181,7 +181,7 @@ services:
       migrate-blocktx:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -203,7 +203,7 @@ services:
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8025", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -227,7 +227,7 @@ services:
       migrate-metamorph:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3

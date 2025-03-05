@@ -34,23 +34,21 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
-func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
+func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
-
-	cfg := arcConfig.Callbacker
-
 	var (
 		callbackerStore *postgresql.PostgreSQL
 		sender          *callbacker.CallbackSender
 		dispatcher      *callbacker.CallbackDispatcher
 		server          *callbacker.Server
 		healthServer    *grpc_utils.GrpcServer
-		mqClient        callbacker.MessageQueueClient
+		mqClient        mq.MessageQueueClient
 		processor       *callbacker.Processor
 		err             error
 	)
@@ -61,7 +59,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		logger.Info("Shutdown callbacker complete")
 	}
 
-	callbackerStore, err = newStore(cfg.Db)
+	callbackerStore, err = newStore(arcConfig.Callbacker.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
@@ -74,9 +72,9 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 
 	runNewManager := func(url string) callbacker.SendManagerI {
 		manager := send_manager.New(url, sender, callbackerStore, logger,
-			send_manager.WithQueueProcessInterval(cfg.Pause),
-			send_manager.WithBatchSendInterval(cfg.BatchSendInterval),
-			send_manager.WithExpiration(cfg.Expiration),
+			send_manager.WithQueueProcessInterval(arcConfig.Callbacker.Pause),
+			send_manager.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
+			send_manager.WithExpiration(arcConfig.Callbacker.Expiration),
 		)
 		manager.Start()
 
@@ -85,20 +83,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 
 	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
 
-	clientClosedCh := make(chan struct{}, 1)
-
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
-	}
-
-	go func() {
-		<-clientClosedCh
-		logger.Warn("message queue client closed")
-		shutdownCh <- "message queue client closed"
-	}()
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		stopFn()
@@ -106,12 +90,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 	}
 
 	opts := []nats_jetstream.Option{
-		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{callbacker.CallbackTopic}, true),
+		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{mq.CallbackTopic}, true),
 	}
-	mqClient, err = nats_jetstream.New(natsConnection, logger, opts...)
+
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to create nats client: %v", err)
+		return nil, err
 	}
 
 	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
@@ -120,7 +105,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		return nil, err
 	}
 
-	processor.StartCallbackStoreCleanup(cfg.PruneInterval, cfg.PruneOlderThan)
+	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
 	processor.DispatchPersistedCallbacks()
 
 	err = processor.Start()
@@ -142,7 +127,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownC
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
 
-	err = server.ListenAndServe(cfg.ListenAddr)
+	err = server.ListenAndServe(arcConfig.Callbacker.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
@@ -174,7 +159,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient callbacker.MessageQueueClient) {
+	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient mq.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. dispatcher - ensure all already accepted callbacks are processed

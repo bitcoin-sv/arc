@@ -18,9 +18,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -31,7 +31,7 @@ const (
 	blockProcessingBuffer = 100
 )
 
-func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh chan string) (func(), error) {
+func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
 
@@ -39,15 +39,14 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 
 	var (
 		blockStore    store.BlocktxStore
-		mqClient      blocktx.MessageQueueClient
+		mqClient      mq.MessageQueueClient
 		processor     *blocktx.Processor
 		pm            *p2p.PeerManager
 		mcastListener *mcast.Listener
 		server        *blocktx.Server
 		healthServer  *grpc_utils.GrpcServer
 		workers       *blocktx.BackgroundWorkers
-
-		err error
+		err           error
 	)
 
 	shutdownFns := make([]func(), 0)
@@ -84,45 +83,15 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig, shutdownCh c
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	clientClosedCh := make(chan struct{}, 1)
-	natsConnection, err := nats_connection.New(arcConfig.MessageQueue.URL, logger, nats_connection.WithClientClosedChannel(clientClosedCh))
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", arcConfig.MessageQueue.URL, err)
+	opts := []nats_jetstream.Option{
+		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.RegisterTxTopic),
+		nats_jetstream.WithWorkQueuePolicy(mq.MinedTxsTopic),
 	}
 
-	go func() {
-		<-clientClosedCh
-		logger.Warn("message queue client closed")
-		shutdownCh <- "message queue client closed"
-	}()
-
-	if arcConfig.MessageQueue.Streaming.Enabled {
-		opts := []nats_jetstream.Option{
-			nats_jetstream.WithSubscribedWorkQueuePolicy(blocktx.RegisterTxTopic),
-			nats_jetstream.WithWorkQueuePolicy(blocktx.MinedTxsTopic),
-		}
-		if arcConfig.MessageQueue.Streaming.FileStorage {
-			opts = append(opts, nats_jetstream.WithFileStorage())
-		}
-
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_jetstream.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-
-		mqClient, err = nats_jetstream.New(natsConnection, logger,
-			opts...,
-		)
-		if err != nil {
-			stopFn()
-			return nil, fmt.Errorf("failed to create nats client: %v", err)
-		}
-	} else {
-		opts := []nats_core.Option{nats_core.WithLogger(logger)}
-		if arcConfig.Tracing.Enabled {
-			opts = append(opts, nats_core.WithTracer(arcConfig.Tracing.KeyValueAttributes...))
-		}
-		mqClient = nats_core.New(natsConnection, opts...)
+	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	if err != nil {
+		return nil, err
 	}
 
 	processorOpts = append(processorOpts,
@@ -358,7 +327,7 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient blocktx.MessageQueueClient,
+	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient mq.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_utils.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
 ) {

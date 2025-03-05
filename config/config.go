@@ -93,7 +93,6 @@ type MetamorphConfig struct {
 	ProcessStatusUpdateInterval             time.Duration                        `mapstructure:"processStatusUpdateInterval"`
 	RecheckSeen                             RecheckSeen                          `mapstructure:"recheckSeen"`
 	MonitorPeers                            bool                                 `mapstructure:"monitorPeers"`
-	Health                                  *HealthConfig                        `mapstructure:"health"`
 	RejectCallbackContaining                []string                             `mapstructure:"rejectCallbackContaining"`
 	Stats                                   *StatsConfig                         `mapstructure:"stats"`
 	BlockchainNetwork                       *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
@@ -102,7 +101,6 @@ type MetamorphConfig struct {
 type BlocktxConfig struct {
 	ListenAddr                    string                             `mapstructure:"listenAddr"`
 	DialAddr                      string                             `mapstructure:"dialAddr"`
-	HealthServerDialAddr          string                             `mapstructure:"healthServerDialAddr"`
 	Db                            *DbConfig                          `mapstructure:"db"`
 	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
@@ -164,11 +162,6 @@ type RedisConfig struct {
 	DB       int    `mapstructure:"db"`
 }
 
-type HealthConfig struct {
-	SeverDialAddr             string `mapstructure:"serverDialAddr"`
-	MinimumHealthyConnections int    `mapstructure:"minimumHealthyConnections"`
-}
-
 type StatsConfig struct {
 	NotSeenTimeLimit  time.Duration `mapstructure:"notSeenTimeLimit"`
 	NotFinalTimeLimit time.Duration `mapstructure:"notFinalTimeLimit"`
@@ -201,7 +194,6 @@ type K8sWatcherConfig struct {
 type CallbackerConfig struct {
 	ListenAddr        string        `mapstructure:"listenAddr"`
 	DialAddr          string        `mapstructure:"dialAddr"`
-	Health            *HealthConfig `mapstructure:"health"`
 	Pause             time.Duration `mapstructure:"pause"`
 	BatchSendInterval time.Duration `mapstructure:"batchSendInterval"`
 	PruneOlderThan    time.Duration `mapstructure:"pruneOlderThan"`

@@ -38,7 +38,7 @@ func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
 		URL: "nats://nats:4222",
 		Streaming: MessageQueueStreaming{
-			Enabled:     false,
+			Enabled:     true,
 			FileStorage: false,
 		},
 	}
@@ -66,11 +66,7 @@ func getMetamorphConfig() *MetamorphConfig {
 			FromAgo:  24 * time.Hour,
 			UntilAgo: 1 * time.Hour,
 		},
-		MonitorPeers: false,
-		Health: &HealthConfig{
-			SeverDialAddr:             "localhost:8005",
-			MinimumHealthyConnections: 2,
-		},
+		MonitorPeers:             false,
 		RejectCallbackContaining: []string{"http://localhost", "https://localhost"},
 		Stats: &StatsConfig{
 			NotSeenTimeLimit:  10 * time.Minute,
@@ -96,7 +92,6 @@ func getBlocktxConfig() *BlocktxConfig {
 	return &BlocktxConfig{
 		ListenAddr:                    "localhost:8011",
 		DialAddr:                      "localhost:8011",
-		HealthServerDialAddr:          "localhost:8006",
 		Db:                            getDbConfig("blocktx"),
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
@@ -179,11 +174,8 @@ func getDbConfig(dbName string) *DbConfig {
 
 func getCallbackerConfig() *CallbackerConfig {
 	return &CallbackerConfig{
-		ListenAddr: "localhost:8021",
-		DialAddr:   "localhost:8021",
-		Health: &HealthConfig{
-			SeverDialAddr: "localhost:8025",
-		},
+		ListenAddr:        "localhost:8021",
+		DialAddr:          "localhost:8021",
 		Pause:             0,
 		BatchSendInterval: 5 * time.Second,
 		PruneOlderThan:    14 * 24 * time.Hour,

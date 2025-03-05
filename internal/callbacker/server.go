@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/nats-io/nats.go"
 )
 
@@ -20,12 +21,12 @@ type Server struct {
 	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
-	mqClient   MessageQueueClient
+	mqClient   mq.MessageQueueClient
 	logger     *slog.Logger
 }
 
 // NewServer will return a server instance
-func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, mqClient MessageQueueClient, cfg grpc_utils.ServerConfig) (*Server, error) {
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, mqClient mq.MessageQueueClient, cfg grpc_utils.ServerConfig) (*Server, error) {
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err

@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -48,14 +49,14 @@ type TransactionStatus struct {
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
 	client            metamorph_api.MetaMorphAPIClient
-	mqClient          MessageQueueClient
+	mqClient          mq.MessageQueueClient
 	logger            *slog.Logger
 	now               func() time.Time
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
 
-func WithMqClient(mqClient MessageQueueClient) func(*Metamorph) {
+func WithMqClient(mqClient mq.MessageQueueClient) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.mqClient = mqClient
 	}
@@ -247,7 +248,7 @@ func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction
 
 	request := transactionRequest(tx.Bytes(), options)
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
-		err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, request)
+		err = m.mqClient.PublishMarshal(ctx, mq.SubmitTxTopic, request)
 		if err != nil {
 			return nil, err
 		}
@@ -301,7 +302,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
 		for _, tx := range in.Transactions {
-			err = m.mqClient.PublishMarshal(ctx, SubmitTxTopic, tx)
+			err = m.mqClient.PublishMarshal(ctx, mq.SubmitTxTopic, tx)
 			if err != nil {
 				return nil, err
 			}

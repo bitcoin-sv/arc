@@ -22,6 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
@@ -53,7 +54,7 @@ type Server struct {
 	grpc_utils.GrpcServer
 
 	logger              *slog.Logger
-	mq                  MessageQueue
+	mq                  mq.MessageQueueClient
 	processor           ProcessorI
 	store               store.MetamorphStore
 	checkStatusInterval time.Duration
@@ -84,7 +85,7 @@ func WithServerTracer(attr ...attribute.KeyValue) func(s *Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, mq MessageQueue, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, mq mq.MessageQueueClient, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{

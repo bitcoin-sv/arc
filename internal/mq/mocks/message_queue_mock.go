@@ -5,22 +5,23 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
 )
 
-// Ensure, that MessageQueueMock does implement metamorph.MessageQueue.
+// Ensure, that MessageQueueClientMock does implement mq.MessageQueueClient.
 // If this is not the case, regenerate this file with moq.
-var _ metamorph.MessageQueue = &MessageQueueMock{}
+var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 
-// MessageQueueMock is a mock implementation of metamorph.MessageQueue.
+// MessageQueueClientMock is a mock implementation of mq.MessageQueueClient.
 //
-//	func TestSomethingThatUsesMessageQueue(t *testing.T) {
+//	func TestSomethingThatUsesMessageQueueClient(t *testing.T) {
 //
-//		// make and configure a mocked metamorph.MessageQueue
-//		mockedMessageQueue := &MessageQueueMock{
+//		// make and configure a mocked mq.MessageQueueClient
+//		mockedMessageQueueClient := &MessageQueueClientMock{
 //			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
@@ -36,13 +37,16 @@ var _ metamorph.MessageQueue = &MessageQueueMock{}
 //			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
 //				panic("mock out the Subscribe method")
 //			},
+//			SubscribeMsgFunc: func(topic string, msgFunc func(msg jetstream.Msg) error) error {
+//				panic("mock out the SubscribeMsg method")
+//			},
 //		}
 //
-//		// use mockedMessageQueue in code that requires metamorph.MessageQueue
+//		// use mockedMessageQueueClient in code that requires mq.MessageQueueClient
 //		// and then make assertions.
 //
 //	}
-type MessageQueueMock struct {
+type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(ctx context.Context, topic string, data []byte) error
 
@@ -57,6 +61,9 @@ type MessageQueueMock struct {
 
 	// SubscribeFunc mocks the Subscribe method.
 	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
+
+	// SubscribeMsgFunc mocks the SubscribeMsg method.
+	SubscribeMsgFunc func(topic string, msgFunc func(msg jetstream.Msg) error) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -91,18 +98,26 @@ type MessageQueueMock struct {
 			// MsgFunc is the msgFunc argument value.
 			MsgFunc func([]byte) error
 		}
+		// SubscribeMsg holds details about calls to the SubscribeMsg method.
+		SubscribeMsg []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// MsgFunc is the msgFunc argument value.
+			MsgFunc func(msg jetstream.Msg) error
+		}
 	}
 	lockPublish        sync.RWMutex
 	lockPublishMarshal sync.RWMutex
 	lockShutdown       sync.RWMutex
 	lockStatus         sync.RWMutex
 	lockSubscribe      sync.RWMutex
+	lockSubscribeMsg   sync.RWMutex
 }
 
 // Publish calls PublishFunc.
-func (mock *MessageQueueMock) Publish(ctx context.Context, topic string, data []byte) error {
+func (mock *MessageQueueClientMock) Publish(ctx context.Context, topic string, data []byte) error {
 	if mock.PublishFunc == nil {
-		panic("MessageQueueMock.PublishFunc: method is nil but MessageQueue.Publish was just called")
+		panic("MessageQueueClientMock.PublishFunc: method is nil but MessageQueueClient.Publish was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
@@ -122,8 +137,8 @@ func (mock *MessageQueueMock) Publish(ctx context.Context, topic string, data []
 // PublishCalls gets all the calls that were made to Publish.
 // Check the length with:
 //
-//	len(mockedMessageQueue.PublishCalls())
-func (mock *MessageQueueMock) PublishCalls() []struct {
+//	len(mockedMessageQueueClient.PublishCalls())
+func (mock *MessageQueueClientMock) PublishCalls() []struct {
 	Ctx   context.Context
 	Topic string
 	Data  []byte
@@ -140,9 +155,9 @@ func (mock *MessageQueueMock) PublishCalls() []struct {
 }
 
 // PublishMarshal calls PublishMarshalFunc.
-func (mock *MessageQueueMock) PublishMarshal(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
+func (mock *MessageQueueClientMock) PublishMarshal(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
 	if mock.PublishMarshalFunc == nil {
-		panic("MessageQueueMock.PublishMarshalFunc: method is nil but MessageQueue.PublishMarshal was just called")
+		panic("MessageQueueClientMock.PublishMarshalFunc: method is nil but MessageQueueClient.PublishMarshal was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
@@ -162,8 +177,8 @@ func (mock *MessageQueueMock) PublishMarshal(ctx context.Context, topic string, 
 // PublishMarshalCalls gets all the calls that were made to PublishMarshal.
 // Check the length with:
 //
-//	len(mockedMessageQueue.PublishMarshalCalls())
-func (mock *MessageQueueMock) PublishMarshalCalls() []struct {
+//	len(mockedMessageQueueClient.PublishMarshalCalls())
+func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
 	Ctx   context.Context
 	Topic string
 	M     protoreflect.ProtoMessage
@@ -180,9 +195,9 @@ func (mock *MessageQueueMock) PublishMarshalCalls() []struct {
 }
 
 // Shutdown calls ShutdownFunc.
-func (mock *MessageQueueMock) Shutdown() {
+func (mock *MessageQueueClientMock) Shutdown() {
 	if mock.ShutdownFunc == nil {
-		panic("MessageQueueMock.ShutdownFunc: method is nil but MessageQueue.Shutdown was just called")
+		panic("MessageQueueClientMock.ShutdownFunc: method is nil but MessageQueueClient.Shutdown was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -195,8 +210,8 @@ func (mock *MessageQueueMock) Shutdown() {
 // ShutdownCalls gets all the calls that were made to Shutdown.
 // Check the length with:
 //
-//	len(mockedMessageQueue.ShutdownCalls())
-func (mock *MessageQueueMock) ShutdownCalls() []struct {
+//	len(mockedMessageQueueClient.ShutdownCalls())
+func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -207,9 +222,9 @@ func (mock *MessageQueueMock) ShutdownCalls() []struct {
 }
 
 // Status calls StatusFunc.
-func (mock *MessageQueueMock) Status() nats.Status {
+func (mock *MessageQueueClientMock) Status() nats.Status {
 	if mock.StatusFunc == nil {
-		panic("MessageQueueMock.StatusFunc: method is nil but MessageQueue.Status was just called")
+		panic("MessageQueueClientMock.StatusFunc: method is nil but MessageQueueClient.Status was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -222,8 +237,8 @@ func (mock *MessageQueueMock) Status() nats.Status {
 // StatusCalls gets all the calls that were made to Status.
 // Check the length with:
 //
-//	len(mockedMessageQueue.StatusCalls())
-func (mock *MessageQueueMock) StatusCalls() []struct {
+//	len(mockedMessageQueueClient.StatusCalls())
+func (mock *MessageQueueClientMock) StatusCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -234,9 +249,9 @@ func (mock *MessageQueueMock) StatusCalls() []struct {
 }
 
 // Subscribe calls SubscribeFunc.
-func (mock *MessageQueueMock) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (mock *MessageQueueClientMock) Subscribe(topic string, msgFunc func([]byte) error) error {
 	if mock.SubscribeFunc == nil {
-		panic("MessageQueueMock.SubscribeFunc: method is nil but MessageQueue.Subscribe was just called")
+		panic("MessageQueueClientMock.SubscribeFunc: method is nil but MessageQueueClient.Subscribe was just called")
 	}
 	callInfo := struct {
 		Topic   string
@@ -254,8 +269,8 @@ func (mock *MessageQueueMock) Subscribe(topic string, msgFunc func([]byte) error
 // SubscribeCalls gets all the calls that were made to Subscribe.
 // Check the length with:
 //
-//	len(mockedMessageQueue.SubscribeCalls())
-func (mock *MessageQueueMock) SubscribeCalls() []struct {
+//	len(mockedMessageQueueClient.SubscribeCalls())
+func (mock *MessageQueueClientMock) SubscribeCalls() []struct {
 	Topic   string
 	MsgFunc func([]byte) error
 } {
@@ -266,5 +281,41 @@ func (mock *MessageQueueMock) SubscribeCalls() []struct {
 	mock.lockSubscribe.RLock()
 	calls = mock.calls.Subscribe
 	mock.lockSubscribe.RUnlock()
+	return calls
+}
+
+// SubscribeMsg calls SubscribeMsgFunc.
+func (mock *MessageQueueClientMock) SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error {
+	if mock.SubscribeMsgFunc == nil {
+		panic("MessageQueueClientMock.SubscribeMsgFunc: method is nil but MessageQueueClient.SubscribeMsg was just called")
+	}
+	callInfo := struct {
+		Topic   string
+		MsgFunc func(msg jetstream.Msg) error
+	}{
+		Topic:   topic,
+		MsgFunc: msgFunc,
+	}
+	mock.lockSubscribeMsg.Lock()
+	mock.calls.SubscribeMsg = append(mock.calls.SubscribeMsg, callInfo)
+	mock.lockSubscribeMsg.Unlock()
+	return mock.SubscribeMsgFunc(topic, msgFunc)
+}
+
+// SubscribeMsgCalls gets all the calls that were made to SubscribeMsg.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.SubscribeMsgCalls())
+func (mock *MessageQueueClientMock) SubscribeMsgCalls() []struct {
+	Topic   string
+	MsgFunc func(msg jetstream.Msg) error
+} {
+	var calls []struct {
+		Topic   string
+		MsgFunc func(msg jetstream.Msg) error
+	}
+	mock.lockSubscribeMsg.RLock()
+	calls = mock.calls.SubscribeMsg
+	mock.lockSubscribeMsg.RUnlock()
 	return calls
 }

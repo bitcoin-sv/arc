@@ -53,7 +53,7 @@ metamorph:
     untilAgo: 1h
   monitorPeers: true
   health:
-    serverDialAddr: localhost:8005
+    serverDialAddr: localhost:8001
     minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
@@ -79,7 +79,7 @@ metamorph:
 blocktx:
   listenAddr: 0.0.0.0:8011
   dialAddr: blocktx:8011
-  healthServerDialAddr: localhost:8006
+  healthServerDialAddr: localhost:8011
   db:
     mode: postgres
     postgres:
@@ -159,7 +159,7 @@ callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
   health:
-    serverDialAddr: localhost:8025
+    serverDialAddr: localhost:8021
   pause: 10ms
   batchSendInterval: 5s
   pruneOlderThan: 336h

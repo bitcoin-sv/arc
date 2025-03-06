@@ -223,7 +223,7 @@ func (m *SendManager) Start() {
 
 				err = m.sendElementBatch(callbackBatch)
 				if err != nil {
-					m.logger.Info("Failed to send batch of callbacks", slog.String("url", m.url))
+					m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
 					continue
 				}
 
@@ -257,7 +257,7 @@ func (m *SendManager) Start() {
 
 					err = m.sendElementBatch(callbackBatch)
 					if err != nil {
-						m.logger.Info("Failed to send batch of callbacks", slog.String("url", m.url))
+						m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
 						continue
 					}
 
@@ -286,7 +286,7 @@ func (m *SendManager) Start() {
 					m.logger.Debug("Single callback sent", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 					continue
 				}
-				m.logger.Info("Failed to send single callback", slog.String("url", m.url))
+				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))
 			}
 		}
 	}()

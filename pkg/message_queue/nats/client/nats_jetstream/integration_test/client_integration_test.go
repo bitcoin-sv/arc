@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -21,11 +22,14 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
+const topic = "some-topic"
+
 var (
 	natsConnClient *nats.Conn
 	natsConn       *nats.Conn
 	mqClient       *nats_jetstream.Client
 	logger         *slog.Logger
+	err            error
 )
 
 func TestMain(m *testing.M) {
@@ -92,8 +96,14 @@ func TestNatsJetStreamClient(t *testing.T) {
 	}
 	t.Run("publish - work queue policy", func(t *testing.T) {
 		// given
-		const topic = "submit-tx"
-		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
+		streamName := fmt.Sprintf("%s-stream", topic)
+		consName := fmt.Sprintf("%s-cons", topic)
+		jsOpts := []nats_jetstream.Option{
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
+			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+		}
+
+		mqClient, err := nats_jetstream.New(natsConnClient, logger, jsOpts...)
 		require.NoError(t, err)
 		messageChan := make(chan *test_api.TestMessage, 100)
 		testMessage := &test_api.TestMessage{
@@ -141,9 +151,10 @@ func TestNatsJetStreamClient(t *testing.T) {
 	t.Run("subscribe - work queue policy", func(t *testing.T) {
 		// given
 
-		const topic = "mined-txs"
+		streamName := fmt.Sprintf("%s-stream", topic)
+		consName := fmt.Sprintf("%s-cons", topic)
 
-		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithWorkQueuePolicy(topic))
+		mqClient, err = nats_jetstream.New(natsConnClient, logger)
 		require.NoError(t, err)
 
 		messageChan := make(chan *test_api.TestMessage, 100)
@@ -154,8 +165,12 @@ func TestNatsJetStreamClient(t *testing.T) {
 		})
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
 
+		jsOpts := []nats_jetstream.Option{
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
+			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+		}
 		// subscribe with initialized consumer
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(topic))
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
 		require.NoError(t, err)
 
 		err = mqClient.Subscribe(topic, func(msg []byte) error {
@@ -199,8 +214,15 @@ func TestNatsJetStreamClient(t *testing.T) {
 
 	t.Run("publish - interest policy", func(t *testing.T) {
 		// given
-		const topic = "interest-txs"
-		mqClient, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithInterestPolicy(topic))
+		streamName := fmt.Sprintf("%s-stream", topic)
+		consName := fmt.Sprintf("%s-%s-cons", "host", topic)
+
+		mqOpts := []nats_jetstream.Option{
+			nats_jetstream.WithStream(topic, streamName, jetstream.InterestPolicy, false),
+			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
+		}
+
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, mqOpts...)
 		require.NoError(t, err)
 		messageChan := make(chan *test_api.TestMessage, 100)
 		testMessage := &test_api.TestMessage{
@@ -247,13 +269,12 @@ func TestNatsJetStreamClient(t *testing.T) {
 
 	t.Run("subscribe - interest policy", func(t *testing.T) {
 		// given
-		var err error
-		const topic = "interest-blocks"
+
 		minedTxsChan1 := make(chan *test_api.TestMessage, 100)
 		minedTxsChan2 := make(chan *test_api.TestMessage, 100)
 
-		mqClient = mqClientSubscribe(t, topic, "host1", minedTxsChan1)
-		mqClient2 := mqClientSubscribe(t, topic, "host2", minedTxsChan2)
+		mqClient = mqClientSubscribe(t, "host1", minedTxsChan1)
+		mqClient2 := mqClientSubscribe(t, "host2", minedTxsChan2)
 		defer mqClient2.Shutdown()
 
 		// when
@@ -289,8 +310,16 @@ func TestNatsJetStreamClient(t *testing.T) {
 	})
 }
 
-func mqClientSubscribe(t *testing.T, topic string, hostName string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
-	client, err := nats_jetstream.New(natsConnClient, logger, nats_jetstream.WithSubscribedInterestPolicy(hostName, []string{topic}, true))
+func mqClientSubscribe(t *testing.T, hostname string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
+	streamName := fmt.Sprintf("%s-stream", topic)
+	consName := fmt.Sprintf("%s-%s-cons", hostname, topic)
+
+	mqOpts := []nats_jetstream.Option{
+		nats_jetstream.WithStream(topic, streamName, jetstream.InterestPolicy, false),
+		nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
+	}
+
+	client, err := nats_jetstream.New(natsConnClient, logger, mqOpts...)
 	require.NoError(t, err)
 	err = client.SubscribeMsg(topic, func(msg jetstream.Msg) error {
 		serialized := &test_api.TestMessage{}

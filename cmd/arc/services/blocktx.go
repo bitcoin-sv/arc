@@ -84,13 +84,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	opts := []nats_jetstream.Option{
-		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.RegisterTxTopic),
-		nats_jetstream.WithWorkQueuePolicy(mq.MinedTxsTopic),
-	}
+	var mqOpts []nats_jetstream.Option
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
 	if err != nil {
 		return nil, err
 	}

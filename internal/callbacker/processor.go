@@ -156,7 +156,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 func (p *Processor) Start() error {
 	p.startSyncURLMapping()
 
-	err := p.mqClient.SubscribeMsg(mq.CallbackTopic, p.handleCallbackMessage)
+	err := p.mqClient.ConsumeMsg(mq.CallbackTopic, p.handleCallbackMessage)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
 	}

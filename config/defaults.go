@@ -41,6 +41,7 @@ func getDefaultMessageQueueConfig() *MessageQueueConfig {
 			Enabled:     true,
 			FileStorage: false,
 		},
+		Initialize: true,
 	}
 }
 

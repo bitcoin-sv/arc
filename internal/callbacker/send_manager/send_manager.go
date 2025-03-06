@@ -213,14 +213,9 @@ func (m *SendManager) Start() {
 					return m.callbackQueue[j].Data.Timestamp.After(m.callbackQueue[i].Data.Timestamp)
 				})
 				m.mu.Unlock()
-				if err != nil {
-					m.logger.Error("Failed to sort by timestamp", slog.String("err", err.Error()))
-				}
 
 			case <-backfillQueueTicker.C:
 				m.fillUpQueue()
-
-				m.logger.Debug("Callback queue filled up", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 			case <-batchSendTicker.C:
 				if len(callbackBatch) == 0 {
 					continue
@@ -228,7 +223,7 @@ func (m *SendManager) Start() {
 
 				err = m.sendElementBatch(callbackBatch)
 				if err != nil {
-					m.logger.Error("Failed to send batch of callbacks", slog.String("url", m.url))
+					m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
 					continue
 				}
 
@@ -262,7 +257,7 @@ func (m *SendManager) Start() {
 
 					err = m.sendElementBatch(callbackBatch)
 					if err != nil {
-						m.logger.Error("Failed to send batch of callbacks", slog.String("url", m.url))
+						m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
 						continue
 					}
 
@@ -291,7 +286,7 @@ func (m *SendManager) Start() {
 					m.logger.Debug("Single callback sent", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 					continue
 				}
-				m.logger.Error("Failed to send single callback", slog.String("url", m.url))
+				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))
 			}
 		}
 	}()
@@ -345,6 +340,10 @@ func (m *SendManager) fillUpQueue() {
 
 	for _, callback := range callbacks {
 		m.Enqueue(toEntry(callback))
+	}
+
+	if len(callbacks) > 0 {
+		m.logger.Debug("Callback queue filled up", slog.Int("callback elements", len(callbacks)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
 	}
 }
 

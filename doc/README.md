@@ -113,6 +113,8 @@ The Callbacker handles request retries and treats any HTTP status code outside t
 
 >NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 
+Callbacker sends the http messages in chronological order. If a callback fails Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
+
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, handling chain reorganisations ([reorgs](#chain-reorg)) and for propagating

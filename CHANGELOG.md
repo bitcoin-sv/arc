@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
-- [1.3.13](#1313---2024-12-05)
+- [1.3.20](#1320---2025-02-06)
+- [1.3.13](#1313---2024-12-04)
 - [1.3.12](#1312---2024-12-05)
 - [1.3.2](#132---2024-10-30)
 - [1.3.0](#130---2024-08-21)
@@ -20,6 +21,11 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.20] - 2025-02-06
+
+### Changed
+- Callbacker sends the http messages in chronological order. If a callback fails Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
 
 ## [1.3.13] - 2024-12-04
 

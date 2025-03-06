@@ -339,7 +339,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
+				err = p.mqClient.PublishMarshalAsync(mq.CallbackTopic, request)
 				if err != nil {
 					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
 				}
@@ -768,7 +768,7 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	err = p.mqClient.Publish(ctx, mq.RegisterTxTopic, hash[:])
+	err = p.mqClient.PublishAsync(mq.RegisterTxTopic, hash[:])
 	if err != nil {
 		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
 	}

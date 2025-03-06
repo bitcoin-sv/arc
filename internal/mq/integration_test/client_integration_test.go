@@ -132,8 +132,8 @@ func TestMessageQueueClient(t *testing.T) {
 			streamName := fmt.Sprintf("%s-stream", topic)
 			consName := fmt.Sprintf("%s-cons", topic)
 			jsOpts := []nats_jetstream.Option{
-				nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
-				nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+				nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
 			}
 
 			oppositeClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)

@@ -5,15 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 type Client struct {
@@ -26,9 +22,6 @@ type Client struct {
 	cancelAll                      context.CancelFunc
 	removableStreamConsumerMapping map[string]string
 	opts                           []Option
-
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
 }
 
 var (
@@ -42,94 +35,167 @@ var (
 	ErrFailedToSubscribe      = errors.New("failed to subscribe")
 )
 
-func WithSubscribedWorkQueuePolicy(topics ...string) func(*Client) error {
-	return func(c *Client) error {
-		for _, topic := range topics {
-			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
-			if err != nil {
+func WithStream(topic string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool) func(*Client) error {
+	return func(cl *Client) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		// get or create stream for topic
+		_, err := cl.js.Stream(ctx, streamName)
+		if err != nil {
+			if !errors.Is(err, jetstream.ErrStreamNotFound) {
 				return errors.Join(ErrFailedToGetStream, err)
 			}
 
-			cons, err := c.getConsumer(stream, fmt.Sprintf("%s-cons", topic))
+			cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
+
+			_, err = cl.js.CreateStream(ctx, jetstream.StreamConfig{
+				Name:        streamName,
+				Description: "Stream for topic " + topic,
+				Subjects:    []string{topic},
+				Retention:   retentionPolicy,
+				Discard:     jetstream.DiscardOld,
+				MaxAge:      10 * time.Minute,
+				Storage:     cl.storageType,
+				NoAck:       noAck,
+			})
 			if err != nil {
-				return errors.Join(ErrFailedToGetConsumer, err)
+				return errors.Join(ErrFailedToCreateStream, err)
 			}
 
-			c.consumers[topic] = cons
+			cl.logger.Info("stream created", slog.String("name", streamName))
 		}
 
 		return nil
 	}
 }
 
-func WithWorkQueuePolicy(topics ...string) func(*Client) error {
-	return func(c *Client) error {
-		for _, topic := range topics {
-			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.WorkQueuePolicy)
-			if err != nil {
-				return errors.Join(ErrFailedToGetStream, err)
-			}
-		}
-		return nil
-	}
-}
+func WithConsumer(topic string, streamName string, consumerName string, durable bool, ackPolicy jetstream.AckPolicy) func(*Client) error {
+	return func(cl *Client) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
 
-func WithSubscribedInterestPolicy(hostName string, topics []string, cleanUpConsumer bool) func(*Client) error {
-	return func(c *Client) error {
-		for _, topic := range topics {
-			stream, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
-			if err != nil {
-				return errors.Join(ErrFailedToGetStream, err)
-			}
-			consumerName := fmt.Sprintf("%s-%s-cons", hostName, topic)
-			cons, err := c.getConsumer(stream, consumerName)
-			if err != nil {
-				return errors.Join(ErrFailedToGetConsumer, err)
-			}
-
-			if cleanUpConsumer {
-				streamInfo, err := stream.Info(context.Background())
-				if err != nil {
-					return fmt.Errorf("faied to get stream info: %w", err)
+		// get or create consumer for topic
+		cons, err := cl.js.Consumer(ctx, streamName, consumerName)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrConsumerNotFound) {
+				durableName := ""
+				if durable {
+					durableName = consumerName
 				}
-				c.removableStreamConsumerMapping[streamInfo.Config.Name] = consumerName
+
+				_, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
+					Name:          consumerName,
+					Durable:       durableName,
+					AckPolicy:     ackPolicy,
+					MaxAckPending: 5000,
+				})
+
+				if err != nil {
+					return errors.Join(ErrFailedToCreateConsumer, err)
+				}
+
+				cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
 			}
-			c.consumers[topic] = cons
+
+			return errors.Join(ErrFailedToGetConsumer, err)
 		}
+		cl.consumers[topic] = cons
 
 		return nil
 	}
 }
 
-func WithInterestPolicy(topics ...string) func(*Client) error {
-	return func(c *Client) error {
-		for _, topic := range topics {
-			_, err := c.getStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy)
-			if err != nil {
-				return errors.Join(ErrFailedToGetStream, err)
-			}
-		}
-		return nil
-	}
-}
+//func WithWorkQueuePolicy(topic string) func(*Client) error {
+//	return func(cl *Client) error {
+//		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+//		defer cancel()
+//
+//		// get or create stream for topic
+//		streamName := fmt.Sprintf("%s-stream", topic)
+//		stream, err := cl.js.Stream(ctx, streamName)
+//		if err != nil {
+//			if errors.Is(err, jetstream.ErrStreamNotFound) {
+//				cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
+//
+//				stream, err = cl.createStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy, true)
+//				if err != nil {
+//					return errors.Join(ErrFailedToCreateStream, err)
+//				}
+//			}
+//
+//			return errors.Join(ErrFailedToGetStream, err)
+//		}
+//
+//		// get or create consumer for topic
+//		consumerName := fmt.Sprintf("%s-cons", topic)
+//		cons, err := stream.Consumer(ctx, consumerName)
+//		if err != nil {
+//			if errors.Is(err, jetstream.ErrConsumerNotFound) {
+//				cons, err = cl.createConsumer(stream, jetstream.AckNonePolicy, consumerName, true)
+//				if err != nil {
+//					return errors.Join(ErrFailedToCreateConsumer, err)
+//				}
+//			}
+//
+//			return errors.Join(ErrFailedToGetConsumer, err)
+//		}
+//		cl.consumers[topic] = cons
+//
+//		return nil
+//	}
+//}
+//
+//func WithInterestPolicy(hostName string, topic string, cleanUpConsumer bool) func(*Client) error {
+//	return func(cl *Client) error {
+//		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+//		defer cancel()
+//
+//		streamName := fmt.Sprintf("%s-stream", topic)
+//		stream, err := cl.js.Stream(ctx, streamName)
+//
+//		if err != nil {
+//			if errors.Is(err, jetstream.ErrStreamNotFound) {
+//				cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
+//
+//				stream, err = cl.createStream(topic, fmt.Sprintf("%s-stream", topic), jetstream.InterestPolicy, false)
+//				if err != nil {
+//					return errors.Join(ErrFailedToCreateStream, err)
+//				}
+//			}
+//
+//			return errors.Join(ErrFailedToGetStream, err)
+//		}
+//
+//		consumerName := fmt.Sprintf("%s-%s-cons", hostName, topic)
+//		cons, err := stream.Consumer(ctx, consumerName)
+//		if err != nil {
+//			if errors.Is(err, jetstream.ErrConsumerNotFound) {
+//
+//				cons, err = cl.createConsumer(stream, jetstream.AckExplicitPolicy, consumerName, false)
+//				if err != nil {
+//					return errors.Join(ErrFailedToCreateConsumer, err)
+//				}
+//			}
+//
+//			return errors.Join(ErrFailedToGetConsumer, err)
+//		}
+//
+//		if cleanUpConsumer {
+//			streamInfo, err := stream.Info(context.Background())
+//			if err != nil {
+//				return fmt.Errorf("faied to get stream info: %w", err)
+//			}
+//			cl.removableStreamConsumerMapping[streamInfo.Config.Name] = consumerName
+//		}
+//		cl.consumers[topic] = cons
+//		return nil
+//	}
+//}
 
 func WithFileStorage() func(*Client) error {
 	return func(c *Client) error {
 		c.storageType = jetstream.FileStorage
-		return nil
-	}
-}
-func WithTracer(attr ...attribute.KeyValue) func(*Client) error {
-	return func(p *Client) error {
-		p.tracingEnabled = true
-		if len(attr) > 0 {
-			p.tracingAttributes = append(p.tracingAttributes, attr...)
-		}
-		_, file, _, ok := runtime.Caller(1)
-		if ok {
-			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
-		}
-
 		return nil
 	}
 }
@@ -166,75 +232,53 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	return p, nil
 }
 
-func (cl *Client) getStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy) (jetstream.Stream, error) {
-	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	stream, err := cl.js.Stream(streamCtx, streamName)
-	if errors.Is(err, jetstream.ErrStreamNotFound) {
-		cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
-
-		stream, err = cl.js.CreateStream(streamCtx, jetstream.StreamConfig{
-			Name:        streamName,
-			Description: "Stream for topic " + topicName,
-			Subjects:    []string{topicName},
-			Retention:   retentionPolicy,
-			Discard:     jetstream.DiscardOld,
-			MaxAge:      10 * time.Minute,
-			Storage:     cl.storageType,
-			NoAck:       false,
-		})
-		if err != nil {
-			return nil, errors.Join(ErrFailedToCreateStream, err)
-		}
-
-		cl.logger.Info(fmt.Sprintf("stream %s created", streamName))
-		return stream, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	cl.logger.Info(fmt.Sprintf("stream %s found", streamName))
-	return stream, nil
-}
-
-func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
-	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	streamInfo, err := stream.Info(consCtx)
-	if err != nil {
-		return nil, fmt.Errorf("faied to get stream info: %w", err)
-	}
-
-	cons, err := stream.Consumer(consCtx, consumerName)
-	if errors.Is(err, jetstream.ErrConsumerNotFound) {
-		cl.logger.Warn("consumer not found, creating new", slog.String("consumer", consumerName), slog.String("stream", streamInfo.Config.Name))
-		cons, err = stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
-			Durable:       consumerName,
-			AckPolicy:     jetstream.AckExplicitPolicy,
-			MaxAckPending: 5000,
-		})
-		if err != nil {
-			return nil, errors.Join(ErrFailedToCreateConsumer, err)
-		}
-
-		cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
-		return cons, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	cl.logger.Info(fmt.Sprintf("consumer %s found", consumerName))
-	return cons, nil
-}
+//
+//func (cl *Client) createStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool) (jetstream.Stream, error) {
+//	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+//	defer cancel()
+//
+//	stream, err := cl.js.CreateStream(streamCtx, jetstream.StreamConfig{
+//		Name:        streamName,
+//		Description: "Stream for topic " + topicName,
+//		Subjects:    []string{topicName},
+//		Retention:   retentionPolicy,
+//		Discard:     jetstream.DiscardOld,
+//		MaxAge:      10 * time.Minute,
+//		Storage:     cl.storageType,
+//		NoAck:       noAck,
+//	})
+//	if err != nil {
+//		return nil, errors.Join(ErrFailedToCreateStream, err)
+//	}
+//	cl.logger.Info(fmt.Sprintf("stream %s created", streamName))
+//
+//	return stream, nil
+//}
+//
+//func (cl *Client) createConsumer(stream jetstream.Stream, ackPolicy jetstream.AckPolicy, consumerName string, durable bool) (jetstream.Consumer, error) {
+//	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	defer cancel()
+//
+//	durableName := ""
+//	if durable {
+//		durableName = consumerName
+//	}
+//
+//	cons, err := stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
+//		Name:          consumerName,
+//		Durable:       durableName,
+//		AckPolicy:     ackPolicy,
+//		MaxAckPending: 5000,
+//	})
+//	if err != nil {
+//		return nil, errors.Join(ErrFailedToCreateConsumer, err)
+//	}
+//
+//	cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
+//	return cons, nil
+//}
 
 func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "Publish", cl.tracingEnabled, cl.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
 	_, err = cl.js.Publish(ctx, topic, hash)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
@@ -243,18 +287,36 @@ func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err e
 	return nil
 }
 
-func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
-	ctx, span := tracing.StartTracing(ctx, "PublishMarshal", cl.tracingEnabled, cl.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
+func (cl *Client) PublishAsync(topic string, hash []byte) (err error) {
+	_, err = cl.js.PublishAsync(topic, hash)
+	if err != nil {
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+	}
 
+	return nil
+}
+
+func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Message) (err error) {
 	data, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
 
 	err = cl.Publish(ctx, topic, data)
+	if err != nil {
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+	}
+
+	return nil
+}
+
+func (cl *Client) PublishMarshalAsync(topic string, m proto.Message) (err error) {
+	data, err := proto.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	err = cl.PublishAsync(topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}

@@ -24,13 +24,15 @@ const (
 
 type MessageQueueClient interface {
 	Publish(ctx context.Context, topic string, data []byte) error
+	PublishAsync(topic string, hash []byte) (err error)
 	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
+	PublishMarshalAsync(topic string, m proto.Message) error
 	Subscribe(topic string, msgFunc func([]byte) error) error
 	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
 	Shutdown()
 }
 
-func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
@@ -52,10 +54,6 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingC
 	}
 	if mqCfg.Streaming.FileStorage {
 		jsOpts = append(jsOpts, nats_jetstream.WithFileStorage())
-	}
-
-	if tracingCfg != nil && tracingCfg.Enabled {
-		jsOpts = append(jsOpts, nats_jetstream.WithTracer(tracingCfg.KeyValueAttributes...))
 	}
 
 	var mqClient *nats_jetstream.Client

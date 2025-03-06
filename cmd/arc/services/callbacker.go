@@ -29,6 +29,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
@@ -89,12 +91,10 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to get hostname: %v", err)
 	}
 
-	opts := []nats_jetstream.Option{
-		nats_jetstream.WithSubscribedInterestPolicy(hostname, []string{mq.CallbackTopic}, true),
-	}
+	mqOpts := getCbkMqOpts(hostname)
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +141,17 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	logger.Info("Ready to work")
 	return stopFn, nil
+}
+
+func getCbkMqOpts(hostname string) []nats_jetstream.Option {
+	streamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
+	consName := fmt.Sprintf("%s-%s-cons", hostname, mq.CallbackTopic)
+
+	mqOpts := []nats_jetstream.Option{
+		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.InterestPolicy, false),
+		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, false, jetstream.AckExplicitPolicy),
+	}
+	return mqOpts
 }
 
 func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {

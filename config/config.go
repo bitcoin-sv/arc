@@ -46,8 +46,9 @@ type PeerConfig struct {
 }
 
 type MessageQueueConfig struct {
-	URL       string                `mapstructure:"url"`
-	Streaming MessageQueueStreaming `mapstructure:"streaming"`
+	URL        string                `mapstructure:"url"`
+	Streaming  MessageQueueStreaming `mapstructure:"streaming"`
+	Initialize bool                  `mapstructure:"initialize"`
 }
 
 type MessageQueueStreaming struct {

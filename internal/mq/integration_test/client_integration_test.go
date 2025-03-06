@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
@@ -125,7 +127,16 @@ func TestMessageQueueClient(t *testing.T) {
 
 			natsConn, err := nats_connection.New(natsURL, logger, nats_connection.WithMaxReconnects(-1))
 			require.NoError(t, err)
-			oppositeClient, err := nats_jetstream.New(natsConn, logger, nats_jetstream.WithSubscribedWorkQueuePolicy(mq.SubmitTxTopic))
+
+			topic := mq.SubmitTxTopic
+			streamName := fmt.Sprintf("%s-stream", topic)
+			consName := fmt.Sprintf("%s-cons", topic)
+			jsOpts := []nats_jetstream.Option{
+				nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
+				nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+			}
+
+			oppositeClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)
 			require.NoError(t, err)
 			defer oppositeClient.Shutdown()
 
@@ -138,10 +149,6 @@ func TestMessageQueueClient(t *testing.T) {
 					FileStorage: false,
 				},
 				URL: natsURL,
-			}
-
-			jsOpts := []nats_jetstream.Option{
-				nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
 			}
 
 			closedCh := make(chan struct{}, 1)
@@ -161,7 +168,7 @@ func TestMessageQueueClient(t *testing.T) {
 
 			time.Sleep(waitTime)
 
-			mqClient, err := mq.NewMqClient(logger, cfg, nil, jsOpts, connOpts)
+			mqClient, err := mq.NewMqClient(logger, cfg, jsOpts, connOpts)
 			require.NoError(t, err)
 			defer mqClient.Shutdown()
 			t.Log("message client created")

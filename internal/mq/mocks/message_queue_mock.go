@@ -24,8 +24,14 @@ var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 //			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
+//			PublishAsyncFunc: func(topic string, hash []byte) error {
+//				panic("mock out the PublishAsync method")
+//			},
 //			PublishMarshalFunc: func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
 //				panic("mock out the PublishMarshal method")
+//			},
+//			PublishMarshalAsyncFunc: func(topic string, m protoreflect.ProtoMessage) error {
+//				panic("mock out the PublishMarshalAsync method")
 //			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
@@ -46,8 +52,14 @@ type MessageQueueClientMock struct {
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(ctx context.Context, topic string, data []byte) error
 
+	// PublishAsyncFunc mocks the PublishAsync method.
+	PublishAsyncFunc func(topic string, hash []byte) error
+
 	// PublishMarshalFunc mocks the PublishMarshal method.
 	PublishMarshalFunc func(ctx context.Context, topic string, m protoreflect.ProtoMessage) error
+
+	// PublishMarshalAsyncFunc mocks the PublishMarshalAsync method.
+	PublishMarshalAsyncFunc func(topic string, m protoreflect.ProtoMessage) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -69,10 +81,24 @@ type MessageQueueClientMock struct {
 			// Data is the data argument value.
 			Data []byte
 		}
+		// PublishAsync holds details about calls to the PublishAsync method.
+		PublishAsync []struct {
+			// Topic is the topic argument value.
+			Topic string
+			// Hash is the hash argument value.
+			Hash []byte
+		}
 		// PublishMarshal holds details about calls to the PublishMarshal method.
 		PublishMarshal []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// Topic is the topic argument value.
+			Topic string
+			// M is the m argument value.
+			M protoreflect.ProtoMessage
+		}
+		// PublishMarshalAsync holds details about calls to the PublishMarshalAsync method.
+		PublishMarshalAsync []struct {
 			// Topic is the topic argument value.
 			Topic string
 			// M is the m argument value.
@@ -96,11 +122,13 @@ type MessageQueueClientMock struct {
 			MsgFunc func(msg jetstream.Msg) error
 		}
 	}
-	lockPublish        sync.RWMutex
-	lockPublishMarshal sync.RWMutex
-	lockShutdown       sync.RWMutex
-	lockSubscribe      sync.RWMutex
-	lockSubscribeMsg   sync.RWMutex
+	lockPublish             sync.RWMutex
+	lockPublishAsync        sync.RWMutex
+	lockPublishMarshal      sync.RWMutex
+	lockPublishMarshalAsync sync.RWMutex
+	lockShutdown            sync.RWMutex
+	lockSubscribe           sync.RWMutex
+	lockSubscribeMsg        sync.RWMutex
 }
 
 // Publish calls PublishFunc.
@@ -143,6 +171,42 @@ func (mock *MessageQueueClientMock) PublishCalls() []struct {
 	return calls
 }
 
+// PublishAsync calls PublishAsyncFunc.
+func (mock *MessageQueueClientMock) PublishAsync(topic string, hash []byte) error {
+	if mock.PublishAsyncFunc == nil {
+		panic("MessageQueueClientMock.PublishAsyncFunc: method is nil but MessageQueueClient.PublishAsync was just called")
+	}
+	callInfo := struct {
+		Topic string
+		Hash  []byte
+	}{
+		Topic: topic,
+		Hash:  hash,
+	}
+	mock.lockPublishAsync.Lock()
+	mock.calls.PublishAsync = append(mock.calls.PublishAsync, callInfo)
+	mock.lockPublishAsync.Unlock()
+	return mock.PublishAsyncFunc(topic, hash)
+}
+
+// PublishAsyncCalls gets all the calls that were made to PublishAsync.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.PublishAsyncCalls())
+func (mock *MessageQueueClientMock) PublishAsyncCalls() []struct {
+	Topic string
+	Hash  []byte
+} {
+	var calls []struct {
+		Topic string
+		Hash  []byte
+	}
+	mock.lockPublishAsync.RLock()
+	calls = mock.calls.PublishAsync
+	mock.lockPublishAsync.RUnlock()
+	return calls
+}
+
 // PublishMarshal calls PublishMarshalFunc.
 func (mock *MessageQueueClientMock) PublishMarshal(ctx context.Context, topic string, m protoreflect.ProtoMessage) error {
 	if mock.PublishMarshalFunc == nil {
@@ -180,6 +244,42 @@ func (mock *MessageQueueClientMock) PublishMarshalCalls() []struct {
 	mock.lockPublishMarshal.RLock()
 	calls = mock.calls.PublishMarshal
 	mock.lockPublishMarshal.RUnlock()
+	return calls
+}
+
+// PublishMarshalAsync calls PublishMarshalAsyncFunc.
+func (mock *MessageQueueClientMock) PublishMarshalAsync(topic string, m protoreflect.ProtoMessage) error {
+	if mock.PublishMarshalAsyncFunc == nil {
+		panic("MessageQueueClientMock.PublishMarshalAsyncFunc: method is nil but MessageQueueClient.PublishMarshalAsync was just called")
+	}
+	callInfo := struct {
+		Topic string
+		M     protoreflect.ProtoMessage
+	}{
+		Topic: topic,
+		M:     m,
+	}
+	mock.lockPublishMarshalAsync.Lock()
+	mock.calls.PublishMarshalAsync = append(mock.calls.PublishMarshalAsync, callInfo)
+	mock.lockPublishMarshalAsync.Unlock()
+	return mock.PublishMarshalAsyncFunc(topic, m)
+}
+
+// PublishMarshalAsyncCalls gets all the calls that were made to PublishMarshalAsync.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.PublishMarshalAsyncCalls())
+func (mock *MessageQueueClientMock) PublishMarshalAsyncCalls() []struct {
+	Topic string
+	M     protoreflect.ProtoMessage
+} {
+	var calls []struct {
+		Topic string
+		M     protoreflect.ProtoMessage
+	}
+	mock.lockPublishMarshalAsync.RLock()
+	calls = mock.calls.PublishMarshalAsync
+	mock.lockPublishMarshalAsync.RUnlock()
 	return calls
 }
 

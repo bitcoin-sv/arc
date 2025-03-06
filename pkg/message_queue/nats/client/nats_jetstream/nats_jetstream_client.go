@@ -84,21 +84,19 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 					durableName = consumerName
 				}
 
-				_, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
+				cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
 					Name:          consumerName,
 					Durable:       durableName,
 					AckPolicy:     ackPolicy,
 					MaxAckPending: 5000,
 				})
-
 				if err != nil {
 					return errors.Join(ErrFailedToCreateConsumer, err)
 				}
-
 				cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
+			} else {
+				return errors.Join(ErrFailedToGetConsumer, err)
 			}
-
-			return errors.Join(ErrFailedToGetConsumer, err)
 		}
 		cl.consumers[topic] = cons
 

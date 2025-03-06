@@ -133,24 +133,23 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	apiOpts = append(apiOpts, apiHandler.WithReadinessCheck(func() error {
-		// check metamorph
-		mtmClient := grpc_health_v1.NewHealthClient(conn)
+		// mtmClient := grpc_health_v1.NewHealthClient(conn)
+		// ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		// defer cancel()
+
+		// resp, err := mtmClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
+		// if err != nil {
+		// 	return fmt.Errorf("health check failed for metamorph grpc: %v", err)
+		// }
+		// if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+		// 	return fmt.Errorf("metamorph grpc server not serving: %v", resp.Status)
+		// }
+
+		btxClient := grpc_health_v1.NewHealthClient(btcConn)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		resp, err := mtmClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
-		if err != nil {
-			return fmt.Errorf("health check failed for metamorph grpc: %v", err)
-		}
-		if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-			return fmt.Errorf("metamorph grpc server not serving: %v", resp.Status)
-		}
-
-		btxClient := grpc_health_v1.NewHealthClient(btcConn)
-		ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		resp, err = btxClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
+		resp, err := btxClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
 		if err != nil {
 			return fmt.Errorf("health check failed for blocktx grpc: %v", err)
 		}

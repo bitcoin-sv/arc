@@ -85,6 +85,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
 	opts := []nats_jetstream.Option{
+		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.RegisterTxsTopic),
 		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.RegisterTxTopic),
 		nats_jetstream.WithWorkQueuePolicy(mq.MinedTxsTopic),
 	}

@@ -51,7 +51,7 @@ func TestProcessor(t *testing.T) {
 		mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 		mqClient := &mqMocks.MessageQueueClientMock{
-			PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+			PublishAsyncFunc: func(_ string, _ []byte) error {
 				return nil
 			},
 		}

@@ -138,7 +138,13 @@ func TestGETHealth(t *testing.T) {
 			return nil
 		}))
 
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, apiOpts...)
+		txHandler := &mtmMocks.TransactionHandlerMock{
+			HealthFunc: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, apiOpts...)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))

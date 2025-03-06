@@ -198,7 +198,8 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return nil },
+				PublishMarshalFunc:      func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return nil },
+				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
 			}
 
 			logger := slog.Default()
@@ -692,6 +693,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
+				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
 
 			txChan := make(chan []byte, 10)
@@ -723,7 +727,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalAsyncCalls()))
 		})
 	}
 }

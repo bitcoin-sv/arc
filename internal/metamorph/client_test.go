@@ -423,7 +423,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			}
 			if tc.withMqClient {
 				mqClient := &mqMocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 						return tc.publishSubmitTxErr
 					},
 				}

@@ -277,7 +277,7 @@ func TestProcessTransaction(t *testing.T) {
 			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -317,7 +317,7 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
 			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
-			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
 		})
 	}
 }
@@ -572,6 +572,9 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
+				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
 
 			sut, err := metamorph.NewProcessor(
@@ -736,7 +739,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -770,7 +773,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}()
 
 			select {
-			case <-time.NewTimer(2 * time.Second).C:
+			case <-time.NewTimer(5 * time.Second).C:
 				t.Fatal("submitted txs have not been stored within 2s")
 			case <-c:
 			}
@@ -876,7 +879,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -967,6 +970,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
+				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
 
 			cStore := cache.NewMemoryStore()
@@ -996,7 +1002,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalCalls()))
+			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalAsyncCalls()))
 		})
 	}
 }

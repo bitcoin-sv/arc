@@ -13,6 +13,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
@@ -21,8 +22,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
-
-const topic = "some-topic"
 
 var (
 	natsConnClient *nats.Conn
@@ -91,19 +90,21 @@ func TestNatsJetStreamClient(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	txBlock := &test_api.TestMessage{
+	tm := &test_api.TestMessage{
 		Ok: true,
 	}
 	t.Run("publish - work queue policy", func(t *testing.T) {
 		// given
+		const topic = "topic-1"
+
 		streamName := fmt.Sprintf("%s-stream", topic)
 		consName := fmt.Sprintf("%s-cons", topic)
 		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
-			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
+			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
 		}
 
-		mqClient, err := nats_jetstream.New(natsConnClient, logger, jsOpts...)
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
 		require.NoError(t, err)
 		messageChan := make(chan *test_api.TestMessage, 100)
 		testMessage := &test_api.TestMessage{
@@ -115,8 +116,9 @@ func TestNatsJetStreamClient(t *testing.T) {
 		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
 			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(msg.Data, serialized)
-			require.NoError(t, err)
-			messageChan <- serialized
+			if assert.NoError(t, err) {
+				messageChan <- serialized
+			}
 		})
 		require.NoError(t, err)
 		t.Log("publish")
@@ -150,7 +152,7 @@ func TestNatsJetStreamClient(t *testing.T) {
 
 	t.Run("subscribe - work queue policy", func(t *testing.T) {
 		// given
-
+		const topic = "topic-2"
 		streamName := fmt.Sprintf("%s-stream", topic)
 		consName := fmt.Sprintf("%s-cons", topic)
 
@@ -166,8 +168,8 @@ func TestNatsJetStreamClient(t *testing.T) {
 		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
 
 		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
-			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckNonePolicy),
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
+			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
 		}
 		// subscribe with initialized consumer
 		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
@@ -185,7 +187,7 @@ func TestNatsJetStreamClient(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		data, err := proto.Marshal(txBlock)
+		data, err := proto.Marshal(tm)
 		require.NoError(t, err)
 		err = natsConn.Publish(topic, data)
 		require.NoError(t, err)
@@ -206,7 +208,7 @@ func TestNatsJetStreamClient(t *testing.T) {
 				break loop
 			case minedTxBlock := <-messageChan:
 				counter++
-				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
+				require.Equal(t, minedTxBlock.Ok, tm.Ok)
 			}
 		}
 		require.Equal(t, 3, counter)
@@ -214,6 +216,7 @@ func TestNatsJetStreamClient(t *testing.T) {
 
 	t.Run("publish - interest policy", func(t *testing.T) {
 		// given
+		const topic = "topic-3"
 		streamName := fmt.Sprintf("%s-stream", topic)
 		consName := fmt.Sprintf("%s-%s-cons", "host", topic)
 
@@ -269,16 +272,16 @@ func TestNatsJetStreamClient(t *testing.T) {
 
 	t.Run("subscribe - interest policy", func(t *testing.T) {
 		// given
-
+		const topic = "topic-4"
 		minedTxsChan1 := make(chan *test_api.TestMessage, 100)
 		minedTxsChan2 := make(chan *test_api.TestMessage, 100)
 
-		mqClient = mqClientSubscribe(t, "host1", minedTxsChan1)
-		mqClient2 := mqClientSubscribe(t, "host2", minedTxsChan2)
+		mqClient = mqClientSubscribe(t, "host1", topic, minedTxsChan1)
+		mqClient2 := mqClientSubscribe(t, "host2", topic, minedTxsChan2)
 		defer mqClient2.Shutdown()
 
 		// when
-		data, err := proto.Marshal(txBlock)
+		data, err := proto.Marshal(tm)
 		require.NoError(t, err)
 		err = natsConn.Publish(topic, data)
 		require.NoError(t, err)
@@ -298,19 +301,19 @@ func TestNatsJetStreamClient(t *testing.T) {
 				break loop
 			case minedTxBlock := <-minedTxsChan1:
 				counter++
-				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
+				assert.Equal(t, minedTxBlock.Ok, tm.Ok)
 			case minedTxBlock := <-minedTxsChan2:
 				counter2++
-				require.Equal(t, minedTxBlock.Ok, txBlock.Ok)
+				assert.Equal(t, minedTxBlock.Ok, tm.Ok)
 			}
 		}
 
-		require.Equal(t, 3, counter)
-		require.Equal(t, 3, counter2)
+		assert.Equal(t, 3, counter)
+		assert.Equal(t, 3, counter2)
 	})
 }
 
-func mqClientSubscribe(t *testing.T, hostname string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
+func mqClientSubscribe(t *testing.T, hostname string, topic string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
 	streamName := fmt.Sprintf("%s-stream", topic)
 	consName := fmt.Sprintf("%s-%s-cons", hostname, topic)
 
@@ -322,16 +325,17 @@ func mqClientSubscribe(t *testing.T, hostname string, minedTxsChan chan *test_ap
 	client, err := nats_jetstream.New(natsConnClient, logger, mqOpts...)
 	require.NoError(t, err)
 	err = client.SubscribeMsg(topic, func(msg jetstream.Msg) error {
+		t.Log("got message")
 		serialized := &test_api.TestMessage{}
-		unmarshlErr := proto.Unmarshal(msg.Data(), serialized)
-		require.NoError(t, unmarshlErr)
-
-		minedTxsChan <- serialized
+		unmarshalErr := proto.Unmarshal(msg.Data(), serialized)
+		if assert.NoError(t, unmarshalErr) {
+			minedTxsChan <- serialized
+		}
 		ackErr := msg.Ack()
-		require.NoError(t, ackErr)
+		assert.NoError(t, ackErr)
 		return nil
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return client
 }

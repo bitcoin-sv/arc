@@ -139,7 +139,7 @@ func TestGETHealth(t *testing.T) {
 		}))
 
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			HealthFunc: func(ctx context.Context) error {
+			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}

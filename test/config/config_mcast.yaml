@@ -50,9 +50,6 @@ metamorph:
   monitorPeers: true
   checkUtxos: false
   profilerAddr: "[::]:9992"
-  health:
-    serverDialAddr: "[::]:8005"
-    minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m

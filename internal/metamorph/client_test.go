@@ -167,7 +167,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			}
 			if tc.withMqClient {
 				mqClient := &mqMocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
+					PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
 				}
 				opts = append(opts, metamorph.WithMqClient(mqClient))
 			}

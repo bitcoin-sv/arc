@@ -167,12 +167,12 @@ func TestGETHealth(t *testing.T) {
 	})
 
 	t.Run("health check fail", func(t *testing.T) {
-		apiOpts := []Option{}
-		apiOpts = append(apiOpts, WithReadinessCheck(func() error {
-			return errors.New("some connection error")
-		}))
-
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil, apiOpts...)
+		txHandler := &mtmMocks.TransactionHandlerMock{
+			HealthFunc: func(_ context.Context) error {
+				return errors.New("some connection error")
+			},
+		}
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))

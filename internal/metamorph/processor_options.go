@@ -133,6 +133,12 @@ func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Proc
 	}
 }
 
+func WithMinimumHealthyConnections(minimumHealthyConnections int) func(*Processor) {
+	return func(p *Processor) {
+		p.minimumHealthyConnections = minimumHealthyConnections
+	}
+}
+
 func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 	return func(p *Processor) {
 		p.tracingEnabled = true

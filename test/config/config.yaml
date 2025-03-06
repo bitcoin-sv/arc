@@ -52,6 +52,8 @@ metamorph:
     fromAgo: 24h
     untilAgo: 1h
   monitorPeers: true
+  health:
+    minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m

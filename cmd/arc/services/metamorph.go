@@ -109,6 +109,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	opts := []nats_jetstream.Option{
 		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.MinedTxsTopic, mq.SubmitTxTopic),
 		nats_jetstream.WithWorkQueuePolicy(mq.RegisterTxTopic),
+		nats_jetstream.WithWorkQueuePolicy(mq.RegisterTxsTopic),
 		nats_jetstream.WithInterestPolicy(mq.CallbackTopic),
 	}
 

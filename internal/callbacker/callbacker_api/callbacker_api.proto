@@ -36,6 +36,7 @@ enum Status {
 // swagger:model HealthResponse
 message HealthResponse {
   google.protobuf.Timestamp timestamp = 1;
+  string nats = 2;
 }
 
 // swagger:model SendRequest

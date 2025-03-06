@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
+	mq_mock "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
 
 func TestCheck(t *testing.T) {
@@ -71,7 +73,13 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_utils.ServerConfig{})
+			mqc := &mq_mock.MessageQueueClientMock{
+				StatusFunc: func() nats.Status {
+					return nats.CONNECTED
+				},
+			}
+
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, mqc, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -141,7 +149,7 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

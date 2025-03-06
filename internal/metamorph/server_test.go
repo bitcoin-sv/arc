@@ -29,7 +29,7 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
-		server, _ := metamorph.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
+		server, _ := metamorph.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
 		defer server.GracefulStop()
 
 		assert.IsType(t, &metamorph.Server{}, server)
@@ -43,7 +43,7 @@ func TestHealth(t *testing.T) {
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
 		processor.GetPeersFunc = func() []p2p.PeerI { return []p2p.PeerI{} }
 
-		sut, err := metamorph.NewServer(slog.Default(), nil, processor, grpc_utils.ServerConfig{})
+		sut, err := metamorph.NewServer(slog.Default(), nil, processor, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -154,7 +154,7 @@ func TestPostTransaction(t *testing.T) {
 				opts = append(opts, metamorph.WithCheckStatusInterval(50*time.Millisecond))
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_utils.ServerConfig{}, opts...)
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{}, opts...)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -331,7 +331,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -601,7 +601,7 @@ func TestPostTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -657,7 +657,7 @@ func TestSetUnlockedByName(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -699,7 +699,7 @@ func TestListenAndServe(t *testing.T) {
 			processor := &mocks.ProcessorIMock{}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			sut, err := metamorph.NewServer(logger, metamorphStore, processor, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(logger, metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -776,7 +776,7 @@ func TestGetTransactions(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), &store, nil, grpc_utils.ServerConfig{})
+			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

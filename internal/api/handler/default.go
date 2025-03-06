@@ -41,7 +41,6 @@ var (
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
 	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", metamorph.MaxTimeout)
-	ReadinessNotDefined         = string("readiness check not defined")
 )
 
 type ArcDefaultHandler struct {
@@ -50,7 +49,6 @@ type ArcDefaultHandler struct {
 
 	logger                        *slog.Logger
 	now                           func() time.Time
-	ready                         func() error
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
 	mapExpiryTime                 time.Duration
@@ -86,12 +84,6 @@ func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler)
 func WithCacheExpiryTime(d time.Duration) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.mapExpiryTime = d
-	}
-}
-
-func WithReadinessCheck(f func() error) func(*ArcDefaultHandler) {
-	return func(p *ArcDefaultHandler) {
-		p.ready = f
 	}
 }
 

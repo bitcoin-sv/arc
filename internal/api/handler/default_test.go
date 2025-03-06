@@ -133,18 +133,13 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check success", func(t *testing.T) {
-		apiOpts := []Option{}
-		apiOpts = append(apiOpts, WithReadinessCheck(func() error {
-			return nil
-		}))
-
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil, apiOpts...)
+		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))

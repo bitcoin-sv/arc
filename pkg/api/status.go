@@ -11,24 +11,25 @@ type StatusCode int
 const (
 	arcDocServerErrorsURL = "https://bitcoin-sv.github.io/arc/#/errors?id=_"
 
-	StatusOK                        StatusCode = 200
-	ErrStatusBadRequest             StatusCode = 400
-	ErrStatusNotFound               StatusCode = 404
-	ErrStatusGeneric                StatusCode = 409
-	ErrStatusTxFormat               StatusCode = 460
-	ErrStatusUnlockingScripts       StatusCode = 461
-	ErrStatusInputs                 StatusCode = 462
-	ErrStatusMalformed              StatusCode = 463
-	ErrStatusOutputs                StatusCode = 464
-	ErrStatusFees                   StatusCode = 465
-	ErrStatusConflict               StatusCode = 466
-	ErrStatusMinedAncestorsNotFound StatusCode = 467
-	ErrStatusCalculatingMerkleRoots StatusCode = 468
-	ErrStatusValidatingMerkleRoots  StatusCode = 469
-	ErrStatusFrozenPolicy           StatusCode = 471
-	ErrStatusFrozenConsensus        StatusCode = 472
-	ErrStatusCumulativeFees         StatusCode = 473
-	ErrStatusTxSize                 StatusCode = 474
+	StatusOK                              StatusCode = 200
+	ErrStatusBadRequest                   StatusCode = 400
+	ErrStatusNotFound                     StatusCode = 404
+	ErrStatusGeneric                      StatusCode = 409
+	ErrStatusTxFormat                     StatusCode = 460
+	ErrStatusUnlockingScripts             StatusCode = 461
+	ErrStatusInputs                       StatusCode = 462
+	ErrStatusMalformed                    StatusCode = 463
+	ErrStatusOutputs                      StatusCode = 464
+	ErrStatusFees                         StatusCode = 465
+	ErrStatusConflict                     StatusCode = 466
+	ErrStatusMinedAncestorsNotFound       StatusCode = 467
+	ErrStatusCalculatingMerkleRoots       StatusCode = 468
+	ErrStatusValidatingMerkleRoots        StatusCode = 469
+	ErrStatusFrozenPolicy                 StatusCode = 471
+	ErrStatusFrozenConsensus              StatusCode = 472
+	ErrStatusCumulativeFees               StatusCode = 473
+	ErrStatusTxSize                       StatusCode = 474
+	ErrStatusMinedAncestorsNotFoundInBUMP StatusCode = 475
 )
 
 func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
@@ -92,7 +93,7 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.Title = "Conflicting tx found"
 		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusConflict))
 	case ErrStatusMinedAncestorsNotFound: // 467
-		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction"
+		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction in provided beef transactions"
 		errFields.Title = "Mined ancestors not found"
 		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFound))
 	case ErrStatusCalculatingMerkleRoots: // 468
@@ -119,6 +120,10 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.Detail = "Transaction size validation failed"
 		errFields.Title = "Transaction size validation failed"
 		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusTxSize))
+	case ErrStatusMinedAncestorsNotFoundInBUMP: // 475
+		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction in provided BUMPs"
+		errFields.Title = "Mined ancestors not found in BUMPs"
+		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFoundInBUMP))
 	default:
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"

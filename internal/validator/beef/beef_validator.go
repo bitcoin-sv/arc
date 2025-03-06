@@ -203,7 +203,7 @@ func ensureAncestorsArePresentInBump(tx *sdkTx.Transaction, beefTx *beef.BEEF) *
 	for _, tx := range minedAncestors {
 		if !existsInBumps(tx, beefTx.BUMPs) {
 			err := errors.New("invalid BUMP - input mined ancestor is not present in BUMPs")
-			return validator.NewError(err, api.ErrStatusMinedAncestorsNotFound)
+			return validator.NewError(err, api.ErrStatusMinedAncestorsNotFoundInBUMP)
 		}
 	}
 

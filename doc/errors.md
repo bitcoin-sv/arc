@@ -29,7 +29,7 @@ ErrStatusFees: Fees are insufficient.
 ErrStatusConflict: Transaction is invalid because the network has already seen a tx which spends the same utxo.
 
 # 467
-ErrStatusMinedAncestorsNotFound: BEEF validation failed, couldn't find mined ancestor of the transaction.
+ErrStatusMinedAncestorsNotFound: BEEF validation failed, couldn't find mined ancestor of the transaction in provided beef transactions.
 
 # 468
 ErrStatusCalculatingMerkleRoots: BEEF validation failed, couldn't calculate Merkle Roots from given BUMPs.
@@ -48,3 +48,6 @@ ErrStatusCumulativeFees: Cumulative fee validation failed.
 
 # 474
 ErrStatusTxSize: Transaction size validation failed.
+
+# 475
+ErrStatusMinedAncestorsNotFoundInBUMP: input mined ancestor is not present in provided BUMPs

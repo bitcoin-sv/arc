@@ -66,7 +66,10 @@ func getMetamorphConfig() *MetamorphConfig {
 			FromAgo:  24 * time.Hour,
 			UntilAgo: 1 * time.Hour,
 		},
-		MonitorPeers:             false,
+		MonitorPeers: false,
+		Health: &HealthConfig{
+			MinimumHealthyConnections: 2,
+		},
 		RejectCallbackContaining: []string{"http://localhost", "https://localhost"},
 		Stats: &StatsConfig{
 			NotSeenTimeLimit:  10 * time.Minute,

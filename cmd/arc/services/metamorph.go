@@ -146,6 +146,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithCallbackSender(callbacker),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
+		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 		metamorph.WithBlocktxClient(blockTxClient),
 	)
 

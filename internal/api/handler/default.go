@@ -162,26 +162,15 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
-	if m.ready != nil {
-		err := m.ready()
-		healthy := (err == nil)
-		var reason *string
-		if err != nil {
-			r := err.Error()
-			reason = &r
-		}
-
-		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: PtrTo(healthy),
-			Version: &version.Version,
-			Reason:  reason,
-		})
+	reason := ""
+	if err := m.TransactionHandler.Health(ctx.Request().Context()); err != nil {
+		reason = err.Error()
 	}
 
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(false),
+		Healthy: PtrTo(m.TransactionHandler.Health(ctx.Request().Context()) == nil),
 		Version: &version.Version,
-		Reason:  &ReadinessNotDefined,
+		Reason:  &reason,
 	})
 }
 

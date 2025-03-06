@@ -18,7 +18,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
@@ -132,33 +131,33 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		policy = arcConfig.API.DefaultPolicy
 	}
 
-	apiOpts = append(apiOpts, apiHandler.WithReadinessCheck(func() error {
-		mtmClient := grpc_health_v1.NewHealthClient(conn)
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
+	// apiOpts = append(apiOpts, apiHandler.WithReadinessCheck(func() error {
+	// 	mtmClient := grpc_health_v1.NewHealthClient(conn)
+	// 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// 	defer cancel()
 
-		resp, err := mtmClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
-		if err != nil {
-			return fmt.Errorf("health check failed for metamorph grpc: %v", err)
-		}
-		if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-			return fmt.Errorf("metamorph grpc server not serving: %v", resp.Status)
-		}
+	// 	resp, err := mtmClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
+	// 	if err != nil {
+	// 		return fmt.Errorf("health check failed for metamorph grpc: %v", err)
+	// 	}
+	// 	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+	// 		return fmt.Errorf("metamorph grpc server not serving: %v", resp.Status)
+	// 	}
 
-		// btxClient := grpc_health_v1.NewHealthClient(btcConn)
-		// ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		// defer cancel()
+	// 	btxClient := grpc_health_v1.NewHealthClient(btcConn)
+	// 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	// 	defer cancel()
 
-		// resp, err := btxClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
-		// if err != nil {
-		// 	return fmt.Errorf("health check failed for blocktx grpc: %v", err)
-		// }
+	// 	resp, err = btxClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: ""})
+	// 	if err != nil {
+	// 		return fmt.Errorf("health check failed for blocktx grpc: %v", err)
+	// 	}
 
-		// if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-		// 	return fmt.Errorf("blocktx grpc server not serving: %v", resp.Status)
-		// }
-		return nil
-	}))
+	// 	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+	// 		return fmt.Errorf("blocktx grpc server not serving: %v", resp.Status)
+	// 	}
+	// 	return nil
+	// }))
 
 	wocClient := woc_client.New(arcConfig.API.WocMainnet, wocClientOpts...)
 

@@ -51,7 +51,6 @@ metamorph:
   checkUtxos: false
   profilerAddr: "[::]:9992"
   health:
-    serverDialAddr: "[::]:8005"
     minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
@@ -82,7 +81,6 @@ metamorph:
 blocktx:
   listenAddr: "[::]:8011"
   dialAddr: blocktx:8011
-  healthServerDialAddr: "[::]:8006"
   db:
     mode: postgres
     postgres:

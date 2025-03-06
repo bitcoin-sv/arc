@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -35,6 +36,8 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 		store:      callbackerStore,
 		logger:     logger,
 	}
+	// register health server endpoint
+	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
 
 	callbacker_api.RegisterCallbackerAPIServer(s.GrpcServer.Srv, s)
 	reflection.Register(s.GrpcServer.Srv)

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -44,6 +45,9 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 		processor:                     processor,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
+
+	// register health server endpoint
+	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
 
 	blocktx_api.RegisterBlockTxAPIServer(s.GrpcServer.Srv, s)
 	reflection.Register(s.GrpcServer.Srv)

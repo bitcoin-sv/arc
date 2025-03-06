@@ -57,7 +57,6 @@ metamorph:
     untilAgo: 1h # end of moving time window
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
-    serverDialAddr: localhost:8005 # address at which the grpc health server is exposed
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
@@ -92,7 +91,6 @@ metamorph:
 blocktx:
   listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
   dialAddr: localhost:8011 # address for other services to dial blocktx service
-  healthServerDialAddr: localhost:8006 # address at which the grpc health server is exposed
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres

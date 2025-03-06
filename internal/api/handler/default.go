@@ -154,26 +154,16 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
-	reqCtx := ctx.Request().Context()
-	reqCtx, span := tracing.StartTracing(reqCtx, "GETHealth", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	err = m.TransactionHandler.Health(reqCtx)
-	if err != nil {
-		reason := err.Error()
-		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: PtrTo(false),
-			Version: &version.Version,
-			Reason:  &reason,
-		})
+	var reason *string
+	if err := m.TransactionHandler.Health(ctx.Request().Context()); err != nil {
+		errMsg := err.Error()
+		reason = &errMsg
 	}
 
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(true),
+		Healthy: PtrTo(m.TransactionHandler.Health(ctx.Request().Context()) == nil),
 		Version: &version.Version,
-		Reason:  nil,
+		Reason:  reason,
 	})
 }
 

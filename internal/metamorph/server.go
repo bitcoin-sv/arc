@@ -15,6 +15,7 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -101,6 +102,9 @@ func NewServer(logger *slog.Logger, store store.MetamorphStore, processor Proces
 	if err != nil {
 		return nil, err
 	}
+
+	// register health server endpoint
+	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
 
 	s.GrpcServer = grpcServer
 

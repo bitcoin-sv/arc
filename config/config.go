@@ -99,10 +99,13 @@ type MetamorphConfig struct {
 	BlockchainNetwork                       *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
+type HealthConfig struct {
+	MinimumHealthyConnections int `mapstructure:"minimumHealthyConnections"`
+}
+
 type BlocktxConfig struct {
 	ListenAddr                    string                             `mapstructure:"listenAddr"`
 	DialAddr                      string                             `mapstructure:"dialAddr"`
-	HealthServerDialAddr          string                             `mapstructure:"healthServerDialAddr"`
 	Db                            *DbConfig                          `mapstructure:"db"`
 	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
@@ -162,11 +165,6 @@ type RedisConfig struct {
 	Addr     string `mapstructure:"addr"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
-}
-
-type HealthConfig struct {
-	SeverDialAddr             string `mapstructure:"serverDialAddr"`
-	MinimumHealthyConnections int    `mapstructure:"minimumHealthyConnections"`
 }
 
 type StatsConfig struct {

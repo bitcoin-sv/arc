@@ -830,7 +830,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 
 func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
-	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, publishErr)
 	}()
@@ -851,7 +851,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
+			err := p.mqClient.PublishMarshalAsync(mq.MinedTxsTopic, msg)
 			if err != nil {
 				p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
 				publishErr = errors.Join(publishErr, err)
@@ -864,7 +864,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
+		err := p.mqClient.PublishMarshalAsync(mq.MinedTxsTopic, msg)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 			publishErr = errors.Join(publishErr, err)

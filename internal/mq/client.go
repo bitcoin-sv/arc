@@ -29,9 +29,11 @@ type MessageQueueClient interface {
 	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
 	PublishMarshalCore(topic string, m proto.Message) (err error)
 	PublishMarshalAsync(topic string, m proto.Message) error
-	Subscribe(topic string, msgFunc func([]byte) error) error
-	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+
+	Consume(topic string, msgFunc func([]byte) error) error
+	ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
 	QueueSubscribe(topic string, msgFunc func([]byte) error) error
+
 	Shutdown()
 }
 

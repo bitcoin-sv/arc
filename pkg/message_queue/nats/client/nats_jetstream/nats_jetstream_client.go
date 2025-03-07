@@ -13,15 +13,13 @@ import (
 )
 
 type Client struct {
-	js                             jetstream.JetStream
-	nc                             *nats.Conn
-	logger                         *slog.Logger
-	consumers                      map[string]jetstream.Consumer
-	storageType                    jetstream.StorageType
-	ctx                            context.Context
-	cancelAll                      context.CancelFunc
-	removableStreamConsumerMapping map[string]string
-	streamingEnabled               bool
+	js          jetstream.JetStream
+	nc          *nats.Conn
+	logger      *slog.Logger
+	consumers   map[string]jetstream.Consumer
+	storageType jetstream.StorageType
+	ctx         context.Context
+	cancelAll   context.CancelFunc
 }
 
 var (
@@ -99,7 +97,6 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 			cl.logger.Info("consumer created", slog.String("name", streamName))
 		}
 		cl.consumers[topic] = cons
-
 		return nil
 	}
 }
@@ -117,13 +114,12 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	p := &Client{
-		logger:                         logger.With("module", "nats-jetstream"),
-		nc:                             nc,
-		consumers:                      map[string]jetstream.Consumer{},
-		storageType:                    jetstream.MemoryStorage,
-		ctx:                            ctx,
-		cancelAll:                      cancel,
-		removableStreamConsumerMapping: map[string]string{},
+		logger:      logger.With("module", "nats-jetstream"),
+		nc:          nc,
+		consumers:   map[string]jetstream.Consumer{},
+		storageType: jetstream.MemoryStorage,
+		ctx:         ctx,
+		cancelAll:   cancel,
 	}
 
 	js, err := jetstream.New(nc)
@@ -211,7 +207,7 @@ func (cl *Client) PublishMarshalAsync(topic string, m proto.Message) (err error)
 	return nil
 }
 
-func (cl *Client) SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error {
+func (cl *Client) ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error {
 	consumer, found := cl.consumers[topic]
 
 	if !found {
@@ -232,7 +228,7 @@ func (cl *Client) SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) err
 	return nil
 }
 
-func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
+func (cl *Client) Consume(topic string, msgFunc func([]byte) error) error {
 	consumer, found := cl.consumers[topic]
 
 	if !found {
@@ -275,17 +271,6 @@ func (cl *Client) QueueSubscribe(topic string, msgFunc func([]byte) error) error
 func (cl *Client) Shutdown() {
 	if cl == nil {
 		return
-	}
-
-	if cl.removableStreamConsumerMapping != nil {
-		for stream, consumer := range cl.removableStreamConsumerMapping {
-			err := cl.js.DeleteConsumer(context.Background(), stream, consumer)
-			if err != nil {
-				cl.logger.Error("failed to delete consumer", slog.String("consumer", consumer), slog.String("stream", stream), slog.String("err", err.Error()))
-			} else {
-				cl.logger.Info("deleted consumer", slog.String("consumer", consumer), slog.String("stream", stream))
-			}
-		}
 	}
 
 	if cl.nc != nil {

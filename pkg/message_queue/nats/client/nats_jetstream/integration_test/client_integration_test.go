@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
@@ -24,11 +25,11 @@ import (
 )
 
 var (
-	natsConnClient *nats.Conn
-	natsConn       *nats.Conn
-	mqClient       *nats_jetstream.Client
-	logger         *slog.Logger
-	err            error
+	natsConnClient   *nats.Conn
+	natsConnOpposite *nats.Conn
+	mqClient         *nats_jetstream.Client
+	logger           *slog.Logger
+	err              error
 )
 
 func TestMain(m *testing.M) {
@@ -66,7 +67,7 @@ func testmain(m *testing.M) int {
 		return 1
 	}
 
-	natsConn, err = nats_connection.New(natsURL, logger)
+	natsConnOpposite, err = nats_connection.New(natsURL, logger)
 	if err != nil {
 		log.Printf("failed to create nats connection: %v", err)
 		return 1
@@ -85,7 +86,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestNatsJetStreamClient(t *testing.T) {
+func TestPublish(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -93,6 +94,83 @@ func TestNatsJetStreamClient(t *testing.T) {
 	tm := &test_api.TestMessage{
 		Ok: true,
 	}
+
+	tt := []struct {
+		name     string
+		topic    string
+		opts     []nats_jetstream.Option
+		testFunc func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage)
+	}{
+		{
+			name:  "publish marshal - work queue policy",
+			topic: "topic-1",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", false, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
+				err = cl.PublishMarshal(context.TODO(), topic, msg)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name:  "publish marshal async - work queue policy",
+			topic: "topic-1",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", false, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
+				err = cl.PublishMarshalAsync(topic, msg)
+				require.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			require.NoError(t, err)
+			messageChan := make(chan *test_api.TestMessage, 100)
+			testMessage := &test_api.TestMessage{
+				Ok: true,
+			}
+
+			// when
+			t.Log("subscribe to topic")
+			_, err = natsConnClient.QueueSubscribe(tc.topic, "queue", func(msg *nats.Msg) {
+				serialized := &test_api.TestMessage{}
+				err := proto.Unmarshal(msg.Data, serialized)
+				if assert.NoError(t, err) {
+					messageChan <- serialized
+				}
+			})
+			require.NoError(t, err)
+			t.Log("publish")
+			for range 4 {
+				tc.testFunc(mqClient, tc.topic, testMessage)
+			}
+
+			counter := 0
+			t.Log("wait for submitted txs")
+
+			// then
+		loop:
+			for {
+				select {
+				case <-time.NewTimer(500 * time.Millisecond).C:
+					t.Log("timer finished")
+					break loop
+				case data := <-messageChan:
+					counter++
+					require.Equal(t, testMessage.Ok, data.Ok)
+				}
+			}
+
+			require.Equal(t, 4, counter)
+		})
+	}
+
 	t.Run("publish - work queue policy", func(t *testing.T) {
 		// given
 		const topic = "topic-1"
@@ -150,6 +228,63 @@ func TestNatsJetStreamClient(t *testing.T) {
 		require.Equal(t, 4, counter)
 	})
 
+	t.Run("publish async - work queue policy", func(t *testing.T) {
+		// given
+		const topic = "topic-1"
+
+		streamName := fmt.Sprintf("%s-stream", topic)
+		consName := fmt.Sprintf("%s-cons", topic)
+		jsOpts := []nats_jetstream.Option{
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
+			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
+		}
+
+		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
+		require.NoError(t, err)
+		messageChan := make(chan *test_api.TestMessage, 100)
+		testMessage := &test_api.TestMessage{
+			Ok: true,
+		}
+
+		// when
+		t.Log("subscribe to topic")
+		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
+			serialized := &test_api.TestMessage{}
+			err := proto.Unmarshal(msg.Data, serialized)
+			if assert.NoError(t, err) {
+				messageChan <- serialized
+			}
+		})
+		require.NoError(t, err)
+		t.Log("publish")
+		err = mqClient.PublishMarshalAsync(topic, testMessage)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshalAsync(topic, testMessage)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshalAsync(topic, testMessage)
+		require.NoError(t, err)
+		err = mqClient.PublishMarshalAsync(topic, testMessage)
+		require.NoError(t, err)
+
+		counter := 0
+		t.Log("wait for submitted txs")
+
+		// then
+	loop:
+		for {
+			select {
+			case <-time.NewTimer(500 * time.Millisecond).C:
+				t.Log("timer finished")
+				break loop
+			case data := <-messageChan:
+				counter++
+				assert.Equal(t, testMessage.Ok, data.Ok)
+			}
+		}
+
+		assert.Equal(t, 4, counter)
+	})
+
 	t.Run("subscribe - work queue policy", func(t *testing.T) {
 		// given
 		const topic = "topic-2"
@@ -189,13 +324,13 @@ func TestNatsJetStreamClient(t *testing.T) {
 		// when
 		data, err := proto.Marshal(tm)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, []byte("not valid data"))
+		err = natsConnOpposite.Publish(topic, []byte("not valid data"))
 		require.NoError(t, err)
 
 		counter := 0
@@ -283,11 +418,11 @@ func TestNatsJetStreamClient(t *testing.T) {
 		// when
 		data, err := proto.Marshal(tm)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
-		err = natsConn.Publish(topic, data)
+		err = natsConnOpposite.Publish(topic, data)
 		require.NoError(t, err)
 
 		counter := 0

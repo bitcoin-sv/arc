@@ -24,11 +24,14 @@ const (
 
 type MessageQueueClient interface {
 	Publish(ctx context.Context, topic string, data []byte) error
+	PublishCore(topic string, data []byte) (err error)
 	PublishAsync(topic string, hash []byte) (err error)
 	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
+	PublishMarshalCore(topic string, m proto.Message) (err error)
 	PublishMarshalAsync(topic string, m proto.Message) error
 	Subscribe(topic string, msgFunc func([]byte) error) error
 	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+	QueueSubscribe(topic string, msgFunc func([]byte) error) error
 	Shutdown()
 }
 
@@ -39,12 +42,9 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts [
 
 	logger = logger.With("module", "message-queue")
 
-	clientClosedCh := make(chan struct{}, 1)
-
 	var conn *nats.Conn
 	var err error
 
-	connOpts = append(connOpts, nats_connection.WithClientClosedChannel(clientClosedCh))
 	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", mqCfg.URL, err)

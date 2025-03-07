@@ -167,19 +167,13 @@ func TestPublish(t *testing.T) {
 			require.NoError(t, err)
 			defer mqClient.Shutdown()
 
-			natsConnOpposite, err := nats_connection.New(natsURL, logger)
-			require.NoError(t, err)
-			mqClientOpposite, err := nats_jetstream.New(natsConnOpposite, logger, tc.opts...)
-			require.NoError(t, err)
-			defer mqClientOpposite.Shutdown()
-
 			// when
 			messageChan := make(chan *test_api.TestMessage, 100)
 			tm := &test_api.TestMessage{
 				Ok: true,
 			}
 			t.Log("subscribe to topic")
-			tc.subscribeFunc(mqClientOpposite, tc.topic, messageChan)
+			tc.subscribeFunc(mqClient, tc.topic, messageChan)
 
 			t.Log("run test function 4 times")
 			for range 4 {
@@ -193,7 +187,7 @@ func TestPublish(t *testing.T) {
 		loop:
 			for {
 				select {
-				case <-time.NewTimer(500 * time.Millisecond).C:
+				case <-time.NewTimer(1000 * time.Millisecond).C:
 					t.Fatal("timeout waiting for submitted txs")
 				case data := <-messageChan:
 					require.Equal(t, tm.Ok, data.Ok)

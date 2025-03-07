@@ -194,7 +194,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.Consume(mq.MinedTxsTopic, func(msg []byte) error {
+	err := p.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {

@@ -218,13 +218,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 func getMtmMqOpts() []nats_jetstream.Option {
 	submitStreamName := fmt.Sprintf("%s-stream", mq.SubmitTxTopic)
 	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
-	minedStreamName := fmt.Sprintf("%s-stream", mq.MinedTxsTopic)
-	minedConsName := fmt.Sprintf("%s-cons", mq.MinedTxsTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.MinedTxsTopic, minedStreamName, jetstream.WorkQueuePolicy, true),
-		nats_jetstream.WithConsumer(mq.MinedTxsTopic, minedStreamName, minedConsName, true, jetstream.AckNonePolicy),
-
 		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, true),
 		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckNonePolicy),
 	}

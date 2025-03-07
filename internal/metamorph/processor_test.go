@@ -1185,7 +1185,7 @@ func TestStart(t *testing.T) {
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mqMocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+				ConsumeFunc: func(topic string, msgFunc func([]byte) error) error {
 					switch topic {
 					case mq.MinedTxsTopic:
 						subscribeMinedTxsFunction = msgFunc

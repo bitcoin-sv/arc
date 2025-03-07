@@ -841,7 +841,7 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, _ func([]byte) error) error {
+				ConsumeFunc: func(topic string, _ func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err

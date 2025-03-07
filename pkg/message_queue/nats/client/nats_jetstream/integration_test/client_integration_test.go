@@ -3,7 +3,6 @@ package integration_test
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -91,10 +90,6 @@ func TestPublish(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	tm := &test_api.TestMessage{
-		Ok: true,
-	}
-
 	tt := []struct {
 		name     string
 		topic    string
@@ -103,10 +98,10 @@ func TestPublish(t *testing.T) {
 	}{
 		{
 			name:  "publish marshal - work queue policy",
-			topic: "topic-1",
+			topic: "pub-topic-1",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-1", "pub-topic-1-stream", jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer("pub-topic-1", "pub-topic-1-stream", "pub-topic-1-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
@@ -115,10 +110,10 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:  "publish marshal async - work queue policy",
-			topic: "topic-2",
+			topic: "pub-topic-2",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("topic-2", "topic-2-stream", jetstream.WorkQueuePolicy, true),
-				nats_jetstream.WithConsumer("topic-2", "topic-2-stream", "topic-2-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-2", "pub-topic-2-stream", jetstream.WorkQueuePolicy, true),
+				nats_jetstream.WithConsumer("pub-topic-2", "pub-topic-2-stream", "pub-topic-2-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshalAsync(topic, msg)
@@ -127,13 +122,25 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:  "publish marshal async - interest policy",
-			topic: "topic-3",
+			topic: "pub-topic-3",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("topic-3", "topic-3-stream", jetstream.InterestPolicy, false),
-				nats_jetstream.WithConsumer("topic-3", "topic-3-stream", "topic-3-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-3", "pub-topic-3-stream", jetstream.InterestPolicy, false),
+				nats_jetstream.WithConsumer("pub-topic-3", "pub-topic-3-stream", "pub-topic-3-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name:  "publish marshal async - interest policy",
+			topic: "pub-topic-4",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("pub-topic-4", "pub-topic-4-stream", jetstream.InterestPolicy, false),
+				nats_jetstream.WithConsumer("pub-topic-4", "pub-topic-4-stream", "pub-topic-4-cons", false, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
+				err = cl.PublishMarshalCore(topic, msg)
 				require.NoError(t, err)
 			},
 		},
@@ -144,23 +151,29 @@ func TestPublish(t *testing.T) {
 			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
 			require.NoError(t, err)
 			messageChan := make(chan *test_api.TestMessage, 100)
-			testMessage := &test_api.TestMessage{
+			tm := &test_api.TestMessage{
 				Ok: true,
 			}
 
+			mqClientOpposite, err := nats_jetstream.New(natsConnOpposite, logger, tc.opts...)
+			require.NoError(t, err)
+
 			// when
 			t.Log("subscribe to topic")
-			_, err = natsConnClient.QueueSubscribe(tc.topic, "queue", func(msg *nats.Msg) {
+			err = mqClientOpposite.Subscribe(tc.topic, func(bytes []byte) error {
 				serialized := &test_api.TestMessage{}
-				err := proto.Unmarshal(msg.Data, serialized)
+				err := proto.Unmarshal(bytes, serialized)
 				if assert.NoError(t, err) {
 					messageChan <- serialized
 				}
+
+				return nil
 			})
 			require.NoError(t, err)
+
 			t.Log("publish")
 			for range 4 {
-				tc.testFunc(mqClient, tc.topic, testMessage)
+				tc.testFunc(mqClient, tc.topic, tm)
 			}
 
 			counter := 0
@@ -173,7 +186,8 @@ func TestPublish(t *testing.T) {
 				case <-time.NewTimer(500 * time.Millisecond).C:
 					t.Fatal("timeout waiting for submitted txs")
 				case data := <-messageChan:
-					require.Equal(t, testMessage.Ok, data.Ok)
+					require.Equal(t, tm.Ok, data.Ok)
+					t.Log("received message")
 
 					counter++
 					if counter >= 4 {
@@ -183,72 +197,26 @@ func TestPublish(t *testing.T) {
 			}
 		})
 	}
-
-	t.Run("subscribe - interest policy", func(t *testing.T) {
-		// given
-		const topic = "topic-4"
-		minedTxsChan1 := make(chan *test_api.TestMessage, 100)
-		minedTxsChan2 := make(chan *test_api.TestMessage, 100)
-
-		mqClient = mqClientSubscribe(t, "host1", topic, minedTxsChan1)
-		mqClient2 := mqClientSubscribe(t, "host2", topic, minedTxsChan2)
-		defer mqClient2.Shutdown()
-
-		// when
-		data, err := proto.Marshal(tm)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-
-		counter := 0
-		counter2 := 0
-
-		// then
-	loop:
-		for {
-			select {
-			case <-time.NewTimer(500 * time.Millisecond).C:
-				break loop
-			case minedTxBlock := <-minedTxsChan1:
-				counter++
-				assert.Equal(t, minedTxBlock.Ok, tm.Ok)
-			case minedTxBlock := <-minedTxsChan2:
-				counter2++
-				assert.Equal(t, minedTxBlock.Ok, tm.Ok)
-			}
-		}
-
-		assert.Equal(t, 3, counter)
-		assert.Equal(t, 3, counter2)
-	})
 }
 
 func TestSubscribe(t *testing.T) {
-	tm := &test_api.TestMessage{
-		Ok: true,
-	}
-
 	tt := []struct {
 		name     string
 		topic    string
 		opts     []nats_jetstream.Option
-		testFunc func(cl mq.MessageQueueClient, topic string, msg []byte, messageChan chan *test_api.TestMessage)
+		testFunc func(cl mq.MessageQueueClient, topic string, messageChan chan *test_api.TestMessage)
 	}{
 		{
-			name:  "Subscribe - work queue policy",
-			topic: "topic-1",
+			name:  "subscribe - work queue policy",
+			topic: "sub-topic-1",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", true, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("sub-topic-1", "sub-topic-1-stream", jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer("sub-topic-1", "sub-topic-1-stream", "sub-topic-1-cons", true, jetstream.AckExplicitPolicy),
 			},
-			testFunc: func(cl mq.MessageQueueClient, topic string, msg []byte, messageChan chan *test_api.TestMessage) {
+			testFunc: func(cl mq.MessageQueueClient, topic string, messageChan chan *test_api.TestMessage) {
 				err = cl.Subscribe(topic, func(bytes []byte) error {
 					serialized := &test_api.TestMessage{}
-					unmarshalErr := proto.Unmarshal(msg, serialized)
+					unmarshalErr := proto.Unmarshal(bytes, serialized)
 					if unmarshalErr != nil {
 						return unmarshalErr
 					}
@@ -258,31 +226,49 @@ func TestSubscribe(t *testing.T) {
 				require.NoError(t, err)
 			},
 		},
+		{
+			name:  "subscribe msg - interest policy",
+			topic: "sub-topic-2",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("sub-topic-2", "sub-topic-2-stream", jetstream.InterestPolicy, false),
+				nats_jetstream.WithConsumer("sub-topic-2", "sub-topic-2-stream", "sub-topic-2-cons", true, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, messageChan chan *test_api.TestMessage) {
+				err = cl.SubscribeMsg(topic, func(msg jetstream.Msg) error {
+					serialized := &test_api.TestMessage{}
+					unmarshalErr := proto.Unmarshal(msg.Data(), serialized)
+					if assert.NoError(t, unmarshalErr) {
+						messageChan <- serialized
+					}
+					ackErr := msg.Ack()
+					assert.NoError(t, ackErr)
+					return nil
+				})
+				require.NoError(t, err)
+			},
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
-			mqClient, err = nats_jetstream.New(natsConnClient, logger)
-			require.NoError(t, err)
-
-			messageChan := make(chan *test_api.TestMessage, 100)
-
-			// subscribe with initialized consumer
 			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
 			require.NoError(t, err)
 
-			tc.testFunc(mqClient, tc.topic, []byte(tc.topic), messageChan)
+			messageChan := make(chan *test_api.TestMessage, 10)
 
-			// when
-			data, err := proto.Marshal(tm)
-
-			for range 4 {
-				require.NoError(t, err)
-				err = natsConnOpposite.Publish(tc.topic, data)
-			}
-			err = natsConnOpposite.Publish(tc.topic, []byte("not valid data"))
+			// subscribe with initialized consumer
+			mqClientOpposite, err := nats_jetstream.New(natsConnClient, logger, tc.opts...)
 			require.NoError(t, err)
+
+			tc.testFunc(mqClient, tc.topic, messageChan)
+			tm := &test_api.TestMessage{
+				Ok: true,
+			}
+			// when
+			for range 4 {
+				err = mqClientOpposite.PublishMarshal(context.TODO(), tc.topic, tm)
+				require.NoError(t, err)
+			}
 
 			counter := 0
 
@@ -302,31 +288,4 @@ func TestSubscribe(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mqClientSubscribe(t *testing.T, hostname string, topic string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {
-	streamName := fmt.Sprintf("%s-stream", topic)
-	consName := fmt.Sprintf("%s-%s-cons", hostname, topic)
-
-	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(topic, streamName, jetstream.InterestPolicy, false),
-		nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
-	}
-
-	client, err := nats_jetstream.New(natsConnClient, logger, mqOpts...)
-	require.NoError(t, err)
-	err = client.SubscribeMsg(topic, func(msg jetstream.Msg) error {
-		t.Log("got message")
-		serialized := &test_api.TestMessage{}
-		unmarshalErr := proto.Unmarshal(msg.Data(), serialized)
-		if assert.NoError(t, unmarshalErr) {
-			minedTxsChan <- serialized
-		}
-		ackErr := msg.Ack()
-		assert.NoError(t, ackErr)
-		return nil
-	})
-	assert.NoError(t, err)
-
-	return client
 }

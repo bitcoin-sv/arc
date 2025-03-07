@@ -226,8 +226,8 @@ func getMtmMqOpts() []nats_jetstream.Option {
 	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, true),
-		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckNonePolicy),
+		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false),
+		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy),
 	}
 	return mqOpts
 }

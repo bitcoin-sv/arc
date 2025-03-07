@@ -21,7 +21,7 @@ type Client struct {
 	ctx                            context.Context
 	cancelAll                      context.CancelFunc
 	removableStreamConsumerMapping map[string]string
-	opts                           []Option
+	streamingEnabled               bool
 }
 
 var (
@@ -124,7 +124,6 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 		ctx:                            ctx,
 		cancelAll:                      cancel,
 		removableStreamConsumerMapping: map[string]string{},
-		opts:                           opts,
 	}
 
 	js, err := jetstream.New(nc)
@@ -143,121 +142,35 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	return p, nil
 }
 
-//
-//func (cl *Client) createStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool) (jetstream.Stream, error) {
-//	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-//	defer cancel()
-//
-//	stream, err := cl.js.CreateStream(streamCtx, jetstream.StreamConfig{
-//		Name:        streamName,
-//		Description: "Stream for topic " + topicName,
-//		Subjects:    []string{topicName},
-//		Retention:   retentionPolicy,
-//		Discard:     jetstream.DiscardOld,
-//		MaxAge:      10 * time.Minute,
-//		Storage:     cl.storageType,
-//		NoAck:       noAck,
-//	})
-//	if err != nil {
-//		return nil, errors.Join(ErrFailedToCreateStream, err)
-//	}
-//	cl.logger.Info(fmt.Sprintf("stream %s created", streamName))
-//
-//	return stream, nil
-//}
-//
-//func (cl *Client) createConsumer(stream jetstream.Stream, ackPolicy jetstream.AckPolicy, consumerName string, durable bool) (jetstream.Consumer, error) {
-//	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-//	defer cancel()
-//
-//	durableName := ""
-//	if durable {
-//		durableName = consumerName
-//	}
-//
-//	cons, err := stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
-//		Name:          consumerName,
-//		Durable:       durableName,
-//		AckPolicy:     ackPolicy,
-//		MaxAckPending: 5000,
-//	})
-//	if err != nil {
-//		return nil, errors.Join(ErrFailedToCreateConsumer, err)
-//	}
-//
-//	cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
-//	return cons, nil
-//}
-
 func (cl *Client) Status() nats.Status {
 	return cl.nc.Status()
 }
 
-func (cl *Client) getStream(topicName string, streamName string, retentionPolicy jetstream.RetentionPolicy) (jetstream.Stream, error) {
-	streamCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	stream, err := cl.js.Stream(streamCtx, streamName)
-	if errors.Is(err, jetstream.ErrStreamNotFound) {
-		cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
-
-		stream, err = cl.js.CreateStream(streamCtx, jetstream.StreamConfig{
-			Name:        streamName,
-			Description: "Stream for topic " + topicName,
-			Subjects:    []string{topicName},
-			Retention:   retentionPolicy,
-			Discard:     jetstream.DiscardOld,
-			MaxAge:      10 * time.Minute,
-			Storage:     cl.storageType,
-			NoAck:       false,
-		})
-		if err != nil {
-			return nil, errors.Join(ErrFailedToCreateStream, err)
-		}
-
-		cl.logger.Info(fmt.Sprintf("stream %s created", streamName))
-		return stream, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	cl.logger.Info(fmt.Sprintf("stream %s found", streamName))
-	return stream, nil
-}
-
-func (cl *Client) getConsumer(stream jetstream.Stream, consumerName string) (jetstream.Consumer, error) {
-	consCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	streamInfo, err := stream.Info(consCtx)
-	if err != nil {
-		return nil, fmt.Errorf("faied to get stream info: %w", err)
-	}
-
-	cons, err := stream.Consumer(consCtx, consumerName)
-	if errors.Is(err, jetstream.ErrConsumerNotFound) {
-		cl.logger.Warn("consumer not found, creating new", slog.String("consumer", consumerName), slog.String("stream", streamInfo.Config.Name))
-		cons, err = stream.CreateConsumer(consCtx, jetstream.ConsumerConfig{
-			Durable:       consumerName,
-			AckPolicy:     jetstream.AckExplicitPolicy,
-			MaxAckPending: 5000,
-		})
-		if err != nil {
-			return nil, errors.Join(ErrFailedToCreateConsumer, err)
-		}
-
-		cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
-		return cons, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	cl.logger.Info(fmt.Sprintf("consumer %s found", consumerName))
-	return cons, nil
-}
-
 func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {
 	_, err = cl.js.Publish(ctx, topic, hash)
+	if err != nil {
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+	}
+
+	return nil
+}
+
+func (cl *Client) PublishCore(topic string, data []byte) (err error) {
+	err = cl.nc.Publish(topic, data)
+	if err != nil {
+		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+	}
+
+	return nil
+}
+
+func (cl *Client) PublishMarshalCore(topic string, m proto.Message) (err error) {
+	data, err := proto.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	err = cl.PublishCore(topic, data)
 	if err != nil {
 		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
 	}
@@ -322,6 +235,7 @@ func (cl *Client) SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) err
 
 	return nil
 }
+
 func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 	consumer, found := cl.consumers[topic]
 
@@ -339,6 +253,20 @@ func (cl *Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 		ackErr := msg.Ack()
 		if ackErr != nil {
 			cl.logger.Error(fmt.Sprintf("failed to acknowledge message on %s topic: %s", topic, string(msg.Data())))
+		}
+	})
+	if err != nil {
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+	}
+
+	return nil
+}
+
+func (cl *Client) QueueSubscribe(topic string, msgFunc func([]byte) error) error {
+	_, err := cl.nc.QueueSubscribe(topic, topic+"-group", func(msg *nats.Msg) {
+		err := msgFunc(msg.Data)
+		if err != nil {
+			cl.logger.Error(fmt.Sprintf("failed to run message function on %s topic", topic), slog.String("err", err.Error()))
 		}
 	})
 	if err != nil {

@@ -115,13 +115,25 @@ func TestPublish(t *testing.T) {
 		},
 		{
 			name:  "publish marshal async - work queue policy",
-			topic: "topic-1",
+			topic: "topic-2",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("topic-2", "topic-2-stream", jetstream.WorkQueuePolicy, true),
+				nats_jetstream.WithConsumer("topic-2", "topic-2-stream", "topic-2-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshalAsync(topic, msg)
+				require.NoError(t, err)
+			},
+		},
+		{
+			name:  "publish marshal async - interest policy",
+			topic: "topic-3",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("topic-3", "topic-3-stream", jetstream.InterestPolicy, false),
+				nats_jetstream.WithConsumer("topic-3", "topic-3-stream", "topic-3-cons", false, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, msg *test_api.TestMessage) {
+				err = cl.PublishMarshal(context.TODO(), topic, msg)
 				require.NoError(t, err)
 			},
 		},
@@ -159,251 +171,18 @@ func TestPublish(t *testing.T) {
 			for {
 				select {
 				case <-time.NewTimer(500 * time.Millisecond).C:
-					t.Log("timer finished")
-					break loop
+					t.Fatal("timeout waiting for submitted txs")
 				case data := <-messageChan:
-					counter++
 					require.Equal(t, testMessage.Ok, data.Ok)
+
+					counter++
+					if counter >= 4 {
+						break loop
+					}
 				}
 			}
-
-			require.Equal(t, 4, counter)
 		})
 	}
-
-	t.Run("publish - work queue policy", func(t *testing.T) {
-		// given
-		const topic = "topic-1"
-
-		streamName := fmt.Sprintf("%s-stream", topic)
-		consName := fmt.Sprintf("%s-cons", topic)
-		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
-			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
-		}
-
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
-		require.NoError(t, err)
-		messageChan := make(chan *test_api.TestMessage, 100)
-		testMessage := &test_api.TestMessage{
-			Ok: true,
-		}
-
-		// when
-		t.Log("subscribe to topic")
-		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-			serialized := &test_api.TestMessage{}
-			err := proto.Unmarshal(msg.Data, serialized)
-			if assert.NoError(t, err) {
-				messageChan <- serialized
-			}
-		})
-		require.NoError(t, err)
-		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-
-		counter := 0
-		t.Log("wait for submitted txs")
-
-		// then
-	loop:
-		for {
-			select {
-			case <-time.NewTimer(500 * time.Millisecond).C:
-				t.Log("timer finished")
-				break loop
-			case data := <-messageChan:
-				counter++
-				require.Equal(t, testMessage.Ok, data.Ok)
-			}
-		}
-
-		require.Equal(t, 4, counter)
-	})
-
-	t.Run("publish async - work queue policy", func(t *testing.T) {
-		// given
-		const topic = "topic-1"
-
-		streamName := fmt.Sprintf("%s-stream", topic)
-		consName := fmt.Sprintf("%s-cons", topic)
-		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, true),
-			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
-		}
-
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
-		require.NoError(t, err)
-		messageChan := make(chan *test_api.TestMessage, 100)
-		testMessage := &test_api.TestMessage{
-			Ok: true,
-		}
-
-		// when
-		t.Log("subscribe to topic")
-		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-			serialized := &test_api.TestMessage{}
-			err := proto.Unmarshal(msg.Data, serialized)
-			if assert.NoError(t, err) {
-				messageChan <- serialized
-			}
-		})
-		require.NoError(t, err)
-		t.Log("publish")
-		err = mqClient.PublishMarshalAsync(topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshalAsync(topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshalAsync(topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshalAsync(topic, testMessage)
-		require.NoError(t, err)
-
-		counter := 0
-		t.Log("wait for submitted txs")
-
-		// then
-	loop:
-		for {
-			select {
-			case <-time.NewTimer(500 * time.Millisecond).C:
-				t.Log("timer finished")
-				break loop
-			case data := <-messageChan:
-				counter++
-				assert.Equal(t, testMessage.Ok, data.Ok)
-			}
-		}
-
-		assert.Equal(t, 4, counter)
-	})
-
-	t.Run("subscribe - work queue policy", func(t *testing.T) {
-		// given
-		const topic = "topic-2"
-		streamName := fmt.Sprintf("%s-stream", topic)
-		consName := fmt.Sprintf("%s-cons", topic)
-
-		mqClient, err = nats_jetstream.New(natsConnClient, logger)
-		require.NoError(t, err)
-
-		messageChan := make(chan *test_api.TestMessage, 100)
-
-		// subscribe without initialized consumer, expect error
-		err = mqClient.Subscribe(topic, func(_ []byte) error {
-			return nil
-		})
-		require.ErrorIs(t, err, nats_jetstream.ErrConsumerNotInitialized)
-
-		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
-			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
-		}
-		// subscribe with initialized consumer
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, jsOpts...)
-		require.NoError(t, err)
-
-		err = mqClient.Subscribe(topic, func(msg []byte) error {
-			serialized := &test_api.TestMessage{}
-			unmarshalErr := proto.Unmarshal(msg, serialized)
-			if unmarshalErr != nil {
-				return unmarshalErr
-			}
-			messageChan <- serialized
-			return nil
-		})
-		require.NoError(t, err)
-
-		// when
-		data, err := proto.Marshal(tm)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, data)
-		require.NoError(t, err)
-		err = natsConnOpposite.Publish(topic, []byte("not valid data"))
-		require.NoError(t, err)
-
-		counter := 0
-
-		// then
-	loop:
-		for {
-			select {
-			case <-time.NewTimer(500 * time.Millisecond).C:
-				break loop
-			case minedTxBlock := <-messageChan:
-				counter++
-				require.Equal(t, minedTxBlock.Ok, tm.Ok)
-			}
-		}
-		require.Equal(t, 3, counter)
-	})
-
-	t.Run("publish - interest policy", func(t *testing.T) {
-		// given
-		const topic = "topic-3"
-		streamName := fmt.Sprintf("%s-stream", topic)
-		consName := fmt.Sprintf("%s-%s-cons", "host", topic)
-
-		mqOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.InterestPolicy, false),
-			nats_jetstream.WithConsumer(topic, streamName, consName, false, jetstream.AckExplicitPolicy),
-		}
-
-		mqClient, err = nats_jetstream.New(natsConnClient, logger, mqOpts...)
-		require.NoError(t, err)
-		messageChan := make(chan *test_api.TestMessage, 100)
-		testMessage := &test_api.TestMessage{
-			Ok: true,
-		}
-
-		// when
-		t.Log("subscribe to topic")
-		_, err = natsConnClient.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-			serialized := &test_api.TestMessage{}
-			err := proto.Unmarshal(msg.Data, serialized)
-			require.NoError(t, err)
-			messageChan <- serialized
-		})
-		require.NoError(t, err)
-		t.Log("publish")
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-		err = mqClient.PublishMarshal(context.TODO(), topic, testMessage)
-		require.NoError(t, err)
-
-		counter := 0
-		t.Log("wait for submitted txs")
-
-		// then
-	loop:
-		for {
-			select {
-			case <-time.NewTimer(500 * time.Millisecond).C:
-				t.Log("timer finished")
-				break loop
-			case data := <-messageChan:
-				counter++
-				require.Equal(t, testMessage.Ok, data.Ok)
-			}
-		}
-
-		require.Equal(t, 4, counter)
-	})
 
 	t.Run("subscribe - interest policy", func(t *testing.T) {
 		// given
@@ -446,6 +225,83 @@ func TestPublish(t *testing.T) {
 		assert.Equal(t, 3, counter)
 		assert.Equal(t, 3, counter2)
 	})
+}
+
+func TestSubscribe(t *testing.T) {
+	tm := &test_api.TestMessage{
+		Ok: true,
+	}
+
+	tt := []struct {
+		name     string
+		topic    string
+		opts     []nats_jetstream.Option
+		testFunc func(cl mq.MessageQueueClient, topic string, msg []byte, messageChan chan *test_api.TestMessage)
+	}{
+		{
+			name:  "Subscribe - work queue policy",
+			topic: "topic-1",
+			opts: []nats_jetstream.Option{
+				nats_jetstream.WithStream("topic-1", "topic-1-stream", jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer("topic-1", "topic-1-stream", "topic-1-cons", true, jetstream.AckExplicitPolicy),
+			},
+			testFunc: func(cl mq.MessageQueueClient, topic string, msg []byte, messageChan chan *test_api.TestMessage) {
+				err = cl.Subscribe(topic, func(bytes []byte) error {
+					serialized := &test_api.TestMessage{}
+					unmarshalErr := proto.Unmarshal(msg, serialized)
+					if unmarshalErr != nil {
+						return unmarshalErr
+					}
+					messageChan <- serialized
+					return nil
+				})
+				require.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+
+			mqClient, err = nats_jetstream.New(natsConnClient, logger)
+			require.NoError(t, err)
+
+			messageChan := make(chan *test_api.TestMessage, 100)
+
+			// subscribe with initialized consumer
+			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			require.NoError(t, err)
+
+			tc.testFunc(mqClient, tc.topic, []byte(tc.topic), messageChan)
+
+			// when
+			data, err := proto.Marshal(tm)
+
+			for range 4 {
+				require.NoError(t, err)
+				err = natsConnOpposite.Publish(tc.topic, data)
+			}
+			err = natsConnOpposite.Publish(tc.topic, []byte("not valid data"))
+			require.NoError(t, err)
+
+			counter := 0
+
+			// then
+		loop:
+			for {
+				select {
+				case <-time.NewTimer(500 * time.Millisecond).C:
+					t.Fatal("timeout waiting for submitted txs")
+				case minedTxBlock := <-messageChan:
+					require.Equal(t, minedTxBlock.Ok, tm.Ok)
+					counter++
+					if counter >= 4 {
+						break loop
+					}
+				}
+			}
+		})
+	}
 }
 
 func mqClientSubscribe(t *testing.T, hostname string, topic string, minedTxsChan chan *test_api.TestMessage) *nats_jetstream.Client {

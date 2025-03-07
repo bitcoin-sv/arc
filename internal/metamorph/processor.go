@@ -188,7 +188,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator *bcnet.Media
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.Subscribe(mq.MinedTxsTopic, func(msg []byte) error {
+	err := p.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
@@ -202,7 +202,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.MinedTxsTopic), err)
 	}
 
-	err = p.mqClient.Subscribe(mq.SubmitTxTopic, func(msg []byte) error {
+	err = p.mqClient.Consume(mq.SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.PostTransactionRequest{}
 		err = proto.Unmarshal(msg, serialized)
 		if err != nil {
@@ -762,7 +762,7 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	err = p.mqClient.Publish(ctx, mq.RegisterTxTopic, hash[:])
+	err = p.mqClient.PublishAsync(mq.RegisterTxTopic, hash[:])
 	if err != nil {
 		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
 	}

@@ -40,6 +40,13 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 			publishedTxsCh <- serialized
 			return nil
 		},
+		PublishMarshalAsyncFunc: func(_ string, m proto.Message) error {
+			serialized, ok := m.(*blocktx_api.TransactionBlocks)
+			require.True(t, ok)
+
+			publishedTxsCh <- serialized
+			return nil
+		},
 	}
 
 	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)

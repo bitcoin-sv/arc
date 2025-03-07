@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
@@ -1003,24 +1004,36 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 	tt := []struct {
-		name       string
-		getSeenErr error
+		name        string
+		getSeenErr  error
+		registerErr error
 
-		expectedGetSeenCalls  int
-		expectedRegisterCalls int
+		expectedGetSeenCalls         int
+		expectedRegisterCalls        int
+		expectedPublishMarshallCalls int
 	}{
 		{
 			name: "success",
 
-			expectedGetSeenCalls:  5,
-			expectedRegisterCalls: 6,
+			expectedGetSeenCalls:         5,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 0,
 		},
 		{
 			name:       "failed to get seen on network transactions",
 			getSeenErr: errors.New("failed to get seen txs"),
 
-			expectedGetSeenCalls:  1,
-			expectedRegisterCalls: 0,
+			expectedGetSeenCalls:         1,
+			expectedRegisterCalls:        0,
+			expectedPublishMarshallCalls: 0,
+		},
+		{
+			name:        "failed to register transactions",
+			registerErr: errors.New("failed to register txs"),
+
+			expectedGetSeenCalls:         5,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 6,
 		},
 	}
 
@@ -1056,7 +1069,12 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			pm := &bcnet.Mediator{}
 
 			blockTxClient := &btxMocks.ClientMock{
-				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return nil },
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
+			}
+			mqClient := &mqMocks.MessageQueueClientMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
 
 			cStore := cache.NewMemoryStore()
@@ -1068,18 +1086,24 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				metamorph.WithBlocktxClient(blockTxClient),
 				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
+				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
 			sut.StartRequestingSeenOnNetworkTxs()
 
-			<-stop
+			select {
+			case <-stop:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timed out waiting for processor to stop")
+			}
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
-			require.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
+			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
+			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }

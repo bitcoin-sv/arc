@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/libsv/go-p2p/wire"
-	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -86,9 +85,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
 	var mqOpts []nats_jetstream.Option
-	if arcConfig.MessageQueue.Initialize {
-		mqOpts = getBtxMqOpts()
-	}
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
@@ -160,17 +156,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	return stopFn, nil
-}
-
-func getBtxMqOpts() []nats_jetstream.Option {
-	streamName := fmt.Sprintf("%s-stream", mq.RegisterTxTopic)
-	consName := fmt.Sprintf("%s-cons", mq.RegisterTxTopic)
-
-	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.RegisterTxTopic, streamName, jetstream.WorkQueuePolicy, true),
-		nats_jetstream.WithConsumer(mq.RegisterTxTopic, streamName, consName, true, jetstream.AckNonePolicy),
-	}
-	return mqOpts
 }
 
 func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.BlocktxStore, err error) {

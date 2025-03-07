@@ -197,16 +197,15 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			}
 
-			mq := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc:      func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return nil },
-				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
+			mqClient := &mocks.MessageQueueClientMock{
+				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
 			}
 
 			logger := slog.Default()
 			blockProcessCh := make(chan *bcnet.BlockMessage, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mq))
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
 			require.NoError(t, err)
 
 			blockMessage := &bcnet.BlockMessage{
@@ -690,10 +689,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				},
 			}
 			mqClient := &mocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
+				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -727,7 +723,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalAsyncCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }
@@ -841,7 +837,7 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mqClient := &mocks.MessageQueueClientMock{
-				ConsumeFunc: func(topic string, _ func([]byte) error) error {
+				QueueSubscribeFunc: func(topic string, _ func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err

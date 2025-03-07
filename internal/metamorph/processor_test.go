@@ -572,9 +572,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
-				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
 			}
 
 			sut, err := metamorph.NewProcessor(
@@ -970,9 +967,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
-				PublishMarshalAsyncFunc: func(_ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
 			}
 
 			cStore := cache.NewMemoryStore()
@@ -1002,7 +996,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalAsyncCalls()))
+			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }

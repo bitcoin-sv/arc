@@ -124,7 +124,7 @@ func NewProcessor(
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.Consume(mq.RegisterTxTopic, func(msg []byte) error {
+	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
 	})

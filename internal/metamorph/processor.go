@@ -339,7 +339,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshalAsync(mq.CallbackTopic, request)
+				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
 				if err != nil {
 					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
 				}

@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
@@ -23,13 +22,10 @@ import (
 )
 
 var (
-	natsConnClient   *nats.Conn
-	natsConnOpposite *nats.Conn
-	mqClient         *nats_jetstream.Client
-	logger           *slog.Logger
-	err              error
-	natsURL          string
-	containerID      string
+	logger      *slog.Logger
+	err         error
+	natsURL     string
+	containerID string
 )
 
 func TestMain(m *testing.M) {
@@ -43,7 +39,8 @@ func TestMain(m *testing.M) {
 }
 
 func testmain(m *testing.M) int {
-	pool, err := dockertest.NewPool("")
+	var pool *dockertest.Pool
+	pool, err = dockertest.NewPool("")
 	if err != nil {
 		log.Printf("failed to create pool: %v", err)
 		return 1
@@ -53,7 +50,8 @@ func testmain(m *testing.M) int {
 	enableJetStreamCmd := "--js"
 	name := "nats-jetstream"
 
-	resource, natsURL, err := testutils.RunNats(pool, port, name, enableJetStreamCmd)
+	var resource *dockertest.Resource
+	resource, natsURL, err = testutils.RunNats(pool, port, name, enableJetStreamCmd)
 	if err != nil {
 		log.Print(err)
 		return 1
@@ -63,21 +61,7 @@ func testmain(m *testing.M) int {
 
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	natsConnClient, err = nats_connection.New(natsURL, logger)
-	if err != nil {
-		log.Printf("failed to create nats connection: %v", err)
-		return 1
-	}
-
-	natsConnOpposite, err = nats_connection.New(natsURL, logger)
-	if err != nil {
-		log.Printf("failed to create nats connection: %v", err)
-		return 1
-	}
-
 	defer func() {
-		mqClient.Shutdown()
-
 		err = pool.Purge(resource)
 		if err != nil {
 			log.Fatalf("failed to purge pool: %v", err)
@@ -93,8 +77,8 @@ func TestPublish(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	streamOppositeFunc := func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
-		err = cl.Subscribe(topic, func(bytes []byte) error {
+	consume := func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
+		err = cl.Consume(topic, func(bytes []byte) error {
 			serialized := &test_api.TestMessage{}
 			err := proto.Unmarshal(bytes, serialized)
 			if assert.NoError(t, err) {
@@ -107,11 +91,11 @@ func TestPublish(t *testing.T) {
 	}
 
 	tt := []struct {
-		name         string
-		topic        string
-		opts         []nats_jetstream.Option
-		testFunc     func(cl *nats_jetstream.Client, topic string, msg *test_api.TestMessage)
-		oppositeFunc func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage)
+		name          string
+		topic         string
+		opts          []nats_jetstream.Option
+		testFunc      func(cl *nats_jetstream.Client, topic string, msg *test_api.TestMessage)
+		subscribeFunc func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage)
 	}{
 		{
 			name:  "publish marshal - work queue policy",
@@ -124,7 +108,7 @@ func TestPublish(t *testing.T) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
 				require.NoError(t, err)
 			},
-			oppositeFunc: streamOppositeFunc,
+			subscribeFunc: consume,
 		},
 		{
 			name:  "publish marshal async - work queue policy",
@@ -137,7 +121,7 @@ func TestPublish(t *testing.T) {
 				err = cl.PublishMarshalAsync(topic, msg)
 				require.NoError(t, err)
 			},
-			oppositeFunc: streamOppositeFunc,
+			subscribeFunc: consume,
 		},
 		{
 			name:  "publish marshal - interest policy",
@@ -150,7 +134,7 @@ func TestPublish(t *testing.T) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
 				require.NoError(t, err)
 			},
-			oppositeFunc: streamOppositeFunc,
+			subscribeFunc: consume,
 		},
 		{
 			name:  "publish marshal core",
@@ -160,7 +144,7 @@ func TestPublish(t *testing.T) {
 				err = cl.PublishMarshalCore(topic, msg)
 				require.NoError(t, err)
 			},
-			oppositeFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
+			subscribeFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
 				err = cl.QueueSubscribe(topic, func(bytes []byte) error {
 					serialized := &test_api.TestMessage{}
 					err := proto.Unmarshal(bytes, serialized)
@@ -177,21 +161,21 @@ func TestPublish(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			natsConnClient, err := nats_connection.New(natsURL, logger)
 			require.NoError(t, err)
+			mqClient, err := nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			require.NoError(t, err)
+			defer mqClient.Shutdown()
+
+			// when
 			messageChan := make(chan *test_api.TestMessage, 100)
 			tm := &test_api.TestMessage{
 				Ok: true,
 			}
-
-			mqClientOpposite, err := nats_jetstream.New(natsConnOpposite, logger, tc.opts...)
-			require.NoError(t, err)
-
-			// when
 			t.Log("subscribe to topic")
-			tc.oppositeFunc(mqClientOpposite, tc.topic, messageChan)
+			tc.subscribeFunc(mqClient, tc.topic, messageChan)
 
-			t.Log("publish")
+			t.Log("run test function 4 times")
 			for range 4 {
 				tc.testFunc(mqClient, tc.topic, tm)
 			}
@@ -203,7 +187,7 @@ func TestPublish(t *testing.T) {
 		loop:
 			for {
 				select {
-				case <-time.NewTimer(500 * time.Millisecond).C:
+				case <-time.NewTimer(1000 * time.Millisecond).C:
 					t.Fatal("timeout waiting for submitted txs")
 				case data := <-messageChan:
 					require.Equal(t, tm.Ok, data.Ok)
@@ -231,10 +215,10 @@ func TestSubscribe(t *testing.T) {
 			topic: "sub-topic-1",
 			opts: []nats_jetstream.Option{
 				nats_jetstream.WithStream("sub-topic-1", "sub-topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("sub-topic-1", "sub-topic-1-stream", "sub-topic-1-cons", true, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithConsumer("sub-topic-1", "sub-topic-1-stream", "sub-topic-1-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
-				err = cl.Subscribe(topic, func(bytes []byte) error {
+				err = cl.Consume(topic, func(bytes []byte) error {
 					serialized := &test_api.TestMessage{}
 					unmarshalErr := proto.Unmarshal(bytes, serialized)
 					if unmarshalErr != nil {
@@ -251,10 +235,10 @@ func TestSubscribe(t *testing.T) {
 			topic: "sub-topic-2",
 			opts: []nats_jetstream.Option{
 				nats_jetstream.WithStream("sub-topic-2", "sub-topic-2-stream", jetstream.InterestPolicy, false),
-				nats_jetstream.WithConsumer("sub-topic-2", "sub-topic-2-stream", "sub-topic-2-cons", true, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithConsumer("sub-topic-2", "sub-topic-2-stream", "sub-topic-2-cons", false, jetstream.AckExplicitPolicy),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
-				err = cl.SubscribeMsg(topic, func(msg jetstream.Msg) error {
+				err = cl.ConsumeMsg(topic, func(msg jetstream.Msg) error {
 					serialized := &test_api.TestMessage{}
 					unmarshalErr := proto.Unmarshal(msg.Data(), serialized)
 					if assert.NoError(t, unmarshalErr) {
@@ -271,8 +255,15 @@ func TestSubscribe(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			mqClient, err = nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			natsConnClient, err := nats_connection.New(natsURL, logger)
 			require.NoError(t, err)
+
+			natsConnOpposite, err := nats_connection.New(natsURL, logger)
+			require.NoError(t, err)
+
+			mqClient, err := nats_jetstream.New(natsConnClient, logger, tc.opts...)
+			require.NoError(t, err)
+			defer mqClient.Shutdown()
 
 			messageChan := make(chan *test_api.TestMessage, 10)
 

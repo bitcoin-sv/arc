@@ -33,14 +33,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 	require.NoError(t, err)
 
 	mqClient := &mocks.MessageQueueClientMock{
-		PublishMarshalFunc: func(_ context.Context, _ string, m proto.Message) error {
-			serialized, ok := m.(*blocktx_api.TransactionBlocks)
-			require.True(t, ok)
-
-			publishedTxsCh <- serialized
-			return nil
-		},
-		PublishMarshalAsyncFunc: func(_ string, m proto.Message) error {
+		PublishMarshalCoreFunc: func(_ string, m proto.Message) error {
 			serialized, ok := m.(*blocktx_api.TransactionBlocks)
 			require.True(t, ok)
 

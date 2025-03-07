@@ -15,6 +15,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
+type ProcessorI interface {
+	RegisterTransaction(txHash []byte)
+}
+
 // Server type carries the logger within it.
 type Server struct {
 	blocktx_api.UnsafeBlockTxAPIServer
@@ -24,11 +28,11 @@ type Server struct {
 	pm                            *p2p.PeerManager
 	store                         store.BlocktxStore
 	maxAllowedBlockHeightMismatch int
-	processor                     *Processor
+	processor                     ProcessorI
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
@@ -77,5 +81,13 @@ func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleR
 
 func (s *Server) RegisterTransaction(_ context.Context, req *blocktx_api.Transaction) (*emptypb.Empty, error) {
 	s.processor.RegisterTransaction(req.Hash)
-	return nil, nil
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transactions) (*emptypb.Empty, error) {
+	for _, tx := range req.GetTransactions() {
+		s.processor.RegisterTransaction(tx.GetHash())
+	}
+
+	return &emptypb.Empty{}, nil
 }

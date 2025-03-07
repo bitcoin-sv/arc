@@ -47,7 +47,7 @@ func WithStream(topic string, streamName string, retentionPolicy jetstream.Reten
 				return errors.Join(ErrFailedToGetStream, err)
 			}
 
-			cl.logger.Info(fmt.Sprintf("stream %s not found, creating new", streamName))
+			cl.logger.Warn("stream not found", slog.String("name", streamName))
 
 			_, err = cl.js.CreateStream(ctx, jetstream.StreamConfig{
 				Name:        streamName,
@@ -78,25 +78,25 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 		// get or create consumer for topic
 		cons, err := cl.js.Consumer(ctx, streamName, consumerName)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrConsumerNotFound) {
-				durableName := ""
-				if durable {
-					durableName = consumerName
-				}
-
-				cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
-					Name:          consumerName,
-					Durable:       durableName,
-					AckPolicy:     ackPolicy,
-					MaxAckPending: 5000,
-				})
-				if err != nil {
-					return errors.Join(ErrFailedToCreateConsumer, err)
-				}
-				cl.logger.Info(fmt.Sprintf("consumer %s created", consumerName))
-			} else {
+			if !errors.Is(err, jetstream.ErrConsumerNotFound) {
 				return errors.Join(ErrFailedToGetConsumer, err)
 			}
+			durableName := ""
+			if durable {
+				durableName = consumerName
+			}
+			cl.logger.Warn("consumer not found", slog.String("name", streamName))
+
+			cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
+				Name:          consumerName,
+				Durable:       durableName,
+				AckPolicy:     ackPolicy,
+				MaxAckPending: 5000,
+			})
+			if err != nil {
+				return errors.Join(ErrFailedToCreateConsumer, err)
+			}
+			cl.logger.Info("consumer created", slog.String("name", streamName))
 		}
 		cl.consumers[topic] = cons
 

@@ -7,6 +7,7 @@ require (
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/docker/docker v28.0.1+incompatible
 	github.com/enescakir/emoji v1.0.0
 	github.com/getkin/kin-openapi v0.129.0
 	github.com/go-redis/redis/v8 v8.11.5
@@ -83,7 +84,6 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v27.5.1+incompatible // indirect
-	github.com/docker/docker v28.0.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect

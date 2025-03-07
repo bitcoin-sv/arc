@@ -75,10 +75,16 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	}
+
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 		apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime),
 	}
+
+	if arcConfig.Prometheus.IsEnabled() {
+		apiOpts = append(apiOpts, apiHandler.WithStats(apiHandler.NewStats()))
+	}
+
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)

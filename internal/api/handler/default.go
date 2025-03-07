@@ -56,6 +56,7 @@ type ArcDefaultHandler struct {
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
+	stats                         *Stats
 }
 
 type PostResponse struct {
@@ -66,6 +67,12 @@ type PostResponse struct {
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.now = nowFunc
+	}
+}
+
+func WithStats(stats *Stats) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.stats = stats
 	}
 }
 
@@ -126,6 +133,13 @@ func NewDefault(
 	// apply options
 	for _, opt := range opts {
 		opt(handler)
+	}
+
+	if handler.stats != nil {
+		err := handler.stats.RegisterStats()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return handler, nil
@@ -773,6 +787,8 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		}
 	}
 
+	m.stats.Add(len(txs))
+
 	return submitStatuses, nil
 }
 
@@ -846,4 +862,10 @@ func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidati
 	}
 
 	return fv, sv
+}
+
+func (m ArcDefaultHandler) Shutdown() {
+	if m.stats != nil {
+		m.stats.UnregisterStats()
+	}
 }

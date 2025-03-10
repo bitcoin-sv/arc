@@ -770,7 +770,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}()
 
 			select {
-			case <-time.NewTimer(2 * time.Second).C:
+			case <-time.NewTimer(1 * time.Second).C:
 				t.Fatal("submitted txs have not been stored within 2s")
 			case <-c:
 			}

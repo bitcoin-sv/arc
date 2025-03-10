@@ -148,12 +148,6 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
 	}
 
-	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, btxConfig.HealthServerDialAddr)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to start health server: %v", err)
-	}
-
 	return stopFn, nil
 }
 

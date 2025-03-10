@@ -133,12 +133,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
 
-	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, arcConfig.Callbacker.Health.SeverDialAddr)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to start health server: %v", err)
-	}
-
 	logger.Info("Ready to work")
 	return stopFn, nil
 }

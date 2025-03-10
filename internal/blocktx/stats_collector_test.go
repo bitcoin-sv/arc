@@ -38,7 +38,7 @@ func TestStatsCollector_Start(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			blocktxStore := &mocks.BlocktxStoreMock{GetStatsFunc: func(ctx context.Context) (*store.Stats, error) {
+			blocktxStore := &mocks.BlocktxStoreMock{GetStatsFunc: func(_ context.Context) (*store.Stats, error) {
 				return &store.Stats{CurrentNumOfBlockGaps: 5}, tc.getStatsErr
 			}}
 

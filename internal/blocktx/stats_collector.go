@@ -1,62 +1,81 @@
 package blocktx
 
 import (
+	"context"
 	"errors"
 	"log/slog"
-	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 const (
 	statCollectionIntervalDefault = 60 * time.Second
 )
 
-var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
+var (
+	ErrFailedToRegisterStats        = errors.New("failed to register stats collector")
+	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
+)
 
-type processorStats struct {
-	mu                    sync.RWMutex
-	currentNumOfBlockGaps prometheus.Gauge
+func WithStatCollectionInterval(d time.Duration) func(*StatsCollector) {
+	return func(processor *StatsCollector) {
+		processor.statCollectionInterval = d
+	}
 }
 
-func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
-	p := &processorStats{
+type StatsCollector struct {
+	mu                     sync.RWMutex
+	currentNumOfBlockGaps  prometheus.Gauge
+	statCollectionInterval time.Duration
+	waitGroup              *sync.WaitGroup
+	cancelAll              context.CancelFunc
+	ctx                    context.Context
+	logger                 *slog.Logger
+	store                  store.BlocktxStore
+}
+
+func NewStatsCollector(logger *slog.Logger, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
+	p := &StatsCollector{
+		mu: sync.RWMutex{},
 		currentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
 			Help: "Current number of block gaps",
 		}),
+		statCollectionInterval: statCollectionIntervalDefault,
+		waitGroup:              &sync.WaitGroup{},
+		logger:                 logger,
+		store:                  store,
 	}
 
 	for _, opt := range opts {
 		opt(p)
 	}
-
+	ctx, cancelAll := context.WithCancel(context.Background())
+	p.cancelAll = cancelAll
+	p.ctx = ctx
 	return p
 }
 
-func (p *Processor) StartCollectStats() error {
+func (p *StatsCollector) Start() error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
-		p.stats.currentNumOfBlockGaps,
+		p.currentNumOfBlockGaps,
 	)
 	if err != nil {
-		return err
+		return errors.Join(ErrFailedToStartCollectingStats, err)
 	}
 
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer func() {
-			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
-			}
-		}()
-		defer func() {
 			unregisterStats(
-				p.stats.currentNumOfBlockGaps,
+				p.currentNumOfBlockGaps,
 			)
 			p.waitGroup.Done()
 		}()
@@ -72,9 +91,9 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
-				p.stats.mu.Lock()
-				p.stats.currentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
-				p.stats.mu.Unlock()
+				p.mu.Lock()
+				p.currentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
+				p.mu.Unlock()
 			}
 		}
 	}()
@@ -97,4 +116,9 @@ func unregisterStats(cs ...prometheus.Collector) {
 	for _, c := range cs {
 		_ = prometheus.Unregister(c)
 	}
+}
+
+func (p *StatsCollector) Shutdown() {
+	p.cancelAll()
+	p.waitGroup.Wait()
 }

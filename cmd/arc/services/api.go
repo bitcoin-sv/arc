@@ -68,6 +68,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
@@ -82,7 +83,13 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	if arcConfig.Prometheus.IsEnabled() {
-		apiOpts = append(apiOpts, apiHandler.WithStats(apiHandler.NewStats()))
+		handlerStats, err := apiHandler.NewStats()
+		if err != nil {
+			stopFn()
+			return nil, err
+		}
+
+		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
 	}
 
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)

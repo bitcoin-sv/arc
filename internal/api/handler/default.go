@@ -135,13 +135,6 @@ func NewDefault(
 		opt(handler)
 	}
 
-	if handler.stats != nil {
-		err := handler.stats.RegisterStats()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return handler, nil
 }
 
@@ -787,7 +780,9 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		}
 	}
 
-	m.stats.Add(len(txs))
+	if m.stats != nil {
+		m.stats.Add(len(txs))
+	}
 
 	return submitStatuses, nil
 }

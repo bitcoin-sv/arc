@@ -14,7 +14,7 @@ type Stats struct {
 	apiTxSubmissions prometheus.Counter
 }
 
-func NewStats() *Stats {
+func NewStats() (*Stats, error) {
 	p := &Stats{
 		apiTxSubmissions: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "api_submit_txs",
@@ -22,22 +22,18 @@ func NewStats() *Stats {
 		}),
 	}
 
-	return p
+	err := prometheus.Register(p.apiTxSubmissions)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToRegisterStats, err)
+	}
+
+	return p, nil
 }
 
 func (s *Stats) Add(inc int) {
 	s.mu.Lock()
 	s.apiTxSubmissions.Add(float64(inc))
 	s.mu.Unlock()
-}
-
-func (s *Stats) RegisterStats() error {
-	err := prometheus.Register(s.apiTxSubmissions)
-	if err != nil {
-		return errors.Join(ErrFailedToRegisterStats, err)
-	}
-
-	return nil
 }
 
 func (s *Stats) UnregisterStats() {

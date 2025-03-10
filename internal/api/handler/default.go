@@ -155,13 +155,13 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
 	var reason *string
-	if err := m.TransactionHandler.Health(ctx.Request().Context()); err != nil {
+	err = m.TransactionHandler.Health(ctx.Request().Context())
+	if err != nil {
 		errMsg := err.Error()
 		reason = &errMsg
 	}
-
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(m.TransactionHandler.Health(ctx.Request().Context()) == nil),
+		Healthy: PtrTo(err == nil),
 		Version: &version.Version,
 		Reason:  reason,
 	})

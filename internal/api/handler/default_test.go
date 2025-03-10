@@ -688,9 +688,12 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return rawTxs
 				},
 			}
-
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, WithNow(func() time.Time { return now }))
+			handlerStats, err := NewStats()
 			require.NoError(t, err)
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, WithNow(func() time.Time { return now }), WithStats(handlerStats))
+			require.NoError(t, err)
+
+			defer sut.Shutdown()
 
 			inputTx := strings.NewReader(tc.txHexString)
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")

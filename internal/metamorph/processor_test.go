@@ -1066,7 +1066,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+				metamorph.WithProcessSeenOnNetworkTxsInterval(100*time.Millisecond),
 			)
 			require.NoError(t, err)
 

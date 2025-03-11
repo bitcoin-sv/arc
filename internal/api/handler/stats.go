@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -10,7 +9,6 @@ import (
 var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
 
 type Stats struct {
-	mu               sync.RWMutex
 	apiTxSubmissions prometheus.Counter
 }
 
@@ -31,9 +29,7 @@ func NewStats() (*Stats, error) {
 }
 
 func (s *Stats) Add(inc int) {
-	s.mu.Lock()
 	s.apiTxSubmissions.Add(float64(inc))
-	s.mu.Unlock()
 }
 
 func (s *Stats) UnregisterStats() {

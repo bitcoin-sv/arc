@@ -3,7 +3,6 @@ package broadcaster
 import (
 	"context"
 	cRand "crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -293,16 +292,10 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		atomic.AddInt64(&b.connectionCount, -1)
 
 		for _, res := range resp {
-			txIDBytes, err := hex.DecodeString(res.Txid)
-			if err != nil {
-				b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-				continue
-			}
-
 			sat, found := b.satoshiMap.Load(res.Txid)
 			satoshis, isValid := sat.(uint64)
 
-			hash, _ := chainhash.NewHash(txIDBytes)
+			hash, _ := chainhash.NewHashFromHex(res.Txid)
 			if err != nil {
 				b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
 			}

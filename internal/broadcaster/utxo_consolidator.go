@@ -3,7 +3,6 @@ package broadcaster
 import (
 	"container/list"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -130,13 +129,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 						}
 						return
 					}
-
-					txIDBytes, err := hex.DecodeString(res.Txid)
-					if err != nil {
-						b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-						return
-					}
-					hash, err := chainhash.NewHash(txIDBytes)
+					hash, err := chainhash.NewHashFromHex(res.Txid)
 					if err != nil {
 						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
 						return

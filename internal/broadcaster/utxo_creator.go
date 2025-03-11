@@ -3,7 +3,6 @@ package broadcaster
 import (
 	"container/list"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,7 +19,6 @@ import (
 var (
 	ErrRequestedSatoshisTooHigh      = errors.New("requested total of satoshis exceeds balance")
 	ErrRequestedSatoshisExceedsSplit = errors.New("requested satoshis greater than satoshis to be split")
-	ErrFailedToDecodeTxID            = errors.New("failed to decode txid")
 )
 
 type UTXOCreator struct {
@@ -147,19 +145,13 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 						continue
 					}
 
-					txIDBytes, err := hex.DecodeString(res.Txid)
-					if err != nil {
-						b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-						continue
-					}
-
 					foundOutputs, found := satoshiMap[res.Txid]
 					if !found {
 						b.logger.Error("output not found", slog.String("hash", res.Txid))
 						continue
 					}
 
-					hash, err := chainhash.NewHash(txIDBytes)
+					hash, err := chainhash.NewHashFromHex(res.Txid)
 					if err != nil {
 						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
 						continue

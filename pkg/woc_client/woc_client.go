@@ -3,7 +3,6 @@ package woc_client
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -172,12 +171,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 
 	unspent := make(sdkTx.UTXOs, len(wocUnspent))
 	for i, utxo := range wocUnspent {
-		txIDBytes, err := hex.DecodeString(utxo.Txid)
-		if err != nil {
-			return nil, errors.Join(ErrWOCFailedToDecodeHexString, err)
-		}
-
-		h, err := chainhash.NewHash(txIDBytes)
+		h, err := chainhash.NewHashFromHex(utxo.Txid)
 		if err != nil {
 			return unspent, err
 		}

@@ -16,7 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -67,7 +66,7 @@ type Processor struct {
 	store                     store.MetamorphStore
 	cacheStore                cache.Store
 	hostname                  string
-	bcMediator                *bcnet.Mediator
+	bcMediator                Mediator
 	mqClient                  mq.MessageQueueClient
 	logger                    *slog.Logger
 	mapExpiryTime             time.Duration
@@ -119,7 +118,14 @@ type CallbackSender interface {
 	SendCallback(ctx context.Context, data *store.Data)
 }
 
-func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator *bcnet.Mediator, statusMessageChannel chan *metamorph_p2p.TxStatusMessage, opts ...Option) (*Processor, error) {
+type Mediator interface {
+	AskForTxAsync(ctx context.Context, tx *store.Data)
+	AnnounceTxAsync(ctx context.Context, tx *store.Data)
+	GetPeers() []p2p.PeerI
+	CountConnectedPeers() uint
+}
+
+func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, statusMessageChannel chan *metamorph_p2p.TxStatusMessage, opts ...Option) (*Processor, error) {
 	if s == nil {
 		return nil, ErrStoreNil
 	}

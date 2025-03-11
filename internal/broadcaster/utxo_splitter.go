@@ -70,7 +70,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 	var fee uint64
 	for i, toKs := range b.toKeySets {
 		if i == len(b.toKeySets)-1 {
-			fee, err = b.feeModel.ComputeFee(tx)
+			fee, err = ComputeFee(tx, b.feeModel)
 			if err != nil {
 				return err
 			}

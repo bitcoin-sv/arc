@@ -6,6 +6,7 @@ import (
 	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 )
 
@@ -42,7 +43,7 @@ func SignAllInputs(tx *sdkTx.Transaction, privKey *primitives.PrivateKey) error 
 	return nil
 }
 
-func EstimateSize(tx *sdkTx.Transaction) int {
+func estimateSize(tx *sdkTx.Transaction) int {
 	size := 4                                             // version
 	size += sdkTx.VarInt(uint64(len(tx.Inputs))).Length() // number of inputs
 
@@ -62,36 +63,10 @@ func EstimateSize(tx *sdkTx.Transaction) int {
 	return size
 }
 
-type FeeModel interface {
-	ComputeFee(tx *sdkTx.Transaction) (uint64, error)
-	ComputeFeeBasedOnSize(txSize uint64) (uint64, error)
-}
-
-type SatoshisPerKilobyte struct {
-	Satoshis uint64
-}
-
 // ComputeFee calculates the transaction fee based on its size in bytes.
-func (s SatoshisPerKilobyte) ComputeFee(tx *sdkTx.Transaction) (uint64, error) {
-	txSize := tx.Size()
+func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, error) {
+	txSize := estimateSize(tx)
 
-	feesRequiredRounded := computeFee(uint64(txSize), s)
-
-	return feesRequiredRounded, nil
-}
-
-// ComputeFeeBasedOnSize calculates the transaction fee based on the transaction size in bytes.
-func (s SatoshisPerKilobyte) ComputeFeeBasedOnSize(txSize uint64) (uint64, error) {
-	feesRequiredRounded := computeFee(txSize, s)
-
-	return feesRequiredRounded, nil
-}
-
-func DefaultSatoshisPerKilobyte() SatoshisPerKilobyte {
-	return SatoshisPerKilobyte{Satoshis: 1}
-}
-
-func computeFee(txSize uint64, s SatoshisPerKilobyte) uint64 {
 	fee := float64(txSize) * float64(s.Satoshis) / 1000
 
 	// the minimum fees required is 1 satoshi
@@ -99,5 +74,6 @@ func computeFee(txSize uint64, s SatoshisPerKilobyte) uint64 {
 	if feesRequiredRounded < 1 {
 		feesRequiredRounded = 1
 	}
-	return feesRequiredRounded
+
+	return feesRequiredRounded, nil
 }

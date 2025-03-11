@@ -227,7 +227,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 }
 
 func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
-	fee, err := b.feeModel.ComputeFee(tx)
+	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return err
 	}

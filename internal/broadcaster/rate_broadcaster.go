@@ -217,7 +217,7 @@ utxoLoop:
 				}
 			}
 
-			fee, err := b.EstimateFee(tx)
+			fee, err := ComputeFee(tx, b.feeModel)
 			if err != nil {
 				return nil, err
 			}
@@ -256,19 +256,6 @@ utxoLoop:
 	}
 
 	return txs, nil
-}
-
-// EstimateFee estimates the fee for a transaction
-// based on the estimated size of the transaction
-func (b *UTXORateBroadcaster) EstimateFee(tx *sdkTx.Transaction) (uint64, error) {
-	size := EstimateSize(tx)
-
-	fee, err := b.feeModel.ComputeFeeBasedOnSize(uint64(size))
-	if err != nil {
-		return 0, err
-	}
-
-	return fee, nil
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {

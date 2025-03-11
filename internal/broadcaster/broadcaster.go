@@ -7,6 +7,7 @@ import (
 
 	"github.com/bitcoin-sv/go-sdk/script"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
@@ -29,7 +30,7 @@ type Broadcaster struct {
 	logger            *slog.Logger
 	client            ArcClient
 	isTestnet         bool
-	feeModel          FeeModel // Todo: use "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
+	feeModel          feemodel.SatoshisPerKilobyte
 	utxoClient        UtxoClient
 	callbackURL       string
 	callbackToken     string
@@ -76,7 +77,7 @@ func WithFullstatusUpdates(fullStatusUpdates bool) func(broadcaster *Broadcaster
 
 func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
-		broadcaster.feeModel = SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
+		broadcaster.feeModel = feemodel.SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
 	}
 }
 
@@ -99,7 +100,7 @@ func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient
 		isTestnet:     isTestnet,
 		batchSize:     batchSizeDefault,
 		maxInputs:     maxInputsDefault,
-		feeModel:      DefaultSatoshisPerKilobyte(),
+		feeModel:      feemodel.SatoshisPerKilobyte{Satoshis: uint64(1)},
 		utxoClient:    utxoClient,
 		waitForStatus: metamorph_api.Status_RECEIVED,
 	}

@@ -28,7 +28,6 @@ func WithStatCollectionInterval(d time.Duration) func(*StatsCollector) {
 }
 
 type StatsCollector struct {
-	mu                     sync.RWMutex
 	currentNumOfBlockGaps  prometheus.Gauge
 	statCollectionInterval time.Duration
 	waitGroup              *sync.WaitGroup
@@ -40,7 +39,6 @@ type StatsCollector struct {
 
 func NewStatsCollector(logger *slog.Logger, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
 	p := &StatsCollector{
-		mu: sync.RWMutex{},
 		currentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
 			Help: "Current number of block gaps",
@@ -91,9 +89,7 @@ func (p *StatsCollector) Start() error {
 					continue
 				}
 
-				p.mu.Lock()
 				p.currentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
-				p.mu.Unlock()
 			}
 		}
 	}()

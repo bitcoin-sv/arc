@@ -149,7 +149,7 @@ func TestPostTransaction(t *testing.T) {
 				},
 			}
 
-			opts := []metamorph.ServerOption{}
+			var opts []metamorph.ServerOption
 			if tc.checkStatusInterval {
 				opts = append(opts, metamorph.WithCheckStatusInterval(50*time.Millisecond))
 			}

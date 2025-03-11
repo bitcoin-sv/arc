@@ -69,7 +69,7 @@ func TestCheck(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			pm := &p2p.PeerManager{}
 			serverCfg := grpc_utils.ServerConfig{}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, nil, serverCfg, 0)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -134,7 +134,7 @@ func TestWatch(t *testing.T) {
 
 			pm := &p2p.PeerManager{}
 			serverCfg := grpc_utils.ServerConfig{}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, nil, serverCfg, 0)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

@@ -41,7 +41,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 			}, nil
 		}
 
-		if s.mq == nil || s.mq.Status() != nats.CONNECTED {
+		if s.processor.mqClient == nil || s.processor.mqClient.Status() != nats.CONNECTED {
 			s.logger.Error("nats not connected")
 			return &grpc_health_v1.HealthCheckResponse{
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,

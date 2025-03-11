@@ -12,7 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/nats-io/nats.go"
 )
@@ -26,12 +25,11 @@ type Server struct {
 	pm                            *p2p.PeerManager
 	store                         store.BlocktxStore
 	maxAllowedBlockHeightMismatch int
-	mq                            mq.MessageQueueClient
 	processor                     *Processor
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, mq mq.MessageQueueClient, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
@@ -44,7 +42,6 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 		store:                         store,
 		logger:                        logger,
 		pm:                            pm,
-		mq:                            mq,
 		processor:                     processor,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
@@ -58,9 +55,9 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
 	ok := false
 	status := ""
-	if s.mq != nil && s.mq.Status() == nats.CONNECTED {
+	if s.processor.mqClient != nil && s.processor.mqClient.Status() == nats.CONNECTED {
 		ok = true
-		status = s.mq.Status().String()
+		status = s.processor.mqClient.Status().String()
 	}
 	return &blocktx_api.HealthResponse{
 		Ok:        ok,

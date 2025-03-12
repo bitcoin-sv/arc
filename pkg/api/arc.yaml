@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: BSV ARC
+  title: ARC - Authoritative Response Component
   version: 1.0.0
   license:
     name: Open BSV Licence

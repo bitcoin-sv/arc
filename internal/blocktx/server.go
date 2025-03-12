@@ -53,14 +53,13 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
-	ok := false
-	status := ""
-	if s.processor.mqClient != nil && s.processor.mqClient.Status() == nats.CONNECTED {
-		ok = true
+	status := nats.DISCONNECTED.String()
+	if s.processor.mqClient != nil {
 		status = s.processor.mqClient.Status().String()
 	}
+
 	return &blocktx_api.HealthResponse{
-		Ok:        ok,
+		Ok:        status == "CONNECTED",
 		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil

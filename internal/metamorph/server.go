@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -133,7 +134,7 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		}
 	}
 
-	status := ""
+	status := nats.DISCONNECTED.String()
 	if s.mq != nil {
 		status = s.mq.Status().String()
 	}

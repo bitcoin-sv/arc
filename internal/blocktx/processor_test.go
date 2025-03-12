@@ -18,10 +18,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -197,7 +197,7 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			}
 
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
 			}
 
@@ -688,7 +688,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					return tc.getBlockTxHashes, tc.getBlockTxHashesErr
 				},
 			}
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
@@ -836,7 +836,7 @@ func TestStart(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				QueueSubscribeFunc: func(topic string, _ func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {

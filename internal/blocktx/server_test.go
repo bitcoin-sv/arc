@@ -33,7 +33,7 @@ func TestListenAndServe(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &p2p.PeerManager{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -60,14 +60,12 @@ func TestRegisterTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			storeMock := &storeMocks.BlocktxStoreMock{}
-			pm := &p2p.PeerManager{}
 
 			proc := &mocks.ProcessorIMock{
 				RegisterTransactionFunc: func(_ []byte) {},
 			}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, proc, grpc_utils.ServerConfig{}, 0)
+			sut, err := blocktx.NewServer(logger, nil, nil, proc, grpc_utils.ServerConfig{}, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -103,7 +101,7 @@ func TestRegisterTransaction(t *testing.T) {
 				RegisterTransactionFunc: func(_ []byte) {},
 			}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, proc, grpc_utils.ServerConfig{}, 0)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, proc, grpc_utils.ServerConfig{}, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

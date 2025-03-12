@@ -1,5 +1,5 @@
 ---
-title: BSV ARC v1.0.0
+title: ARC - Authoritative Response Component v1.0.0
 language_tabs:
   - http: HTTP
   - javascript: JavaScript
@@ -26,9 +26,9 @@ headingLevel: 2
 
 <!-- Generator: Widdershins v4.0.1 -->
 
-<h1 id="bsv-arc">BSV ARC v1.0.0</h1>
+<h1 id="arc-authoritative-response-component">ARC - Authoritative Response Component v1.0.0</h1>
 
-> Authoritative Response Component. Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.
+> Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.
 
 Base URLs:
 
@@ -40,7 +40,7 @@ License: <a href="https://bitcoinassociation.net/open-bsv-license/">Open BSV Lic
 
 - HTTP Authentication, scheme: bearer Bearer authentication as defined in RFC 6750
 
-<h1 id="bsv-arc-arc">Arc</h1>
+<h1 id="arc-authoritative-response-component-arc">Arc</h1>
 
 ## Get the policy settings
 

@@ -35,7 +35,8 @@ type MessageQueueClient interface {
 	ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
 	QueueSubscribe(topic string, msgFunc func([]byte) error) error
 
-	Status() nats.Status
+	Status() string
+	IsConnected() bool
 	Shutdown()
 }
 

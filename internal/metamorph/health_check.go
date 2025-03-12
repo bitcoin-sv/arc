@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -40,7 +39,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 			}, nil
 		}
 
-		if s.mq == nil || s.mq.Status() != nats.CONNECTED {
+		if s.mq == nil || !s.mq.IsConnected() {
 			s.logger.Error("nats not connected")
 			return &grpc_health_v1.HealthCheckResponse{
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
@@ -73,6 +72,13 @@ func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_healt
 		err = s.processor.Health()
 		if err != nil {
 			s.logger.Error("processor unhealthy", slog.String("err", err.Error()))
+			return server.Send(&grpc_health_v1.HealthCheckResponse{
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			})
+		}
+
+		if s.mq == nil || !s.mq.IsConnected() {
+			s.logger.Error("nats not connected")
 			return server.Send(&grpc_health_v1.HealthCheckResponse{
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 			})

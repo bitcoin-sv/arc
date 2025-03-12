@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
+
+	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestProcessorStart(t *testing.T) {
@@ -198,7 +199,7 @@ func TestProcessorStart(t *testing.T) {
 			}
 
 			var handleMsgFunction func(msg jetstream.Msg) error
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				ConsumeMsgFunc: func(_ string, msgFunc func(msg jetstream.Msg) error) error {
 					handleMsgFunction = msgFunc
 					return nil
@@ -313,7 +314,7 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 			logger := slog.Default()
 			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {}}
 
-			mqClient := &mocks.MessageQueueClientMock{
+			mqClient := &mqMocks.MessageQueueClientMock{
 				ConsumeMsgFunc: func(_ string, _ func(_ jetstream.Msg) error) error {
 					return nil
 				},

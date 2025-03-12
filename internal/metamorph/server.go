@@ -140,7 +140,7 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 
 	status := nats.DISCONNECTED.String()
 	if s.mq != nil {
-		status = s.mq.Status().String()
+		status = s.mq.Status()
 	}
 
 	return &metamorph_api.HealthResponse{

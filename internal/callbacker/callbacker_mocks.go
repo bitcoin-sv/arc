@@ -10,6 +10,4 @@ package callbacker
 
 //go:generate moq -pkg mocks -out ./mocks/dipatcher_mock.go ./ Dispatcher
 
-//go:generate moq -pkg mocks -out ./mocks/mq_client_mock.go ../mq MessageQueueClient
-
 //go:generate moq -pkg mocks -out ./mocks/jetstream_message_mock.go ./ JetstreamMsg

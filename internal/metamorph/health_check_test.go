@@ -74,8 +74,8 @@ func TestCheck(t *testing.T) {
 			}
 
 			mqc := &mq_mock.MessageQueueClientMock{
-				StatusFunc: func() nats.Status {
-					return nats.CONNECTED
+				StatusFunc: func() string {
+					return nats.CONNECTED.String()
 				},
 			}
 

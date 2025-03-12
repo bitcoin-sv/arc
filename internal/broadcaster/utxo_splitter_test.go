@@ -2,7 +2,6 @@ package broadcaster_test
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"log/slog"
 	"os"
@@ -10,6 +9,7 @@ import (
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
 	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
@@ -73,9 +73,10 @@ func TestSplitUtxo(t *testing.T) {
 
 					require.Len(t, tx.Inputs, 1)
 
-					txIDBytes, err := hex.DecodeString("842f1acda7a169f388765af73733dd3188e8c1cc52baa78fdac4279d53d98911")
+					txHash, err := chainhash.NewHashFromStr("842f1acda7a169f388765af73733dd3188e8c1cc52baa78fdac4279d53d98911")
 					require.NoError(t, err)
-					require.Equal(t, txIDBytes, tx.Inputs[0].SourceTXID.CloneBytes())
+
+					require.Equal(t, txHash.String(), tx.Inputs[0].SourceTXID.String())
 
 					return &metamorph_api.TransactionStatus{
 						Txid:   tx.TxID().String(),

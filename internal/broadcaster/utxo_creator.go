@@ -3,23 +3,22 @@ package broadcaster
 import (
 	"container/list"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/bitcoin-sv/go-sdk/chainhash"
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
 var (
 	ErrRequestedSatoshisTooHigh      = errors.New("requested total of satoshis exceeds balance")
 	ErrRequestedSatoshisExceedsSplit = errors.New("requested satoshis greater than satoshis to be split")
-	ErrFailedToDecodeTxID            = errors.New("failed to decode txid")
 )
 
 type UTXOCreator struct {
@@ -146,19 +145,13 @@ func (b *UTXOCreator) Start(requestedOutputs int, requestedSatoshisPerOutput uin
 						continue
 					}
 
-					txIDBytes, err := hex.DecodeString(res.Txid)
-					if err != nil {
-						b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-						continue
-					}
-
 					foundOutputs, found := satoshiMap[res.Txid]
 					if !found {
 						b.logger.Error("output not found", slog.String("hash", res.Txid))
 						continue
 					}
 
-					hash, err := chainhash.NewHash(txIDBytes)
+					hash, err := chainhash.NewHashFromHex(res.Txid)
 					if err != nil {
 						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
 						continue
@@ -208,7 +201,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 		tx := sdkTx.NewTransaction()
 		err = tx.AddInputsFromUTXOs(utxo)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to add inputs from UTXOs: %w", err)
 		}
 		// only split if splitting increases nr of outputs
 		const feeMargin = 50
@@ -218,7 +211,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs int, requestedSatoshisPerOut
 
 		addedOutputs, err := b.splitToFundingKeyset(tx, utxo.Satoshis, requestedSatoshisPerOutput, requestedOutputs-outputs, fundingKeySet)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to split to funding keyset: %w", err)
 		}
 		utxoSet.Remove(front)
 
@@ -256,7 +249,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 	remaining := int64(splitSatoshis)
 
 	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
-		fee, err = b.feeModel.ComputeFee(tx)
+		fee, err = ComputeFee(tx, b.feeModel)
 		if err != nil {
 			return 0, err
 		}
@@ -273,7 +266,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		counter++
 	}
 
-	fee, err = b.feeModel.ComputeFee(tx)
+	fee, err = ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return 0, err
 	}

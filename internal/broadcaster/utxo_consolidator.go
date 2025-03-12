@@ -3,7 +3,6 @@ package broadcaster
 import (
 	"container/list"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -130,13 +129,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 						}
 						return
 					}
-
-					txIDBytes, err := hex.DecodeString(res.Txid)
-					if err != nil {
-						b.logger.Error("failed to decode txid", slog.String("err", err.Error()))
-						return
-					}
-					hash, err := chainhash.NewHash(txIDBytes)
+					hash, err := chainhash.NewHashFromHex(res.Txid)
 					if err != nil {
 						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
 						return
@@ -227,7 +220,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 }
 
 func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
-	fee, err := b.feeModel.ComputeFee(tx)
+	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return err
 	}

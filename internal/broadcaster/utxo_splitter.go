@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"encoding/hex"
 	"errors"
 	"log/slog"
 
@@ -42,12 +41,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 	b.logger.Info("Splitting utxo", slog.String("txid", txid), slog.String("from", b.fromKeySet.Address(!b.isTestnet)), "to", toAddresses)
 
 	var err error
-	txIDBytes, err := hex.DecodeString(txid)
-	if err != nil {
-		return errors.Join(ErrFailedToDecodeTxID, err)
-	}
-
-	hash, err := chainhash.NewHash(txIDBytes)
+	hash, err := chainhash.NewHashFromHex(txid)
 	if err != nil {
 		return err
 	}
@@ -70,7 +64,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 	var fee uint64
 	for i, toKs := range b.toKeySets {
 		if i == len(b.toKeySets)-1 {
-			fee, err = b.feeModel.ComputeFee(tx)
+			fee, err = ComputeFee(tx, b.feeModel)
 			if err != nil {
 				return err
 			}

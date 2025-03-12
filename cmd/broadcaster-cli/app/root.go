@@ -4,11 +4,12 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/keyset"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/app/utxos"
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (

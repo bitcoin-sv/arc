@@ -77,7 +77,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		miningFeeSat, err := helper.GetInt("miningFeeSatPerKb")
+		miningFeeSat, err := helper.GetUint64("miningFeeSatPerKb")
 		if err != nil {
 			return err
 		}

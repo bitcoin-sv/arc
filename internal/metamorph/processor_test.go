@@ -715,11 +715,6 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
-			publisher := &mqMocks.MessageQueueClientMock{
-				PublishAsyncFunc: func(_ string, _ []byte) error {
-					return nil
-				},
-			}
 			const submittedTxsBuffer = 5
 			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, submittedTxsBuffer)
 			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil,

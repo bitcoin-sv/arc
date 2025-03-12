@@ -15,6 +15,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
 
 func TestNewServer(t *testing.T) {
@@ -35,9 +36,9 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
-		mqClient := &mocks.MessageQueueClientMock{
-			StatusFunc: func() nats.Status {
-				return nats.CONNECTED
+		mqClient := &mqMocks.MessageQueueClientMock{
+			StatusFunc: func() string {
+				return nats.CONNECTED.String()
 			},
 		}
 

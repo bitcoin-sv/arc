@@ -6,7 +6,6 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/mq"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"sync"
@@ -22,6 +21,9 @@ var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 //
 //		// make and configure a mocked mq.MessageQueueClient
 //		mockedMessageQueueClient := &MessageQueueClientMock{
+//			IsConnectedFunc: func() bool {
+//				panic("mock out the IsConnected method")
+//			},
 //			PublishFunc: func(ctx context.Context, topic string, data []byte) error {
 //				panic("mock out the Publish method")
 //			},
@@ -31,7 +33,7 @@ var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StatusFunc: func() nats.Status {
+//			StatusFunc: func() string {
 //				panic("mock out the Status method")
 //			},
 //			SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
@@ -47,6 +49,9 @@ var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 //
 //	}
 type MessageQueueClientMock struct {
+	// IsConnectedFunc mocks the IsConnected method.
+	IsConnectedFunc func() bool
+
 	// PublishFunc mocks the Publish method.
 	PublishFunc func(ctx context.Context, topic string, data []byte) error
 
@@ -57,7 +62,7 @@ type MessageQueueClientMock struct {
 	ShutdownFunc func()
 
 	// StatusFunc mocks the Status method.
-	StatusFunc func() nats.Status
+	StatusFunc func() string
 
 	// SubscribeFunc mocks the Subscribe method.
 	SubscribeFunc func(topic string, msgFunc func([]byte) error) error
@@ -67,6 +72,9 @@ type MessageQueueClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// IsConnected holds details about calls to the IsConnected method.
+		IsConnected []struct {
+		}
 		// Publish holds details about calls to the Publish method.
 		Publish []struct {
 			// Ctx is the ctx argument value.
@@ -106,12 +114,40 @@ type MessageQueueClientMock struct {
 			MsgFunc func(msg jetstream.Msg) error
 		}
 	}
+	lockIsConnected    sync.RWMutex
 	lockPublish        sync.RWMutex
 	lockPublishMarshal sync.RWMutex
 	lockShutdown       sync.RWMutex
 	lockStatus         sync.RWMutex
 	lockSubscribe      sync.RWMutex
 	lockSubscribeMsg   sync.RWMutex
+}
+
+// IsConnected calls IsConnectedFunc.
+func (mock *MessageQueueClientMock) IsConnected() bool {
+	if mock.IsConnectedFunc == nil {
+		panic("MessageQueueClientMock.IsConnectedFunc: method is nil but MessageQueueClient.IsConnected was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockIsConnected.Lock()
+	mock.calls.IsConnected = append(mock.calls.IsConnected, callInfo)
+	mock.lockIsConnected.Unlock()
+	return mock.IsConnectedFunc()
+}
+
+// IsConnectedCalls gets all the calls that were made to IsConnected.
+// Check the length with:
+//
+//	len(mockedMessageQueueClient.IsConnectedCalls())
+func (mock *MessageQueueClientMock) IsConnectedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockIsConnected.RLock()
+	calls = mock.calls.IsConnected
+	mock.lockIsConnected.RUnlock()
+	return calls
 }
 
 // Publish calls PublishFunc.
@@ -222,7 +258,7 @@ func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
 }
 
 // Status calls StatusFunc.
-func (mock *MessageQueueClientMock) Status() nats.Status {
+func (mock *MessageQueueClientMock) Status() string {
 	if mock.StatusFunc == nil {
 		panic("MessageQueueClientMock.StatusFunc: method is nil but MessageQueueClient.Status was just called")
 	}

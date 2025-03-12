@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/nats-io/nats.go"
 )
 
 // Server type carries the logger within it.
@@ -56,8 +57,14 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
+	status := nats.DISCONNECTED.String()
+	if s.processor.mqClient != nil {
+		status = s.processor.mqClient.Status().String()
+	}
+
 	return &blocktx_api.HealthResponse{
-		Ok:        true,
+		Ok:        status == "CONNECTED",
+		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

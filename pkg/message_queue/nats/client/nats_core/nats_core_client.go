@@ -23,6 +23,7 @@ var (
 type NatsConnection interface {
 	QueueSubscribe(subj, queue string, cb nats.MsgHandler) (*nats.Subscription, error)
 	Publish(subj string, data []byte) error
+	Status() nats.Status
 	Drain() error
 }
 
@@ -65,6 +66,10 @@ func New(nc NatsConnection, opts ...Option) *Client {
 	}
 
 	return m
+}
+
+func (c Client) Status() nats.Status {
+	return c.nc.Status()
 }
 
 func (c Client) Shutdown() {

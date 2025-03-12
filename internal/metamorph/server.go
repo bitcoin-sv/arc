@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitcoin-sv/go-sdk/util"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -23,6 +24,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
@@ -54,6 +56,7 @@ type Server struct {
 	grpc_utils.GrpcServer
 
 	logger              *slog.Logger
+	mq                  mq.MessageQueueClient
 	processor           ProcessorI
 	store               store.MetamorphStore
 	checkStatusInterval time.Duration
@@ -84,7 +87,7 @@ func WithServerTracer(attr ...attribute.KeyValue) func(s *Server) {
 type ServerOption func(s *Server)
 
 // NewServer will return a server instance with the zmqLogger stored within it
-func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.MetamorphStore, processor ProcessorI, mq mq.MessageQueueClient, cfg grpc_utils.ServerConfig, opts ...ServerOption) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	s := &Server{
@@ -92,6 +95,7 @@ func NewServer(logger *slog.Logger, store store.MetamorphStore, processor Proces
 		processor:           processor,
 		store:               store,
 		checkStatusInterval: checkStatusIntervalDefault,
+		mq:                  mq,
 	}
 
 	for _, opt := range opts {
@@ -134,7 +138,13 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		}
 	}
 
+	status := nats.DISCONNECTED.String()
+	if s.mq != nil {
+		status = s.mq.Status().String()
+	}
+
 	return &metamorph_api.HealthResponse{
+		Nats:              status,
 		Timestamp:         timestamppb.New(time.Now()),
 		MapSize:           int32(processorMapSize),
 		PeersConnected:    strings.Join(peersConnected, ","),

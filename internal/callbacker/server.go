@@ -13,6 +13,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/bitcoin-sv/arc/internal/mq"
+	"github.com/nats-io/nats.go"
 )
 
 type Server struct {
@@ -20,11 +22,12 @@ type Server struct {
 	grpc_utils.GrpcServer
 	dispatcher Dispatcher
 	store      store.CallbackStore
+	mqClient   mq.MessageQueueClient
 	logger     *slog.Logger
 }
 
 // NewServer will return a server instance
-func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, cfg grpc_utils.ServerConfig) (*Server, error) {
+func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store.CallbackStore, mqClient mq.MessageQueueClient, cfg grpc_utils.ServerConfig) (*Server, error) {
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
 	if err != nil {
 		return nil, err
@@ -35,6 +38,7 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 		dispatcher: dispatcher,
 		store:      callbackerStore,
 		logger:     logger,
+		mqClient:   mqClient,
 	}
 	// register health server endpoint
 	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
@@ -46,7 +50,12 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {
+	status := nats.DISCONNECTED.String()
+	if s.mqClient != nil {
+		status = s.mqClient.Status().String()
+	}
 	return &callbacker_api.HealthResponse{
+		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

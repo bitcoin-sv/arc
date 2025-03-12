@@ -30,6 +30,7 @@ message HealthResponse {
   bool ok = 1;
   string details = 2;
   google.protobuf.Timestamp timestamp = 3;
+  string nats = 4;
 }
 
 // Statuses have a difference between them in case

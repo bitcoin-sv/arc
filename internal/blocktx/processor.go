@@ -38,6 +38,7 @@ var (
 	ErrUnexpectedBlockStatus               = errors.New("unexpected block status")
 	ErrFailedToProcessBlock                = errors.New("failed to process block")
 	ErrFailedToCalculateMissingMerklePaths = errors.New("failed to calculate missing merkle paths")
+	ErrFailedToUnmarshalMessage            = errors.New("failed to unmarshal message")
 )
 
 const (
@@ -131,7 +132,7 @@ func (p *Processor) Start() error {
 		serialized := &blocktx_api.Transactions{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
 		}
 
 		for _, tx := range serialized.Transactions {

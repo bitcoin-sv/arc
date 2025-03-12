@@ -75,9 +75,9 @@ func WithFullstatusUpdates(fullStatusUpdates bool) func(broadcaster *Broadcaster
 	}
 }
 
-func WithFees(miningFeeSatPerKb int) func(broadcaster *Broadcaster) {
+func WithFees(miningFeeSatPerKb uint64) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
-		broadcaster.feeModel = feemodel.SatoshisPerKilobyte{Satoshis: uint64(miningFeeSatPerKb)}
+		broadcaster.feeModel = feemodel.SatoshisPerKilobyte{Satoshis: miningFeeSatPerKb}
 	}
 }
 

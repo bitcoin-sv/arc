@@ -11,7 +11,9 @@ import (
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -831,20 +833,37 @@ func TestStart(t *testing.T) {
 
 			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},
+		{
+			name:     "error - subscribe mined txs",
+			topicErr: map[string]error{mq.RegisterTxsTopic: errors.New("failed to subscribe")},
+
+			expectedError: blocktx.ErrFailedToSubscribeToTopic,
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			var registerTxFunc func(msg []byte) error
+			var registerTxsFunc func(msg []byte) error
+
 			// given
 			mqClient := &mqMocks.MessageQueueClientMock{
-				QueueSubscribeFunc: func(topic string, _ func([]byte) error) error {
+				QueueSubscribeFunc: func(topic string, subscribeFunc func([]byte) error) error {
 					err, ok := tc.topicErr[topic]
 					if ok {
 						return err
 					}
+					switch topic {
+					case mq.RegisterTxTopic:
+						registerTxFunc = subscribeFunc
+					case mq.RegisterTxsTopic:
+						registerTxsFunc = subscribeFunc
+					}
 					return nil
 				},
 			}
+
+			registerTxsChan := make(chan []byte, 10)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			sut, err := blocktx.NewProcessor(logger,
@@ -852,20 +871,35 @@ func TestStart(t *testing.T) {
 				nil,
 				nil,
 				blocktx.WithMessageQueueClient(mqClient),
+				blocktx.WithRegisterTxsChan(registerTxsChan),
 			)
 			require.NoError(t, err)
 
 			// when
 			err = sut.Start()
-
 			// then
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
-			time.Sleep(100 * time.Millisecond)
 
+			err = registerTxFunc([]byte("some message"))
+			assert.ErrorIs(t, err, tc.expectedError)
+
+			msg := &blocktx_api.Transactions{
+				Transactions: []*blocktx_api.Transaction{{Hash: []byte("some hash")}},
+			}
+			data, err := proto.Marshal(msg)
+			require.NoError(t, err)
+
+			err = registerTxsFunc(data)
+			require.NoError(t, err)
+
+			err = registerTxsFunc([]byte("some message"))
+			assert.ErrorIs(t, err, blocktx.ErrFailedToUnmarshalMessage)
+
+			time.Sleep(100 * time.Millisecond)
 			// cleanup
 			sut.Shutdown()
 		})

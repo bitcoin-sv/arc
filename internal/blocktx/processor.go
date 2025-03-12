@@ -30,15 +30,12 @@ import (
 
 var (
 	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
-	ErrFailedToGetStringFromBump           = errors.New("failed to get string from bump for tx hash")
-	ErrFailedToGetBump                     = errors.New("failed to get bump for tx hash")
 	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
 	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")
 	ErrBlockAlreadyExists                  = errors.New("block already exists in the database")
 	ErrUnexpectedBlockStatus               = errors.New("unexpected block status")
 	ErrFailedToProcessBlock                = errors.New("failed to process block")
-	ErrFailedToStartCollectingStats        = errors.New("failed to start collecting stats")
 	ErrFailedToCalculateMissingMerklePaths = errors.New("failed to calculate missing merkle paths")
 )
 
@@ -69,10 +66,9 @@ type Processor struct {
 	registerTxsBatchSize        int
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
-	stats                       *processorStats
-	statCollectionInterval      time.Duration
-	incomingIsLongest           bool
-	publishMinedMessageSize     int
+
+	incomingIsLongest       bool
+	publishMinedMessageSize int
 
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
@@ -105,8 +101,6 @@ func NewProcessor(
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
 		maxBlockProcessingDuration:  waitForBlockProcessing,
 		hostname:                    hostname,
-		stats:                       newProcessorStats(),
-		statCollectionInterval:      statCollectionIntervalDefault,
 		publishMinedMessageSize:     publishMinedMessageSizeDefault,
 		now:                         time.Now,
 		waitGroup:                   &sync.WaitGroup{},
@@ -123,7 +117,7 @@ func NewProcessor(
 	return p, nil
 }
 
-func (p *Processor) Start(statsEnabled bool) error {
+func (p *Processor) Start() error {
 	err := p.mqClient.Subscribe(mq.RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
@@ -132,12 +126,6 @@ func (p *Processor) Start(statsEnabled bool) error {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
 	}
 
-	if statsEnabled {
-		err = p.StartCollectStats()
-		if err != nil {
-			return errors.Join(ErrFailedToStartCollectingStats, err)
-		}
-	}
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()

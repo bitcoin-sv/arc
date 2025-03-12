@@ -845,12 +845,18 @@ func TestStart(t *testing.T) {
 					return nil
 				},
 			}
+
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut, err := blocktx.NewProcessor(logger, nil, nil, nil, blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger,
+				nil,
+				nil,
+				nil,
+				blocktx.WithMessageQueueClient(mqClient),
+			)
 			require.NoError(t, err)
 
 			// when
-			err = sut.Start(false)
+			err = sut.Start()
 
 			// then
 			if tc.expectedError != nil {
@@ -858,6 +864,7 @@ func TestStart(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			time.Sleep(100 * time.Millisecond)
 
 			// cleanup
 			sut.Shutdown()

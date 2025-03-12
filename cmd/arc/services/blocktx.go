@@ -38,15 +38,16 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	btxConfig := arcConfig.Blocktx
 
 	var (
-		blockStore    store.BlocktxStore
-		mqClient      mq.MessageQueueClient
-		processor     *blocktx.Processor
-		pm            *p2p.PeerManager
-		mcastListener *mcast.Listener
-		server        *blocktx.Server
-		healthServer  *grpc_utils.GrpcServer
-		workers       *blocktx.BackgroundWorkers
-		err           error
+		blockStore     store.BlocktxStore
+		mqClient       mq.MessageQueueClient
+		processor      *blocktx.Processor
+		pm             *p2p.PeerManager
+		mcastListener  *mcast.Listener
+		server         *blocktx.Server
+		healthServer   *grpc_utils.GrpcServer
+		workers        *blocktx.BackgroundWorkers
+		statsCollector *blocktx.StatsCollector
+		err            error
 	)
 
 	shutdownFns := make([]func(), 0)
@@ -72,7 +73,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mcastListener, mqClient, blockStore, healthServer, workers, shutdownFns)
+		disposeBlockTx(logger, server, processor, pm, mcastListener, mqClient, blockStore, healthServer, workers, shutdownFns, statsCollector)
 		logger.Info("Shutdown blocktx complete")
 	}
 
@@ -112,10 +113,19 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, err
 	}
 
-	err = processor.Start(arcConfig.Prometheus.IsEnabled())
+	err = processor.Start()
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
+	}
+
+	if arcConfig.Prometheus.IsEnabled() {
+		statsCollector = blocktx.NewStatsCollector(logger, blockStore)
+		err = statsCollector.Start()
+		if err != nil {
+			stopFn()
+			return nil, fmt.Errorf("failed to start stats collector: %v", err)
+		}
 	}
 
 	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
@@ -330,6 +340,7 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient mq.MessageQueueClient,
 	store store.BlocktxStore, healthServer *grpc_utils.GrpcServer, workers *blocktx.BackgroundWorkers,
 	shutdownFns []func(),
+	statsCollector *blocktx.StatsCollector,
 ) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new requests will be received
@@ -369,6 +380,10 @@ func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.P
 
 	if healthServer != nil {
 		healthServer.GracefulStop()
+	}
+
+	if statsCollector != nil {
+		statsCollector.Shutdown()
 	}
 
 	for _, shutdownFn := range shutdownFns {

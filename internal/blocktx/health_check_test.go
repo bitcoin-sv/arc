@@ -10,20 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/bitcoin-sv/arc/internal/grpc_utils"
-	"github.com/bitcoin-sv/arc/internal/p2p"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	mq_mock "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
 
 func TestCheck(t *testing.T) {
 	tt := []struct {
-		name    string
-		service string
-		pingErr error
+		name           string
+		service        string
+		pingErr        error
+		connectedPeers uint
+		natsConnected  bool
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
@@ -35,9 +36,10 @@ func TestCheck(t *testing.T) {
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 		{
-			name:    "readiness - peer not found",
-			service: "readiness",
-			pingErr: nil,
+			name:           "readiness - peer not found",
+			service:        "readiness",
+			pingErr:        nil,
+			connectedPeers: 0,
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 		},
@@ -47,6 +49,21 @@ func TestCheck(t *testing.T) {
 			pingErr: errors.New("not connected"),
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
+		{
+			name:           "readiness - nats not connected",
+			service:        "readiness",
+			connectedPeers: 5,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
+		{
+			name:           "readiness - serving",
+			service:        "readiness",
+			connectedPeers: 5,
+			natsConnected:  true,
+
+			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 	}
 
@@ -67,9 +84,19 @@ func TestCheck(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			pm := &p2p.PeerManager{}
+			pm := &mocks.PeerManagerMock{
+				CountConnectedPeersFunc: func() uint {
+					return tc.connectedPeers
+				},
+			}
 			serverCfg := grpc_utils.ServerConfig{}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
+
+			mqClient := &mq_mock.MessageQueueClientMock{
+				IsConnectedFunc: func() bool {
+					return tc.natsConnected
+				},
+			}
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -132,9 +159,9 @@ func TestWatch(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			pm := &p2p.PeerManager{}
 			serverCfg := grpc_utils.ServerConfig{}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0)
+			pm := &mocks.PeerManagerMock{CountConnectedPeersFunc: func() uint { return 0 }}
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

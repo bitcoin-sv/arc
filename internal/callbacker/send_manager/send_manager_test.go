@@ -13,7 +13,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
-	mocks2 "github.com/bitcoin-sv/arc/internal/callbacker/send_manager/mocks"
+	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager/mocks"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
@@ -229,7 +229,7 @@ func TestSendManagerStart(t *testing.T) {
 
 			counter := 0
 			var lastData *callbacker.Callback
-			senderMock := &mocks2.SenderMock{
+			senderMock := &mocks.SenderMock{
 				SendFunc: func(_, _ string, data *callbacker.Callback) (bool, bool) {
 					if lastData != nil {
 						assert.LessOrEqual(t, lastData.Timestamp, data.Timestamp)
@@ -248,7 +248,7 @@ func TestSendManagerStart(t *testing.T) {
 				},
 			}
 
-			storeMock := &mocks2.SendManagerStoreMock{
+			storeMock := &mocks.SendManagerStoreMock{
 				SetManyFunc: func(_ context.Context, data []*store.CallbackData) error {
 					assert.Equal(t, tc.expectedSetMany, len(data))
 

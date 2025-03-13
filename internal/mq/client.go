@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	SubmitTxTopic   = "submit-tx"
-	MinedTxsTopic   = "mined-txs"
-	RegisterTxTopic = "register-tx"
-	CallbackTopic   = "callback"
+	SubmitTxTopic    = "submit-tx"
+	MinedTxsTopic    = "mined-txs"
+	RegisterTxTopic  = "register-tx"
+	RegisterTxsTopic = "register-txs"
+	CallbackTopic    = "callback"
 )
 
 type MessageQueueClient interface {
@@ -27,7 +28,8 @@ type MessageQueueClient interface {
 	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
 	Subscribe(topic string, msgFunc func([]byte) error) error
 	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
-	Status() nats.Status
+	Status() string
+	IsConnected() bool
 	Shutdown()
 }
 

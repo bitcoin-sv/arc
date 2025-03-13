@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -14,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
-	"github.com/nats-io/nats.go"
 )
 
 type Server struct {
@@ -52,7 +52,7 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {
 	status := nats.DISCONNECTED.String()
 	if s.mqClient != nil {
-		status = s.mqClient.Status().String()
+		status = s.mqClient.Status()
 	}
 	return &callbacker_api.HealthResponse{
 		Nats:      status,

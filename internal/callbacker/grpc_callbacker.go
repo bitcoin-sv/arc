@@ -16,8 +16,8 @@ import (
 var minedDoubleSpendMsg = "previously double spend attempted"
 
 type GrpcCallbacker struct {
-	cc                callbacker_api.CallbackerAPIClient
-	l                 *slog.Logger
+	client            callbacker_api.CallbackerAPIClient
+	logger            *slog.Logger
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -39,8 +39,8 @@ type Option func(s *GrpcCallbacker)
 
 func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logger, opts ...Option) GrpcCallbacker {
 	c := GrpcCallbacker{
-		cc: api,
-		l:  logger,
+		client: api,
+		logger: logger,
 	}
 
 	for _, opt := range opts {
@@ -66,16 +66,16 @@ func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
 		return
 	}
 
-	_, err = c.cc.SendCallback(ctx, in)
+	_, err = c.client.SendCallback(ctx, in)
 	if err != nil {
-		c.l.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
+		c.logger.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
 	}
 }
 
-func toGrpcInput(d *store.Data) *callbacker_api.SendCallbackRequest {
-	routings := make([]*callbacker_api.CallbackRouting, 0, len(d.Callbacks))
+func toGrpcInput(data *store.Data) *callbacker_api.SendCallbackRequest {
+	routings := make([]*callbacker_api.CallbackRouting, 0, len(data.Callbacks))
 
-	for _, c := range d.Callbacks {
+	for _, c := range data.Callbacks {
 		if c.CallbackURL != "" {
 			routings = append(routings, &callbacker_api.CallbackRouting{
 				Url:        c.CallbackURL,
@@ -92,39 +92,39 @@ func toGrpcInput(d *store.Data) *callbacker_api.SendCallbackRequest {
 	in := callbacker_api.SendCallbackRequest{
 		CallbackRoutings: routings,
 
-		Txid:         d.Hash.String(),
-		Status:       callbacker_api.Status(d.Status),
-		MerklePath:   d.MerklePath,
-		ExtraInfo:    getCallbackExtraInfo(d),
-		CompetingTxs: getCallbackCompetitingTxs(d),
+		Txid:         data.Hash.String(),
+		Status:       callbacker_api.Status(data.Status),
+		MerklePath:   data.MerklePath,
+		ExtraInfo:    getCallbackExtraInfo(data),
+		CompetingTxs: getCallbackCompetitingTxs(data),
 
-		BlockHash:   getCallbackBlockHash(d),
-		BlockHeight: d.BlockHeight,
+		BlockHash:   getCallbackBlockHash(data),
+		BlockHeight: data.BlockHeight,
 	}
 
 	return &in
 }
 
-func getCallbackExtraInfo(d *store.Data) string {
-	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
+func getCallbackExtraInfo(data *store.Data) string {
+	if data.Status == metamorph_api.Status_MINED && len(data.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
 
-	return d.RejectReason
+	return data.RejectReason
 }
 
-func getCallbackCompetitingTxs(d *store.Data) []string {
-	if d.Status == metamorph_api.Status_MINED {
+func getCallbackCompetitingTxs(data *store.Data) []string {
+	if data.Status == metamorph_api.Status_MINED {
 		return nil
 	}
 
-	return d.CompetingTxs
+	return data.CompetingTxs
 }
 
-func getCallbackBlockHash(d *store.Data) string {
-	if d.BlockHash == nil {
+func getCallbackBlockHash(data *store.Data) string {
+	if data.BlockHash == nil {
 		return ""
 	}
 
-	return d.BlockHash.String()
+	return data.BlockHash.String()
 }

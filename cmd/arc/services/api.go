@@ -60,13 +60,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		logger.Info("Shutdown complete")
 	}
 
-	opts := []nats_jetstream.Option{
-		nats_jetstream.WithWorkQueuePolicy(mq.SubmitTxTopic),
-	}
-
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, []nats_jetstream.Option{}, connOpts)
 	if err != nil {
 		stopFn()
 		return nil, err

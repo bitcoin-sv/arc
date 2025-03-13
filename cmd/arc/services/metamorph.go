@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 
@@ -106,14 +107,13 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	opts := []nats_jetstream.Option{
-		nats_jetstream.WithSubscribedWorkQueuePolicy(mq.MinedTxsTopic, mq.SubmitTxTopic),
-		nats_jetstream.WithWorkQueuePolicy(mq.RegisterTxTopic),
-		nats_jetstream.WithInterestPolicy(mq.CallbackTopic),
+	var mqOpts []nats_jetstream.Option
+	if arcConfig.MessageQueue.Initialize {
+		mqOpts = getMtmMqOpts()
 	}
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
 	}
 
-	callbacker := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
+	callbackSender := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
 	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
@@ -143,7 +143,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithProcessStatusUpdatesInterval(mtmConfig.ProcessStatusUpdateInterval),
-		metamorph.WithCallbackSender(callbacker),
+		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
@@ -213,6 +213,17 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 
 	return stopFn, nil
+}
+
+func getMtmMqOpts() []nats_jetstream.Option {
+	submitStreamName := fmt.Sprintf("%s-stream", mq.SubmitTxTopic)
+	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
+
+	mqOpts := []nats_jetstream.Option{
+		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false),
+		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy),
+	}
+	return mqOpts
 }
 
 func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.MetamorphStore, err error) {

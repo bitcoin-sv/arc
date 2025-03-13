@@ -283,7 +283,7 @@ func TestProcessTransaction(t *testing.T) {
 			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -323,7 +323,7 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
 			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
-			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
 		})
 	}
 }
@@ -845,7 +845,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -1174,13 +1174,17 @@ func TestStart(t *testing.T) {
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mqMocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-					switch topic {
-					case mq.MinedTxsTopic:
-						subscribeMinedTxsFunction = msgFunc
-					case mq.SubmitTxTopic:
-						subscribeSubmitTxsFunction = msgFunc
+				ConsumeFunc: func(topic string, msgFunc func([]byte) error) error {
+					subscribeSubmitTxsFunction = msgFunc
+
+					err, ok := tc.topicErr[topic]
+					if ok {
+						return err
 					}
+					return nil
+				},
+				QueueSubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+					subscribeMinedTxsFunction = msgFunc
 
 					err, ok := tc.topicErr[topic]
 					if ok {

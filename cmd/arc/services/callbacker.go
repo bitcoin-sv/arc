@@ -85,18 +85,18 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
-	}
-
-	mqOpts := getCbkMqOpts(hostname)
+	mqOpts := getCbkMqOpts()
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
 	if err != nil {
 		return nil, err
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to get hostname: %v", err)
 	}
 
 	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
@@ -137,13 +137,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	return stopFn, nil
 }
 
-func getCbkMqOpts(hostname string) []nats_jetstream.Option {
+func getCbkMqOpts() []nats_jetstream.Option {
 	streamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
-	consName := fmt.Sprintf("%s-%s-cons", hostname, mq.CallbackTopic)
+	consName := fmt.Sprintf("%s-cons", mq.CallbackTopic)
 
 	mqOpts := []nats_jetstream.Option{
 		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.InterestPolicy, false),
-		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, false, jetstream.AckExplicitPolicy),
+		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, true, jetstream.AckExplicitPolicy),
 	}
 	return mqOpts
 }

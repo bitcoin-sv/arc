@@ -735,8 +735,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			select {
-			case <-time.NewTimer(3 * time.Second).C:
-				t.Fatal("submitted txs have not been stored within 3s")
+			case <-time.NewTimer(1 * time.Second).C:
+				t.Fatal("submitted txs have not been stored within 2s")
 			case <-stopCh:
 			}
 
@@ -1039,7 +1039,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+				metamorph.WithProcessSeenOnNetworkTxsInterval(100*time.Millisecond),
 			)
 			require.NoError(t, err)
 

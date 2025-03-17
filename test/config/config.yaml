@@ -12,6 +12,7 @@ messageQueue:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
+  initialize: true
 tracing:
   enabled: false
   sample: 100
@@ -59,21 +60,21 @@ metamorph:
     notSeenTimeLimit: 10m
     notFinalTimeLimit: 20m
   bcnet:
-    mode: classic 
-    network: regtest 
-    peers: 
+    mode: classic
+    network: regtest
+    peers:
     - host: node1
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node2
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node3
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
 
 blocktx:
   listenAddr: 0.0.0.0:8011

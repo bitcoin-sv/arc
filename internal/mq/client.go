@@ -24,26 +24,30 @@ const (
 
 type MessageQueueClient interface {
 	Publish(ctx context.Context, topic string, data []byte) error
+	PublishCore(topic string, data []byte) (err error)
+	PublishAsync(topic string, hash []byte) (err error)
 	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
-	Subscribe(topic string, msgFunc func([]byte) error) error
-	SubscribeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+	PublishMarshalCore(topic string, m proto.Message) (err error)
+	PublishMarshalAsync(topic string, m proto.Message) error
+
+	Consume(topic string, msgFunc func([]byte) error) error
+	ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+	QueueSubscribe(topic string, msgFunc func([]byte) error) error
+
 	Status() nats.Status
 	Shutdown()
 }
 
-func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingCfg *config.TracingConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
 
 	logger = logger.With("module", "message-queue")
 
-	clientClosedCh := make(chan struct{}, 1)
-
 	var conn *nats.Conn
 	var err error
 
-	connOpts = append(connOpts, nats_connection.WithClientClosedChannel(clientClosedCh))
 	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", mqCfg.URL, err)
@@ -53,10 +57,6 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, tracingC
 	}
 	if mqCfg.Streaming.FileStorage {
 		jsOpts = append(jsOpts, nats_jetstream.WithFileStorage())
-	}
-
-	if tracingCfg != nil && tracingCfg.Enabled {
-		jsOpts = append(jsOpts, nats_jetstream.WithTracer(tracingCfg.KeyValueAttributes...))
 	}
 
 	var mqClient *nats_jetstream.Client

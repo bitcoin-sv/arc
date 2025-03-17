@@ -199,7 +199,7 @@ func TestProcessorStart(t *testing.T) {
 
 			var handleMsgFunction func(msg jetstream.Msg) error
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeMsgFunc: func(_ string, msgFunc func(msg jetstream.Msg) error) error {
+				ConsumeMsgFunc: func(_ string, msgFunc func(msg jetstream.Msg) error) error {
 					handleMsgFunction = msgFunc
 					return nil
 				},
@@ -314,7 +314,7 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {}}
 
 			mqClient := &mocks.MessageQueueClientMock{
-				SubscribeMsgFunc: func(_ string, _ func(_ jetstream.Msg) error) error {
+				ConsumeMsgFunc: func(_ string, _ func(_ jetstream.Msg) error) error {
 					return nil
 				},
 				ShutdownFunc: func() {},

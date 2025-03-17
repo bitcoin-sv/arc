@@ -128,7 +128,7 @@ func (p *Processor) Start() error {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
 	}
 
-	err = p.mqClient.Subscribe(mq.RegisterTxsTopic, func(msg []byte) error {
+	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.Transactions{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {

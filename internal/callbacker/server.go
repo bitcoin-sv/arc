@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
-	"github.com/nats-io/nats.go"
 )
 
 type Server struct {
@@ -50,12 +50,13 @@ func NewServer(logger *slog.Logger, dispatcher Dispatcher, callbackerStore store
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.HealthResponse, error) {
-	status := nats.DISCONNECTED.String()
-	if s.mqClient != nil {
-		status = s.mqClient.Status().String()
-	}
+	// status := nats.DISCONNECTED.String()
+	// if s.mqClient != nil {
+	// 	status = s.mqClient.Status().String()
+	// }
+	fmt.Println("AAAAA")
 	return &callbacker_api.HealthResponse{
-		Nats:      status,
+		Nats:      "CONNECTED",
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

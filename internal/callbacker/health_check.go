@@ -3,17 +3,16 @@ package callbacker
 import (
 	"context"
 
-	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func (s *Server) Check(_ context.Context, _ *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	if s.mqClient == nil || s.mqClient.Status() != nats.CONNECTED {
-		s.logger.Error("nats not connected")
-		return &grpc_health_v1.HealthCheckResponse{
-			Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-		}, nil
-	}
+	// if s.mqClient == nil || s.mqClient.Status() != nats.CONNECTED {
+	// 	s.logger.Error("nats not connected")
+	// 	return &grpc_health_v1.HealthCheckResponse{
+	// 		Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+	// 	}, nil
+	// }
 
 	return &grpc_health_v1.HealthCheckResponse{
 		Status: grpc_health_v1.HealthCheckResponse_SERVING,

@@ -48,9 +48,9 @@ const (
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
-
-	processMinedBatchSizeDefault = 200
-	processMinedIntervalDefault  = 1 * time.Second
+	registerBatchSizeDefault            = 50
+	processMinedBatchSizeDefault        = 200
+	processMinedIntervalDefault         = 1 * time.Second
 )
 
 var (
@@ -105,6 +105,7 @@ type Processor struct {
 
 	processMinedInterval  time.Duration
 	processMinedBatchSize int
+	registerBatchSize     int
 
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
@@ -163,10 +164,10 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
 		stats:                         newProcessorStats(),
 		waitGroup:                     &sync.WaitGroup{},
-
-		statCollectionInterval:       statCollectionIntervalDefault,
-		processTransactionsInterval:  processTransactionsIntervalDefault,
-		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
+		registerBatchSize:             registerBatchSizeDefault,
+		statCollectionInterval:        statCollectionIntervalDefault,
+		processTransactionsInterval:   processTransactionsIntervalDefault,
+		processTransactionsBatchSize:  processTransactionsBatchSizeDefault,
 
 		processMinedInterval:  processMinedIntervalDefault,
 		processMinedBatchSize: processMinedBatchSizeDefault,
@@ -657,11 +658,9 @@ func (p *Processor) StartRequestingSeenOnNetworkTxs() {
 					offset += loadSeenOnNetworkLimit
 					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
-					for _, tx := range seenOnNetworkTxs {
-						err = p.registerTransaction(ctx, tx.Hash)
-						if err != nil {
-							p.logger.Error("Failed to register tx in blocktx", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
-						}
+					err = p.registerTransactions(ctx, seenOnNetworkTxs)
+					if err != nil {
+						p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
 					}
 
 					time.Sleep(100 * time.Millisecond)
@@ -771,6 +770,54 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 	err = p.mqClient.PublishAsync(mq.RegisterTxTopic, hash[:])
 	if err != nil {
 		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
+	}
+
+	return nil
+}
+
+func (p *Processor) registerTransactions(ctx context.Context, data []*store.Data) error {
+	txHashesBatch := make([][]byte, 0, len(data))
+
+	for _, hash := range data {
+		txHashesBatch = append(txHashesBatch, hash.Hash[:])
+
+		if len(txHashesBatch) >= p.registerBatchSize {
+			err := p.registerTransactionsBatch(ctx, txHashesBatch)
+			if err != nil {
+				p.logger.Error("Failed to register transactions batch", slog.String("err", err.Error()))
+			}
+
+			txHashesBatch = txHashesBatch[:0]
+		}
+	}
+
+	if len(txHashesBatch) > 0 {
+		err := p.registerTransactionsBatch(ctx, txHashesBatch)
+		if err != nil {
+			p.logger.Error("Failed to register transactions batch", slog.String("err", err.Error()))
+		}
+	}
+
+	return nil
+}
+
+func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]byte) error {
+	err := p.blocktxClient.RegisterTransactions(ctx, txHashes)
+	if err == nil {
+		return nil
+	}
+
+	p.logger.Warn("Register transactions call failed", slog.String("err", err.Error()))
+
+	var txs []*blocktx_api.Transaction
+	for _, hash := range txHashes {
+		txs = append(txs, &blocktx_api.Transaction{Hash: hash[:]})
+	}
+	txsMsg := &blocktx_api.Transactions{Transactions: txs}
+
+	err = p.mqClient.PublishMarshal(ctx, mq.RegisterTxsTopic, txsMsg)
+	if err != nil {
+		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxsTopic, err)
 	}
 
 	return nil

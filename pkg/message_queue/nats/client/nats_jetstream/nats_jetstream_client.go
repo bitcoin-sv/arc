@@ -138,8 +138,12 @@ func New(nc *nats.Conn, logger *slog.Logger, opts ...Option) (*Client, error) {
 	return p, nil
 }
 
-func (cl *Client) Status() nats.Status {
-	return cl.nc.Status()
+func (cl *Client) Status() string {
+	return cl.nc.Status().String()
+}
+
+func (cl *Client) IsConnected() bool {
+	return cl.nc.IsConnected()
 }
 
 func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {

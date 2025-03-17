@@ -13,7 +13,7 @@ func getDefaultArcConfig() *ArcConfig {
 		ProfilerAddr:    "", // optional
 		Prometheus:      getDefaultPrometheusConfig(),
 		GrpcMessageSize: 100000000,
-		Network:         "regtest",
+		Network:         "testnet",
 		MessageQueue:    getDefaultMessageQueueConfig(),
 		Tracing:         getDefaultTracingConfig(),
 		PeerRPC:         getDefaultPeerRPCConfig(),
@@ -36,7 +36,7 @@ func getDefaultPrometheusConfig() *PrometheusConfig {
 
 func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
-		URL: "nats://nats:4222",
+		URL: "nats://localhost:4222",
 		Streaming: MessageQueueStreaming{
 			Enabled:     true,
 			FileStorage: false,
@@ -78,7 +78,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		},
 		BlockchainNetwork: &BlockchainNetwork[*MetamorphGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",
@@ -108,7 +108,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		IncomingIsLongest:             false,
 		BlockchainNetwork: &BlockchainNetwork[*BlocktxGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",

@@ -6,9 +6,9 @@ services:
     ports:
       - "18332:18332"
     expose:
-      - "18332"
-      - "18333"
-      - "28332"
+      - "[::1]:18332:18332"
+      - "[::1]:18333:18333"
+      - "[::1]:28332:28332"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -22,8 +22,8 @@ services:
     container_name: node2
     image: bitcoinsv/bitcoin-sv:1.1.0
     expose:
-      - "18332"
-      - "18333"
+      - "[::1]:18332:18332"
+      - "[::1]:18333:18333"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -37,8 +37,8 @@ services:
     container_name: node3
     image: bitcoinsv/bitcoin-sv:1.1.0
     expose:
-      - "18332"
-      - "18333"
+      - "[::1]:18332:18332"
+      - "[::1]:18333:18333"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -63,7 +63,7 @@ services:
     ports:
       - '5432:5432'
     expose:
-      - "5432"
+      - "[::1]:5432:5432"
     networks:
       - multicast_bridge
  
@@ -198,7 +198,7 @@ services:
   blocktx:
     build: ./
     expose:
-      - "8011"
+      - "[::1]:8011:8011"
     volumes:
       - ./test/config/config_mcast.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
@@ -219,7 +219,7 @@ services:
         condition: service_completed_successfully
       
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -229,7 +229,7 @@ services:
   callbacker:
     build: ./
     expose:
-      - "8021"
+      - "[::1]:8021:8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -243,7 +243,7 @@ services:
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8022", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -253,7 +253,7 @@ services:
   metamorph:
     build: ./
     expose:
-      - "8001"
+      - "[::1]:8001:8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -269,7 +269,7 @@ services:
       migrate-metamorph:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -284,8 +284,8 @@ services:
       - "9999:9999"
       - "2112:2112"
     expose:
-      - "9090"
-      - "2112"
+      - "[::1]:9090:9090"
+      - "[::1]:2112:2112"
     command: [ "./arc", "-api=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED

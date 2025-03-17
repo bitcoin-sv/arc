@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	cacheMocks "github.com/bitcoin-sv/arc/internal/cache/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
@@ -44,12 +46,12 @@ func TestNewProcessor(t *testing.T) {
 	}
 
 	nMessenger := &bcnet.Mediator{}
-	cStore := cache.NewMemoryStore()
+	cStore := &cacheMocks.StoreMock{}
 
 	tt := []struct {
 		name      string
 		store     store.MetamorphStore
-		messenger *bcnet.Mediator
+		messenger metamorph.Mediator
 
 		expectedError           error
 		expectedNonNilProcessor bool
@@ -132,7 +134,7 @@ func TestStartLockTransactions(t *testing.T) {
 			}
 
 			messenger := &bcnet.Mediator{}
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{}
 
 			// when
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil, metamorph.WithLockTxsInterval(20*time.Millisecond))
@@ -266,7 +268,11 @@ func TestProcessTransaction(t *testing.T) {
 				ConnectedFunc: func() bool { return true },
 			}
 
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{
+				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
+					return nil
+				},
+			}
 
 			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
 			err := pm.AddPeer(peer)
@@ -616,9 +622,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		name   string
 		txReqs []*metamorph_api.PostTransactionRequest
 
-		expectedSetBulkCalls int
-		expectedInvMessages  int
-		expcetedInvInMessage int
+		expectedSetBulkCalls  int
+		expectedAnnounceCalls int
+		expcetedUpdates       int
 	}{
 		{
 			name: "2 submitted txs",
@@ -637,9 +643,9 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 			},
 
-			expectedSetBulkCalls: 1,
-			expectedInvMessages:  1,
-			expcetedInvInMessage: 2,
+			expectedSetBulkCalls:  1,
+			expectedAnnounceCalls: 2,
+			expcetedUpdates:       2,
 		},
 		{
 			name: "5 submitted txs",
@@ -676,76 +682,43 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 				},
 			},
 
-			expectedSetBulkCalls: 2,
-			expectedInvMessages:  1,
-			expcetedInvInMessage: 5,
+			expectedSetBulkCalls:  2,
+			expectedAnnounceCalls: 5,
+			expcetedUpdates:       5,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			wg := &sync.WaitGroup{}
-
-			updateBulkCounter := 0
 			s := &storeMocks.MetamorphStoreMock{
 				SetBulkFunc: func(_ context.Context, _ []*store.Data) error {
 					return nil
 				},
-				UpdateStatusBulkFunc: func(_ context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-					for _, u := range updates {
-						require.Equal(t, metamorph_api.Status_ANNOUNCED_TO_NETWORK, u.Status)
-					}
-					updateBulkCounter++
-
-					if updateBulkCounter >= tc.expectedSetBulkCalls {
-						wg.Done()
-					}
-					return nil, nil
-				},
-				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
-					return nil, nil
-				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-
+			stopCh := make(chan struct{}, 5)
 			announceMsgCounter := &atomic.Int32{}
-			peer := &p2pMocks.PeerIMock{
-				WriteMsgFunc: func(msg wire.Message) {
-					if msg.Command() == wire.CmdInv {
-						announceMsgCounter.Add(1)
-
-						invMsg, ok := msg.(*wire.MsgInv)
-						require.True(t, ok)
-						require.Equal(t, tc.expcetedInvInMessage, len(invMsg.InvList))
-					}
-				},
-				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-				StringFunc:    func() string { return "peer" },
-				ConnectedFunc: func() bool { return true },
-			}
-
-			cStore := cache.NewMemoryStore()
-
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			err := pm.AddPeer(peer)
-			require.NoError(t, err)
-
-			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
-
-			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
-
-			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+			cStore := &cacheMocks.StoreMock{
+				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
 					return nil
 				},
 			}
+			messenger := &mocks.MediatorMock{
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {
+					announceMsgCounter.Add(1)
+					if announceMsgCounter.Load() >= int32(tc.expectedAnnounceCalls) {
+						stopCh <- struct{}{}
+					}
+				},
+			}
+
+			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+
 			const submittedTxsBuffer = 5
 			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, submittedTxsBuffer)
 			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil,
-				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
-				metamorph.WithProcessStatusUpdatesInterval(20*time.Millisecond),
 				metamorph.WithProcessTransactionsInterval(20*time.Millisecond),
 				metamorph.WithProcessTransactionsBatchSize(4),
 				metamorph.WithBlocktxClient(blocktxClient),
@@ -755,29 +728,21 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 
 			// when
 			sut.StartProcessSubmittedTxs()
-			sut.StartProcessStatusUpdatesInStorage()
 			defer sut.Shutdown()
-			wg.Add(1)
 
 			for _, req := range tc.txReqs {
 				submittedTxsChan <- req
 			}
 
-			c := make(chan struct{})
-			go func() {
-				wg.Wait()
-				c <- struct{}{}
-			}()
-
 			select {
 			case <-time.NewTimer(1 * time.Second).C:
 				t.Fatal("submitted txs have not been stored within 2s")
-			case <-c:
+			case <-stopCh:
 			}
-			time.Sleep(250 * time.Millisecond)
+
 			// then
-			require.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
-			require.Equal(t, tc.expectedInvMessages, int(announceMsgCounter.Load()))
+			assert.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
+			assert.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
 		})
 	}
 }
@@ -867,7 +832,11 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				ConnectedFunc: func() bool { return true },
 			}
 
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{
+				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
+					return nil
+				},
+			}
 
 			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
 			err := pm.AddPeer(peer)
@@ -969,7 +938,11 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 			}
 
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{
+				DelFunc: func(_ ...string) error {
+					return nil
+				},
+			}
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
@@ -1059,7 +1032,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil },
 			}
 
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{}
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
@@ -1138,7 +1111,7 @@ func TestProcessorHealth(t *testing.T) {
 				}
 				require.NoError(t, pm.AddPeer(&peer))
 			}
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{}
 
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
@@ -1196,7 +1169,7 @@ func TestStart(t *testing.T) {
 
 			pm := &bcnet.Mediator{}
 
-			cStore := cache.NewMemoryStore()
+			cStore := &cacheMocks.StoreMock{}
 
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error

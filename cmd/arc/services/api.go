@@ -68,6 +68,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, arcConfig.Tracing, opts, connOpts)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
@@ -75,10 +76,22 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		metamorph.WithMqClient(mqClient),
 		metamorph.WithLogger(logger),
 	}
+
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 		apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime),
 	}
+
+	if arcConfig.Prometheus.IsEnabled() {
+		handlerStats, err := apiHandler.NewStats()
+		if err != nil {
+			stopFn()
+			return nil, err
+		}
+
+		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
+	}
+
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)

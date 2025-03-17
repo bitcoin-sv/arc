@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/nats-io/nats.go"
 )
 
 // Server type carries the logger within it.
@@ -45,6 +47,9 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 	}
 
+	// register health server endpoint
+	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
+
 	blocktx_api.RegisterBlockTxAPIServer(s.GrpcServer.Srv, s)
 	reflection.Register(s.GrpcServer.Srv)
 
@@ -52,8 +57,14 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
+	status := nats.DISCONNECTED.String()
+	if s.processor.mqClient != nil {
+		status = s.processor.mqClient.Status().String()
+	}
+
 	return &blocktx_api.HealthResponse{
-		Ok:        true,
+		Ok:        status == "CONNECTED",
+		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

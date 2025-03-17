@@ -8,6 +8,7 @@ package metamorph
 
 // from processor.go
 //go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
+//go:generate moq -pkg mocks -out ./mocks/mediator_mock.go . Mediator
 
 // from zmq.go
 //go:generate moq -pkg mocks -out ./mocks/zmq_mock.go . ZMQI

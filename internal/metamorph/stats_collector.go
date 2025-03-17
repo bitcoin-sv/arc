@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,10 +19,8 @@ const (
 var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
 
 type processorStats struct {
-	notSeenLimit  time.Duration
-	notFinalLimit time.Duration
-
-	mu                         sync.RWMutex
+	notSeenLimit               time.Duration
+	notFinalLimit              time.Duration
 	statusStored               prometheus.Gauge
 	statusAnnouncedToNetwork   prometheus.Gauge
 	statusRequestedByNetwork   prometheus.Gauge
@@ -182,7 +179,6 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
-				p.stats.mu.Lock()
 				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
 				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
 				p.stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
@@ -197,7 +193,6 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
 				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))
-				p.stats.mu.Unlock()
 			}
 		}
 	}()

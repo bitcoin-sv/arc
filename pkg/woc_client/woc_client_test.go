@@ -2,7 +2,6 @@ package woc_client
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,9 +99,7 @@ func Test_GetUTXOs(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	require.NoError(t, err)
-	hash, err := chainhash.NewHash(txIDbytes)
+	hash, err := chainhash.NewHashFromHex("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	require.NoError(t, err)
 
 	tt := []struct {

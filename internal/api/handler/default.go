@@ -56,6 +56,7 @@ type ArcDefaultHandler struct {
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
+	stats                         *Stats
 }
 
 type PostResponse struct {
@@ -66,6 +67,12 @@ type PostResponse struct {
 func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.now = nowFunc
+	}
+}
+
+func WithStats(stats *Stats) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.stats = stats
 	}
 }
 
@@ -154,26 +161,16 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 }
 
 func (m ArcDefaultHandler) GETHealth(ctx echo.Context) (err error) {
-	reqCtx := ctx.Request().Context()
-	reqCtx, span := tracing.StartTracing(reqCtx, "GETHealth", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	err = m.TransactionHandler.Health(reqCtx)
+	var reason *string
+	err = m.TransactionHandler.Health(ctx.Request().Context())
 	if err != nil {
-		reason := err.Error()
-		return ctx.JSON(http.StatusOK, api.Health{
-			Healthy: PtrTo(false),
-			Version: &version.Version,
-			Reason:  &reason,
-		})
+		errMsg := err.Error()
+		reason = &errMsg
 	}
-
 	return ctx.JSON(http.StatusOK, api.Health{
-		Healthy: PtrTo(true),
+		Healthy: PtrTo(err == nil),
 		Version: &version.Version,
-		Reason:  nil,
+		Reason:  reason,
 	})
 }
 
@@ -783,6 +780,10 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 		}
 	}
 
+	if m.stats != nil {
+		m.stats.Add(len(txs))
+	}
+
 	return submitStatuses, nil
 }
 
@@ -856,4 +857,10 @@ func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidati
 	}
 
 	return fv, sv
+}
+
+func (m ArcDefaultHandler) Shutdown() {
+	if m.stats != nil {
+		m.stats.UnregisterStats()
+	}
 }

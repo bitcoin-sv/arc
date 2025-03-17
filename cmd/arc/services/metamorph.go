@@ -174,7 +174,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		Name:               "metamorph",
 	}
 
-	server, err = metamorph.NewServer(logger, metamorphStore, processor, serverCfg, optsServer...)
+	server, err = metamorph.NewServer(logger, metamorphStore, processor, mqClient, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -210,12 +210,6 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 			stopFn()
 			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
 		}
-	}
-
-	healthServer, err = grpc_utils.ServeNewHealthServer(logger, server, mtmConfig.Health.SeverDialAddr)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to start health server: %v", err)
 	}
 
 	return stopFn, nil

@@ -2,7 +2,6 @@ package callbacker
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -55,9 +54,8 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 	if s.mqClient != nil {
 		status = s.mqClient.Status()
 	}
-
-  return &callbacker_api.HealthResponse{
-		Nats:      "CONNECTED",
+	return &callbacker_api.HealthResponse{
+		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

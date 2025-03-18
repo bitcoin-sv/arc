@@ -6,9 +6,9 @@ services:
     ports:
       - "18332:18332"
     expose:
-      - "[::1]:18332:18332"
-      - "[::1]:18333:18333"
-      - "[::1]:28332:28332"
+      - "18332"
+      - "18333"
+      - "28332"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -22,8 +22,8 @@ services:
     container_name: node2
     image: bitcoinsv/bitcoin-sv:1.1.0
     expose:
-      - "[::1]:18332:18332"
-      - "[::1]:18333:18333"
+      - "18332"
+      - "18333"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -37,8 +37,8 @@ services:
     container_name: node3
     image: bitcoinsv/bitcoin-sv:1.1.0
     expose:
-      - "[::1]:18332:18332"
-      - "[::1]:18333:18333"
+      - "18332"
+      - "18333"
     healthcheck:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
@@ -63,7 +63,7 @@ services:
     ports:
       - '5432:5432'
     expose:
-      - "[::1]:5432:5432"
+      - "5432"
     networks:
       - multicast_bridge
  
@@ -198,7 +198,7 @@ services:
   blocktx:
     build: ./
     expose:
-      - "[::1]:8011:8011"
+      - "8011"
     volumes:
       - ./test/config/config_mcast.yaml:/service/config.yaml
     command: [ "./arc", "-blocktx=true", "-config=." ]
@@ -217,7 +217,6 @@ services:
         condition: service_healthy
       migrate-blocktx:
         condition: service_completed_successfully
-      
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
@@ -229,7 +228,7 @@ services:
   callbacker:
     build: ./
     expose:
-      - "[::1]:8021:8021"
+      - "8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -253,7 +252,7 @@ services:
   metamorph:
     build: ./
     expose:
-      - "[::1]:8001:8001"
+      - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -284,8 +283,8 @@ services:
       - "9999:9999"
       - "2112:2112"
     expose:
-      - "[::1]:9090:9090"
-      - "[::1]:2112:2112"
+      - "9090"
+      - "2112"
     command: [ "./arc", "-api=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -296,6 +295,18 @@ services:
         condition: service_healthy
     networks:
       - multicast_bridge
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.35
+    profiles: ["tracing"]
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+
 
   tests:
     build:

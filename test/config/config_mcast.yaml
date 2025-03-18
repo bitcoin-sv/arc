@@ -12,6 +12,7 @@ messageQueue:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
+  initialize: true
 tracing:
   enabled: false
   sample: 100
@@ -31,7 +32,7 @@ cache:
     db: 1
 
 metamorph:
-  listenAddr: "[::]:8001"
+  listenAddr: 0.0.0.0:8001
   dialAddr: metamorph:8001
   db:
     mode: postgres
@@ -45,11 +46,13 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   processorCacheExpiryTime: 24h
+  unseenTransactionRebroadcastingInterval: 60s
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
+  recheckSeen:
+    fromAgo: 24h
+    untilAgo: 1h
   monitorPeers: true
-  checkUtxos: false
-  profilerAddr: "[::]:9992"
   health:
     minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
@@ -79,7 +82,7 @@ metamorph:
         address: "[ff05::2]:9989"
 
 blocktx:
-  listenAddr: "[::]:8011"
+  listenAddr: 0.0.0.0:8011
   dialAddr: blocktx:8011
   db:
     mode: postgres
@@ -157,10 +160,13 @@ api:
     acceptnonstdconsolidationinput: false
 
 callbacker:
-  listenAddr: "[::]:8021"
+  listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
-  health:
-    serverDialAddr: "[::]:8022"
+  pause: 10ms
+  batchSendInterval: 5s
+  pruneOlderThan: 336h
+  pruneInterval: 24h
+  expiration: 24h
   db:
     mode: postgres
     postgres:
@@ -172,6 +178,3 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  failedCallbackCheckInterval: 1m
-  delayDuration: 5s
-  expiration: 24h

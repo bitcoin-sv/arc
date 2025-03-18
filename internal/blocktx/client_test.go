@@ -99,3 +99,41 @@ func TestClient_RegisterTransaction(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_RegisterTransactions(t *testing.T) {
+	tt := []struct {
+		name        string
+		registerErr error
+
+		expectedError error
+	}{
+		{
+			name:        "success",
+			registerErr: nil,
+		},
+		{
+			name:          "err",
+			registerErr:   errors.New("failed to register"),
+			expectedError: blocktx.ErrRegisterTransaction,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			apiClient := &mocks.BlockTxAPIClientMock{
+				RegisterTransactionsFunc: func(_ context.Context, _ *blocktx_api.Transactions, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+					return &emptypb.Empty{}, tc.registerErr
+				},
+			}
+			client := blocktx.NewClient(apiClient)
+
+			err := client.RegisterTransactions(context.Background(), [][]byte{[]byte("hash")})
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}

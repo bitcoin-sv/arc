@@ -74,8 +74,11 @@ func TestCheck(t *testing.T) {
 			}
 
 			mqc := &mq_mock.MessageQueueClientMock{
-				StatusFunc: func() nats.Status {
-					return nats.CONNECTED
+				StatusFunc: func() string {
+					return nats.CONNECTED.String()
+				},
+				IsConnectedFunc: func() bool {
+					return true
 				},
 			}
 
@@ -149,7 +152,13 @@ func TestWatch(t *testing.T) {
 				},
 			}
 
-			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
+			mqc := &mq_mock.MessageQueueClientMock{
+				IsConnectedFunc: func() bool {
+					return true
+				},
+			}
+
+			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, mqc, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

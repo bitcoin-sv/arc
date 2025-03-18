@@ -283,7 +283,7 @@ func TestProcessTransaction(t *testing.T) {
 			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -323,7 +323,7 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
 			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
-			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
 		})
 	}
 }
@@ -845,7 +845,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishFunc: func(_ context.Context, _ string, _ []byte) error {
+				PublishAsyncFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -976,24 +976,36 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 	tt := []struct {
-		name       string
-		getSeenErr error
+		name        string
+		getSeenErr  error
+		registerErr error
 
-		expectedGetSeenCalls  int
-		expectedRegisterCalls int
+		expectedGetSeenCalls         int
+		expectedRegisterCalls        int
+		expectedPublishMarshallCalls int
 	}{
 		{
 			name: "success",
 
-			expectedGetSeenCalls:  5,
-			expectedRegisterCalls: 9,
+			expectedGetSeenCalls:         5,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 0,
 		},
 		{
 			name:       "failed to get seen on network transactions",
 			getSeenErr: errors.New("failed to get seen txs"),
 
-			expectedGetSeenCalls:  1,
-			expectedRegisterCalls: 0,
+			expectedGetSeenCalls:         1,
+			expectedRegisterCalls:        0,
+			expectedPublishMarshallCalls: 0,
+		},
+		{
+			name:        "failed to register transactions",
+			registerErr: errors.New("failed to register txs"),
+
+			expectedGetSeenCalls:         5,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 6,
 		},
 	}
 
@@ -1029,7 +1041,12 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			pm := &bcnet.Mediator{}
 
 			blockTxClient := &btxMocks.ClientMock{
-				RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil },
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
+			}
+			mqClient := &mqMocks.MessageQueueClientMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
 			}
 
 			cStore := &cacheMocks.StoreMock{}
@@ -1039,19 +1056,26 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(100*time.Millisecond),
+				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+				metamorph.WithRegisterBatchSizeDefault(2),
+				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
 			sut.StartRequestingSeenOnNetworkTxs()
 
-			<-stop
+			select {
+			case <-stop:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timed out waiting for processor to stop")
+			}
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
-			require.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
+			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
+			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }
@@ -1174,13 +1198,17 @@ func TestStart(t *testing.T) {
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
 			mqClient := &mqMocks.MessageQueueClientMock{
-				SubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-					switch topic {
-					case mq.MinedTxsTopic:
-						subscribeMinedTxsFunction = msgFunc
-					case mq.SubmitTxTopic:
-						subscribeSubmitTxsFunction = msgFunc
+				ConsumeFunc: func(topic string, msgFunc func([]byte) error) error {
+					subscribeSubmitTxsFunction = msgFunc
+
+					err, ok := tc.topicErr[topic]
+					if ok {
+						return err
 					}
+					return nil
+				},
+				QueueSubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+					subscribeMinedTxsFunction = msgFunc
 
 					err, ok := tc.topicErr[topic]
 					if ok {

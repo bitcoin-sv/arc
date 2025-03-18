@@ -23,6 +23,7 @@ var (
 
 type Client interface {
 	RegisterTransaction(ctx context.Context, hash []byte) error
+	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 }
 
 type MerkleRootVerificationRequest struct {
@@ -59,6 +60,20 @@ func (btc *BtxClient) VerifyMerkleRoots(ctx context.Context, merkleRootVerificat
 
 func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) error {
 	_, err := btc.client.RegisterTransaction(ctx, &blocktx_api.Transaction{Hash: hash})
+	if err != nil {
+		return errors.Join(ErrRegisterTransaction, err)
+	}
+
+	return nil
+}
+
+func (btc *BtxClient) RegisterTransactions(ctx context.Context, hashes [][]byte) error {
+	var txs []*blocktx_api.Transaction
+	for _, hash := range hashes {
+		txs = append(txs, &blocktx_api.Transaction{Hash: hash})
+	}
+
+	_, err := btc.client.RegisterTransactions(ctx, &blocktx_api.Transactions{Transactions: txs})
 	if err != nil {
 		return errors.Join(ErrRegisterTransaction, err)
 	}

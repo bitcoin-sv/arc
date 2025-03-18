@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -13,9 +14,16 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/nats-io/nats.go"
+	"github.com/bitcoin-sv/arc/internal/mq"
 )
+
+type ProcessorI interface {
+	RegisterTransaction(txHash []byte)
+}
+
+type PeerManager interface {
+	CountConnectedPeers() uint
+}
 
 // Server type carries the logger within it.
 type Server struct {
@@ -23,14 +31,15 @@ type Server struct {
 	grpc_utils.GrpcServer
 
 	logger                        *slog.Logger
-	pm                            *p2p.PeerManager
+	pm                            PeerManager
 	store                         store.BlocktxStore
 	maxAllowedBlockHeightMismatch int
-	processor                     *Processor
+	processor                     ProcessorI
+	mqClient                      mq.MessageQueueClient
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManager, processor *Processor, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int, mqClient mq.MessageQueueClient) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
@@ -45,6 +54,7 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 		pm:                            pm,
 		processor:                     processor,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
+		mqClient:                      mqClient,
 	}
 
 	// register health server endpoint
@@ -58,12 +68,12 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm *p2p.PeerManage
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
 	status := nats.DISCONNECTED.String()
-	if s.processor.mqClient != nil {
-		status = s.processor.mqClient.Status().String()
+	if s.mqClient != nil {
+		status = s.mqClient.Status()
 	}
 
 	return &blocktx_api.HealthResponse{
-		Ok:        status == "CONNECTED",
+		Ok:        s.mqClient.IsConnected(),
 		Nats:      status,
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
@@ -88,5 +98,13 @@ func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleR
 
 func (s *Server) RegisterTransaction(_ context.Context, req *blocktx_api.Transaction) (*emptypb.Empty, error) {
 	s.processor.RegisterTransaction(req.Hash)
-	return nil, nil
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transactions) (*emptypb.Empty, error) {
+	for _, tx := range req.GetTransactions() {
+		s.processor.RegisterTransaction(tx.GetHash())
+	}
+
+	return &emptypb.Empty{}, nil
 }

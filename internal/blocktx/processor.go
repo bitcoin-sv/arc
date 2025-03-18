@@ -19,6 +19,7 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
@@ -37,6 +38,7 @@ var (
 	ErrUnexpectedBlockStatus               = errors.New("unexpected block status")
 	ErrFailedToProcessBlock                = errors.New("failed to process block")
 	ErrFailedToCalculateMissingMerklePaths = errors.New("failed to calculate missing merkle paths")
+	ErrFailedToUnmarshalMessage            = errors.New("failed to unmarshal message")
 )
 
 const (
@@ -118,12 +120,29 @@ func NewProcessor(
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.Subscribe(mq.RegisterTxTopic, func(msg []byte) error {
+	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
 		p.registerTxsChan <- msg
 		return nil
 	})
 	if err != nil {
 		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
+	}
+
+	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
+		serialized := &blocktx_api.Transactions{}
+		err := proto.Unmarshal(msg, serialized)
+		if err != nil {
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
+		}
+
+		for _, tx := range serialized.Transactions {
+			p.registerTxsChan <- tx.Hash
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
 	}
 
 	p.StartBlockRequesting()
@@ -820,7 +839,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 
 func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
-	ctx, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, publishErr)
 	}()
@@ -841,7 +860,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
+			err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
 			if err != nil {
 				p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
 				publishErr = errors.Join(publishErr, err)
@@ -854,7 +873,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		err := p.mqClient.PublishMarshal(ctx, mq.MinedTxsTopic, msg)
+		err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
 			publishErr = errors.Join(publishErr, err)

@@ -15,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
-	mq_mock "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
 
 func TestCheck(t *testing.T) {
@@ -24,7 +23,6 @@ func TestCheck(t *testing.T) {
 		service        string
 		pingErr        error
 		connectedPeers uint
-		natsConnected  bool
 
 		expectedStatus grpc_health_v1.HealthCheckResponse_ServingStatus
 	}{
@@ -49,21 +47,6 @@ func TestCheck(t *testing.T) {
 			pingErr: errors.New("not connected"),
 
 			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-		},
-		{
-			name:           "readiness - nats not connected",
-			service:        "readiness",
-			connectedPeers: 5,
-
-			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-		},
-		{
-			name:           "readiness - serving",
-			service:        "readiness",
-			connectedPeers: 5,
-			natsConnected:  true,
-
-			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 	}
 
@@ -91,12 +74,7 @@ func TestCheck(t *testing.T) {
 			}
 			serverCfg := grpc_utils.ServerConfig{}
 
-			mqClient := &mq_mock.MessageQueueClientMock{
-				IsConnectedFunc: func() bool {
-					return tc.natsConnected
-				},
-			}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

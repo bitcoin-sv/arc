@@ -38,13 +38,6 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 			}, nil
 		}
-
-		if s.mq == nil || !s.mq.IsConnected() {
-			s.logger.Error("nats not connected")
-			return &grpc_health_v1.HealthCheckResponse{
-				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			}, nil
-		}
 	case liveness:
 		return &grpc_health_v1.HealthCheckResponse{
 			Status: grpc_health_v1.HealthCheckResponse_SERVING,
@@ -77,12 +70,6 @@ func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_healt
 			})
 		}
 
-		if s.mq == nil || !s.mq.IsConnected() {
-			s.logger.Error("nats not connected")
-			return server.Send(&grpc_health_v1.HealthCheckResponse{
-				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			})
-		}
 	case liveness:
 		return server.Send(&grpc_health_v1.HealthCheckResponse{
 			Status: grpc_health_v1.HealthCheckResponse_SERVING,

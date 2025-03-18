@@ -92,6 +92,7 @@ func TestWatch(t *testing.T) {
 			return true
 		},
 	}
+
 	tt := []struct {
 		name               string
 		service            string

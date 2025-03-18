@@ -2,17 +2,14 @@ package metamorph_test
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/go-zeromq/zmq4"
 	"github.com/stretchr/testify/require"
-	"io"
 	"log"
 	"log/slog"
 	"net"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -91,43 +88,28 @@ func TestNewZMQHandler(t *testing.T) {
 }
 
 func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
-	bkg := context.Background()
-	ep := must(EndPoint("tcp"))
-	cleanUp(ep)
+	ctx := context.Background()
+	ep, err := EndPoint("tcp")
+	require.NoError(t, err)
 
-	_, timeout := context.WithTimeout(bkg, 20*time.Second)
+	_, timeout := context.WithTimeout(ctx, 20*time.Second)
 	defer timeout()
 
-	srv := zmq4.NewXPub(bkg, zmq4.WithLogger(Devnull))
-	cli := zmq4.NewXSub(bkg, zmq4.WithLogger(Devnull))
+	logger := log.Default()
 
-	err := srv.Listen(ep)
-	if err != nil {
-		t.Fatalf("could not listen on %q: %+v", ep, err)
-	}
+	srv := zmq4.NewXPub(ctx, zmq4.WithLogger(logger))
+	cli := zmq4.NewXSub(ctx, zmq4.WithLogger(logger))
+	err = srv.Listen(ep)
+	require.NoError(t, err)
 
 	err = cli.Dial(ep)
-	if err != nil {
-		t.Fatalf("could not dial %q: %+v", ep, err)
-	} else {
-		t.Logf("dialed %q", ep)
-	}
+	require.NoError(t, err)
+	t.Logf("dialed %q", ep)
 
-	pub := zmq4.NewPub(bkg)
+	pub := zmq4.NewPub(ctx)
 	msg := zmq4.NewMsgString("hashblock")
 	_ = pub.Send(msg)
 	return srv, cli
-}
-
-var (
-	Devnull = log.New(io.Discard, "zmq4: ", 0)
-)
-
-func must(str string, err error) string {
-	if err != nil {
-		panic(err)
-	}
-	return str
 }
 
 func EndPoint(transport string) (string, error) {
@@ -143,30 +125,7 @@ func EndPoint(transport string) (string, error) {
 		}
 		defer l.Close()
 		return fmt.Sprintf("tcp://%s", l.Addr()), nil
-	case "ipc":
-		return "ipc://tmp-" + newUUID(), nil
-	case "inproc":
-		return "inproc://tmp-" + newUUID(), nil
 	default:
 		panic("invalid transport: [" + transport + "]")
-	}
-}
-
-func newUUID() string {
-	var uuid [16]byte
-	if _, err := io.ReadFull(rand.Reader, uuid[:]); err != nil {
-		_ = fmt.Errorf("cannot generate random data for UUID: %v", err)
-	}
-	uuid[8] = uuid[8]&^0xc0 | 0x80
-	uuid[6] = uuid[6]&^0xf0 | 0x40
-	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:])
-}
-
-func cleanUp(ep string) {
-	switch {
-	case strings.HasPrefix(ep, "ipc://"):
-		os.Remove(ep[len("ipc://"):])
-	case strings.HasPrefix(ep, "inproc://"):
-		os.Remove(ep[len("inproc://"):])
 	}
 }

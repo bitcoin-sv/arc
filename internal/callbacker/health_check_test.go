@@ -3,6 +3,7 @@ package callbacker_test
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/nats-io/nats.go"
 	"log/slog"
 	"testing"
@@ -12,14 +13,16 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
-	storeMocks "github.com/bitcoin-sv/arc/internal/callbacker/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
 func TestCheck(t *testing.T) {
-	mqClient := &mocks.MessageQueueClientMock{
-		StatusFunc: func() nats.Status {
-			return nats.CONNECTED
+	mqClient := &mqMocks.MessageQueueClientMock{
+		StatusFunc: func() string {
+			return nats.CONNECTED.String()
+		},
+		IsConnectedFunc: func() bool {
+			return true
 		},
 	}
 
@@ -51,17 +54,22 @@ func TestCheck(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			callbackerStore := &storeMocks.CallbackerStoreMock{
-				PingFunc: func(_ context.Context) error {
-					return tc.pingErr
-				},
-			}
 
 			req := &grpc_health_v1.HealthCheckRequest{
 				Service: tc.service,
 			}
+			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(url string, dto *callbacker.CallbackEntry) {
+				switch url {
+				case "https://example.com/callback1":
+					require.Equal(t, dto.Token, "token1")
+				case "https://example.com/callback2":
+					require.Equal(t, dto.Token, "token2")
+				default:
+					t.Fatalf("unexpected callback URL: %s", url)
+				}
+			}}
 
-			sut, err := callbacker.NewServer(slog.Default(), nil, callbackerStore, tc.mqClient, grpc_utils.ServerConfig{})
+			sut, err := callbacker.NewServer(slog.Default(), dispatcher, nil, tc.mqClient, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -76,11 +84,15 @@ func TestCheck(t *testing.T) {
 }
 
 func TestWatch(t *testing.T) {
-	mqClient := &mocks.MessageQueueClientMock{
-		StatusFunc: func() nats.Status {
-			return nats.CONNECTED
+	mqClient := &mqMocks.MessageQueueClientMock{
+		StatusFunc: func() string {
+			return nats.CONNECTED.String()
+		},
+		IsConnectedFunc: func() bool {
+			return true
 		},
 	}
+
 	tt := []struct {
 		name               string
 		service            string
@@ -99,44 +111,32 @@ func TestWatch(t *testing.T) {
 			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
 		},
 		{
-			name:           "readiness - healty",
+			name:           "readiness - not healthy",
 			service:        "readiness",
 			mqClient:       nil,
-			expectedStatus: grpc_health_v1.HealthCheckResponse_SERVING,
-		}, /*
-			{
-				name:    "readiness - ping error",
-				service: "readiness",
-				pingErr: errors.New("no connection"),
-
-				expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			},
-			{
-				name:               "readiness - unhealthy processor",
-				service:            "readiness",
-				processorHealthErr: errors.New("unhealthy processor"),
-
-				expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			},*/
+			expectedStatus: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			callbackerStore := &storeMocks.CallbackerStoreMock{
-				PingFunc: func(_ context.Context) error {
-					return tc.pingErr
-				},
-			}
 
 			req := &grpc_health_v1.HealthCheckRequest{
 				Service: tc.service,
 			}
 
-			dispatcher := &mocks.DispatcherMock{
-				DispatchFunc: func(_ string, _ *callbacker.CallbackEntry) {},
-			}
-			sut, err := callbacker.NewServer(slog.Default(), dispatcher, callbackerStore, tc.mqClient, grpc_utils.ServerConfig{})
+			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(url string, dto *callbacker.CallbackEntry) {
+				switch url {
+				case "https://example.com/callback1":
+					require.Equal(t, dto.Token, "token1")
+				case "https://example.com/callback2":
+					require.Equal(t, dto.Token, "token2")
+				default:
+					t.Fatalf("unexpected callback URL: %s", url)
+				}
+			}}
+			sut, err := callbacker.NewServer(slog.Default(), dispatcher, nil, tc.mqClient, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 
 			defer sut.GracefulStop()

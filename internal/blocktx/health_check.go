@@ -39,13 +39,6 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 			}, nil
 		}
-
-		if s.mqClient == nil || !s.mqClient.IsConnected() {
-			s.logger.Error("nats not connected")
-			return &grpc_health_v1.HealthCheckResponse{
-				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			}, nil
-		}
 	}
 
 	return &grpc_health_v1.HealthCheckResponse{
@@ -71,13 +64,6 @@ func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_healt
 
 		if !healthy {
 			s.logger.Error("healthy peer not found")
-			return server.Send(&grpc_health_v1.HealthCheckResponse{
-				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
-			})
-		}
-
-		if s.mqClient == nil || !s.mqClient.IsConnected() {
-			s.logger.Error("nats not connected")
 			return server.Send(&grpc_health_v1.HealthCheckResponse{
 				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
 			})

@@ -30,22 +30,22 @@ var _ api.ClientInterface = &ClientInterfaceMock{}
 //			GETTransactionStatusFunc: func(ctx context.Context, txid string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the GETTransactionStatus method")
 //			},
-//			POSTTransactionFunc: func(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+//			POSTTransactionFunc: func(ctx context.Context, params *api.POSTTransactionParams, body api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransaction method")
 //			},
 //			POSTTransactionWithBodyFunc: func(ctx context.Context, params *api.POSTTransactionParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransactionWithBody method")
 //			},
-//			POSTTransactionWithTextBodyFunc: func(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+//			POSTTransactionWithTextBodyFunc: func(ctx context.Context, params *api.POSTTransactionParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransactionWithTextBody method")
 //			},
-//			POSTTransactionsFunc: func(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+//			POSTTransactionsFunc: func(ctx context.Context, params *api.POSTTransactionsParams, body []api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransactions method")
 //			},
 //			POSTTransactionsWithBodyFunc: func(ctx context.Context, params *api.POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransactionsWithBody method")
 //			},
-//			POSTTransactionsWithTextBodyFunc: func(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+//			POSTTransactionsWithTextBodyFunc: func(ctx context.Context, params *api.POSTTransactionsParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 //				panic("mock out the POSTTransactionsWithTextBody method")
 //			},
 //		}
@@ -65,22 +65,22 @@ type ClientInterfaceMock struct {
 	GETTransactionStatusFunc func(ctx context.Context, txid string, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionFunc mocks the POSTTransaction method.
-	POSTTransactionFunc func(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)
+	POSTTransactionFunc func(ctx context.Context, params *api.POSTTransactionParams, body api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionWithBodyFunc mocks the POSTTransactionWithBody method.
 	POSTTransactionWithBodyFunc func(ctx context.Context, params *api.POSTTransactionParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionWithTextBodyFunc mocks the POSTTransactionWithTextBody method.
-	POSTTransactionWithTextBodyFunc func(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)
+	POSTTransactionWithTextBodyFunc func(ctx context.Context, params *api.POSTTransactionParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionsFunc mocks the POSTTransactions method.
-	POSTTransactionsFunc func(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)
+	POSTTransactionsFunc func(ctx context.Context, params *api.POSTTransactionsParams, body []api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionsWithBodyFunc mocks the POSTTransactionsWithBody method.
 	POSTTransactionsWithBodyFunc func(ctx context.Context, params *api.POSTTransactionsParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// POSTTransactionsWithTextBodyFunc mocks the POSTTransactionsWithTextBody method.
-	POSTTransactionsWithTextBodyFunc func(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)
+	POSTTransactionsWithTextBodyFunc func(ctx context.Context, params *api.POSTTransactionsParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -114,7 +114,7 @@ type ClientInterfaceMock struct {
 			// Params is the params argument value.
 			Params *api.POSTTransactionParams
 			// Body is the body argument value.
-			Body api.POSTTransactionJSONRequestBody
+			Body api.TransactionRequest
 			// ReqEditors is the reqEditors argument value.
 			ReqEditors []api.RequestEditorFn
 		}
@@ -138,7 +138,7 @@ type ClientInterfaceMock struct {
 			// Params is the params argument value.
 			Params *api.POSTTransactionParams
 			// Body is the body argument value.
-			Body api.POSTTransactionTextRequestBody
+			Body string
 			// ReqEditors is the reqEditors argument value.
 			ReqEditors []api.RequestEditorFn
 		}
@@ -149,7 +149,7 @@ type ClientInterfaceMock struct {
 			// Params is the params argument value.
 			Params *api.POSTTransactionsParams
 			// Body is the body argument value.
-			Body api.POSTTransactionsJSONRequestBody
+			Body []api.TransactionRequest
 			// ReqEditors is the reqEditors argument value.
 			ReqEditors []api.RequestEditorFn
 		}
@@ -173,7 +173,7 @@ type ClientInterfaceMock struct {
 			// Params is the params argument value.
 			Params *api.POSTTransactionsParams
 			// Body is the body argument value.
-			Body api.POSTTransactionsTextRequestBody
+			Body string
 			// ReqEditors is the reqEditors argument value.
 			ReqEditors []api.RequestEditorFn
 		}
@@ -302,14 +302,14 @@ func (mock *ClientInterfaceMock) GETTransactionStatusCalls() []struct {
 }
 
 // POSTTransaction calls POSTTransactionFunc.
-func (mock *ClientInterfaceMock) POSTTransaction(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+func (mock *ClientInterfaceMock) POSTTransaction(ctx context.Context, params *api.POSTTransactionParams, body api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 	if mock.POSTTransactionFunc == nil {
 		panic("ClientInterfaceMock.POSTTransactionFunc: method is nil but ClientInterface.POSTTransaction was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionParams
-		Body       api.POSTTransactionJSONRequestBody
+		Body       api.TransactionRequest
 		ReqEditors []api.RequestEditorFn
 	}{
 		Ctx:        ctx,
@@ -330,13 +330,13 @@ func (mock *ClientInterfaceMock) POSTTransaction(ctx context.Context, params *ap
 func (mock *ClientInterfaceMock) POSTTransactionCalls() []struct {
 	Ctx        context.Context
 	Params     *api.POSTTransactionParams
-	Body       api.POSTTransactionJSONRequestBody
+	Body       api.TransactionRequest
 	ReqEditors []api.RequestEditorFn
 } {
 	var calls []struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionParams
-		Body       api.POSTTransactionJSONRequestBody
+		Body       api.TransactionRequest
 		ReqEditors []api.RequestEditorFn
 	}
 	mock.lockPOSTTransaction.RLock()
@@ -394,14 +394,14 @@ func (mock *ClientInterfaceMock) POSTTransactionWithBodyCalls() []struct {
 }
 
 // POSTTransactionWithTextBody calls POSTTransactionWithTextBodyFunc.
-func (mock *ClientInterfaceMock) POSTTransactionWithTextBody(ctx context.Context, params *api.POSTTransactionParams, body api.POSTTransactionTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+func (mock *ClientInterfaceMock) POSTTransactionWithTextBody(ctx context.Context, params *api.POSTTransactionParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 	if mock.POSTTransactionWithTextBodyFunc == nil {
 		panic("ClientInterfaceMock.POSTTransactionWithTextBodyFunc: method is nil but ClientInterface.POSTTransactionWithTextBody was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionParams
-		Body       api.POSTTransactionTextRequestBody
+		Body       string
 		ReqEditors []api.RequestEditorFn
 	}{
 		Ctx:        ctx,
@@ -422,13 +422,13 @@ func (mock *ClientInterfaceMock) POSTTransactionWithTextBody(ctx context.Context
 func (mock *ClientInterfaceMock) POSTTransactionWithTextBodyCalls() []struct {
 	Ctx        context.Context
 	Params     *api.POSTTransactionParams
-	Body       api.POSTTransactionTextRequestBody
+	Body       string
 	ReqEditors []api.RequestEditorFn
 } {
 	var calls []struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionParams
-		Body       api.POSTTransactionTextRequestBody
+		Body       string
 		ReqEditors []api.RequestEditorFn
 	}
 	mock.lockPOSTTransactionWithTextBody.RLock()
@@ -438,14 +438,14 @@ func (mock *ClientInterfaceMock) POSTTransactionWithTextBodyCalls() []struct {
 }
 
 // POSTTransactions calls POSTTransactionsFunc.
-func (mock *ClientInterfaceMock) POSTTransactions(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+func (mock *ClientInterfaceMock) POSTTransactions(ctx context.Context, params *api.POSTTransactionsParams, body []api.TransactionRequest, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 	if mock.POSTTransactionsFunc == nil {
 		panic("ClientInterfaceMock.POSTTransactionsFunc: method is nil but ClientInterface.POSTTransactions was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionsParams
-		Body       api.POSTTransactionsJSONRequestBody
+		Body       []api.TransactionRequest
 		ReqEditors []api.RequestEditorFn
 	}{
 		Ctx:        ctx,
@@ -466,13 +466,13 @@ func (mock *ClientInterfaceMock) POSTTransactions(ctx context.Context, params *a
 func (mock *ClientInterfaceMock) POSTTransactionsCalls() []struct {
 	Ctx        context.Context
 	Params     *api.POSTTransactionsParams
-	Body       api.POSTTransactionsJSONRequestBody
+	Body       []api.TransactionRequest
 	ReqEditors []api.RequestEditorFn
 } {
 	var calls []struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionsParams
-		Body       api.POSTTransactionsJSONRequestBody
+		Body       []api.TransactionRequest
 		ReqEditors []api.RequestEditorFn
 	}
 	mock.lockPOSTTransactions.RLock()
@@ -530,14 +530,14 @@ func (mock *ClientInterfaceMock) POSTTransactionsWithBodyCalls() []struct {
 }
 
 // POSTTransactionsWithTextBody calls POSTTransactionsWithTextBodyFunc.
-func (mock *ClientInterfaceMock) POSTTransactionsWithTextBody(ctx context.Context, params *api.POSTTransactionsParams, body api.POSTTransactionsTextRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+func (mock *ClientInterfaceMock) POSTTransactionsWithTextBody(ctx context.Context, params *api.POSTTransactionsParams, body string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
 	if mock.POSTTransactionsWithTextBodyFunc == nil {
 		panic("ClientInterfaceMock.POSTTransactionsWithTextBodyFunc: method is nil but ClientInterface.POSTTransactionsWithTextBody was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionsParams
-		Body       api.POSTTransactionsTextRequestBody
+		Body       string
 		ReqEditors []api.RequestEditorFn
 	}{
 		Ctx:        ctx,
@@ -558,13 +558,13 @@ func (mock *ClientInterfaceMock) POSTTransactionsWithTextBody(ctx context.Contex
 func (mock *ClientInterfaceMock) POSTTransactionsWithTextBodyCalls() []struct {
 	Ctx        context.Context
 	Params     *api.POSTTransactionsParams
-	Body       api.POSTTransactionsTextRequestBody
+	Body       string
 	ReqEditors []api.RequestEditorFn
 } {
 	var calls []struct {
 		Ctx        context.Context
 		Params     *api.POSTTransactionsParams
-		Body       api.POSTTransactionsTextRequestBody
+		Body       string
 		ReqEditors []api.RequestEditorFn
 	}
 	mock.lockPOSTTransactionsWithTextBody.RLock()

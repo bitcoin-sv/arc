@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"reflect"
 	"runtime/debug"
+	"sync"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -24,7 +25,10 @@ import (
 	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
 )
 
-var ErrGRPCFailedToRegisterPanics = errors.New("failed to register panics total metric")
+var (
+	ErrGRPCFailedToRegisterPanics = errors.New("failed to register panics total metric")
+	once                          sync.Once
+)
 
 func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.ServerMetrics, []grpc.ServerOption, func(), error) {
 	// Setup logging.
@@ -36,6 +40,13 @@ func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.Serve
 			prometheus.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
 		),
 	)
+	// Function that will run only once
+	once.Do(func() {
+		err := prometheusclient.Register(srvMetrics)
+		if err != nil {
+			logger.Error("Failed to register gRPC server metrics", slog.String("err", err.Error()))
+		}
+	})
 
 	// Setup metric for panic recoveries.
 	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
@@ -92,6 +103,7 @@ func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.Serve
 
 	cleanup := func() {
 		prometheusclient.Unregister(panicsTotal)
+		prometheusclient.Unregister(srvMetrics)
 	}
 
 	return srvMetrics, opts, cleanup, err

@@ -11,15 +11,15 @@ import (
 	"sync"
 )
 
-// Ensure, that HealthWatchServerMock does implement metamorph.HealthWatchServer.
+// Ensure, that HealthWatchServerMock does implement callbacker.HealthWatchServer.
 // If this is not the case, regenerate this file with moq.
 var _ callbacker.HealthWatchServer = &HealthWatchServerMock{}
 
-// HealthWatchServerMock is a mock implementation of metamorph.HealthWatchServer.
+// HealthWatchServerMock is a mock implementation of callbacker.HealthWatchServer.
 //
 //	func TestSomethingThatUsesHealthWatchServer(t *testing.T) {
 //
-//		// make and configure a mocked metamorph.HealthWatchServer
+//		// make and configure a mocked callbacker.HealthWatchServer
 //		mockedHealthWatchServer := &HealthWatchServerMock{
 //			ContextFunc: func() context.Context {
 //				panic("mock out the Context method")
@@ -44,7 +44,7 @@ var _ callbacker.HealthWatchServer = &HealthWatchServerMock{}
 //			},
 //		}
 //
-//		// use mockedHealthWatchServer in code that requires metamorph.HealthWatchServer
+//		// use mockedHealthWatchServer in code that requires callbacker.HealthWatchServer
 //		// and then make assertions.
 //
 //	}

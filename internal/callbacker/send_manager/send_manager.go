@@ -238,9 +238,11 @@ func (m *SendManager) Start() {
 					continue
 				}
 
+				m.logger.Info("time", slog.Time("timestamp", callbackEntry.Data.Timestamp), slog.Time("now", m.now()), slog.String("expiration", m.expiration.String()), slog.String("hash", callbackEntry.Data.TxID), slog.String("status", callbackEntry.Data.TxStatus), slog.String("url", m.url))
+
 				// If item is expired - dequeue without storing
 				if m.now().Sub(callbackEntry.Data.Timestamp) > m.expiration {
-					m.logger.Warn("Callback expired", slog.Time("timestamp", callbackEntry.Data.Timestamp), slog.String("hash", callbackEntry.Data.TxID), slog.String("status", callbackEntry.Data.TxStatus))
+					m.logger.Warn("Callback expired", slog.Time("timestamp", callbackEntry.Data.Timestamp), slog.String("hash", callbackEntry.Data.TxID), slog.String("status", callbackEntry.Data.TxStatus), slog.String("url", m.url))
 					m.callbackQueue = m.callbackQueue[1:]
 					continue
 				}

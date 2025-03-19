@@ -42,18 +42,18 @@ func GetGRPCServerOpts(logger *slog.Logger, cfg ServerConfig) (*prometheus.Serve
 		),
 	)
 
-	// Setup metric for panic recoveries.
-	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
-		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", cfg.Name),
-		Help: "Total number of gRPC requests recovered from internal panic.",
-	})
-
 	// Function that will run only once
 	once.Do(func() {
 		err := prometheusclient.Register(srvMetrics)
 		if err != nil {
 			logger.Error("Failed to register gRPC server metrics", slog.String("err", err.Error()))
 		}
+	})
+
+	// Setup metric for panic recoveries.
+	panicsTotal := prometheusclient.NewCounter(prometheusclient.CounterOpts{
+		Name: fmt.Sprintf("grpc_req_panics_recovered_%s_total", cfg.Name),
+		Help: "Total number of gRPC requests recovered from internal panic.",
 	})
 
 	err := prometheusclient.Register(panicsTotal)

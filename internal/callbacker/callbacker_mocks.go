@@ -11,3 +11,5 @@ package callbacker
 //go:generate moq -pkg mocks -out ./mocks/dipatcher_mock.go ./ Dispatcher
 
 //go:generate moq -pkg mocks -out ./mocks/jetstream_message_mock.go ./ JetstreamMsg
+
+//go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go ./ HealthWatchServer

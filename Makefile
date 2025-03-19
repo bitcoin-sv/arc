@@ -42,7 +42,7 @@ run_e2e_tests_with_tracing:
 .PHONY: run_e2e_mcast_tests
 run_e2e_mcast_tests:
 	docker compose -f docker-compose-mcast.yaml down --remove-orphans
-	docker compose -f docker-compose-mcast.yaml up --build mcast_sidecar blocktx metamorph api tests --scale blocktx=6 --exit-code-from tests
+	docker compose -f docker-compose-mcast.yaml up --build mcast_sidecar blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
 	docker compose -f docker-compose-mcast.yaml down
 
 .PHONY: test

@@ -1,7 +1,7 @@
 ---
 logFormat: tint
 logLevel: INFO
-profilerAddr: localhost:9999
+profilerAddr: "[::]:9999"
 prometheus:
   enabled: true
   endpoint: /metrics
@@ -12,6 +12,7 @@ messageQueue:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
+  initialize: true
 tracing:
   enabled: false
   sample: 100
@@ -45,11 +46,13 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   processorCacheExpiryTime: 24h
+  unseenTransactionRebroadcastingInterval: 60s
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
+  recheckSeen:
+    fromAgo: 24h
+    untilAgo: 1h
   monitorPeers: true
-  checkUtxos: false
-  profilerAddr: "[::]:9992"
   health:
     minimumHealthyConnections: 2
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
@@ -57,20 +60,20 @@ metamorph:
     notSeenTimeLimit: 10m
     notFinalTimeLimit: 20m
   bcnet:
-    mode: hybrid 
-    network: regtest 
-    peers: 
+    mode: hybrid
+    network: regtest
+    peers:
     - host: node1
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node2
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node3
       port:
-        p2p: 18333 
+        p2p: 18333
         zmq: 28332
     mcast:
       tx:
@@ -93,27 +96,30 @@ blocktx:
       maxOpenConns: 80
       sslMode: disable
   recordRetentionDays: 28
-  profilerAddr: "[::]:9993"
   registerTxsInterval: 200ms
+  maxBlockProcessingDuration: 2s
+  monitorPeers: true
+  incomingIsLongest: false
   fillGaps:
     enabled: true
     interval: 120s
   maxAllowedBlockHeightMismatch: 3
+  p2pReadBufferSize: 8388608
   bcnet:
-    mode: hybrid 
-    network: regtest 
-    peers: 
+    mode: hybrid
+    network: regtest
+    peers:
     - host: node1
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node2
       port:
-        p2p: 18333 
-        zmq: 28332 
+        p2p: 18333
+        zmq: 28332
     - host: node3
       port:
-        p2p: 18333 
+        p2p: 18333
         zmq: 28332
     mcast:
       block:
@@ -159,8 +165,11 @@ api:
 callbacker:
   listenAddr: "[::]:8021"
   dialAddr: callbacker:8021
-  health:
-    serverDialAddr: "[::]:8022"
+  pause: 10ms
+  batchSendInterval: 5s
+  pruneOlderThan: 336h
+  pruneInterval: 24h
+  expiration: 24h
   db:
     mode: postgres
     postgres:
@@ -172,6 +181,3 @@ callbacker:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  failedCallbackCheckInterval: 1m
-  delayDuration: 5s
-  expiration: 24h

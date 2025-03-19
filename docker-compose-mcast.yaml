@@ -15,7 +15,7 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
-    networks: 
+    networks:
       - multicast_bridge
 
   node2:
@@ -30,7 +30,7 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
-    networks: 
+    networks:
       - multicast_bridge
 
   node3:
@@ -66,7 +66,7 @@ services:
       - "5432"
     networks:
       - multicast_bridge
- 
+
   migrate-blocktx:
     container_name: migrate-blocktx
     image: migrate/migrate:v4.16.2
@@ -181,7 +181,7 @@ services:
   mcast_sidecar:
     build:
       context: ./
-      dockerfile: ./cmd/mcast/node_sidecar/Dockerfile    
+      dockerfile: ./cmd/mcast/node_sidecar/Dockerfile
     volumes:
       - ./test/config/config_mcast.yaml:/service/config.yaml
     command: [ "./sidecar", "-config=." ]
@@ -217,7 +217,6 @@ services:
         condition: service_healthy
       migrate-blocktx:
         condition: service_completed_successfully
-      
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s

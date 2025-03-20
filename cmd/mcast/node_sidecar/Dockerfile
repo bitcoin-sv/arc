@@ -37,3 +37,5 @@ COPY --from=build-stage /bin/grpc_health_probe /bin/grpc_health_probe
 EXPOSE 9090
 
 CMD ["/service/sidecar"]
+
+# Todo: remove this file and combine with ~/Dockerfile with arguments

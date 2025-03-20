@@ -84,7 +84,7 @@ func startMcastSideCar(logger *slog.Logger, arcConfig *config.ArcConfig) (func()
 	}
 
 	communicationBridge := &MulticastP2PBridge{
-		l: logger.With(slog.String("module", "multicast-p2p-bridge")),
+		logger: logger.With(slog.String("module", "multicast-p2p-bridge")),
 	}
 
 	// connect to peer
@@ -167,7 +167,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 // It facilitates the handling of messages between P2P and multicast communication channels.
 // Specifically, it listens for messages from both channels and translates or forwards them accordingly.
 type MulticastP2PBridge struct {
-	l *slog.Logger
+	logger *slog.Logger
 
 	blockGroup *multicast.Group[*wire.MsgBlock]
 	txGroup    *multicast.Group[*wire.MsgTx]
@@ -195,7 +195,7 @@ func (b *MulticastP2PBridge) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	case wire.CmdBlock:
 		blockMsg, ok := msg.(*wire.MsgBlock)
 		if !ok {
-			b.l.Error("cannot cast msg to wire.MsgBlock")
+			b.logger.Error("cannot cast msg to wire.MsgBlock")
 			return
 		}
 
@@ -204,7 +204,7 @@ func (b *MulticastP2PBridge) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	case wire.CmdGetData:
 		getMsg, ok := msg.(*wire.MsgGetData)
 		if !ok {
-			b.l.Error("cannot cast msg to wire.MsgGetData")
+			b.logger.Error("cannot cast msg to wire.MsgGetData")
 			return
 		}
 
@@ -223,9 +223,9 @@ func (b *MulticastP2PBridge) OnSend(_ wire.Message, _ p2p.PeerI) {
 func (b *MulticastP2PBridge) handleReceivedP2pInvMsg(msg *wire.MsgInv, peer p2p.PeerI) {
 	for _, inv := range msg.InvList {
 		if inv.Type == wire.InvTypeBlock {
-			b.l.Info("Received BlockINV", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
+			b.logger.Info("Received BlockINV", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
 
-			b.l.Info("Request Block from peer", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
+			b.logger.Info("Request Block from peer", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
 			msg := wire.NewMsgGetDataSizeHint(1)
 			_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, &inv.Hash)) // ignore error at this point
 			peer.WriteMsg(msg)
@@ -237,17 +237,17 @@ func (b *MulticastP2PBridge) handleReceivedP2pInvMsg(msg *wire.MsgInv, peer p2p.
 
 func (b *MulticastP2PBridge) handleReceivedBlockMsg(blockMsg *wire.MsgBlock, peer p2p.PeerI) {
 	if b.blockGroup == nil {
-		b.l.Warn("multicast is not ready yet")
+		b.logger.Warn("multicast is not ready yet")
 		return
 	}
 
-	b.l.Info("Received BlockMsg", slog.String("hash", blockMsg.BlockHash().String()), slog.String("peer", peer.String()))
-	b.l.Info("Send BlockMsg to multicast handler", slog.String("hash", blockMsg.BlockHash().String()), slog.String("peer", peer.String()))
+	b.logger.Info("Received BlockMsg", slog.String("hash", blockMsg.BlockHash().String()), slog.String("peer", peer.String()))
+	b.logger.Info("Send BlockMsg to multicast handler", slog.String("hash", blockMsg.BlockHash().String()), slog.String("peer", peer.String()))
 	b.blockGroup.WriteMsg(blockMsg)
 }
 
 func (b *MulticastP2PBridge) handleReceivedGetDataMsg(getMsg *wire.MsgGetData, peer p2p.PeerI) {
-	b.l.Info("Peer requested data", slog.String("peer", peer.String()))
+	b.logger.Info("Peer requested data", slog.String("peer", peer.String()))
 	for _, inv := range getMsg.InvList {
 		if inv.Type == wire.InvTypeTx {
 			// check if tx is in memory and send it to peer
@@ -255,7 +255,7 @@ func (b *MulticastP2PBridge) handleReceivedGetDataMsg(getMsg *wire.MsgGetData, p
 			if found {
 				txMsg := anyMsg.(*wire.MsgTx) // nolint:errcheck,revive
 				peer.WriteMsg(txMsg)
-				b.l.Info("Sent requested data to the peer", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
+				b.logger.Info("Sent requested data to the peer", slog.String("hash", inv.Hash.String()), slog.String("peer", peer.String()))
 			}
 		}
 		// ignore other inv
@@ -268,14 +268,14 @@ func (b *MulticastP2PBridge) OnReceiveFromMcast(msg wire.Message) {
 	switch cmd {
 	case wire.CmdBlock:
 		blockmsg := msg.(*wire.MsgBlock) // nolint:errcheck,revive
-		b.l.Info("Received BlockMsg from multicast", slog.String("hash", blockmsg.BlockHash().String()))
+		b.logger.Info("Received BlockMsg from multicast", slog.String("hash", blockmsg.BlockHash().String()))
 
 	case wire.CmdTx:
 		txmsg := msg.(*wire.MsgTx) // nolint:errcheck,revive
 		b.handleReceivedMcastTxMsg(txmsg)
 
 	default:
-		b.l.Error("Unexpected msg from multicast group!", slog.String("unexpected.cmd", cmd))
+		b.logger.Error("Unexpected msg from multicast group!", slog.String("unexpected.cmd", cmd))
 	}
 }
 
@@ -285,26 +285,26 @@ func (b *MulticastP2PBridge) OnSendToMcast(msg wire.Message) {
 	switch cmd {
 	case wire.CmdBlock:
 		blockmsg := msg.(*wire.MsgBlock) // nolint:errcheck,revive
-		b.l.Info("Sent BlockMsg to multicast", slog.String("hash", blockmsg.BlockHash().String()))
+		b.logger.Info("Sent BlockMsg to multicast", slog.String("hash", blockmsg.BlockHash().String()))
 
 	case wire.CmdTx:
 		txmsg := msg.(*wire.MsgTx) // nolint:errcheck,revive
-		b.l.Info("Sent TxMsg to multicast", slog.String("hash", txmsg.TxHash().String()))
+		b.logger.Info("Sent TxMsg to multicast", slog.String("hash", txmsg.TxHash().String()))
 
 	default:
-		b.l.Error("Unexpected msg sent to multicast group!", slog.String("unexpected.cmd", cmd))
+		b.logger.Error("Unexpected msg sent to multicast group!", slog.String("unexpected.cmd", cmd))
 	}
 }
 
 func (b *MulticastP2PBridge) handleReceivedMcastTxMsg(txmsg *wire.MsgTx) {
 	txHash := txmsg.TxHash()
-	b.l.Info("Received TxMsg from multicast", slog.String("hash", txHash.String()))
+	b.logger.Info("Received TxMsg from multicast", slog.String("hash", txHash.String()))
 
 	// save TxMsg for later to send it to peer when it request it
 	b.txCache.Store(txHash, txmsg)
 
 	// announce tx to peer
-	b.l.Info("Send INV to peer", slog.String("hash", txHash.String()), slog.String("peer", b.peer.String()))
+	b.logger.Info("Send INV to peer", slog.String("hash", txHash.String()), slog.String("peer", b.peer.String()))
 
 	invMsg := wire.NewMsgInv()
 	_ = invMsg.AddInvVect(wire.NewInvVect(wire.InvTypeTx, &txHash))

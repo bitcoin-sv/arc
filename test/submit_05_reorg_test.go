@@ -54,9 +54,9 @@ func TestReorg(t *testing.T) {
 	require.NoError(t, err)
 	resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
 		map[string]string{
-			"X-WaitFor": StatusSeenOnNetwork,
-			//"X-CallbackUrl":   callbackURL,
-			//"X-CallbackToken": token,
+			"X-WaitFor":       StatusSeenOnNetwork,
+			"X-CallbackUrl":   callbackURL,
+			"X-CallbackToken": token,
 		}, http.StatusOK)
 	require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 
@@ -66,16 +66,19 @@ func TestReorg(t *testing.T) {
 	// verify tx1 = MINED
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
 
-	//select {
-	//case status := <-callbackReceivedChan:
-	//	require.Equal(t, tx1.TxID().String(), status.Txid)
-	//	require.Equal(t, StatusMined, status.TxStatus)
-	//	require.Equal(t, invHash, *status.BlockHash)
-	//case err := <-callbackErrChan:
-	//	t.Fatalf("callback error: %v", err)
-	//case <-time.After(1 * time.Second):
-	//	t.Fatal("callback exceeded timeout")
-	//}
+	merklePathTx1 := getMerklePath(t, tx1.TxID().String())
+
+	select {
+	case status := <-callbackReceivedChan:
+		require.Equal(t, tx1.TxID().String(), status.Txid)
+		require.Equal(t, StatusMined, status.TxStatus)
+		require.Equal(t, invHash, *status.BlockHash)
+		require.Equal(t, merklePathTx1, *status.MerklePath)
+	case err := <-callbackErrChan:
+		t.Fatalf("callback error: %v", err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("callback exceeded timeout")
+	}
 
 	// get new UTXO for tx2
 	txID := node_client.SendToAddress(t, bitcoind, address, float64(0.002))
@@ -114,6 +117,7 @@ func TestReorg(t *testing.T) {
 	case status := <-callbackReceivedChan:
 		require.Equal(t, tx2.TxID().String(), status.Txid)
 		require.Equal(t, StatusMined, status.TxStatus)
+		require.Equal(t, tx2BlockHash, *status.BlockHash)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
 	case <-time.After(1 * time.Second):
@@ -173,15 +177,30 @@ func TestReorg(t *testing.T) {
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMinedInStaleBlock, tx2BlockHash)
 
-	// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
-	select {
-	case status := <-callbackReceivedChan:
-		require.Equal(t, tx2.TxID().String(), status.Txid)
-		require.Equal(t, StatusMinedInStaleBlock, status.TxStatus)
-	case err := <-callbackErrChan:
-		t.Fatalf("callback error: %v", err)
-	case <-time.After(1 * time.Second):
-		t.Fatal("callback exceeded timeout")
+	merklePathTx1 = getMerklePath(t, tx1.TxID().String())
+
+	// expect 2 callbacks
+	for range 2 {
+		select {
+		case status := <-callbackReceivedChan:
+			switch status.Txid {
+			// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
+			case tx2.TxID().String():
+				require.Equal(t, StatusMinedInStaleBlock, status.TxStatus)
+				require.Equal(t, tx2BlockHash, *status.BlockHash)
+			// verify that callback for tx1 was received with status MINED and updated merkle path
+			case tx1.TxID().String():
+				require.Equal(t, StatusMined, status.TxStatus)
+				require.Equal(t, staleHash, *status.BlockHash)
+				require.Equal(t, merklePathTx1, *status.MerklePath)
+			default:
+				t.Fatal("Unexpected tx id")
+			}
+		case err := <-callbackErrChan:
+			t.Fatalf("callback error: %v", err)
+		case <-time.After(1 * time.Second):
+			t.Fatal("callback exceeded timeout")
+		}
 	}
 }
 

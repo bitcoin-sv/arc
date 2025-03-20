@@ -13,8 +13,6 @@ import (
 	"time"
 
 	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/libsv/go-bc"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -142,28 +140,8 @@ func TestSubmitMined(t *testing.T) {
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
 
-		blockData := node_client.GetBlockDataByBlockHash(t, bitcoind, rawTx.BlockHash)
-		blockTxHashes := make([]*chainhash.Hash, len(blockData.Txs))
-		var txIndex uint64
-
-		for i, blockTx := range blockData.Txs {
-			h, err := chainhash.NewHashFromStr(blockTx)
-			require.NoError(t, err)
-
-			blockTxHashes[i] = h
-
-			if blockTx == rawTx.Hash {
-				txIndex = uint64(i)
-			}
-		}
-
-		merkleTree := bc.BuildMerkleTreeStoreChainHash(blockTxHashes)
-		require.Equal(t, merkleTree[len(merkleTree)-1].String(), blockData.MerkleRoot)
-
-		merklePath, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
-		require.NoError(t, err)
-		merklePathStr, err := merklePath.String()
-		require.NoError(t, err)
+		txID := utxos[0].Txid
+		merklePathStr := getMerklePath(t, txID)
 
 		callbackReceivedChan := make(chan *TransactionResponse)
 		callbackErrChan := make(chan error)

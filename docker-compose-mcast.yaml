@@ -181,10 +181,11 @@ services:
   mcast_sidecar:
     build:
       context: ./
-      dockerfile: ./cmd/mcast/node_sidecar/Dockerfile
+      args:
+        MAIN: "./cmd/mcast/node_sidecar/main.go"
     volumes:
       - ./test/config/config_mcast.yaml:/service/config.yaml
-    command: [ "./sidecar", "-config=." ]
+    command: [ "./arc", "-config=." ]
     depends_on:
       node1:
         condition: service_healthy

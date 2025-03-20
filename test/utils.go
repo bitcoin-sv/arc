@@ -305,3 +305,16 @@ func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
 	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, int(*statusResponse.BlockHeight))
 	require.Equal(t, blockRoot, root)
 }
+
+func checkStatus(t *testing.T, txID string, expectedStatus string) {
+	statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
+	statusResp := getRequest[TransactionResponse](t, statusURL)
+	require.Equal(t, expectedStatus, statusResp.TxStatus)
+}
+
+func checkStatusBlockHash(t *testing.T, txID string, expectedStatus string, expectedBlockHash string) {
+	statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)
+	statusResp := getRequest[TransactionResponse](t, statusURL)
+	require.Equal(t, expectedStatus, statusResp.TxStatus)
+	require.Equal(t, expectedBlockHash, *statusResp.BlockHash)
+}

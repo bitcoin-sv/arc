@@ -3,7 +3,6 @@
 package test
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -20,39 +19,6 @@ func TestReorg(t *testing.T) {
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
-	require.NoError(t, err)
-
-	// submit tx1
-	rawTx, err := tx1.EFHex()
-	require.NoError(t, err)
-	resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}), map[string]string{"X-WaitFor": StatusSeenOnNetwork}, http.StatusOK)
-	require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
-
-	// mine tx1
-	invHash := node_client.Generate(t, bitcoind, 1)
-
-	// verify tx1 = MINED
-	statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
-	statusResp := getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, invHash, *statusResp.BlockHash)
-
-	// get new UTXO for tx2
-	txID := node_client.SendToAddress(t, bitcoind, address, float64(0.002))
-	utxos = node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-	// make sure to pick the correct UTXO
-	var utxo node_client.UnspentOutput
-	for _, u := range utxos {
-		if u.Txid == txID {
-			utxo = u
-		}
-	}
-
-	tx2, err := node_client.CreateTx(privateKey, address, utxo)
-	require.NoError(t, err)
 	lis, err := net.Listen("tcp", ":9000")
 	require.NoError(t, err)
 	mux := http.NewServeMux()
@@ -80,6 +46,53 @@ func TestReorg(t *testing.T) {
 		}
 	}()
 
+	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
+	require.NoError(t, err)
+
+	// submit tx1
+	rawTx, err := tx1.EFHex()
+	require.NoError(t, err)
+	resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
+		map[string]string{
+			"X-WaitFor": StatusSeenOnNetwork,
+			//"X-CallbackUrl":   callbackURL,
+			//"X-CallbackToken": token,
+		}, http.StatusOK)
+	require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
+
+	// mine tx1
+	invHash := node_client.Generate(t, bitcoind, 1)
+
+	// verify tx1 = MINED
+	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
+
+	//select {
+	//case status := <-callbackReceivedChan:
+	//	require.Equal(t, tx1.TxID().String(), status.Txid)
+	//	require.Equal(t, StatusMined, status.TxStatus)
+	//	require.Equal(t, invHash, *status.BlockHash)
+	//case err := <-callbackErrChan:
+	//	t.Fatalf("callback error: %v", err)
+	//case <-time.After(1 * time.Second):
+	//	t.Fatal("callback exceeded timeout")
+	//}
+
+	// get new UTXO for tx2
+	txID := node_client.SendToAddress(t, bitcoind, address, float64(0.002))
+	utxos = node_client.GetUtxos(t, bitcoind, address)
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+
+	// make sure to pick the correct UTXO
+	var utxo node_client.UnspentOutput
+	for _, u := range utxos {
+		if u.Txid == txID {
+			utxo = u
+		}
+	}
+
+	tx2, err := node_client.CreateTx(privateKey, address, utxo)
+	require.NoError(t, err)
+
 	// submit tx2
 	rawTx, err = tx2.EFHex()
 	require.NoError(t, err)
@@ -94,11 +107,8 @@ func TestReorg(t *testing.T) {
 	// mine tx2
 	tx2BlockHash := node_client.Generate(t, bitcoind, 1)
 
-	// verify tx2 = MINED
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
+	// verify tx2 is MINED
+	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, tx2BlockHash)
 
 	select {
 	case status := <-callbackReceivedChan:
@@ -143,42 +153,25 @@ func TestReorg(t *testing.T) {
 	staleHash := node_client.Generate(t, bitcoind, 1)
 
 	// verify that stale tx is still SEEN_ON_NETWORK
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txStale.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusSeenOnNetwork, statusResp.TxStatus)
+	checkStatus(t, txStale.TxID().String(), StatusSeenOnNetwork)
 
 	// verify that nothing changed so far with previous mined txs
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, invHash, *statusResp.BlockHash)
+	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
 
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
+	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, tx2BlockHash)
 
 	// make the STALE chain LONGEST by adding 2 new blocks
 	node_client.Generate(t, bitcoind, 1)
 	node_client.Generate(t, bitcoind, 1)
 
 	// verify that stale tx is now MINED
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txStale.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, staleHash, *statusResp.BlockHash)
+	checkStatusBlockHash(t, txStale.TxID().String(), StatusMined, staleHash)
 
 	// verify that previous mined tx1 have updated block info
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx1.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMined, statusResp.TxStatus)
-	require.Equal(t, staleHash, *statusResp.BlockHash)
+	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, staleHash)
 
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
-	statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
-	statusResp = getRequest[TransactionResponse](t, statusURL)
-	require.Equal(t, StatusMinedInStaleBlock, statusResp.TxStatus)
-	require.Equal(t, tx2BlockHash, *statusResp.BlockHash)
+	checkStatusBlockHash(t, tx2.TxID().String(), StatusMinedInStaleBlock, tx2BlockHash)
 
 	// verify that callback for tx2 was received with status MINED_IN_STALE_BLOCK
 	select {

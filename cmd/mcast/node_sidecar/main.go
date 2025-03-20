@@ -250,7 +250,7 @@ func (b *MulticastP2PBridge) handleReceivedGetDataMsg(getMsg *wire.MsgGetData, p
 	b.l.Info("Peer requested data", slog.String("peer", peer.String()))
 	for _, inv := range getMsg.InvList {
 		if inv.Type == wire.InvTypeTx {
-			// check if have tx in memory and send it to peer
+			// check if tx is in memory and send it to peer
 			anyMsg, found := b.txCache.Load(inv.Hash)
 			if found {
 				txMsg := anyMsg.(*wire.MsgTx) // nolint:errcheck,revive

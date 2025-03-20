@@ -43,17 +43,17 @@ jobs:
       - name: Check config
         run: make compare_config
 
-  e2e:
-    name: e2e
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-
-      - name: e2e test
-        run: |
-          docker compose up blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
-          docker compose down
+#  e2e:
+#    name: e2e
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check out the repo
+#        uses: actions/checkout@v4
+#
+#      - name: e2e test
+#        run: |
+#          docker compose up blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
+#          docker compose down
 
   e2e-multicast:
     name: e2e-multicast

@@ -65,5 +65,5 @@ jobs:
       - name: e2e-multicast test
         run: |
           docker compose -f docker-compose-mcast.yaml down --remove-orphans
-          docker compose -f docker-compose-mcast.yaml up --build mcast_sidecar blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
+          docker compose -f docker-compose-mcast.yaml up --build mcast_sidecar blocktx callbacker metamorph api tests --scale blocktx=6 --exit-code-from tests
           docker compose -f docker-compose-mcast.yaml down

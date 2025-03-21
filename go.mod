@@ -2,6 +2,8 @@ module github.com/bitcoin-sv/arc
 
 go 1.23.5
 
+replace github.com/ordishs/go-bitcoin v1.0.87 => github.com/boecklim/go-bitcoin v1.0.90
+
 require (
 	github.com/bitcoin-sv/go-sdk v1.1.18
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9

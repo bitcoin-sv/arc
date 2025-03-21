@@ -1,12 +1,8 @@
 package node_client
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"testing"
 	"time"
 
@@ -108,6 +104,13 @@ func ExecCommandGenerate(t *testing.T, bitcoind *bitcoin.Bitcoind, amount uint64
 	require.NoError(t, err)
 
 	return hashes[len(hashes)-1]
+}
+
+func InvalidateBlock(t *testing.T, bitcoind *bitcoin.Bitcoind, invHash string) {
+	t.Helper()
+
+	err := bitcoind.InvalidateBlock(invHash)
+	require.NoError(t, err)
 }
 
 func GetUtxos(t *testing.T, bitcoind *bitcoin.Bitcoind, address string) []UnspentOutput {
@@ -309,71 +312,4 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 	}
 
 	return tx, nil
-}
-
-func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePort int, nodeUser, nodePassword string) error {
-	c := http.Client{}
-
-	rpcRequest := RPCRequest{method, params, time.Now().UnixNano(), "1.0"}
-	payloadBuffer := &bytes.Buffer{}
-	jsonEncoder := json.NewEncoder(payloadBuffer)
-
-	err := jsonEncoder.Encode(rpcRequest)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(
-		"POST",
-		fmt.Sprintf("%s://%s:%d", "http", nodeHost, nodePort),
-		payloadBuffer,
-	)
-	if err != nil {
-		return err
-	}
-
-	req.SetBasicAuth(nodeUser, nodePassword)
-	req.Header.Add("Content-Type", "application/json;charset=utf-8")
-	req.Header.Add("Accept", "application/json")
-
-	resp, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var rpcResponse RPCResponse
-
-	if resp.StatusCode != 200 {
-		_ = json.Unmarshal(data, &rpcResponse)
-		v, ok := rpcResponse.Err.(map[string]interface{})
-		if ok {
-			err = errors.New(v["message"].(string))
-		} else {
-			err = errors.New("HTTP error: " + resp.Status)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	err = json.Unmarshal(data, &rpcResponse)
-	if err != nil {
-		return err
-	}
-
-	if rpcResponse.Err != nil {
-		e, ok := rpcResponse.Err.(error)
-		if ok {
-			return e
-		}
-		return errors.New("unknown error returned from node in rpc response")
-	}
-
-	return nil
 }

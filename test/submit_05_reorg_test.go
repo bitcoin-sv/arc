@@ -111,7 +111,7 @@ func TestReorg(t *testing.T) {
 	}
 
 	// invalidate the chain with tx1 and tx2
-	call(t, "invalidateblock", []interface{}{invHash})
+	node_client.InvalidateBlock(t, bitcoind, invHash)
 
 	// prepare txStale
 	txID = node_client.SendToAddress(t, bitcoind, address, float64(0.003))
@@ -192,9 +192,9 @@ func TestReorg(t *testing.T) {
 	}
 }
 
-func call(t *testing.T, method string, params []interface{}) {
-	err := node_client.CustomRPCCall(method, params, nodeHost, nodePort, nodeUser, nodePassword)
-	require.NoError(t, err)
-
-	time.Sleep(5 * time.Second)
-}
+//func call(t *testing.T, method string, params []interface{}) {
+//	err := node_client.CustomRPCCall(method, params, nodeHost, nodePort, nodeUser, nodePassword)
+//	require.NoError(t, err)
+//
+//	time.Sleep(5 * time.Second)
+//}

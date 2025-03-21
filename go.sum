@@ -660,6 +660,8 @@ github.com/bitcoinsv/bsvd v0.0.0-20190609155523-4c29707f7173/go.mod h1:BZ1UcC9+t
 github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9 h1:hFI8rT84FCA0FFy3cFrkW5Nz4FyNKlIdCvEvvTNySKg=
 github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9/go.mod h1:p44KuNKUH5BC8uX4ONEODaHUR4+ibC8todEAOGQEJAM=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
+github.com/boecklim/go-bitcoin v1.0.90 h1:6TZycLDEHvW6rpgpnd9wGDPSGtG1cB1LQvmxK124ZwQ=
+github.com/boecklim/go-bitcoin v1.0.90/go.mod h1:XP6CEJEM/7/3Tu0aZwDvPIWtvKcZ4HgR1gbaTFTP1rk=
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
 github.com/boombuler/barcode v1.0.1/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
 github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3 h1:LRxW8pdmWmyhoNh+TxUjxsAinGtCsVGjsl3xg6zoRSs=
@@ -1029,8 +1031,6 @@ github.com/libsv/go-bc v0.1.29 h1:w3ZnpZxLkTrjklwkr9x/y/xv0vJz5FVVZjd/gvtvGQs=
 github.com/libsv/go-bc v0.1.29/go.mod h1:l6epTfcakN8YKId/hrpUzlu1QeT3ODF1MI3DeYhG1O8=
 github.com/libsv/go-bk v0.1.6 h1:c9CiT5+64HRDbzxPl1v/oiFmbvWZTuUYqywCf+MBs/c=
 github.com/libsv/go-bk v0.1.6/go.mod h1:khJboDoH18FPUaZlzRFKzlVN84d4YfdmlDtdX4LAjQA=
-github.com/libsv/go-bt v1.0.4 h1:2Css5lfomk/J97tM5Gk56Lp+tTK6xWYnmHNc/fGO6lE=
-github.com/libsv/go-bt v1.0.4/go.mod h1:AfXoLFYEbY/TvCq/84xTce2xGjPUuC5imokHmcykF2k=
 github.com/libsv/go-bt/v2 v2.2.5 h1:VoggBLMRW9NYoFujqe5bSYKqnw5y+fYfufgERSoubog=
 github.com/libsv/go-bt/v2 v2.2.5/go.mod h1:cV45+jDlPOLfhJLfpLmpQoWzrIvVth9Ao2ZO1f6CcqU=
 github.com/libsv/go-p2p v0.3.3 h1:5h+69MsGgFwQWyD8MEqyPeqbqKGRpKLzzOcI5cSLfgY=
@@ -1105,8 +1105,6 @@ github.com/opencontainers/image-spec v1.1.0 h1:8SG7/vwALn54lVB/0yZ/MMwhFrPYtpEHQ
 github.com/opencontainers/image-spec v1.1.0/go.mod h1:W4s4sFTMaBeK1BQLXbG4AdM2szdn85PY75RI83NrTrM=
 github.com/opencontainers/runc v1.2.4 h1:yWFgLkghp71D76Fa0l349yAl5g4Gse7DPYNlvkQ9Eiw=
 github.com/opencontainers/runc v1.2.4/go.mod h1:nSxcWUydXrsBZVYNSkTjoQ/N6rcyTtn+1SD5D4+kRIM=
-github.com/ordishs/go-bitcoin v1.0.87 h1:AN5sWd6H0hufgdtjQwKgQqQ8NsEo2mlHipNfYoB+D7k=
-github.com/ordishs/go-bitcoin v1.0.87/go.mod h1:O3lqD8unDlwLXTmQTT4F5x/Gl3xgP4IgMQDFxTmi9V4=
 github.com/ory/dockertest/v3 v3.11.0 h1:OiHcxKAvSDUwsEVh2BjxQQc/5EHz9n0va9awCtNGuyA=
 github.com/ory/dockertest/v3 v3.11.0/go.mod h1:VIPxS1gwT9NpPOrfD3rACs8Y9Z7yhzO4SB194iUDnUI=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
@@ -1153,8 +1151,8 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
-github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
-github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
+github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
+github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ruudk/golang-pdf417 v0.0.0-20181029194003-1af4ab5afa58/go.mod h1:6lfFZQK844Gfx8o5WFuvpxWRwnSoipWe/p622j1v06w=
 github.com/ruudk/golang-pdf417 v0.0.0-20201230142125-a7e3863a1245/go.mod h1:pQAZKsJ8yyVxGRWYNEm9oFB8ieLgKFnamEyDmSA0BRk=

@@ -2,9 +2,15 @@ package callbacker
 
 import (
 	"context"
+	"google.golang.org/grpc"
 
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
+
+type HealthWatchServer interface {
+	Send(*grpc_health_v1.HealthCheckResponse) error
+	grpc.ServerStream
+}
 
 func (s *Server) Check(_ context.Context, _ *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
 	if s.mqClient == nil || !s.mqClient.IsConnected() {

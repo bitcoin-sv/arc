@@ -237,8 +237,8 @@ func readCallbacksFromDB(callbacks []byte) ([]store.Callback, error) {
 	return callbacksData, nil
 }
 
-func readStatusHistoryFromDB(statusHistory []byte) ([]*store.Status, error) {
-	var statusHistoryData []*store.Status
+func readStatusHistoryFromDB(statusHistory []byte) ([]*store.StatusWithTimestamp, error) {
+	var statusHistoryData []*store.StatusWithTimestamp
 	err := json.Unmarshal(statusHistory, &statusHistoryData)
 	if err != nil {
 		return nil, err

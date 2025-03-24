@@ -377,7 +377,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) (err error) {
 	}
 
 	if value.StatusHistory == nil {
-		value.StatusHistory = make([]*store.Status, 0)
+		value.StatusHistory = make([]*store.StatusWithTimestamp, 0)
 	}
 	statusHistoryData, err := json.Marshal(value.StatusHistory)
 	if err != nil {
@@ -435,7 +435,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.Data) error {
 		callbacks[i] = string(callbacksData)
 
 		if txData.StatusHistory == nil {
-			txData.StatusHistory = make([]*store.Status, 0)
+			txData.StatusHistory = make([]*store.StatusWithTimestamp, 0)
 		}
 		statusHistoryData, err := json.Marshal(txData.StatusHistory)
 		if err != nil {

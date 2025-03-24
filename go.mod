@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.23.5
+go 1.24.1
 
 require (
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9

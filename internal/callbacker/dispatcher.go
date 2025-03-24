@@ -15,6 +15,7 @@ Graceful Shutdown: on service termination, the CallbackDispatcher ensures all ac
 */
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -47,12 +48,14 @@ func (d *CallbackDispatcher) GetLenManagers() int {
 }
 
 func (d *CallbackDispatcher) GracefulStop() {
+	fmt.Println("dispatcher shutting down")
 	d.managersMu.Lock()
 	defer d.managersMu.Unlock()
 
 	for _, manager := range d.managers {
 		manager.GracefulStop()
 	}
+
 }
 
 func (d *CallbackDispatcher) Dispatch(url string, dto *CallbackEntry) {

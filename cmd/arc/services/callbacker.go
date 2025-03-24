@@ -83,6 +83,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return manager
 	}
 
+	fmt.Println("callbacker dispatcher created")
 	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
 
 	hostname, err := os.Hostname()

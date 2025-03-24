@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"go.opentelemetry.io/otel/attribute"
 

@@ -3,7 +3,7 @@ package testdata
 import (
 	"time"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )

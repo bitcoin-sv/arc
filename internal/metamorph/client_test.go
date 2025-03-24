@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"

@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )

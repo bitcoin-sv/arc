@@ -3,7 +3,7 @@ package bcnet
 import (
 	"testing"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

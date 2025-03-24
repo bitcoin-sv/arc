@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/ordishs/go-bitcoin"

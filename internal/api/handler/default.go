@@ -15,7 +15,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"

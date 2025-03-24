@@ -3,7 +3,7 @@ package beef
 import (
 	"errors"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 )
 
 var (

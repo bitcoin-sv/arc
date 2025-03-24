@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/go-sdk/util"
+	"github.com/bsv-blockchain/go-sdk/util"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"

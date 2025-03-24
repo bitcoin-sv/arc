@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )

@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"

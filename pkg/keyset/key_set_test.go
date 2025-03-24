@@ -3,7 +3,7 @@ package keyset
 import (
 	"testing"
 
-	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

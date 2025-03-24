@@ -85,7 +85,7 @@ func TestNewZMQHandler(t *testing.T) {
 
 func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
 	ctx := context.Background()
-	ep, err := endPoint("tcp")
+	ep, err := endPoint(t, "tcp")
 	require.NoError(t, err)
 
 	_, timeout := context.WithTimeout(ctx, 20*time.Second)
@@ -108,7 +108,7 @@ func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
 	return srv, cli
 }
 
-func endPoint(transport string) (string, error) {
+func endPoint(t *testing.T, transport string) (string, error) {
 	switch transport {
 	case "tcp":
 		addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:5555")
@@ -122,6 +122,7 @@ func endPoint(transport string) (string, error) {
 		defer l.Close()
 		return fmt.Sprintf("tcp://%s", l.Addr()), nil
 	default:
-		panic("invalid transport: [" + transport + "]")
+		t.Fatalf("invalid transport: %s", transport)
+		return "", nil
 	}
 }

@@ -118,16 +118,16 @@ func (p *Processor) getStatusUpdateCount() (int, error) {
 	return int(count), nil
 }
 
-func shouldUpdateCompetingTxs(new, found store.UpdateStatus) bool {
-	if new.Status >= found.Status && !unorderedEqual(new.CompetingTxs, found.CompetingTxs) {
+func shouldUpdateCompetingTxs(newStatus, found store.UpdateStatus) bool {
+	if newStatus.Status >= found.Status && !unorderedEqual(newStatus.CompetingTxs, found.CompetingTxs) {
 		return true
 	}
 
 	return false
 }
 
-func shouldUpdateStatus(new, found store.UpdateStatus) bool {
-	return new.Status > found.Status
+func shouldUpdateStatus(newStatus, found store.UpdateStatus) bool {
+	return newStatus.Status > found.Status
 }
 
 // unorderedEqual checks if two string slices contain

@@ -354,11 +354,14 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 		v, ok := rpcResponse.Err.(map[string]interface{})
 		if ok {
 			err = errors.New(v["message"].(string))
+			if err != nil {
+				return err
+			}
 		} else {
 			err = errors.New("HTTP error: " + resp.Status)
-		}
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -23,7 +23,7 @@ type Data struct {
 	BlockHeight       uint64
 	BlockHash         *chainhash.Hash
 	Callbacks         []Callback
-	StatusHistory     []*Status
+	StatusHistory     []*StatusWithTimestamp
 	FullStatusUpdates bool
 	RejectReason      string
 	CompetingTxs      []string
@@ -40,9 +40,9 @@ type Callback struct {
 	AllowBatch    bool   `json:"allow_batch"`
 }
 
-type Status struct {
-	Status    metamorph_api.Status
-	Timestamp time.Time
+type StatusWithTimestamp struct {
+	Status    metamorph_api.Status `json:"status"`
+	Timestamp time.Time            `json:"timestamp"`
 }
 
 type Stats struct {
@@ -138,9 +138,4 @@ func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
-}
-
-type StatusWithTimestamp struct {
-	Status    metamorph_api.Status `json:"status"`
-	Timestamp time.Time            `json:"timestamp"`
 }

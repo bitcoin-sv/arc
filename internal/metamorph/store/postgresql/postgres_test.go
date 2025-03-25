@@ -85,7 +85,7 @@ func TestPostgresDB(t *testing.T) {
 		Callbacks:     []store.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
 		RejectReason:  "not rejected",
 		LockedBy:      "metamorph-1",
-		StatusHistory: make([]*store.Status, 0),
+		StatusHistory: make([]*store.StatusWithTimestamp, 0),
 	}
 
 	unminedHash := testdata.TX1Hash
@@ -622,7 +622,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED,
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
@@ -661,11 +661,11 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
-			&store.Status{
+			&store.StatusWithTimestamp{
 				Status:    metamorph_api.Status_QUEUED,
 				Timestamp: postgresDB.now(),
 			},
-			&store.Status{
+			&store.StatusWithTimestamp{
 				Status:    metamorph_api.Status_RECEIVED,
 				Timestamp: postgresDB.now(),
 			},
@@ -687,7 +687,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
@@ -710,7 +710,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		unmined.CompetingTxs = []string{"5678"}
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			Timestamp: unmined.LastModified,
 		})
@@ -739,7 +739,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED,
 			Timestamp: unmined.LastModified,
 		})
@@ -768,7 +768,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block2Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED_IN_STALE_BLOCK,
 			Timestamp: unmined.LastModified,
 		})
@@ -802,7 +802,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
 		})
@@ -839,10 +839,10 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
-		}, &store.Status{
+		}, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
@@ -879,13 +879,13 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_STORED,
 			Timestamp: postgresDB.now(),
-		}, &store.Status{
+		}, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			Timestamp: postgresDB.now(),
-		}, &store.Status{
+		}, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
@@ -912,7 +912,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.Status{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})

@@ -68,16 +68,7 @@ jobs:
           go-version-file: "./go.mod"
           cache: false
 
-      - name: Clear Go and Linter Cache
-        run: |
-          go clean -modcache
-          go clean -cache
-          rm -rf ~/.cache/golangci-lint
-
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.60.1
-
-      - name: Ensure Dependencies Are Tidy
-        run: go mod tidy
+          version: latest

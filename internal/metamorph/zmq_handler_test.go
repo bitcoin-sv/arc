@@ -2,34 +2,27 @@ package metamorph_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/go-zeromq/zmq4"
 	"github.com/stretchr/testify/require"
+	"log"
 	"log/slog"
+	"net"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestNewZMQHandler(t *testing.T) {
-	// Test Case
-	// Given I want to test metamorph handler
-	// When I have a ZMQ publisher up
-	// Then I want to make sure the handler can
-	// subscribe and unsubscribe to all topics
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	var handler *metamorph.ZMQHandler
 	var zmq *metamorph.ZMQ
-	/*TODO without starting a ZMQ the handler will fail to connect with:
-	error="zmq4: could not dial to \"tcp://127.0.0.1:5555\" (retry=250ms): dial tcp 127.0.0.1:5555: connect: connection refused
-	Adding a publisher and a subscriber like below allows the connection to be stablished but will fail with:
-	zmq4: could not open a ZMTP connection with "tcp://127.0.0.1:5555": zmq4: could not initialize ZMTP connection: zmq4: peer="SUB" not compatible with "SUB"
-	*/
 
-	pub, sub := ZMQ4StartServer(t)
-	defer pub.Close()
-	defer sub.Close()
+	srv, cli := ZMQ4StartServer(t)
+	defer srv.Close()
+	defer cli.Close()
 
 	handler = metamorph.NewZMQHandler(context.Background(), zmqEndpointURL, logger)
 	require.NotNil(t, handler)
@@ -50,6 +43,11 @@ func TestNewZMQHandler(t *testing.T) {
 		{name: "hashtx2"},
 		{name: "invalidtx"},
 	}
+	// Test Case
+	// Given I want to test metamorph handler
+	// When I have a ZMQ publisher up
+	// Then I want to make sure the handler can
+	// subscribe and unsubscribe to all topics
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -71,26 +69,60 @@ func TestNewZMQHandler(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		})
 	}
+
+	// Test Case
+	// Given I want to test metamorph handler
+	// When the publisher is down
+	// Then I want to make sure the handler safely fails
+	srv.Close()
+	cli.Close()
+	err = handler.Subscribe("hashblock", zmqMessages)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	err = handler.Unsubscribe("hashtx2", zmqMessages)
+	require.NoError(t, err)
 }
 
 func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
-	// Create a new subscriber socket.
-	sub := zmq4.NewSub(context.Background())
+	ctx := context.Background()
+	ep, err := endPoint(t, "tcp")
+	require.NoError(t, err)
 
-	// Create a new publisher socket.
-	pub := zmq4.NewPub(context.Background())
+	_, timeout := context.WithTimeout(ctx, 20*time.Second)
+	defer timeout()
 
-	//Set sub to subscribe mode
-	if err := sub.SetOption(zmq4.OptionSubscribe, ZmqValidTopic); err != nil {
-		t.Fatalf("Subscription failed: %v", err)
-	}
+	logger := log.Default()
 
-	// Bind the publisher to a port.
-	if err := sub.Listen(zmqEndpoint); err != nil {
-		t.Fatalf("Sub Dial failed: %v", err)
+	srv := zmq4.NewXPub(ctx, zmq4.WithLogger(logger))
+	cli := zmq4.NewXSub(ctx, zmq4.WithLogger(logger))
+	err = srv.Listen(ep)
+	require.NoError(t, err)
+
+	err = cli.Dial(ep)
+	require.NoError(t, err)
+	t.Logf("dialed %q", ep)
+
+	pub := zmq4.NewPub(ctx)
+	msg := zmq4.NewMsgString("hashblock")
+	_ = pub.Send(msg)
+	return srv, cli
+}
+
+func endPoint(t *testing.T, transport string) (string, error) {
+	switch transport {
+	case "tcp":
+		addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:5555")
+		if err != nil {
+			return "", err
+		}
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			return "", err
+		}
+		defer l.Close()
+		return fmt.Sprintf("tcp://%s", l.Addr()), nil
+	default:
+		t.Fatalf("invalid transport: %s", transport)
+		return "", nil
 	}
-	if err := pub.Dial(zmqEndpoint); err != nil {
-		t.Fatalf("Pub Dial failed: %v", err)
-	}
-	return pub, sub
 }

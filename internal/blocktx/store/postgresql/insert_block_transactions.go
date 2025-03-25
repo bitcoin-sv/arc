@@ -29,7 +29,7 @@ func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64
 
 	err = p.conn.Raw(func(driverConn any) error {
 		c, ok := driverConn.(*stdlib.Conn)
-		if ok == false {
+		if !ok {
 			return errors.New("driverConn.(*stdlib.Conn) conversion failed")
 		}
 		conn := c.Conn() // conn is a *pgx.Conn

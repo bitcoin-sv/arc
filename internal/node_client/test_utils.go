@@ -353,15 +353,16 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 		_ = json.Unmarshal(data, &rpcResponse)
 		v, ok := rpcResponse.Err.(map[string]interface{})
 		if ok {
-			err = errors.New(v["message"].(string))
-			if err != nil {
-				return err
+			e, ok := v["message"].(string)
+			if !ok {
+				return errors.New("conversion error")
 			}
+			err = errors.New(e)
 		} else {
 			err = errors.New("HTTP error: " + resp.Status)
-			if err != nil {
-				return err
-			}
+		}
+		if err != nil {
+			return err
 		}
 	}
 

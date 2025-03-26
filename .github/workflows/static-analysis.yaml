@@ -52,7 +52,7 @@ jobs:
       - name: staticcheck
         uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: "latest"
+          version: v1.3.1
           install-go: false
 
   lint:
@@ -71,4 +71,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v1.64.8

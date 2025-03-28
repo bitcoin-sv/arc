@@ -138,7 +138,7 @@ install_gen:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
-	go install github.com/matryer/moq@v0.4.0
+	go install github.com/matryer/moq@v0.5.3
 
 .PHONY: docs
 docs:

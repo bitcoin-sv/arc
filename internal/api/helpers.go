@@ -1,7 +1,7 @@
 package api
 
 import (
-	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
+	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 )
 
 func FeesToFeeModel(minMiningFee float64) *feemodel.SatoshisPerKilobyte {

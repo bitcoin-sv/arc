@@ -1,6 +1,6 @@
 package testdata
 
-import sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+import sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 const (
 	ValidTxID     = "516016c90be02b335abe8fc421a4cd9f6ae24a0c865f9b9bd36b9e23c953e40d"

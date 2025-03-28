@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	ec "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
 	"github.com/bitcoinsv/bsvutil"
+	ec "github.com/bsv-blockchain/go-sdk/primitives/ec"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/require"
 )
@@ -353,7 +353,11 @@ func CustomRPCCall(method string, params []interface{}, nodeHost string, nodePor
 		_ = json.Unmarshal(data, &rpcResponse)
 		v, ok := rpcResponse.Err.(map[string]interface{})
 		if ok {
-			err = errors.New(v["message"].(string))
+			e, ok := v["message"].(string)
+			if !ok {
+				return errors.New("conversion error")
+			}
+			err = errors.New(e)
 		} else {
 			err = errors.New("HTTP error: " + resp.Status)
 		}

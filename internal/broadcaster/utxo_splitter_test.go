@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 

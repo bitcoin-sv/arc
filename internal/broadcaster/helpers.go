@@ -3,11 +3,11 @@ package broadcaster
 import (
 	"math"
 
-	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
+	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 )
 
 func PayTo(tx *sdkTx.Transaction, s *script.Script, satoshis uint64) error {

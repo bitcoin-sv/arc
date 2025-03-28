@@ -12,9 +12,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/bitcoin-sv/go-sdk/chainhash"
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/cenkalti/backoff/v4"
 	"go.opentelemetry.io/otel/attribute"
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 

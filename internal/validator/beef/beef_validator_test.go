@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	feemodel "github.com/bitcoin-sv/go-sdk/transaction/fee_model"
+	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

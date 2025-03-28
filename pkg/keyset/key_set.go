@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
-	bip32 "github.com/bitcoin-sv/go-sdk/compat/bip32"
-	primitives "github.com/bitcoin-sv/go-sdk/primitives/ec"
-	"github.com/bitcoin-sv/go-sdk/script"
-	sdkTx "github.com/bitcoin-sv/go-sdk/transaction"
-	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
-	"github.com/bitcoin-sv/go-sdk/transaction/template/p2pkh"
+	bip32 "github.com/bsv-blockchain/go-sdk/compat/bip32"
+	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
+	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 )
 
 type KeySet struct {

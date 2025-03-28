@@ -6,7 +6,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
-	chaincfg "github.com/bitcoin-sv/go-sdk/transaction/chaincfg"
+	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/spf13/cobra"
 )
 

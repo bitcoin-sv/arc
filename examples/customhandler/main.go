@@ -19,7 +19,6 @@ import (
 // This example does not use the configuration files or env variables,
 // but demonstrates how to initialize the arc server in a completely custom way
 func main() {
-
 	// Set up a basic Echo router
 	e := echo.New()
 

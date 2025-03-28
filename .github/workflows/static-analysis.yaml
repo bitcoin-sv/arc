@@ -52,7 +52,7 @@ jobs:
       - name: staticcheck
         uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: latest
+          version: v0.6.1
           install-go: false
 
   lint:

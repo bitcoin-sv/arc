@@ -593,10 +593,8 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 						data[1].CompetingTxs = tt.want.Statuses[1].CompetingTxs
 
 						return data, tt.getErr
-					} else {
-						return []*store.Data{}, tt.getErr
 					}
-
+					return []*store.Data{}, tt.getErr
 				},
 			}
 
@@ -1060,7 +1058,6 @@ func TestGetTransactions(t *testing.T) {
 				require.NotNil(t, res)
 				require.Len(t, res.Transactions, tc.getFromStoreResponseCount)
 			}
-
 		})
 	}
 }
@@ -1116,9 +1113,8 @@ func TestGetTransaction(t *testing.T) {
 					res = res[:tc.getFromStoreResponseCount]
 					if len(res) > 0 {
 						return res[0], nil
-					} else {
-						return &store.Data{}, nil
 					}
+					return &store.Data{}, nil
 				},
 			}
 			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
@@ -1138,7 +1134,6 @@ func TestGetTransaction(t *testing.T) {
 					require.NotNil(t, res.Txid)
 				}
 			}
-
 		})
 	}
 }

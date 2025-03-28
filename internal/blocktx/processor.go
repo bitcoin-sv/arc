@@ -839,7 +839,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 
 func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
-	_, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "publishMinedTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, publishErr)
 	}()

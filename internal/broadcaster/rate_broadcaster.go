@@ -110,7 +110,13 @@ func (b *UTXORateBroadcaster) Start() error {
 	}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
-	submitBatchTicker := time.NewTicker(submitBatchInterval)
+
+	submitBatchTicker, err := NewDynamicTicker(10*time.Second, submitBatchInterval, 10)
+	if err != nil {
+		return err
+	}
+
+	tickerCh := submitBatchTicker.GetTickerCh()
 
 	errCh := make(chan error, 100)
 
@@ -125,7 +131,7 @@ func (b *UTXORateBroadcaster) Start() error {
 			select {
 			case <-b.ctx.Done():
 				return
-			case <-submitBatchTicker.C:
+			case <-tickerCh:
 				txs, err := b.createSelfPayingTxs()
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
@@ -255,62 +261,6 @@ utxoLoop:
 	}
 
 	return txs, nil
-}
-
-type dynamicTicker struct {
-	ticker        *time.Ticker
-	startInterval time.Duration
-	endInterval   time.Duration
-	steps         int
-}
-
-// start interval: 10s
-// end interval: 1s
-// steps: 5
-
-// 10s -> tick
-// 8.2s -> tick
-// 6.4s -> tick
-// 4.6s -> tick
-// 2.8s -> tick
-// 1s -> tick
-// 1s -> tick
-// 1s -> tick
-
-func newDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int) dynamicTicker {
-	return dynamicTicker{
-		ticker:        time.NewTicker(startInterval),
-		startInterval: startInterval,
-		endInterval:   endInterval,
-		steps:         steps,
-	}
-}
-
-func (t *dynamicTicker) Stop() {
-	t.ticker.Stop()
-}
-
-func (t *dynamicTicker) C() chan<- time.Time {
-	C := make(chan time.Time)
-	step := 0
-	go func() {
-		for {
-			select {
-			case tick := <-t.ticker.C:
-				C <- tick
-				step++
-				if step >= t.steps {
-					continue
-				}
-
-				increment := float64(t.startInterval.Microseconds()-t.endInterval.Microseconds()) * float64(step) / float64(t.steps)
-
-				newInterval := time.Duration(t.endInterval.Microseconds() + int64(increment)*time.Microsecond)
-			}
-		}
-	}()
-
-	return C
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {

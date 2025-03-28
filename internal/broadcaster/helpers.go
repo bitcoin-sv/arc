@@ -1,7 +1,10 @@
 package broadcaster
 
 import (
+	"errors"
+	"log/slog"
 	"math"
+	"time"
 
 	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -76,4 +79,91 @@ func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, 
 	}
 
 	return feesRequiredRounded, nil
+}
+
+type DynamicTicker struct {
+	ticker        *time.Ticker
+	startInterval time.Duration
+	endInterval   time.Duration
+	steps         int64
+}
+
+// start interval: 10s
+// end interval: 1s
+// steps: 5
+
+// 10s -> tick
+// 8.2s -> tick
+// 6.4s -> tick
+// 4.6s -> tick
+// 2.8s -> tick
+// 1s -> tick
+// 1s -> tick
+// 1s -> tick
+
+var (
+	ErrStepsZero                          = errors.New("steps must be greater than 0")
+	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
+)
+
+func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (DynamicTicker, error) {
+
+	if steps < 1 {
+		return DynamicTicker{}, ErrStepsZero
+	}
+
+	if startInterval <= endInterval {
+		return DynamicTicker{}, ErrStartIntervalNotGreaterEndInterval
+	}
+
+	ticker := DynamicTicker{
+		ticker:        time.NewTicker(startInterval),
+		startInterval: startInterval,
+		endInterval:   endInterval,
+		steps:         steps,
+	}
+
+	return ticker, nil
+}
+
+func (t *DynamicTicker) Stop() {
+	t.ticker.Stop()
+}
+
+func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
+	C := make(chan time.Time)
+	step := int64(0)
+	stepsReached := false
+	stepNs := int64(float64(t.startInterval.Nanoseconds()-t.endInterval.Nanoseconds()) / float64(t.steps))
+
+	slog.Default().Info("step", "step ns", stepNs)
+
+	go func() {
+		for {
+			select {
+			case tick := <-t.ticker.C:
+				C <- tick
+
+				if step >= t.steps-1 {
+					if !stepsReached {
+						slog.Default().Info("new interval", "interval", t.endInterval)
+						t.ticker.Reset(t.endInterval)
+						stepsReached = true
+					}
+
+					continue
+				}
+
+				step++
+
+				newInterval := t.startInterval - time.Duration(stepNs*step)
+
+				slog.Default().Info("new interval", "interval", newInterval)
+
+				t.ticker.Reset(newInterval)
+			}
+		}
+	}()
+
+	return C
 }

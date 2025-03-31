@@ -193,8 +193,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		status             metamorph_api.Status
 		competingTxs       []string
 
-		want    *metamorph_api.TransactionStatus
-		wantErr assert.ErrorAssertionFunc
+		expected      *metamorph_api.TransactionStatus
+		expectedError assert.ErrorAssertionFunc
 	}{
 		{
 			name: "GetTransactionStatus - error: not found",
@@ -203,8 +203,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			},
 			getErr: store.ErrNotFound,
 
-			want: nil,
-			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+			expected: nil,
+			expectedError: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, metamorph.ErrNotFound, rest...)
 			},
 		},
@@ -215,8 +215,8 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			},
 			getErr: errFailedToGetTxData,
 
-			want: nil,
-			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+			expected: nil,
+			expectedError: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, errFailedToGetTxData, rest...)
 			},
 		},
@@ -227,7 +227,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			},
 			status: metamorph_api.Status_SENT_TO_NETWORK,
 
-			want: &metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatus{
 				StoredAt:      timestamppb.New(testdata.Time),
 				Txid:          testdata.TX1Hash.String(),
 				Status:        metamorph_api.Status_SENT_TO_NETWORK,
@@ -235,7 +235,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
 				LastSubmitted: timestamppb.New(testdata.Time),
 			},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatus - double spend attempted",
@@ -245,7 +245,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			competingTxs: []string{"1234"},
 
-			want: &metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatus{
 				StoredAt:      timestamppb.New(testdata.Time),
 				Txid:          testdata.TX1Hash.String(),
 				Status:        metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
@@ -254,7 +254,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
 				LastSubmitted: timestamppb.New(testdata.Time),
 			},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatus - mined - previously double spend attempted",
@@ -264,7 +264,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			status:       metamorph_api.Status_MINED,
 			competingTxs: []string{"1234"},
 
-			want: &metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatus{
 				StoredAt:      timestamppb.New(testdata.Time),
 				Txid:          testdata.TX1Hash.String(),
 				Status:        metamorph_api.Status_MINED,
@@ -274,7 +274,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
 				LastSubmitted: timestamppb.New(testdata.Time),
 			},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatus - test.TX1 - error",
@@ -284,7 +284,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			status:             metamorph_api.Status_SENT_TO_NETWORK,
 			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
 
-			want: &metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatus{
 				StoredAt:      timestamppb.New(testdata.Time),
 				Txid:          testdata.TX1Hash.String(),
 				Status:        metamorph_api.Status_SENT_TO_NETWORK,
@@ -292,7 +292,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
 				LastSubmitted: timestamppb.New(testdata.Time),
 			},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatus - test.TX1 - tx not found for Merkle path",
@@ -302,7 +302,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			status:             metamorph_api.Status_MINED,
 			getTxMerklePathErr: errors.New("merkle path not found for transaction"),
 
-			want: &metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatus{
 				StoredAt:      timestamppb.New(testdata.Time),
 				Txid:          testdata.TX1Hash.String(),
 				Status:        metamorph_api.Status_MINED,
@@ -310,7 +310,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 				Callbacks:     []*metamorph_api.Callback{{CallbackUrl: "https://test.com", CallbackToken: "token"}},
 				LastSubmitted: timestamppb.New(testdata.Time),
 			},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 	}
 	for _, tt := range tests {
@@ -339,10 +339,10 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 			got, err := sut.GetTransactionStatus(context.Background(), tt.req)
 
 			// then
-			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
+			if !tt.expectedError(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "GetTransactionStatus(%v)", tt.req)
+			assert.Equalf(t, tt.expected, got, "GetTransactionStatus(%v)", tt.req)
 		})
 	}
 }

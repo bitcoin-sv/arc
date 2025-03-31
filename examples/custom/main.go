@@ -50,7 +50,7 @@ func main() {
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger,
 		&middleware.Options{
 			Options: openapi3filter.Options{
-				AuthenticationFunc: func(c context.Context, input *openapi3filter.AuthenticationInput) error {
+				AuthenticationFunc: func(_ context.Context, input *openapi3filter.AuthenticationInput) error {
 					// in here you can add any kind of authentication check, like a database lookup on an blocktx_api-key
 					if input.SecuritySchemeName != "BearerAuth" {
 						return fmt.Errorf("security scheme %s != 'BearerAuth'", input.SecuritySchemeName)

@@ -11,15 +11,15 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	middleware "github.com/oapi-codegen/echo-middleware"
 
+	"github.com/getkin/kin-openapi/openapi3filter"
+
 	"github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/getkin/kin-openapi/openapi3filter"
 )
 
 // This example does not use the configuration files or env variables,
 // but demonstrates how to initialize the arc server in a completely custom way
 func main() {
-
 	// Set up a basic Echo router
 	e := echo.New()
 
@@ -40,7 +40,7 @@ func main() {
 	e.Use(middleware.OapiRequestValidatorWithOptions(swagger,
 		&middleware.Options{
 			Options: openapi3filter.Options{
-				AuthenticationFunc: func(c context.Context, input *openapi3filter.AuthenticationInput) error {
+				AuthenticationFunc: func(_ context.Context, input *openapi3filter.AuthenticationInput) error {
 					// in here you can add any kind of authentication check, like a database lookup on an blocktx_api-key
 					authorizationHeader := input.RequestValidationInput.Request.Header.Get("Authorization")
 

@@ -255,11 +255,7 @@ func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) fu
 		mu.Unlock()
 
 		// Let ARC send the same callback few times
-		respondWithSuccess := false
-		if callbackCounter >= respondSuccessAtCallbacks {
-			// Respond with success at specified number of requests
-			respondWithSuccess = true
-		}
+		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
 
 		err := respondToCallback(w, respondWithSuccess)
 		if err != nil {

@@ -22,7 +22,7 @@ type CustomHandler struct {
 
 type CustomMerkleRootsVerifier struct{}
 
-func (c *CustomMerkleRootsVerifier) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+func (c *CustomMerkleRootsVerifier) VerifyMerkleRoots(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 	// Custom Merkle Roots Verification Logic
 	return nil, nil
 }

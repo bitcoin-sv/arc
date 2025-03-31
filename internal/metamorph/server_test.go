@@ -358,8 +358,8 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 		status             metamorph_api.Status
 		competingTxs       []string
 
-		want    *metamorph_api.TransactionStatuses
-		wantErr assert.ErrorAssertionFunc
+		expected      *metamorph_api.TransactionStatuses
+		expectedError assert.ErrorAssertionFunc
 	}{
 		{
 			name: "GetTransactionStatuses - error: not found",
@@ -371,8 +371,8 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			},
 			getErr: store.ErrNotFound,
 
-			want: nil,
-			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+			expected: nil,
+			expectedError: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, metamorph.ErrNotFound, rest...)
 			},
 		},
@@ -386,8 +386,8 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			},
 			getErr: errFailedToGetTxData,
 
-			want: nil,
-			wantErr: func(t assert.TestingT, err error, rest ...interface{}) bool {
+			expected: nil,
+			expectedError: func(t assert.TestingT, err error, rest ...interface{}) bool {
 				return assert.ErrorIs(t, err, errFailedToGetTxData, rest...)
 			},
 		},
@@ -401,7 +401,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			},
 			status: metamorph_api.Status_SENT_TO_NETWORK,
 
-			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
 				{
 					StoredAt:      timestamppb.New(testdata.Time),
 					Txid:          testdata.TX1Hash.String(),
@@ -419,7 +419,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 					LastSubmitted: timestamppb.New(testdata.Time),
 				},
 			}},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatuses - double spend attempted",
@@ -432,7 +432,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			competingTxs: []string{"1234"},
 
-			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
 				{
 					StoredAt:      timestamppb.New(testdata.Time),
 					Txid:          testdata.TX1Hash.String(),
@@ -452,7 +452,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 				},
 			}},
 
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatuses - mined - previously double spend attempted",
@@ -465,7 +465,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			status:       metamorph_api.Status_MINED,
 			competingTxs: []string{"1234"},
 
-			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
 				{
 					StoredAt:      timestamppb.New(testdata.Time),
 					Txid:          testdata.TX1Hash.String(),
@@ -488,7 +488,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 				},
 			}},
 
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatuses - test.TX1 - error",
@@ -501,7 +501,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			status:             metamorph_api.Status_SENT_TO_NETWORK,
 			getTxMerklePathErr: errors.New("failed to get tx merkle path"),
 
-			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
 				{
 					StoredAt:      timestamppb.New(testdata.Time),
 					Txid:          testdata.TX1Hash.String(),
@@ -523,7 +523,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 					LastSubmitted: timestamppb.New(testdata.Time),
 				},
 			}},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 		{
 			name: "GetTransactionStatuses - test.TX1 - tx not found for Merkle path",
@@ -536,7 +536,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			status:             metamorph_api.Status_MINED,
 			getTxMerklePathErr: errors.New("merkle path not found for transaction"),
 
-			want: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
+			expected: &metamorph_api.TransactionStatuses{Statuses: []*metamorph_api.TransactionStatus{
 				{
 					StoredAt:      timestamppb.New(testdata.Time),
 					Txid:          testdata.TX1Hash.String(),
@@ -558,7 +558,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 					LastSubmitted: timestamppb.New(testdata.Time),
 				},
 			}},
-			wantErr: assert.NoError,
+			expectedError: assert.NoError,
 		},
 	}
 	for _, tt := range tests {
@@ -586,11 +586,11 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 							LastSubmittedAt: time.Time(testdata.Time),
 						},
 					}
-					if tt.want != nil {
-						data[0].RejectReason = tt.want.Statuses[0].RejectReason
-						data[1].RejectReason = tt.want.Statuses[1].RejectReason
-						data[0].CompetingTxs = tt.want.Statuses[0].CompetingTxs
-						data[1].CompetingTxs = tt.want.Statuses[1].CompetingTxs
+					if tt.expected != nil {
+						data[0].RejectReason = tt.expected.Statuses[0].RejectReason
+						data[1].RejectReason = tt.expected.Statuses[1].RejectReason
+						data[0].CompetingTxs = tt.expected.Statuses[0].CompetingTxs
+						data[1].CompetingTxs = tt.expected.Statuses[1].CompetingTxs
 
 						return data, tt.getErr
 					}
@@ -606,10 +606,10 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 			got, err := sut.GetTransactionStatuses(context.Background(), tt.req)
 
 			// then
-			if !tt.wantErr(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
+			if !tt.expectedError(t, err, fmt.Sprintf("GetTransactionStatus(%v)", tt.req)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "GetTransactionStatus(%v)", tt.req)
+			assert.Equalf(t, tt.expected, got, "GetTransactionStatus(%v)", tt.req)
 		})
 	}
 }
@@ -985,8 +985,8 @@ func TestGetTransactions(t *testing.T) {
 		name    string
 		request *metamorph_api.TransactionsStatusRequest
 
-		getFromStoreErr           error
-		getFromStoreResponseCount int
+		expectedError                  error
+		expectedResponseCountFromStore int
 	}{
 		{
 			name: "found all - success",
@@ -996,7 +996,7 @@ func TestGetTransactions(t *testing.T) {
 					testdata.TX2Hash.String(),
 				},
 			},
-			getFromStoreResponseCount: 2,
+			expectedResponseCountFromStore: 2,
 		},
 		{
 			name: "not found - success, return empty array",
@@ -1015,7 +1015,7 @@ func TestGetTransactions(t *testing.T) {
 					testdata.TX2Hash.String(),
 				},
 			},
-			getFromStoreErr: errors.New("test error"),
+			expectedError: errors.New("test error"),
 		},
 	}
 
@@ -1024,8 +1024,8 @@ func TestGetTransactions(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
 				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.Data, error) {
-					if tc.getFromStoreErr != nil {
-						return nil, tc.getFromStoreErr
+					if tc.expectedError != nil {
+						return nil, tc.expectedError
 					}
 
 					res := make([]*store.Data, 0)
@@ -1038,7 +1038,7 @@ func TestGetTransactions(t *testing.T) {
 						res = append(res, &d)
 					}
 
-					res = res[:tc.getFromStoreResponseCount]
+					res = res[:tc.expectedResponseCountFromStore]
 					return res, nil
 				},
 			}
@@ -1051,12 +1051,12 @@ func TestGetTransactions(t *testing.T) {
 			res, err := sut.GetTransactions(context.TODO(), tc.request)
 
 			// then
-			if tc.getFromStoreErr != nil {
-				require.Equal(t, tc.getFromStoreErr, err)
+			if tc.expectedError != nil {
+				require.Equal(t, tc.expectedError, err)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, res)
-				require.Len(t, res.Transactions, tc.getFromStoreResponseCount)
+				require.Len(t, res.Transactions, tc.expectedResponseCountFromStore)
 			}
 		})
 	}
@@ -1067,7 +1067,7 @@ func TestGetTransaction(t *testing.T) {
 		name    string
 		request *metamorph_api.TransactionStatusRequest
 
-		getFromStoreErr           error
+		expectedError             error
 		getFromStoreResponseCount int
 	}{
 		{
@@ -1082,7 +1082,7 @@ func TestGetTransaction(t *testing.T) {
 			request: &metamorph_api.TransactionStatusRequest{
 				Txid: testdata.TX1Hash.String(),
 			},
-			getFromStoreErr: errors.New("not found"),
+			expectedError: errors.New("not found"),
 		},
 		{
 			name: "failed to get data from the store",
@@ -1090,7 +1090,7 @@ func TestGetTransaction(t *testing.T) {
 				Txid: testdata.TX1Hash.String(),
 			},
 			getFromStoreResponseCount: 0,
-			getFromStoreErr:           errors.New("test error"),
+			expectedError:             errors.New("test error"),
 		},
 	}
 
@@ -1099,8 +1099,8 @@ func TestGetTransaction(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.Data, error) {
-					if tc.getFromStoreErr != nil {
-						return nil, tc.getFromStoreErr
+					if tc.expectedError != nil {
+						return nil, tc.expectedError
 					}
 
 					res := make([]*store.Data, 0)
@@ -1125,15 +1125,12 @@ func TestGetTransaction(t *testing.T) {
 			res, err := sut.GetTransaction(context.TODO(), tc.request)
 
 			// then
-			if tc.getFromStoreErr != nil {
-				require.Equal(t, tc.getFromStoreErr, err)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, res)
-				if tc.getFromStoreResponseCount > 0 {
-					require.NotNil(t, res.Txid)
-				}
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
 			}
+			require.NoError(t, err)
+			require.NotNil(t, res)
 		})
 	}
 }

@@ -1,4 +1,17 @@
+<div align="center">
+
 # Authoritative Response Component (ARC)
+
+[![Release](https://img.shields.io/github/release-pre/bitcoin-sv/arc.svg?logo=github&style=flat&v=3)](https://github.com/bitcoin-sv/arc/releases)
+[![Report](https://goreportcard.com/badge/github.com/bitcoin-sv/arc?style=flat&v=3)](https://goreportcard.com/report/github.com/bitcoin-sv/arc)
+<br>
+
+[![Go](https://img.shields.io/github/go-mod/go-version/bitcoin-sv/arc?v=3)](https://golang.org/)
+[![Makefile Included](https://img.shields.io/badge/Makefile-Supported%20-brightgreen?=flat&logo=probot&v=3)](Makefile)
+<br/>
+
+</div>
+
 ARC is a transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a transaction can be in.
 
 ## Table of Contents

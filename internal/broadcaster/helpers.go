@@ -92,6 +92,7 @@ var (
 	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
 )
 
+// NewDynamicTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
 func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (DynamicTicker, error) {
 	if steps < 1 {
 		return DynamicTicker{}, ErrStepsZero

@@ -23,7 +23,9 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" -o /arc_linux_amd64 $MAIN
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+     -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" \
+     -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go

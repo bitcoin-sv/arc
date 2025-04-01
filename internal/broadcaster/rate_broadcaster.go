@@ -116,7 +116,10 @@ func (b *UTXORateBroadcaster) Start() error {
 		return err
 	}
 
-	tickerCh := submitBatchTicker.GetTickerCh()
+	tickerCh, err := submitBatchTicker.GetTickerCh()
+	if err != nil {
+		return fmt.Errorf("failed to get ticker channel: %w", err)
+	}
 
 	errCh := make(chan error, 100)
 

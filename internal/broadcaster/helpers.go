@@ -90,6 +90,7 @@ type DynamicTicker struct {
 var (
 	ErrStepsZero                          = errors.New("steps must be greater than 0")
 	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
+	ErrTickerIsNil                        = errors.New("ticker is nil")
 )
 
 // NewDynamicTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
@@ -116,11 +117,15 @@ func (t *DynamicTicker) Stop() {
 	t.ticker.Stop()
 }
 
-func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
+func (t *DynamicTicker) GetTickerCh() (<-chan time.Time, error) {
 	timeCh := make(chan time.Time)
 	step := int64(0)
 	stepsReached := false
 	stepNs := int64(float64(t.startInterval.Nanoseconds()-t.endInterval.Nanoseconds()) / float64(t.steps))
+
+	if t.ticker == nil {
+		return nil, ErrTickerIsNil
+	}
 
 	go func() {
 		for tick := range t.ticker.C {
@@ -143,5 +148,5 @@ func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
 		}
 	}()
 
-	return timeCh
+	return timeCh, nil
 }

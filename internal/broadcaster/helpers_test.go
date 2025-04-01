@@ -46,12 +46,14 @@ func TestNewDynamicTicker(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			ticker, actualErr := NewDynamicTicker(tc.startInterval, tc.endInterval, tc.steps)
-			tickerCh := ticker.GetTickerCh()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)
 				return
 			}
 			require.NoError(t, actualErr)
+
+			tickerCh, err := ticker.GetTickerCh()
+			require.NoError(t, err)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 

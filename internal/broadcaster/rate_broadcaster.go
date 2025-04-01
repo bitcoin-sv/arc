@@ -111,7 +111,7 @@ func (b *UTXORateBroadcaster) Start() error {
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-	submitBatchTicker, err := NewDynamicTicker(10*time.Second, submitBatchInterval, 10)
+	submitBatchTicker, err := NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
 	if err != nil {
 		return err
 	}

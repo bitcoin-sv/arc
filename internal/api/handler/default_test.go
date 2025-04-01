@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log/slog"
 	"net/http"
@@ -689,8 +690,15 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 			handlerStats, err := NewStats()
+			urlRestrictions := []string{"skiptest"}
+			tracer := attribute.KeyValue{Key: "test", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, WithNow(func() time.Time { return now }), WithStats(handlerStats))
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder,
+				WithNow(func() time.Time { return now }),
+				WithStats(handlerStats),
+				WithCallbackURLRestrictions(urlRestrictions),
+				WithCacheExpiryTime(23*time.Hour),
+				WithTracer(tracer))
 			require.NoError(t, err)
 
 			defer sut.Shutdown()

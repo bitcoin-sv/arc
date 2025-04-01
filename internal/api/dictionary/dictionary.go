@@ -83,7 +83,8 @@ const (
 	ErrorGettingMinerID     = 20
 	ErrorMissingHandler     = 21
 
-	errorCodeLast = iota
+	errorCodeLast        = iota
+	authenticationFailed = "authentication failed"
 )
 
 // IsValid tests if the error code is valid or not.
@@ -122,9 +123,9 @@ func init() {
 	errorMessages[ErrorRequestNotFound] = ErrorMessage{Code: ErrorRequestNotFound, InternalMessage: "request: %s was not found", PublicMessage: "request was not found", StatusCode: http.StatusNotFound}
 
 	// Authentication
-	errorMessages[ErrorAuthenticationError] = ErrorMessage{Code: ErrorAuthenticationError, InternalMessage: "authentication error: %s", PublicMessage: "authentication failed", StatusCode: http.StatusUnauthorized}
-	errorMessages[ErrorAuthenticationScheme] = ErrorMessage{Code: ErrorAuthenticationScheme, InternalMessage: "authentication scheme unknown: %s", PublicMessage: "authentication failed", StatusCode: http.StatusUnauthorized}
-	errorMessages[ErrorAuthenticationNotAdmin] = ErrorMessage{Code: ErrorAuthenticationNotAdmin, InternalMessage: "xpub provided is not an admin key: %s", PublicMessage: "authentication failed", StatusCode: http.StatusUnauthorized}
+	errorMessages[ErrorAuthenticationError] = ErrorMessage{Code: ErrorAuthenticationError, InternalMessage: "authentication error: %s", PublicMessage: authenticationFailed, StatusCode: http.StatusUnauthorized}
+	errorMessages[ErrorAuthenticationScheme] = ErrorMessage{Code: ErrorAuthenticationScheme, InternalMessage: "authentication scheme unknown: %s", PublicMessage: authenticationFailed, StatusCode: http.StatusUnauthorized}
+	errorMessages[ErrorAuthenticationNotAdmin] = ErrorMessage{Code: ErrorAuthenticationNotAdmin, InternalMessage: "xpub provided is not an admin key: %s", PublicMessage: authenticationFailed, StatusCode: http.StatusUnauthorized}
 
 	// ARC specific
 	errorMessages[ErrorLoadingSwaggerSpec] = ErrorMessage{Code: ErrorLoadingSwaggerSpec, InternalMessage: "error loading swagger spec", PublicMessage: "error loading swagger spec", StatusCode: http.StatusExpectationFailed}

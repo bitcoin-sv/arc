@@ -46,9 +46,9 @@ services:
     image: postgres:15.4
     restart: always
     environment:
-      - POSTGRES_USER=arcuser
-      - POSTGRES_PASSWORD=arcpass
-      - POSTGRES_DB=main
+      POSTGRES_USER: ${PG_USERNAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-d blocktx", "-U arcuser" ]
       interval: 5s
@@ -68,7 +68,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=blocktx",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=blocktx",
       ]
     command: [ "up" ]
     volumes:
@@ -87,7 +87,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=metamorph",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=metamorph",
       ]
     command: [ "up" ]
     volumes:
@@ -106,7 +106,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=callbacker",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=callbacker",
       ]
     command: [ "up" ]
     volumes:

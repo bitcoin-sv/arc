@@ -146,7 +146,6 @@ func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
 
 				if step >= t.steps-1 {
 					if !stepsReached {
-						slog.Default().Info("new interval", "interval", t.endInterval)
 						t.ticker.Reset(t.endInterval)
 						stepsReached = true
 					}
@@ -157,8 +156,6 @@ func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
 				step++
 
 				newInterval := t.startInterval - time.Duration(stepNs*step)
-
-				slog.Default().Info("new interval", "interval", newInterval)
 
 				t.ticker.Reset(newInterval)
 			}

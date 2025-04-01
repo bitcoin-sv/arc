@@ -2,9 +2,11 @@ package broadcaster
 
 import (
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,9 +21,9 @@ func TestNewDynamicTicker(t *testing.T) {
 	}{
 		{
 			name:          "success",
-			startInterval: 3 * time.Second,
-			endInterval:   1 * time.Second,
-			steps:         6,
+			startInterval: 1 * time.Second,
+			endInterval:   100 * time.Millisecond,
+			steps:         4,
 		},
 		{
 			name:          "error - end interval greater than start interval",
@@ -43,7 +45,6 @@ func TestNewDynamicTicker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			ticker, actualErr := NewDynamicTicker(tc.startInterval, tc.endInterval, tc.steps)
 			tickerCh := ticker.GetTickerCh()
 			if tc.expectedError != nil {
@@ -52,21 +53,30 @@ func TestNewDynamicTicker(t *testing.T) {
 			}
 			require.NoError(t, actualErr)
 
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+			timeSlice := [6]time.Time{}
 			counter := 0
-
 		outerLoop:
-			for {
-				select {
-				case <-tickerCh:
-					slog.Default().Info("ticker ticked")
-					counter++
+			for timeStamp := range tickerCh {
+				logger.Info("ticker ticked")
 
-					if counter >= 10 {
-						break outerLoop
-					}
+				timeSlice[counter] = timeStamp
+
+				counter++
+
+				if counter >= 6 {
+					break outerLoop
 				}
 			}
 
+			const delta = 20 * time.Millisecond
+
+			assert.True(t, timeSlice[1].Sub(timeSlice[0]).Abs() < 775*time.Millisecond+delta && timeSlice[1].Sub(timeSlice[0]).Abs() > 775*time.Millisecond-delta)
+			assert.True(t, timeSlice[2].Sub(timeSlice[1]).Abs() < 550*time.Millisecond+delta && timeSlice[2].Sub(timeSlice[1]).Abs() > 550*time.Millisecond-delta)
+			assert.True(t, timeSlice[3].Sub(timeSlice[2]).Abs() < 325*time.Millisecond+delta && timeSlice[3].Sub(timeSlice[2]).Abs() > 325*time.Millisecond-delta)
+			assert.True(t, timeSlice[4].Sub(timeSlice[3]).Abs() < 100*time.Millisecond+delta && timeSlice[4].Sub(timeSlice[3]).Abs() > 100*time.Millisecond-delta)
+			assert.True(t, timeSlice[5].Sub(timeSlice[4]).Abs() < 100*time.Millisecond+delta && timeSlice[5].Sub(timeSlice[4]).Abs() > 100*time.Millisecond-delta)
 		})
 	}
 }

@@ -2,7 +2,6 @@ package broadcaster
 
 import (
 	"errors"
-	"log/slog"
 	"math"
 	"time"
 
@@ -88,26 +87,12 @@ type DynamicTicker struct {
 	steps         int64
 }
 
-// start interval: 10s
-// end interval: 1s
-// steps: 5
-
-// 10s -> tick
-// 8.2s -> tick
-// 6.4s -> tick
-// 4.6s -> tick
-// 2.8s -> tick
-// 1s -> tick
-// 1s -> tick
-// 1s -> tick
-
 var (
 	ErrStepsZero                          = errors.New("steps must be greater than 0")
 	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
 )
 
 func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (DynamicTicker, error) {
-
 	if steps < 1 {
 		return DynamicTicker{}, ErrStepsZero
 	}
@@ -131,36 +116,31 @@ func (t *DynamicTicker) Stop() {
 }
 
 func (t *DynamicTicker) GetTickerCh() <-chan time.Time {
-	C := make(chan time.Time)
+	timeCh := make(chan time.Time)
 	step := int64(0)
 	stepsReached := false
 	stepNs := int64(float64(t.startInterval.Nanoseconds()-t.endInterval.Nanoseconds()) / float64(t.steps))
 
-	slog.Default().Info("step", "step ns", stepNs)
-
 	go func() {
-		for {
-			select {
-			case tick := <-t.ticker.C:
-				C <- tick
+		for tick := range t.ticker.C {
+			timeCh <- tick
 
-				if step >= t.steps-1 {
-					if !stepsReached {
-						t.ticker.Reset(t.endInterval)
-						stepsReached = true
-					}
-
-					continue
+			if step >= t.steps-1 {
+				if !stepsReached {
+					t.ticker.Reset(t.endInterval)
+					stepsReached = true
 				}
 
-				step++
-
-				newInterval := t.startInterval - time.Duration(stepNs*step)
-
-				t.ticker.Reset(newInterval)
+				continue
 			}
+
+			step++
+
+			newInterval := t.startInterval - time.Duration(stepNs*step)
+
+			t.ticker.Reset(newInterval)
 		}
 	}()
 
-	return C
+	return timeCh
 }

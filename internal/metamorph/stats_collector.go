@@ -142,7 +142,7 @@ func (p *Processor) StartCollectStats() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				p.logger.Error("Recovered from panic", "panic", r, slog.String("stacktrace", string(debug.Stack())))
+				p.logger.Error("Recovered from panic", slog.Any("panic", r), slog.String("stacktrace", string(debug.Stack())))
 			}
 		}()
 		defer func() {

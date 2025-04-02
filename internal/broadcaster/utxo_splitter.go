@@ -38,7 +38,7 @@ func (b *UTXOSplitter) SplitUtxo(txid string, satoshis uint64, vout uint32, dryr
 		toAddresses[i] = key.Address(!b.isTestnet)
 	}
 
-	b.logger.Info("Splitting utxo", slog.String("txid", txid), slog.String("from", b.fromKeySet.Address(!b.isTestnet)), "to", toAddresses)
+	b.logger.Info("Splitting utxo", slog.String("txid", txid), slog.String("from", b.fromKeySet.Address(!b.isTestnet)), slog.Any("to", toAddresses))
 
 	var err error
 	hash, err := chainhash.NewHashFromHex(txid)

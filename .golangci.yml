@@ -11,6 +11,7 @@ linters:
     - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
     - unused # checks for unused constants, variables, functions and types
+    - sloglint # Ensure consistent code style when using log/slog
 #    - asciicheck # checks that your code does not contain non-ASCII identifiers
 #    - bidichk # checks for dangerous unicode character sequences
 #    - bodyclose # checks whether HTTP response body is closed successfully

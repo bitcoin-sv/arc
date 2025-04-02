@@ -82,7 +82,7 @@ metamorph:
 To run all the microservices in one process (during development), use the `main.go` file in the root directory.
 
 ```shell
-go run main.go
+go run cmd/arc/main.go
 ```
 
 The `main.go` file accepts the following flags (`main.go --help`):
@@ -113,9 +113,9 @@ where options are:
           dump config to specified file and exit (default='config/dumped_config.yaml')
 ```
 
-Each individual microservice can also be started individually by running e.g. `go run main.go -api=true`.
+Each individual microservice can also be started individually by running e.g. `go run cmd/arc/main.go -api=true`.
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if
-you run `go run main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
+you run `go run cmd/arc/main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
 
 In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores) and [Blocktx stores](#blocktx-stores)).
 
@@ -152,7 +152,7 @@ the body. See the [API documentation](https://bitcoin-sv.github.io/arc/api.html)
 You can run the API like this:
 
 ```shell
-go run main.go -api=true
+go run cmd/arc/main.go -api=true
 ```
 
 The only difference between the two is that the generic `main.go` starts the Go profiler, while the specific `cmd/api/main.go`
@@ -174,7 +174,7 @@ Metamorph is designed to be horizontally scalable, with each instance operating 
 You can run metamorph like this:
 
 ```shell
-go run main.go -metamorph=true
+go run cmd/arc/main.go -metamorph=true
 ```
 
 #### Metamorph transaction statuses
@@ -244,7 +244,7 @@ they were mined. Metamorph is responsible for storing the transaction data.
 You can run BlockTx like this:
 
 ```shell
-go run main.go -blocktx=true
+go run cmd/arc/main.go -blocktx=true
 ```
 
 #### BlockTx stores
@@ -274,7 +274,7 @@ Callbacker is designed to be horizontally scalable, with each instance operating
 You can run callbacker like this:
 
 ```shell
-go run main.go -callbacker=true
+go run cmd/arc/main.go -callbacker=true
 ```
 
 ## K8s-Watcher
@@ -284,7 +284,7 @@ If ARC runs on a Kubernetes cluster, then the K8s-Watcher can be run as a safety
 The K8s-Watcher can be started as follows
 
 ```shell
-go run main.go -k8s-watcher=true
+go run cmd/arc/main.go -k8s-watcher=true
 ```
 
 ## Broadcaster-cli

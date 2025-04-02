@@ -110,7 +110,16 @@ func (b *UTXORateBroadcaster) Start() error {
 	}
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
-	submitBatchTicker := time.NewTicker(submitBatchInterval)
+
+	submitBatchTicker, err := NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+	if err != nil {
+		return err
+	}
+
+	tickerCh, err := submitBatchTicker.GetTickerCh()
+	if err != nil {
+		return fmt.Errorf("failed to get ticker channel: %w", err)
+	}
 
 	errCh := make(chan error, 100)
 
@@ -125,7 +134,7 @@ func (b *UTXORateBroadcaster) Start() error {
 			select {
 			case <-b.ctx.Done():
 				return
-			case <-submitBatchTicker.C:
+			case <-tickerCh:
 				txs, err := b.createSelfPayingTxs()
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))

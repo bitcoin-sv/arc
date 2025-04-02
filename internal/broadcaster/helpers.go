@@ -1,7 +1,9 @@
 package broadcaster
 
 import (
+	"errors"
 	"math"
+	"time"
 
 	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -76,4 +78,75 @@ func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, 
 	}
 
 	return feesRequiredRounded, nil
+}
+
+type DynamicTicker struct {
+	ticker        *time.Ticker
+	startInterval time.Duration
+	endInterval   time.Duration
+	steps         int64
+}
+
+var (
+	ErrStepsZero                          = errors.New("steps must be greater than 0")
+	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
+	ErrTickerIsNil                        = errors.New("ticker is nil")
+)
+
+// NewDynamicTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
+func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (DynamicTicker, error) {
+	if steps < 1 {
+		return DynamicTicker{}, ErrStepsZero
+	}
+
+	if startInterval <= endInterval {
+		return DynamicTicker{}, ErrStartIntervalNotGreaterEndInterval
+	}
+
+	ticker := DynamicTicker{
+		ticker:        time.NewTicker(startInterval),
+		startInterval: startInterval,
+		endInterval:   endInterval,
+		steps:         steps,
+	}
+
+	return ticker, nil
+}
+
+func (t *DynamicTicker) Stop() {
+	t.ticker.Stop()
+}
+
+func (t *DynamicTicker) GetTickerCh() (<-chan time.Time, error) {
+	timeCh := make(chan time.Time)
+	step := int64(0)
+	stepsReached := false
+	stepNs := int64(float64(t.startInterval.Nanoseconds()-t.endInterval.Nanoseconds()) / float64(t.steps))
+
+	if t.ticker == nil {
+		return nil, ErrTickerIsNil
+	}
+
+	go func() {
+		for tick := range t.ticker.C {
+			timeCh <- tick
+
+			if step >= t.steps-1 {
+				if !stepsReached {
+					t.ticker.Reset(t.endInterval)
+					stepsReached = true
+				}
+
+				continue
+			}
+
+			step++
+
+			newInterval := t.startInterval - time.Duration(stepNs*step)
+
+			t.ticker.Reset(newInterval)
+		}
+	}()
+
+	return timeCh, nil
 }

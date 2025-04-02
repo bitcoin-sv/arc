@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	tutils "github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql/internal/tests"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
@@ -157,7 +157,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		// read all from db
-		dbCallbacks := tutils.ReadAllCallbacks(t, postgresDB.db)
+		dbCallbacks := ReadAllCallbacks(t, postgresDB.db)
 		for _, c := range dbCallbacks {
 			found := false
 			for i, ur := range data {
@@ -165,7 +165,7 @@ func TestPostgresDBt(t *testing.T) {
 					continue
 				}
 
-				if tutils.CallbackRecordEqual(ur, c) {
+				if CallbackRecordEqual(ur, c) {
 					// remove if found
 					data[i] = nil
 					found = true
@@ -341,4 +341,70 @@ func TestPostgresDBt(t *testing.T) {
 func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.callbacks")
 	testutils.PruneTables(t, db, "callbacker.url_mapping")
+}
+
+func CallbackRecordEqual(a, b *store.CallbackData) bool {
+	return reflect.DeepEqual(*a, *b)
+}
+
+func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
+	t.Helper()
+
+	r, err := db.Query(
+		`SELECT url
+			,token
+			,tx_id
+			,tx_status
+			,extra_info
+			,merkle_path
+			,block_hash
+			,block_height
+			,timestamp
+			,competing_txs
+		FROM callbacker.callbacks`,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	var callbacks []*store.CallbackData
+
+	for r.Next() {
+		c := &store.CallbackData{}
+		var ei sql.NullString
+		var mp sql.NullString
+		var bh sql.NullString
+		var bheight sql.NullInt64
+		var competingTxs sql.NullString
+
+		_ = r.Scan(&c.URL, &c.Token, &c.TxID, &c.TxStatus, &ei, &mp, &bh, &bheight, &c.Timestamp, &competingTxs)
+
+		if ei.Valid {
+			c.ExtraInfo = &ei.String
+		}
+		if mp.Valid {
+			c.MerklePath = &mp.String
+		}
+		if bh.Valid {
+			c.BlockHash = &bh.String
+		}
+		if bheight.Valid {
+			c.BlockHeight = ptrTo(uint64(bheight.Int64))
+		}
+		if competingTxs.Valid {
+			c.CompetingTxs = strings.Split(competingTxs.String, ",")
+		}
+
+		c.Timestamp = c.Timestamp.UTC()
+
+		callbacks = append(callbacks, c)
+	}
+
+	return callbacks
+}
+
+func ptrTo[T any](v T) *T {
+	return &v
 }

@@ -404,7 +404,3 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 
 	return callbacks
 }
-
-func ptrTo[T any](v T) *T {
-	return &v
-}

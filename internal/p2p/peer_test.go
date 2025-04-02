@@ -1,4 +1,4 @@
-package p2p_tests
+package p2p_test
 
 import (
 	"errors"
@@ -11,12 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/cbeuw/connutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/internal/p2p/mocks"
 )
 
 const (

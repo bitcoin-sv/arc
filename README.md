@@ -406,7 +406,7 @@ We're always looking for contributors to help us improve the project. Whether it
 1. **Fork & Clone**: Fork this repository and clone it to your local machine.
 2. **Set Up**: Run `make deps` to install all dependencies.
 3. **Make Changes**: Create a new branch and make your changes.
-4. **Test**: Ensure all tests pass by running `make test` and `make clean_restart_e2e_test`.
+4. **Test**: Ensure all tests pass by running `make test` and `make run_e2e_tests`.
 5. **Commit**: Commit your changes and push to your fork.
 6. **Pull Request**: Open a pull request from your fork to this repository.
 

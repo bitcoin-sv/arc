@@ -299,7 +299,7 @@ go run cmd/arc/main.go -k8s-watcher=true
 
 ## Message Queue
 
-For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. If for any reason the connection to the NATS server is closed after all reconnection attempts, ARC will shut down automatically.
+For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. Currently, ARC requires to the message queue to run with [Jetstream](https://docs.nats.io/nats-concepts/jetstream) enabled. Future versions of ARC may allow running with Jetstream disabled or without a message queue at all.
 
 One instance where the message queue is used is the communication between Metamorph & Blocktx service. Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
 
@@ -327,7 +327,7 @@ These integration tests can be excluded from execution with `go test ./...` by a
 
 ### E2E tests
 
-The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc, 3 nodes and all other external services like databases using the provided docker-compose file.
+The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with ARC, 3 nodes and all other external services like databases using the provided docker-compose file.
 The tests can be executed like this:
 ```
 make run_e2e_tests

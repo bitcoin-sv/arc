@@ -1,7 +1,14 @@
-
 # Broadcaster-cli
 
 The `broadcaster-cli` provides a set of functions for running performance tests on ARC. Additionally, `broadcaster-cli` allows the management of key sets and UTXOs.
+
+## Table of contents
+
+- [Broadcaster-cli](#broadcaster-cli)
+  - [Table of contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+  - [How to use broadcaster-cli to send batches of transactions to ARC](#how-to-use-broadcaster-cli-to-send-batches-of-transactions-to-arc)
 
 ## Installation
 
@@ -52,7 +59,7 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
           ```
            broadcaster-cli utxos split --txid=cf111f19bcfb6baab7fc200f0f8fb669dd6c66fd9de212becb0950c92a0b6c40 --satoshis=21953 --vout=0 --from=key-01 --keys=key-02
           ```
-      3. In order to just create print the transaction without submitting it, the `--dryrun` flag can be added
+      3. In order to just print the transaction without submitting it, the `--dryrun` flag can be added
    3. You can view the balance of the key set using the command `broadcaster-cli keyset balance`
 3. Create UTXO set
     1. There must be a certain UTXO set available so that `broadcaster-cli` can broadcast a reasonable number of transactions in batches
@@ -62,12 +69,12 @@ These instructions will provide the steps needed in order to use `broadcaster-cl
     5. See the new distribution of UTXOs using `broadcaster-cli keyset utxos`
 4. Broadcast transactions to ARC
     1. Now `broadcaster-cli` can be used to broadcast transactions to ARC at a given rate using this command `broadcaster-cli utxos broadcast --rate=<txs per second> --batchsize=<nr ot txs per batch>`
-    2. The limit flag `--limit=<nr of transactions at which broadcasting stops>` is optional. If not given `broadcaster-cli` will only stop at if `broadcaster-cli` is aborted e.g. using `CTRL+C`
+    2. The limit flag `--limit=<nr of transactions at which broadcasting stops>` is optional. If not given `broadcaster-cli` will only stop when `broadcaster-cli` is aborted manually e.g. using `CTRL+C`
     3. In order to broadcast a large number of transactions in parallel, multiple key sets can be given.
         1. Each concurrently running broadcasting process will broadcast at the given rate
         2. For example: If a rate of `--rate=100` is given with 3 key files `--keys=key-1,key-2,key-3`, then the final rate will be 300 transactions per second.
 5. Consolidate outputs
-    1. If not enough outputs are available for another test run it is best to consolidate the outputs so that there remains only output using `broadcaster-cli utxos consolidate`
+    1. If not enough outputs are available for another test run it is best to consolidate the outputs so that there remains only 1 output using `broadcaster-cli utxos consolidate`
     2. After this step you can continue with step 4
         1. Before continuing with step 4 it is advisable to wait until all consolidation transactions were mined
         2. The command `broadcaster-cli keyset balance` shows the amount of satoshis in the balance that have been confirmed and the amount which has not yet been confirmed

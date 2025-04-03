@@ -287,7 +287,7 @@ return status
 
 @enduml
 ```
-In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set and it is assumed that the API does not have this data. Therefore, the "validator" subfunction within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
+In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set, and it is assumed that the API does not have this data. Therefore, the "validator" sub-function within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
 
 This [validation](#validation) takes place in the ARC API microservice. The actual utxos are left to be checked by the Bitcoin node itself, like it would do anyway, regardless of where the transaction is coming from. With this process flow we save the node from having to lookup and send the input utxos to the ARC API, which could be slow under heavy load.
 
@@ -332,22 +332,13 @@ return status
 
 BEEF flow is very similar to Extended Format flow, with an additional step of Merkle roots verification in a call to blocktx. This step makes the whole validation process more thorough and allows for validation of transactions whose inputs are not yet mined without recursively asking the nodes for them.
 
-## Settings
-
-The settings available for running ARC are managed by [viper](github.com/spf13/viper). The settings are by default defined in `config.yaml`.
-
-## ARC stats
-
-ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
-setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
-
 ## Client Libraries
 
 ### Typescript
 
 A typescript library is available in the [@bsv/sdk](https://github.com/bitcoin-sv/ts-sdk) repository.
 
-Please note that [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is deprecated.
+> NOTE: [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is deprecated.
 
 ## Process flow diagrams
 

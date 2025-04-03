@@ -16,32 +16,33 @@ digraph arc {
     validation [shape=rectangle, label="validation"]
     empty [width=0 height=0 label="" margin="0.5,0" color="white"]  // to adjust nodes to the left
 
-    api -> {validation metamorph }
+    api -> {validation mtm }
 
     { rank=same; api; validation; empty; }
-    { rank=same; metamorph; blocktx; callbacker; }
 
-    metamorph -> {blocktx [style="dashed", dir="both"] callbacker}
+    mtm -> {btx [style="dashed", dir="both"] cb}
 
     subgraph cluster_mtm {
       label = "metamorph";
-      metamorph [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      mtm [shape=rectangle, label="service", style=filled, fillcolor=yellow]
       metamorph_store [shape=cylinder, label="store", style=filled]
-      metamorph -> metamorph_store
-      metamorph -> node_connection [style="dashed", arrowhead=none]
+      mtm -> metamorph_store
+      mtm -> node_connection [style="dashed", arrowhead=none]
     }
 
     subgraph cluster_blocktx {
       label = "blocktx";
       blocktx_store [shape=cylinder, label="store", style=filled]
-      blocktx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
-      blocktx -> blocktx_store
-      blocktx -> node_connection [style="dashed", arrowhead=none]
+      btx [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      btx -> blocktx_store
+      btx -> node_connection [style="dashed", arrowhead=none]
     }
 
     subgraph cluster_callbacker {
       label = "callbacker";
-      callbacker [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      callbacker_store [shape=cylinder, label="store", style=filled]
+      cb [shape=rectangle, label="service", style=filled, fillcolor=yellow]
+      cb -> callbacker_store
     }
 	}
 
@@ -54,7 +55,7 @@ digraph arc {
     node_connection -> b_node_n [style="dashed"]
     node_connection -> b_node_2 [style="dashed"]
 
-    b_node_1 -> metamorph [style="dashed", label="zmq"]
+    b_node_1 -> mtm [style="dashed", label="zmq"]
     b_node_1 [shape=rectangle, label="node 1", style=filled, fillcolor=cyan]
     b_node_2 [shape=rectangle, label="node 2", style=filled, fillcolor=cyan]
     b_node_n [shape=rectangle, label="node n ...", style=filled, fillcolor=cyan]

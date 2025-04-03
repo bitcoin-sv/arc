@@ -1,10 +1,10 @@
 ---
 logLevel: DEBUG # mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR
 logFormat: text # format of logging. Value can be one of text | json | tint
-profilerAddr: localhost:9999 # address to start profiler server on (optional)
+profilerAddr: localhost:9999 # address to start profiler server on
 prometheus:
   enabled: false # if true, then prometheus metrics are enabled
-  endpoint: /metrics # endpoint for prometheus metrics (optional)
+  endpoint: /metrics # endpoint for prometheus metrics
   addr: :2112 # port for serving prometheus metrics
 grpcMessageSize: 100000000 # maximum grpc message size
 network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
@@ -15,11 +15,11 @@ messageQueue:
   URL: nats://nats:4222 # URL for message queue
   initialize: true # initialize streams and consumers
 
-tracing: # (optional)
+tracing:
   enabled: true # if true, then tracing is enabled
   dialAddr: http://localhost:4317 # address where traces are exported to
   sample: 100 # sampling in percentage
-  attributes:
+  attributes: # attributes to be added to each trace
     key1: value1
     key2: 100
 
@@ -172,8 +172,8 @@ api:
     minconsolidationinputmaturity: 6
     acceptnonstdconsolidationinput: false
 
-k8sWatcher: # (optional, used only when deploying arc to k8s)
-  namespace: arc-testnet
+k8sWatcher:
+  namespace: arc-namespace
 
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses

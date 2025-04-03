@@ -144,6 +144,9 @@ If the client wants to secure its callback endpoint, ARC supports Bearer token a
 By default, ARC sends a single callback per request, but the client can modify this behavior by including the `X-CallbackBatch: true` header. All callbacks related to transactions submitted with this header will be sent in batches (with a maximum batch size of `50` callbacks).
 
 By default, callbacks are triggered when the submitted transaction reaches the status `REJECTED` or `MINED`. If the client wishes to receive additional intermediate status updates—such (e.g. `SEEN_IN_ORPHAN_MEMPOOL` or `SEEN_ON_NETWORK`) the `X-FullStatusUpdates` header must be set to true. For more details, refer to the [API documentation](https://bitcoin-sv.github.io/arc/api.html).
+
+If a transactions is submitted multiple times with differing callback URL or token, then callbacks will then be sent to each callback URL with its specified token.
+
 For more details on how callbacks work, see the [Callbacker](#Callbacker) section.
 
 ### Metamorph
@@ -538,9 +541,7 @@ The chance of this situation happening is extremely low when submitting transact
 A transaction is submitted to the same ARC instance twice
 
 Expected outcome:
-* At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored
-
-The planned feature [Multiple different callbacks per transaction](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
+* At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored except for the callback URL and token. If the callback URL and token differ, then callbacks will then be sent to each callback URL with its specified token.
 
 ### Multiple submissions to ARC and other transaction processors
 

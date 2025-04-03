@@ -51,7 +51,8 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 				GetUtxoSetLenFunc:      func() int { return 1000 },
 			}
 
-			sut := broadcaster.NewMultiKeyRateBroadcaster(logger, []broadcaster.RateBroadcaster{rateBroadcaster1, rateBroadcaster2})
+			sut := broadcaster.NewMultiKeyRateBroadcaster(logger, []broadcaster.RateBroadcaster{rateBroadcaster1, rateBroadcaster2},
+				broadcaster.WithLogInterval(1*time.Millisecond))
 
 			// when
 			actualError := sut.Start()

@@ -183,7 +183,6 @@ func TestRateBroadcaster(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.waitingTime > time.Second {
-
 				wg := sync.WaitGroup{}
 				wg.Add(1)
 				done := make(chan struct{})
@@ -196,7 +195,6 @@ func TestRateBroadcaster(t *testing.T) {
 					t.Logf("waiting time over")
 				case <-done:
 				}
-
 			}
 
 			go sut.Wait()

@@ -387,7 +387,7 @@ make gen
 
 ### Generate REST API
 
-The rest api is defined in a [yaml file](./api/arc.yaml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
+The rest api is defined in a [yaml file](./pkg/api/arc.yaml) following the OpenAPI 3.0.0 specification. Before the rest API can be generated install the necessary tools by running
 ```
 make install_gen
 ```

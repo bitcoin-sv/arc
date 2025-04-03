@@ -839,7 +839,7 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 
 func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
-	_, span := tracing.StartTracing(ctx, "publish transactions", p.tracingEnabled, p.tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "publishMinedTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, publishErr)
 	}()
@@ -929,8 +929,10 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 			merkleIndex := tx.MerkleTreeIndex
 
 			txHash, err := chainhash.NewHash(tx.TxHash)
+			const merkleTreeIndex = "merkle tree index"
+			const blockHash = "block hash"
 			if err != nil {
-				p.logger.Error("Failed to create chain hash", slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				p.logger.Error("Failed to create chain hash", slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
 				continue
 			}
 			txID := txHash.String()
@@ -942,31 +944,31 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 			}
 			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, txIndex)
 			if err != nil {
-				p.logger.Error("Failed to create bump from Merkle tree and index", slog.String("hash", txID), slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				p.logger.Error("Failed to create bump from Merkle tree and index", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
 				continue
 			}
 
 			bumpHex, err := bump.String()
 			if err != nil {
-				p.logger.Error("Failed to create bump string", slog.String("hash", txID), slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				p.logger.Error("Failed to create bump string", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
 				continue
 			}
 
 			path, err := sdkTx.NewMerklePathFromHex(bumpHex)
 			if err != nil {
-				p.logger.Error("Failed to create Merkle path from bump", slog.String("hash", txID), slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				p.logger.Error("Failed to create Merkle path from bump", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
 				continue
 			}
 
 			root, err := path.ComputeRootHex(&txID)
 			if err != nil {
-				p.logger.Error("Failed to compute root for tx", slog.String("hash", txID), slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh), slog.String("err", err.Error()))
+				p.logger.Error("Failed to compute root for tx", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
 				continue
 			}
 
 			merkleRoot := tx.GetMerkleRootString()
 			if root != merkleRoot {
-				p.logger.Error("Comparison of Merkle roots failed", slog.String("calc root", root), slog.String("block root", merkleRoot), slog.String("hash", txID), slog.Int64("merkle tree index", merkleIndex), slog.String("block hash", bh))
+				p.logger.Error("Comparison of Merkle roots failed", slog.String("calc root", root), slog.String("block root", merkleRoot), slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh))
 				continue
 			}
 

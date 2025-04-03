@@ -15,7 +15,7 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
-    networks: 
+    networks:
       - multicast_bridge
 
   node2:
@@ -30,7 +30,7 @@ services:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
-    networks: 
+    networks:
       - multicast_bridge
 
   node3:
@@ -52,9 +52,9 @@ services:
     image: postgres:15.4
     restart: always
     environment:
-      - POSTGRES_USER=arcuser
-      - POSTGRES_PASSWORD=arcpass
-      - POSTGRES_DB=main
+      POSTGRES_USER: ${PG_USERNAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-d blocktx", "-U arcuser" ]
       interval: 5s
@@ -66,7 +66,7 @@ services:
       - "5432"
     networks:
       - multicast_bridge
- 
+
   migrate-blocktx:
     container_name: migrate-blocktx
     image: migrate/migrate:v4.16.2
@@ -76,7 +76,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=blocktx",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=blocktx",
       ]
     command: [ "up" ]
     volumes:
@@ -97,7 +97,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=metamorph",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=metamorph",
       ]
     command: [ "up" ]
     volumes:
@@ -118,7 +118,7 @@ services:
         "-path",
         "/migrations",
         "-database",
-        "postgres://arcuser:arcpass@db:5432/main?sslmode=disable&x-migrations-table=callbacker",
+        "postgres://${PG_USERNAME}:${PG_PASSWORD}@db:5432/${PG_DATABASE}?sslmode=disable&x-migrations-table=callbacker",
       ]
     command: [ "up" ]
     volumes:
@@ -181,10 +181,11 @@ services:
   mcast_sidecar:
     build:
       context: ./
-      dockerfile: ./cmd/mcast/node_sidecar/Dockerfile    
+      args:
+        MAIN: "./cmd/mcast/node_sidecar/main.go"
     volumes:
       - ./test/config/config_mcast.yaml:/service/config.yaml
-    command: [ "./sidecar", "-config=." ]
+    command: [ "./arc", "-config=." ]
     depends_on:
       node1:
         condition: service_healthy
@@ -217,9 +218,8 @@ services:
         condition: service_healthy
       migrate-blocktx:
         condition: service_completed_successfully
-      
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8006", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -243,7 +243,7 @@ services:
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8022", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -269,7 +269,7 @@ services:
       migrate-metamorph:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8005", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s"]
       interval: 10s
       timeout: 5s
       retries: 3

@@ -204,6 +204,9 @@ func (m *SendManager) Start() {
 		lastIterationWasBatch := false
 
 		for {
+			const queueLength = "queue length"
+			const failedToSendCallbacks = "Failed to send batch of callbacks"
+			const callbackElements = "callback elements"
 			select {
 			case <-m.ctx.Done():
 				return
@@ -223,12 +226,12 @@ func (m *SendManager) Start() {
 
 				err = m.sendElementBatch(callbackBatch)
 				if err != nil {
-					m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
+					m.logger.Warn(failedToSendCallbacks, slog.String("url", m.url))
 					continue
 				}
 
 				callbackBatch = callbackBatch[:0]
-				m.logger.Debug("Batched callbacks sent on interval", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
+				m.logger.Debug("Batched callbacks sent on interval", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
 			case <-queueTicker.C:
 				if len(m.callbackQueue) == 0 {
 					continue
@@ -257,12 +260,12 @@ func (m *SendManager) Start() {
 
 					err = m.sendElementBatch(callbackBatch)
 					if err != nil {
-						m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
+						m.logger.Warn(failedToSendCallbacks, slog.String("url", m.url))
 						continue
 					}
 
 					callbackBatch = callbackBatch[:0]
-					m.logger.Debug("Batched callbacks sent", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
+					m.logger.Debug("Batched callbacks sent", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
 					continue
 				}
 
@@ -272,18 +275,18 @@ func (m *SendManager) Start() {
 						// if entry is not a batched entry, but last one was, send batch to keep the order
 						err = m.sendElementBatch(callbackBatch)
 						if err != nil {
-							m.logger.Error("Failed to send batch of callbacks", slog.String("url", m.url))
+							m.logger.Error(failedToSendCallbacks, slog.String("url", m.url))
 							continue
 						}
 						callbackBatch = callbackBatch[:0]
-						m.logger.Debug("Batched callbacks sent before sending single callback", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
+						m.logger.Debug("Batched callbacks sent before sending single callback", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
 					}
 				}
 
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
 					m.callbackQueue = m.callbackQueue[1:]
-					m.logger.Debug("Single callback sent", slog.Int("callback elements", len(callbackBatch)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
+					m.logger.Debug("Single callback sent", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
 					continue
 				}
 				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))

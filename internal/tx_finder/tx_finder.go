@@ -50,14 +50,14 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 	}
 }
 
-func New(th metamorph.TransactionHandler, n NodeClient, w WocClient, l *slog.Logger, opts ...func(f *Finder)) *Finder {
-	l = l.With(slog.String("module", "tx-finder"))
+func New(th metamorph.TransactionHandler, nodeClient NodeClient, wocClient WocClient, logger *slog.Logger, opts ...func(f *Finder)) *Finder {
+	logger = logger.With(slog.String("module", "tx-finder"))
 
 	f := &Finder{
 		transactionHandler: th,
-		bitcoinClient:      n,
-		wocClient:          w,
-		logger:             l,
+		bitcoinClient:      nodeClient,
+		wocClient:          wocClient,
+		logger:             logger,
 	}
 
 	for _, opt := range opts {

@@ -3,6 +3,7 @@ FROM golang:1.24.1-alpine3.21 AS build-stage
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
+ARG MAIN="./cmd/arc/main.go"
 
 RUN apk --update add ca-certificates
 
@@ -22,7 +23,9 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" -o /arc_linux_amd64 ./cmd/arc/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+     -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" \
+     -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go

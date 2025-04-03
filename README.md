@@ -117,7 +117,7 @@ Each individual microservice can also be started individually by running e.g. `g
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if
 you run `go run cmd/arc/main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
 
-In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores) and [Blocktx stores](#blocktx-stores)).
+In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores), [Blocktx stores](#blocktx-stores)) and [Callbacker stores](#callbacker-stores).
 
 Additionally, ARC relies on a message queue to communicate between Metamorph and BlockTx (see section [Message Queue](#message-queue)) section. The message queue can be started as a docker container. The docker image can be found [here](https://hub.docker.com/_/nats). The message queue can be started like this:
 
@@ -256,7 +256,6 @@ Migrations have to be executed prior to starting BlockTx. For this you'll need t
 migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/blocktx/store/postgresql/migrations  up
 ```
 
-<a id="message-queue"></a>
 ## Message Queue
 
 For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. If for any reason the connection to the NATS server is closed after all reconnection attempts, ARC will shut down automatically.
@@ -275,6 +274,15 @@ You can run callbacker like this:
 
 ```shell
 go run cmd/arc/main.go -callbacker=true
+```
+
+#### Callbacker stores
+
+Currently, Callbacker only offers one storage implementation which is Postgres.
+
+Migrations have to be executed prior to starting Callbacker. For this you'll need the [go-migrate](https://github.com/golang-migrate/migrate) tool. Once `go-migrate` has been installed, the migrations can be executed as follows:
+```bash
+migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/callbacker/store/postgresql/migrations  up
 ```
 
 ## K8s-Watcher

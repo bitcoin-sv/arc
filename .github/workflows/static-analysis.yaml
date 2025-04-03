@@ -1,11 +1,17 @@
 name: Static Analysis and Report
+
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch: {}
+    branches: ["**"]
+    paths:
+      - 'cmd/**'
+      - 'config/**'
+      - 'internal/**'
+      - 'examples/**'
+      - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.golangci.yml'
 
 jobs:
   analyze:

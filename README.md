@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./assets/logo.png" width="200" />
+
 # Authoritative Response Component (ARC)
 
 [![Go](https://img.shields.io/github/go-mod/go-version/bitcoin-sv/arc?v=3)](https://golang.org/)

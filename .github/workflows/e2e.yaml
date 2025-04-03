@@ -1,0 +1,27 @@
+name: E2E-tests
+
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - 'test/**'
+      - 'docker-compose.yaml'
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: e2e test
+        run: |
+          docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
+          docker compose down

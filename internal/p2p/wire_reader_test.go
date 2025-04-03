@@ -1,4 +1,4 @@
-package p2p_tests
+package p2p_test
 
 import (
 	"bytes"
@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 func TestWireReader_ReadNextMsg(t *testing.T) {

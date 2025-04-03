@@ -158,13 +158,11 @@ The specification of the callback objects, along with examples, can be found [he
 
 To prevent DDoS attacks on callback receivers, each Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring that only one request is sent at a time.
 
->NOTE: Typically, there are several instances of Callbacker, and each one operates independently.
-
-The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in failed state for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service for later retries.
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, the callback will be retried later. Callbacker sends the http messages in chronological order. If a callback fails, Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
 
 >NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 
-Callbacker sends the http messages in chronological order. If a callback fails Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
+Multiple instances of Callbacker can run in parallel. In order to ensure the chronological order of callbacks each callback URL is always handled by only one callbacker instance. The synchronization on which instance handles which URL happens using a dedicated database table which maps callbacker instance to URL.
 
 ### BlockTx
 

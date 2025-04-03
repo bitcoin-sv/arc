@@ -2,12 +2,18 @@
 
 # Authoritative Response Component (ARC)
 
+[![Go](https://img.shields.io/github/go-mod/go-version/bitcoin-sv/arc?v=3)](https://golang.org/)
 [![Release](https://img.shields.io/github/release-pre/bitcoin-sv/arc.svg?logo=github&style=flat&v=3)](https://github.com/bitcoin-sv/arc/releases)
 [![Report](https://goreportcard.com/badge/github.com/bitcoin-sv/arc?style=flat&v=3)](https://goreportcard.com/report/github.com/bitcoin-sv/arc)
-<br>
-
-[![Go](https://img.shields.io/github/go-mod/go-version/bitcoin-sv/arc?v=3)](https://golang.org/)
 [![Makefile Included](https://img.shields.io/badge/Makefile-Supported%20-brightgreen?=flat&logo=probot&v=3)](Makefile)
+<br>
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=bugs)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=coverage)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
+<br>
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=bitcoin-sv_arc&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=bitcoin-sv_arc)
 <br/>
 
 </div>
@@ -56,10 +62,11 @@ ARC is a transaction processor for Bitcoin that keeps track of the life cycle of
 - Find full documentation at [https://bitcoin-sv.github.io/arc](https://bitcoin-sv.github.io/arc)
 
 ## Configuration
-Settings for ARC are defined in a configuration file. The default configuration is shown in `config/example_config.yaml`. Each setting is documented in the file itself.
+
+Settings for ARC are defined in a configuration file. The default configuration is shown in [config/example_config.yaml](./config/example_config.yaml). Each setting is documented in the file itself.
 If you want to load `config.yaml` from a different location, you can specify it on the command line using the `-config=<path>` flag.
 
-Arc also has a default configuration specified in code (`config/defaults.go`), therefore, in your `config.yaml` you can specify only the values that you want override. Example:
+Arc also has a default configuration specified in code ([config/defaults.go](./config/defaults.go)), therefore, in your `config.yaml` you can specify only the values that you want override. Example:
 ```yaml
 ---
 logLevel: INFO
@@ -75,7 +82,6 @@ Each setting in the file `config.yaml` can be overridden with an environment var
 metamorph:
   listenAddr:
 ```
-
 
 ## How to run ARC
 
@@ -107,7 +113,7 @@ where options are:
           whether to start callbacker (default=true)
 
     -config=/location
-          directory to look for config.yaml (default='')
+          directory to look for config (default='')
 
     -dump_config=/file.yaml
           dump config to specified file and exit (default='config/dumped_config.yaml')
@@ -117,7 +123,7 @@ Each individual microservice can also be started individually by running e.g. `g
 NOTE: If you start the `main.go` with a microservice set to true, it will not start the other services. For example, if
 you run `go run cmd/arc/main.go -api=true`, it will only start the API server, and not the other services, although you can start multiple services by specifying them on the command line.
 
-In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores), [Blocktx stores](#blocktx-stores)) and [Callbacker stores](#callbacker-stores).
+In order to run ARC there needs to be a Postgres database available. The connection to the database is defined in the `config.yaml` file. The database needs to be created before running ARC. The migrations for the database can be found in the `internal/metamorph/store/postgresql/migrations` folder. The migrations can be executed using the [go-migrate](https://github.com/golang-migrate/migrate) tool (see section [Metamorph stores](#metamorph-stores), [Blocktx stores](#blocktx-stores) and [Callbacker stores](#callbacker-stores)).
 
 Additionally, ARC relies on a message queue to communicate between Metamorph and BlockTx (see section [Message Queue](#message-queue)) section. The message queue can be started as a docker container. The docker image can be found [here](https://hub.docker.com/_/nats). The message queue can be started like this:
 
@@ -215,7 +221,7 @@ migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslm
 Metamorph can connect to multiple Bitcoin nodes, and will use a subset of the nodes to send transactions to. The other
 nodes will be used to listen for transaction **INV** message, which will trigger the SEEN_ON_NETWORK status of a transaction.
 
-The Bitcoin nodes can be configured in the settings file.
+The Bitcoin nodes can be configured in `config.yaml`.
 
 #### Whitelisting
 
@@ -236,7 +242,7 @@ ZMQ does seem to be a bit faster than the p2p network, so it is recommended to t
 ### BlockTx
 
 BlockTx is a microservice that is responsible for processing blocks mined on the Bitcoin network, and for propagating
-the status of transactions to Metamorph. The communication between BlockTx and Metamorph is asynchronous and happens through a message queue. More details about that message queue can be found [here](#message-queue-).
+the status of transactions to Metamorph.
 
 The main purpose of BlockTx is to de-duplicate processing of (large) blocks. As an incoming block is processed by BlockTx, each Metamorph is notified of transactions that they have registered an interest in.  BlockTx does not store the transaction data, but instead stores only the transaction IDs and the block height in which
 they were mined. Metamorph is responsible for storing the transaction data.
@@ -256,21 +262,15 @@ Migrations have to be executed prior to starting BlockTx. For this you'll need t
 migrate -database "postgres://<username>:<password>@<host>:<port>/<db-name>?sslmode=<ssl-mode>"  -path internal/blocktx/store/postgresql/migrations  up
 ```
 
-## Message Queue
-
-For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. If for any reason the connection to the NATS server is closed after all reconnection attempts, ARC will shut down automatically.
-
-One instance where the message queue is used is the communication between Metamorph & Blocktx service. Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
-
-![Message Queue](./doc/message_queue.png)
-
 ### Callbacker
 
 Callbacker is a microservice that sends callbacks to a specified URL.
 
 Callbacker is designed to be horizontally scalable, with each instance operating independently. As a result, they do not communicate with each other and remain unaware of each other's existence.
 
-You can run callbacker like this:
+Callbacker receives messages from Metamorph over a NATS [message queue](#message-queue). Therefore, Callbacker requires the [message queue](#message-queue) to run together with ARC in order to function.
+
+You can run Callbacker like this:
 
 ```shell
 go run cmd/arc/main.go -callbacker=true
@@ -295,17 +295,28 @@ The K8s-Watcher can be started as follows
 go run cmd/arc/main.go -k8s-watcher=true
 ```
 
+## Message Queue
+
+For the asynchronous communication between services a message queue is used. Currently, the only available implementation of that message queue uses [NATS](https://nats.io/). A message queue of this type has to run in order for ARC to run. If for any reason the connection to the NATS server is closed after all reconnection attempts, ARC will shut down automatically.
+
+One instance where the message queue is used is the communication between Metamorph & Blocktx service. Metamorph publishes new transactions to the message queue and BlockTx subscribes to the message queue, receive the transactions and stores them. Once BlockTx finds these transactions have been mined in a block it updates the block information and publishes the block information to the message queue. Metamorph subscribes to the message queue and receives the block information and updates the status of the transactions.
+
+![Message Queue](./doc/message_queue.png)
+
 ## Broadcaster-cli
+
 Please see [README.md](./cmd/broadcaster-cli/README.md) for more details
 
 ## Tests
 ### Unit tests
+
 In order to run the unit tests do the following
 ```
 make test
 ```
 
 ### Integration tests
+
 Integration tests of the postgres database need docker installed to run them. If `colima` implementation of Docker is being used on macOS, the `DOCKER_HOST` environment variable may need to be given as follows
 ```bash
 DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
@@ -313,14 +324,14 @@ DOCKER_HOST=unix:///Users/<username>/.colima/default/docker.sock make test
 These integration tests can be excluded from execution with `go test ./...` by adding the `-short` flag like this `go test -short ./...`.
 
 ### E2E tests
-The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc and 3 nodes using the provided docker-compose file.
+
+The end-to-end tests are located in the folder `test`. Docker needs to be installed in order to run them. End-to-end tests can be run locally together with arc, 3 nodes and all other external services like databases using the provided docker-compose file.
 The tests can be executed like this:
 ```
 make run_e2e_tests
 ```
 
-The [docker-compose](./test/docker-compose.yaml) file also shows the minimum setup that is needed for ARC to run.
-
+The [docker-compose](./docker-compose.yaml) file also shows the minimum setup that is needed for ARC to run.
 
 ## Monitoring
 
@@ -328,17 +339,21 @@ The [docker-compose](./test/docker-compose.yaml) file also shows the minimum set
 
 Prometheus can collect ARC metrics. It improves observability in production and enables debugging during development and deployment. As Prometheus is a very standard tool for monitoring, any other complementary tool such as Grafana and others can be added for better data analysis.
 
-Prometheus periodically poll the system data by querying specific urls.
+Prometheus periodically polls the system data by querying specific urls.
 
-ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint` setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
+ARC can expose a Prometheus endpoint that can be used to monitor the servers. Set the `prometheusEndpoint` setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
 
-Enable monitoring consists of setting the **prometheusEndpoint** property in config.yaml file:
+The Prometheus endpoint can be configured in `config.yaml`:
 
 ```yaml
-prometheusEndpoint: /metrics # endpoint for prometheus metrics
+prometheus:
+  enabled: false # if true, then prometheus metrics are enabled
+  endpoint: /metrics # endpoint for prometheus metrics
+  addr: :2112 # port for serving prometheus metrics
 ```
 
 ### Profiler
+
 Each service runs a http profiler server if it is configured in `config.yaml`. In order to access it, a connection can be created using the Go `pprof` [tool](https://pkg.go.dev/net/http/pprof). For example to investigate the memory usage
 ```bash
 go tool pprof http://localhost:9999/debug/pprof/allocs
@@ -347,7 +362,9 @@ Then type `top` to see the functions which consume the most memory. Find more in
 
 ### Tracing
 
-In order to enable tracing for each service ther respective setting in the service has to be set in `config.yaml`
+Currently, the traces are exported only in [open telemtry protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol/) on the gRPC endpoint. This endpoint URL of the receiving tracing backend (e.g. [Jaeger](https://www.jaegertracing.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), etc.) can be configured with the respective `tracing.dialAddr` setting.
+
+Tracing can be configured in `config.yaml`:
 
 ```yaml
   tracing:
@@ -355,8 +372,6 @@ In order to enable tracing for each service ther respective setting in the servi
     dialAddr: http://localhost:4317 # address where traces are exported to
     sample: 100 # percentage of the sampling
 ```
-
-Currently the traces are exported only in [open telemtry protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol/) on the gRPC endpoint. This endpoint URL of the receiving tracing backend (e.g. [Jaeger](https://www.jaegertracing.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), etc.) can be configured with the respective `tracing.dialAddr` setting.
 
 ## Building ARC
 

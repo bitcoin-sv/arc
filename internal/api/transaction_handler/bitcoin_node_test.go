@@ -17,9 +17,6 @@ func TestNewBitcoinNode(t *testing.T) {
 		// add a single bitcoin node
 		txHandler, err := NewBitcoinNode("localhost", 8332, "user", "mypassword", false)
 		require.NoError(t, err)
-
-		// initialise the arc default api handler, with our txHandler and any handler options
-		require.NoError(t, err)
 		var ctx = context.Background()
 
 		//When

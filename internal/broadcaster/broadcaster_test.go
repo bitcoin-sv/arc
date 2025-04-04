@@ -3,6 +3,7 @@ package broadcaster_test
 import (
 	"context"
 	"encoding/hex"
+	"github.com/bitcoin-sv/arc/pkg/api"
 	"log/slog"
 	"os"
 	"testing"
@@ -90,6 +91,12 @@ func TestBroadcaster(t *testing.T) {
 		2,
 		50,
 		broadcaster.WithBatchSize(2),
+		broadcaster.WithWaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK),
+		broadcaster.WithFees(uint64(1)),
+		broadcaster.WithFullstatusUpdates(true),
+		broadcaster.WithCallback(api.CallbackUrl("someurl"), "token"),
+		broadcaster.WithOpReturn("op"),
+		broadcaster.WithSizeJitter(1000),
 	)
 	require.NoError(t, err)
 

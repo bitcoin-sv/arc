@@ -53,6 +53,5 @@ func TestNewBitcoinNode(t *testing.T) {
 		res6, err := txHandler.SubmitTransactions(ctx, sdkTx.Transactions{}, nil)
 		require.NotNil(t, res6)
 		require.NoError(t, err)
-
 	})
 }

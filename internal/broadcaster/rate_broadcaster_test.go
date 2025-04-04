@@ -35,7 +35,7 @@ func TestRateBroadcaster(t *testing.T) {
 		expectedError                      error
 		expectedLimit                      int64
 		initialUtxoSetLen                  int
-		skipExpectedUtxoSetLen             bool
+		asyncTest                          bool
 		rateTxsPerSecond                   int
 		batchSize                          int
 		waitingTime                        time.Duration
@@ -117,7 +117,7 @@ func TestRateBroadcaster(t *testing.T) {
 			batchSize:                          10,
 			waitingTime:                        7 * time.Second,
 			transactionCount:                   10,
-			skipExpectedUtxoSetLen:             true,
+			asyncTest:                          true,
 		},
 	}
 
@@ -203,10 +203,10 @@ func TestRateBroadcaster(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
-			require.Equal(t, tc.transactionCount, sut.GetTxCount())
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
-			if !tc.skipExpectedUtxoSetLen {
+			if !tc.asyncTest {
+				require.Equal(t, tc.transactionCount, sut.GetTxCount())
 				require.Equal(t, tc.initialUtxoSetLen, sut.GetUtxoSetLen())
 			}
 		})

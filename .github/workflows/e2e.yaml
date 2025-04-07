@@ -4,9 +4,9 @@ on:
   pull_request:
     branches: ["**"]
     paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
+      - 'cmd/arc/**'
+      - 'internal/**/*.go'
+      - 'pkg/**/*.go'
       - 'go.mod'
       - 'go.sum'
       - 'Dockerfile'

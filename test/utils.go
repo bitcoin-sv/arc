@@ -5,6 +5,7 @@ package test
 import (
 	"bytes"
 	cRand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -133,7 +134,7 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 	b := make([]byte, 16)
 	_, err := cRand.Read(b)
 	require.NoError(t, err)
-	callback := string(b)
+	callback := hex.EncodeToString(b)
 
 	token = "1234"
 	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
@@ -142,6 +143,7 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 	require.NoError(t, err)
 
 	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	t.Logf("random callback URL: %s", callbackURL)
 
 	mux.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
 		// check auth

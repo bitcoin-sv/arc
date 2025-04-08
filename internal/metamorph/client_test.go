@@ -182,9 +182,13 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			ctx := context.Background()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 			defer cancel()
-			txStatus, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx}, tc.options)
+			txStatuses, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx}, tc.options)
 
-			require.Equal(t, tc.expectedStatus, txStatus[0])
+			var txStatus *metamorph.TransactionStatus
+			if len(txStatuses) != 0 {
+				txStatus = txStatuses[0]
+			}
+			require.Equal(t, tc.expectedStatus, txStatus)
 
 			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

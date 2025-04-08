@@ -184,7 +184,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			defer cancel()
 			txStatus, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx}, tc.options)
 
-			require.Equal(t, tc.expectedStatus, txStatus)
+			require.Equal(t, tc.expectedStatus, txStatus[0])
 
 			if tc.expectedErrorStr != "" {
 				require.ErrorContains(t, err, tc.expectedErrorStr)

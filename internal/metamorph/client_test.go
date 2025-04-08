@@ -154,6 +154,11 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
+				PostTransactionsFunc: func(ctx context.Context, in *metamorph_api.PostTransactionsRequest, opts ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+					return &metamorph_api.TransactionStatuses{
+						Statuses: []*metamorph_api.TransactionStatus{tc.putTxStatus},
+					}, tc.putTxErr
+				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.getTxStatus, tc.getTxErr
 				},

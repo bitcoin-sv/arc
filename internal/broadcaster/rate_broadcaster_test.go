@@ -7,7 +7,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"log/slog"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -176,30 +175,14 @@ func TestRateBroadcaster(t *testing.T) {
 
 			// when
 			err = sut.Start()
+			defer sut.Shutdown()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
-
-			if tc.waitingTime > time.Second {
-				wg := sync.WaitGroup{}
-				wg.Add(1)
-				done := make(chan struct{})
-				go func() {
-					wg.Wait()
-					close(done)
-				}()
-				select {
-				case <-time.After(tc.waitingTime):
-					t.Logf("waiting time over")
-				case <-done:
-				}
-			}
-
+			time.Sleep(tc.waitingTime)
 			go sut.Wait()
-
-			sut.Shutdown()
 
 			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))

@@ -1,13 +1,64 @@
 # **ARC** - Authoritative Response Component
 > Transaction processor for Bitcoin
 
+## Table of Contents
+- [**ARC** - Authoritative Response Component](#arc---authoritative-response-component)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Transaction lifecycle](#transaction-lifecycle)
+  - [Microservices](#microservices)
+    - [API](#api)
+      - [Validation](#validation)
+      - [Callbacks](#callbacks)
+    - [Metamorph](#metamorph)
+    - [Callbacker](#callbacker)
+    - [BlockTx](#blocktx)
+  - [Extended Format (EF) and Background Evaluation Extended Format (BEEF)](#extended-format-ef-and-background-evaluation-extended-format-beef)
+    - [Extended Formats efficiency](#extended-formats-efficiency)
+      - [Standard format flow](#standard-format-flow)
+      - [Extended format flow](#extended-format-flow)
+      - [BEEF flow](#beef-flow)
+  - [Settings](#settings)
+  - [ARC stats](#arc-stats)
+  - [Client Libraries](#client-libraries)
+    - [Typescript](#typescript)
+  - [Process flow diagrams](#process-flow-diagrams)
+  - [Outcome in different scenarios](#outcome-in-different-scenarios)
+    - [Double spending](#double-spending)
+      - [Double Spend flow - Examples](#double-spend-flow---examples)
+        - [Scenario 1](#scenario-1)
+        - [Scenario 2](#scenario-2)
+        - [Scenario 3](#scenario-3)
+      - [Edge case](#edge-case)
+    - [Multiple submissions to the same ARC instance](#multiple-submissions-to-the-same-arc-instance)
+    - [Multiple submissions to ARC and other transaction processors](#multiple-submissions-to-arc-and-other-transaction-processors)
+      - [Transaction has already been mined](#transaction-has-already-been-mined)
+      - [Transaction has not yet been mined](#transaction-has-not-yet-been-mined)
+    - [Chain reorg](#chain-reorg)
+      - [Transaction in both chains](#transaction-in-both-chains)
+      - [Transaction in the previously longest chain, but not in the stale chain that becomes longest](#transaction-in-the-previously-longest-chain-but-not-in-the-stale-chain-that-becomes-longest)
+      - [Transaction in the stale chain only (without reorg)](#transaction-in-the-stale-chain-only-without-reorg)
+      - [Summary table](#summary-table)
+      - [Simplified flow diagram](#simplified-flow-diagram)
+  - [Forcing validation](#forcing-validation)
+  - [Cumulative fees validation](#cumulative-fees-validation)
+    - [Usage](#usage)
+      - [Special Cases](#special-cases)
+    - [Validation Examples](#validation-examples)
+      - [Example 1: Insufficient Fee Paid by One Ancestor](#example-1-insufficient-fee-paid-by-one-ancestor)
+        - [Validation Result:](#validation-result)
+      - [Example 2: All Transactions Paid Their Own Fees](#example-2-all-transactions-paid-their-own-fees)
+        - [Validation Result:](#validation-result-1)
+      - [Example 3: Ancestors Did Not Pay, But Transaction Covers All Fees](#example-3-ancestors-did-not-pay-but-transaction-covers-all-fees)
+        - [Validation Result:](#validation-result-2)
+    - [Notes](#notes)
+
 ## Overview
 
 **ARC** is a multi-layer transaction processor for Bitcoin that keeps track of the life cycle of a transaction as it is processed by the Bitcoin network. Next to the mining status of a transaction, ARC also keeps track of the various states that a
 transaction can be in, such as `ANNOUNCED_TO_NETWORK`, `SEEN_IN_ORPHAN_MEMPOOL`, `SENT_TO_NETWORK`, `SEEN_ON_NETWORK`, `MINED`, `REJECTED`, etc.
 
-Unlike other transaction processors, ARC broadcasts all transactions on the p2p network, and does not rely on the rpc interface of a single Bitcoin node. This makes it possible for ARC to connect and broadcast to any number of nodes, as many as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it
-possible to connect to a large number of nodes without incurring large bandwidth costs.
+Unlike other transaction processors, ARC broadcasts all transactions on the p2p network, and does not rely on the rpc interface of a single Bitcoin node. This makes it possible for ARC to connect and broadcast to any number of nodes, as many as are desired. In the future, ARC will be also able to send transactions using ipv6 multicast, which will make it possible to connect to a large number of nodes without incurring large bandwidth costs.
 
 The ARC design decouples the core functions of a transaction processor and encapsulates them as microservices with the ability to scale horizontally adaptively. Interaction between microservices is decoupled using asynchronous messaging where possible.
 
@@ -15,7 +66,7 @@ ARC consists of 4 core microservices: [API](#API), [Metamorph](#Metamorph), [Cal
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
-![Building block diagram](./building_block_diagram.png)
+![Building block diagram](./building_block_diagram.drawio.svg)
 
 ## Transaction lifecycle
 
@@ -93,6 +144,9 @@ If the client wants to secure its callback endpoint, ARC supports Bearer token a
 By default, ARC sends a single callback per request, but the client can modify this behavior by including the `X-CallbackBatch: true` header. All callbacks related to transactions submitted with this header will be sent in batches (with a maximum batch size of `50` callbacks).
 
 By default, callbacks are triggered when the submitted transaction reaches the status `REJECTED` or `MINED`. If the client wishes to receive additional intermediate status updates—such (e.g. `SEEN_IN_ORPHAN_MEMPOOL` or `SEEN_ON_NETWORK`) the `X-FullStatusUpdates` header must be set to true. For more details, refer to the [API documentation](https://bitcoin-sv.github.io/arc/api.html).
+
+If a transactions is submitted multiple times with differing callback URL or token, then callbacks will then be sent to each callback URL with its specified token.
+
 For more details on how callbacks work, see the [Callbacker](#Callbacker) section.
 
 ### Metamorph
@@ -107,13 +161,11 @@ The specification of the callback objects, along with examples, can be found [he
 
 To prevent DDoS attacks on callback receivers, each Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring that only one request is sent at a time.
 
->NOTE: Typically, there are several instances of Callbacker, and each one operates independently.
-
-The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, it is placed in failed state for a certain period. During this time, sending callbacks to the receiver is paused, and all callbacks are stored persistently in the Callbacker service for later retries.
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, the callback will be retried later. Callbacker sends the http messages in chronological order. If a callback fails, Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
 
 >NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 
-Callbacker sends the http messages in chronological order. If a callback fails Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
+Multiple instances of Callbacker can run in parallel. In order to ensure the chronological order of callbacks each callback URL is always handled by only one callbacker instance. The synchronization on which instance handles which URL happens using a dedicated database table which maps callbacker instance to URL.
 
 ### BlockTx
 
@@ -238,7 +290,7 @@ return status
 
 @enduml
 ```
-In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set and it is assumed that the API does not have this data. Therefore, the "validator" subfunction within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
+In contrast, the extended format allows the API to perform a preliminary validation and rule out malformed transactions by reviewing the transaction data provided in the extended fashion. Obviously, double spending (for example) cannot be checked without an updated utxo set, and it is assumed that the API does not have this data. Therefore, the "validator" sub-function within the API filters as much as it can to reduce spurious transactions passing through the pipeline but leaves others for the bitcoin nodes themselves.
 
 This [validation](#validation) takes place in the ARC API microservice. The actual utxos are left to be checked by the Bitcoin node itself, like it would do anyway, regardless of where the transaction is coming from. With this process flow we save the node from having to lookup and send the input utxos to the ARC API, which could be slow under heavy load.
 
@@ -283,22 +335,13 @@ return status
 
 BEEF flow is very similar to Extended Format flow, with an additional step of Merkle roots verification in a call to blocktx. This step makes the whole validation process more thorough and allows for validation of transactions whose inputs are not yet mined without recursively asking the nodes for them.
 
-## Settings
-
-The settings available for running ARC are managed by [viper](github.com/spf13/viper). The settings are by default defined in `config.yaml`.
-
-## ARC stats
-
-ARC can expose a Prometheus endpoint that can be used to monitor the metamorph servers. Set the `prometheusEndpoint`
-setting in the settings file to activate prometheus. Normally you would want to set this to `/metrics`.
-
 ## Client Libraries
 
 ### Typescript
 
 A typescript library is available in the [@bsv/sdk](https://github.com/bitcoin-sv/ts-sdk) repository.
 
-Please note that [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is deprecated.
+> NOTE: [arc-client-js](https://github.com/bitcoin-sv/arc-client-js) is deprecated.
 
 ## Process flow diagrams
 
@@ -498,9 +541,7 @@ The chance of this situation happening is extremely low when submitting transact
 A transaction is submitted to the same ARC instance twice
 
 Expected outcome:
-* At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored
-
-The planned feature [Multiple different callbacks per transaction](https://github.com/bitcoin-sv/arc/blob/main/ROADMAP.md#multiple-different-callbacks-per-transaction) will allow that the same transaction can be submitted multiple times with differing callback URL and token. Callbacks will then be sent to each callback URL with specified token
+* At the second submission ARC simply returns the current status in the response. Changed or updated request headers are ignored except for the callback URL and token. If the callback URL and token differ, then callbacks will then be sent to each callback URL with its specified token.
 
 ### Multiple submissions to ARC and other transaction processors
 

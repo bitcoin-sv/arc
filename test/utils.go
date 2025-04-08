@@ -130,9 +130,10 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errChan chan error, alternativeResponseFn func(w http.ResponseWriter, rc chan T, ec chan error, status T), mux *http.ServeMux) (callbackURL, token string) {
 	t.Helper()
 
-	callback := make([]byte, 16)
-	_, err := cRand.Read(callback)
+	b := make([]byte, 16)
+	_, err := cRand.Read(b)
 	require.NoError(t, err)
+	callback := string(b)
 
 	token = "1234"
 	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)

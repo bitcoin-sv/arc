@@ -113,7 +113,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		sizeJitterMax, err := helper.GetInt("sizeJitter")
+		sizeJitterMax, err := helper.GetInt64("sizeJitter")
 		if err != nil {
 			return err
 		}

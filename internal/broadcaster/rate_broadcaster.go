@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"math/rand"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+
+	"github.com/bsv-blockchain/go-sdk/chainhash"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 )
 
 var (
@@ -173,11 +173,13 @@ utxoLoop:
 
 			if b.sizeJitterMax > 0 {
 				// Add additional inputs to the transaction
-				src := rand.NewSource(time.Now().UnixNano())
-				r := rand.New(src)
-				numOfInputs := r.Intn(10) // Todo: replace by crypto/rand
+				randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate random number: %v", err)
+				}
+				numOfInputs := randInt.Int64()
 
-				for i := 0; i < numOfInputs; i++ {
+				for i := int64(0); i < numOfInputs; i++ {
 					additionalUtxo, ok := <-b.utxoCh
 					if !ok {
 						return nil, ErrNotEnoughUTXOsForBatch
@@ -192,7 +194,13 @@ utxoLoop:
 				}
 
 				// Add additional OP_RETURN with random data to the transaction
-				dataSize := r.Intn(b.sizeJitterMax) // Todo: replace by crypto/rand
+
+				randJitter, err := cRand.Int(cRand.Reader, big.NewInt(b.sizeJitterMax))
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate random number: %v", err)
+				}
+				dataSize := randJitter.Int64()
+
 				if err != nil {
 					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
 				}

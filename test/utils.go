@@ -4,10 +4,10 @@ package test
 
 import (
 	"bytes"
+	cRand "crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -126,21 +126,14 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 	return response
 }
 
-func generateRandomString(length int) string {
-	const letterBytes = "abcdefghijklmnopqrstuvwxyz0123456789"
-
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))] // Todo: replace by crypto/rand
-	}
-	return string(b)
-}
-
 // registerHandlerForCallback registers a new handler function that responds to callbacks with bad request response first and at second try with success or alternative given response function. It returns the callback URL and token to be used.
 func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errChan chan error, alternativeResponseFn func(w http.ResponseWriter, rc chan T, ec chan error, status T), mux *http.ServeMux) (callbackURL, token string) {
 	t.Helper()
 
-	callback := generateRandomString(16)
+	callback := make([]byte, 16)
+	_, err := cRand.Read(callback)
+	require.NoError(t, err)
+
 	token = "1234"
 	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
 

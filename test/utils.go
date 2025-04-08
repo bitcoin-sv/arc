@@ -131,7 +131,7 @@ func generateRandomString(length int) string {
 
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+		b[i] = letterBytes[rand.Intn(len(letterBytes))] // Todo: replace by crypto/rand
 	}
 	return string(b)
 }

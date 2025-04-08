@@ -23,7 +23,6 @@ var (
 	ErrFailedToGetBalance       = errors.New("failed to get balance")
 	ErrKeyHasUnconfirmedBalance = errors.New("key has unconfirmed balance")
 	ErrFailedToGetUTXOs         = errors.New("failed to get utxos")
-	ErrTooHighSubmissionRate    = errors.New("submission rate is too high")
 	ErrTooSmallUTXOSet          = errors.New("utxo set is too small")
 	ErrFailedToAddInput         = errors.New("failed to add input")
 	ErrFailedToAddOutput        = errors.New("failed to add output")
@@ -34,33 +33,37 @@ var (
 
 type UTXORateBroadcaster struct {
 	Broadcaster
-	totalTxs         int64
-	connectionCount  int64
-	shutdown         chan struct{}
-	utxoCh           chan *sdkTx.UTXO
-	wg               sync.WaitGroup
-	satoshiMap       sync.Map
-	ks               *keyset.KeySet
-	rateTxsPerSecond int
-	limit            int64
+	totalTxs        int64
+	connectionCount int64
+	shutdown        chan struct{}
+	utxoCh          chan *sdkTx.UTXO
+	wg              sync.WaitGroup
+	satoshiMap      sync.Map
+	ks              *keyset.KeySet
+	limit           int64
+	ticker          Ticker
 }
 
-func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, rateTxsPerSecond int, limit int64, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
+type Ticker interface {
+	GetTickerCh() (<-chan time.Time, error)
+}
+
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, limit int64, ticker Ticker, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
 	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
 	if err != nil {
 		return nil, err
 	}
 	rb := &UTXORateBroadcaster{
-		Broadcaster:      b,
-		shutdown:         make(chan struct{}, 1),
-		utxoCh:           nil,
-		wg:               sync.WaitGroup{},
-		satoshiMap:       sync.Map{},
-		ks:               ks,
-		totalTxs:         0,
-		connectionCount:  0,
-		rateTxsPerSecond: rateTxsPerSecond,
-		limit:            limit,
+		Broadcaster:     b,
+		shutdown:        make(chan struct{}, 1),
+		utxoCh:          nil,
+		wg:              sync.WaitGroup{},
+		satoshiMap:      sync.Map{},
+		ks:              ks,
+		totalTxs:        0,
+		connectionCount: 0,
+		limit:           limit,
+		ticker:          ticker,
 	}
 
 	return rb, nil
@@ -94,12 +97,6 @@ func (b *UTXORateBroadcaster) Start() error {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
 
-	submitBatchesPerSecond := float64(b.rateTxsPerSecond) / float64(b.batchSize)
-
-	if submitBatchesPerSecond > millisecondsPerSecond {
-		return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", b.rateTxsPerSecond, b.batchSize, submitBatchesPerSecond))
-	}
-
 	if len(utxoSet) < b.batchSize {
 		return errors.Join(ErrTooSmallUTXOSet, fmt.Errorf("size of utxo set %d is smaller than requested batch size %d - create more utxos first", len(utxoSet), b.batchSize))
 	}
@@ -109,18 +106,10 @@ func (b *UTXORateBroadcaster) Start() error {
 		b.utxoCh <- utxo
 	}
 
-	submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
-
-	submitBatchTicker, err := NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-	if err != nil {
-		return err
-	}
-
-	tickerCh, err := submitBatchTicker.GetTickerCh()
+	tickerCh, err := b.ticker.GetTickerCh()
 	if err != nil {
 		return fmt.Errorf("failed to get ticker channel: %w", err)
 	}
-
 	errCh := make(chan error, 100)
 
 	b.wg.Add(1)
@@ -186,7 +175,7 @@ utxoLoop:
 				// Add additional inputs to the transaction
 				src := rand.NewSource(time.Now().UnixNano())
 				r := rand.New(src)
-				numOfInputs := r.Intn(10)
+				numOfInputs := r.Intn(10) // Todo: replace by crypto/rand
 
 				for i := 0; i < numOfInputs; i++ {
 					additionalUtxo, ok := <-b.utxoCh
@@ -203,7 +192,7 @@ utxoLoop:
 				}
 
 				// Add additional OP_RETURN with random data to the transaction
-				dataSize := r.Intn(b.sizeJitterMax)
+				dataSize := r.Intn(b.sizeJitterMax) // Todo: replace by crypto/rand
 				if err != nil {
 					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
 				}

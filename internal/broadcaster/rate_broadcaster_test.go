@@ -18,6 +18,11 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
 func TestRateBroadcaster(t *testing.T) {
@@ -171,6 +176,14 @@ func TestRateBroadcaster(t *testing.T) {
 			}
 
 			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.rateTxsPerSecond, tc.limit, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
+			ticker := &mocks.TickerMock{
+				GetTickerChFunc: func() (<-chan time.Time, error) {
+					tickerCh := make(chan time.Time)
+					return tickerCh, nil
+				},
+			}
+
+			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, 2, ticker, broadcaster.WithBatchSize(2))
 			require.NoError(t, err)
 
 			// when

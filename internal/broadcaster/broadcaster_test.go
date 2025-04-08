@@ -82,6 +82,13 @@ func TestBroadcaster(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
+	ticker := &mocks.TickerMock{
+		GetTickerChFunc: func() (<-chan time.Time, error) {
+			tickerCh := make(chan time.Time)
+			return tickerCh, nil
+		},
+	}
+
 	sut, err := broadcaster.NewRateBroadcaster(
 		logger,
 		arcClient,
@@ -89,7 +96,7 @@ func TestBroadcaster(t *testing.T) {
 		mockedUtxoClient,
 		false,
 		2,
-		50,
+		ticker,
 		broadcaster.WithBatchSize(2),
 		broadcaster.WithWaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK),
 		broadcaster.WithFees(uint64(1)),

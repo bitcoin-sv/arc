@@ -14,3 +14,6 @@ package broadcaster
 
 // from multi_utxo_creator.go
 //go:generate moq -pkg mocks -out ./mocks/utxo_creator_mock.go . Creator
+
+// from rate_broadcaster.go
+//go:generate moq -pkg mocks -out ./mocks/ticker_mock.go . Ticker

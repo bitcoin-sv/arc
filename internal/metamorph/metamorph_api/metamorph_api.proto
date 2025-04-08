@@ -35,7 +35,6 @@ service MetaMorphAPI {
   rpc PutTransactions (TransactionRequests) returns (TransactionStatuses) {
     option deprecated = true;
   }
-  rpc PostTransaction (PostTransactionRequest) returns (TransactionStatus) {}
   rpc PostTransactions (PostTransactionsRequest) returns (TransactionStatuses) {}
   rpc GetTransaction (TransactionStatusRequest) returns (Transaction) {}
   rpc GetTransactions (TransactionsStatusRequest) returns (Transactions) {}

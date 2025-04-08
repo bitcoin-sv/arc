@@ -28,7 +28,6 @@ type TransactionHandler interface {
 	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
 	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
 	GetTransactionStatuses(ctx context.Context, txIDs []string) ([]*TransactionStatus, error)
-	SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (*TransactionStatus, error)
 	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
 }
 
@@ -237,53 +236,6 @@ func (m *Metamorph) Health(ctx context.Context) (err error) {
 	}
 
 	return nil
-}
-
-// SubmitTransaction submits a transaction to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *TransactionOptions) (txStatus *TransactionStatus, err error) {
-	ctx, span := tracing.StartTracing(ctx, "SubmitTransaction", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txID", tx.TxID().String()))...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	request := transactionRequest(tx.Bytes(), options)
-	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
-		err = m.mqClient.PublishMarshal(ctx, mq.SubmitTxTopic, request)
-		if err != nil {
-			return nil, err
-		}
-
-		return &TransactionStatus{
-			TxID:      tx.TxID().String(),
-			Status:    metamorph_api.Status_QUEUED.String(),
-			Timestamp: m.now().Unix(),
-		}, nil
-	}
-
-	deadline, _ := ctx.Deadline()
-	// increase time to make sure that expiration happens from inside the metramorph function
-	newDeadline := deadline.Add(time.Second * MaxTimeout)
-
-	// Create a new context with the updated deadline
-	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
-	defer newCancel()
-
-	response, err := m.client.PostTransaction(newCtx, request)
-	if err != nil {
-		return nil, err
-	}
-	txStatus = &TransactionStatus{
-		TxID:         response.GetTxid(),
-		Status:       response.GetStatus().String(),
-		ExtraInfo:    response.GetRejectReason(),
-		CompetingTxs: response.GetCompetingTxs(),
-		BlockHash:    response.GetBlockHash(),
-		BlockHeight:  response.GetBlockHeight(),
-		MerklePath:   response.GetMerklePath(),
-		Callbacks:    response.GetCallbacks(),
-		Timestamp:    m.now().Unix(),
-	}
-	return txStatus, nil
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.

@@ -247,35 +247,6 @@ func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.Transac
 	return resp, nil
 }
 
-func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
-	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
-	if ok {
-		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
-		defer newCancel()
-	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	statusReceived := metamorph_api.Status_RECEIVED
-
-	// Convert gRPC req to store.Data struct...
-	sReq := requestToStoreData(hash, statusReceived, req)
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
-}
-
 func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTransactionsRequest) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
 	deadline, ok := ctx.Deadline()
 

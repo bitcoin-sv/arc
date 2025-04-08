@@ -32,9 +32,6 @@ var _ metamorph.TransactionHandler = &TransactionHandlerMock{}
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
-//			SubmitTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-//				panic("mock out the SubmitTransaction method")
-//			},
 //			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 //				panic("mock out the SubmitTransactions method")
 //			},
@@ -56,9 +53,6 @@ type TransactionHandlerMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
-
-	// SubmitTransactionFunc mocks the SubmitTransaction method.
-	SubmitTransactionFunc func(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error)
 
 	// SubmitTransactionsFunc mocks the SubmitTransactions method.
 	SubmitTransactionsFunc func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error)
@@ -91,15 +85,6 @@ type TransactionHandlerMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
-		// SubmitTransaction holds details about calls to the SubmitTransaction method.
-		SubmitTransaction []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Tx is the tx argument value.
-			Tx *sdkTx.Transaction
-			// Options is the options argument value.
-			Options *metamorph.TransactionOptions
-		}
 		// SubmitTransactions holds details about calls to the SubmitTransactions method.
 		SubmitTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -114,7 +99,6 @@ type TransactionHandlerMock struct {
 	lockGetTransactionStatuses sync.RWMutex
 	lockGetTransactions        sync.RWMutex
 	lockHealth                 sync.RWMutex
-	lockSubmitTransaction      sync.RWMutex
 	lockSubmitTransactions     sync.RWMutex
 }
 
@@ -255,46 +239,6 @@ func (mock *TransactionHandlerMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
-	return calls
-}
-
-// SubmitTransaction calls SubmitTransactionFunc.
-func (mock *TransactionHandlerMock) SubmitTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-	if mock.SubmitTransactionFunc == nil {
-		panic("TransactionHandlerMock.SubmitTransactionFunc: method is nil but TransactionHandler.SubmitTransaction was just called")
-	}
-	callInfo := struct {
-		Ctx     context.Context
-		Tx      *sdkTx.Transaction
-		Options *metamorph.TransactionOptions
-	}{
-		Ctx:     ctx,
-		Tx:      tx,
-		Options: options,
-	}
-	mock.lockSubmitTransaction.Lock()
-	mock.calls.SubmitTransaction = append(mock.calls.SubmitTransaction, callInfo)
-	mock.lockSubmitTransaction.Unlock()
-	return mock.SubmitTransactionFunc(ctx, tx, options)
-}
-
-// SubmitTransactionCalls gets all the calls that were made to SubmitTransaction.
-// Check the length with:
-//
-//	len(mockedTransactionHandler.SubmitTransactionCalls())
-func (mock *TransactionHandlerMock) SubmitTransactionCalls() []struct {
-	Ctx     context.Context
-	Tx      *sdkTx.Transaction
-	Options *metamorph.TransactionOptions
-} {
-	var calls []struct {
-		Ctx     context.Context
-		Tx      *sdkTx.Transaction
-		Options *metamorph.TransactionOptions
-	}
-	mock.lockSubmitTransaction.RLock()
-	calls = mock.calls.SubmitTransaction
-	mock.lockSubmitTransaction.RUnlock()
 	return calls
 }
 

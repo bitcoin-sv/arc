@@ -657,6 +657,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					fmt.Println("aq movida")
 					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
 			}

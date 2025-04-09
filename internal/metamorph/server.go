@@ -153,6 +153,11 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 }
 
 func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
+	ctx, span := tracing.StartTracing(ctx, "PostTransaction", s.tracingEnabled, s.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
 	deadline, ok := ctx.Deadline()
 
 	// decrease time to get initial deadline
@@ -164,14 +169,9 @@ func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTra
 	// Create a new context with the updated deadline
 	if ok {
 		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		ctx, newCancel = context.WithDeadline(ctx, newDeadline)
 		defer newCancel()
 	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
 
 	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
 	statusReceived := metamorph_api.Status_RECEIVED
@@ -182,6 +182,11 @@ func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTra
 }
 
 func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTransactionsRequest) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
+	ctx, span := tracing.StartTracing(ctx, "PostTransactions", s.tracingEnabled, s.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
 	deadline, ok := ctx.Deadline()
 
 	// decrease time to get initial deadline
@@ -193,14 +198,9 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	// Create a new context with the updated deadline
 	if ok {
 		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
+		ctx, newCancel = context.WithDeadline(ctx, newDeadline)
 		defer newCancel()
 	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
 
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
@@ -346,8 +346,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case <-checkStatusTicker.C:
-			// it's possible the transaction status was received and updated in db by another metamorph
-			// check if that's the case and we have a new tx status to return
+			// It's possible the transaction status was received and updated in db by another metamorph instance
+			// If yes, return new tx status
 			var tx *metamorph_api.TransactionStatus
 			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 				Txid: txID,

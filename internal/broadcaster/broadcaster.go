@@ -21,8 +21,8 @@ const (
 type UtxoClient interface {
 	GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error)
 	GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
-	GetBalance(ctx context.Context, address string) (int64, int64, error)
-	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+	GetBalance(ctx context.Context, address string) (uint64, uint64, error)
+	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 	TopUp(ctx context.Context, address string) error
 }
 
@@ -41,7 +41,7 @@ type Broadcaster struct {
 	batchSize         int
 	waitForStatus     metamorph_api.Status
 	opReturn          string
-	sizeJitterMax     int
+	sizeJitterMax     int64
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
@@ -87,17 +87,23 @@ func WithOpReturn(opReturn string) func(broadcaster *Broadcaster) {
 	}
 }
 
-func WithSizeJitter(sizeJitterMax int) func(broadcaster *Broadcaster) {
+func WithSizeJitter(sizeJitterMax int64) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
 		broadcaster.sizeJitterMax = sizeJitterMax
 	}
 }
 
-func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (Broadcaster, error) {
+func WithIsTestnet(isTestnet bool) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.isTestnet = isTestnet
+	}
+}
+
+func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (Broadcaster, error) {
 	b := Broadcaster{
 		logger:        logger,
 		client:        client,
-		isTestnet:     isTestnet,
+		isTestnet:     false,
 		batchSize:     batchSizeDefault,
 		maxInputs:     maxInputsDefault,
 		feeModel:      feemodel.SatoshisPerKilobyte{Satoshis: uint64(1)},

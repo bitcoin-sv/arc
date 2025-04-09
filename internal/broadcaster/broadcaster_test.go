@@ -3,11 +3,12 @@ package broadcaster_test
 import (
 	"context"
 	"encoding/hex"
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -31,10 +32,10 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 	// given
 	mockedUtxoClient := &mocks.UtxoClientMock{
-		GetBalanceFunc: func(_ context.Context, _ string) (int64, int64, error) {
+		GetBalanceFunc: func(_ context.Context, _ string) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
-		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
 		GetUTXOsFunc: func(_ context.Context, lockingScript *script.Script, _ string) (sdkTx.UTXOs, error) {
@@ -82,14 +83,20 @@ func TestBroadcaster(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
+	ticker := &mocks.TickerMock{
+		GetTickerChFunc: func() (<-chan time.Time, error) {
+			tickerCh := make(chan time.Time)
+			return tickerCh, nil
+		},
+	}
+
 	sut, err := broadcaster.NewRateBroadcaster(
 		logger,
 		arcClient,
 		ks,
 		mockedUtxoClient,
-		false,
 		2,
-		50,
+		ticker,
 		broadcaster.WithBatchSize(2),
 		broadcaster.WithWaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK),
 		broadcaster.WithFees(uint64(1)),
@@ -97,6 +104,7 @@ func TestBroadcaster(t *testing.T) {
 		broadcaster.WithCallback(api.CallbackUrl("someurl"), "token"),
 		broadcaster.WithOpReturn("op"),
 		broadcaster.WithSizeJitter(1000),
+		broadcaster.WithIsTestnet(false),
 	)
 	require.NoError(t, err)
 

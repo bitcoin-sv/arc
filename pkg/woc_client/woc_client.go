@@ -113,8 +113,8 @@ type wocUtxo struct {
 }
 
 type wocBalance struct {
-	Confirmed   int64 `json:"confirmed"`
-	Unconfirmed int64 `json:"unconfirmed"`
+	Confirmed   uint64 `json:"confirmed"`
+	Unconfirmed uint64 `json:"unconfirmed"`
 }
 
 type WocRawTx struct {
@@ -186,7 +186,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 	return unspent, nil
 }
 
-func (w *WocClient) GetBalance(ctx context.Context, address string) (int64, int64, error) {
+func (w *WocClient) GetBalance(ctx context.Context, address string) (uint64, uint64, error) {
 	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/balance", address), nil)
 	if err != nil {
 		return 0, 0, err
@@ -207,14 +207,14 @@ func (w *WocClient) GetBalance(ctx context.Context, address string) (int64, int6
 	return balance.Confirmed, balance.Unconfirmed, nil
 }
 
-func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
 
 	type balanceResult struct {
-		confirmed   int64
-		unconfirmed int64
+		confirmed   uint64
+		unconfirmed uint64
 	}
 
 	operation := func() (balanceResult, error) {

@@ -4,119 +4,135 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/broadcaster"
+	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-func TestRateBroadcaster(t *testing.T) {
+func TestRateBroadcasterStart(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
 	tt := []struct {
-		name                               string
-		getBalanceWithRetriesErr           error
-		getUTXOsWithRetriesErr             error
-		broadcastTransactionsErr           error
-		limit                              int64
+		name                     string
+		getBalanceWithRetriesErr error
+		getUTXOsWithRetriesErr   error
+		broadcastTransactionsErr error
+		limit                    int64
+		initialUtxoSetLen        int
+		asyncTest                bool
+		rateTxsPerSecond         int
+		batchSize                int
+		waitingTime              time.Duration
+		transactionCount         int64
+		jitterSize               int64
+
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
 		expectedLimit                      int64
-		initialUtxoSetLen                  int
-		asyncTest                          bool
-		rateTxsPerSecond                   int
-		batchSize                          int
-		waitingTime                        time.Duration
-		transactionCount                   int64
+		expectedUtxoSetLen                 int
 	}{
 		{
-			name:                               "success",
+			name:              "success",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
+			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "error - failed to get balance",
-			getBalanceWithRetriesErr:           errors.New("utxo client error"),
+			name:              "success with jitter",
+			jitterSize:        1,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
+			expectedBroadcastTransactionsCalls: 0,
+			expectedUtxoSetLen:                 2,
+		},
+		{
+			name:                     "error - failed to get balance",
+			getBalanceWithRetriesErr: errors.New("utxo client error"),
+			rateTxsPerSecond:         2,
+			batchSize:                2,
+			waitingTime:              1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrFailedToGetBalance,
 			expectedBroadcastTransactionsCalls: 0,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
+			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "error - failed to get utxos",
-			getUTXOsWithRetriesErr:             errors.New("failed to get utxos"),
+			name:                   "error - failed to get utxos",
+			getUTXOsWithRetriesErr: errors.New("failed to get utxos"),
+			rateTxsPerSecond:       2,
+			batchSize:              2,
+			waitingTime:            1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
 			expectedBroadcastTransactionsCalls: 0,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "broadcast transactions",
+			name:              "broadcast transactions",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
+			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "success - limit reached",
-			limit:                              2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
-		},
-		{
-			name:                               "error - too high rateTxPerSecond",
-			limit:                              2,
+			name:              "success - limit reached",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   1500,
-			expectedError:                      broadcaster.ErrTooHighSubmissionRate,
-			batchSize:                          1,
-			waitingTime:                        1 * time.Millisecond,
+			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "error - utxo set smaller than batchSize",
-			limit:                              2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
+			name:              "error - utxo set smaller than batchSize",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         1000,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrTooSmallUTXOSet,
-			batchSize:                          1000,
-			waitingTime:                        1 * time.Millisecond,
+			expectedBroadcastTransactionsCalls: 0,
+			expectedLimit:                      2,
 		},
 		{
-			name:                               "success - asynch batch",
-			limit:                              2,
+			name:              "success - async batch",
+			limit:             2,
+			initialUtxoSetLen: 10,
+			rateTxsPerSecond:  10,
+			batchSize:         10,
+			waitingTime:       2 * time.Second,
+			transactionCount:  10,
+			asyncTest:         true,
+
 			expectedBroadcastTransactionsCalls: 1,
 			expectedLimit:                      2,
-			initialUtxoSetLen:                  60,
-			rateTxsPerSecond:                   10,
-			batchSize:                          10,
-			waitingTime:                        7 * time.Second,
-			transactionCount:                   10,
-			asyncTest:                          true,
+			expectedUtxoSetLen:                 0,
 		},
 	}
 
@@ -127,7 +143,7 @@ func TestRateBroadcaster(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
 				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
@@ -170,28 +186,52 @@ func TestRateBroadcaster(t *testing.T) {
 				},
 			}
 
-			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.rateTxsPerSecond, tc.limit, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
+			tickerCh := make(chan time.Time, 5)
+			ticker := &mocks.TickerMock{
+				GetTickerChFunc: func() (<-chan time.Time, error) {
+					return tickerCh, nil
+				},
+			}
+
+			sut, err := broadcaster.NewRateBroadcaster(logger,
+				client,
+				ks,
+				utxoClient,
+				tc.limit,
+				ticker,
+				broadcaster.WithBatchSize(tc.batchSize),
+				broadcaster.WithSizeJitter(tc.jitterSize),
+				broadcaster.WithIsTestnet(false),
+			)
 			require.NoError(t, err)
 
 			// when
 			err = sut.Start()
-			defer sut.Shutdown()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
+
+			if tc.asyncTest {
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					tickerCh <- time.Now()
+				}()
+			}
+
 			time.Sleep(tc.waitingTime)
-			go sut.Wait()
 
 			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
-			if !tc.asyncTest {
-				require.Equal(t, tc.transactionCount, sut.GetTxCount())
-				require.Equal(t, tc.initialUtxoSetLen, sut.GetUtxoSetLen())
-			}
+			require.Equal(t, tc.transactionCount, sut.GetTxCount())
+			require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
+
+			sut.Shutdown()
+
+			sut.Wait()
 		})
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,6 +16,14 @@ import (
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
+)
+
+const (
+	millisecondsPerSecond = 1000
+)
+
+var (
+	ErrTooHighSubmissionRate = errors.New("submission rate is too high")
 )
 
 var Cmd = &cobra.Command{
@@ -104,7 +113,7 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		sizeJitterMax, err := helper.GetInt("sizeJitter")
+		sizeJitterMax, err := helper.GetInt64("sizeJitter")
 		if err != nil {
 			return err
 		}
@@ -127,15 +136,28 @@ var Cmd = &cobra.Command{
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithOpReturn(opReturn),
 			broadcaster.WithSizeJitter(sizeJitterMax),
+			broadcaster.WithIsTestnet(isTestnet),
 		}
 
 		if waitForStatus > 0 {
 			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
 		}
 
+		submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(batchSize)
+
+		if submitBatchesPerSecond > millisecondsPerSecond {
+			return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, batchSize, submitBatchesPerSecond))
+		}
+		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
+
+		submitBatchTicker, err := broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+		if err != nil {
+			return err
+		}
+
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
 		for keyName, ks := range keySetsMap {
-			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, rateTxsPerSecond, limit, opts...)
+			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, limit, submitBatchTicker, opts...)
 			if err != nil {
 				return err
 			}

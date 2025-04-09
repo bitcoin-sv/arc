@@ -105,7 +105,7 @@ var Cmd = &cobra.Command{
 			return fmt.Errorf("from not found in keySetsMap: %v", from)
 		}
 
-		splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, ks, isTestnet,
+		splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, ks, broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithFees(miningFeeSat),
 		)
 		if err != nil {

@@ -20,7 +20,7 @@ var Cmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a UTXO set",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		outputs, err := helper.GetInt("outputs")
+		outputs, err := helper.GetUint64("outputs")
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ var Cmd = &cobra.Command{
 			ks := keySetsMap[keyName]
 			creator, err := broadcaster.NewUTXOCreator(
 				logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)),
-				client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat),
+				client, ks, wocClient, broadcaster.WithIsTestnet(isTestnet), broadcaster.WithFees(miningFeeSat),
 			)
 			if err != nil {
 				return err
@@ -107,8 +107,7 @@ var Cmd = &cobra.Command{
 		}()
 
 		logger.Info("Starting UTXO creation")
-		multiCreator.Start(outputs, uint64(satoshisPerOutput))
-
+		multiCreator.Start(outputs, satoshisPerOutput)
 		return nil
 	},
 }

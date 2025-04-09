@@ -30,16 +30,16 @@ func TestUTXOCreator(t *testing.T) {
 	tests := []struct {
 		name                   string
 		getUTXOsResp           sdkTx.UTXOs
-		getBalanceFunc         func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+		getBalanceFunc         func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 		expectedBroadcastCalls int
 		expectedError          error
-		requestedUTXOs         int
+		requestedUTXOs         uint64
 		requestedAmountPerUTXO uint64
 	}{
 		{
 			name:         "success - creates correct UTXOs",
 			getUTXOsResp: sdkTx.UTXOs{{TxID: hash1, Vout: 0, LockingScript: ks.Script, Satoshis: 401}},
-			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 				return 400, 0, nil
 			},
 			expectedBroadcastCalls: 1,
@@ -50,7 +50,7 @@ func TestUTXOCreator(t *testing.T) {
 		{
 			name:         "Insufficient balance",
 			getUTXOsResp: sdkTx.UTXOs{{TxID: hash1, Vout: 0, LockingScript: ks.Script, Satoshis: 50}},
-			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+			getBalanceFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 				return 100, 0, nil
 			},
 			expectedBroadcastCalls: 0,
@@ -80,7 +80,7 @@ func TestUTXOCreator(t *testing.T) {
 				},
 			}
 
-			utxoCreator, err := broadcaster.NewUTXOCreator(logger, mockArcClient, ks, mockUtxoClient, false)
+			utxoCreator, err := broadcaster.NewUTXOCreator(logger, mockArcClient, ks, mockUtxoClient, broadcaster.WithIsTestnet(false))
 			require.NoError(t, err)
 			defer utxoCreator.Shutdown()
 

@@ -22,10 +22,10 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //
 //		// make and configure a mocked broadcaster.UtxoClient
 //		mockedUtxoClient := &UtxoClientMock{
-//			GetBalanceFunc: func(ctx context.Context, address string) (int64, int64, error) {
+//			GetBalanceFunc: func(ctx context.Context, address string) (uint64, uint64, error) {
 //				panic("mock out the GetBalance method")
 //			},
-//			GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+//			GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
 //				panic("mock out the GetBalanceWithRetries method")
 //			},
 //			GetUTXOsFunc: func(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
@@ -45,10 +45,10 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //	}
 type UtxoClientMock struct {
 	// GetBalanceFunc mocks the GetBalance method.
-	GetBalanceFunc func(ctx context.Context, address string) (int64, int64, error)
+	GetBalanceFunc func(ctx context.Context, address string) (uint64, uint64, error)
 
 	// GetBalanceWithRetriesFunc mocks the GetBalanceWithRetries method.
-	GetBalanceWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error)
+	GetBalanceWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 
 	// GetUTXOsFunc mocks the GetUTXOs method.
 	GetUTXOsFunc func(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error)
@@ -117,7 +117,7 @@ type UtxoClientMock struct {
 }
 
 // GetBalance calls GetBalanceFunc.
-func (mock *UtxoClientMock) GetBalance(ctx context.Context, address string) (int64, int64, error) {
+func (mock *UtxoClientMock) GetBalance(ctx context.Context, address string) (uint64, uint64, error) {
 	if mock.GetBalanceFunc == nil {
 		panic("UtxoClientMock.GetBalanceFunc: method is nil but UtxoClient.GetBalance was just called")
 	}
@@ -153,7 +153,7 @@ func (mock *UtxoClientMock) GetBalanceCalls() []struct {
 }
 
 // GetBalanceWithRetries calls GetBalanceWithRetriesFunc.
-func (mock *UtxoClientMock) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (int64, int64, error) {
+func (mock *UtxoClientMock) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
 	if mock.GetBalanceWithRetriesFunc == nil {
 		panic("UtxoClientMock.GetBalanceWithRetriesFunc: method is nil but UtxoClient.GetBalanceWithRetries was just called")
 	}

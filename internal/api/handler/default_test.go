@@ -657,7 +657,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					fmt.Println("aq movida", tc.submitTxErr)
 					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
 			}
@@ -727,11 +726,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				require.NoError(t, err)
 
 				expectedResp, ok := tc.expectedResponse.(api.ErrorFields)
+				fmt.Println("shota ", tc.name, expectedResp)
 				require.True(t, ok)
-				fmt.Println("shota tx2", tc.name, expectedResp.Txid, actualError.Txid)
-				if expectedResp.Txid != nil {
-					fmt.Println("shota tx", tc.name, *expectedResp.Txid)
-				}
 				assert.Equal(t, expectedResp.Txid, actualError.Txid)
 				assert.Equal(t, expectedResp.Status, actualError.Status)
 				assert.Equal(t, expectedResp.Detail, actualError.Detail)

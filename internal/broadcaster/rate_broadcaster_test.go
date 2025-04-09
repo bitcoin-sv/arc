@@ -42,6 +42,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
 		expectedLimit                      int64
+		expectedUtxoSetLen                 int
 	}{
 		{
 			name:              "success",
@@ -51,6 +52,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			waitingTime:       1 * time.Millisecond,
 
 			expectedBroadcastTransactionsCalls: 0,
+			expectedUtxoSetLen:                 2,
 		},
 		{
 			name:              "success with jitter",
@@ -61,6 +63,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			waitingTime:       1 * time.Millisecond,
 
 			expectedBroadcastTransactionsCalls: 0,
+			expectedUtxoSetLen:                 2,
 		},
 		{
 			name:                     "error - failed to get balance",
@@ -71,6 +74,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 			expectedError:                      broadcaster.ErrFailedToGetBalance,
 			expectedBroadcastTransactionsCalls: 0,
+			expectedUtxoSetLen:                 2,
 		},
 		{
 			name:                   "error - failed to get utxos",
@@ -90,6 +94,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			waitingTime:       1 * time.Millisecond,
 
 			expectedBroadcastTransactionsCalls: 0,
+			expectedUtxoSetLen:                 2,
 		},
 		{
 			name:              "success - limit reached",
@@ -101,6 +106,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
+			expectedUtxoSetLen:                 2,
 		},
 		{
 			name:              "error - utxo set smaller than batchSize",
@@ -126,6 +132,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 			expectedBroadcastTransactionsCalls: 1,
 			expectedLimit:                      2,
+			expectedUtxoSetLen:                 0,
 		},
 	}
 
@@ -220,6 +227,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			require.Equal(t, tc.transactionCount, sut.GetTxCount())
+			require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 
 			sut.Shutdown()
 

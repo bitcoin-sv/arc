@@ -728,6 +728,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 				expectedResp, ok := tc.expectedResponse.(api.ErrorFields)
 				require.True(t, ok)
+				fmt.Println("shota tx2", tc.name, expectedResp.Txid, actualError.Txid)
 				if expectedResp.Txid != nil {
 					fmt.Println("shota tx", tc.name, *expectedResp.Txid)
 				}

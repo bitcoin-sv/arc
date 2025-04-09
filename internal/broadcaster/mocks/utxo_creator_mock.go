@@ -21,7 +21,7 @@ var _ broadcaster.Creator = &CreatorMock{}
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StartFunc: func(outputs int, satoshisPerOutput uint64) error {
+//			StartFunc: func(outputs uint64, satoshisPerOutput uint64) error {
 //				panic("mock out the Start method")
 //			},
 //			WaitFunc: func()  {
@@ -38,7 +38,7 @@ type CreatorMock struct {
 	ShutdownFunc func()
 
 	// StartFunc mocks the Start method.
-	StartFunc func(outputs int, satoshisPerOutput uint64) error
+	StartFunc func(outputs uint64, satoshisPerOutput uint64) error
 
 	// WaitFunc mocks the Wait method.
 	WaitFunc func()
@@ -51,7 +51,7 @@ type CreatorMock struct {
 		// Start holds details about calls to the Start method.
 		Start []struct {
 			// Outputs is the outputs argument value.
-			Outputs int
+			Outputs uint64
 			// SatoshisPerOutput is the satoshisPerOutput argument value.
 			SatoshisPerOutput uint64
 		}
@@ -92,12 +92,12 @@ func (mock *CreatorMock) ShutdownCalls() []struct {
 }
 
 // Start calls StartFunc.
-func (mock *CreatorMock) Start(outputs int, satoshisPerOutput uint64) error {
+func (mock *CreatorMock) Start(outputs uint64, satoshisPerOutput uint64) error {
 	if mock.StartFunc == nil {
 		panic("CreatorMock.StartFunc: method is nil but Creator.Start was just called")
 	}
 	callInfo := struct {
-		Outputs           int
+		Outputs           uint64
 		SatoshisPerOutput uint64
 	}{
 		Outputs:           outputs,
@@ -114,11 +114,11 @@ func (mock *CreatorMock) Start(outputs int, satoshisPerOutput uint64) error {
 //
 //	len(mockedCreator.StartCalls())
 func (mock *CreatorMock) StartCalls() []struct {
-	Outputs           int
+	Outputs           uint64
 	SatoshisPerOutput uint64
 } {
 	var calls []struct {
-		Outputs           int
+		Outputs           uint64
 		SatoshisPerOutput uint64
 	}
 	mock.lockStart.RLock()

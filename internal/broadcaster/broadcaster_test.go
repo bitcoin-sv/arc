@@ -32,10 +32,10 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 	// given
 	mockedUtxoClient := &mocks.UtxoClientMock{
-		GetBalanceFunc: func(_ context.Context, _ string) (int64, int64, error) {
+		GetBalanceFunc: func(_ context.Context, _ string) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
-		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
 		GetUTXOsFunc: func(_ context.Context, lockingScript *script.Script, _ string) (sdkTx.UTXOs, error) {

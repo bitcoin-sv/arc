@@ -10,7 +10,7 @@ type MultiKeyUTXOCreator struct {
 }
 
 type Creator interface {
-	Start(outputs int, satoshisPerOutput uint64) error
+	Start(outputs uint64, satoshisPerOutput uint64) error
 	Wait()
 	Shutdown()
 }
@@ -28,7 +28,7 @@ func NewMultiKeyUTXOCreator(logger *slog.Logger, creators []Creator, opts ...fun
 	return mkuc
 }
 
-func (mkuc *MultiKeyUTXOCreator) Start(outputs int, satoshisPerOutput uint64) {
+func (mkuc *MultiKeyUTXOCreator) Start(outputs uint64, satoshisPerOutput uint64) {
 	for _, creator := range mkuc.creators {
 		err := creator.Start(outputs, satoshisPerOutput)
 		if err != nil {

@@ -18,12 +18,12 @@ func TestMultiKeyUTXOCreatorStart(t *testing.T) {
 		// Create mocks for creators
 		creators := []broadcaster.Creator{
 			&mocks.CreatorMock{
-				StartFunc:    func(_ int, _ uint64) error { return nil },
+				StartFunc:    func(_ uint64, _ uint64) error { return nil },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},
 			&mocks.CreatorMock{
-				StartFunc:    func(_ int, _ uint64) error { return errors.New("failed to start") },
+				StartFunc:    func(_ uint64, _ uint64) error { return errors.New("failed to start") },
 				WaitFunc:     func() {},
 				ShutdownFunc: func() {},
 			},

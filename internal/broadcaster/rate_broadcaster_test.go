@@ -125,7 +125,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (int64, int64, error) {
+				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
 				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {

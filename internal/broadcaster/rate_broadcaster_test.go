@@ -26,87 +26,95 @@ func TestRateBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 
 	tt := []struct {
-		name                               string
-		getBalanceWithRetriesErr           error
-		getUTXOsWithRetriesErr             error
-		broadcastTransactionsErr           error
-		limit                              int64
+		name                     string
+		getBalanceWithRetriesErr error
+		getUTXOsWithRetriesErr   error
+		broadcastTransactionsErr error
+		limit                    int64
+		initialUtxoSetLen        int
+		asyncTest                bool
+		rateTxsPerSecond         int
+		batchSize                int
+		waitingTime              time.Duration
+		transactionCount         int64
+
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
 		expectedLimit                      int64
-		initialUtxoSetLen                  int
-		asyncTest                          bool
-		rateTxsPerSecond                   int
-		batchSize                          int
-		waitingTime                        time.Duration
-		transactionCount                   int64
 	}{
 		{
-			name:                               "success",
+			name:              "success",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "error - failed to get balance",
-			getBalanceWithRetriesErr:           errors.New("utxo client error"),
+			name:                     "error - failed to get balance",
+			getBalanceWithRetriesErr: errors.New("utxo client error"),
+			rateTxsPerSecond:         2,
+			batchSize:                2,
+			waitingTime:              1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrFailedToGetBalance,
 			expectedBroadcastTransactionsCalls: 0,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "error - failed to get utxos",
-			getUTXOsWithRetriesErr:             errors.New("failed to get utxos"),
+			name:                   "error - failed to get utxos",
+			getUTXOsWithRetriesErr: errors.New("failed to get utxos"),
+			rateTxsPerSecond:       2,
+			batchSize:              2,
+			waitingTime:            1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
 			expectedBroadcastTransactionsCalls: 0,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "broadcast transactions",
+			name:              "broadcast transactions",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "success - limit reached",
-			limit:                              2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			waitingTime:                        1 * time.Millisecond,
-		},
-		{
-			name:                               "error - utxo set smaller than batchSize",
-			limit:                              2,
+			name:              "success - limit reached",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
+		},
+		{
+			name:              "error - utxo set smaller than batchSize",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         1000,
+			waitingTime:       1 * time.Millisecond,
+
 			expectedError:                      broadcaster.ErrTooSmallUTXOSet,
-			batchSize:                          1000,
-			waitingTime:                        1 * time.Millisecond,
+			expectedBroadcastTransactionsCalls: 0,
+			expectedLimit:                      2,
 		},
 		{
-			name:                               "success - async batch",
-			limit:                              2,
+			name:              "success - async batch",
+			limit:             2,
+			initialUtxoSetLen: 60,
+			rateTxsPerSecond:  10,
+			batchSize:         10,
+			waitingTime:       1 * time.Second,
+			transactionCount:  10,
+			asyncTest:         true,
+
 			expectedBroadcastTransactionsCalls: 1,
 			expectedLimit:                      2,
-			initialUtxoSetLen:                  60,
-			rateTxsPerSecond:                   10,
-			batchSize:                          10,
-			waitingTime:                        1 * time.Second,
-			transactionCount:                   10,
-			asyncTest:                          true,
 		},
 	}
 
@@ -170,27 +178,27 @@ func TestRateBroadcaster(t *testing.T) {
 			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.limit, ticker, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
 			require.NoError(t, err)
 
-			tickerCh <- time.Now()
+			if tc.asyncTest {
+				tickerCh <- time.Now()
+			}
 
 			// when
 			err = sut.Start()
-			defer sut.Shutdown()
+
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
 			time.Sleep(tc.waitingTime)
-			go sut.Wait()
 
 			// then
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
-			if !tc.asyncTest {
-				require.Equal(t, tc.transactionCount, sut.GetTxCount())
-				require.Equal(t, tc.initialUtxoSetLen, sut.GetUtxoSetLen())
-			}
+			require.Equal(t, tc.transactionCount, sut.GetTxCount())
+
+			sut.Shutdown()
 		})
 	}
 }

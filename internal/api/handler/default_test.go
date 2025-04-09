@@ -726,7 +726,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				require.NoError(t, err)
 
 				expectedResp, ok := tc.expectedResponse.(api.ErrorFields)
-				fmt.Println("shota ", tc.name, expectedResp)
 				require.True(t, ok)
 				assert.Equal(t, expectedResp.Txid, actualError.Txid)
 				assert.Equal(t, expectedResp.Status, actualError.Status)

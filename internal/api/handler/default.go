@@ -758,7 +758,11 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 
 	submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
 	if err != nil {
-		statusCode, arcError := m.handleError(ctx, nil, err)
+		var tx *sdkTx.Transaction
+		if len(txs) == 1 {
+			tx = txs[0]
+		}
+		statusCode, arcError := m.handleError(ctx, tx, err)
 		m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 		return nil, arcError

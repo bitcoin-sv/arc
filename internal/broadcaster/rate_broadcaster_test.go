@@ -199,6 +199,8 @@ func TestRateBroadcaster(t *testing.T) {
 			require.Equal(t, tc.transactionCount, sut.GetTxCount())
 
 			sut.Shutdown()
+
+			sut.Wait()
 		})
 	}
 }

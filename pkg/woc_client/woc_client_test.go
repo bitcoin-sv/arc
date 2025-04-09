@@ -234,8 +234,8 @@ func Test_GetBalance(t *testing.T) {
 
 			require.NoError(t, err)
 
-			require.Equal(t, int64(1), actualConfirmed)
-			require.Equal(t, int64(2), actualUnconfirmed)
+			require.Equal(t, uint64(1), actualConfirmed)
+			require.Equal(t, uint64(2), actualUnconfirmed)
 		})
 	}
 }

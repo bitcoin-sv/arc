@@ -37,6 +37,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 		batchSize                int
 		waitingTime              time.Duration
 		transactionCount         int64
+		jitterSize               int64
 
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
@@ -44,6 +45,16 @@ func TestRateBroadcasterStart(t *testing.T) {
 	}{
 		{
 			name:              "success",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+			waitingTime:       1 * time.Millisecond,
+
+			expectedBroadcastTransactionsCalls: 0,
+		},
+		{
+			name:              "success with jitter",
+			jitterSize:        1,
 			initialUtxoSetLen: 2,
 			rateTxsPerSecond:  2,
 			batchSize:         2,
@@ -106,7 +117,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 		{
 			name:              "success - async batch",
 			limit:             2,
-			initialUtxoSetLen: 60,
+			initialUtxoSetLen: 10,
 			rateTxsPerSecond:  10,
 			batchSize:         10,
 			waitingTime:       2 * time.Second,
@@ -182,7 +193,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				tc.limit,
 				ticker,
 				broadcaster.WithBatchSize(tc.batchSize),
-				broadcaster.WithSizeJitter(1),
+				broadcaster.WithSizeJitter(tc.jitterSize),
 				broadcaster.WithIsTestnet(false),
 			)
 			require.NoError(t, err)

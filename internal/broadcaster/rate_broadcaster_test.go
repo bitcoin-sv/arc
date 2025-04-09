@@ -4,15 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
-	"github.com/bitcoin-sv/arc/pkg/keyset"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -90,17 +86,6 @@ func TestRateBroadcaster(t *testing.T) {
 			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "error - too high rateTxPerSecond",
-			limit:                              2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   1500,
-			expectedError:                      broadcaster.ErrTooHighSubmissionRate,
-			batchSize:                          1,
-			waitingTime:                        1 * time.Millisecond,
-		},
-		{
 			name:                               "error - utxo set smaller than batchSize",
 			limit:                              2,
 			expectedBroadcastTransactionsCalls: 0,
@@ -112,14 +97,14 @@ func TestRateBroadcaster(t *testing.T) {
 			waitingTime:                        1 * time.Millisecond,
 		},
 		{
-			name:                               "success - asynch batch",
+			name:                               "success - async batch",
 			limit:                              2,
 			expectedBroadcastTransactionsCalls: 1,
 			expectedLimit:                      2,
 			initialUtxoSetLen:                  60,
 			rateTxsPerSecond:                   10,
 			batchSize:                          10,
-			waitingTime:                        7 * time.Second,
+			waitingTime:                        1 * time.Second,
 			transactionCount:                   10,
 			asyncTest:                          true,
 		},
@@ -175,16 +160,17 @@ func TestRateBroadcaster(t *testing.T) {
 				},
 			}
 
-			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.rateTxsPerSecond, tc.limit, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
+			tickerCh := make(chan time.Time, 5)
 			ticker := &mocks.TickerMock{
 				GetTickerChFunc: func() (<-chan time.Time, error) {
-					tickerCh := make(chan time.Time)
 					return tickerCh, nil
 				},
 			}
 
-			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, 2, ticker, broadcaster.WithBatchSize(2))
+			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.limit, ticker, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
 			require.NoError(t, err)
+
+			tickerCh <- time.Now()
 
 			// when
 			err = sut.Start()

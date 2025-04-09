@@ -3,12 +3,15 @@ package bcnet
 import (
 	"context"
 	"log/slog"
+	"runtime"
 
 	"github.com/libsv/go-p2p/wire"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/mcast"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 // Mediator acts as the central communication hub between metamorph processor and blockchain network,
@@ -37,9 +40,25 @@ type Mediator struct {
 
 	p2pMessenger *p2p.NetworkMessenger
 	mcaster      *mcast.Multicaster
+
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
 type Option func(*Mediator)
+
+func WithTracer(attr ...attribute.KeyValue) Option {
+	return func(p *Mediator) {
+		p.tracingEnabled = true
+		if len(attr) > 0 {
+			p.tracingAttributes = append(p.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			p.tracingAttributes = append(p.tracingAttributes, attribute.String("file", file))
+		}
+	}
+}
 
 func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, mcaster *mcast.Multicaster, opts ...Option) *Mediator {
 	mode := "classic"
@@ -61,16 +80,23 @@ func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, 
 	return m
 }
 
-func (m *Mediator) AskForTxAsync(_ context.Context, tx *store.Data) {
+func (m *Mediator) AskForTxAsync(ctx context.Context, tx *store.Data) {
+	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+
 	m.p2pMessenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
+	tracing.EndTracing(span, nil)
 }
 
-func (m *Mediator) AnnounceTxAsync(_ context.Context, tx *store.Data) {
+func (m *Mediator) AnnounceTxAsync(ctx context.Context, tx *store.Data) {
+	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+
 	if m.classic {
 		m.p2pMessenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
 	} else {
 		_ = m.mcaster.SendTx(tx.RawTx)
 	}
+
+	tracing.EndTracing(span, nil)
 }
 
 func (m *Mediator) GetPeers() []p2p.PeerI {

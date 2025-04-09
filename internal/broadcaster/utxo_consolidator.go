@@ -26,8 +26,8 @@ type UTXOConsolidator struct {
 	wg     sync.WaitGroup
 }
 
-func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySet *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
-	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
+func NewUTXOConsolidator(logger *slog.Logger, client ArcClient, keySet *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOConsolidator, error) {
+	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
 	if err != nil {
 		return nil, err
 	}

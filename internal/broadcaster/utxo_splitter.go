@@ -17,8 +17,8 @@ type UTXOSplitter struct {
 	toKeySets  []*keyset.KeySet
 }
 
-func NewUTXOSplitter(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeySets []*keyset.KeySet, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOSplitter, error) {
-	b, err := NewBroadcaster(logger, client, nil, isTestnet, opts...)
+func NewUTXOSplitter(logger *slog.Logger, client ArcClient, fromKeySet *keyset.KeySet, toKeySets []*keyset.KeySet, opts ...func(p *Broadcaster)) (*UTXOSplitter, error) {
+	b, err := NewBroadcaster(logger, client, nil, opts...)
 	if err != nil {
 		return nil, err
 	}

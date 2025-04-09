@@ -48,8 +48,8 @@ type Ticker interface {
 	GetTickerCh() (<-chan time.Time, error)
 }
 
-func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, limit int64, ticker Ticker, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
-	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
+func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, limit int64, ticker Ticker, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
+	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
 	if err != nil {
 		return nil, err
 	}

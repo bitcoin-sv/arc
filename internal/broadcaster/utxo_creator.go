@@ -31,8 +31,8 @@ type splittingOutput struct {
 	vout     uint32
 }
 
-func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySet *keyset.KeySet, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (*UTXOCreator, error) {
-	b, err := NewBroadcaster(logger, client, utxoClient, isTestnet, opts...)
+func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySet *keyset.KeySet, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (*UTXOCreator, error) {
+	b, err := NewBroadcaster(logger, client, utxoClient, opts...)
 	if err != nil {
 		return nil, err
 	}

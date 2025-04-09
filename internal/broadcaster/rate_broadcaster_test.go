@@ -175,7 +175,16 @@ func TestRateBroadcasterStart(t *testing.T) {
 				},
 			}
 
-			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.limit, ticker, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
+			sut, err := broadcaster.NewRateBroadcaster(logger,
+				client,
+				ks,
+				utxoClient,
+				tc.limit,
+				ticker,
+				broadcaster.WithBatchSize(tc.batchSize),
+				broadcaster.WithSizeJitter(1),
+				broadcaster.WithIsTestnet(false),
+			)
 			require.NoError(t, err)
 
 			// when

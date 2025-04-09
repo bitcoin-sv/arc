@@ -136,6 +136,7 @@ var Cmd = &cobra.Command{
 			broadcaster.WithBatchSize(batchSize),
 			broadcaster.WithOpReturn(opReturn),
 			broadcaster.WithSizeJitter(sizeJitterMax),
+			broadcaster.WithIsTestnet(isTestnet),
 		}
 
 		if waitForStatus > 0 {
@@ -156,7 +157,7 @@ var Cmd = &cobra.Command{
 
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
 		for keyName, ks := range keySetsMap {
-			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, limit, submitBatchTicker, opts...)
+			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, limit, submitBatchTicker, opts...)
 			if err != nil {
 				return err
 			}

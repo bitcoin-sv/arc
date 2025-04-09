@@ -93,11 +93,17 @@ func WithSizeJitter(sizeJitterMax int64) func(broadcaster *Broadcaster) {
 	}
 }
 
-func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, isTestnet bool, opts ...func(p *Broadcaster)) (Broadcaster, error) {
+func WithIsTestnet(isTestnet bool) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.isTestnet = isTestnet
+	}
+}
+
+func NewBroadcaster(logger *slog.Logger, client ArcClient, utxoClient UtxoClient, opts ...func(p *Broadcaster)) (Broadcaster, error) {
 	b := Broadcaster{
 		logger:        logger,
 		client:        client,
-		isTestnet:     isTestnet,
+		isTestnet:     false,
 		batchSize:     batchSizeDefault,
 		maxInputs:     maxInputsDefault,
 		feeModel:      feemodel.SatoshisPerKilobyte{Satoshis: uint64(1)},

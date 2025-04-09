@@ -87,7 +87,7 @@ func TestSplitUtxo(t *testing.T) {
 
 			toKeySets := []*keyset.KeySet{toKs1, toKs2, toKs3}
 
-			sut, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, toKeySets, false)
+			sut, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, toKeySets, broadcaster.WithIsTestnet(false))
 			require.NoError(t, err)
 
 			// when

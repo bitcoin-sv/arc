@@ -86,7 +86,7 @@ var Cmd = &cobra.Command{
 			ks := keySetsMap[keyName]
 			creator, err := broadcaster.NewUTXOCreator(
 				logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)),
-				client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat),
+				client, ks, wocClient, broadcaster.WithIsTestnet(isTestnet), broadcaster.WithFees(miningFeeSat),
 			)
 			if err != nil {
 				return err

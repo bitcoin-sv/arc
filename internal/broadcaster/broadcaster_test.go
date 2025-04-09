@@ -3,11 +3,12 @@ package broadcaster_test
 import (
 	"context"
 	"encoding/hex"
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -94,7 +95,6 @@ func TestBroadcaster(t *testing.T) {
 		arcClient,
 		ks,
 		mockedUtxoClient,
-		false,
 		2,
 		ticker,
 		broadcaster.WithBatchSize(2),
@@ -104,6 +104,7 @@ func TestBroadcaster(t *testing.T) {
 		broadcaster.WithCallback(api.CallbackUrl("someurl"), "token"),
 		broadcaster.WithOpReturn("op"),
 		broadcaster.WithSizeJitter(1000),
+		broadcaster.WithIsTestnet(false),
 	)
 	require.NoError(t, err)
 

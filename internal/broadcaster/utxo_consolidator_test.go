@@ -125,9 +125,14 @@ func TestStart(t *testing.T) {
 					return statuses, tc.broadcastTransactionsErr
 				},
 			}
-			sut, err := broadcaster.NewUTXOConsolidator(logger, client, ks, utxoClient, false,
+			sut, err := broadcaster.NewUTXOConsolidator(
+				logger,
+				client,
+				ks,
+				utxoClient,
 				broadcaster.WithBatchSize(2),
 				broadcaster.WithMaxInputs(2),
+				broadcaster.WithIsTestnet(false),
 			)
 			require.NoError(t, err)
 

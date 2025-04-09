@@ -80,7 +80,7 @@ func TestUTXOCreator(t *testing.T) {
 				},
 			}
 
-			utxoCreator, err := broadcaster.NewUTXOCreator(logger, mockArcClient, ks, mockUtxoClient, false)
+			utxoCreator, err := broadcaster.NewUTXOCreator(logger, mockArcClient, ks, mockUtxoClient, broadcaster.WithIsTestnet(false))
 			require.NoError(t, err)
 			defer utxoCreator.Shutdown()
 

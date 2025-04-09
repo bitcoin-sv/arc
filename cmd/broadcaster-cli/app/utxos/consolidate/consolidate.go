@@ -65,7 +65,7 @@ var Cmd = &cobra.Command{
 		cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
 		for _, keyName := range names {
 			ks := keySetsMap[keyName]
-			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, isTestnet, broadcaster.WithFees(miningFeeSat))
+			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, broadcaster.WithIsTestnet(isTestnet), broadcaster.WithFees(miningFeeSat))
 			if err != nil {
 				return err
 			}

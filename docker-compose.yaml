@@ -252,7 +252,7 @@ services:
         condition: service_healthy
 
   jaeger:
-    image: jaegertracing/all-in-one:1.35
+    image: jaegertracing/all-in-one:1.68.0
     profiles: ["tracing"]
     ports:
       - "16686:16686"

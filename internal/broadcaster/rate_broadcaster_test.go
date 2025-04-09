@@ -178,10 +178,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			sut, err := broadcaster.NewRateBroadcaster(logger, client, ks, utxoClient, false, tc.limit, ticker, broadcaster.WithBatchSize(tc.batchSize), broadcaster.WithSizeJitter(1))
 			require.NoError(t, err)
 
-			if tc.asyncTest {
-				tickerCh <- time.Now()
-			}
-
 			// when
 			err = sut.Start()
 			if tc.expectedError != nil {
@@ -189,6 +185,13 @@ func TestRateBroadcasterStart(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+
+			if tc.asyncTest {
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					tickerCh <- time.Now()
+				}()
+			}
 
 			time.Sleep(tc.waitingTime)
 

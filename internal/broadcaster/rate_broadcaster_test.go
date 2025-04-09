@@ -21,7 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-func TestRateBroadcaster(t *testing.T) {
+func TestRateBroadcasterStart(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
@@ -109,7 +109,7 @@ func TestRateBroadcaster(t *testing.T) {
 			initialUtxoSetLen: 60,
 			rateTxsPerSecond:  10,
 			batchSize:         10,
-			waitingTime:       1 * time.Second,
+			waitingTime:       2 * time.Second,
 			transactionCount:  10,
 			asyncTest:         true,
 
@@ -184,12 +184,12 @@ func TestRateBroadcaster(t *testing.T) {
 
 			// when
 			err = sut.Start()
-
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
+
 			time.Sleep(tc.waitingTime)
 
 			// then

@@ -115,6 +115,8 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 }
 
 func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
+	// Todo: try to send callback, store if it fails or if callback pause not finished. Store in batches if possible
+
 	m.storeToDB(entry)
 	return
 }

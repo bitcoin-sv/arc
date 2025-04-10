@@ -245,28 +245,6 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	return resp, nil
 }
 
-// toStoreData deprecated, Todo: remove
-func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.TransactionRequest) *store.Data {
-	callbacks := make([]store.Callback, 0)
-	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {
-		callbacks = []store.Callback{
-			{
-				CallbackURL:   req.GetCallbackUrl(),
-				CallbackToken: req.GetCallbackToken(),
-				AllowBatch:    req.GetCallbackBatch(),
-			},
-		}
-	}
-
-	return &store.Data{
-		Hash:              hash,
-		Status:            statusReceived,
-		Callbacks:         callbacks,
-		FullStatusUpdates: req.GetFullStatusUpdates(),
-		RawTx:             req.GetRawTx(),
-	}
-}
-
 func requestToStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.PostTransactionRequest) *store.Data {
 	callbacks := make([]store.Callback, 0)
 	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {

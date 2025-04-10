@@ -274,15 +274,17 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	}
 	var responses *metamorph_api.TransactionStatuses
 
-	deadline, _ := ctx.Deadline()
-	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second * MaxTimeout)
+	deadline, ok := ctx.Deadline()
+	if ok {
+		newDeadline := deadline.Add(deadlineExtension)
 
-	// increase time to make sure that expiration happens from inside the metramorph function
-	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
-	defer newCancel()
+		var newCancel context.CancelFunc
+		// increase deadline by `deadlineExtension`. This ensures that expiration happens from inside the metamorph function
+		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
+		defer newCancel()
+	}
 
-	responses, err = m.client.PostTransactions(newCtx, in)
+	responses, err = m.client.PostTransactions(ctx, in)
 	if err != nil {
 		return nil, err
 	}

@@ -33,6 +33,8 @@ const (
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
 	MaxTimeout                 = 30
+	deadlineExtension          = 1 * time.Second * MaxTimeout
+	minusDeadlineExtension     = -1 * deadlineExtension
 )
 
 var (
@@ -159,17 +161,16 @@ func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTra
 	}()
 
 	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
 	if ok {
+		// Create a new deadline
+		newDeadline := deadline
+		if time.Now().Add(deadlineExtension).Before(deadline) {
+			// decrease time to get initial deadline
+			newDeadline = deadline.Add(minusDeadlineExtension)
+		}
+
 		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(ctx, newDeadline)
+		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
 		defer newCancel()
 	}
 
@@ -188,17 +189,16 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	}()
 
 	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
 	if ok {
+		// Create a new deadline
+		newDeadline := deadline
+		if time.Now().Add(deadlineExtension).Before(deadline) {
+			// decrease time to get initial deadline
+			newDeadline = deadline.Add(minusDeadlineExtension)
+		}
+
 		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(ctx, newDeadline)
+		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
 		defer newCancel()
 	}
 

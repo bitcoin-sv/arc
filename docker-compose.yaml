@@ -14,7 +14,7 @@ services:
     volumes:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node1-data:/data
-    command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333", "-connect=node3:18333" ]
+    command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333" ]
 
   node2:
     container_name: node2
@@ -27,20 +27,7 @@ services:
     volumes:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
       - node2-data:/data
-    command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node3:18333" ]
-
-  node3:
-    container_name: node3
-    image: bitcoinsv/bitcoin-sv:1.1.0
-    expose:
-      - "18332"
-      - "18333"
-    healthcheck:
-      test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
-    volumes:
-      - ./test/config/bitcoin.conf:/data/bitcoin.conf
-      - node3-data:/data
-    command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333", "-connect=node2:18333" ]
+    command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333" ]
 
   db:
     image: postgres:15.4
@@ -176,8 +163,6 @@ services:
         condition: service_healthy
       node2:
         condition: service_healthy
-      node3:
-        condition: service_healthy
       migrate-blocktx:
         condition: service_completed_successfully
     healthcheck:
@@ -273,8 +258,6 @@ volumes:
   node1-data:
     external: false
   node2-data:
-    external: false
-  node3-data:
     external: false
   nats1-data:
     external: false

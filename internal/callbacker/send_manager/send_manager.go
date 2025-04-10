@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"sort"
 	"sync"
 	"time"
 
@@ -38,27 +37,20 @@ type SendManager struct {
 	cancelAll context.CancelFunc
 	ctx       context.Context
 
-	queueProcessInterval    time.Duration
-	fillUpQueueInterval     time.Duration
-	sortByTimestampInterval time.Duration
-	batchSendInterval       time.Duration
-	batchSize               int
+	queueProcessInterval time.Duration
+	batchSendInterval    time.Duration
+	batchSize            int
 
-	bufferSize int
-	now        func() time.Time
-
-	mu            sync.Mutex
-	callbackQueue []*callbacker.CallbackEntry
+	now func() time.Time
 }
 
 const (
-	entriesBufferSize              = 10000
-	batchSizeDefault               = 50
-	queueProcessIntervalDefault    = 5 * time.Second
-	fillUpQueueIntervalDefault     = 5 * time.Second
-	expirationDefault              = 24 * time.Hour
-	sortByTimestampIntervalDefault = 10 * time.Second
-	batchSendIntervalDefault       = 5 * time.Second
+	batchSizeDefault            = 50
+	queueProcessIntervalDefault = 5 * time.Second
+	expirationDefault           = 24 * time.Hour
+	batchSendIntervalDefault    = 5 * time.Second
+	failedToSendCallbacks       = "Failed to send batch of callbacks"
+	callbackElements            = "callback elements"
 )
 
 var (
@@ -72,37 +64,15 @@ func WithNow(nowFunc func() time.Time) func(*SendManager) {
 	}
 }
 
-func WithBufferSize(size int) func(*SendManager) {
-	return func(m *SendManager) {
-		if size >= entriesBufferSize {
-			m.bufferSize = entriesBufferSize
-			return
-		}
-		m.bufferSize = size
-	}
-}
-
 func WithQueueProcessInterval(d time.Duration) func(*SendManager) {
 	return func(m *SendManager) {
 		m.queueProcessInterval = d
 	}
 }
 
-func WithBackfillQueueInterval(d time.Duration) func(*SendManager) {
-	return func(m *SendManager) {
-		m.fillUpQueueInterval = d
-	}
-}
-
 func WithExpiration(d time.Duration) func(*SendManager) {
 	return func(m *SendManager) {
 		m.expiration = d
-	}
-}
-
-func WithSortByTimestampInterval(d time.Duration) func(*SendManager) {
-	return func(m *SendManager) {
-		m.sortByTimestampInterval = d
 	}
 }
 
@@ -125,15 +95,10 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		store:  store,
 		logger: logger,
 
-		queueProcessInterval:    queueProcessIntervalDefault,
-		expiration:              expirationDefault,
-		fillUpQueueInterval:     fillUpQueueIntervalDefault,
-		sortByTimestampInterval: sortByTimestampIntervalDefault,
-		batchSendInterval:       batchSendIntervalDefault,
-		batchSize:               batchSizeDefault,
-
-		callbackQueue: make([]*callbacker.CallbackEntry, 0, entriesBufferSize),
-		bufferSize:    entriesBufferSize,
+		queueProcessInterval: queueProcessIntervalDefault,
+		expiration:           expirationDefault,
+		batchSendInterval:    batchSendIntervalDefault,
+		batchSize:            batchSizeDefault,
 
 		now: time.Now,
 	}
@@ -150,25 +115,12 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 }
 
 func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if len(m.callbackQueue) >= m.bufferSize {
-		m.storeToDB(entry)
-		return
-	}
-
-	m.callbackQueue = append(m.callbackQueue, &entry)
-}
-
-func (m *SendManager) CallbacksQueued() int {
-	return len(m.callbackQueue)
+	m.storeToDB(entry)
+	return
 }
 
 func (m *SendManager) Start() {
 	queueTicker := time.NewTicker(m.queueProcessInterval)
-	sortQueueTicker := time.NewTicker(m.sortByTimestampInterval)
-	backfillQueueTicker := time.NewTicker(m.fillUpQueueInterval)
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
@@ -176,49 +128,15 @@ func (m *SendManager) Start() {
 
 	go func() {
 		var err error
-		defer func() {
-			// read all from callback queue and store in database
-			data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))
-
-			m.mu.Lock()
-			m.callbackQueue = append(m.callbackQueue, callbackBatch...)
-			for i, entry := range m.callbackQueue {
-				data[i] = toStoreDto(m.url, *entry)
-			}
-
-			m.callbackQueue = m.callbackQueue[:0]
-			m.mu.Unlock()
-
-			if len(data) > 0 {
-				err = m.store.SetMany(context.Background(), data)
-				if err != nil {
-					m.logger.Error("Failed to set remaining callbacks from queue", slog.String("err", err.Error()))
-				} else {
-					m.logger.Info("Stored remaining callbacks from queue", slog.Int("length", len(data)))
-				}
-			}
-
-			m.entriesWg.Done()
-		}()
+		defer m.entriesWg.Done()
 
 		lastIterationWasBatch := false
 
 		for {
-			const queueLength = "queue length"
-			const failedToSendCallbacks = "Failed to send batch of callbacks"
-			const callbackElements = "callback elements"
 			select {
 			case <-m.ctx.Done():
 				return
-			case <-sortQueueTicker.C:
-				m.mu.Lock()
-				sort.Slice(m.callbackQueue, func(i, j int) bool {
-					return m.callbackQueue[j].Data.Timestamp.After(m.callbackQueue[i].Data.Timestamp)
-				})
-				m.mu.Unlock()
 
-			case <-backfillQueueTicker.C:
-				m.fillUpQueue()
 			case <-batchSendTicker.C:
 				if len(callbackBatch) == 0 {
 					continue
@@ -231,30 +149,34 @@ func (m *SendManager) Start() {
 				}
 
 				callbackBatch = callbackBatch[:0]
-				m.logger.Debug("Batched callbacks sent on interval", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
+				m.logger.Debug("Batched callbacks sent on interval", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
 			case <-queueTicker.C:
-				if len(m.callbackQueue) == 0 {
-					continue
+				callbacks, err := m.store.GetAndDelete(m.ctx, m.url, 1)
+				if err != nil {
+					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+					return
 				}
-				callbackEntry := m.callbackQueue[0]
-				if callbackEntry == nil {
+
+				callback := callbacks[0]
+				if callback == nil {
 					continue
 				}
 
 				// If item is expired - dequeue without storing
-				if m.now().Sub(callbackEntry.Data.Timestamp) > m.expiration {
-					m.logger.Warn("Callback expired", slog.Time("timestamp", callbackEntry.Data.Timestamp), slog.String("hash", callbackEntry.Data.TxID), slog.String("status", callbackEntry.Data.TxStatus))
-					m.callbackQueue = m.callbackQueue[1:]
+				if m.now().Sub(callback.Timestamp) > m.expiration {
+					m.logger.Warn("Callback expired", slog.Time("timestamp", callback.Timestamp), slog.String("hash", callback.TxID), slog.String("status", callback.TxStatus))
 					continue
 				}
 
-				if callbackEntry.AllowBatch {
+				if callback.AllowBatch {
 					lastIterationWasBatch = true
 
 					if len(callbackBatch) < m.batchSize {
-						callbackBatch = append(callbackBatch, callbackEntry)
+
+						callbackEntry := toEntry(callback)
+
+						callbackBatch = append(callbackBatch, &callbackEntry)
 						queueTicker.Reset(m.queueProcessInterval)
-						m.callbackQueue = m.callbackQueue[1:]
 						continue
 					}
 
@@ -265,7 +187,7 @@ func (m *SendManager) Start() {
 					}
 
 					callbackBatch = callbackBatch[:0]
-					m.logger.Debug("Batched callbacks sent", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
+					m.logger.Debug("Batched callbacks sent", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
 					continue
 				}
 
@@ -279,14 +201,15 @@ func (m *SendManager) Start() {
 							continue
 						}
 						callbackBatch = callbackBatch[:0]
-						m.logger.Debug("Batched callbacks sent before sending single callback", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
+						m.logger.Debug("Batched callbacks sent before sending single callback", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
 					}
 				}
 
+				callbackEntry := toEntry(callback)
+
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
-					m.callbackQueue = m.callbackQueue[1:]
-					m.logger.Debug("Single callback sent", slog.Int(callbackElements, len(callbackBatch)), slog.Int(queueLength, m.CallbacksQueued()), slog.String("url", m.url))
+					m.logger.Debug("Single callback sent", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
 					continue
 				}
 				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))
@@ -301,17 +224,12 @@ func (m *SendManager) sendElementBatch(callbackElements []*callbacker.CallbackEn
 		callbackBatch = append(callbackBatch, *callback)
 	}
 	success, retry := m.sendBatch(callbackBatch)
-	if !retry || success {
-		m.mu.Lock()
-		for _, callbackElement := range callbackElements {
-			for i, cb := range m.callbackQueue {
-				if cb == callbackElement {
-					m.callbackQueue = append(m.callbackQueue[:i], m.callbackQueue[i+1:]...)
-				}
-			}
+	if retry || !success {
+		dtos := toStoreDtos(m.url, callbackBatch)
+		err := m.store.SetMany(m.ctx, dtos)
+		if err != nil {
+			return err
 		}
-		m.mu.Unlock()
-
 		return nil
 	}
 
@@ -326,28 +244,6 @@ func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retr
 	}
 
 	return m.sender.SendBatch(m.url, token, callbacks)
-}
-
-// fillUpQueue calculates the capacity left in the queue and fills it up
-func (m *SendManager) fillUpQueue() {
-	capacityLeft := m.bufferSize - len(m.callbackQueue)
-	if capacityLeft == 0 {
-		return
-	}
-
-	callbacks, err := m.store.GetAndDelete(m.ctx, m.url, capacityLeft)
-	if err != nil {
-		m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-		return
-	}
-
-	for _, callback := range callbacks {
-		m.Enqueue(toEntry(callback))
-	}
-
-	if len(callbacks) > 0 {
-		m.logger.Debug("Callback queue filled up", slog.Int("callback elements", len(callbacks)), slog.Int("queue length", m.CallbacksQueued()), slog.String("url", m.url))
-	}
 }
 
 func (m *SendManager) storeToDB(entry callbacker.CallbackEntry) {
@@ -375,6 +271,15 @@ func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData 
 
 		AllowBatch: entry.AllowBatch,
 	}
+}
+
+func toStoreDtos(url string, entry []callbacker.CallbackEntry) []*store.CallbackData {
+	dtos := make([]*store.CallbackData, len(entry))
+	for i, e := range entry {
+		dtos[i] = toStoreDto(url, e)
+	}
+
+	return dtos
 }
 
 func toEntry(callbackData *store.CallbackData) callbacker.CallbackEntry {

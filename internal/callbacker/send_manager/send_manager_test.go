@@ -16,10 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-var (
-	ts = time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)
-)
-
 func TestSendManagerStart(t *testing.T) {
 	callbackEntries10 := make([]*store.CallbackData, 10)
 	for i := range 10 {
@@ -34,6 +30,8 @@ func TestSendManagerStart(t *testing.T) {
 		retry              bool
 		success            bool
 		getAndDeleteErr    error
+		commitErr          error
+		rollbackErr        error
 
 		expectedCommits        int
 		expectedRollbacks      int
@@ -48,9 +46,8 @@ func TestSendManagerStart(t *testing.T) {
 			retry:              false,
 			success:            true,
 
-			expectedCommits:        1,
-			expectedSendCalls:      1,
-			expectedSendBatchCalls: 0,
+			expectedCommits:   1,
+			expectedSendCalls: 1,
 		},
 		{
 			name:               "send 1 single callback - retry",
@@ -60,20 +57,40 @@ func TestSendManagerStart(t *testing.T) {
 			retry:              true,
 			success:            false,
 
-			expectedRollbacks:      1,
-			expectedSendCalls:      1,
-			expectedSendBatchCalls: 0,
+			expectedRollbacks: 1,
+			expectedSendCalls: 1,
 		},
 		{
-			name:               "send 1 single callback - error",
+			name:               "send 1 single callback - get error",
 			callbackData:       []*store.CallbackData{{}},
 			singleSendInterval: 10 * time.Millisecond,
 			batchInterval:      500 * time.Millisecond,
 			getAndDeleteErr:    errors.New("error"),
 
-			expectedRollbacks:      0,
-			expectedSendCalls:      0,
-			expectedSendBatchCalls: 0,
+			expectedRollbacks: 1,
+		},
+		{
+			name:               "send 1 single callback - commit error",
+			callbackData:       []*store.CallbackData{{}},
+			singleSendInterval: 10 * time.Millisecond,
+			batchInterval:      500 * time.Millisecond,
+			retry:              false,
+			success:            true,
+			commitErr:          errors.New("commit error"),
+
+			expectedCommits:   1,
+			expectedRollbacks: 1,
+			expectedSendCalls: 1,
+		},
+		{
+			name:               "send 1 single callback - get error - rollback error",
+			callbackData:       []*store.CallbackData{{}},
+			singleSendInterval: 10 * time.Millisecond,
+			batchInterval:      500 * time.Millisecond,
+			getAndDeleteErr:    errors.New("error"),
+			rollbackErr:        errors.New("rollback error"),
+
+			expectedRollbacks: 1,
 		},
 		{
 			name:               "send 10 batched callbacks",
@@ -84,7 +101,6 @@ func TestSendManagerStart(t *testing.T) {
 			success:            true,
 
 			expectedCommits:        1,
-			expectedSendCalls:      0,
 			expectedSendBatchCalls: 1,
 		},
 		{
@@ -96,19 +112,39 @@ func TestSendManagerStart(t *testing.T) {
 			success:            false,
 
 			expectedRollbacks:      1,
-			expectedSendCalls:      0,
 			expectedSendBatchCalls: 1,
 		},
 		{
-			name:               "send 10 batched callbacks - error",
+			name:               "send 10 batched callbacks - get error",
 			callbackData:       callbackEntries10,
 			singleSendInterval: 500 * time.Millisecond,
 			batchInterval:      10 * time.Millisecond,
 			getAndDeleteErr:    errors.New("error"),
 
-			expectedCommits:        0,
-			expectedSendCalls:      0,
-			expectedSendBatchCalls: 0,
+			expectedRollbacks: 1,
+		},
+		{
+			name:               "send 10 batched callbacks - commit error",
+			callbackData:       callbackEntries10,
+			singleSendInterval: 500 * time.Millisecond,
+			batchInterval:      10 * time.Millisecond,
+			retry:              false,
+			success:            true,
+			commitErr:          errors.New("commit error"),
+
+			expectedCommits:        1,
+			expectedRollbacks:      1,
+			expectedSendBatchCalls: 1,
+		},
+		{
+			name:               "send 10 batched callbacks - get error - rollback error",
+			callbackData:       callbackEntries10,
+			singleSendInterval: 500 * time.Millisecond,
+			batchInterval:      10 * time.Millisecond,
+			getAndDeleteErr:    errors.New("error"),
+			rollbackErr:        errors.New("rollback error"),
+
+			expectedRollbacks: 1,
 		},
 	}
 
@@ -135,13 +171,13 @@ func TestSendManagerStart(t *testing.T) {
 			commitCounter := 0
 			commit := func() error {
 				commitCounter++
-				return nil
+				return tc.commitErr
 			}
 
 			rollbackCounter := 0
 			rollback := func() error {
 				rollbackCounter++
-				return nil
+				return tc.rollbackErr
 			}
 			storeMock := &mocks.SendManagerStoreMock{
 				GetAndDeleteTxFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
@@ -181,28 +217,61 @@ func TestSendManagerStart(t *testing.T) {
 
 func TestSendManagerStarStore(t *testing.T) {
 	tt := []struct {
-		name string
+		name       string
+		enqueue    int
+		setManyErr error
 	}{
-		{},
+		{
+			name:    "store 5 callbacks",
+			enqueue: 6,
+		},
+		{
+			name:       "store 5 callbacks - set many error",
+			enqueue:    6,
+			setManyErr: errors.New("error"),
+		},
+		{
+			name:    "store 4 callbacks",
+			enqueue: 4,
+		},
+		{
+			name:       "store 4 callbacks - set many error",
+			enqueue:    4,
+			setManyErr: errors.New("error"),
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-		})
-	}
-}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-func TestSendManagerEnqueue(t *testing.T) {
-	tt := []struct {
-		name string
-	}{
-		{},
-	}
+			stopCh := make(chan struct{}, 5)
+			storeMock := &mocks.SendManagerStoreMock{
+				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+					stopCh <- struct{}{}
+					return tc.setManyErr
+				},
+			}
 
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+			sut := send_manager.New("https://abcdefg.com", nil, storeMock, logger,
+				send_manager.WithStoreCallbackBatchSize(5),
+				send_manager.WithStoreCallbacksInterval(200*time.Millisecond),
+			)
 
+			sut.StartStore()
+
+			callbackEntry := callbacker.CallbackEntry{Data: &callbacker.Callback{}}
+			for range tc.enqueue {
+				sut.Enqueue(callbackEntry)
+			}
+
+			select {
+			case <-stopCh:
+				sut.GracefulStop()
+			case <-time.NewTimer(5 * time.Second).C:
+				t.Fatal("Timed out waiting for callbacks to finish")
+			}
 		})
 	}
 }

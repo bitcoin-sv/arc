@@ -157,7 +157,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		// read all from db
-		dbCallbacks := ReadAllCallbacks(t, postgresDB.db)
+		dbCallbacks := readAllCallbacks(t, postgresDB.db)
 		for _, c := range dbCallbacks {
 			found := false
 			for i, ur := range data {
@@ -360,7 +360,7 @@ func CallbackRecordEqual(a, b *store.CallbackData) bool {
 	return reflect.DeepEqual(*a, *b)
 }
 
-func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
+func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	t.Helper()
 
 	r, err := db.Query(
@@ -376,10 +376,8 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,competing_txs
 		FROM callbacker.callbacks`,
 	)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer r.Close()
 
 	var callbacks []*store.CallbackData

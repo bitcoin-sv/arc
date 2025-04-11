@@ -36,17 +36,21 @@ type SendManager struct {
 	cancelAll context.CancelFunc
 	ctx       context.Context
 
-	singleSendInterval time.Duration
-	batchSendInterval  time.Duration
-	batchSize          int
-	storeChan          chan callbacker.CallbackEntry
+	singleSendInterval     time.Duration
+	batchSendInterval      time.Duration
+	batchSize              int
+	storeChan              chan callbacker.CallbackEntry
+	storeCallbacksInterval time.Duration
+	storeCallbackBatchSize int
 }
 
 const (
-	batchSizeDefault            = 50
-	queueProcessIntervalDefault = 5 * time.Second
-	expirationDefault           = 24 * time.Hour
-	batchSendIntervalDefault    = 5 * time.Second
+	batchSizeDefault              = 50
+	queueProcessIntervalDefault   = 5 * time.Second
+	expirationDefault             = 24 * time.Hour
+	batchSendIntervalDefault      = 5 * time.Second
+	storeCallbacksIntervalDefault = 5 * time.Second
+	storeCallbackBatchSizeDefault = 20
 )
 
 var (
@@ -78,6 +82,18 @@ func WithBatchSize(size int) func(*SendManager) {
 	}
 }
 
+func WithStoreCallbackBatchSize(size int) func(*SendManager) {
+	return func(m *SendManager) {
+		m.storeCallbackBatchSize = size
+	}
+}
+
+func WithStoreCallbacksInterval(d time.Duration) func(*SendManager) {
+	return func(m *SendManager) {
+		m.storeCallbacksInterval = d
+	}
+}
+
 func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *slog.Logger, opts ...func(*SendManager)) *SendManager {
 	logger = logger.With("url", url)
 
@@ -87,11 +103,13 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		store:  store,
 		logger: logger,
 
-		singleSendInterval: queueProcessIntervalDefault,
-		expiration:         expirationDefault,
-		batchSendInterval:  batchSendIntervalDefault,
-		batchSize:          batchSizeDefault,
-		storeChan:          make(chan callbacker.CallbackEntry, 5),
+		singleSendInterval:     queueProcessIntervalDefault,
+		expiration:             expirationDefault,
+		batchSendInterval:      batchSendIntervalDefault,
+		batchSize:              batchSizeDefault,
+		storeChan:              make(chan callbacker.CallbackEntry, 1000),
+		storeCallbacksInterval: storeCallbacksIntervalDefault,
+		storeCallbackBatchSize: storeCallbackBatchSizeDefault,
 	}
 
 	for _, opt := range opts {
@@ -107,12 +125,10 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 
 func (m *SendManager) StartStore() {
 	const (
-		storeCallbacksInterval       = 5 * time.Second
 		failedToStoreCallbacksErrMsg = "Failed to store callbacks"
-		storeCallbackBatchSize       = 20
 	)
 
-	storeTicker := time.NewTicker(storeCallbacksInterval)
+	storeTicker := time.NewTicker(m.storeCallbacksInterval)
 
 	go func() {
 		var toStore []*store.CallbackData
@@ -133,11 +149,14 @@ func (m *SendManager) StartStore() {
 			case entry := <-m.storeChan:
 				toStore = append(toStore, toStoreDto(m.url, entry))
 
-				if len(toStore) >= storeCallbackBatchSize {
+				if len(toStore) >= m.storeCallbackBatchSize {
 					err := m.store.SetMany(m.ctx, toStore)
 					if err != nil {
 						m.logger.Error(failedToStoreCallbacksErrMsg, slog.String("err", err.Error()))
+						continue
 					}
+
+					toStore = toStore[:0]
 				}
 			}
 		}

@@ -155,14 +155,11 @@ func TestSendManagerStart(t *testing.T) {
 			stopCh := make(chan struct{}, 5)
 
 			senderMock := &mocks.SenderMock{
-				SendFunc: func(_, _ string, data *callbacker.Callback) (bool, bool) {
-
+				SendFunc: func(_, _ string, _ *callbacker.Callback) (bool, bool) {
 					stopCh <- struct{}{}
-
 					return tc.success, tc.retry
 				},
-				SendBatchFunc: func(_, _ string, batch []*callbacker.Callback) (bool, bool) {
-
+				SendBatchFunc: func(_, _ string, _ []*callbacker.Callback) (bool, bool) {
 					stopCh <- struct{}{}
 					return tc.success, tc.retry
 				},
@@ -180,8 +177,7 @@ func TestSendManagerStart(t *testing.T) {
 				return tc.rollbackErr
 			}
 			storeMock := &mocks.SendManagerStoreMock{
-				GetAndDeleteTxFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
-
+				GetAndDeleteTxFunc: func(_ context.Context, _ string, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, func() error, func() error, error) {
 					if tc.getAndDeleteErr != nil {
 						stopCh <- struct{}{}
 					}
@@ -243,12 +239,11 @@ func TestSendManagerStarStore(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			stopCh := make(chan struct{}, 5)
 			storeMock := &mocks.SendManagerStoreMock{
-				SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+				SetManyFunc: func(_ context.Context, _ []*store.CallbackData) error {
 					stopCh <- struct{}{}
 					return tc.setManyErr
 				},

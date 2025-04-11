@@ -240,7 +240,12 @@ func (m *Metamorph) Health(ctx context.Context) (err error) {
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) (txStatuses []*TransactionStatus, err error) {
-	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, m.tracingAttributes...)
+	attributes := m.tracingAttributes
+	if len(txs) == 1 {
+		attributes = append(m.tracingAttributes, attribute.String("txID", txs[0].TxID().String()))
+	}
+
+	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, attributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()

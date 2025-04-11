@@ -154,34 +154,6 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 	}, nil
 }
 
-func (s *Server) PostTransaction(ctx context.Context, req *metamorph_api.PostTransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
-	ctx, span := tracing.StartTracing(ctx, "PostTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	deadline, ok := ctx.Deadline()
-	if ok {
-		// Create a new deadline
-		newDeadline := deadline
-		if time.Now().Add(deadlineExtension).Before(deadline) {
-			// decrease time to get initial deadline
-			newDeadline = deadline.Add(minusDeadlineExtension)
-		}
-
-		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
-		defer newCancel()
-	}
-
-	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	statusReceived := metamorph_api.Status_RECEIVED
-
-	// Convert gRPC req to store.Data struct...
-	sReq := requestToStoreData(hash, statusReceived, req)
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
-}
-
 func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTransactionsRequest) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
 	ctx, span := tracing.StartTracing(ctx, "PostTransactions", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {

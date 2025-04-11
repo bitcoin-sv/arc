@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log/slog"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -655,10 +656,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, metamorph.ErrTransactionNotFound
 				},
 
-				SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-					return tc.submitTxResponse, tc.submitTxErr
-				},
-
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
@@ -730,7 +727,6 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 				expectedResp, ok := tc.expectedResponse.(api.ErrorFields)
 				require.True(t, ok)
-
 				assert.Equal(t, expectedResp.Txid, actualError.Txid)
 				assert.Equal(t, expectedResp.Status, actualError.Status)
 				assert.Equal(t, expectedResp.Detail, actualError.Detail)
@@ -918,9 +914,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-				return txResult, nil
-			},
 			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
@@ -1015,9 +1008,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-				return txResult, nil
-			},
 			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				txStatuses := []*metamorph.TransactionStatus{txResult}
 				return txStatuses, nil
@@ -1092,9 +1082,6 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 						BlockHeight: 100,
 					},
 				}, nil
-			},
-			SubmitTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ *metamorph.TransactionOptions) (*metamorph.TransactionStatus, error) {
-				return txResults[0], nil
 			},
 			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				var res []*metamorph.TransactionStatus

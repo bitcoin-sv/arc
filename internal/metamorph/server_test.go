@@ -158,25 +158,29 @@ func TestPostTransaction(t *testing.T) {
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
-			txRequest := &metamorph_api.PostTransactionRequest{
-				RawTx:         testdata.TX1Raw.Bytes(),
-				WaitForStatus: tc.waitForStatus,
+			txRequest := &metamorph_api.PostTransactionsRequest{
+				Transactions: []*metamorph_api.PostTransactionRequest{
+					{
+						RawTx:         testdata.TX1Raw.Bytes(),
+						WaitForStatus: tc.waitForStatus,
+					},
+				},
 			}
 
 			// when
 			ctx := context.Background()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			actualStatus, err := sut.PostTransaction(timeoutCtx, txRequest)
+			actualStatus, err := sut.PostTransactions(timeoutCtx, txRequest)
 
 			// then
 			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedStatus, actualStatus.GetStatus())
-			assert.Equal(t, tc.expectedRejectedReason, actualStatus.GetRejectReason())
-			assert.Equal(t, tc.expectedCompetingTxs, actualStatus.CompetingTxs)
+			assert.Equal(t, tc.expectedStatus, actualStatus.Statuses[0].GetStatus())
+			assert.Equal(t, tc.expectedRejectedReason, actualStatus.Statuses[0].GetRejectReason())
+			assert.Equal(t, tc.expectedCompetingTxs, actualStatus.Statuses[0].CompetingTxs)
 
 			if tc.expectedTimeout {
-				assert.True(t, actualStatus.GetTimedOut())
+				assert.True(t, actualStatus.Statuses[0].GetTimedOut())
 			}
 		})
 	}

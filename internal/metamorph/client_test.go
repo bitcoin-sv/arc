@@ -154,8 +154,10 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
-				PostTransactionFunc: func(_ context.Context, _ *metamorph_api.PostTransactionRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
-					return tc.putTxStatus, tc.putTxErr
+				PostTransactionsFunc: func(_ context.Context, _ *metamorph_api.PostTransactionsRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
+					return &metamorph_api.TransactionStatuses{
+						Statuses: []*metamorph_api.TransactionStatus{tc.putTxStatus},
+					}, tc.putTxErr
 				},
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
 					return tc.getTxStatus, tc.getTxErr
@@ -180,8 +182,12 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			ctx := context.Background()
 			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 			defer cancel()
-			txStatus, err := client.SubmitTransaction(timeoutCtx, tx, tc.options)
+			txStatuses, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx}, tc.options)
 
+			var txStatus *metamorph.TransactionStatus
+			if len(txStatuses) != 0 {
+				txStatus = txStatuses[0]
+			}
 			require.Equal(t, tc.expectedStatus, txStatus)
 
 			if tc.expectedErrorStr != "" {

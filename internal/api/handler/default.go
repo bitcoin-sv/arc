@@ -756,28 +756,16 @@ func (m ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.
 	default:
 	}
 
-	if len(txs) == 1 {
-		tx := txs[0]
-
-		// SubmitTransaction() used to avoid performance issue
-		var status *metamorph.TransactionStatus
-		status, err = m.TransactionHandler.SubmitTransaction(ctx, tx, options)
-		if err != nil {
-			statusCode, arcError := m.handleError(ctx, tx, err)
-			m.logger.ErrorContext(ctx, "failed to submit transaction", slog.String("id", tx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
-
-			return nil, arcError
+	submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
+	if err != nil {
+		var tx *sdkTx.Transaction
+		if len(txs) == 1 {
+			tx = txs[0]
 		}
+		statusCode, arcError := m.handleError(ctx, tx, err)
+		m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
-		submitStatuses = append(submitStatuses, status)
-	} else {
-		submitStatuses, err = m.TransactionHandler.SubmitTransactions(ctx, txs, options)
-		if err != nil {
-			statusCode, arcError := m.handleError(ctx, nil, err)
-			m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
-
-			return nil, arcError
-		}
+		return nil, arcError
 	}
 
 	if m.stats != nil {

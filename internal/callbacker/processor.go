@@ -189,9 +189,8 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 	}()
 }
 
-// DispatchPersistedCallbacks loads and dispatches persisted callbacks with unmapped URLs in intervals
-func (p *Processor) DispatchPersistedCallbacks() {
-	const batchSize = 100
+// StartSetUnmappedURLs finds unmapped URLs and tries to set them in intervals
+func (p *Processor) StartSetUnmappedURLs() {
 	ctx := context.Background()
 
 	ticker := time.NewTicker(p.dispatchPersistedInterval)
@@ -230,27 +229,6 @@ func (p *Processor) DispatchPersistedCallbacks() {
 					p.logger.Error("Failed to set URL mapping", slog.String("err", err.Error()))
 					continue
 				}
-
-				callbacks, err := p.store.GetAndDelete(ctx, url, batchSize)
-				if err != nil {
-					p.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-					continue
-				}
-
-				if len(callbacks) == 0 {
-					continue
-				}
-				p.logger.Info("Dispatching callbacks with unmapped URL", slog.String("url", url), slog.Int("callbacks", len(callbacks)))
-
-				for _, c := range callbacks {
-					callbackEntry := &CallbackEntry{
-						Token:      c.Token,
-						Data:       toCallback(c),
-						AllowBatch: c.AllowBatch,
-					}
-
-					p.dispatcher.Dispatch(c.URL, callbackEntry)
-				}
 			}
 		}
 	}()
@@ -283,23 +261,6 @@ func (p *Processor) startSyncURLMapping() {
 			}
 		}
 	}()
-}
-
-func toCallback(dto *store.CallbackData) *Callback {
-	d := &Callback{
-		Timestamp: dto.Timestamp,
-
-		CompetingTxs: dto.CompetingTxs,
-		TxID:         dto.TxID,
-		TxStatus:     dto.TxStatus,
-		ExtraInfo:    dto.ExtraInfo,
-		MerklePath:   dto.MerklePath,
-
-		BlockHash:   dto.BlockHash,
-		BlockHeight: dto.BlockHeight,
-	}
-
-	return d
 }
 
 func (p *Processor) GracefulStop() {

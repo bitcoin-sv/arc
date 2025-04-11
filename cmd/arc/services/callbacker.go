@@ -106,7 +106,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	}
 
 	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
-	processor.DispatchPersistedCallbacks()
+	processor.StartSetUnmappedURLs()
 
 	err = processor.Start()
 	if err != nil {

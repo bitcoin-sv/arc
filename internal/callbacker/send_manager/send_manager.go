@@ -198,9 +198,12 @@ func (m *SendManager) batchSend() {
 			}
 		}
 	}()
-
 	if err != nil {
 		m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+		return
+	}
+
+	if len(callbacks) == 0 {
 		return
 	}
 
@@ -238,6 +241,10 @@ func (m *SendManager) singleSend() {
 	}()
 	if err != nil {
 		m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+		return
+	}
+
+	if len(callbacks) == 0 {
 		return
 	}
 

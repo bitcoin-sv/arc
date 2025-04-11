@@ -36,10 +36,10 @@ type SendManager struct {
 	cancelAll context.CancelFunc
 	ctx       context.Context
 
-	queueProcessInterval time.Duration
-	batchSendInterval    time.Duration
-	batchSize            int
-	storeChan            chan callbacker.CallbackEntry
+	singleSendInterval time.Duration
+	batchSendInterval  time.Duration
+	batchSize          int
+	storeChan          chan callbacker.CallbackEntry
 }
 
 const (
@@ -54,9 +54,9 @@ var (
 	ErrElementIsNotCallbackEntry = errors.New("element is not a callback entry")
 )
 
-func WithQueueProcessInterval(d time.Duration) func(*SendManager) {
+func WithSingleSendInterval(d time.Duration) func(*SendManager) {
 	return func(m *SendManager) {
-		m.queueProcessInterval = d
+		m.singleSendInterval = d
 	}
 }
 
@@ -87,11 +87,11 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		store:  store,
 		logger: logger,
 
-		queueProcessInterval: queueProcessIntervalDefault,
-		expiration:           expirationDefault,
-		batchSendInterval:    batchSendIntervalDefault,
-		batchSize:            batchSizeDefault,
-		storeChan:            make(chan callbacker.CallbackEntry, 5),
+		singleSendInterval: queueProcessIntervalDefault,
+		expiration:         expirationDefault,
+		batchSendInterval:  batchSendIntervalDefault,
+		batchSize:          batchSizeDefault,
+		storeChan:          make(chan callbacker.CallbackEntry, 5),
 	}
 
 	for _, opt := range opts {
@@ -144,12 +144,31 @@ func (m *SendManager) StartStore() {
 	}()
 }
 
+func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData {
+	return &store.CallbackData{
+		URL:       url,
+		Token:     entry.Token,
+		Timestamp: entry.Data.Timestamp,
+
+		CompetingTxs: entry.Data.CompetingTxs,
+		TxID:         entry.Data.TxID,
+		TxStatus:     entry.Data.TxStatus,
+		ExtraInfo:    entry.Data.ExtraInfo,
+		MerklePath:   entry.Data.MerklePath,
+
+		BlockHash:   entry.Data.BlockHash,
+		BlockHeight: entry.Data.BlockHeight,
+
+		AllowBatch: entry.AllowBatch,
+	}
+}
+
 func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 	m.storeChan <- entry
 }
 
 func (m *SendManager) Start() {
-	singleSendTicker := time.NewTicker(m.queueProcessInterval)
+	singleSendTicker := time.NewTicker(m.singleSendInterval)
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
@@ -225,25 +244,6 @@ func (m *SendManager) Start() {
 			}
 		}
 	}()
-}
-
-func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData {
-	return &store.CallbackData{
-		URL:       url,
-		Token:     entry.Token,
-		Timestamp: entry.Data.Timestamp,
-
-		CompetingTxs: entry.Data.CompetingTxs,
-		TxID:         entry.Data.TxID,
-		TxStatus:     entry.Data.TxStatus,
-		ExtraInfo:    entry.Data.ExtraInfo,
-		MerklePath:   entry.Data.MerklePath,
-
-		BlockHash:   entry.Data.BlockHash,
-		BlockHeight: entry.Data.BlockHeight,
-
-		AllowBatch: entry.AllowBatch,
-	}
 }
 
 func toEntry(callbackData *store.CallbackData) callbacker.CallbackEntry {

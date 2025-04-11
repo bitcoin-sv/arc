@@ -100,9 +100,7 @@ func prepareDb(t testing.TB, postgres *PostgreSQL, fixture string) {
 	t.Helper()
 
 	_, err := postgres.db.Exec("DELETE FROM blocktx.blocks WHERE hash IS NOT NULL")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if fixture != "" {
 		testutils.LoadFixtures(t, postgres.db, fixture)

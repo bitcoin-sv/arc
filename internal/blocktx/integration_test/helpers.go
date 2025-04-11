@@ -74,9 +74,7 @@ func pruneTables(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	_, err := db.Exec("DELETE FROM blocktx.blocks WHERE hash IS NOT NULL")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func verifyBlock(t *testing.T, store *postgresql.PostgreSQL, hashStr string, height uint64, status blocktx_api.Status) {

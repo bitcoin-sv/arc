@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func TestPostgresDBt(t *testing.T) {
 
 	now := time.Date(2024, 9, 1, 12, 25, 0, 0, time.UTC)
 
-	postgresDB, err := New(dbInfo, 10, 10)
+	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time { return now }))
 	require.NoError(t, err)
 	defer postgresDB.Close()
 
@@ -157,7 +158,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		// read all from db
-		dbCallbacks := ReadAllCallbacks(t, postgresDB.db)
+		dbCallbacks := readAllCallbacks(t, postgresDB.db)
 		for _, c := range dbCallbacks {
 			found := false
 			for i, ur := range data {
@@ -181,28 +182,41 @@ func TestPostgresDBt(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
-
+		qCount := "SELECT count(*) FROM callbacker.callbacks WHERE url=$1"
 		ctx := context.Background()
-		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsBefore)
+		var rowsCount int
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
 
-		require.Equal(t, 28, rowsBefore)
+		require.Equal(t, 30, rowsCount)
 
-		const popLimit = 10
-		records, err := postgresDB.GetAndDelete(ctx, "https://arc-callback-2/callback", popLimit)
+		const limit = 10
+		records, _, rollback, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
-
-		require.Len(t, records, popLimit)
-
-		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsAfter)
+		err = rollback()
 		require.NoError(t, err)
-		require.Equal(t, 18, rowsAfter)
+		require.Len(t, records, limit)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
+		require.NoError(t, err)
+		require.Equal(t, 30, rowsCount)
+
+		records, commit, _, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
+		require.NoError(t, err)
+		err = commit()
+		require.NoError(t, err)
+		require.Len(t, records, limit)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
+		require.NoError(t, err)
+		require.Equal(t, 20, rowsCount)
+
+		records, commit, _, err = postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, true)
+		require.NoError(t, err)
+		err = commit()
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
+		require.NoError(t, err)
+		require.Equal(t, 19, rowsCount)
 	})
 
 	t.Run("delete older than", func(t *testing.T) {
@@ -347,7 +361,7 @@ func CallbackRecordEqual(a, b *store.CallbackData) bool {
 	return reflect.DeepEqual(*a, *b)
 }
 
-func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
+func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	t.Helper()
 
 	r, err := db.Query(
@@ -363,10 +377,8 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,competing_txs
 		FROM callbacker.callbacks`,
 	)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer r.Close()
 
 	var callbacks []*store.CallbackData
@@ -391,7 +403,9 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			c.BlockHash = &bh.String
 		}
 		if bheight.Valid {
-			c.BlockHeight = ptrTo(uint64(bheight.Int64))
+			blockHeight, err := safecast.ToUint64(bheight.Int64)
+			require.NoError(t, err)
+			c.BlockHeight = ptrTo(blockHeight)
 		}
 		if competingTxs.Valid {
 			c.CompetingTxs = strings.Split(competingTxs.String, ",")

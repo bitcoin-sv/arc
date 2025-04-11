@@ -37,7 +37,6 @@ type ProcessorStore interface {
 	GetURLMappings(ctx context.Context) (urlInstanceMappings map[string]string, err error)
 	DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error)
 	GetUnmappedURL(ctx context.Context) (url string, err error)
-	GetAndDelete(ctx context.Context, url string, limit int) ([]*CallbackData, error)
 	DeleteOlderThan(ctx context.Context, t time.Time) error
 }
 

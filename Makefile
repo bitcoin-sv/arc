@@ -31,13 +31,13 @@ run:
 .PHONY: run_e2e_tests
 run_e2e_tests:
 	docker compose down -v --remove-orphans
-	docker compose --env-file ./.env.dev up --build blocktx callbacker metamorph api tests --scale blocktx=4 --scale metamorph=2 --exit-code-from tests
+	docker compose --env-file ./.env.dev up --build blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --exit-code-from tests
 	docker compose down
 
 .PHONY: run_e2e_tests_with_tracing
 run_e2e_tests_with_tracing:
 	docker compose down -v --remove-orphans
-	ARC_TRACING_ENABLED=TRUE docker compose up --env-file ./.env.dev --build blocktx callbacker metamorph api tests jaeger --scale blocktx=4 --scale metamorph=2 --no-attach jaeger
+	ARC_TRACING_ENABLED=TRUE docker compose --env-file ./.env.dev up --build blocktx callbacker metamorph api tests jaeger --scale blocktx=2 --scale metamorph=2 --no-attach jaeger
 
 .PHONY: run_e2e_mcast_tests
 run_e2e_mcast_tests:
@@ -135,7 +135,7 @@ install:
 
 .PHONY: install_gen
 install_gen:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1
 	go install github.com/matryer/moq@v0.5.3

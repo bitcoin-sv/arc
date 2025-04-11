@@ -83,6 +83,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
 		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
 		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
+		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
 	}
 
 	stopFn := func() {

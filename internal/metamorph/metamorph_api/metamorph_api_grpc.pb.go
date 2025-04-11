@@ -21,8 +21,6 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	MetaMorphAPI_Health_FullMethodName                 = "/metamorph_api.MetaMorphAPI/Health"
-	MetaMorphAPI_PutTransaction_FullMethodName         = "/metamorph_api.MetaMorphAPI/PutTransaction"
-	MetaMorphAPI_PutTransactions_FullMethodName        = "/metamorph_api.MetaMorphAPI/PutTransactions"
 	MetaMorphAPI_PostTransactions_FullMethodName       = "/metamorph_api.MetaMorphAPI/PostTransactions"
 	MetaMorphAPI_GetTransaction_FullMethodName         = "/metamorph_api.MetaMorphAPI/GetTransaction"
 	MetaMorphAPI_GetTransactions_FullMethodName        = "/metamorph_api.MetaMorphAPI/GetTransactions"
@@ -37,10 +35,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MetaMorphAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
-	// Deprecated: Do not use.
-	PutTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionStatus, error)
-	// Deprecated: Do not use.
-	PutTransactions(ctx context.Context, in *TransactionRequests, opts ...grpc.CallOption) (*TransactionStatuses, error)
 	PostTransactions(ctx context.Context, in *PostTransactionsRequest, opts ...grpc.CallOption) (*TransactionStatuses, error)
 	GetTransaction(ctx context.Context, in *TransactionStatusRequest, opts ...grpc.CallOption) (*Transaction, error)
 	GetTransactions(ctx context.Context, in *TransactionsStatusRequest, opts ...grpc.CallOption) (*Transactions, error)
@@ -62,28 +56,6 @@ func (c *metaMorphAPIClient) Health(ctx context.Context, in *emptypb.Empty, opts
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
 	err := c.cc.Invoke(ctx, MetaMorphAPI_Health_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Deprecated: Do not use.
-func (c *metaMorphAPIClient) PutTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionStatus, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TransactionStatus)
-	err := c.cc.Invoke(ctx, MetaMorphAPI_PutTransaction_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Deprecated: Do not use.
-func (c *metaMorphAPIClient) PutTransactions(ctx context.Context, in *TransactionRequests, opts ...grpc.CallOption) (*TransactionStatuses, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TransactionStatuses)
-	err := c.cc.Invoke(ctx, MetaMorphAPI_PutTransactions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -165,10 +137,6 @@ func (c *metaMorphAPIClient) ClearData(ctx context.Context, in *ClearDataRequest
 // for forward compatibility.
 type MetaMorphAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
-	// Deprecated: Do not use.
-	PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error)
-	// Deprecated: Do not use.
-	PutTransactions(context.Context, *TransactionRequests) (*TransactionStatuses, error)
 	PostTransactions(context.Context, *PostTransactionsRequest) (*TransactionStatuses, error)
 	GetTransaction(context.Context, *TransactionStatusRequest) (*Transaction, error)
 	GetTransactions(context.Context, *TransactionsStatusRequest) (*Transactions, error)
@@ -188,12 +156,6 @@ type UnimplementedMetaMorphAPIServer struct{}
 
 func (UnimplementedMetaMorphAPIServer) Health(context.Context, *emptypb.Empty) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
-}
-func (UnimplementedMetaMorphAPIServer) PutTransaction(context.Context, *TransactionRequest) (*TransactionStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PutTransaction not implemented")
-}
-func (UnimplementedMetaMorphAPIServer) PutTransactions(context.Context, *TransactionRequests) (*TransactionStatuses, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PutTransactions not implemented")
 }
 func (UnimplementedMetaMorphAPIServer) PostTransactions(context.Context, *PostTransactionsRequest) (*TransactionStatuses, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PostTransactions not implemented")
@@ -251,42 +213,6 @@ func _MetaMorphAPI_Health_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MetaMorphAPIServer).Health(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MetaMorphAPI_PutTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetaMorphAPIServer).PutTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetaMorphAPI_PutTransaction_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetaMorphAPIServer).PutTransaction(ctx, req.(*TransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MetaMorphAPI_PutTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TransactionRequests)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetaMorphAPIServer).PutTransactions(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetaMorphAPI_PutTransactions_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetaMorphAPIServer).PutTransactions(ctx, req.(*TransactionRequests))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -427,14 +353,6 @@ var MetaMorphAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _MetaMorphAPI_Health_Handler,
-		},
-		{
-			MethodName: "PutTransaction",
-			Handler:    _MetaMorphAPI_PutTransaction_Handler,
-		},
-		{
-			MethodName: "PutTransactions",
-			Handler:    _MetaMorphAPI_PutTransactions_Handler,
 		},
 		{
 			MethodName: "PostTransactions",

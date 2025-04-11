@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"sync"
+	"time"
 )
 
 // Ensure, that SendManagerStoreMock does implement send_manager.SendManagerStore.
@@ -20,11 +21,8 @@ var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 //
 //		// make and configure a mocked send_manager.SendManagerStore
 //		mockedSendManagerStore := &SendManagerStoreMock{
-//			GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
-//				panic("mock out the GetAndDelete method")
-//			},
-//			SetFunc: func(ctx context.Context, dto *store.CallbackData) error {
-//				panic("mock out the Set method")
+//			GetAndDeleteTxFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
+//				panic("mock out the GetAndDeleteTx method")
 //			},
 //			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
 //				panic("mock out the SetMany method")
@@ -36,32 +34,26 @@ var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 //
 //	}
 type SendManagerStoreMock struct {
-	// GetAndDeleteFunc mocks the GetAndDelete method.
-	GetAndDeleteFunc func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error)
-
-	// SetFunc mocks the Set method.
-	SetFunc func(ctx context.Context, dto *store.CallbackData) error
+	// GetAndDeleteTxFunc mocks the GetAndDeleteTx method.
+	GetAndDeleteTxFunc func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error)
 
 	// SetManyFunc mocks the SetMany method.
 	SetManyFunc func(ctx context.Context, data []*store.CallbackData) error
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetAndDelete holds details about calls to the GetAndDelete method.
-		GetAndDelete []struct {
+		// GetAndDeleteTx holds details about calls to the GetAndDeleteTx method.
+		GetAndDeleteTx []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// URL is the url argument value.
 			URL string
 			// Limit is the limit argument value.
 			Limit int
-		}
-		// Set holds details about calls to the Set method.
-		Set []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Dto is the dto argument value.
-			Dto *store.CallbackData
+			// Expiration is the expiration argument value.
+			Expiration time.Duration
+			// Batch is the batch argument value.
+			Batch bool
 		}
 		// SetMany holds details about calls to the SetMany method.
 		SetMany []struct {
@@ -71,84 +63,55 @@ type SendManagerStoreMock struct {
 			Data []*store.CallbackData
 		}
 	}
-	lockGetAndDelete sync.RWMutex
-	lockSet          sync.RWMutex
-	lockSetMany      sync.RWMutex
+	lockGetAndDeleteTx sync.RWMutex
+	lockSetMany        sync.RWMutex
 }
 
-// GetAndDelete calls GetAndDeleteFunc.
-func (mock *SendManagerStoreMock) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
-	if mock.GetAndDeleteFunc == nil {
-		panic("SendManagerStoreMock.GetAndDeleteFunc: method is nil but SendManagerStore.GetAndDelete was just called")
+// GetAndDeleteTx calls GetAndDeleteTxFunc.
+func (mock *SendManagerStoreMock) GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
+	if mock.GetAndDeleteTxFunc == nil {
+		panic("SendManagerStoreMock.GetAndDeleteTxFunc: method is nil but SendManagerStore.GetAndDeleteTx was just called")
 	}
 	callInfo := struct {
-		Ctx   context.Context
-		URL   string
-		Limit int
+		Ctx        context.Context
+		URL        string
+		Limit      int
+		Expiration time.Duration
+		Batch      bool
 	}{
-		Ctx:   ctx,
-		URL:   url,
-		Limit: limit,
+		Ctx:        ctx,
+		URL:        url,
+		Limit:      limit,
+		Expiration: expiration,
+		Batch:      batch,
 	}
-	mock.lockGetAndDelete.Lock()
-	mock.calls.GetAndDelete = append(mock.calls.GetAndDelete, callInfo)
-	mock.lockGetAndDelete.Unlock()
-	return mock.GetAndDeleteFunc(ctx, url, limit)
+	mock.lockGetAndDeleteTx.Lock()
+	mock.calls.GetAndDeleteTx = append(mock.calls.GetAndDeleteTx, callInfo)
+	mock.lockGetAndDeleteTx.Unlock()
+	return mock.GetAndDeleteTxFunc(ctx, url, limit, expiration, batch)
 }
 
-// GetAndDeleteCalls gets all the calls that were made to GetAndDelete.
+// GetAndDeleteTxCalls gets all the calls that were made to GetAndDeleteTx.
 // Check the length with:
 //
-//	len(mockedSendManagerStore.GetAndDeleteCalls())
-func (mock *SendManagerStoreMock) GetAndDeleteCalls() []struct {
-	Ctx   context.Context
-	URL   string
-	Limit int
+//	len(mockedSendManagerStore.GetAndDeleteTxCalls())
+func (mock *SendManagerStoreMock) GetAndDeleteTxCalls() []struct {
+	Ctx        context.Context
+	URL        string
+	Limit      int
+	Expiration time.Duration
+	Batch      bool
 } {
 	var calls []struct {
-		Ctx   context.Context
-		URL   string
-		Limit int
+		Ctx        context.Context
+		URL        string
+		Limit      int
+		Expiration time.Duration
+		Batch      bool
 	}
-	mock.lockGetAndDelete.RLock()
-	calls = mock.calls.GetAndDelete
-	mock.lockGetAndDelete.RUnlock()
-	return calls
-}
-
-// Set calls SetFunc.
-func (mock *SendManagerStoreMock) Set(ctx context.Context, dto *store.CallbackData) error {
-	if mock.SetFunc == nil {
-		panic("SendManagerStoreMock.SetFunc: method is nil but SendManagerStore.Set was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Dto *store.CallbackData
-	}{
-		Ctx: ctx,
-		Dto: dto,
-	}
-	mock.lockSet.Lock()
-	mock.calls.Set = append(mock.calls.Set, callInfo)
-	mock.lockSet.Unlock()
-	return mock.SetFunc(ctx, dto)
-}
-
-// SetCalls gets all the calls that were made to Set.
-// Check the length with:
-//
-//	len(mockedSendManagerStore.SetCalls())
-func (mock *SendManagerStoreMock) SetCalls() []struct {
-	Ctx context.Context
-	Dto *store.CallbackData
-} {
-	var calls []struct {
-		Ctx context.Context
-		Dto *store.CallbackData
-	}
-	mock.lockSet.RLock()
-	calls = mock.calls.Set
-	mock.lockSet.RUnlock()
+	mock.lockGetAndDeleteTx.RLock()
+	calls = mock.calls.GetAndDeleteTx
+	mock.lockGetAndDeleteTx.RUnlock()
 	return calls
 }
 

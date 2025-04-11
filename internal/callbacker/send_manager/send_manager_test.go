@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
@@ -18,7 +17,6 @@ import (
 )
 
 var (
-	now       = time.Date(2025, 1, 10, 12, 0, 0, 0, time.UTC)
 	ts        = time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)
 	tsExpired = time.Date(2025, 1, 9, 12, 0, 0, 0, time.UTC)
 )
@@ -258,29 +256,13 @@ func TestSendManagerStart(t *testing.T) {
 
 					return nil
 				},
-				SetFunc: func(_ context.Context, _ *store.CallbackData) error {
-					return nil
-				},
-				GetAndDeleteFunc: func(_ context.Context, _ string, limit int) ([]*store.CallbackData, error) {
-					var callbacks []*store.CallbackData
-					for range limit {
-						callbacks = append(callbacks, &store.CallbackData{Timestamp: time.Date(2025, 1, 10, 11, 30, 0, 0, time.UTC)})
-					}
-					return callbacks, nil
-				},
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			sut := send_manager.New("https://abcdefg.com", senderMock, storeMock, logger,
-				send_manager.WithBufferSize(10),
-				send_manager.WithNow(func() time.Time {
-					return now
-				}),
 				send_manager.WithQueueProcessInterval(tc.queueProcessInterval),
 				send_manager.WithExpiration(time.Hour),
-				send_manager.WithBackfillQueueInterval(tc.backfillInterval),
-				send_manager.WithSortByTimestampInterval(tc.sortByTimestampInterval),
 				send_manager.WithBatchSendInterval(tc.batchInterval),
 				send_manager.WithBatchSize(5),
 			)
@@ -289,16 +271,13 @@ func TestSendManagerStart(t *testing.T) {
 			for _, cb := range tc.callbacksEnqueued {
 				sut.Enqueue(cb)
 			}
-			require.Equal(t, tc.expectedCallbacksEnqueued, sut.CallbacksQueued())
 
 			sut.Start()
 
 			time.Sleep(150 * time.Millisecond)
 			sut.GracefulStop()
 
-			assert.Equal(t, 0, sut.CallbacksQueued())
 			assert.Equal(t, tc.expectedSetMany > 0, len(storeMock.SetManyCalls()) == 1)
-			assert.Equal(t, tc.expectedSetCalls, len(storeMock.SetCalls()))
 			assert.Equal(t, tc.expectedSendCalls, len(senderMock.SendCalls()))
 			assert.Equal(t, len(tc.expectedSendBatchCalls), len(senderMock.SendBatchCalls()))
 		})

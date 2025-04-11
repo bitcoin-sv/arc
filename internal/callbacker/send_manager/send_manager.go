@@ -12,9 +12,8 @@ import (
 )
 
 type SendManagerStore interface {
-	Set(ctx context.Context, dto *store.CallbackData) error
 	SetMany(ctx context.Context, data []*store.CallbackData) error
-	GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error)
+	GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error)
 }
 
 type Sender interface {
@@ -40,8 +39,7 @@ type SendManager struct {
 	queueProcessInterval time.Duration
 	batchSendInterval    time.Duration
 	batchSize            int
-
-	now func() time.Time
+	storeChan            chan callbacker.CallbackEntry
 }
 
 const (
@@ -49,20 +47,12 @@ const (
 	queueProcessIntervalDefault = 5 * time.Second
 	expirationDefault           = 24 * time.Hour
 	batchSendIntervalDefault    = 5 * time.Second
-	failedToSendCallbacks       = "Failed to send batch of callbacks"
-	callbackElements            = "callback elements"
 )
 
 var (
 	ErrSendBatchedCallbacks      = errors.New("failed to send batched callback")
 	ErrElementIsNotCallbackEntry = errors.New("element is not a callback entry")
 )
-
-func WithNow(nowFunc func() time.Time) func(*SendManager) {
-	return func(m *SendManager) {
-		m.now = nowFunc
-	}
-}
 
 func WithQueueProcessInterval(d time.Duration) func(*SendManager) {
 	return func(m *SendManager) {
@@ -99,8 +89,7 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 		expiration:           expirationDefault,
 		batchSendInterval:    batchSendIntervalDefault,
 		batchSize:            batchSizeDefault,
-
-		now: time.Now,
+		storeChan:            make(chan callbacker.CallbackEntry, 5),
 	}
 
 	for _, opt := range opts {
@@ -114,11 +103,47 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 	return m
 }
 
-func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
-	// Todo: try to send callback, store if it fails or if callback pause not finished. Store in batches if possible
+func (m *SendManager) StartStore() {
+	const (
+		storeCallbacksInterval       = 5 * time.Second
+		failedToStoreCallbacksErrMsg = "Failed to store callbacks"
+		storeCallbackBatchSize       = 20
+	)
 
-	m.storeToDB(entry)
-	return
+	storeTicker := time.NewTicker(storeCallbacksInterval)
+
+	go func() {
+		var toStore []*store.CallbackData
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-storeTicker.C:
+				if len(toStore) > 0 {
+					err := m.store.SetMany(m.ctx, toStore)
+					if err != nil {
+						m.logger.Error(failedToStoreCallbacksErrMsg, slog.String("err", err.Error()))
+						continue
+					}
+
+					toStore = toStore[:0]
+				}
+			case entry := <-m.storeChan:
+				toStore = append(toStore, toStoreDto(m.url, entry))
+
+				if len(toStore) >= storeCallbackBatchSize {
+					err := m.store.SetMany(m.ctx, toStore)
+					if err != nil {
+						m.logger.Error(failedToStoreCallbacksErrMsg, slog.String("err", err.Error()))
+					}
+				}
+			}
+		}
+	}()
+}
+
+func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
+	m.storeChan <- entry
 }
 
 func (m *SendManager) Start() {
@@ -126,13 +151,9 @@ func (m *SendManager) Start() {
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
-	var callbackBatch []*callbacker.CallbackEntry
 
 	go func() {
-		var err error
 		defer m.entriesWg.Done()
-
-		lastIterationWasBatch := false
 
 		for {
 			select {
@@ -140,80 +161,62 @@ func (m *SendManager) Start() {
 				return
 
 			case <-batchSendTicker.C:
-				if len(callbackBatch) == 0 {
-					continue
+				callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, m.batchSize, m.expiration, true)
+				if err != nil {
+					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+					return
+				}
+				callbackBatch := make([]*callbacker.CallbackEntry, len(callbacks))
+
+				for i, callback := range callbacks {
+					callbackEntry := toEntry(callback)
+					callbackBatch[i] = &callbackEntry
 				}
 
 				err = m.sendElementBatch(callbackBatch)
 				if err != nil {
-					m.logger.Warn(failedToSendCallbacks, slog.String("url", m.url))
+					m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
+
+					err = rollback()
+					if err != nil {
+						m.logger.Warn("Failed to rollback batched callback deletion", slog.String("url", m.url), slog.String("err", err.Error()))
+					}
 					continue
 				}
 
-				callbackBatch = callbackBatch[:0]
-				m.logger.Debug("Batched callbacks sent on interval", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
+				m.logger.Debug("Batched callbacks sent on interval", slog.Int("callback elements", len(callbackBatch)), slog.String("url", m.url))
+
+				err = commit()
+				if err != nil {
+					m.logger.Warn("Failed to commit batched callback deletion", slog.String("url", m.url))
+				}
 			case <-queueTicker.C:
-				callbacks, err := m.store.GetAndDelete(m.ctx, m.url, 1)
+				callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, 1, m.expiration, false)
 				if err != nil {
 					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
 					return
 				}
 
 				callback := callbacks[0]
-				if callback == nil {
-					continue
-				}
-
-				// If item is expired - dequeue without storing
-				if m.now().Sub(callback.Timestamp) > m.expiration {
-					m.logger.Warn("Callback expired", slog.Time("timestamp", callback.Timestamp), slog.String("hash", callback.TxID), slog.String("status", callback.TxStatus))
-					continue
-				}
-
-				if callback.AllowBatch {
-					lastIterationWasBatch = true
-
-					if len(callbackBatch) < m.batchSize {
-
-						callbackEntry := toEntry(callback)
-
-						callbackBatch = append(callbackBatch, &callbackEntry)
-						queueTicker.Reset(m.queueProcessInterval)
-						continue
-					}
-
-					err = m.sendElementBatch(callbackBatch)
-					if err != nil {
-						m.logger.Warn(failedToSendCallbacks, slog.String("url", m.url))
-						continue
-					}
-
-					callbackBatch = callbackBatch[:0]
-					m.logger.Debug("Batched callbacks sent", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
-					continue
-				}
-
-				if lastIterationWasBatch {
-					lastIterationWasBatch = false
-					if len(callbackBatch) > 0 {
-						// if entry is not a batched entry, but last one was, send batch to keep the order
-						err = m.sendElementBatch(callbackBatch)
-						if err != nil {
-							m.logger.Error(failedToSendCallbacks, slog.String("url", m.url))
-							continue
-						}
-						callbackBatch = callbackBatch[:0]
-						m.logger.Debug("Batched callbacks sent before sending single callback", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
-					}
-				}
 
 				callbackEntry := toEntry(callback)
-
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
-					m.logger.Debug("Single callback sent", slog.Int(callbackElements, len(callbackBatch)), slog.String("url", m.url))
+					m.logger.Debug("Single callback sent", slog.String("url", m.url))
+
+					err = commit()
+					if err != nil {
+						m.logger.Error("Failed to commit callback", slog.String("err", err.Error()))
+					}
+
 					continue
 				}
+
+				err = rollback()
+				if err != nil {
+					m.logger.Error("Failed to rollback callback", slog.String("err", err.Error()))
+				}
+
 				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))
 			}
 		}
@@ -246,14 +249,6 @@ func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retr
 	}
 
 	return m.sender.SendBatch(m.url, token, callbacks)
-}
-
-func (m *SendManager) storeToDB(entry callbacker.CallbackEntry) {
-	callbackData := toStoreDto(m.url, entry)
-	err := m.store.Set(m.ctx, callbackData)
-	if err != nil {
-		m.logger.Error("Failed to set callback data", slog.String("hash", callbackData.TxID), slog.String("status", callbackData.TxStatus), slog.String("err", err.Error()))
-	}
 }
 
 func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData {

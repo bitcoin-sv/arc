@@ -26,9 +26,6 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			DeleteURLMappingFunc: func(ctx context.Context, instance string) (int64, error) {
 //				panic("mock out the DeleteURLMapping method")
 //			},
-//			GetAndDeleteFunc: func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
-//				panic("mock out the GetAndDelete method")
-//			},
 //			GetURLMappingsFunc: func(ctx context.Context) (map[string]string, error) {
 //				panic("mock out the GetURLMappings method")
 //			},
@@ -50,9 +47,6 @@ type ProcessorStoreMock struct {
 
 	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
 	DeleteURLMappingFunc func(ctx context.Context, instance string) (int64, error)
-
-	// GetAndDeleteFunc mocks the GetAndDelete method.
-	GetAndDeleteFunc func(ctx context.Context, url string, limit int) ([]*store.CallbackData, error)
 
 	// GetURLMappingsFunc mocks the GetURLMappings method.
 	GetURLMappingsFunc func(ctx context.Context) (map[string]string, error)
@@ -79,15 +73,6 @@ type ProcessorStoreMock struct {
 			// Instance is the instance argument value.
 			Instance string
 		}
-		// GetAndDelete holds details about calls to the GetAndDelete method.
-		GetAndDelete []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// URL is the url argument value.
-			URL string
-			// Limit is the limit argument value.
-			Limit int
-		}
 		// GetURLMappings holds details about calls to the GetURLMappings method.
 		GetURLMappings []struct {
 			// Ctx is the ctx argument value.
@@ -108,7 +93,6 @@ type ProcessorStoreMock struct {
 	}
 	lockDeleteOlderThan  sync.RWMutex
 	lockDeleteURLMapping sync.RWMutex
-	lockGetAndDelete     sync.RWMutex
 	lockGetURLMappings   sync.RWMutex
 	lockGetUnmappedURL   sync.RWMutex
 	lockSetURLMapping    sync.RWMutex
@@ -183,46 +167,6 @@ func (mock *ProcessorStoreMock) DeleteURLMappingCalls() []struct {
 	mock.lockDeleteURLMapping.RLock()
 	calls = mock.calls.DeleteURLMapping
 	mock.lockDeleteURLMapping.RUnlock()
-	return calls
-}
-
-// GetAndDelete calls GetAndDeleteFunc.
-func (mock *ProcessorStoreMock) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
-	if mock.GetAndDeleteFunc == nil {
-		panic("ProcessorStoreMock.GetAndDeleteFunc: method is nil but ProcessorStore.GetAndDelete was just called")
-	}
-	callInfo := struct {
-		Ctx   context.Context
-		URL   string
-		Limit int
-	}{
-		Ctx:   ctx,
-		URL:   url,
-		Limit: limit,
-	}
-	mock.lockGetAndDelete.Lock()
-	mock.calls.GetAndDelete = append(mock.calls.GetAndDelete, callInfo)
-	mock.lockGetAndDelete.Unlock()
-	return mock.GetAndDeleteFunc(ctx, url, limit)
-}
-
-// GetAndDeleteCalls gets all the calls that were made to GetAndDelete.
-// Check the length with:
-//
-//	len(mockedProcessorStore.GetAndDeleteCalls())
-func (mock *ProcessorStoreMock) GetAndDeleteCalls() []struct {
-	Ctx   context.Context
-	URL   string
-	Limit int
-} {
-	var calls []struct {
-		Ctx   context.Context
-		URL   string
-		Limit int
-	}
-	mock.lockGetAndDelete.RLock()
-	calls = mock.calls.GetAndDelete
-	mock.lockGetAndDelete.RUnlock()
 	return calls
 }
 

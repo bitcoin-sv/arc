@@ -33,36 +33,36 @@ var (
 )
 
 type Processor struct {
-	mqClient                  mq.MessageQueueClient
-	dispatcher                Dispatcher
-	store                     store.ProcessorStore
-	logger                    *slog.Logger
-	dispatchPersistedInterval time.Duration
-	hostName                  string
-	waitGroup                 *sync.WaitGroup
-	cancelAll                 context.CancelFunc
-	ctx                       context.Context
+	mqClient       mq.MessageQueueClient
+	dispatcher     Dispatcher
+	store          store.ProcessorStore
+	logger         *slog.Logger
+	setURLInterval time.Duration
+	hostName       string
+	waitGroup      *sync.WaitGroup
+	cancelAll      context.CancelFunc
+	ctx            context.Context
 
 	mu         sync.RWMutex
 	urlMapping map[string]string
 }
 
-func WithDispatchPersistedInterval(interval time.Duration) func(*Processor) {
+func WithSetURLInterval(interval time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.dispatchPersistedInterval = interval
+		p.setURLInterval = interval
 	}
 }
 
 func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
-		hostName:                  hostName,
-		urlMapping:                make(map[string]string),
-		dispatcher:                dispatcher,
-		waitGroup:                 &sync.WaitGroup{},
-		store:                     processorStore,
-		logger:                    logger,
-		mqClient:                  mqClient,
-		dispatchPersistedInterval: dispatchPersistedIntervalDefault,
+		hostName:       hostName,
+		urlMapping:     make(map[string]string),
+		dispatcher:     dispatcher,
+		waitGroup:      &sync.WaitGroup{},
+		store:          processorStore,
+		logger:         logger,
+		mqClient:       mqClient,
+		setURLInterval: dispatchPersistedIntervalDefault,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -193,7 +193,7 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 func (p *Processor) StartSetUnmappedURLs() {
 	ctx := context.Background()
 
-	ticker := time.NewTicker(p.dispatchPersistedInterval)
+	ticker := time.NewTicker(p.setURLInterval)
 
 	p.waitGroup.Add(1)
 	go func() {

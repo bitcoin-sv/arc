@@ -41,7 +41,8 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	db.SetMaxOpenConns(maxOpenConns)
 
 	p := &PostgreSQL{
-		db: db,
+		db:  db,
+		now: time.Now,
 	}
 
 	for _, opt := range opts {

@@ -167,6 +167,77 @@ func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 	m.storeChan <- entry
 }
 
+func (m *SendManager) batchSend() {
+	committed := false
+
+	callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, m.batchSize, m.expiration, true)
+	defer func() {
+		if !committed {
+			rollbackErr := rollback()
+			if rollbackErr != nil {
+				m.logger.Warn("Failed to rollback batched callback deletion", slog.String("err", rollbackErr.Error()))
+			}
+		}
+	}()
+
+	if err != nil {
+		m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+		return
+	}
+
+	callbackBatch := make([]*callbacker.Callback, len(callbacks))
+	for i, callback := range callbacks {
+		callbackEntry := toEntry(callback)
+		callbackBatch[i] = callbackEntry.Data
+	}
+	success, retry := m.sender.SendBatch(m.url, callbacks[0].Token, callbackBatch)
+	if !retry || success {
+		err = commit()
+		if err != nil {
+			m.logger.Warn("Failed to commit batched callback deletion")
+			return
+		}
+
+		committed = true
+		return
+	}
+
+	m.logger.Warn("Failed to send batch of callbacks")
+}
+
+func (m *SendManager) singleSend() {
+	committed := false
+
+	callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, 1, m.expiration, false)
+	defer func() {
+		if !committed {
+			rollbackErr := rollback()
+			if rollbackErr != nil {
+				m.logger.Warn("Failed to rollback batched callback deletion", slog.String("err", rollbackErr.Error()))
+			}
+		}
+	}()
+	if err != nil {
+		m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
+		return
+	}
+
+	callbackEntry := toEntry(callbacks[0])
+	success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
+	if !retry || success {
+		err = commit()
+		if err != nil {
+			m.logger.Error("Failed to commit callback", slog.String("err", err.Error()))
+			return
+		}
+
+		committed = true
+		return
+	}
+
+	m.logger.Warn("Failed to send single callback")
+}
+
 func (m *SendManager) Start() {
 	singleSendTicker := time.NewTicker(m.singleSendInterval)
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
@@ -182,65 +253,10 @@ func (m *SendManager) Start() {
 				return
 
 			case <-batchSendTicker.C:
-				callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, m.batchSize, m.expiration, true)
-				if err != nil {
-					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-					return
-				}
-
-				callbackBatch := make([]*callbacker.Callback, len(callbacks))
-				for i, callback := range callbacks {
-					callbackEntry := toEntry(callback)
-					callbackBatch[i] = callbackEntry.Data
-				}
-				success, retry := m.sender.SendBatch(m.url, callbacks[0].Token, callbackBatch)
-				if !retry || success {
-					if success {
-						m.logger.Debug("Batched callbacks sent", slog.Int("callback elements", len(callbackBatch)))
-					}
-
-					err = commit()
-					if err != nil {
-						m.logger.Warn("Failed to commit batched callback deletion")
-					}
-
-					continue
-				}
-
-				err = rollback()
-				if err != nil {
-					m.logger.Warn("Failed to rollback batched callback deletion", slog.String("err", err.Error()))
-				}
-				m.logger.Warn("Failed to send batch of callbacks")
+				m.batchSend()
 
 			case <-singleSendTicker.C:
-				callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, 1, m.expiration, false)
-				if err != nil {
-					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-					return
-				}
-
-				callbackEntry := toEntry(callbacks[0])
-				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
-				if !retry || success {
-					if success {
-						m.logger.Debug("Single callback sent")
-					}
-
-					err = commit()
-					if err != nil {
-						m.logger.Error("Failed to commit callback", slog.String("err", err.Error()))
-					}
-
-					continue
-				}
-
-				err = rollback()
-				if err != nil {
-					m.logger.Error("Failed to rollback callback", slog.String("err", err.Error()))
-				}
-
-				m.logger.Warn("Failed to send single callback")
+				m.singleSend()
 			}
 		}
 	}()

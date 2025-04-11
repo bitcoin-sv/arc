@@ -183,44 +183,39 @@ func TestPostgresDBt(t *testing.T) {
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
 		qCount := "SELECT count(*) FROM callbacker.callbacks WHERE url=$1"
 		ctx := context.Background()
-		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsBefore)
+		var rowsCount int
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
 
-		require.Equal(t, 28, rowsBefore)
+		require.Equal(t, 30, rowsCount)
 
-		const popLimit = 10
-		records, _, rollback, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", popLimit, 100*time.Hour, false)
+		const limit = 10
+		records, _, rollback, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
-
-		require.Len(t, records, popLimit)
-
 		err = rollback()
 		require.NoError(t, err)
-
-		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsAfter)
+		require.Len(t, records, limit)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
-		require.Equal(t, 28, rowsAfter)
+		require.Equal(t, 30, rowsCount)
 
-		records, commit, _, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", popLimit, 100*time.Hour, false)
+		records, commit, _, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
-
-		require.Len(t, records, popLimit)
-
 		err = commit()
 		require.NoError(t, err)
-
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsBefore)
+		require.Len(t, records, limit)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
-		require.Equal(t, 18, rowsAfter)
+		require.Equal(t, 20, rowsCount)
 
-		records, commit, _, err = postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", popLimit, 100*time.Hour, true)
+		records, commit, _, err = postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, true)
+		require.NoError(t, err)
+		err = commit()
 		require.NoError(t, err)
 		require.Len(t, records, 1)
-
-		err = commit()
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
+		require.Equal(t, 19, rowsCount)
 	})
 
 	t.Run("delete older than", func(t *testing.T) {

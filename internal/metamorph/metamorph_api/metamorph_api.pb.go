@@ -1267,11 +1267,9 @@ const file_internal_metamorph_metamorph_api_metamorph_api_proto_rawDesc = "" +
 	"\x16DOUBLE_SPEND_ATTEMPTED\x10d\x12\f\n" +
 	"\bREJECTED\x10n\x12\x18\n" +
 	"\x14MINED_IN_STALE_BLOCK\x10s\x12\t\n" +
-	"\x05MINED\x10x2\x99\a\n" +
+	"\x05MINED\x10x2\xdd\x05\n" +
 	"\fMetaMorphAPI\x12A\n" +
-	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1d.metamorph_api.HealthResponse\"\x00\x12Z\n" +
-	"\x0ePutTransaction\x12!.metamorph_api.TransactionRequest\x1a .metamorph_api.TransactionStatus\"\x03\x88\x02\x01\x12^\n" +
-	"\x0fPutTransactions\x12\".metamorph_api.TransactionRequests\x1a\".metamorph_api.TransactionStatuses\"\x03\x88\x02\x01\x12`\n" +
+	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1d.metamorph_api.HealthResponse\"\x00\x12`\n" +
 	"\x10PostTransactions\x12&.metamorph_api.PostTransactionsRequest\x1a\".metamorph_api.TransactionStatuses\"\x00\x12W\n" +
 	"\x0eGetTransaction\x12'.metamorph_api.TransactionStatusRequest\x1a\x1a.metamorph_api.Transaction\"\x00\x12Z\n" +
 	"\x0fGetTransactions\x12(.metamorph_api.TransactionsStatusRequest\x1a\x1b.metamorph_api.Transactions\"\x00\x12c\n" +
@@ -1331,27 +1329,23 @@ var file_internal_metamorph_metamorph_api_metamorph_api_proto_depIdxs = []int32{
 	8,  // 13: metamorph_api.TransactionStatuses.Statuses:type_name -> metamorph_api.TransactionStatus
 	6,  // 14: metamorph_api.Transactions.transactions:type_name -> metamorph_api.Transaction
 	17, // 15: metamorph_api.MetaMorphAPI.Health:input_type -> google.protobuf.Empty
-	2,  // 16: metamorph_api.MetaMorphAPI.PutTransaction:input_type -> metamorph_api.TransactionRequest
-	3,  // 17: metamorph_api.MetaMorphAPI.PutTransactions:input_type -> metamorph_api.TransactionRequests
-	5,  // 18: metamorph_api.MetaMorphAPI.PostTransactions:input_type -> metamorph_api.PostTransactionsRequest
-	10, // 19: metamorph_api.MetaMorphAPI.GetTransaction:input_type -> metamorph_api.TransactionStatusRequest
-	14, // 20: metamorph_api.MetaMorphAPI.GetTransactions:input_type -> metamorph_api.TransactionsStatusRequest
-	10, // 21: metamorph_api.MetaMorphAPI.GetTransactionStatus:input_type -> metamorph_api.TransactionStatusRequest
-	14, // 22: metamorph_api.MetaMorphAPI.GetTransactionStatuses:input_type -> metamorph_api.TransactionsStatusRequest
-	11, // 23: metamorph_api.MetaMorphAPI.UpdateInstances:input_type -> metamorph_api.UpdateInstancesRequest
-	12, // 24: metamorph_api.MetaMorphAPI.ClearData:input_type -> metamorph_api.ClearDataRequest
-	1,  // 25: metamorph_api.MetaMorphAPI.Health:output_type -> metamorph_api.HealthResponse
-	8,  // 26: metamorph_api.MetaMorphAPI.PutTransaction:output_type -> metamorph_api.TransactionStatus
-	9,  // 27: metamorph_api.MetaMorphAPI.PutTransactions:output_type -> metamorph_api.TransactionStatuses
-	9,  // 28: metamorph_api.MetaMorphAPI.PostTransactions:output_type -> metamorph_api.TransactionStatuses
-	6,  // 29: metamorph_api.MetaMorphAPI.GetTransaction:output_type -> metamorph_api.Transaction
-	15, // 30: metamorph_api.MetaMorphAPI.GetTransactions:output_type -> metamorph_api.Transactions
-	8,  // 31: metamorph_api.MetaMorphAPI.GetTransactionStatus:output_type -> metamorph_api.TransactionStatus
-	9,  // 32: metamorph_api.MetaMorphAPI.GetTransactionStatuses:output_type -> metamorph_api.TransactionStatuses
-	17, // 33: metamorph_api.MetaMorphAPI.UpdateInstances:output_type -> google.protobuf.Empty
-	13, // 34: metamorph_api.MetaMorphAPI.ClearData:output_type -> metamorph_api.ClearDataResponse
-	25, // [25:35] is the sub-list for method output_type
-	15, // [15:25] is the sub-list for method input_type
+	5,  // 16: metamorph_api.MetaMorphAPI.PostTransactions:input_type -> metamorph_api.PostTransactionsRequest
+	10, // 17: metamorph_api.MetaMorphAPI.GetTransaction:input_type -> metamorph_api.TransactionStatusRequest
+	14, // 18: metamorph_api.MetaMorphAPI.GetTransactions:input_type -> metamorph_api.TransactionsStatusRequest
+	10, // 19: metamorph_api.MetaMorphAPI.GetTransactionStatus:input_type -> metamorph_api.TransactionStatusRequest
+	14, // 20: metamorph_api.MetaMorphAPI.GetTransactionStatuses:input_type -> metamorph_api.TransactionsStatusRequest
+	11, // 21: metamorph_api.MetaMorphAPI.UpdateInstances:input_type -> metamorph_api.UpdateInstancesRequest
+	12, // 22: metamorph_api.MetaMorphAPI.ClearData:input_type -> metamorph_api.ClearDataRequest
+	1,  // 23: metamorph_api.MetaMorphAPI.Health:output_type -> metamorph_api.HealthResponse
+	9,  // 24: metamorph_api.MetaMorphAPI.PostTransactions:output_type -> metamorph_api.TransactionStatuses
+	6,  // 25: metamorph_api.MetaMorphAPI.GetTransaction:output_type -> metamorph_api.Transaction
+	15, // 26: metamorph_api.MetaMorphAPI.GetTransactions:output_type -> metamorph_api.Transactions
+	8,  // 27: metamorph_api.MetaMorphAPI.GetTransactionStatus:output_type -> metamorph_api.TransactionStatus
+	9,  // 28: metamorph_api.MetaMorphAPI.GetTransactionStatuses:output_type -> metamorph_api.TransactionStatuses
+	17, // 29: metamorph_api.MetaMorphAPI.UpdateInstances:output_type -> google.protobuf.Empty
+	13, // 30: metamorph_api.MetaMorphAPI.ClearData:output_type -> metamorph_api.ClearDataResponse
+	23, // [23:31] is the sub-list for method output_type
+	15, // [15:23] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name

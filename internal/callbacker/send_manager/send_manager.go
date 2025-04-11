@@ -79,6 +79,8 @@ func WithBatchSize(size int) func(*SendManager) {
 }
 
 func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *slog.Logger, opts ...func(*SendManager)) *SendManager {
+	logger = logger.With("url", url)
+
 	m := &SendManager{
 		url:    url,
 		sender: sender,
@@ -147,7 +149,7 @@ func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 }
 
 func (m *SendManager) Start() {
-	queueTicker := time.NewTicker(m.queueProcessInterval)
+	singleSendTicker := time.NewTicker(m.queueProcessInterval)
 	batchSendTicker := time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
@@ -166,43 +168,45 @@ func (m *SendManager) Start() {
 					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
 					return
 				}
-				callbackBatch := make([]*callbacker.CallbackEntry, len(callbacks))
 
+				callbackBatch := make([]*callbacker.Callback, len(callbacks))
 				for i, callback := range callbacks {
 					callbackEntry := toEntry(callback)
-					callbackBatch[i] = &callbackEntry
+					callbackBatch[i] = callbackEntry.Data
 				}
-
-				err = m.sendElementBatch(callbackBatch)
-				if err != nil {
-					m.logger.Warn("Failed to send batch of callbacks", slog.String("url", m.url))
-
-					err = rollback()
-					if err != nil {
-						m.logger.Warn("Failed to rollback batched callback deletion", slog.String("url", m.url), slog.String("err", err.Error()))
+				success, retry := m.sender.SendBatch(m.url, callbacks[0].Token, callbackBatch)
+				if !retry || success {
+					if success {
+						m.logger.Debug("Batched callbacks sent", slog.Int("callback elements", len(callbackBatch)))
 					}
+
+					err = commit()
+					if err != nil {
+						m.logger.Warn("Failed to commit batched callback deletion")
+					}
+
 					continue
 				}
 
-				m.logger.Debug("Batched callbacks sent on interval", slog.Int("callback elements", len(callbackBatch)), slog.String("url", m.url))
-
-				err = commit()
+				err = rollback()
 				if err != nil {
-					m.logger.Warn("Failed to commit batched callback deletion", slog.String("url", m.url))
+					m.logger.Warn("Failed to rollback batched callback deletion", slog.String("err", err.Error()))
 				}
-			case <-queueTicker.C:
+				m.logger.Warn("Failed to send batch of callbacks")
+
+			case <-singleSendTicker.C:
 				callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, 1, m.expiration, false)
 				if err != nil {
 					m.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
 					return
 				}
 
-				callback := callbacks[0]
-
-				callbackEntry := toEntry(callback)
+				callbackEntry := toEntry(callbacks[0])
 				success, retry := m.sender.Send(m.url, callbackEntry.Token, callbackEntry.Data)
 				if !retry || success {
-					m.logger.Debug("Single callback sent", slog.String("url", m.url))
+					if success {
+						m.logger.Debug("Single callback sent")
+					}
 
 					err = commit()
 					if err != nil {
@@ -217,38 +221,10 @@ func (m *SendManager) Start() {
 					m.logger.Error("Failed to rollback callback", slog.String("err", err.Error()))
 				}
 
-				m.logger.Warn("Failed to send single callback", slog.String("url", m.url))
+				m.logger.Warn("Failed to send single callback")
 			}
 		}
 	}()
-}
-
-func (m *SendManager) sendElementBatch(callbackElements []*callbacker.CallbackEntry) error {
-	callbackBatch := make([]callbacker.CallbackEntry, 0, len(callbackElements))
-	for _, callback := range callbackElements {
-		callbackBatch = append(callbackBatch, *callback)
-	}
-	success, retry := m.sendBatch(callbackBatch)
-	if retry || !success {
-		dtos := toStoreDtos(m.url, callbackBatch)
-		err := m.store.SetMany(m.ctx, dtos)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return ErrSendBatchedCallbacks
-}
-
-func (m *SendManager) sendBatch(batch []callbacker.CallbackEntry) (success, retry bool) {
-	token := batch[0].Token
-	callbacks := make([]*callbacker.Callback, len(batch))
-	for i, e := range batch {
-		callbacks[i] = e.Data
-	}
-
-	return m.sender.SendBatch(m.url, token, callbacks)
 }
 
 func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData {
@@ -268,15 +244,6 @@ func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData 
 
 		AllowBatch: entry.AllowBatch,
 	}
-}
-
-func toStoreDtos(url string, entry []callbacker.CallbackEntry) []*store.CallbackData {
-	dtos := make([]*store.CallbackData, len(entry))
-	for i, e := range entry {
-		dtos[i] = toStoreDto(url, e)
-	}
-
-	return dtos
 }
 
 func toEntry(callbackData *store.CallbackData) callbacker.CallbackEntry {

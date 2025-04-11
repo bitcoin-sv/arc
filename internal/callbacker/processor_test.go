@@ -332,9 +332,6 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 				},
 				GetURLMappingsFunc: func(_ context.Context) (map[string]string, error) { return nil, nil },
 				GetUnmappedURLFunc: func(_ context.Context) (string, error) { return "https://abcdefg.com", tc.getUnmappedURLErr },
-				GetAndDeleteFunc: func(_ context.Context, _ string, _ int) ([]*store.CallbackData, error) {
-					return tc.storedCallbacks, tc.getAndDeleteErr
-				},
 			}
 			processor, err := callbacker.NewProcessor(dispatcher, processorStore, mqClient, "host1", logger, callbacker.WithDispatchPersistedInterval(20*time.Millisecond))
 			require.NoError(t, err)
@@ -346,7 +343,6 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 
 			require.Equal(t, tc.expectedDispatch, len(dispatcher.DispatchCalls()))
 			require.Equal(t, tc.expectedSetURLMappingCalls, len(processorStore.SetURLMappingCalls()))
-			require.Equal(t, tc.expectedGetAndDeleteCalls, len(processorStore.GetAndDeleteCalls()))
 		})
 	}
 }

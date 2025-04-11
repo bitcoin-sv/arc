@@ -40,7 +40,9 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	db.SetMaxIdleConns(idleConns)
 	db.SetMaxOpenConns(maxOpenConns)
 
-	p := &PostgreSQL{}
+	p := &PostgreSQL{
+		db: db,
+	}
 
 	for _, opt := range opts {
 		opt(p)
@@ -129,55 +131,14 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	return err
 }
 
-//
-//// GetAndDelete returns and deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
-//func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int, expiration time.Duration) ([]*store.CallbackData, error) {
-//	const q = `DELETE FROM callbacker.callbacks
-//			WHERE id IN (
-//				SELECT id FROM callbacker.callbacks
-//				WHERE url = $1 AND timestamp > $3
-//				ORDER BY timestamp ASC
-//				LIMIT $2
-//				FOR UPDATE
-//			)
-//			RETURNING
-//				url
-//				,token
-//				,tx_id
-//				,tx_status
-//				,extra_info
-//				,merkle_path
-//				,block_hash
-//				,block_height
-//				,competing_txs
-//				,timestamp
-//				,allow_batch`
-//
-//	expirationDate := p.now().Add(-1 * expiration)
-//
-//	rows, err := p.db.QueryContext(ctx, q, url, limit, expirationDate)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//
-//	var records []*store.CallbackData
-//	records, err = scanCallbacks(rows, limit)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return records, nil
-//}
-
 // GetAndDeleteTx returns and deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
 func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE url = $1 AND timestamp > $3 AND allow_batch = $4
+				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3
 				ORDER BY timestamp ASC
-				LIMIT $2
+				LIMIT $4
 				FOR UPDATE
 			)
 			RETURNING
@@ -199,11 +160,8 @@ func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
 
-	rows, err := p.db.QueryContext(ctx, q, url, limit, expirationDate, batch)
+	rows, err := tx.QueryContext(ctx, q, url, expirationDate, batch, limit)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -217,56 +175,6 @@ func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, 
 
 	return records, tx.Commit, tx.Rollback, nil
 }
-
-//
-//func (p *PostgreSQL) Delete(ctx context.Context, ids []int64) error {
-//	const q = `DELETE FROM callbacker.callbacks WHERE id IN ($1)`
-//
-//	_, err := p.db.ExecContext(ctx, q, ids)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
-//
-//// Get returns a number of callbacks limited by `limit` ordered by timestamp in ascending order
-//func (p *PostgreSQL) Get(ctx context.Context, url string, limit int, expiration time.Duration) ([]*store.CallbackData, error) {
-//	const q = `
-//				SELECT
-//				id
-//				,url
-//				,token
-//				,tx_id
-//				,tx_status
-//				,extra_info
-//				,merkle_path
-//				,block_hash
-//				,block_height
-//				,competing_txs
-//				,timestamp
-//				,allow_batch FROM callbacker.callbacks
-//				WHERE url = $1 AND timestamp > $3
-//				ORDER BY timestamp ASC
-//				LIMIT $2
-//				`
-//
-//	expirationDate := p.now().Add(-1 * expiration)
-//
-//	rows, err := p.db.QueryContext(ctx, q, url, limit, expirationDate)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer rows.Close()
-//
-//	var records []*store.CallbackData
-//	records, err = scanCallbacks(rows, limit)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return records, nil
-//}
 
 func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {
 	const q = `DELETE FROM callbacker.callbacks
@@ -388,7 +296,6 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		)
 
 		err := rows.Scan(
-			&r.ID,
 			&r.URL,
 			&r.Token,
 			&r.TxID,

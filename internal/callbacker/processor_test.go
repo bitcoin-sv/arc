@@ -341,7 +341,7 @@ func TestDispatchPersistedCallbacks(t *testing.T) {
 
 			defer processor.GracefulStop()
 
-			processor.DispatchPersistedCallbacks()
+			processor.StartSetUnmappedURLs()
 			time.Sleep(30 * time.Millisecond)
 
 			require.Equal(t, tc.expectedDispatch, len(dispatcher.DispatchCalls()))

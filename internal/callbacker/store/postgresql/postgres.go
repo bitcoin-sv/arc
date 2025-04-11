@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
@@ -81,7 +83,11 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		allowBatches[i] = d.AllowBatch
 
 		if d.BlockHeight != nil {
-			blockHeights[i] = sql.NullInt64{Int64: int64(*d.BlockHeight), Valid: true}
+			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
+			if err != nil {
+				return fmt.Errorf("failed to convert block height to int64: %w", err)
+			}
+			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
 
 		if len(d.CompetingTxs) > 0 {

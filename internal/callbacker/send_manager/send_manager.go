@@ -2,7 +2,6 @@ package send_manager
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -51,11 +50,6 @@ const (
 	batchSendIntervalDefault      = 5 * time.Second
 	storeCallbacksIntervalDefault = 5 * time.Second
 	storeCallbackBatchSizeDefault = 20
-)
-
-var (
-	ErrSendBatchedCallbacks      = errors.New("failed to send batched callback")
-	ErrElementIsNotCallbackEntry = errors.New("element is not a callback entry")
 )
 
 func WithSingleSendInterval(d time.Duration) func(*SendManager) {

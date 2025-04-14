@@ -46,3 +46,10 @@ func SafeIntToUint32(i int) (uint32, error) {
 	}
 	return uint32(i), nil
 }
+
+func SafeUint64ToInt64(u uint64) (int64, error) {
+	if u > math.MaxInt64 {
+		return 0, fmt.Errorf("value too large for int64: %d", u)
+	}
+	return int64(u), nil
+}

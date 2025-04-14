@@ -12,6 +12,7 @@ linters:
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
     - unused # checks for unused constants, variables, functions and types
     - sloglint # Ensure consistent code style when using log/slog
+    - gosec # inspects source code for security problems
 #    - asciicheck # checks that your code does not contain non-ASCII identifiers
 #    - bidichk # checks for dangerous unicode character sequences
 #    - bodyclose # checks whether HTTP response body is closed successfully
@@ -38,7 +39,6 @@ linters:
 #    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
 #    - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
 #    - goprintffuncname # checks that printf-like functions are named with f at the end
-#    - gosec # inspects source code for security problems
 #    - lll # reports long lines
 #    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
 #    - makezero # finds slice declarations with non-zero initial length

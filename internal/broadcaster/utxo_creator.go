@@ -111,7 +111,12 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			lastUtxoSetLen = utxoSet.Len()
 			// if requested outputs satisfied, return
 
-			if uint64(utxoSet.Len()) >= requestedOutputs {
+			utxoSet, err := api.SafeIntToUint64(utxoSet.Len())
+			if err != nil {
+				b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
+				return
+			}
+			if utxoSet >= requestedOutputs {
 				break
 			}
 
@@ -188,8 +193,10 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
 	txsSplitBatches := make([]sdkTx.Transactions, 0)
 	txsSplit := make(sdkTx.Transactions, 0)
-	outputs := uint64(utxoSet.Len())
-	var err error
+	outputs, err := api.SafeIntToUint64(utxoSet.Len())
+	if err != nil {
+		return nil, err
+	}
 
 	var next *list.Element
 	for front := utxoSet.Front(); front != nil; front = next {

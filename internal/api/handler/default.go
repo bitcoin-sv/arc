@@ -146,7 +146,17 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	}()
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
-	maxscriptsizepolicy, err := iapi.SafeUint64(m.NodePolicy.MaxScriptSizePolicy)
+	maxscriptsizepolicy, err := iapi.SafeIntToUint64(m.NodePolicy.MaxScriptSizePolicy)
+	if err != nil {
+		return err
+	}
+
+	maxTxSigopsCountsPolicy, err := iapi.SafeInt64ToUint64(m.NodePolicy.MaxTxSigopsCountsPolicy)
+	if err != nil {
+		return err
+	}
+
+	maxTxSizePolicy, err := iapi.SafeIntToUint64(m.NodePolicy.MaxTxSizePolicy)
 	if err != nil {
 		return err
 	}
@@ -154,8 +164,8 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 
 		Policy: api.Policy{
 			Maxscriptsizepolicy:     maxscriptsizepolicy,
-			Maxtxsigopscountspolicy: uint64(m.NodePolicy.MaxTxSigopsCountsPolicy),
-			Maxtxsizepolicy:         uint64(m.NodePolicy.MaxTxSizePolicy),
+			Maxtxsigopscountspolicy: maxTxSigopsCountsPolicy,
+			Maxtxsizepolicy:         maxTxSizePolicy,
 			MiningFee: api.FeeAmount{
 				Bytes:    bytes,
 				Satoshis: satoshis,

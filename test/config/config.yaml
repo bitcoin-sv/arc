@@ -1,22 +1,24 @@
 ---
-logFormat: tint
 logLevel: INFO
+logFormat: tint
 profilerAddr: localhost:9999
 prometheus:
   enabled: true
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
+network: regtest
 messageQueue:
   streaming:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
   initialize: true
+
 tracing:
   enabled: false
-  sample: 100
   dialAddr: http://jaeger:4317
+  sample: 100
 
 peerRpc:
   password: bitcoin
@@ -63,14 +65,25 @@ metamorph:
     mode: classic
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
+    mcast:
+      tx:
+        address: "[]"
+        interfaces:
+          - "eth0"
+          - "eth1"
+      reject:
+        address: "[]"
+        interfaces:
+          - "eth0"
+          - "eth1"
 
 blocktx:
   listenAddr: 0.0.0.0:8011
@@ -100,14 +113,20 @@ blocktx:
     mode: classic
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
+    mcast:
+      block:
+        address: "[]"
+        interfaces:
+          - "eth0"
+          - "eth1"
 
 api:
   address: 0.0.0.0:9090
@@ -149,7 +168,7 @@ api:
 callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
-  pause: 10ms
+  pause: 1s
   batchSendInterval: 5s
   pruneOlderThan: 336h
   pruneInterval: 24h

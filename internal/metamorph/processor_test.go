@@ -623,7 +623,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		name   string
 		txReqs []*metamorph_api.PostTransactionRequest
 
-		expectedSetBulkCalls  int
+		expectedSetBulkCalls  int32
 		expectedAnnounceCalls int32
 		expcetedUpdates       int
 	}{
@@ -742,10 +742,10 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			// then
-			len, err := api.SafeIntToInt32(len(s.SetBulkCalls()))
+			l, err := api.SafeIntToInt32(len(s.SetBulkCalls()))
 			assert.NoError(t, err)
 
-			assert.Equal(t, tc.expectedSetBulkCalls, len)
+			assert.Equal(t, tc.expectedSetBulkCalls, l)
 			assert.Equal(t, tc.expectedAnnounceCalls, announceMsgCounter.Load())
 		})
 	}

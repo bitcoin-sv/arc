@@ -328,7 +328,9 @@ func getMerklePath(t *testing.T, txID string) string {
 		blockTxHashes[i] = h
 
 		if blockTx == rawTx.Hash {
-			txIndex = uint64(i)
+			ind, err := api.SafeIntToUint64(i)
+			require.NoError(t, err)
+			txIndex = ind
 		}
 	}
 

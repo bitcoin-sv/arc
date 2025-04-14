@@ -9,6 +9,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
@@ -68,8 +69,12 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		blockHashes[i] = d.BlockHash
 		allowBatches[i] = d.AllowBatch
 
+		blockHeight, err := api.SafeUint64ToInt64(*d.BlockHeight)
+		if err != nil {
+			return err
+		}
 		if d.BlockHeight != nil {
-			blockHeights[i] = sql.NullInt64{Int64: int64(*d.BlockHeight), Valid: true}
+			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
 
 		if len(d.CompetingTxs) > 0 {
@@ -306,8 +311,12 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		if bh.Valid {
 			r.BlockHash = ptrTo(bh.String)
 		}
+		bhuint64, err := api.SafeInt64ToUint64(bHeight.Int64)
+		if err != nil {
+			return nil, err
+		}
 		if bHeight.Valid {
-			r.BlockHeight = ptrTo(uint64(bHeight.Int64))
+			r.BlockHeight = ptrTo(bhuint64)
 		}
 		if ctxs.String != "" {
 			r.CompetingTxs = strings.Split(ctxs.String, ",")

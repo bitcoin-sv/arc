@@ -299,7 +299,11 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		return 0, err
 	}
 
-	err = PayTo(tx, fundingKeySet.Script, uint64(remaining)-fee)
+	remainingUint64, err := api.SafeInt64ToUint64(remaining)
+	if err != nil {
+		return 0, err
+	}
+	err = PayTo(tx, fundingKeySet.Script, remainingUint64-fee)
 	if err != nil {
 		return 0, errors.Join(ErrFailedToAddOutput, err)
 	}

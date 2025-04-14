@@ -741,8 +741,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			// then
-			assert.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
-			assert.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
+			assert.Equal(t, tc.expectedSetBulkCalls, int32(len(s.SetBulkCalls())))
+			assert.Equal(t, tc.expectedAnnounceCalls, int32(announceMsgCounter.Load()))
 		})
 	}
 }

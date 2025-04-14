@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -741,8 +742,11 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			// then
-			assert.Equal(t, tc.expectedSetBulkCalls, int32(len(s.SetBulkCalls())))
-			assert.Equal(t, tc.expectedAnnounceCalls, int32(announceMsgCounter.Load()))
+			len, err := api.SafeIntToInt32(len(s.SetBulkCalls()))
+			assert.NoError(t, err)
+
+			assert.Equal(t, tc.expectedSetBulkCalls, len)
+			assert.Equal(t, tc.expectedAnnounceCalls, announceMsgCounter.Load())
 		})
 	}
 }

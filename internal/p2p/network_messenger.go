@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
@@ -54,7 +55,12 @@ func (m *NetworkMessenger) AnnounceTransactions(txHashes []*chainhash.Hash, peer
 	// create INV messages
 	var messages []*wire.MsgInv
 
-	invMsg := wire.NewMsgInvSizeHint(uint(min(batchSize, len(txHashes))))
+	mi, err := api.SafeIntToUint(min(batchSize, len(txHashes)))
+	if err != nil {
+		m.logger.Error("Failed to convert batch size to uint32", slog.String("error", err.Error()))
+		return nil
+	}
+	invMsg := wire.NewMsgInvSizeHint(mi)
 	messages = append(messages, invMsg)
 
 	for i, hash := range txHashes {

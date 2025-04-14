@@ -60,3 +60,18 @@ func SafeIntToInt32(i int) (int32, error) {
 	}
 	return int32(i), nil
 }
+
+func SafeIntToUint(i int) (uint, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("negative value cannot be converted to uint: %d", i)
+	}
+
+	return uint(i), nil
+}
+
+func SafeUintToInt(u uint) (int, error) {
+	if u > math.MaxInt {
+		return 0, fmt.Errorf("value too large for int: %d", u)
+	}
+	return int(u), nil
+}

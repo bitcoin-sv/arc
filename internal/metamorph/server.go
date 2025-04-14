@@ -21,6 +21,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -143,10 +144,16 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		status = s.mq.Status()
 	}
 
+	processorMapSizeInt32, err := api.SafeIntToInt32(processorMapSize)
+	if err != nil {
+		s.logger.Error("failed to convert processor map size to int32", slog.String("err", err.Error()))
+		return nil, err
+	}
+
 	return &metamorph_api.HealthResponse{
 		Nats:              status,
 		Timestamp:         timestamppb.New(time.Now()),
-		MapSize:           int32(processorMapSize),
+		MapSize:           processorMapSizeInt32,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/lib/pq"
@@ -100,8 +101,12 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 			data.Status = metamorph_api.Status(status.Int32)
 		}
 
+		blockHeightUint64, err := api.SafeInt64ToUint64(blockHeight.Int64)
+		if err != nil {
+			return nil, err
+		}
 		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
+			data.BlockHeight = blockHeightUint64
 		}
 
 		if len(callbacksData) > 0 {

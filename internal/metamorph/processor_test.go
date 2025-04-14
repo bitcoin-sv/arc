@@ -623,7 +623,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		txReqs []*metamorph_api.PostTransactionRequest
 
 		expectedSetBulkCalls  int
-		expectedAnnounceCalls int
+		expectedAnnounceCalls int32
 		expcetedUpdates       int
 	}{
 		{
@@ -707,7 +707,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			messenger := &mocks.MediatorMock{
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {
 					announceMsgCounter.Add(1)
-					if announceMsgCounter.Load() >= int32(tc.expectedAnnounceCalls) {
+					if announceMsgCounter.Load() >= tc.expectedAnnounceCalls {
 						stopCh <- struct{}{}
 					}
 				},

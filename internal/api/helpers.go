@@ -53,3 +53,10 @@ func SafeUint64ToInt64(u uint64) (int64, error) {
 	}
 	return int64(u), nil
 }
+
+func SafeIntToInt32(i int) (int32, error) {
+	if i < math.MinInt32 || i > math.MaxInt32 {
+		return 0, fmt.Errorf("value out of range for int32: %d", i)
+	}
+	return int32(i), nil
+}

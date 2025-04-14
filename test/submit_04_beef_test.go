@@ -15,6 +15,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
@@ -190,7 +191,9 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 
 	for i, txid := range txs {
 		if txid == txID {
-			txIndex = uint64(i)
+			ind, err := api.SafeIntToUint64(i)
+			require.NoError(t, err)
+			txIndex = ind
 		}
 		h, err := chainhash.NewHashFromStr(txid)
 		require.NoError(t, err)

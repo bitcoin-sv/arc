@@ -254,7 +254,7 @@ func TestSendManagerStarStore(t *testing.T) {
 				send_manager.WithStoreCallbacksInterval(200*time.Millisecond),
 			)
 
-			sut.StartStore()
+			sut.StartStoreCallbacks()
 
 			callbackEntry := callbacker.CallbackEntry{Data: &callbacker.Callback{}}
 			for range tc.enqueue {

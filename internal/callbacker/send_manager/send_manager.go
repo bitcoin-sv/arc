@@ -123,7 +123,7 @@ func New(url string, sender callbacker.SenderI, store SendManagerStore, logger *
 	return m
 }
 
-func (m *SendManager) StartStore() {
+func (m *SendManager) StartStoreCallbacks() {
 	const (
 		failedToStoreCallbacksErrMsg = "Failed to store callbacks"
 	)

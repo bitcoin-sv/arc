@@ -79,6 +79,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 			send_manager.WithExpiration(arcConfig.Callbacker.Expiration),
 		)
 		manager.Start()
+		manager.StartStoreCallbacks()
 
 		return manager
 	}

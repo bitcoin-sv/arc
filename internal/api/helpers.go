@@ -36,3 +36,13 @@ func SafeInt64ToInt(u uint64) (int, error) {
 	}
 	return int(u), nil
 }
+
+func SafeIntToUint32(i int) (uint32, error) {
+	if i < 0 {
+		return 0, fmt.Errorf("negative value cannot be converted to uint32: %d", i)
+	}
+	if i > math.MaxUint32 {
+		return 0, fmt.Errorf("value too large for uint32: %d", i)
+	}
+	return uint32(i), nil
+}

@@ -233,7 +233,11 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPer
 
 		txOutputs := make([]splittingOutput, len(tx.Outputs))
 		for i, txOutput := range tx.Outputs {
-			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: uint32(i)}
+			voutUint32, err := api.SafeIntToUint32(i)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert int to uint32: %w", err)
+			}
+			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: voutUint32}
 		}
 
 		satoshiMap[tx.TxID().String()] = txOutputs

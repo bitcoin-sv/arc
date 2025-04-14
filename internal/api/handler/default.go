@@ -20,6 +20,7 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
+	iapi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -145,13 +146,14 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	}()
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
-
-	if m.NodePolicy.MaxScriptSizePolicy < 0 {
-		return fmt.Errorf("invalid MaxScriptSizePolicy: must be non-negative")
+	maxscriptsizepolicy, err := iapi.SafeUint64(m.NodePolicy.MaxScriptSizePolicy)
+	if err != nil {
+		return err
 	}
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
+
 		Policy: api.Policy{
-			Maxscriptsizepolicy:     uint64(m.NodePolicy.MaxScriptSizePolicy),
+			Maxscriptsizepolicy:     maxscriptsizepolicy,
 			Maxtxsigopscountspolicy: uint64(m.NodePolicy.MaxTxSigopsCountsPolicy),
 			Maxtxsizepolicy:         uint64(m.NodePolicy.MaxTxSizePolicy),
 			MiningFee: api.FeeAmount{

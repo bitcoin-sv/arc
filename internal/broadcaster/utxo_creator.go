@@ -12,6 +12,7 @@ import (
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
@@ -88,7 +89,12 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			}
 		}
 		// if requested outputs satisfied, return
-		if uint64(utxoSet.Len()) >= requestedOutputs {
+		utxoLen, err := api.SafeIntToUint64(utxoSet.Len())
+		if err != nil {
+			b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
+			return
+		}
+		if utxoLen >= requestedOutputs {
 			b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Uint64("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 			return
 		}

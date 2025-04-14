@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bsv-blockchain/go-sdk/util"
@@ -72,5 +73,9 @@ func isOlderThanLowestHeight(blockHeight, lowestHeight uint64) bool {
 }
 
 func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch int) bool {
-	return blockHeight > topHeight && blockHeight-topHeight <= uint64(maxMismatch)
+	mmismatch, err := api.SafeIntToUint64(maxMismatch)
+	if err != nil {
+		return false
+	}
+	return blockHeight > topHeight && blockHeight-topHeight <= mmismatch
 }

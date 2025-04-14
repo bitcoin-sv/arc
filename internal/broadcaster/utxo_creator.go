@@ -111,12 +111,12 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			lastUtxoSetLen = utxoSet.Len()
 			// if requested outputs satisfied, return
 
-			utxoSet, err := api.SafeIntToUint64(utxoSet.Len())
+			utxoLen, err := api.SafeIntToUint64(utxoSet.Len())
 			if err != nil {
 				b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
 				return
 			}
-			if utxoSet >= requestedOutputs {
+			if utxoLen >= requestedOutputs {
 				break
 			}
 

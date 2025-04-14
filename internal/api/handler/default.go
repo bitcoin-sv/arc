@@ -146,6 +146,9 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
+	if m.NodePolicy.MaxScriptSizePolicy < 0 {
+		return fmt.Errorf("invalid MaxScriptSizePolicy: must be non-negative")
+	}
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
 		Policy: api.Policy{
 			Maxscriptsizepolicy:     uint64(m.NodePolicy.MaxScriptSizePolicy),

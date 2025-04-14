@@ -244,7 +244,7 @@ func findParentForInput(input *sdkTx.TransactionInput, parentTxs []*beef.TxData)
 }
 
 func existsInBumps(tx *beef.TxData, bumps []*sdkTx.MerklePath) bool {
-	i, err := api.SafeUint64ToInt(*tx.BumpIndex)
+	i, err := internalApi.SafeUint64ToInt(uint64(*tx.BumpIndex))
 	if err != nil {
 		return false
 	}

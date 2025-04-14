@@ -101,7 +101,12 @@ func (m *NetworkMessenger) RequestTransactions(txHashes []*chainhash.Hash) PeerI
 	// create GETDATA messages
 	var messages []*wire.MsgGetData
 
-	getMsg := wire.NewMsgGetDataSizeHint(uint(min(batchSize, len(txHashes))))
+	mi, err := api.SafeIntToUint(min(batchSize, len(txHashes)))
+	if err != nil {
+		m.logger.Error("Failed to convert batch size to uint32", slog.String("error", err.Error()))
+		return nil
+	}
+	getMsg := wire.NewMsgGetDataSizeHint(mi)
 	messages = append(messages, getMsg)
 
 	for i, hash := range txHashes {

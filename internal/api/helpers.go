@@ -75,3 +75,10 @@ func SafeUintToInt(u uint) (int, error) {
 	}
 	return int(u), nil
 }
+
+func SafeUint64ToInt(u uint64) (int, error) {
+	if u > math.MaxInt {
+		return 0, fmt.Errorf("value too large for int: %d", u)
+	}
+	return int(u), nil
+}

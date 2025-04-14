@@ -24,6 +24,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
@@ -295,7 +296,9 @@ func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
 	require.NoError(t, err)
 
 	require.NotNil(t, statusResponse.BlockHeight)
-	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, int(*statusResponse.BlockHeight))
+	bh, err := api.SafeUint64ToInt(*statusResponse.BlockHeight)
+	require.NoError(t, err)
+	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, bh)
 	require.Equal(t, blockRoot, root)
 }
 

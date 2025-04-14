@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"math"
 
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 )
@@ -27,4 +28,11 @@ func SafeInt64ToUint64(i int64) (uint64, error) {
 		return 0, fmt.Errorf("negative value cannot be converted to uint64: %d", i)
 	}
 	return uint64(i), nil
+}
+
+func SafeInt64ToInt(u uint64) (int, error) {
+	if u > uint64(math.MaxInt) {
+		return 0, fmt.Errorf("value too large for int: %d", u)
+	}
+	return int(u), nil
 }

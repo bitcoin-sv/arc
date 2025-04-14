@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/bitcoin-sv/arc/internal/api"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 )
 
@@ -147,7 +148,11 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 
 	beefBytes = beefBytes[bytesUsed:]
 
-	transactions := make([]*TxData, 0, int(nTransactions))
+	ntxs, err := api.SafeInt64ToInt(uint64(nTransactions))
+	if err != nil {
+		return nil, nil, err
+	}
+	transactions := make([]*TxData, 0, ntxs)
 
 	for i := 0; i < int(nTransactions); i++ {
 		tx, bytesUsed, err := sdkTx.NewTransactionFromStream(beefBytes)

@@ -33,6 +33,8 @@ const (
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
 	MaxTimeout                 = 30
+	deadlineExtension          = 1 * time.Second * MaxTimeout
+	minusDeadlineExtension     = -1 * deadlineExtension
 )
 
 var (
@@ -152,121 +154,25 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 	}, nil
 }
 
-// PutTransaction deprecated, Todo: remove
-func (s *Server) PutTransaction(ctx context.Context, req *metamorph_api.TransactionRequest) (txStatus *metamorph_api.TransactionStatus, err error) {
-	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
-	if ok {
-		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
-		defer newCancel()
-	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransaction", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	hash := PtrTo(chainhash.DoubleHashH(req.GetRawTx()))
-	statusReceived := metamorph_api.Status_RECEIVED
-
-	// Convert gRPC req to store.Data struct...
-	sReq := toStoreData(hash, statusReceived, req)
-	return s.processTransaction(ctx, req.GetWaitForStatus(), sReq, hash.String()), nil
-}
-
-// PutTransactions deprecated, Todo: remove
-func (s *Server) PutTransactions(ctx context.Context, req *metamorph_api.TransactionRequests) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
-	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
-	if ok {
-		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
-		defer newCancel()
-	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	// for each transaction if we have status in the db already set that status in the response
-	// if not we store the transaction data and set the transaction status in response array to - STORED
-	type processTxInput struct {
-		data          *store.Data
-		waitForStatus metamorph_api.Status
-		responseIndex int
-	}
-
-	// prepare response object before filling with tx statuses
-	resp := &metamorph_api.TransactionStatuses{}
-	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
-
-	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
-
-	for ind, txReq := range req.GetTransactions() {
-		statusReceived := metamorph_api.Status_RECEIVED
-		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
-
-		processTxsInputMap[*hash] = processTxInput{
-			data:          toStoreData(hash, statusReceived, txReq),
-			waitForStatus: txReq.GetWaitForStatus(),
-			responseIndex: ind,
-		}
-	}
-
-	// Concurrently process each transaction and wait for the transaction status to return
-	wg := &sync.WaitGroup{}
-	for hash, input := range processTxsInputMap {
-		wg.Add(1)
-		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
-			defer wg.Done()
-
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
-
-			resp.Statuses[processTxInput.responseIndex] = statusNew
-		}(ctx, input, hash.String(), wg, resp)
-	}
-
-	wg.Wait()
-
-	return resp, nil
-}
-
 func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTransactionsRequest) (txsStatuses *metamorph_api.TransactionStatuses, err error) {
-	deadline, ok := ctx.Deadline()
-
-	// decrease time to get initial deadline
-	newDeadline := deadline
-	if time.Now().Add(MaxTimeout * time.Second).Before(deadline) {
-		newDeadline = deadline.Add(-(time.Second * MaxTimeout))
-	}
-
-	// Create a new context with the updated deadline
-	if ok {
-		var newCancel context.CancelFunc
-		ctx, newCancel = context.WithDeadline(context.Background(), newDeadline)
-		defer newCancel()
-	}
-
-	ctx, span := tracing.StartTracing(ctx, "PutTransactions", s.tracingEnabled, s.tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "PostTransactions", s.tracingEnabled, s.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
+
+	deadline, ok := ctx.Deadline()
+	if ok {
+		// Create a new deadline
+		newDeadline := deadline
+		if time.Now().Add(deadlineExtension).Before(deadline) {
+			// decrease time to get initial deadline
+			newDeadline = deadline.Add(minusDeadlineExtension)
+		}
+
+		var newCancel context.CancelFunc
+		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
+		defer newCancel()
+	}
 
 	// for each transaction if we have status in the db already set that status in the response
 	// if not we store the transaction data and set the transaction status in response array to - STORED
@@ -309,28 +215,6 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	wg.Wait()
 
 	return resp, nil
-}
-
-// toStoreData deprecated, Todo: remove
-func toStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.TransactionRequest) *store.Data {
-	callbacks := make([]store.Callback, 0)
-	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {
-		callbacks = []store.Callback{
-			{
-				CallbackURL:   req.GetCallbackUrl(),
-				CallbackToken: req.GetCallbackToken(),
-				AllowBatch:    req.GetCallbackBatch(),
-			},
-		}
-	}
-
-	return &store.Data{
-		Hash:              hash,
-		Status:            statusReceived,
-		Callbacks:         callbacks,
-		FullStatusUpdates: req.GetFullStatusUpdates(),
-		RawTx:             req.GetRawTx(),
-	}
 }
 
 func requestToStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.PostTransactionRequest) *store.Data {
@@ -412,8 +296,8 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 			returnedStatus.TimedOut = true
 			return returnedStatus
 		case <-checkStatusTicker.C:
-			// it's possible the transaction status was received and updated in db by another metamorph
-			// check if that's the case and we have a new tx status to return
+			// It's possible the transaction status was received and updated in db by another metamorph instance
+			// If yes, return new tx status
 			var tx *metamorph_api.TransactionStatus
 			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
 				Txid: txID,

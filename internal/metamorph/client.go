@@ -240,7 +240,12 @@ func (m *Metamorph) Health(ctx context.Context) (err error) {
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
 func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) (txStatuses []*TransactionStatus, err error) {
-	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, m.tracingAttributes...)
+	attributes := m.tracingAttributes
+	if len(txs) == 1 {
+		attributes = append(m.tracingAttributes, attribute.String("txID", txs[0].TxID().String()))
+	}
+
+	ctx, span := tracing.StartTracing(ctx, "SubmitTransactions", m.tracingEnabled, attributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -274,15 +279,17 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	}
 	var responses *metamorph_api.TransactionStatuses
 
-	deadline, _ := ctx.Deadline()
-	// decrease time to get initial deadline
-	newDeadline := deadline.Add(time.Second * MaxTimeout)
+	deadline, ok := ctx.Deadline()
+	if ok {
+		newDeadline := deadline.Add(deadlineExtension)
 
-	// increase time to make sure that expiration happens from inside the metramorph function
-	newCtx, newCancel := context.WithDeadline(context.Background(), newDeadline)
-	defer newCancel()
+		var newCancel context.CancelFunc
+		// increase deadline by `deadlineExtension`. This ensures that expiration happens from inside the metamorph function
+		ctx, newCancel = context.WithDeadline(context.WithoutCancel(ctx), newDeadline)
+		defer newCancel()
+	}
 
-	responses, err = m.client.PostTransactions(newCtx, in)
+	responses, err = m.client.PostTransactions(ctx, in)
 	if err != nil {
 		return nil, err
 	}

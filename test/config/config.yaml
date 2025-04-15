@@ -50,7 +50,7 @@ metamorph:
   processorCacheExpiryTime: 24h
   unseenTransactionRebroadcastingInterval: 60s
   maxRetries: 1000
-  processStatusUpdateInterval: 50ms
+  processStatusUpdateInterval: 1s
   recheckSeen:
     fromAgo: 24h
     untilAgo: 1h
@@ -100,7 +100,7 @@ blocktx:
       maxOpenConns: 80
       sslMode: disable
   recordRetentionDays: 28
-  registerTxsInterval: 200ms
+  registerTxsInterval: 10s
   maxBlockProcessingDuration: 2s
   monitorPeers: true
   incomingIsLongest: false

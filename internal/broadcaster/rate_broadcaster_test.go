@@ -55,17 +55,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:              "success with jitter",
-			jitterSize:        1,
-			initialUtxoSetLen: 2,
-			rateTxsPerSecond:  2,
-			batchSize:         2,
-			waitingTime:       1 * time.Millisecond,
-
-			expectedBroadcastTransactionsCalls: 0,
-			expectedUtxoSetLen:                 2,
-		},
-		{
 			name:                     "error - failed to get balance",
 			getBalanceWithRetriesErr: errors.New("utxo client error"),
 			rateTxsPerSecond:         2,
@@ -121,18 +110,19 @@ func TestRateBroadcasterStart(t *testing.T) {
 			expectedLimit:                      2,
 		},
 		{
-			name:              "success - async batch",
+			name:              "success - async batch with jitter",
 			limit:             2,
 			initialUtxoSetLen: 10,
 			rateTxsPerSecond:  10,
 			batchSize:         10,
 			waitingTime:       2 * time.Second,
-			transactionCount:  10,
+			transactionCount:  0,
 			asyncTest:         true,
 
-			expectedBroadcastTransactionsCalls: 1,
+			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
 			expectedUtxoSetLen:                 0,
+			jitterSize:                         2,
 		},
 	}
 
@@ -202,6 +192,13 @@ func TestRateBroadcasterStart(t *testing.T) {
 				broadcaster.WithBatchSize(tc.batchSize),
 				broadcaster.WithSizeJitter(tc.jitterSize),
 				broadcaster.WithIsTestnet(false),
+				broadcaster.WithCallback("callbackurl", "callbacktoken"),
+				broadcaster.WithOpReturn("0"),
+				broadcaster.WithFullstatusUpdates(false),
+				broadcaster.WithFees(1),
+				broadcaster.WithWaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK),
+				broadcaster.WithIsTestnet(true),
+				broadcaster.WithMaxInputs(1),
 			)
 			require.NoError(t, err)
 

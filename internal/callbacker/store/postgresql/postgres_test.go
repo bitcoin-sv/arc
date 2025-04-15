@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -391,7 +391,7 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		if bh.Valid {
 			c.BlockHash = &bh.String
 		}
-		bheightUint64, err := api.SafeInt64ToUint64(bheight.Int64)
+		bheightUint64, err := safecast.ToUint64(bheight.Int64)
 		if err != nil {
 			t.Fatal(err)
 		}

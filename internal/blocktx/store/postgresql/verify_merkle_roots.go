@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bsv-blockchain/go-sdk/util"
+	"github.com/ccoveille/go-safecast"
 )
 
 func (p *PostgreSQL) VerifyMerkleRoots(
@@ -73,7 +73,7 @@ func isOlderThanLowestHeight(blockHeight, lowestHeight uint64) bool {
 }
 
 func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch int) bool {
-	mmismatch, err := api.SafeIntToUint64(maxMismatch)
+	mmismatch, err := safecast.ToUint64(maxMismatch)
 	if err != nil {
 		return false
 	}

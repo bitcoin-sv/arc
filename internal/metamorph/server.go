@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/util"
+	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
@@ -21,7 +22,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -144,7 +144,7 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		status = s.mq.Status()
 	}
 
-	processorMapSizeInt32, err := api.SafeIntToInt32(processorMapSize)
+	processorMapSizeInt32, err := safecast.ToInt32(processorMapSize)
 	if err != nil {
 		s.logger.Error("failed to convert processor map size to int32", slog.String("err", err.Error()))
 		return nil, err

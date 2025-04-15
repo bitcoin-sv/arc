@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 
@@ -19,7 +20,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -742,7 +742,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			// then
-			l, err := api.SafeIntToInt32(len(s.SetBulkCalls()))
+			l, err := safecast.ToInt32(len(s.SetBulkCalls()))
 			assert.NoError(t, err)
 
 			assert.Equal(t, tc.expectedSetBulkCalls, l)

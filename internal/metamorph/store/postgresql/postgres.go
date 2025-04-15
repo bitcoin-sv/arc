@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -203,7 +203,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Data, er
 		data.Status = metamorph_api.Status(status.Int32)
 	}
 
-	blockHeightUint64, err := api.SafeInt64ToUint64(blockHeight.Int64)
+	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
 	if err != nil {
 		return nil, err
 	}

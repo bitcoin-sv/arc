@@ -12,9 +12,9 @@ import (
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/ccoveille/go-safecast"
 )
 
 var (
@@ -89,7 +89,7 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			}
 		}
 		// if requested outputs satisfied, return
-		utxoLen, err := api.SafeIntToUint64(utxoSet.Len())
+		utxoLen, err := safecast.ToUint64(utxoSet.Len())
 		if err != nil {
 			b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
 			return
@@ -111,7 +111,7 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			lastUtxoSetLen = utxoSet.Len()
 			// if requested outputs satisfied, return
 
-			utxoLen, err := api.SafeIntToUint64(utxoSet.Len())
+			utxoLen, err := safecast.ToUint64(utxoSet.Len())
 			if err != nil {
 				b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
 				return
@@ -193,7 +193,7 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
 	txsSplitBatches := make([]sdkTx.Transactions, 0)
 	txsSplit := make(sdkTx.Transactions, 0)
-	outputs, err := api.SafeIntToUint64(utxoSet.Len())
+	outputs, err := safecast.ToUint64(utxoSet.Len())
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPer
 
 		txOutputs := make([]splittingOutput, len(tx.Outputs))
 		for i, txOutput := range tx.Outputs {
-			voutUint32, err := api.SafeIntToUint32(i)
+			voutUint32, err := safecast.ToUint32(i)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert int to uint32: %w", err)
 			}
@@ -263,12 +263,12 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 	var err error
 	var fee uint64
 
-	remaining, err := api.SafeUint64ToInt64(splitSatoshis)
+	remaining, err := safecast.ToInt64(splitSatoshis)
 	if err != nil {
 		return 0, err
 	}
 
-	requestedSatoshisUint64, err := api.SafeUint64ToInt64(requestedSatoshis)
+	requestedSatoshisUint64, err := safecast.ToInt64(requestedSatoshis)
 	if err != nil {
 		return 0, err
 	}
@@ -277,7 +277,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		if err != nil {
 			return 0, err
 		}
-		remainingUint64, err := api.SafeInt64ToUint64(remaining)
+		remainingUint64, err := safecast.ToUint64(remaining)
 		if err != nil {
 			return 0, err
 		}
@@ -299,7 +299,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		return 0, err
 	}
 
-	remainingUint64, err := api.SafeInt64ToUint64(remaining)
+	remainingUint64, err := safecast.ToUint64(remaining)
 	if err != nil {
 		return 0, err
 	}

@@ -14,13 +14,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/ccoveille/go-safecast"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	iapi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -146,17 +146,17 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	}()
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
-	maxscriptsizepolicy, err := iapi.SafeIntToUint64(m.NodePolicy.MaxScriptSizePolicy)
+	maxscriptsizepolicy, err := safecast.ToUint64(m.NodePolicy.MaxScriptSizePolicy)
 	if err != nil {
 		return err
 	}
 
-	maxTxSigopsCountsPolicy, err := iapi.SafeInt64ToUint64(m.NodePolicy.MaxTxSigopsCountsPolicy)
+	maxTxSigopsCountsPolicy, err := safecast.ToUint64(m.NodePolicy.MaxTxSigopsCountsPolicy)
 	if err != nil {
 		return err
 	}
 
-	maxTxSizePolicy, err := iapi.SafeIntToUint64(m.NodePolicy.MaxTxSizePolicy)
+	maxTxSizePolicy, err := safecast.ToUint64(m.NodePolicy.MaxTxSizePolicy)
 	if err != nil {
 		return err
 	}

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/ccoveille/go-safecast"
 )
 
 const (
@@ -148,7 +148,7 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 
 	beefBytes = beefBytes[bytesUsed:]
 
-	ntxs, err := api.SafeInt64ToInt(uint64(nTransactions))
+	ntxs, err := safecast.ToInt(nTransactions)
 	if err != nil {
 		return nil, nil, err
 	}

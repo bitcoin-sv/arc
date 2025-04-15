@@ -7,6 +7,7 @@ import (
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	"github.com/ccoveille/go-safecast"
 	"github.com/ordishs/go-bitcoin"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
@@ -244,7 +245,7 @@ func findParentForInput(input *sdkTx.TransactionInput, parentTxs []*beef.TxData)
 }
 
 func existsInBumps(tx *beef.TxData, bumps []*sdkTx.MerklePath) bool {
-	i, err := internalApi.SafeUint64ToInt(uint64(*tx.BumpIndex))
+	i, err := safecast.ToInt(uint64(*tx.BumpIndex))
 	if err != nil {
 		return false
 	}

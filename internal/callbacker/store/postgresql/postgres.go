@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
@@ -70,7 +70,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		allowBatches[i] = d.AllowBatch
 
 		if d.BlockHeight != nil {
-			blockHeight, err := api.SafeUint64ToInt64(*d.BlockHeight)
+			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
 			if err != nil {
 				return err
 			}
@@ -311,7 +311,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		if bh.Valid {
 			r.BlockHash = ptrTo(bh.String)
 		}
-		bhuint64, err := api.SafeInt64ToUint64(bHeight.Int64)
+		bhuint64, err := safecast.ToUint64(bHeight.Int64)
 		if err != nil {
 			return nil, err
 		}

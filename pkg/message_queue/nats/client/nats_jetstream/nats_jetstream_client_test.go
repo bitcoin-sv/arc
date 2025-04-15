@@ -39,6 +39,7 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	var pool *dockertest.Pool
 	pool, err = dockertest.NewPool("")
+	defer pool.Client.StopContainerWithContext("", 1, context.Background())
 	if err != nil {
 		log.Printf("failed to create pool: %v", err)
 		return 1
@@ -46,7 +47,7 @@ func testmain(m *testing.M) int {
 
 	port := "4337"
 	enableJetStreamCmd := "--js"
-	name := "nats-jetstream"
+	name := "nats-jetstream-unit"
 
 	var resource *dockertest.Resource
 	resource, natsURL, err = testutils.RunNats(pool, port, name, enableJetStreamCmd)
@@ -71,10 +72,6 @@ func testmain(m *testing.M) int {
 }
 
 func TestPublish(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
 	consume := func(cl *Client, topic string, messageChan chan *test_api.TestMessage) {
 		err = cl.Consume(topic, func(bytes []byte) error {
 			serialized := &test_api.TestMessage{}

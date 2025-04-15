@@ -79,7 +79,6 @@ func TestBeef(t *testing.T) {
 		// verify callbacks for both unmined txs in BEEF
 		lastTxCallbackReceived := false
 		middleTxCallbackReceived := false
-
 		for i := 0; i < expectedCallbacks; i++ {
 			select {
 			case status := <-callbackReceivedChan:
@@ -94,7 +93,7 @@ func TestBeef(t *testing.T) {
 				}
 			case err := <-callbackErrChan:
 				t.Fatalf("callback received - failed to parse callback %v", err)
-			case <-time.After(10 * time.Second):
+			case <-time.After(callbackDeadline):
 				t.Fatal("callback exceeded timeout")
 			}
 		}

@@ -67,7 +67,6 @@ func TestReorg(t *testing.T) {
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
 
 	merklePathTx1 := getMerklePath(t, tx1.TxID().String())
-
 	select {
 	case status := <-callbackReceivedChan:
 		require.Equal(t, tx1.TxID().String(), status.Txid)
@@ -76,7 +75,7 @@ func TestReorg(t *testing.T) {
 		require.Equal(t, merklePathTx1, *status.MerklePath)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
-	case <-time.After(1 * time.Second):
+	case <-time.After(callbackDeadline):
 		t.Fatal("callback exceeded timeout")
 	}
 
@@ -112,7 +111,6 @@ func TestReorg(t *testing.T) {
 
 	// verify tx2 is MINED
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, tx2BlockHash)
-
 	select {
 	case status := <-callbackReceivedChan:
 		require.Equal(t, tx2.TxID().String(), status.Txid)
@@ -120,7 +118,7 @@ func TestReorg(t *testing.T) {
 		require.Equal(t, tx2BlockHash, *status.BlockHash)
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
-	case <-time.After(1 * time.Second):
+	case <-time.After(callbackDeadline):
 		t.Fatal("callback exceeded timeout")
 	}
 
@@ -178,7 +176,6 @@ func TestReorg(t *testing.T) {
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMinedInStaleBlock, tx2BlockHash)
 
 	merklePathTx1 = getMerklePath(t, tx1.TxID().String())
-
 	// expect 2 callbacks
 	for range 2 {
 		select {
@@ -198,7 +195,7 @@ func TestReorg(t *testing.T) {
 			}
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
-		case <-time.After(1 * time.Second):
+		case <-time.After(callbackDeadline):
 			t.Fatal("callback exceeded timeout")
 		}
 	}

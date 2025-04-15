@@ -212,6 +212,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 			if tc.asyncTest {
 				go func() {
+					sut.Wait()
 					time.Sleep(100 * time.Millisecond)
 					tickerCh <- time.Now()
 				}()
@@ -227,8 +228,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 
 			sut.Shutdown()
-
-			sut.Wait()
 		})
 	}
 }

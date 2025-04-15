@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	safe "github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"

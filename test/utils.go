@@ -25,7 +25,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
@@ -329,7 +328,7 @@ func getMerklePath(t *testing.T, txID string) string {
 		blockTxHashes[i] = h
 
 		if blockTx == rawTx.Hash {
-			ind, err := api.SafeIntToUint64(i)
+			ind, err := safe.ToUint64(i)
 			require.NoError(t, err)
 			txIndex = ind
 		}

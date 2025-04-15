@@ -216,6 +216,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 					time.Sleep(100 * time.Millisecond)
 					tickerCh <- time.Now()
 				}()
+				require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 			}
 
 			time.Sleep(tc.waitingTime)
@@ -225,7 +226,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			require.Equal(t, tc.transactionCount, sut.GetTxCount())
-			require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 
 			sut.Shutdown()
 		})

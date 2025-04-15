@@ -256,6 +256,7 @@ func TestSubscribe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			natsConnClient, err := nats_connection.New(natsURL, logger)
 			require.NoError(t, err)
+			defer natsConnClient.Close()
 
 			natsConnOpposite, err := nats_connection.New(natsURL, logger)
 			require.NoError(t, err)
@@ -268,6 +269,7 @@ func TestSubscribe(t *testing.T) {
 
 			// subscribe with initialized consumer
 			mqClientOpposite, err := New(natsConnOpposite, logger, tc.opts...)
+			defer mqClientOpposite.Shutdown()
 			require.NoError(t, err)
 
 			tc.testFunc(mqClient, tc.topic, messageChan)

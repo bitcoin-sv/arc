@@ -216,6 +216,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 					time.Sleep(100 * time.Millisecond)
 					tickerCh <- time.Now()
 				}()
+			} else {
 				require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 			}
 

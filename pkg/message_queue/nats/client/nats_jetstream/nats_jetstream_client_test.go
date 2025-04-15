@@ -39,13 +39,13 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	var pool *dockertest.Pool
 	pool, err = dockertest.NewPool("")
-	defer pool.Client.StopContainerWithContext("", 1, context.Background())
+
 	if err != nil {
 		log.Printf("failed to create pool: %v", err)
 		return 1
 	}
 
-	port := "4337"
+	port := "4338"
 	enableJetStreamCmd := "--js"
 	name := "nats-jetstream-unit"
 

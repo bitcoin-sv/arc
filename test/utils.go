@@ -296,7 +296,7 @@ func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
 	require.NoError(t, err)
 
 	require.NotNil(t, statusResponse.BlockHeight)
-	bh, err := safecast.ToInt(*statusResponse.BlockHeight)
+	bh, err := safe.ToInt(*statusResponse.BlockHeight)
 	require.NoError(t, err)
 	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, bh)
 	require.Equal(t, blockRoot, root)

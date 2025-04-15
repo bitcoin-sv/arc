@@ -69,11 +69,11 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		blockHashes[i] = d.BlockHash
 		allowBatches[i] = d.AllowBatch
 
-		blockHeight, err := api.SafeUint64ToInt64(*d.BlockHeight)
-		if err != nil {
-			return err
-		}
 		if d.BlockHeight != nil {
+			blockHeight, err := api.SafeUint64ToInt64(*d.BlockHeight)
+			if err != nil {
+				return err
+			}
 			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
 

@@ -67,7 +67,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 		e := checkStandardFees(tx, f)
-		if e.Err != nil {
+		if e != nil && e.Err != nil {
 			return e.Err
 		}
 	case validator.CumulativeFeeValidation:

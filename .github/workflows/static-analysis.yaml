@@ -37,8 +37,8 @@ jobs:
         with:
           args: -exclude-dir=testdata -exclude-dir=test -exclude-dir=blocktx/store/sql -exclude-generated -fmt=sonarqube -out gosec-report.json ./...
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5.1.0 # See the latest version at https://github.com/marketplace/actions/official-sonarqube-scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

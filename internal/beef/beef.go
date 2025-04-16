@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"github.com/ccoveille/go-safecast"
 )
 
 const (
@@ -148,13 +147,9 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 
 	beefBytes = beefBytes[bytesUsed:]
 
-	ntxs, err := safecast.ToInt(nTransactions)
-	if err != nil {
-		return nil, nil, err
-	}
-	transactions := make([]*TxData, 0, ntxs)
+	transactions := make([]*TxData, 0, nTransactions)
 
-	for i := 0; i < ntxs; i++ {
+	for i := uint64(0); i < uint64(nTransactions); i++ {
 		tx, bytesUsed, err := sdkTx.NewTransactionFromStream(beefBytes)
 		if err != nil {
 			return nil, nil, err

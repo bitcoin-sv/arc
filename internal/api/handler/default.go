@@ -45,8 +45,11 @@ var (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler metamorph.TransactionHandler
-	NodePolicy         *bitcoin.Settings
+	TransactionHandler      metamorph.TransactionHandler
+	NodePolicy              *bitcoin.Settings
+	maxTxSizePolicy         uint64
+	maxTxSigopsCountsPolicy uint64
+	maxscriptsizepolicy     uint64
 
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -120,15 +123,33 @@ func NewDefault(
 ) (*ArcDefaultHandler, error) {
 	mr := merkle_verifier.New(merkleRootsVerifier)
 
+	maxscriptsizepolicy, err := safecast.ToUint64(policy.MaxScriptSizePolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	maxTxSigopsCountsPolicy, err := safecast.ToUint64(policy.MaxTxSigopsCountsPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	maxTxSizePolicy, err := safecast.ToUint64(policy.MaxTxSizePolicy)
+	if err != nil {
+		return nil, err
+	}
+
 	handler := &ArcDefaultHandler{
-		TransactionHandler: transactionHandler,
-		NodePolicy:         policy,
-		logger:             logger,
-		now:                time.Now,
-		mrVerifier:         mr,
-		txFinder:           cachedFinder,
-		mapExpiryTime:      mapExpiryTimeDefault,
-		defaultTimeout:     timeoutSecondsDefault * time.Second,
+		TransactionHandler:      transactionHandler,
+		NodePolicy:              policy,
+		logger:                  logger,
+		now:                     time.Now,
+		mrVerifier:              mr,
+		txFinder:                cachedFinder,
+		mapExpiryTime:           mapExpiryTimeDefault,
+		defaultTimeout:          timeoutSecondsDefault * time.Second,
+		maxTxSizePolicy:         maxTxSizePolicy,
+		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
+		maxscriptsizepolicy:     maxscriptsizepolicy,
 	}
 
 	// apply options
@@ -146,26 +167,13 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	}()
 
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
-	maxscriptsizepolicy, err := safecast.ToUint64(m.NodePolicy.MaxScriptSizePolicy)
-	if err != nil {
-		return err
-	}
 
-	maxTxSigopsCountsPolicy, err := safecast.ToUint64(m.NodePolicy.MaxTxSigopsCountsPolicy)
-	if err != nil {
-		return err
-	}
-
-	maxTxSizePolicy, err := safecast.ToUint64(m.NodePolicy.MaxTxSizePolicy)
-	if err != nil {
-		return err
-	}
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
 
 		Policy: api.Policy{
-			Maxscriptsizepolicy:     maxscriptsizepolicy,
-			Maxtxsigopscountspolicy: maxTxSigopsCountsPolicy,
-			Maxtxsizepolicy:         maxTxSizePolicy,
+			Maxscriptsizepolicy:     m.maxscriptsizepolicy,
+			Maxtxsigopscountspolicy: m.maxTxSigopsCountsPolicy,
+			Maxtxsizepolicy:         m.maxTxSizePolicy,
 			MiningFee: api.FeeAmount{
 				Bytes:    bytes,
 				Satoshis: satoshis,

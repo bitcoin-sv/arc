@@ -660,7 +660,7 @@ func TestPostgresDB(t *testing.T) {
 				BlockHeight: 822032,
 			},
 		}
-		maxAllowedBlockHeightMismatch := 10
+		maxAllowedBlockHeightMismatch := uint64(10)
 		expectedUnverifiedBlockHeights := []uint64{812011, 822010, 822032}
 
 		// when

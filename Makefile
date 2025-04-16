@@ -113,7 +113,7 @@ clean_gen:
 .PHONY: coverage
 coverage:
 	rm -f ./cov.out
-	go test -coverprofile=./cov.out -covermode=atomic  ./... 2>&1 > gotest.out
+	go test -coverprofile=./cov.out -covermode=atomic  ./... 2>&1 > gotest.out -coverpkg ./...
 	go tool cover -html=cov.out -o coverage-report.html
 	goverreport -coverprofile cov.out -packages -sort block
 

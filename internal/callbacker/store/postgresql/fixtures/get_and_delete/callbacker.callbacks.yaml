@@ -389,3 +389,17 @@
   timestamp: 2024-09-01 12:01:04
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
+
+- url: https://arc-callback-2/callback
+  token: token
+  tx_id: 9ba8002429caacb4d6ba9022a00f51a235495cb25aa9297d5976274e1c668350
+  tx_status: "SEEN_ON_NETWORK"
+  timestamp: 2024-09-01 12:00:04
+  allow_batch: true
+
+- url: https://arc-callback-2/callback
+  token: token
+  tx_id: 4413e6789f12b145d76cd39346c3013d2b2a61e3784dba341b117880a69b8fb4
+  tx_status: "SEEN_ON_NETWORK"
+  timestamp: 2024-08-01 12:00:04
+  allow_batch: true

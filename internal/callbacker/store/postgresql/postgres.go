@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,11 +22,18 @@ var (
 	ErrFailedToOpenDB = errors.New("failed to open postgres DB")
 )
 
-type PostgreSQL struct {
-	db *sql.DB
+func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
+	return func(m *PostgreSQL) {
+		m.now = nowFunc
+	}
 }
 
-func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
+type PostgreSQL struct {
+	db  *sql.DB
+	now func() time.Time
+}
+
+func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL *PostgreSQL)) (*PostgreSQL, error) {
 	db, err := sql.Open(postgresDriverName, dbInfo)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToOpenDB, err)
@@ -34,15 +42,20 @@ func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
 	db.SetMaxIdleConns(idleConns)
 	db.SetMaxOpenConns(maxOpenConns)
 
-	return &PostgreSQL{db: db}, nil
+	p := &PostgreSQL{
+		db:  db,
+		now: time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p, nil
 }
 
 func (p *PostgreSQL) Close() error {
 	return p.db.Close()
-}
-
-func (p *PostgreSQL) Set(ctx context.Context, dto *store.CallbackData) error {
-	return p.SetMany(ctx, []*store.CallbackData{dto})
 }
 
 func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) error {
@@ -72,7 +85,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		if d.BlockHeight != nil {
 			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to convert block height to int64: %w", err)
 			}
 			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
@@ -125,14 +138,14 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	return err
 }
 
-// GetAndDelete returns deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
-func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
+// GetAndDeleteTx returns and deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
+func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE url = $1
+				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3
 				ORDER BY timestamp ASC
-				LIMIT $2
+				LIMIT $4
 				FOR UPDATE
 			)
 			RETURNING
@@ -148,19 +161,26 @@ func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([
 				,timestamp
 				,allow_batch`
 
-	rows, err := p.db.QueryContext(ctx, q, url, limit)
+	expirationDate := p.now().Add(-1 * expiration)
+
+	tx, err := p.db.Begin()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
+	}
+
+	rows, err := tx.QueryContext(ctx, q, url, expirationDate, batch, limit)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
 
 	var records []*store.CallbackData
 	records, err = scanCallbacks(rows, limit)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	return records, nil
+	return records, tx.Commit, tx.Rollback, nil
 }
 
 func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {

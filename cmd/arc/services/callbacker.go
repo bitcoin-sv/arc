@@ -73,11 +73,12 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	runNewManager := func(url string) callbacker.SendManagerI {
 		manager := send_manager.New(url, sender, callbackerStore, logger,
-			send_manager.WithQueueProcessInterval(arcConfig.Callbacker.Pause),
+			send_manager.WithSingleSendInterval(arcConfig.Callbacker.Pause),
 			send_manager.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
 			send_manager.WithExpiration(arcConfig.Callbacker.Expiration),
 		)
 		manager.Start()
+		manager.StartStoreCallbacks()
 
 		return manager
 	}
@@ -105,7 +106,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	}
 
 	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
-	processor.DispatchPersistedCallbacks()
+	processor.StartSetUnmappedURLs()
 
 	err = processor.Start()
 	if err != nil {

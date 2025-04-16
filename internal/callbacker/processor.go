@@ -33,36 +33,36 @@ var (
 )
 
 type Processor struct {
-	mqClient                  mq.MessageQueueClient
-	dispatcher                Dispatcher
-	store                     store.ProcessorStore
-	logger                    *slog.Logger
-	dispatchPersistedInterval time.Duration
-	hostName                  string
-	waitGroup                 *sync.WaitGroup
-	cancelAll                 context.CancelFunc
-	ctx                       context.Context
+	mqClient       mq.MessageQueueClient
+	dispatcher     Dispatcher
+	store          store.ProcessorStore
+	logger         *slog.Logger
+	setURLInterval time.Duration
+	hostName       string
+	waitGroup      *sync.WaitGroup
+	cancelAll      context.CancelFunc
+	ctx            context.Context
 
 	mu         sync.RWMutex
 	urlMapping map[string]string
 }
 
-func WithDispatchPersistedInterval(interval time.Duration) func(*Processor) {
+func WithSetURLInterval(interval time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.dispatchPersistedInterval = interval
+		p.setURLInterval = interval
 	}
 }
 
 func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
-		hostName:                  hostName,
-		urlMapping:                make(map[string]string),
-		dispatcher:                dispatcher,
-		waitGroup:                 &sync.WaitGroup{},
-		store:                     processorStore,
-		logger:                    logger,
-		mqClient:                  mqClient,
-		dispatchPersistedInterval: dispatchPersistedIntervalDefault,
+		hostName:       hostName,
+		urlMapping:     make(map[string]string),
+		dispatcher:     dispatcher,
+		waitGroup:      &sync.WaitGroup{},
+		store:          processorStore,
+		logger:         logger,
+		mqClient:       mqClient,
+		setURLInterval: dispatchPersistedIntervalDefault,
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -184,12 +184,11 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 	}()
 }
 
-// DispatchPersistedCallbacks loads and dispatches persisted callbacks with unmapped URLs in intervals
-func (p *Processor) DispatchPersistedCallbacks() {
-	const batchSize = 100
+// StartSetUnmappedURLs finds unmapped URLs and tries to set them in intervals
+func (p *Processor) StartSetUnmappedURLs() {
 	ctx := context.Background()
 
-	ticker := time.NewTicker(p.dispatchPersistedInterval)
+	ticker := time.NewTicker(p.setURLInterval)
 
 	p.waitGroup.Add(1)
 	go func() {
@@ -225,27 +224,6 @@ func (p *Processor) DispatchPersistedCallbacks() {
 					p.logger.Error("Failed to set URL mapping", slog.String("err", err.Error()))
 					continue
 				}
-
-				callbacks, err := p.store.GetAndDelete(ctx, url, batchSize)
-				if err != nil {
-					p.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-					continue
-				}
-
-				if len(callbacks) == 0 {
-					continue
-				}
-				p.logger.Info("Dispatching callbacks with unmapped URL", slog.String("url", url), slog.Int("callbacks", len(callbacks)))
-
-				for _, c := range callbacks {
-					callbackEntry := &CallbackEntry{
-						Token:      c.Token,
-						Data:       toCallback(c),
-						AllowBatch: c.AllowBatch,
-					}
-
-					p.dispatcher.Dispatch(c.URL, callbackEntry)
-				}
 			}
 		}
 	}()
@@ -278,23 +256,6 @@ func (p *Processor) startSyncURLMapping() {
 			}
 		}
 	}()
-}
-
-func toCallback(dto *store.CallbackData) *Callback {
-	d := &Callback{
-		Timestamp: dto.Timestamp,
-
-		CompetingTxs: dto.CompetingTxs,
-		TxID:         dto.TxID,
-		TxStatus:     dto.TxStatus,
-		ExtraInfo:    dto.ExtraInfo,
-		MerklePath:   dto.MerklePath,
-
-		BlockHash:   dto.BlockHash,
-		BlockHeight: dto.BlockHeight,
-	}
-
-	return d
 }
 
 func (p *Processor) GracefulStop() {

@@ -565,6 +565,9 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, d.Select(&bts, "SELECT block_id FROM blocktx.block_transactions"))
 
 		require.Len(t, bts, 5)
+
+		_, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "not_existing_table")
+		require.ErrorIs(t, err, store.ErrUnableToPrepareStatement)
 	})
 
 	t.Run("set block processing", func(t *testing.T) {

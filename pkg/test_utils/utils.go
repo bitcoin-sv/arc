@@ -93,9 +93,7 @@ func PruneTables(t testing.TB, db *sql.DB, tables ...string) {
 
 	for _, tab := range tables {
 		_, err := db.Exec("TRUNCATE TABLE " + tab + ";")
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	}
 }
 

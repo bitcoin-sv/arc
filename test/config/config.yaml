@@ -7,6 +7,7 @@ prometheus:
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
+network: regtest
 messageQueue:
   streaming:
     enabled: true
@@ -17,8 +18,8 @@ reBroadcastExpiration: 24h
 
 tracing:
   enabled: false
-  sample: 100
   dialAddr: http://jaeger:4317
+  sample: 100
 
 peerRpc:
   password: bitcoin
@@ -158,7 +159,7 @@ api:
 callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
-  pause: 10ms
+  pause: 1s
   batchSendInterval: 5s
   pruneOlderThan: 336h
   pruneInterval: 24h

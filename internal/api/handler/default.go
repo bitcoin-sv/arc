@@ -123,19 +123,23 @@ func NewDefault(
 ) (*ArcDefaultHandler, error) {
 	mr := merkle_verifier.New(merkleRootsVerifier)
 
-	maxscriptsizepolicy, err := safecast.ToUint64(policy.MaxScriptSizePolicy)
-	if err != nil {
-		return nil, err
-	}
+	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
+	var err error
+	if policy != nil {
+		maxscriptsizepolicy, err = safecast.ToUint64(policy.MaxScriptSizePolicy)
+		if err != nil {
+			return nil, err
+		}
 
-	maxTxSigopsCountsPolicy, err := safecast.ToUint64(policy.MaxTxSigopsCountsPolicy)
-	if err != nil {
-		return nil, err
-	}
+		maxTxSigopsCountsPolicy, err = safecast.ToUint64(policy.MaxTxSigopsCountsPolicy)
+		if err != nil {
+			return nil, err
+		}
 
-	maxTxSizePolicy, err := safecast.ToUint64(policy.MaxTxSizePolicy)
-	if err != nil {
-		return nil, err
+		maxTxSizePolicy, err = safecast.ToUint64(policy.MaxTxSizePolicy)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	handler := &ArcDefaultHandler{

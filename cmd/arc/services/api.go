@@ -291,6 +291,13 @@ func extendRequestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerCon
 		LogMethod: true,
 		LogError:  true,
 		LogHeaders: []string{
+			"X-CallbackUrl",
+			"X-CallbackToken",
+			"X-CallbackBatch",
+			"X-SkipFeeValidation",
+			"X-SkipScriptValidation",
+			"X-SkipTxValidation",
+			"X-ForceValidation",
 			"X-FullStatusUpdates",
 			"X-MaxTimeout",
 			"X-WaitFor",

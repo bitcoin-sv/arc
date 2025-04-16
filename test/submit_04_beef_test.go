@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	safe "github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
@@ -190,7 +191,9 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 
 	for i, txid := range txs {
 		if txid == txID {
-			txIndex = uint64(i)
+			ind, err := safe.ToUint64(i)
+			require.NoError(t, err)
+			txIndex = ind
 		}
 		h, err := chainhash.NewHashFromStr(txid)
 		require.NoError(t, err)

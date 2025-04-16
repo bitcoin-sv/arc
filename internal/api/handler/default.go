@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/ccoveille/go-safecast"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -44,8 +45,11 @@ var (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler metamorph.TransactionHandler
-	NodePolicy         *bitcoin.Settings
+	TransactionHandler      metamorph.TransactionHandler
+	NodePolicy              *bitcoin.Settings
+	maxTxSizePolicy         uint64
+	maxTxSigopsCountsPolicy uint64
+	maxscriptsizepolicy     uint64
 
 	logger                        *slog.Logger
 	now                           func() time.Time
@@ -119,15 +123,37 @@ func NewDefault(
 ) (*ArcDefaultHandler, error) {
 	mr := merkle_verifier.New(merkleRootsVerifier)
 
+	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
+	var err error
+	if policy != nil {
+		maxscriptsizepolicy, err = safecast.ToUint64(policy.MaxScriptSizePolicy)
+		if err != nil {
+			return nil, err
+		}
+
+		maxTxSigopsCountsPolicy, err = safecast.ToUint64(policy.MaxTxSigopsCountsPolicy)
+		if err != nil {
+			return nil, err
+		}
+
+		maxTxSizePolicy, err = safecast.ToUint64(policy.MaxTxSizePolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	handler := &ArcDefaultHandler{
-		TransactionHandler: transactionHandler,
-		NodePolicy:         policy,
-		logger:             logger,
-		now:                time.Now,
-		mrVerifier:         mr,
-		txFinder:           cachedFinder,
-		mapExpiryTime:      mapExpiryTimeDefault,
-		defaultTimeout:     timeoutSecondsDefault * time.Second,
+		TransactionHandler:      transactionHandler,
+		NodePolicy:              policy,
+		logger:                  logger,
+		now:                     time.Now,
+		mrVerifier:              mr,
+		txFinder:                cachedFinder,
+		mapExpiryTime:           mapExpiryTimeDefault,
+		defaultTimeout:          timeoutSecondsDefault * time.Second,
+		maxTxSizePolicy:         maxTxSizePolicy,
+		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
+		maxscriptsizepolicy:     maxscriptsizepolicy,
 	}
 
 	// apply options
@@ -147,10 +173,11 @@ func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
+
 		Policy: api.Policy{
-			Maxscriptsizepolicy:     uint64(m.NodePolicy.MaxScriptSizePolicy),
-			Maxtxsigopscountspolicy: uint64(m.NodePolicy.MaxTxSigopsCountsPolicy),
-			Maxtxsizepolicy:         uint64(m.NodePolicy.MaxTxSizePolicy),
+			Maxscriptsizepolicy:     m.maxscriptsizepolicy,
+			Maxtxsigopscountspolicy: m.maxTxSigopsCountsPolicy,
+			Maxtxsizepolicy:         m.maxTxSizePolicy,
 			MiningFee: api.FeeAmount{
 				Bytes:    bytes,
 				Satoshis: satoshis,

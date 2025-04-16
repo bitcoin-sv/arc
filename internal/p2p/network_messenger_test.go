@@ -4,8 +4,10 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -136,7 +138,9 @@ func Test_AnnounceTransactions(t *testing.T) {
 			// then
 			require.Len(t, peers, 1)
 			require.Equal(t, peer.String(), peers[0].String())
-			require.Len(t, peer.WriteMsgCalls(), int(tc.expecedNumOfMsg))
+			enom, err := safecast.ToInt(tc.expecedNumOfMsg)
+			assert.NoError(t, err)
+			require.Len(t, peer.WriteMsgCalls(), enom)
 		})
 	}
 }
@@ -246,7 +250,9 @@ func Test_RequestTransactions(t *testing.T) {
 
 			// then
 			require.NotNil(t, sentPeer)
-			require.Len(t, peer.WriteMsgCalls(), int(tc.expecedNumOfMsg))
+			enom, err := safecast.ToInt(tc.expecedNumOfMsg)
+			assert.NoError(t, err)
+			require.Len(t, peer.WriteMsgCalls(), enom)
 		})
 	}
 }

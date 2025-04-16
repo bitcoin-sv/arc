@@ -7,6 +7,7 @@ import (
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	"github.com/ccoveille/go-safecast"
 	"github.com/ordishs/go-bitcoin"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
@@ -28,8 +29,6 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *Valida
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
-	feeModel := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
-
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 		if btx.IsMined() {
@@ -43,7 +42,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, 
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			if err := standardCheckFees(tx, beefTx, feeModel); err != nil {
+			if err := standardCheckFees(tx, beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 				return tx, err
 			}
 		}
@@ -56,7 +55,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, 
 	}
 
 	if feeValidation == validator.CumulativeFeeValidation {
-		if err := cumulativeCheckFees(beefTx, feeModel); err != nil {
+		if err := cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return beefTx.GetLatestTx(), err
 		}
 	}
@@ -244,7 +243,11 @@ func findParentForInput(input *sdkTx.TransactionInput, parentTxs []*beef.TxData)
 }
 
 func existsInBumps(tx *beef.TxData, bumps []*sdkTx.MerklePath) bool {
-	bumpIdx := int(*tx.BumpIndex)
+	i, err := safecast.ToInt(uint64(*tx.BumpIndex))
+	if err != nil {
+		return false
+	}
+	bumpIdx := i
 	txID := tx.GetTxID()
 
 	if len(bumps) > bumpIdx {

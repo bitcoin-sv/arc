@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 
@@ -622,8 +623,8 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 		name   string
 		txReqs []*metamorph_api.PostTransactionRequest
 
-		expectedSetBulkCalls  int
-		expectedAnnounceCalls int
+		expectedSetBulkCalls  int32
+		expectedAnnounceCalls int32
 		expcetedUpdates       int
 	}{
 		{
@@ -707,7 +708,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			messenger := &mocks.MediatorMock{
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {
 					announceMsgCounter.Add(1)
-					if announceMsgCounter.Load() >= int32(tc.expectedAnnounceCalls) {
+					if announceMsgCounter.Load() >= tc.expectedAnnounceCalls {
 						stopCh <- struct{}{}
 					}
 				},
@@ -741,8 +742,11 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			}
 
 			// then
-			assert.Equal(t, tc.expectedSetBulkCalls, len(s.SetBulkCalls()))
-			assert.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
+			l, err := safecast.ToInt32(len(s.SetBulkCalls()))
+			assert.NoError(t, err)
+
+			assert.Equal(t, tc.expectedSetBulkCalls, l)
+			assert.Equal(t, tc.expectedAnnounceCalls, announceMsgCounter.Load())
 		})
 	}
 }

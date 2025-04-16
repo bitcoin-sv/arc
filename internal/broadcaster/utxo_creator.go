@@ -14,6 +14,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/ccoveille/go-safecast"
 )
 
 var (
@@ -88,7 +89,12 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			}
 		}
 		// if requested outputs satisfied, return
-		if uint64(utxoSet.Len()) >= requestedOutputs {
+		utxoLen, err := safecast.ToUint64(utxoSet.Len())
+		if err != nil {
+			b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
+			return
+		}
+		if utxoLen >= requestedOutputs {
 			b.logger.Info("utxo set", slog.Int("ready", utxoSet.Len()), slog.Uint64("requested", requestedOutputs), slog.Uint64("satoshis", requestedSatoshisPerOutput))
 			return
 		}
@@ -105,7 +111,12 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 			lastUtxoSetLen = utxoSet.Len()
 			// if requested outputs satisfied, return
 
-			if uint64(utxoSet.Len()) >= requestedOutputs {
+			utxoLen, err := safecast.ToUint64(utxoSet.Len())
+			if err != nil {
+				b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
+				return
+			}
+			if utxoLen >= requestedOutputs {
 				break
 			}
 
@@ -182,8 +193,10 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
 	txsSplitBatches := make([]sdkTx.Transactions, 0)
 	txsSplit := make(sdkTx.Transactions, 0)
-	outputs := uint64(utxoSet.Len())
-	var err error
+	outputs, err := safecast.ToUint64(utxoSet.Len())
+	if err != nil {
+		return nil, err
+	}
 
 	var next *list.Element
 	for front := utxoSet.Front(); front != nil; front = next {
@@ -220,7 +233,11 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPer
 
 		txOutputs := make([]splittingOutput, len(tx.Outputs))
 		for i, txOutput := range tx.Outputs {
-			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: uint32(i)}
+			voutUint32, err := safecast.ToUint32(i)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert int to uint32: %w", err)
+			}
+			txOutputs[i] = splittingOutput{satoshis: txOutput.Satoshis, vout: voutUint32}
 		}
 
 		satoshiMap[tx.TxID().String()] = txOutputs
@@ -246,9 +263,9 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 	var err error
 	var fee uint64
 
-	remaining := int64(splitSatoshis)
+	remaining := splitSatoshis
 
-	for remaining > int64(requestedSatoshis) && counter < requestedOutputs {
+	for remaining > requestedSatoshis && counter < requestedOutputs {
 		fee, err = ComputeFee(tx, b.feeModel)
 		if err != nil {
 			return 0, err
@@ -262,7 +279,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 			return 0, errors.Join(ErrFailedToAddOutput, err)
 		}
 
-		remaining -= int64(requestedSatoshis)
+		remaining -= requestedSatoshis
 		counter++
 	}
 

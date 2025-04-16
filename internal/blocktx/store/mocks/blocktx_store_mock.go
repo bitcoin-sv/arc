@@ -82,7 +82,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			UpsertBlockFunc: func(ctx context.Context, block *blocktx_api.Block) (uint64, error) {
 //				panic("mock out the UpsertBlock method")
 //			},
-//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error) {
+//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error) {
 //				panic("mock out the VerifyMerkleRoots method")
 //			},
 //		}
@@ -153,7 +153,7 @@ type BlocktxStoreMock struct {
 	UpsertBlockFunc func(ctx context.Context, block *blocktx_api.Block) (uint64, error)
 
 	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
-	VerifyMerkleRootsFunc func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
+	VerifyMerkleRootsFunc func(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -308,7 +308,7 @@ type BlocktxStoreMock struct {
 			// MerkleRoots is the merkleRoots argument value.
 			MerkleRoots []*blocktx_api.MerkleRootVerificationRequest
 			// MaxAllowedBlockHeightMismatch is the maxAllowedBlockHeightMismatch argument value.
-			MaxAllowedBlockHeightMismatch int
+			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
 	lockClearBlocktxTable                 sync.RWMutex
@@ -1062,14 +1062,14 @@ func (mock *BlocktxStoreMock) UpsertBlockCalls() []struct {
 }
 
 // VerifyMerkleRoots calls VerifyMerkleRootsFunc.
-func (mock *BlocktxStoreMock) VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error) {
+func (mock *BlocktxStoreMock) VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	if mock.VerifyMerkleRootsFunc == nil {
 		panic("BlocktxStoreMock.VerifyMerkleRootsFunc: method is nil but BlocktxStore.VerifyMerkleRoots was just called")
 	}
 	callInfo := struct {
 		Ctx                           context.Context
 		MerkleRoots                   []*blocktx_api.MerkleRootVerificationRequest
-		MaxAllowedBlockHeightMismatch int
+		MaxAllowedBlockHeightMismatch uint64
 	}{
 		Ctx:                           ctx,
 		MerkleRoots:                   merkleRoots,
@@ -1088,12 +1088,12 @@ func (mock *BlocktxStoreMock) VerifyMerkleRoots(ctx context.Context, merkleRoots
 func (mock *BlocktxStoreMock) VerifyMerkleRootsCalls() []struct {
 	Ctx                           context.Context
 	MerkleRoots                   []*blocktx_api.MerkleRootVerificationRequest
-	MaxAllowedBlockHeightMismatch int
+	MaxAllowedBlockHeightMismatch uint64
 } {
 	var calls []struct {
 		Ctx                           context.Context
 		MerkleRoots                   []*blocktx_api.MerkleRootVerificationRequest
-		MaxAllowedBlockHeightMismatch int
+		MaxAllowedBlockHeightMismatch uint64
 	}
 	mock.lockVerifyMerkleRoots.RLock()
 	calls = mock.calls.VerifyMerkleRoots

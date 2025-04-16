@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/util"
+	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
@@ -145,10 +146,16 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		status = s.mq.Status()
 	}
 
+	processorMapSizeInt32, err := safecast.ToInt32(processorMapSize)
+	if err != nil {
+		s.logger.Error("failed to convert processor map size to int32", slog.String("err", err.Error()))
+		return nil, err
+	}
+
 	return &metamorph_api.HealthResponse{
 		Nats:              status,
 		Timestamp:         timestamppb.New(time.Now()),
-		MapSize:           int32(processorMapSize),
+		MapSize:           processorMapSizeInt32,
 		PeersConnected:    strings.Join(peersConnected, ","),
 		PeersDisconnected: strings.Join(peersDisconnected, ","),
 	}, nil

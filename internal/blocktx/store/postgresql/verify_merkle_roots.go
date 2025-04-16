@@ -14,7 +14,7 @@ import (
 func (p *PostgreSQL) VerifyMerkleRoots(
 	_ context.Context,
 	merkleRoots []*blocktx_api.MerkleRootVerificationRequest,
-	maxAllowedBlockHeightMismatch int,
+	maxAllowedBlockHeightMismatch uint64,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	qTopHeight := `
 		SELECT MAX(b.height), MIN(b.height) FROM blocktx.blocks b WHERE b.is_longest = true AND b.processed_at IS NOT NULL
@@ -71,6 +71,6 @@ func isOlderThanLowestHeight(blockHeight, lowestHeight uint64) bool {
 	return blockHeight < lowestHeight
 }
 
-func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch int) bool {
-	return blockHeight > topHeight && blockHeight-topHeight <= uint64(maxMismatch)
+func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch uint64) bool {
+	return blockHeight > topHeight && blockHeight-topHeight <= maxMismatch
 }

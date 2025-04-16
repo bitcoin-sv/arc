@@ -113,7 +113,7 @@ type BlocktxConfig struct {
 	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
 	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
 	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
-	MaxAllowedBlockHeightMismatch int                                `mapstructure:"maxAllowedBlockHeightMismatch"`
+	MaxAllowedBlockHeightMismatch uint64                             `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig                `mapstructure:"mq"`
 	P2pReadBufferSize             int                                `mapstructure:"p2pReadBufferSize"`
 	IncomingIsLongest             bool                               `mapstructure:"incomingIsLongest"`

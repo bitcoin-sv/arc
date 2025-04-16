@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
@@ -390,8 +391,10 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		if bh.Valid {
 			c.BlockHash = &bh.String
 		}
+		bheightUint64, err := safecast.ToUint64(bheight.Int64)
+		require.NoError(t, err)
 		if bheight.Valid {
-			c.BlockHeight = ptrTo(uint64(bheight.Int64))
+			c.BlockHeight = ptrTo(bheightUint64)
 		}
 		if competingTxs.Valid {
 			c.CompetingTxs = strings.Split(competingTxs.String, ",")

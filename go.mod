@@ -6,6 +6,7 @@ require (
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
 	github.com/bsv-blockchain/go-sdk v1.1.22
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
+	github.com/ccoveille/go-safecast v1.6.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/enescakir/emoji v1.0.0

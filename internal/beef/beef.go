@@ -147,9 +147,9 @@ func decodeTransactionsWithPathIndexes(beefBytes []byte) ([]*TxData, []byte, err
 
 	beefBytes = beefBytes[bytesUsed:]
 
-	transactions := make([]*TxData, 0, int(nTransactions))
+	transactions := make([]*TxData, 0, nTransactions)
 
-	for i := 0; i < int(nTransactions); i++ {
+	for i := uint64(0); i < uint64(nTransactions); i++ {
 		tx, bytesUsed, err := sdkTx.NewTransactionFromStream(beefBytes)
 		if err != nil {
 			return nil, nil, err

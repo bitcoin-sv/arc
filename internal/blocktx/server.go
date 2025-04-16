@@ -33,13 +33,13 @@ type Server struct {
 	logger                        *slog.Logger
 	pm                            PeerManager
 	store                         store.BlocktxStore
-	maxAllowedBlockHeightMismatch int
+	maxAllowedBlockHeightMismatch uint64
 	processor                     ProcessorI
 	mqClient                      mq.MessageQueueClient
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch int, mqClient mq.MessageQueueClient) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch uint64, mqClient mq.MessageQueueClient) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)

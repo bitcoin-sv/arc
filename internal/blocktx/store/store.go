@@ -51,7 +51,7 @@ type BlocktxStore interface {
 	GetStats(ctx context.Context) (*Stats, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
-	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch int) (*blocktx_api.MerkleRootVerificationResponse, error)
+	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	Ping(ctx context.Context) error
 	Close() error

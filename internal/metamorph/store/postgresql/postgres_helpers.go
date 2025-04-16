@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
@@ -100,8 +101,12 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 			data.Status = metamorph_api.Status(status.Int32)
 		}
 
+		blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
+		if err != nil {
+			return nil, err
+		}
 		if blockHeight.Valid {
-			data.BlockHeight = uint64(blockHeight.Int64)
+			data.BlockHeight = blockHeightUint64
 		}
 
 		if len(callbacksData) > 0 {

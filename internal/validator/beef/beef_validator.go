@@ -29,11 +29,6 @@ func New(policy *bitcoin.Settings, mrVerifier validator.MerkleVerifierI) *Valida
 }
 
 func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
-	feeModel, err := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 		if btx.IsMined() {
@@ -47,7 +42,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, 
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			if err := standardCheckFees(tx, beefTx, feeModel); err != nil {
+			if err := standardCheckFees(tx, beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 				return tx, err
 			}
 		}
@@ -60,7 +55,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, 
 	}
 
 	if feeValidation == validator.CumulativeFeeValidation {
-		if err := cumulativeCheckFees(beefTx, feeModel); err != nil {
+		if err := cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
 			return beefTx.GetLatestTx(), err
 		}
 	}

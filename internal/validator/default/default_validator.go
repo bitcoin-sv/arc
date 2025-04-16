@@ -66,8 +66,9 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		if err != nil {
 			return err
 		}
-		if err = checkStandardFees(tx, f); err != nil {
-			return err
+		e := checkStandardFees(tx, f)
+		if e.Err != nil {
+			return e.Err
 		}
 	case validator.CumulativeFeeValidation:
 		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)

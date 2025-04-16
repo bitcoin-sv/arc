@@ -5,11 +5,11 @@ import (
 	"github.com/ccoveille/go-safecast"
 )
 
-func FeesToFeeModel(minMiningFee float64) *feemodel.SatoshisPerKilobyte {
+func FeesToFeeModel(minMiningFee float64) (*feemodel.SatoshisPerKilobyte, error) {
 	satoshisPerKB := int(minMiningFee * 1e8)
 	satoshisPerKBuint64, err := safecast.ToUint64(satoshisPerKB)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return &feemodel.SatoshisPerKilobyte{Satoshis: satoshisPerKBuint64}
+	return &feemodel.SatoshisPerKilobyte{Satoshis: satoshisPerKBuint64}, nil
 }

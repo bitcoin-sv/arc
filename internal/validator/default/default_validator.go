@@ -62,7 +62,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
+		f, err := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
+		if err != nil {
+			return err
+		}
+		if err = checkStandardFees(tx, f); err != nil {
 			return err
 		}
 	case validator.CumulativeFeeValidation:
@@ -71,7 +75,11 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
 			return validator.NewError(e, api.ErrStatusCumulativeFees)
 		}
-		vErr := checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...)
+		f, err := internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)
+		if err != nil {
+			return err
+		}
+		vErr := checkCumulativeFees(ctx, txSet, tx, f, tracingEnabled, tracingAttributes...)
 		if vErr != nil {
 			return vErr
 		}

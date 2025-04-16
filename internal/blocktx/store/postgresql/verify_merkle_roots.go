@@ -9,13 +9,12 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bsv-blockchain/go-sdk/util"
-	"github.com/ccoveille/go-safecast"
 )
 
 func (p *PostgreSQL) VerifyMerkleRoots(
 	_ context.Context,
 	merkleRoots []*blocktx_api.MerkleRootVerificationRequest,
-	maxAllowedBlockHeightMismatch int,
+	maxAllowedBlockHeightMismatch uint64,
 ) (*blocktx_api.MerkleRootVerificationResponse, error) {
 	qTopHeight := `
 		SELECT MAX(b.height), MIN(b.height) FROM blocktx.blocks b WHERE b.is_longest = true AND b.processed_at IS NOT NULL
@@ -72,10 +71,6 @@ func isOlderThanLowestHeight(blockHeight, lowestHeight uint64) bool {
 	return blockHeight < lowestHeight
 }
 
-func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch int) bool {
-	mmismatch, err := safecast.ToUint64(maxMismatch)
-	if err != nil {
-		return false
-	}
-	return blockHeight > topHeight && blockHeight-topHeight <= mmismatch
+func isWithinAllowedMismatch(blockHeight, topHeight uint64, maxMismatch uint64) bool {
+	return blockHeight > topHeight && blockHeight-topHeight <= maxMismatch
 }

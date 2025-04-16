@@ -392,9 +392,7 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			c.BlockHash = &bh.String
 		}
 		bheightUint64, err := safecast.ToUint64(bheight.Int64)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		if bheight.Valid {
 			c.BlockHeight = ptrTo(bheightUint64)
 		}

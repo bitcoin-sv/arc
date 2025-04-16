@@ -263,16 +263,9 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 	var err error
 	var fee uint64
 
-	remaining, err := safecast.ToInt64(splitSatoshis)
-	if err != nil {
-		return 0, err
-	}
+	remaining := splitSatoshis
 
-	requestedSatoshisUint64, err := safecast.ToInt64(requestedSatoshis)
-	if err != nil {
-		return 0, err
-	}
-	for remaining > requestedSatoshisUint64 && counter < requestedOutputs {
+	for remaining > requestedSatoshis && counter < requestedOutputs {
 		fee, err = ComputeFee(tx, b.feeModel)
 		if err != nil {
 			return 0, err
@@ -290,7 +283,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 			return 0, errors.Join(ErrFailedToAddOutput, err)
 		}
 
-		remaining -= requestedSatoshisUint64
+		remaining -= requestedSatoshis
 		counter++
 	}
 

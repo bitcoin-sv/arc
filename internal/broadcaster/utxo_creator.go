@@ -270,11 +270,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		if err != nil {
 			return 0, err
 		}
-		remainingUint64, err := safecast.ToUint64(remaining)
-		if err != nil {
-			return 0, err
-		}
-		if remainingUint64-requestedSatoshis < fee {
+		if remaining < requestedSatoshis || remaining-requestedSatoshis < fee {
 			break
 		}
 
@@ -292,11 +288,7 @@ func (b *UTXOCreator) splitToFundingKeyset(tx *sdkTx.Transaction, splitSatoshis,
 		return 0, err
 	}
 
-	remainingUint64, err := safecast.ToUint64(remaining)
-	if err != nil {
-		return 0, err
-	}
-	err = PayTo(tx, fundingKeySet.Script, remainingUint64-fee)
+	err = PayTo(tx, fundingKeySet.Script, remaining-fee)
 	if err != nil {
 		return 0, errors.Join(ErrFailedToAddOutput, err)
 	}

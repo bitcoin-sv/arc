@@ -83,7 +83,7 @@ func TestNewProcessor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.messenger, nil,
-				metamorph.WithCacheExpiryTime(time.Second*5),
+				metamorph.WithRebroadcastUnseenExpiration(time.Second*5),
 				metamorph.WithProcessorLogger(slog.Default()),
 			)
 
@@ -236,7 +236,7 @@ func TestProcessTransaction(t *testing.T) {
 
 					return nil
 				},
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -794,7 +794,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -856,7 +856,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithRebroadcastUnseenTxsInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -865,7 +865,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when
-			sut.StartProcessExpiredTransactions()
+			sut.StartRebroadcastUnseenTxs()
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -1019,7 +1019,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenOnNetworkFunc: func(_ context.Context, _ time.Time, _ time.Time, limit int64, _ int64) ([]*store.Data, error) {
+				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
 					require.Equal(t, int64(5000), limit)
 
 					if tc.getSeenErr != nil {
@@ -1060,14 +1060,15 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(500*time.Millisecond),
+				metamorph.WithRebroadcastSeenTxsInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartRequestingSeenOnNetworkTxs()
+			sut.StartRebroadcastSeenTxs()
+
 			select {
 			case <-stop:
 				t.Log("received stop signal")
@@ -1077,7 +1078,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
 			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
 			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
 		})
@@ -1111,7 +1112,7 @@ func TestProcessorHealth(t *testing.T) {
 					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -1144,7 +1145,7 @@ func TestProcessorHealth(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
-				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithRebroadcastUnseenTxsInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}),

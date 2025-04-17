@@ -40,14 +40,14 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
 //				panic("mock out the GetRawTxs method")
 //			},
-//			GetSeenOnNetworkFunc: func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error) {
-//				panic("mock out the GetSeenOnNetwork method")
+//			GetSeenFunc: func(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+//				panic("mock out the GetSeen method")
 //			},
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
-//			GetUnminedFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
-//				panic("mock out the GetUnmined method")
+//			GetUnseenFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
+//				panic("mock out the GetUnseen method")
 //			},
 //			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the IncrementRetries method")
@@ -107,14 +107,14 @@ type MetamorphStoreMock struct {
 	// GetRawTxsFunc mocks the GetRawTxs method.
 	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
-	// GetSeenOnNetworkFunc mocks the GetSeenOnNetwork method.
-	GetSeenOnNetworkFunc func(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error)
+	// GetSeenFunc mocks the GetSeen method.
+	GetSeenFunc func(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
 
-	// GetUnminedFunc mocks the GetUnmined method.
-	GetUnminedFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error)
+	// GetUnseenFunc mocks the GetUnseen method.
+	GetUnseenFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error)
 
 	// IncrementRetriesFunc mocks the IncrementRetries method.
 	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
@@ -191,14 +191,14 @@ type MetamorphStoreMock struct {
 			// Hashes is the hashes argument value.
 			Hashes [][]byte
 		}
-		// GetSeenOnNetwork holds details about calls to the GetSeenOnNetwork method.
-		GetSeenOnNetwork []struct {
+		// GetSeen holds details about calls to the GetSeen method.
+		GetSeen []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Since is the since argument value.
-			Since time.Time
-			// Until is the until argument value.
-			Until time.Time
+			// fromAgo is the fromAgo argument value.
+			FromAgo time.Duration
+			// SinceLastMined is the sinceLastMined argument value.
+			SinceLastMined time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -215,8 +215,8 @@ type MetamorphStoreMock struct {
 			// NotMinedLimit is the notMinedLimit argument value.
 			NotMinedLimit time.Duration
 		}
-		// GetUnmined holds details about calls to the GetUnmined method.
-		GetUnmined []struct {
+		// GetUnseen holds details about calls to the GetUnseen method.
+		GetUnseen []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Since is the since argument value.
@@ -310,9 +310,9 @@ type MetamorphStoreMock struct {
 	lockGet                     sync.RWMutex
 	lockGetMany                 sync.RWMutex
 	lockGetRawTxs               sync.RWMutex
-	lockGetSeenOnNetwork        sync.RWMutex
+	lockGetSeen                 sync.RWMutex
 	lockGetStats                sync.RWMutex
-	lockGetUnmined              sync.RWMutex
+	lockGetUnseen               sync.RWMutex
 	lockIncrementRetries        sync.RWMutex
 	lockPing                    sync.RWMutex
 	lockSet                     sync.RWMutex
@@ -538,51 +538,51 @@ func (mock *MetamorphStoreMock) GetRawTxsCalls() []struct {
 	return calls
 }
 
-// GetSeenOnNetwork calls GetSeenOnNetworkFunc.
-func (mock *MetamorphStoreMock) GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*store.Data, error) {
-	if mock.GetSeenOnNetworkFunc == nil {
-		panic("MetamorphStoreMock.GetSeenOnNetworkFunc: method is nil but MetamorphStore.GetSeenOnNetwork was just called")
+// GetSeen calls GetSeenFunc.
+func (mock *MetamorphStoreMock) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+	if mock.GetSeenFunc == nil {
+		panic("MetamorphStoreMock.GetSeenFunc: method is nil but MetamorphStore.GetSeen was just called")
 	}
 	callInfo := struct {
-		Ctx    context.Context
-		Since  time.Time
-		Until  time.Time
-		Limit  int64
-		Offset int64
+		Ctx            context.Context
+		FromAgo        time.Duration
+		SinceLastMined time.Duration
+		Limit          int64
+		Offset         int64
 	}{
-		Ctx:    ctx,
-		Since:  since,
-		Until:  until,
-		Limit:  limit,
-		Offset: offset,
+		Ctx:            ctx,
+		FromAgo:        fromAgo,
+		SinceLastMined: sinceLastMined,
+		Limit:          limit,
+		Offset:         offset,
 	}
-	mock.lockGetSeenOnNetwork.Lock()
-	mock.calls.GetSeenOnNetwork = append(mock.calls.GetSeenOnNetwork, callInfo)
-	mock.lockGetSeenOnNetwork.Unlock()
-	return mock.GetSeenOnNetworkFunc(ctx, since, until, limit, offset)
+	mock.lockGetSeen.Lock()
+	mock.calls.GetSeen = append(mock.calls.GetSeen, callInfo)
+	mock.lockGetSeen.Unlock()
+	return mock.GetSeenFunc(ctx, fromAgo, sinceLastMined, limit, offset)
 }
 
-// GetSeenOnNetworkCalls gets all the calls that were made to GetSeenOnNetwork.
+// GetSeenCalls gets all the calls that were made to GetSeen.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.GetSeenOnNetworkCalls())
-func (mock *MetamorphStoreMock) GetSeenOnNetworkCalls() []struct {
-	Ctx    context.Context
-	Since  time.Time
-	Until  time.Time
-	Limit  int64
-	Offset int64
+//	len(mockedMetamorphStore.GetSeenCalls())
+func (mock *MetamorphStoreMock) GetSeenCalls() []struct {
+	Ctx            context.Context
+	FromAgo        time.Duration
+	SinceLastMined time.Duration
+	Limit          int64
+	Offset         int64
 } {
 	var calls []struct {
-		Ctx    context.Context
-		Since  time.Time
-		Until  time.Time
-		Limit  int64
-		Offset int64
+		Ctx            context.Context
+		FromAgo        time.Duration
+		SinceLastMined time.Duration
+		Limit          int64
+		Offset         int64
 	}
-	mock.lockGetSeenOnNetwork.RLock()
-	calls = mock.calls.GetSeenOnNetwork
-	mock.lockGetSeenOnNetwork.RUnlock()
+	mock.lockGetSeen.RLock()
+	calls = mock.calls.GetSeen
+	mock.lockGetSeen.RUnlock()
 	return calls
 }
 
@@ -630,10 +630,10 @@ func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
 	return calls
 }
 
-// GetUnmined calls GetUnminedFunc.
-func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
-	if mock.GetUnminedFunc == nil {
-		panic("MetamorphStoreMock.GetUnminedFunc: method is nil but MetamorphStore.GetUnmined was just called")
+// GetUnseen calls GetUnseenFunc.
+func (mock *MetamorphStoreMock) GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
+	if mock.GetUnseenFunc == nil {
+		panic("MetamorphStoreMock.GetUnseenFunc: method is nil but MetamorphStore.GetUnseen was just called")
 	}
 	callInfo := struct {
 		Ctx    context.Context
@@ -646,17 +646,17 @@ func (mock *MetamorphStoreMock) GetUnmined(ctx context.Context, since time.Time,
 		Limit:  limit,
 		Offset: offset,
 	}
-	mock.lockGetUnmined.Lock()
-	mock.calls.GetUnmined = append(mock.calls.GetUnmined, callInfo)
-	mock.lockGetUnmined.Unlock()
-	return mock.GetUnminedFunc(ctx, since, limit, offset)
+	mock.lockGetUnseen.Lock()
+	mock.calls.GetUnseen = append(mock.calls.GetUnseen, callInfo)
+	mock.lockGetUnseen.Unlock()
+	return mock.GetUnseenFunc(ctx, since, limit, offset)
 }
 
-// GetUnminedCalls gets all the calls that were made to GetUnmined.
+// GetUnseenCalls gets all the calls that were made to GetUnseen.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.GetUnminedCalls())
-func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
+//	len(mockedMetamorphStore.GetUnseenCalls())
+func (mock *MetamorphStoreMock) GetUnseenCalls() []struct {
 	Ctx    context.Context
 	Since  time.Time
 	Limit  int64
@@ -668,9 +668,9 @@ func (mock *MetamorphStoreMock) GetUnminedCalls() []struct {
 		Limit  int64
 		Offset int64
 	}
-	mock.lockGetUnmined.RLock()
-	calls = mock.calls.GetUnmined
-	mock.lockGetUnmined.RUnlock()
+	mock.lockGetUnseen.RLock()
+	calls = mock.calls.GetUnseen
+	mock.lockGetUnseen.RUnlock()
 	return calls
 }
 

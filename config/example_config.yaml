@@ -50,13 +50,13 @@ metamorph:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
-  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
-  unseenTransactionRebroadcastingInterval: 60s # time interval in which unseen transactions are re-broadcasted
+  rebroadcastUnseenExpiration: 24h # time after which processor cache is cleaned
+  rebroadcastUnseenInterval: 60s # time interval in which unseen transactions are re-broadcasted
   maxRetries: 1000 # maximum number of times a transaction is re-broadcasted
   processStatusUpdateInterval: 5s # interval of processing status updates
-  recheckSeen: # re-check SEEN_ON_NETWORK transactions that have been last submitted inside a moving time window in the past whether they were mined
-    fromAgo: 24h # start of moving time window
-    untilAgo: 1h # end of moving time window
+  rebroadcastSeen: # re-broadcast SEEN_ON_NETWORK transactions
+    fromAgo: 24h # time since now when seen transactions should be re-broadcasted
+    beforeLastMined: 1h # time until the last transaction was marked as mined when seen transactions should be re-broadcasted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy
@@ -140,7 +140,7 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
   wocMainnet: false # query main or test net on www.whatsonchain.com
   requestExtendedLogs: true # if true, the logs will include request methods & headers
-  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
+  rebroadcastUnseenExpiration: 24h # time after which processor cache is cleaned
   defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

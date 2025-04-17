@@ -262,14 +262,14 @@ func TestPostgresDB(t *testing.T) {
 		// locked by metamorph-1
 		expectedHash0 := testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
 		// offset 0
-		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
+		records, err := postgresDB.GetUnseen(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash0, records[0].Hash)
 
 		// locked by metamorph-1
 		expectedHash1 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
 		// offset 1
-		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
+		records, err = postgresDB.GetUnseen(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash1, records[0].Hash)
 	})
@@ -997,14 +997,14 @@ func TestPostgresDB(t *testing.T) {
 		txHash := testutils.RevChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
 		require.NoError(t, err)
 
-		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
+		records, err := postgresDB.GetSeen(ctx, 1*time.Hour, 3*time.Hour, 2, 0)
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(records))
 		require.Equal(t, txHash, records[0].Hash)
 		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
 
-		records, err = postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 100)
+		records, err = postgresDB.GetSeen(ctx, 1*time.Hour, 3*time.Hour, 2, 100)
 		require.NoError(t, err)
 		require.Equal(t, 0, len(records))
 	})

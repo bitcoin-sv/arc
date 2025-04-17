@@ -19,21 +19,21 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithRecheckSeenFromAgo(d time.Duration) func(*Processor) {
+func WithRebroadcastSeenFromAgo(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.recheckSeenFromAgo = d
+		p.rebroadcastSeenFromAgo = d
 	}
 }
 
-func WithRecheckSeenUntilAgo(d time.Duration) func(*Processor) {
+func WithRebroadcastSeenBeforeLastMined(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.recheckSeenUntilAgo = d
+		p.rebroadcastSeenBeforeLastMined = d
 	}
 }
 
-func WithCacheExpiryTime(d time.Duration) func(*Processor) {
+func WithRebroadcastUnseenExpiration(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.mapExpiryTime = d
+		p.rebroadcastUnseenExpiration = d
 	}
 }
 
@@ -49,9 +49,9 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 	}
 }
 
-func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
+func WithRebroadcastUnseenTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processExpiredTxsInterval = d
+		p.rebroadcastUnseenTxsInterval = d
 	}
 }
 
@@ -158,9 +158,9 @@ func WithBlocktxClient(client blocktx.Client) func(*Processor) {
 	}
 }
 
-func WithProcessSeenOnNetworkTxsInterval(d time.Duration) func(*Processor) {
+func WithRebroadcastSeenTxsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processSeenOnNetworkTxsInterval = d
+		p.rebroadcastSeenTxsInterval = d
 	}
 }
 

@@ -171,7 +171,7 @@ func (p *Processor) StartCollectStats() error {
 				return
 			case <-ticker.C:
 
-				getStatsSince := p.now().Add(-1 * p.mapExpiryTime)
+				getStatsSince := p.now().Add(-1 * p.rebroadcastUnseenExpiration)
 
 				collectedStats, err := p.store.GetStats(p.ctx, getStatsSince, p.stats.notSeenLimit, p.stats.notFinalLimit)
 				if err != nil {

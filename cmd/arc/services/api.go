@@ -75,7 +75,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
-		apiHandler.WithCacheExpiryTime(arcConfig.API.ProcessorCacheExpiryTime),
+		apiHandler.WithRebroadcastExpiration(arcConfig.API.RebroadcastExpiration),
 	}
 
 	if arcConfig.Prometheus.IsEnabled() {

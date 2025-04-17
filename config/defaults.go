@@ -56,16 +56,16 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
-		ListenAddr:                              "localhost:8001",
-		DialAddr:                                "localhost:8001",
-		Db:                                      getDbConfig("metamorph"),
-		ProcessorCacheExpiryTime:                24 * time.Hour,
-		UnseenTransactionRebroadcastingInterval: 60 * time.Second,
-		MaxRetries:                              1000,
-		ProcessStatusUpdateInterval:             5 * time.Second,
-		RecheckSeen: RecheckSeen{
-			FromAgo:  24 * time.Hour,
-			UntilAgo: 1 * time.Hour,
+		ListenAddr:                  "localhost:8001",
+		DialAddr:                    "localhost:8001",
+		Db:                          getDbConfig("metamorph"),
+		RebroadcastUnseenExpiration: 24 * time.Hour,
+		RebroadcastUnseenInterval:   60 * time.Second,
+		MaxRetries:                  1000,
+		ProcessStatusUpdateInterval: 5 * time.Second,
+		RebroadcastSeen: RebroadcastSeen{
+			FromAgo:         24 * time.Hour,
+			BeforeLastMined: 1 * time.Hour,
 		},
 		MonitorPeers: false,
 		Health: &HealthConfig{

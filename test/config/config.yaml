@@ -45,11 +45,11 @@ metamorph:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  processorCacheExpiryTime: 24h
-  unseenTransactionRebroadcastingInterval: 60s
+  rebroadcastUnseenExpiration: 24h
+  rebroadcastUnseenInterval: 60s
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
-  recheckSeen:
+  rebroadcastSeen:
     fromAgo: 24h
     untilAgo: 1h
   monitorPeers: true
@@ -114,7 +114,7 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   wocMainnet: false
   requestExtendedLogs: true
-  processorCacheExpiryTime: 24h
+  rebroadcastUnseenExpiration: 24h
   defaultPolicy:
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

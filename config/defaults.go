@@ -8,21 +8,22 @@ import (
 
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
-		LogLevel:        "DEBUG",
-		LogFormat:       "text",
-		ProfilerAddr:    "", // optional
-		Prometheus:      getDefaultPrometheusConfig(),
-		GrpcMessageSize: 100000000,
-		Network:         "regtest",
-		MessageQueue:    getDefaultMessageQueueConfig(),
-		Tracing:         getDefaultTracingConfig(),
-		PeerRPC:         getDefaultPeerRPCConfig(),
-		Metamorph:       getMetamorphConfig(),
-		Blocktx:         getBlocktxConfig(),
-		API:             getAPIConfig(),
-		K8sWatcher:      nil, // optional
-		Callbacker:      getCallbackerConfig(),
-		Cache:           getCacheConfig(),
+		LogLevel:              "DEBUG",
+		LogFormat:             "text",
+		ProfilerAddr:          "", // optional
+		Prometheus:            getDefaultPrometheusConfig(),
+		GrpcMessageSize:       100000000,
+		Network:               "regtest",
+		RebroadcastExpiration: 24 * time.Hour,
+		MessageQueue:          getDefaultMessageQueueConfig(),
+		Tracing:               getDefaultTracingConfig(),
+		PeerRPC:               getDefaultPeerRPCConfig(),
+		Metamorph:             getMetamorphConfig(),
+		Blocktx:               getBlocktxConfig(),
+		API:                   getAPIConfig(),
+		K8sWatcher:            nil, // optional
+		Callbacker:            getCallbackerConfig(),
+		Cache:                 getCacheConfig(),
 	}
 }
 
@@ -56,18 +57,14 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
-		ListenAddr:                  "localhost:8001",
-		DialAddr:                    "localhost:8001",
-		Db:                          getDbConfig("metamorph"),
-		RebroadcastUnseenExpiration: 24 * time.Hour,
-		RebroadcastUnseenInterval:   60 * time.Second,
-		MaxRetries:                  1000,
-		ProcessStatusUpdateInterval: 5 * time.Second,
-		RebroadcastSeen: RebroadcastSeen{
-			FromAgo:         24 * time.Hour,
-			BeforeLastMined: 1 * time.Hour,
-		},
-		MonitorPeers: false,
+		ListenAddr:                     "localhost:8001",
+		DialAddr:                       "localhost:8001",
+		Db:                             getDbConfig("metamorph"),
+		RebroadcastUnseenInterval:      60 * time.Second,
+		RebroadcastSeenBeforeLastMined: 5 * time.Minute,
+		MaxRetries:                     1000,
+		ProcessStatusUpdateInterval:    5 * time.Second,
+		MonitorPeers:                   false,
 		Health: &HealthConfig{
 			MinimumHealthyConnections: 2,
 		},
@@ -124,8 +121,10 @@ func getBlocktxConfig() *BlocktxConfig {
 
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
-		Address:   "localhost:9090",
-		WocAPIKey: "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		Address:             "localhost:9090",
+		WocAPIKey:           "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		WocMainnet:          false,
+		RequestExtendedLogs: false,
 		DefaultPolicy: &bitcoin.Settings{
 			ExcessiveBlockSize:              2000000000,
 			BlockMaxSize:                    512000000,

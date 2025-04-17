@@ -195,7 +195,7 @@ type MetamorphStoreMock struct {
 		GetSeen []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// fromAgo is the fromAgo argument value.
+			// FromAgo is the fromAgo argument value.
 			FromAgo time.Duration
 			// SinceLastMined is the sinceLastMined argument value.
 			SinceLastMined time.Duration

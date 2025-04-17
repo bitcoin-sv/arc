@@ -143,19 +143,14 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	wocClient := woc_client.New(arcConfig.API.WocMainnet, wocClientOpts...)
 
 	pc := arcConfig.PeerRPC
-	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", pc.User, pc.Password, pc.Host, pc.Port))
+
+	nc, err := node_client.NewClient(pc.User, pc.Port, pc.Host, pc.Password)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to parse node rpc url: %w", err)
+		return nil, fmt.Errorf("failed to create node client: %v", err)
 	}
 
-	bitcoinClient, err := bitcoin.NewFromURL(rpcURL, false)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to create bitcoin client: %w", err)
-	}
-
-	nodeClient, err := node_client.New(bitcoinClient, nodeClientOpts...)
+	nodeClient, err := node_client.New(nc, nodeClientOpts...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create node client: %v", err)

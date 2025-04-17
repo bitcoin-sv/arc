@@ -101,8 +101,10 @@ func TestNodeClient(t *testing.T) {
 	ctx := context.Background()
 
 	setup()
+	nc, err := node_client.NewClient(host, hostPort, user, password)
+	require.NoError(t, err)
 
-	sut, err := node_client.New(bitcoind)
+	sut, err := node_client.New(nc)
 	require.NoError(t, err)
 
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)

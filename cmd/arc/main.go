@@ -140,6 +140,8 @@ func run() error {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
+	logger.Info("Received signal to shutdown")
+
 	<-signalChan
 	appCleanup(logger, shutdownFns)
 

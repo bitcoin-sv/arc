@@ -17,7 +17,7 @@ var (
 
 const (
 	EventIDField = "arc-event"
-
+	EventID      = "event-id"
 	LevelTrace   = slog.LevelDebug - 4
 	LevelDebug   = slog.LevelDebug
 	LevelInfo    = slog.LevelInfo
@@ -88,7 +88,7 @@ type ArcContextHandler struct {
 
 func (h ArcContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if eventID, ok := ctx.Value(EventIDField).(string); ok {
-		r.AddAttrs(slog.String("event-id", eventID))
+		r.AddAttrs(slog.String(EventID, eventID))
 	}
 
 	return h.Handler.Handle(ctx, r)

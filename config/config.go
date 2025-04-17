@@ -13,21 +13,22 @@ const (
 )
 
 type ArcConfig struct {
-	LogLevel        string              `mapstructure:"logLevel"`
-	LogFormat       string              `mapstructure:"logFormat"`
-	ProfilerAddr    string              `mapstructure:"profilerAddr"`
-	Prometheus      *PrometheusConfig   `mapstructure:"prometheus"`
-	GrpcMessageSize int                 `mapstructure:"grpcMessageSize"`
-	Network         string              `mapstructure:"network"`
-	MessageQueue    *MessageQueueConfig `mapstructure:"messageQueue"`
-	Tracing         *TracingConfig      `mapstructure:"tracing"`
-	PeerRPC         *PeerRPCConfig      `mapstructure:"peerRpc"`
-	Metamorph       *MetamorphConfig    `mapstructure:"metamorph"`
-	Blocktx         *BlocktxConfig      `mapstructure:"blocktx"`
-	API             *APIConfig          `mapstructure:"api"`
-	K8sWatcher      *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
-	Callbacker      *CallbackerConfig   `mapstructure:"callbacker"`
-	Cache           *CacheConfig        `mapstructure:"cache"`
+	LogLevel              string              `mapstructure:"logLevel"`
+	LogFormat             string              `mapstructure:"logFormat"`
+	ProfilerAddr          string              `mapstructure:"profilerAddr"`
+	Prometheus            *PrometheusConfig   `mapstructure:"prometheus"`
+	GrpcMessageSize       int                 `mapstructure:"grpcMessageSize"`
+	Network               string              `mapstructure:"network"`
+	RebroadcastExpiration time.Duration       `mapstructure:"rebroadcastExpiration"`
+	MessageQueue          *MessageQueueConfig `mapstructure:"messageQueue"`
+	Tracing               *TracingConfig      `mapstructure:"tracing"`
+	PeerRPC               *PeerRPCConfig      `mapstructure:"peerRpc"`
+	Metamorph             *MetamorphConfig    `mapstructure:"metamorph"`
+	Blocktx               *BlocktxConfig      `mapstructure:"blocktx"`
+	API                   *APIConfig          `mapstructure:"api"`
+	K8sWatcher            *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
+	Callbacker            *CallbackerConfig   `mapstructure:"callbacker"`
+	Cache                 *CacheConfig        `mapstructure:"cache"`
 }
 
 type PrometheusConfig struct {
@@ -85,19 +86,18 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                  string                               `mapstructure:"listenAddr"`
-	DialAddr                    string                               `mapstructure:"dialAddr"`
-	Db                          *DbConfig                            `mapstructure:"db"`
-	RebroadcastUnseenExpiration time.Duration                        `mapstructure:"rebroadcastUnseenExpiration"`
-	RebroadcastUnseenInterval   time.Duration                        `mapstructure:"rebroadcastUnseenInterval"`
-	MaxRetries                  int                                  `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval time.Duration                        `mapstructure:"processStatusUpdateInterval"`
-	RebroadcastSeen             RebroadcastSeen                      `mapstructure:"rebroadcastSeen"`
-	MonitorPeers                bool                                 `mapstructure:"monitorPeers"`
-	Health                      *HealthConfig                        `mapstructure:"health"`
-	RejectCallbackContaining    []string                             `mapstructure:"rejectCallbackContaining"`
-	Stats                       *StatsConfig                         `mapstructure:"stats"`
-	BlockchainNetwork           *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
+	ListenAddr                     string                               `mapstructure:"listenAddr"`
+	DialAddr                       string                               `mapstructure:"dialAddr"`
+	Db                             *DbConfig                            `mapstructure:"db"`
+	RebroadcastUnseenInterval      time.Duration                        `mapstructure:"rebroadcastUnseenInterval"`
+	RebroadcastSeenBeforeLastMined time.Duration                        `mapstructure:"rebroadcastSeenBeforeLastMined"`
+	MaxRetries                     int                                  `mapstructure:"maxRetries"`
+	ProcessStatusUpdateInterval    time.Duration                        `mapstructure:"processStatusUpdateInterval"`
+	MonitorPeers                   bool                                 `mapstructure:"monitorPeers"`
+	Health                         *HealthConfig                        `mapstructure:"health"`
+	RejectCallbackContaining       []string                             `mapstructure:"rejectCallbackContaining"`
+	Stats                          *StatsConfig                         `mapstructure:"stats"`
+	BlockchainNetwork              *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type HealthConfig struct {
@@ -173,23 +173,17 @@ type StatsConfig struct {
 	NotFinalTimeLimit time.Duration `mapstructure:"notFinalTimeLimit"`
 }
 
-type RebroadcastSeen struct {
-	FromAgo         time.Duration `mapstructure:"fromAgo"`
-	BeforeLastMined time.Duration `mapstructure:"beforeLastMined"`
-}
-
 type FillGapsConfig struct {
 	Enabled  bool          `mapstructure:"enabled"`
 	Interval time.Duration `mapstructure:"interval"`
 }
 
 type APIConfig struct {
-	Address               string            `mapstructure:"address"`
-	WocAPIKey             string            `mapstructure:"wocApiKey"`
-	WocMainnet            bool              `mapstructure:"wocMainnet"`
-	DefaultPolicy         *bitcoin.Settings `mapstructure:"defaultPolicy"`
-	RebroadcastExpiration time.Duration     `mapstructure:"rebroadcastUnseenExpiration"`
-	RequestExtendedLogs   bool              `mapstructure:"requestExtendedLogs"`
+	Address             string            `mapstructure:"address"`
+	WocAPIKey           string            `mapstructure:"wocApiKey"`
+	WocMainnet          bool              `mapstructure:"wocMainnet"`
+	DefaultPolicy       *bitcoin.Settings `mapstructure:"defaultPolicy"`
+	RequestExtendedLogs bool              `mapstructure:"requestExtendedLogs"`
 }
 
 type K8sWatcherConfig struct {

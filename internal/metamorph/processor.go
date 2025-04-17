@@ -32,10 +32,9 @@ const (
 	rebroadcastUnseenInterval                  = 60 * time.Second
 	seenOnNetworkTransactionRequestingInterval = 3 * time.Minute
 
-	rebroadcastUnseenExpirationDefault = 24 * time.Hour
-	recheckSeenFromAgo                 = 24 * time.Hour
-	recheckSeenUntilAgoDefault         = 1 * time.Hour
-	LogLevelDefault                    = slog.LevelInfo
+	rebroadcastExpirationDefault = 24 * time.Hour
+	recheckSeenUntilAgoDefault   = 1 * time.Hour
+	LogLevelDefault              = slog.LevelInfo
 
 	txCacheTTL = 10 * time.Minute
 
@@ -59,7 +58,7 @@ var (
 	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
 	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
-	ErrUnhealthy                    = fmt.Errorf("processor has less than %d healthy peer connections", minimumHealthyConnectionsDefault)
+	ErrUnhealthy                    = errors.New("processor has less than minimum healthy peer connections")
 )
 
 type Processor struct {
@@ -69,8 +68,7 @@ type Processor struct {
 	bcMediator                     Mediator
 	mqClient                       mq.MessageQueueClient
 	logger                         *slog.Logger
-	rebroadcastUnseenExpiration    time.Duration
-	rebroadcastSeenFromAgo         time.Duration
+	rebroadcastExpiration          time.Duration
 	rebroadcastSeenBeforeLastMined time.Duration
 	now                            func() time.Time
 	stats                          *processorStats
@@ -145,12 +143,11 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		cacheStore:                     c,
 		hostname:                       hostname,
 		bcMediator:                     bcMediator,
-		rebroadcastUnseenExpiration:    rebroadcastUnseenExpirationDefault,
-		rebroadcastSeenFromAgo:         recheckSeenFromAgo,
+		rebroadcastExpiration:          rebroadcastExpirationDefault,
 		rebroadcastSeenBeforeLastMined: recheckSeenUntilAgoDefault,
-		now:                            time.Now,
 		maxRetries:                     maxRetriesDefault,
 		minimumHealthyConnections:      minimumHealthyConnectionsDefault,
+		now:                            time.Now,
 
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
@@ -180,7 +177,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		opt(p)
 	}
 
-	p.logger.Info("Starting processor", slog.String("rebroadcastUnseenExpiration", p.rebroadcastUnseenExpiration.String()))
+	p.logger.Info("Starting processor")
 
 	ctx, cancelAll := context.WithCancel(context.Background())
 	p.cancelAll = cancelAll
@@ -611,7 +608,7 @@ func (p *Processor) StartLockTransactions() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				expiredSince := p.now().Add(-1 * p.rebroadcastUnseenExpiration)
+				expiredSince := p.now().Add(-1 * p.rebroadcastExpiration)
 				err := p.store.SetLocked(p.ctx, expiredSince, loadUnminedLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
@@ -642,7 +639,7 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 				var err error
 
 				for {
-					seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastSeenFromAgo, p.rebroadcastSeenBeforeLastMined, loadSeenOnNetworkLimit, offset)
+					seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.rebroadcastSeenBeforeLastMined, loadSeenOnNetworkLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 						break
@@ -698,7 +695,7 @@ func (p *Processor) StartRebroadcastUnseenTxs() {
 				ctx, span := tracing.StartTracing(p.ctx, "StartRebroadcastUnseenTxs", p.tracingEnabled, p.tracingAttributes...)
 
 				// define from what point in time we are interested in unmined transactions
-				getUnseenSince := p.now().Add(-1 * p.rebroadcastUnseenExpiration)
+				getUnseenSince := p.now().Add(-1 * p.rebroadcastExpiration)
 				var offset int64
 
 				requested := 0
@@ -969,7 +966,7 @@ func (p *Processor) Health() error {
 
 	if healthyConnections < p.minimumHealthyConnections {
 		p.logger.Warn("Less than expected healthy peers", slog.Int("connections", healthyConnections))
-		return ErrUnhealthy
+		return errors.Join(ErrUnhealthy, fmt.Errorf("minimum healthy connections: %d", p.minimumHealthyConnections))
 	}
 
 	return nil

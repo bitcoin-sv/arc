@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	timeoutSecondsDefault              = 5
-	rebroadcastUnseenExpirationDefault = 24 * time.Hour
+	timeoutSecondsDefault        = 5
+	rebroadcastExpirationDefault = 24 * time.Hour
 )
 
 var (
@@ -56,7 +56,7 @@ type ArcDefaultHandler struct {
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
-	rebroadcastUnseenExpiration   time.Duration
+	rebroadcastExpiration         time.Duration
 	defaultTimeout                time.Duration
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
@@ -95,7 +95,7 @@ func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler)
 
 func WithRebroadcastExpiration(d time.Duration) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.rebroadcastUnseenExpiration = d
+		p.rebroadcastExpiration = d
 	}
 }
 
@@ -144,17 +144,17 @@ func NewDefault(
 	}
 
 	handler := &ArcDefaultHandler{
-		TransactionHandler:          transactionHandler,
-		NodePolicy:                  policy,
-		logger:                      logger,
-		now:                         time.Now,
-		mrVerifier:                  mr,
-		txFinder:                    cachedFinder,
-		rebroadcastUnseenExpiration: rebroadcastUnseenExpirationDefault,
-		defaultTimeout:              timeoutSecondsDefault * time.Second,
-		maxTxSizePolicy:             maxTxSizePolicy,
-		maxTxSigopsCountsPolicy:     maxTxSigopsCountsPolicy,
-		maxscriptsizepolicy:         maxscriptsizepolicy,
+		TransactionHandler:      transactionHandler,
+		NodePolicy:              policy,
+		logger:                  logger,
+		now:                     time.Now,
+		mrVerifier:              mr,
+		txFinder:                cachedFinder,
+		rebroadcastExpiration:   rebroadcastExpirationDefault,
+		defaultTimeout:          timeoutSecondsDefault * time.Second,
+		maxTxSizePolicy:         maxTxSizePolicy,
+		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
+		maxscriptsizepolicy:     maxscriptsizepolicy,
 	}
 
 	// apply options
@@ -365,7 +365,7 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 						break
 					}
 				}
-				if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastUnseenExpiration || !exists {
+				if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
 					allProcessed = false
 					break
 				}

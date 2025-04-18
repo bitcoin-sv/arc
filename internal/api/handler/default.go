@@ -237,19 +237,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		res := PostResponse{e.Status, e}
 		return ctx.JSON(res.StatusCode, res.response)
 	}
-	txsParams := api.POSTTransactionsParams{
-		XCallbackUrl:             params.XCallbackUrl,
-		XCallbackToken:           params.XCallbackToken,
-		XCallbackBatch:           params.XCallbackBatch,
-		XWaitFor:                 params.XWaitFor,
-		XSkipFeeValidation:       params.XSkipFeeValidation,
-		XCumulativeFeeValidation: params.XCumulativeFeeValidation,
-		XSkipScriptValidation:    params.XSkipScriptValidation,
-		XSkipTxValidation:        params.XSkipTxValidation,
-		XFullStatusUpdates:       params.XFullStatusUpdates,
-		XForceValidation:         params.XForceValidation,
-		XMaxTimeout:              params.XMaxTimeout,
-	}
+	txsParams := api.POSTTransactionsParams(params)
 	postResponse := m.postTransactions(ctx, txsHex, txsParams)
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }

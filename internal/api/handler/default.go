@@ -233,7 +233,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	txsHex, err := parseTransactionFromRequest(ctx.Request())
 	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transactions from request: %s", err.Error()))
 		res := PostResponse{e.Status, e}
 		return ctx.JSON(res.StatusCode, res.response)
 	}

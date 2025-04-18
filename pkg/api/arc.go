@@ -2117,7 +2117,7 @@ type ServerInterface interface {
 	GETPolicy(ctx echo.Context) error
 	// Submit a transaction.
 	// (POST /v1/tx)
-	POSTTransaction(ctx echo.Context, params POSTTransactionsParams) error
+	POSTTransaction(ctx echo.Context, params POSTTransactionParams) error
 	// Get transaction status.
 	// (GET /v1/tx/{txid})
 	GETTransactionStatus(ctx echo.Context, txid string) error
@@ -2172,7 +2172,7 @@ func (w *ServerInterfaceWrapper) POSTTransaction(ctx echo.Context) error {
 	ctx.Set(AuthorizationScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params POSTTransactionsParams
+	var params POSTTransactionParams
 
 	headers := ctx.Request().Header
 	// ------------- Optional header parameter "X-CallbackUrl" -------------

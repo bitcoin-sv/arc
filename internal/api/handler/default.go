@@ -368,7 +368,9 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 
 	// handle single transaction submission
 	if len(successes)+len(fails) == 1 {
+		fmt.Println("shota 1")
 		if len(fails) > 0 {
+			fmt.Println("shota 2")
 			// if a fail result is returned, the processing/validation failed
 			e = fails[0]
 			if span != nil {

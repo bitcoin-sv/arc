@@ -704,7 +704,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
 			// when
-			err = sut.POSTTransaction(ctx, api.POSTTransactionParams{})
+			err = sut.POSTTransaction(ctx, api.POSTTransactionsParams{})
 
 			// then
 			require.NoError(t, err)
@@ -1278,26 +1278,26 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 func TestGetTransactionOptions(t *testing.T) {
 	tt := []struct {
 		name   string
-		params api.POSTTransactionParams
+		params api.POSTTransactionsParams
 
 		expectedError   error
 		expectedOptions *metamorph.TransactionOptions
 	}{
 		{
 			name:   "no options",
-			params: api.POSTTransactionParams{},
+			params: api.POSTTransactionsParams{},
 
 			expectedOptions: &metamorph.TransactionOptions{},
 		},
 		{
 			name:   "max timeout",
-			params: api.POSTTransactionParams{},
+			params: api.POSTTransactionsParams{},
 
 			expectedOptions: &metamorph.TransactionOptions{},
 		},
 		{
 			name: "valid callback url",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XCallbackUrl:   PtrTo("http://api.callme.com"),
 				XCallbackToken: PtrTo("1234"),
 			},
@@ -1309,7 +1309,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "invalid callback url",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XCallbackUrl: PtrTo("api.callme.com"),
 			},
 
@@ -1317,7 +1317,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - QUEUED",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("QUEUED"),
 			},
 
@@ -1327,7 +1327,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - RECEIVED",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("RECEIVED"),
 			},
 
@@ -1337,7 +1337,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - SENT_TO_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("SENT_TO_NETWORK"),
 			},
 
@@ -1347,7 +1347,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - ACCEPTED_BY_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("ACCEPTED_BY_NETWORK"),
 			},
 
@@ -1357,7 +1357,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - SEEN_ON_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("SEEN_ON_NETWORK"),
 			},
 
@@ -1369,7 +1369,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			options, actualErr := getTransactionOptions(tc.params, make([]string, 0))
+			options, actualErr := getTransactionsOptions(tc.params, make([]string, 0))
 
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)

@@ -65,7 +65,7 @@ func (c *CustomHandler) GETHealth(ctx echo.Context) error {
 	return c.h.GETHealth(ctx)
 }
 
-func (c *CustomHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) error {
+func (c *CustomHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionsParams) error {
 	return c.h.POSTTransaction(ctx, params)
 }
 

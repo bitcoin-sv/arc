@@ -652,7 +652,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, nil
 				},
 
-				GetTransactionStatusFunc: func(_ context.Context, _ string) (*metamorph.TransactionStatus, error) {
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
 					return nil, metamorph.ErrTransactionNotFound
 				},
 

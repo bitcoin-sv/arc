@@ -704,7 +704,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			rec, ctx := createEchoPostRequest(inputTx, tc.contentType, "/v1/tx")
 
 			// when
-			err = sut.POSTTransaction(ctx, api.POSTTransactionsParams{})
+			err = sut.POSTTransaction(ctx, api.POSTTransactionParams{})
 
 			// then
 			require.NoError(t, err)

@@ -243,10 +243,13 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	switch postResponse.response.(type) {
 	case []*api.TransactionResponse:
 		res := postResponse.response.([]*api.TransactionResponse)
-		return ctx.JSON(res[0].Status, *res[0])
+		fmt.Println("shota aq", res)
+		return ctx.JSON(res[0].Status, res[0])
 	case []*api.ErrorFields:
 		res := postResponse.response.([]*api.ErrorFields)
-		return ctx.JSON(res[0].Status, *res[0])
+		fmt.Println("shota aq 2 ", res)
+
+		return ctx.JSON(res[0].Status, res[0])
 	}
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }

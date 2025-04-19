@@ -267,8 +267,10 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	postResponse := m.postTransactions(ctx, txsHex, params)
 	if postResponse.StatusCode != http.StatusOK {
 		// if a fail result is returned, the processing/validation failed
-		r := postResponse.response.([]*api.TransactionResponse)[0]
-		postResponse = PostResponse{r.Status, r}
+		res, ok := postResponse.response.([]*api.TransactionResponse)
+		if ok {
+			return ctx.JSON(res[0].Status, res[0])
+		}
 	}
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }

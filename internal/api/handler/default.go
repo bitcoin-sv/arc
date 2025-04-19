@@ -265,6 +265,11 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	}
 
 	postResponse := m.postTransactions(ctx, txsHex, params)
+	if postResponse.StatusCode != http.StatusOK {
+		// if a fail result is returned, the processing/validation failed
+		r := postResponse.response.([]*api.TransactionResponse)[0]
+		postResponse = PostResponse{r.Status, r}
+	}
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 
@@ -366,28 +371,26 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 		return PostResponse{e.Status, e}
 	}
 
-	// handle single transaction submission
-	if len(successes)+len(fails) == 1 {
-		fmt.Println("shota 1")
-		if len(fails) > 0 {
-			fmt.Println("shota 2")
-			// if a fail result is returned, the processing/validation failed
-			e = fails[0]
-			if span != nil {
-				attr := e.GetSpanAttributes()
-				span.SetAttributes(attr...)
-			}
-			return PostResponse{e.Status, e}
-		}
+	// // handle single transaction submission
+	// if len(successes)+len(fails) == 1 {
+	// 	if len(fails) > 0 {
+	// 		// if a fail result is returned, the processing/validation failed
+	// 		e = fails[0]
+	// 		if span != nil {
+	// 			attr := e.GetSpanAttributes()
+	// 			span.SetAttributes(attr...)
+	// 		}
+	// 		return PostResponse{e.Status, e}
+	// 	}
 
-		res := successes[0]
+	// 	res := successes[0]
 
-		if span != nil {
-			span.SetAttributes(attribute.String("status", string(res.TxStatus)))
-		}
+	// 	if span != nil {
+	// 		span.SetAttributes(attribute.String("status", string(res.TxStatus)))
+	// 	}
 
-		return PostResponse{res.Status, res}
-	}
+	// 	return PostResponse{res.Status, res}
+	// }
 
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission

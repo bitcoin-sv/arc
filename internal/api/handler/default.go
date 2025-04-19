@@ -247,13 +247,14 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 		case *api.TransactionResponse:
 			res, ok := postResponse.response.([]interface{})[0].(*api.TransactionResponse)
 			if ok {
-				return ctx.JSON(res[0].Status, res[0])
+				return ctx.JSON(res.Status, res)
 			}
 		case *api.ErrorFields:
 			res, ok := postResponse.response.([]interface{})[0].(*api.ErrorFields)
 			if ok {
-				return ctx.JSON(res[0].Status, res[0])
+				return ctx.JSON(res.Status, res)
 			}
+		}
 
 	case *api.ErrorFields:
 		res, ok := postResponse.response.(*api.ErrorFields)

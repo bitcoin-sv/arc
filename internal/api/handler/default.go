@@ -216,113 +216,113 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 	return satoshis, bytes
 }
 
-func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTransactionParams) PostResponse {
-	var err error
+// func (m ArcDefaultHandler) postTransaction(ctx echo.Context, params api.POSTTransactionParams) PostResponse {
+// 	var err error
 
-	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
+// 	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransaction", m.tracingEnabled, m.tracingAttributes...)
+// 	defer func() {
+// 		tracing.EndTracing(span, err)
+// 	}()
 
-	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
-	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		return PostResponse{e.Status, e}
-	}
+// 	transactionOptions, err := getTransactionOptions(params, m.rejectedCallbackURLSubstrings)
+// 	if err != nil {
+// 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+// 		return PostResponse{e.Status, e}
+// 	}
 
-	txHex, err := parseTransactionFromRequest(ctx.Request())
-	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		return PostResponse{e.Status, e}
-	}
+// 	txHex, err := parseTransactionFromRequest(ctx.Request())
+// 	if err != nil {
+// 		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
+// 		if span != nil {
+// 			attr := e.GetSpanAttributes()
+// 			span.SetAttributes(attr...)
+// 		}
+// 		return PostResponse{e.Status, e}
+// 	}
 
-	// Now we check if we have the transaction present in db, if so we skip validation (as we must have already validated it)
-	// if LastSubmitted is not too old and callbacks are the same then we just stop processing transaction as there is nothing new
-	txIDs, e := m.getTxIDs(txHex)
-	if e != nil {
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		// if an error is returned, the processing failed
-		return PostResponse{e.Status, e}
-	}
+// 	// Now we check if we have the transaction present in db, if so we skip validation (as we must have already validated it)
+// 	// if LastSubmitted is not too old and callbacks are the same then we just stop processing transaction as there is nothing new
+// 	txIDs, e := m.getTxIDs(txHex)
+// 	if e != nil {
+// 		if span != nil {
+// 			attr := e.GetSpanAttributes()
+// 			span.SetAttributes(attr...)
+// 		}
+// 		// if an error is returned, the processing failed
+// 		return PostResponse{e.Status, e}
+// 	}
 
-	if !transactionOptions.ForceValidation {
-		// check if we already have the transaction in db (so no need to validate)
-		tx, err := m.getTransactionStatus(reqCtx, txIDs[0])
-		if err != nil {
-			// if we have error which is NOT ErrTransactionNotFound, return err
-			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
-				m.logger.Error("Failed to get transaction status", slog.String("hash", txIDs[0]), slog.String("err", err.Error()))
-			}
-		} else {
-			// if transaction was found skip the validation
-			transactionOptions.SkipTxValidation = true
+// 	if !transactionOptions.ForceValidation {
+// 		// check if we already have the transaction in db (so no need to validate)
+// 		tx, err := m.getTransactionStatus(reqCtx, txIDs[0])
+// 		if err != nil {
+// 			// if we have error which is NOT ErrTransactionNotFound, return err
+// 			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+// 				m.logger.Error("Failed to get transaction status", slog.String("hash", txIDs[0]), slog.String("err", err.Error()))
+// 			}
+// 		} else {
+// 			// if transaction was found skip the validation
+// 			transactionOptions.SkipTxValidation = true
 
-			// check if all callbacks already exist
-			callbackAlreadyExists := true
+// 			// check if all callbacks already exist
+// 			callbackAlreadyExists := true
 
-			if transactionOptions.CallbackURL != "" || transactionOptions.CallbackToken != "" {
-				for _, cb := range tx.Callbacks {
-					callbackAlreadyExists = false
-					if cb.CallbackUrl == transactionOptions.CallbackURL && cb.CallbackToken == transactionOptions.CallbackToken {
-						callbackAlreadyExists = true
-						break
-					}
-				}
-			}
+// 			if transactionOptions.CallbackURL != "" || transactionOptions.CallbackToken != "" {
+// 				for _, cb := range tx.Callbacks {
+// 					callbackAlreadyExists = false
+// 					if cb.CallbackUrl == transactionOptions.CallbackURL && cb.CallbackToken == transactionOptions.CallbackToken {
+// 						callbackAlreadyExists = true
+// 						break
+// 					}
+// 				}
+// 			}
 
-			// if tx has been last submitted less than expiry time ago and callbacks already exist, return current status
-			if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
-				return PostResponse{int(api.StatusOK), &api.TransactionResponse{
-					Status:       int(api.StatusOK),
-					Title:        "OK",
-					BlockHash:    &tx.BlockHash,
-					BlockHeight:  &tx.BlockHeight,
-					TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
-					ExtraInfo:    &tx.ExtraInfo,
-					CompetingTxs: &tx.CompetingTxs,
-					Timestamp:    m.now(),
-					Txid:         txIDs[0],
-					MerklePath:   &tx.MerklePath,
-				}}
-			}
-		}
-	}
+// 			// if tx has been last submitted less than expiry time ago and callbacks already exist, return current status
+// 			if time.Since(tx.LastSubmitted.AsTime()) < m.mapExpiryTime && callbackAlreadyExists {
+// 				return PostResponse{int(api.StatusOK), &api.TransactionResponse{
+// 					Status:       int(api.StatusOK),
+// 					Title:        "OK",
+// 					BlockHash:    &tx.BlockHash,
+// 					BlockHeight:  &tx.BlockHeight,
+// 					TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+// 					ExtraInfo:    &tx.ExtraInfo,
+// 					CompetingTxs: &tx.CompetingTxs,
+// 					Timestamp:    m.now(),
+// 					Txid:         txIDs[0],
+// 					MerklePath:   &tx.MerklePath,
+// 				}}
+// 			}
+// 		}
+// 	}
 
-	successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
-	if e != nil {
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		// if an error is returned, the processing failed
-		return PostResponse{e.Status, e}
-	}
+// 	successes, fails, e := m.processTransactions(reqCtx, txHex, transactionOptions)
+// 	if e != nil {
+// 		if span != nil {
+// 			attr := e.GetSpanAttributes()
+// 			span.SetAttributes(attr...)
+// 		}
+// 		// if an error is returned, the processing failed
+// 		return PostResponse{e.Status, e}
+// 	}
 
-	if len(fails) > 0 {
-		// if a fail result is returned, the processing/validation failed
-		e = fails[0]
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		return PostResponse{e.Status, e}
-	}
+// 	if len(fails) > 0 {
+// 		// if a fail result is returned, the processing/validation failed
+// 		e = fails[0]
+// 		if span != nil {
+// 			attr := e.GetSpanAttributes()
+// 			span.SetAttributes(attr...)
+// 		}
+// 		return PostResponse{e.Status, e}
+// 	}
 
-	res := successes[0]
+// 	res := successes[0]
 
-	if span != nil {
-		span.SetAttributes(attribute.String("status", string(res.TxStatus)))
-	}
+// 	if span != nil {
+// 		span.SetAttributes(attribute.String("status", string(res.TxStatus)))
+// 	}
 
-	return PostResponse{res.Status, res}
-}
+// 	return PostResponse{res.Status, res}
+// }
 
 // POSTTransaction ...
 func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
@@ -339,7 +339,37 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
 	defer cancel()
 
-	postResponse := m.postTransaction(ctx, params)
+	txsHex, err := parseTransactionFromRequest(ctx.Request())
+	if err != nil {
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transactions from request: %s", err.Error()))
+		res := PostResponse{e.Status, e}
+		return ctx.JSON(res.StatusCode, res.response)
+	}
+	txsParams := api.POSTTransactionsParams(params)
+	postResponse := m.postTransactions(ctx, txsHex, txsParams)
+
+	// postTransactions returns different PostResponse, until we merge api endpoints we will need this casting
+	switch postResponse.response.(type) {
+	case []interface{}:
+		switch postResponse.response.([]interface{})[0].(type) {
+		case *api.TransactionResponse:
+			res, ok := postResponse.response.([]interface{})[0].(*api.TransactionResponse)
+			if ok {
+				return ctx.JSON(res.Status, res)
+			}
+		case *api.ErrorFields:
+			res, ok := postResponse.response.([]interface{})[0].(*api.ErrorFields)
+			if ok {
+				return ctx.JSON(res.Status, res)
+			}
+		}
+
+	case *api.ErrorFields:
+		res, ok := postResponse.response.(*api.ErrorFields)
+		if ok {
+			return ctx.JSON(res.Status, res)
+		}
+	}
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 
@@ -388,7 +418,7 @@ func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (er
 	})
 }
 
-func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTransactionsParams) PostResponse {
+func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, params api.POSTTransactionsParams) PostResponse {
 	var err error
 	reqCtx, span := tracing.StartTracing(ctx.Request().Context(), "POSTTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -399,16 +429,6 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, params api.POSTTra
 	transactionOptions, err := getTransactionsOptions(params, m.rejectedCallbackURLSubstrings)
 	if err != nil {
 		e := api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		return PostResponse{e.Status, e}
-	}
-
-	txsHex, err := parseTransactionsFromRequest(ctx.Request())
-	if err != nil {
-		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transaction from request: %s", err.Error()))
 		if span != nil {
 			attr := e.GetSpanAttributes()
 			span.SetAttributes(attr...)
@@ -526,12 +546,15 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	ctx.SetRequest(ctx.Request().WithContext(timeoutCtx))
 	defer cancel()
 
-	postResponse := m.postTransactions(ctx, params)
-	return ctx.JSON(postResponse.StatusCode, postResponse.response)
-}
+	txsHex, err := parseTransactionsFromRequest(ctx.Request())
+	if err != nil {
+		e := api.NewErrorFields(api.ErrStatusBadRequest, fmt.Sprintf("error parsing transactions from request: %s", err.Error()))
+		res := PostResponse{e.Status, e}
+		return ctx.JSON(res.StatusCode, res.response)
+	}
 
-func getTransactionOptions(params api.POSTTransactionParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
-	return getTransactionsOptions(api.POSTTransactionsParams(params), rejectedCallbackURLSubstrings)
+	postResponse := m.postTransactions(ctx, txsHex, params)
+	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 
 func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []string) error {

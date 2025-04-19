@@ -239,7 +239,14 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	}
 	txsParams := api.POSTTransactionsParams(params)
 	postResponse := m.postTransactions(ctx, txsHex, txsParams)
-	return ctx.JSON(postResponse.StatusCode, postResponse.response)
+
+	switch postResponse.response.(type) {
+	case []*api.TransactionResponse:
+		res := postResponse.response.([]*api.TransactionResponse)
+		return ctx.JSON(res[0].StatusCode, res[0].response)
+	case []*api.ErrorFields:
+		res := postResponse.response.([]*api.ErrorFields)
+		return ctx.JSON(res[0].StatusCode, res[0].response)
 }
 
 // POSTTransactions ...
@@ -265,13 +272,6 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 	}
 
 	postResponse := m.postTransactions(ctx, txsHex, params)
-	if postResponse.StatusCode != http.StatusOK {
-		// if a fail result is returned, the processing/validation failed
-		res, ok := postResponse.response.([]*api.ErrorFields)
-		if ok {
-			return ctx.JSON(res[0].Status, res[0])
-		}
-	}
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 

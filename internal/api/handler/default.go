@@ -248,9 +248,9 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	case []*api.ErrorFields:
 		res := postResponse.response.([]*api.ErrorFields)
 		fmt.Println("shota aq 2 ", res)
-
 		return ctx.JSON(res[0].Status, res[0])
 	}
+	fmt.Println("shota 3")
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 

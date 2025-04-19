@@ -242,16 +242,19 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	postResponse := m.postTransactions(ctx, txsHex, txsParams)
 
 	switch postResponse.response.(type) {
-	case []*api.TransactionResponse:
-		res, ok := postResponse.response.([]*api.TransactionResponse)
-		if ok {
-			return ctx.JSON(res[0].Status, res[0])
-		}
-	case []*api.ErrorFields:
-		res, ok := postResponse.response.([]*api.ErrorFields)
-		if ok {
-			return ctx.JSON(res[0].Status, res[0])
-		}
+	case []interface{}:
+		switch postResponse.response.([]interface{})[0].(type) {
+		case *api.TransactionResponse:
+			res, ok := postResponse.response.([]interface{})[0].(*api.TransactionResponse)
+			if ok {
+				return ctx.JSON(res[0].Status, res[0])
+			}
+		case *api.ErrorFields:
+			res, ok := postResponse.response.([]interface{})[0].(*api.ErrorFields)
+			if ok {
+				return ctx.JSON(res[0].Status, res[0])
+			}
+
 	case *api.ErrorFields:
 		res, ok := postResponse.response.(*api.ErrorFields)
 		if ok {

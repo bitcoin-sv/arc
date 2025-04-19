@@ -241,6 +241,7 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	txsParams := api.POSTTransactionsParams(params)
 	postResponse := m.postTransactions(ctx, txsHex, txsParams)
 
+	// postTransactions returns different PostResponse, until we merge api endpoints we will need this casting
 	switch postResponse.response.(type) {
 	case []interface{}:
 		switch postResponse.response.([]interface{})[0].(type) {
@@ -290,6 +291,51 @@ func (m ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTra
 
 	postResponse := m.postTransactions(ctx, txsHex, params)
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
+}
+
+// GETTransactionStatus ...
+func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (err error) {
+	reqCtx := ctx.Request().Context()
+
+	reqCtx, span := tracing.StartTracing(reqCtx, "GETTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	tx, err := m.getTransactionStatus(reqCtx, id)
+	if err != nil {
+		if errors.Is(err, metamorph.ErrTransactionNotFound) {
+			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
+			return ctx.JSON(e.Status, e)
+		}
+
+		e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
+		return ctx.JSON(e.Status, e)
+	}
+
+	if tx == nil {
+		e := api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction")
+		if span != nil {
+			attr := e.GetSpanAttributes()
+			span.SetAttributes(attr...)
+		}
+		return ctx.JSON(e.Status, e)
+	}
+
+	return ctx.JSON(http.StatusOK, api.TransactionStatus{
+		BlockHash:    &tx.BlockHash,
+		BlockHeight:  &tx.BlockHeight,
+		TxStatus:     (api.TransactionStatusTxStatus)(tx.Status),
+		Timestamp:    m.now(),
+		Txid:         tx.TxID,
+		MerklePath:   &tx.MerklePath,
+		ExtraInfo:    &tx.ExtraInfo,
+		CompetingTxs: &tx.CompetingTxs,
+	})
 }
 
 func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, params api.POSTTransactionsParams) PostResponse {
@@ -390,27 +436,6 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 		return PostResponse{e.Status, e}
 	}
 
-	// // handle single transaction submission
-	// if len(successes)+len(fails) == 1 {
-	// 	if len(fails) > 0 {
-	// 		// if a fail result is returned, the processing/validation failed
-	// 		e = fails[0]
-	// 		if span != nil {
-	// 			attr := e.GetSpanAttributes()
-	// 			span.SetAttributes(attr...)
-	// 		}
-	// 		return PostResponse{e.Status, e}
-	// 	}
-
-	// 	res := successes[0]
-
-	// 	if span != nil {
-	// 		span.SetAttributes(attribute.String("status", string(res.TxStatus)))
-	// 	}
-
-	// 	return PostResponse{res.Status, res}
-	// }
-
 	// we cannot really return any other status here
 	// each transaction in the slice will have the result of the transaction submission
 
@@ -424,51 +449,6 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 	}
 
 	return PostResponse{int(api.StatusOK), responses}
-}
-
-// GETTransactionStatus ...
-func (m ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (err error) {
-	reqCtx := ctx.Request().Context()
-
-	reqCtx, span := tracing.StartTracing(reqCtx, "GETTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
-	defer func() {
-		tracing.EndTracing(span, err)
-	}()
-
-	tx, err := m.getTransactionStatus(reqCtx, id)
-	if err != nil {
-		if errors.Is(err, metamorph.ErrTransactionNotFound) {
-			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
-			return ctx.JSON(e.Status, e)
-		}
-
-		e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		return ctx.JSON(e.Status, e)
-	}
-
-	if tx == nil {
-		e := api.NewErrorFields(api.ErrStatusNotFound, "failed to find transaction")
-		if span != nil {
-			attr := e.GetSpanAttributes()
-			span.SetAttributes(attr...)
-		}
-		return ctx.JSON(e.Status, e)
-	}
-
-	return ctx.JSON(http.StatusOK, api.TransactionStatus{
-		BlockHash:    &tx.BlockHash,
-		BlockHeight:  &tx.BlockHeight,
-		TxStatus:     (api.TransactionStatusTxStatus)(tx.Status),
-		Timestamp:    m.now(),
-		Txid:         tx.TxID,
-		MerklePath:   &tx.MerklePath,
-		ExtraInfo:    &tx.ExtraInfo,
-		CompetingTxs: &tx.CompetingTxs,
-	})
 }
 
 func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []string) error {

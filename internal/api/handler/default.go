@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -242,19 +243,22 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 
 	switch postResponse.response.(type) {
 	case []*api.TransactionResponse:
-		res := postResponse.response.([]*api.TransactionResponse)
-		fmt.Println("shota aq 1", res)
-		return ctx.JSON(res[0].Status, res[0])
+		res, ok := postResponse.response.([]*api.TransactionResponse)
+		if ok {
+			return ctx.JSON(res[0].Status, res[0])
+		}
 	case []*api.ErrorFields:
-		res := postResponse.response.([]*api.ErrorFields)
-		fmt.Println("shota aq 2 ", res)
-		return ctx.JSON(res[0].Status, res[0])
+		res, ok := postResponse.response.([]*api.ErrorFields)
+		if ok {
+			return ctx.JSON(res[0].Status, res[0])
+		}
 	case *api.ErrorFields:
-		res := postResponse.response.(*api.ErrorFields)
-		fmt.Println("shota aq 3 ", res)
-		return ctx.JSON(res.Status, res)
+		res, ok := postResponse.response.(*api.ErrorFields)
+		if ok {
+			return ctx.JSON(res.Status, res)
+		}
 	}
-	fmt.Println("shota 4")
+	fmt.Println("shota 4", reflect.TypeOf(postResponse.response))
 	return ctx.JSON(postResponse.StatusCode, postResponse.response)
 }
 

@@ -192,7 +192,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			sut.Shutdown()
 			time.Sleep(time.Millisecond)
-
 		})
 	}
 }
@@ -333,6 +332,5 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 			sut.Shutdown()
 			sut.Wait()
 		})
-
 	}
 }

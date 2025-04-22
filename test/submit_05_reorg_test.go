@@ -3,6 +3,7 @@
 package test
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"testing"
@@ -125,7 +126,11 @@ func TestReorg(t *testing.T) {
 	}
 
 	// invalidate the chain with tx1 and tx2
-	call(t, "invalidateblock", []interface{}{invHash})
+	client, err := node_client.NewRPCClient(nodeHost, nodePort, nodeUser, nodePassword)
+	require.NoError(t, err)
+
+	err = client.InvalidateBlock(context.TODO(), invHash)
+	require.NoError(t, err)
 
 	// prepare txStale
 	txID = node_client.SendToAddress(t, bitcoind, address, float64(0.003))
@@ -202,11 +207,4 @@ func TestReorg(t *testing.T) {
 			t.Fatal("callback exceeded timeout")
 		}
 	}
-}
-
-func call(t *testing.T, method string, params []interface{}) {
-	err := node_client.CustomRPCCall(method, params, nodeHost, nodePort, nodeUser, nodePassword)
-	require.NoError(t, err)
-
-	time.Sleep(5 * time.Second)
 }

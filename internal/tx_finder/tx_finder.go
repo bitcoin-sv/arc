@@ -21,7 +21,9 @@ var (
 )
 
 const (
-	deadline = 10 * time.Second
+	deadline  = 10 * time.Second
+	retries   = 5
+	sleepTime = 100 * time.Millisecond
 )
 
 type Finder struct {
@@ -77,6 +79,23 @@ func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string
 	defer nodeCancel()
 
 	txIDs, err := f.nodeClient.GetMempoolAncestors(ctx, ids)
+
+	counter := 0
+	for errors.Is(err, context.DeadlineExceeded) {
+		counter++
+		if counter >= retries {
+			break
+		}
+
+		txIDs, err = f.nodeClient.GetMempoolAncestors(ctx, ids)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get mempool ancestors from node client", slog.Any("err", err))
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		break
+	}
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 	}
@@ -121,9 +140,6 @@ func (f Finder) getRawTxsFromNode(ctx context.Context, remainingIDs map[string]s
 		tracing.EndTracing(span, nil)
 	}()
 
-	const retries = 5
-	const sleepTime = 100 * time.Millisecond
-
 	var foundTxs []*sdkTx.Transaction
 
 	ctx, nodeCancel := context.WithTimeout(ctx, deadline)
@@ -134,26 +150,26 @@ func (f Finder) getRawTxsFromNode(ctx context.Context, remainingIDs map[string]s
 		var rawTx *sdkTx.Transaction
 		var err error
 		rawTx, err = f.nodeClient.GetRawTransaction(ctx, id)
+		counter := 0
+		for errors.Is(err, context.DeadlineExceeded) {
+			counter++
+			if counter >= retries {
+				break
+			}
+
+			rawTx, err = f.nodeClient.GetRawTransaction(ctx, id)
+			if err != nil {
+				f.logger.WarnContext(ctx, "failed to get raw transactions from node client", slog.String("id", id), slog.Any("err", err))
+				time.Sleep(sleepTime)
+				continue
+			}
+
+			break
+		}
+
 		if err != nil {
 			f.logger.WarnContext(ctx, "failed to get raw transactions from node client", slog.String("id", id), slog.Any("err", err))
-			counter := 0
-			for {
-				counter++
-				if counter >= retries {
-					break
-				}
-
-				rawTx, err = f.nodeClient.GetRawTransaction(ctx, id)
-				if err != nil {
-					f.logger.WarnContext(ctx, "failed to get raw transactions from node client", slog.String("id", id), slog.Any("err", err))
-					if errors.Is(err, context.DeadlineExceeded) {
-						continue
-					}
-					break
-				}
-
-				time.Sleep(sleepTime)
-			}
+			continue
 		}
 
 		delete(remainingIDs, id)

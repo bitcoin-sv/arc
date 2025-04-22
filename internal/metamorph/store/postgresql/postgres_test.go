@@ -987,7 +987,7 @@ func TestPostgresDB(t *testing.T) {
 		var numberOfRemainingTxs int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
 		require.NoError(t, err)
-		require.Equal(t, 12, numberOfRemainingTxs)
+		require.Equal(t, 13, numberOfRemainingTxs)
 	})
 
 	t.Run("get seen", func(t *testing.T) {

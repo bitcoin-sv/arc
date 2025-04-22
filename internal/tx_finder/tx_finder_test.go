@@ -146,6 +146,12 @@ func Test_GetRawTxs(t *testing.T) {
 			ids:             []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
 			nodeGetRawTxErr: errors.New("some error"),
 		},
+		{
+			name:            "search node - deadline exceeded",
+			source:          validator.SourceNodes,
+			ids:             []string{"8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
+			nodeGetRawTxErr: context.DeadlineExceeded,
+		},
 	}
 
 	for _, tc := range tcs {

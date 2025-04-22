@@ -64,12 +64,14 @@ func sendJSONRPCCall[T any](ctx context.Context, method string, params []interfa
 
 	if resp.StatusCode != 200 {
 		_ = json.Unmarshal(data, &rpcResponse)
+		var msgOk bool
+		var msg string
 		v, ok := rpcResponse.Err.(map[string]interface{})
 		if ok {
-			msg, ok := v["message"].(string)
-			if ok {
-				err = errors.New(msg)
-			}
+			msg, msgOk = v["message"].(string)
+		}
+		if ok && msgOk {
+			err = errors.New(msg)
 		} else {
 			err = errors.New("HTTP error: " + resp.Status)
 		}

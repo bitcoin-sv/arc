@@ -24,14 +24,27 @@ func TestRPCClient(t *testing.T) {
 	address, _ := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs availa`ble for the address")
+	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
 	t.Run("invalidate block", func(t *testing.T) {
 		// given
 		blockHash, err := bitcoind.Generate(1)
 		require.NoError(t, err)
 
+		// when
 		err = sut.InvalidateBlock(ctx, blockHash[0])
+
+		// then
 		require.NoError(t, err)
+
+		// given
+		cancelCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		// when
+		err = sut.InvalidateBlock(cancelCtx, blockHash[0])
+
+		// then
+		require.ErrorIs(t, err, context.Canceled)
 	})
 }

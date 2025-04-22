@@ -129,6 +129,16 @@ func TestNodeClient(t *testing.T) {
 
 		// then
 		require.ErrorIs(t, err, node_client.ErrFailedToGetRawTransaction)
+
+		// given
+		cancelCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		// when
+		_, err = sut.GetRawTransaction(cancelCtx, utxos[0].Txid)
+
+		// then
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("get mempool ancestors", func(t *testing.T) {
@@ -171,5 +181,15 @@ func TestNodeClient(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Empty(t, actual)
+
+		// given
+		cancelCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		// when
+		_, err = sut.GetMempoolAncestors(cancelCtx, []string{"792bb5c0d5e4937572e6368dc713ba0b4935d27a7b7ac654c2b384d6c8b2fb89"}) // tx id not existing in the mempool
+
+		// then
+		require.ErrorIs(t, err, context.Canceled)
 	})
 }

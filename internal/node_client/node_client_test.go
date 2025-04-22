@@ -101,7 +101,7 @@ func TestNodeClient(t *testing.T) {
 	ctx := context.Background()
 
 	setup()
-	nc, err := node_client.NewClient(host, hostPort, user, password)
+	nc, err := node_client.NewRPCClient(host, hostPort, user, password)
 	require.NoError(t, err)
 
 	sut, err := node_client.New(nc)

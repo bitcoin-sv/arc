@@ -126,7 +126,7 @@ func TestReorg(t *testing.T) {
 	}
 
 	// invalidate the chain with tx1 and tx2
-	client, err := node_client.NewClient(nodeHost, nodePort, nodeUser, nodePassword)
+	client, err := node_client.NewRPCClient(nodeHost, nodePort, nodeUser, nodePassword)
 	require.NoError(t, err)
 
 	err = client.InvalidateBlock(context.TODO(), invHash)

@@ -18,7 +18,7 @@ var (
 )
 
 type NodeClient struct {
-	bitcoinClient     *Client
+	bitcoinClient     *RPCClient
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -36,7 +36,7 @@ func WithTracer(attr ...attribute.KeyValue) func(s *NodeClient) {
 	}
 }
 
-func New(n *Client, opts ...func(client *NodeClient)) (NodeClient, error) {
+func New(n *RPCClient, opts ...func(client *NodeClient)) (NodeClient, error) {
 	node := NodeClient{
 		bitcoinClient: n,
 	}

@@ -101,15 +101,15 @@ func sendJSONRPCCall[T any](ctx context.Context, method string, params []interfa
 	return &responseResult, nil
 }
 
-type Client struct {
+type RPCClient struct {
 	host     string
 	port     int
 	user     string
 	password string
 }
 
-func NewClient(host string, port int, user, password string) (*Client, error) {
-	c := &Client{
+func NewRPCClient(host string, port int, user, password string) (*RPCClient, error) {
+	c := &RPCClient{
 		host:     host,
 		port:     port,
 		user:     user,
@@ -119,7 +119,7 @@ func NewClient(host string, port int, user, password string) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) GetRawTransactionHex(ctx context.Context, txID string) (string, error) {
+func (c *RPCClient) GetRawTransactionHex(ctx context.Context, txID string) (string, error) {
 	res, err := sendJSONRPCCall[string](ctx, "getrawtransaction", []interface{}{txID, 0}, c.host, c.port, c.user, c.password)
 	if err != nil {
 		return "", err
@@ -128,7 +128,7 @@ func (c *Client) GetRawTransactionHex(ctx context.Context, txID string) (string,
 	return *res, nil
 }
 
-func (c *Client) GetMempoolAncestors(ctx context.Context, txID string) ([]string, error) {
+func (c *RPCClient) GetMempoolAncestors(ctx context.Context, txID string) ([]string, error) {
 	res, err := sendJSONRPCCall[[]string](ctx, "getmempoolancestors", []interface{}{txID}, c.host, c.port, c.user, c.password)
 	if err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func (c *Client) GetMempoolAncestors(ctx context.Context, txID string) ([]string
 	return *res, nil
 }
 
-func (c *Client) InvalidateBlock(ctx context.Context, blockHash string) error {
+func (c *RPCClient) InvalidateBlock(ctx context.Context, blockHash string) error {
 	_, err := sendJSONRPCCall[[]byte](ctx, "invalidateblock", []interface{}{blockHash}, c.host, c.port, c.user, c.password)
 
 	return err

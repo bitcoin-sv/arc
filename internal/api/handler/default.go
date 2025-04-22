@@ -11,24 +11,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/pkg/tracing"
-	"github.com/ccoveille/go-safecast"
-
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/ccoveille/go-safecast"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/logger"
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 const (

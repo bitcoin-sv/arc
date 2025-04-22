@@ -1,6 +1,8 @@
 name: Static Analysis and Report
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
     branches: ["**"]
     paths:
@@ -12,7 +14,6 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.golangci.yml'
-
 jobs:
   analyze:
     name: Static analysis
@@ -42,21 +43,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          # Additional arguments for the SonarScanner CLI
-          args:
-            # Unique keys of your project and organization. You can find them in SonarCloud > Information (bottom-left menu)
-            # mandatory
-            -Dsonar.projectKey=bitcoin-sv_arc
-            -Dsonar.organization=bitcoin-sv
-            # Comma-separated paths to directories containing main source files.
-            #-Dsonar.sources= # optional, default is project base directory
-            # Comma-separated paths to directories containing test source files.
-            #-Dsonar.tests= # optional. For more info about Code Coverage, please refer to https://docs.sonarcloud.io/enriching/test-coverage/overview/
-          # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
-          #-Dsonar.verbose= # optional, default is false
-          # When you need the analysis to take place in a directory other than the one from which it was launched, default is .
-          projectBaseDir: .
   staticcheck:
     name: Static check
     runs-on: ubuntu-latest

@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-
-
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ccoveille/go-safecast"
 	"github.com/labstack/echo/v4"

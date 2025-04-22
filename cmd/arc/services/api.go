@@ -144,7 +144,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	pc := arcConfig.PeerRPC
 
-	nc, err := node_client.NewRPCClient(pc.User, pc.Port, pc.Host, pc.Password)
+	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create node client: %v", err)

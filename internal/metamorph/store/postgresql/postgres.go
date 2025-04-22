@@ -562,6 +562,7 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLa
 	}()
 
 	q := `
+	-- get the maximum time stamp when the last transaction was marked as mined as max_ts from status history
 	WITH txs_mined_ts AS (
 	SELECT
 		max(txs_mined.ts) AS max_ts
@@ -598,15 +599,15 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLa
 	WHERE
 		t.status = $1
 		AND t.locked_by = $4
-		AND t.last_submitted_at < (	SELECT max_ts - INTERVAL $5::interval FROM txs_mined_ts )
-		AND t.last_submitted_at > $6
+		AND t.last_submitted_at < (	SELECT max_ts - $5 * INTERVAL '1 SEC' FROM txs_mined_ts ) -- last submitted at least 'sinceLastMined' time ago since last transaction was marked as mined
+		AND t.last_submitted_at > $6 -- last submitted at most 'fromAgo' time ago
 	ORDER BY t.last_submitted_at DESC
 	LIMIT $2 OFFSET $3
 	;
 `
-	getSeenOnNetworkFrom := p.now().Add(-1 * fromAgo)
+	getSeenFromAgo := p.now().Add(-1 * fromAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, fmt.Sprintf("%d sec", int64(sinceLastMined.Seconds())), getSeenOnNetworkFrom)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, sinceLastMined.Seconds(), getSeenFromAgo)
 	if err != nil {
 		return nil, err
 	}

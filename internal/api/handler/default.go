@@ -239,7 +239,6 @@ func (m ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTran
 	txsParams := api.POSTTransactionsParams(params)
 	postResponse := m.postTransactions(ctx, txsHex, txsParams)
 
-	// postTransactions returns different PostResponse, until we merge api endpoints we will need this casting
 	switch postResponse.response.(type) {
 	case []interface{}:
 		switch postResponse.response.([]interface{})[0].(type) {

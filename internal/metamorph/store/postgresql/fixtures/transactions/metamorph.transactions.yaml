@@ -75,6 +75,7 @@
   status: 120
   stored_at: 2023-09-01 14:00:00
   last_submitted_at: 2023-09-01 14:00:00
+  status_history: # Todo: add jsonb
 - hash: 0x1e7ce0d2fcac0a1a0c174e57a7334f9bf6803280af838a0a0389b230ee488dad
   locked_by: NONE
   status: 120

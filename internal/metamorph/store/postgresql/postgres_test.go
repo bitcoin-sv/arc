@@ -990,7 +990,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 12, numberOfRemainingTxs)
 	})
 
-	t.Run("get seen on network txs", func(t *testing.T) {
+	t.Run("get seen", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 

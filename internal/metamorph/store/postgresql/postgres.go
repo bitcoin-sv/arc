@@ -598,7 +598,7 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLa
 	WHERE
 		t.status = $1
 		AND t.locked_by = $4
-		AND t.last_submitted_at < (	SELECT max_ts - INTERVAL $5 FROM txs_mined_ts)
+		AND t.last_submitted_at < (	SELECT max_ts - INTERVAL $5::interval FROM txs_mined_ts )
 		AND t.last_submitted_at > $6
 	ORDER BY t.last_submitted_at DESC
 	LIMIT $2 OFFSET $3
@@ -606,7 +606,7 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLa
 `
 	getSeenOnNetworkFrom := p.now().Add(-1 * fromAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, fmt.Sprintf("'%d sec'", int64(sinceLastMined.Seconds())), getSeenOnNetworkFrom)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, fmt.Sprintf("%d sec", int64(sinceLastMined.Seconds())), getSeenOnNetworkFrom)
 	if err != nil {
 		return nil, err
 	}

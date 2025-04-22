@@ -671,6 +671,10 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 					p.logger.Info("Seen txs re-registered and re-announced", slog.Int("number", totalSeenOnNetworkTxs))
 				}
 
+				if span != nil {
+					span.SetAttributes(attribute.Int("rebroadcasted", totalSeenOnNetworkTxs))
+				}
+
 				tracing.EndTracing(span, nil)
 			}
 		}

@@ -321,7 +321,7 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 				go func() {
 					close(tickerCh)
 					defer wg.Done()
-					time.Sleep(5 * time.Second)
+					time.Sleep(1 * time.Second)
 				}()
 				wg.Wait()
 			}()

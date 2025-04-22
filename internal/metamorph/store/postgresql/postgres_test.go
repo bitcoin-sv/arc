@@ -994,10 +994,10 @@ func TestPostgresDB(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
-		txHash := testutils.RevChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
+		txHash := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
 		require.NoError(t, err)
 
-		records, err := postgresDB.GetSeen(ctx, 1*time.Hour, 3*time.Hour, 2, 0)
+		records, err := postgresDB.GetSeen(ctx, 1*time.Hour, 5*time.Minute, 2, 0)
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(records))

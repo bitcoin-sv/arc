@@ -146,6 +146,12 @@ func Test_GetRawTxs(t *testing.T) {
 			ids:             []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
 			nodeGetRawTxErr: errors.New("some error"),
 		},
+		{
+			name:            "search node - deadline exceeded",
+			source:          validator.SourceNodes,
+			ids:             []string{"8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
+			nodeGetRawTxErr: context.DeadlineExceeded,
+		},
 	}
 
 	for _, tc := range tcs {
@@ -190,6 +196,69 @@ func Test_GetRawTxs(t *testing.T) {
 			for i := range tc.expectedBytes {
 				require.True(t, bytes.Equal(tc.expectedBytes[i], txs[i].Bytes()))
 			}
+		})
+	}
+}
+
+func Test_GetMempoolAncestors(t *testing.T) {
+	tt := []struct {
+		name                   string
+		ids                    []string
+		getMempoolAncestorsErr error
+		getMemmPoolAncestors   []string
+
+		expectedError error
+		expectedIDs   []string
+	}{
+		{
+			name:                   "success",
+			ids:                    []string{"id1", "id2", "id3"},
+			getMemmPoolAncestors:   []string{"id5"},
+			getMempoolAncestorsErr: nil,
+
+			expectedIDs: []string{"id5"},
+		},
+		{
+			name:                 "failed - some error",
+			getMemmPoolAncestors: []string{"id5"},
+			ids:                  []string{"id1", "id2", "id3"},
+
+			getMempoolAncestorsErr: errors.New("some error"),
+			expectedIDs:            nil,
+			expectedError:          txfinder.ErrFailedToGetMempoolAncestors,
+		},
+		{
+			name:                 "failed - deadline exceeded",
+			getMemmPoolAncestors: []string{"id5"},
+			ids:                  []string{"id1", "id2", "id3"},
+
+			getMempoolAncestorsErr: context.DeadlineExceeded,
+			expectedIDs:            nil,
+			expectedError:          context.DeadlineExceeded,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			nodes := &mocks.NodeClientMock{
+				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
+					return tc.getMemmPoolAncestors, tc.getMempoolAncestorsErr
+				},
+			}
+
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+			sut := txfinder.New(nil, nodes, nil, logger)
+
+			txIDs, actualErr := sut.GetMempoolAncestors(context.TODO(), tc.ids)
+
+			if tc.expectedError != nil {
+				require.ErrorIs(t, actualErr, tc.expectedError)
+				return
+			}
+			require.NoError(t, actualErr)
+
+			require.Equal(t, tc.expectedIDs, txIDs)
 		})
 	}
 }

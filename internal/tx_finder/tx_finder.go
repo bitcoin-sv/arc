@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"runtime"
+	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,9 +20,15 @@ var (
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from node client")
 )
 
+const (
+	deadline  = 10 * time.Second
+	retries   = 5
+	sleepTime = 100 * time.Millisecond
+)
+
 type Finder struct {
 	transactionHandler metamorph.TransactionHandler
-	bitcoinClient      NodeClient
+	nodeClient         NodeClient
 	wocClient          WocClient
 	logger             *slog.Logger
 	tracingEnabled     bool
@@ -55,7 +62,7 @@ func New(th metamorph.TransactionHandler, nodeClient NodeClient, wocClient WocCl
 
 	f := &Finder{
 		transactionHandler: th,
-		bitcoinClient:      nodeClient,
+		nodeClient:         nodeClient,
 		wocClient:          wocClient,
 		logger:             logger,
 	}
@@ -68,7 +75,27 @@ func New(th metamorph.TransactionHandler, nodeClient NodeClient, wocClient WocCl
 }
 
 func (f Finder) GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error) {
-	txIDs, err := f.bitcoinClient.GetMempoolAncestors(ctx, ids)
+	ctx, nodeCancel := context.WithTimeout(ctx, deadline)
+	defer nodeCancel()
+
+	txIDs, err := f.nodeClient.GetMempoolAncestors(ctx, ids)
+
+	counter := 0
+	for errors.Is(err, context.DeadlineExceeded) {
+		counter++
+		if counter >= retries {
+			break
+		}
+
+		txIDs, err = f.nodeClient.GetMempoolAncestors(ctx, ids)
+		if err != nil {
+			f.logger.WarnContext(ctx, "failed to get mempool ancestors from node client", slog.Any("err", err))
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		break
+	}
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetMempoolAncestors, err)
 	}
@@ -115,11 +142,33 @@ func (f Finder) getRawTxsFromNode(ctx context.Context, remainingIDs map[string]s
 
 	var foundTxs []*sdkTx.Transaction
 
+	ctx, nodeCancel := context.WithTimeout(ctx, deadline)
+	defer nodeCancel()
+
 	ids := getKeys(remainingIDs)
 	for _, id := range ids {
-		rawTx, err := f.bitcoinClient.GetRawTransaction(ctx, id)
+		var rawTx *sdkTx.Transaction
+		var err error
+		rawTx, err = f.nodeClient.GetRawTransaction(ctx, id)
+		counter := 0
+		for errors.Is(err, context.DeadlineExceeded) {
+			counter++
+			if counter >= retries {
+				break
+			}
+
+			rawTx, err = f.nodeClient.GetRawTransaction(ctx, id)
+			if err != nil {
+				f.logger.WarnContext(ctx, "failed to get raw transactions from node client", slog.String("id", id), slog.Any("err", err))
+				time.Sleep(sleepTime)
+				continue
+			}
+
+			break
+		}
+
 		if err != nil {
-			f.logger.WarnContext(ctx, "failed to get transactions from bitcoin client", slog.String("id", id), slog.Any("err", err))
+			f.logger.WarnContext(ctx, "failed to get raw transactions from node client", slog.String("id", id), slog.Any("err", err))
 			continue
 		}
 
@@ -185,7 +234,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	}
 
 	// try to get remaining txs from the node
-	if len(remainingIDs) > 0 && source.Has(validator.SourceNodes) && f.bitcoinClient != nil {
+	if len(remainingIDs) > 0 && source.Has(validator.SourceNodes) && f.nodeClient != nil {
 		foundTxs = append(foundTxs, f.getRawTxsFromNode(ctx, remainingIDs)...)
 	}
 

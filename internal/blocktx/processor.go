@@ -302,7 +302,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 	}
 
 	if rowsAffected > 0 {
-		p.logger.Info("registered tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
+		p.logger.Info("Registered transactions", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
 	}
 
 	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
@@ -314,7 +314,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 		return nil
 	}
 
-	p.logger.Info("mined tx hashes", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
+	p.logger.Info("Found mined transactions", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
 
 	minedTxsIncludingMP, err := p.calculateMerklePaths(p.ctx, minedTxs)
 	if err != nil {
@@ -610,13 +610,16 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 			case <-ticker.C:
 				inserted := atomic.LoadInt64(&txsInserted)
 				if inserted > showProgress {
+					timeElapsed := time.Since(now)
 					percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
-					p.logger.Info(
-						fmt.Sprintf("%d txs out of %d stored", inserted, totalSize),
+					p.logger.Info("Storing block transactions",
+						slog.Int64("count", inserted),
+						slog.Int("total", totalSize),
 						slog.Int64("percentage", percentage),
 						slog.String("hash", blockhash.String()),
 						slog.Uint64("height", block.Height),
-						slog.String("duration", time.Since(now).String()),
+						slog.String("duration", timeElapsed.String()),
+						slog.Float64("txs/s", float64(inserted)/timeElapsed.Seconds()),
 					)
 					showProgress += step
 				}

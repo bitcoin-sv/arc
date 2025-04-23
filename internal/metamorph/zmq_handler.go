@@ -44,7 +44,9 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 		zmqHandler.socket = zmq4.NewSub(ctx, zmq4.WithID(zmq4.SocketIdentity("sub")))
 		defer func() {
 			if zmqHandler.connected {
-				zmqHandler.socket.Close()
+				if err := zmqHandler.socket.Close(); err != nil {
+					zmqHandler.logger.Info("failed to close zmq socket", slog.String("error", err.Error()))
+				}
 				zmqHandler.connected = false
 			}
 		}()
@@ -127,7 +129,9 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 		}
 
 		if zmqHandler.connected {
-			zmqHandler.socket.Close()
+			if err := zmqHandler.socket.Close(); err != nil {
+				zmqHandler.logger.Info("failed to close zmq socket", slog.String("error", err.Error()))
+			}
 			zmqHandler.connected = false
 		}
 		zmqHandler.logger.Info("Attempting to re-establish ZMQ connection in 10 seconds...")

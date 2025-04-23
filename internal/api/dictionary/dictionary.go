@@ -85,6 +85,8 @@ const (
 
 	errorCodeLast        = iota
 	authenticationFailed = "authentication failed"
+
+	dbConnectionFailed = "failed to connect to database"
 )
 
 // IsValid tests if the error code is valid or not.
@@ -114,9 +116,9 @@ func init() {
 	errorMessages[ErrorLoadingService] = ErrorMessage{Code: ErrorLoadingService, InternalMessage: "fatal error loading service: %s: %s", PublicMessage: "error loading service", StatusCode: http.StatusExpectationFailed}
 
 	// Database
-	errorMessages[ErrorDatabaseUnknownDriver] = ErrorMessage{Code: ErrorDatabaseUnknownDriver, InternalMessage: "unknown database driver specified: %s", PublicMessage: "failed to connect to database", StatusCode: http.StatusExpectationFailed}
-	errorMessages[ErrorDatabaseOpen] = ErrorMessage{Code: ErrorDatabaseOpen, InternalMessage: "database open error: %s at address: %s error: %s", PublicMessage: "failed to connect to database", StatusCode: http.StatusExpectationFailed}
-	errorMessages[ErrorDatabasePing] = ErrorMessage{Code: ErrorDatabasePing, InternalMessage: "database ping error: %s at address: %s error: %s", PublicMessage: "failed to connect to database", StatusCode: http.StatusExpectationFailed}
+	errorMessages[ErrorDatabaseUnknownDriver] = ErrorMessage{Code: ErrorDatabaseUnknownDriver, InternalMessage: "unknown database driver specified: %s", PublicMessage: dbConnectionFailed, StatusCode: http.StatusExpectationFailed}
+	errorMessages[ErrorDatabaseOpen] = ErrorMessage{Code: ErrorDatabaseOpen, InternalMessage: "database open error: %s at address: %s error: %s", PublicMessage: dbConnectionFailed, StatusCode: http.StatusExpectationFailed}
+	errorMessages[ErrorDatabasePing] = ErrorMessage{Code: ErrorDatabasePing, InternalMessage: "database ping error: %s at address: %s error: %s", PublicMessage: dbConnectionFailed, StatusCode: http.StatusExpectationFailed}
 
 	// Router - Basics
 	errorMessages[ErrorMethodNotAllowed] = ErrorMessage{Code: ErrorMethodNotAllowed, InternalMessage: "method: %s is not allowed, request: %s", PublicMessage: "method not allowed", StatusCode: http.StatusMethodNotAllowed}

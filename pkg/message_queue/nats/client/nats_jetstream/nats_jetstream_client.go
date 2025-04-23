@@ -149,7 +149,7 @@ func (cl *Client) IsConnected() bool {
 func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err error) {
 	_, err = cl.js.Publish(ctx, topic, hash)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -158,7 +158,7 @@ func (cl *Client) Publish(ctx context.Context, topic string, hash []byte) (err e
 func (cl *Client) PublishCore(topic string, data []byte) (err error) {
 	err = cl.nc.Publish(topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -172,7 +172,7 @@ func (cl *Client) PublishMarshalCore(topic string, m proto.Message) (err error) 
 
 	err = cl.PublishCore(topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -181,7 +181,7 @@ func (cl *Client) PublishMarshalCore(topic string, m proto.Message) (err error) 
 func (cl *Client) PublishAsync(topic string, hash []byte) (err error) {
 	_, err = cl.js.PublishAsync(topic, hash)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -195,7 +195,7 @@ func (cl *Client) PublishMarshal(ctx context.Context, topic string, m proto.Mess
 
 	err = cl.Publish(ctx, topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -209,7 +209,7 @@ func (cl *Client) PublishMarshalAsync(topic string, m proto.Message) (err error)
 
 	err = cl.PublishAsync(topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -230,7 +230,7 @@ func (cl *Client) ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error
 		}
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -256,7 +256,7 @@ func (cl *Client) Consume(topic string, msgFunc func([]byte) error) error {
 		}
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -270,7 +270,7 @@ func (cl *Client) QueueSubscribe(topic string, msgFunc func([]byte) error) error
 		}
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil

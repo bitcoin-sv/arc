@@ -89,7 +89,7 @@ func (c Client) Publish(ctx context.Context, topic string, data []byte) (err err
 
 	err = c.nc.Publish(topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -108,7 +108,7 @@ func (c Client) PublishMarshal(ctx context.Context, topic string, m proto.Messag
 
 	err = c.Publish(ctx, topic, data)
 	if err != nil {
-		return errors.Join(ErrFailedToPublish, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToPublish, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil
@@ -122,7 +122,7 @@ func (c Client) Subscribe(topic string, msgFunc func([]byte) error) error {
 		}
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("topic: %s", topic), err)
+		return errors.Join(ErrFailedToSubscribe, fmt.Errorf(topic, topic), err)
 	}
 
 	return nil

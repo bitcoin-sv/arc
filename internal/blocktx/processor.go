@@ -121,7 +121,11 @@ func NewProcessor(
 
 func (p *Processor) Start() error {
 	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
-		p.registerTxsChan <- msg
+		select {
+		case p.registerTxsChan <- msg:
+		default:
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -136,7 +140,10 @@ func (p *Processor) Start() error {
 		}
 
 		for _, tx := range serialized.Transactions {
-			p.registerTxsChan <- tx.Hash
+			select {
+			case p.registerTxsChan <- tx.Hash:
+			default:
+			}
 		}
 
 		return nil

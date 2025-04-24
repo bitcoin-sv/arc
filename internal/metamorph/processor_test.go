@@ -1068,9 +1068,9 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 
 			// when
 			sut.StartRequestingSeenOnNetworkTxs()
-
 			select {
 			case <-stop:
+				t.Log("received stop signal")
 			case <-time.After(5 * time.Second):
 				t.Fatal("timed out waiting for processor to stop")
 			}

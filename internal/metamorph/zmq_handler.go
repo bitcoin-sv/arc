@@ -45,7 +45,7 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 		defer func() {
 			if zmqHandler.connected {
 				if err := zmqHandler.socket.Close(); err != nil {
-					zmqHandler.logger.Info("failed to close zmq socket", slog.String("error", err.Error()))
+					zmqHandler.logger.Error("failed to close zmq socket", slog.String("error", err.Error()))
 				}
 				zmqHandler.connected = false
 			}
@@ -130,7 +130,7 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 
 		if zmqHandler.connected {
 			if err := zmqHandler.socket.Close(); err != nil {
-				zmqHandler.logger.Info("failed to close zmq socket", slog.String("error", err.Error()))
+				zmqHandler.logger.Error("failed to close zmq socket", slog.String("error", err.Error()))
 			}
 			zmqHandler.connected = false
 		}

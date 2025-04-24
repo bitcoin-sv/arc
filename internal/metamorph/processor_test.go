@@ -1007,7 +1007,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			name:        "failed to register transactions",
 			registerErr: errors.New("failed to register txs"),
 
-			expectedGetSeenCalls:         5,
+			expectedGetSeenCalls:         4,
 			expectedRegisterCalls:        6,
 			expectedPublishMarshallCalls: 6,
 		},

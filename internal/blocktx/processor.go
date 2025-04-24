@@ -698,15 +698,19 @@ func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.B
 		tracing.EndTracing(span, err)
 	}()
 
-	staleBlocks, err := p.store.GetStaleChainForwardFromHash(ctx, block.Hash)
+	orphanedBlocks, err := p.store.GetOrphansForwardFromHash(ctx, block.Hash)
 	if err != nil {
-		p.logger.Error("unable to get STALE blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+		p.logger.Error("unable to get Orphaned blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return err
 	}
+	blockStatusUpdates := []store.BlockStatusUpdate{}
+	for _, b := range orphanedBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
 
-	_, _, err = p.performReorg(ctx, staleBlocks, []*blocktx_api.Block{})
+	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
-		p.logger.Error("unable to fix gap blocks", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return err
 	}
 	return nil

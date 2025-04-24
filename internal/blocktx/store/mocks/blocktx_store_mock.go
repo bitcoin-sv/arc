@@ -52,14 +52,14 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetOrphansBackToNonOrphanAncestorFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
 //				panic("mock out the GetOrphansBackToNonOrphanAncestor method")
 //			},
+//			GetOrphansForwardFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+//				panic("mock out the GetOrphansForwardFromHash method")
+//			},
 //			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error) {
 //				panic("mock out the GetRegisteredTxsByBlockHashes method")
 //			},
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetStaleChainBackFromHash method")
-//			},
-//			GetStaleChainForwardFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-//				panic("mock out the GetStaleChainForwardFromHash method")
 //			},
 //			GetStatsFunc: func(ctx context.Context) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
@@ -125,14 +125,14 @@ type BlocktxStoreMock struct {
 	// GetOrphansBackToNonOrphanAncestorFunc mocks the GetOrphansBackToNonOrphanAncestor method.
 	GetOrphansBackToNonOrphanAncestorFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error)
 
+	// GetOrphansForwardFromHashFunc mocks the GetOrphansForwardFromHash method.
+	GetOrphansForwardFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+
 	// GetRegisteredTxsByBlockHashesFunc mocks the GetRegisteredTxsByBlockHashes method.
 	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error)
 
 	// GetStaleChainBackFromHashFunc mocks the GetStaleChainBackFromHash method.
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-
-	// GetStaleChainForwardFromHashFunc mocks the GetStaleChainForwardFromHash method.
-	GetStaleChainForwardFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context) (*store.Stats, error)
@@ -229,6 +229,13 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
+		// GetOrphansForwardFromHash holds details about calls to the GetOrphansForwardFromHash method.
+		GetOrphansForwardFromHash []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
+		}
 		// GetRegisteredTxsByBlockHashes holds details about calls to the GetRegisteredTxsByBlockHashes method.
 		GetRegisteredTxsByBlockHashes []struct {
 			// Ctx is the ctx argument value.
@@ -238,13 +245,6 @@ type BlocktxStoreMock struct {
 		}
 		// GetStaleChainBackFromHash holds details about calls to the GetStaleChainBackFromHash method.
 		GetStaleChainBackFromHash []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Hash is the hash argument value.
-			Hash []byte
-		}
-		// GetStaleChainForwardFromHash holds details about calls to the GetStaleChainForwardFromHash method.
-		GetStaleChainForwardFromHash []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Hash is the hash argument value.
@@ -334,9 +334,9 @@ type BlocktxStoreMock struct {
 	lockGetLongestChainFromHeight         sync.RWMutex
 	lockGetMinedTransactions              sync.RWMutex
 	lockGetOrphansBackToNonOrphanAncestor sync.RWMutex
+	lockGetOrphansForwardFromHash         sync.RWMutex
 	lockGetRegisteredTxsByBlockHashes     sync.RWMutex
 	lockGetStaleChainBackFromHash         sync.RWMutex
-	lockGetStaleChainForwardFromHash      sync.RWMutex
 	lockGetStats                          sync.RWMutex
 	lockInsertBlockTransactions           sync.RWMutex
 	lockMarkBlockAsDone                   sync.RWMutex
@@ -699,6 +699,42 @@ func (mock *BlocktxStoreMock) GetOrphansBackToNonOrphanAncestorCalls() []struct 
 	return calls
 }
 
+// GetOrphansForwardFromHash calls GetOrphansForwardFromHashFunc.
+func (mock *BlocktxStoreMock) GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	if mock.GetOrphansForwardFromHashFunc == nil {
+		panic("BlocktxStoreMock.GetOrphansForwardFromHashFunc: method is nil but BlocktxStore.GetOrphansForwardFromHash was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetOrphansForwardFromHash.Lock()
+	mock.calls.GetOrphansForwardFromHash = append(mock.calls.GetOrphansForwardFromHash, callInfo)
+	mock.lockGetOrphansForwardFromHash.Unlock()
+	return mock.GetOrphansForwardFromHashFunc(ctx, hash)
+}
+
+// GetOrphansForwardFromHashCalls gets all the calls that were made to GetOrphansForwardFromHash.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetOrphansForwardFromHashCalls())
+func (mock *BlocktxStoreMock) GetOrphansForwardFromHashCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockGetOrphansForwardFromHash.RLock()
+	calls = mock.calls.GetOrphansForwardFromHash
+	mock.lockGetOrphansForwardFromHash.RUnlock()
+	return calls
+}
+
 // GetRegisteredTxsByBlockHashes calls GetRegisteredTxsByBlockHashesFunc.
 func (mock *BlocktxStoreMock) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error) {
 	if mock.GetRegisteredTxsByBlockHashesFunc == nil {
@@ -768,42 +804,6 @@ func (mock *BlocktxStoreMock) GetStaleChainBackFromHashCalls() []struct {
 	mock.lockGetStaleChainBackFromHash.RLock()
 	calls = mock.calls.GetStaleChainBackFromHash
 	mock.lockGetStaleChainBackFromHash.RUnlock()
-	return calls
-}
-
-// GetStaleChainForwardFromHash calls GetStaleChainForwardFromHashFunc.
-func (mock *BlocktxStoreMock) GetStaleChainForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
-	if mock.GetStaleChainForwardFromHashFunc == nil {
-		panic("BlocktxStoreMock.GetStaleChainForwardFromHashFunc: method is nil but BlocktxStore.GetStaleChainForwardFromHash was just called")
-	}
-	callInfo := struct {
-		Ctx  context.Context
-		Hash []byte
-	}{
-		Ctx:  ctx,
-		Hash: hash,
-	}
-	mock.lockGetStaleChainForwardFromHash.Lock()
-	mock.calls.GetStaleChainForwardFromHash = append(mock.calls.GetStaleChainForwardFromHash, callInfo)
-	mock.lockGetStaleChainForwardFromHash.Unlock()
-	return mock.GetStaleChainForwardFromHashFunc(ctx, hash)
-}
-
-// GetStaleChainForwardFromHashCalls gets all the calls that were made to GetStaleChainForwardFromHash.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetStaleChainForwardFromHashCalls())
-func (mock *BlocktxStoreMock) GetStaleChainForwardFromHashCalls() []struct {
-	Ctx  context.Context
-	Hash []byte
-} {
-	var calls []struct {
-		Ctx  context.Context
-		Hash []byte
-	}
-	mock.lockGetStaleChainForwardFromHash.RLock()
-	calls = mock.calls.GetStaleChainForwardFromHash
-	mock.lockGetStaleChainForwardFromHash.RUnlock()
 	return calls
 }
 

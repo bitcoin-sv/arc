@@ -44,7 +44,7 @@ type BlocktxStore interface {
 	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]BlockTransaction, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-	GetStaleChainForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
+	GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 	GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash []byte) (orphans []*blocktx_api.Block, nonOrphanAncestor *blocktx_api.Block, err error)
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]BlockTransaction, error)
 	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)

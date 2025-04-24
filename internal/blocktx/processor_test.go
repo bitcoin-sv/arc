@@ -184,7 +184,7 @@ func TestHandleBlock(t *testing.T) {
 					return nil, nil
 				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
-				GetStaleChainForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+				GetOrphansForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					return []*blocktx_api.Block{}, nil
 				},
 				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error { return nil },
@@ -445,7 +445,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
 				},
-				GetStaleChainForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+				GetOrphansForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
 					return []*blocktx_api.Block{}, nil
 				},
 			}

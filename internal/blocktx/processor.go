@@ -606,23 +606,23 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 		showProgress := step
 		ticker := time.NewTicker(1 * time.Second)
 		for {
+			inserted := atomic.LoadInt64(&txsInserted)
+			if inserted > showProgress {
+				timeElapsed := time.Since(now)
+				percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
+				p.logger.Info("Storing block transactions",
+					slog.Int64("count", inserted),
+					slog.Int("total", totalSize),
+					slog.Int64("percentage", percentage),
+					slog.String("hash", blockhash.String()),
+					slog.Uint64("height", block.Height),
+					slog.String("duration", timeElapsed.String()),
+					slog.Float64("txs/s", float64(inserted)/timeElapsed.Seconds()),
+				)
+				showProgress += step
+			}
 			select {
 			case <-ticker.C:
-				inserted := atomic.LoadInt64(&txsInserted)
-				if inserted > showProgress {
-					timeElapsed := time.Since(now)
-					percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
-					p.logger.Info("Storing block transactions",
-						slog.Int64("count", inserted),
-						slog.Int("total", totalSize),
-						slog.Int64("percentage", percentage),
-						slog.String("hash", blockhash.String()),
-						slog.Uint64("height", block.Height),
-						slog.String("duration", timeElapsed.String()),
-						slog.Float64("txs/s", float64(inserted)/timeElapsed.Seconds()),
-					)
-					showProgress += step
-				}
 			case <-finished:
 				ticker.Stop()
 				return

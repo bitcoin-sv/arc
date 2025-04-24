@@ -47,11 +47,21 @@ run_e2e_mcast_tests:
 
 .PHONY: test
 test:
-	go test -race -count=1 ./...
+	go test -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
 
 .PHONY: test_short
 test_short:
-	go test -race -short -count=1 ./...
+	go test -coverprofile=./cov_short.out -covermode=atomic -race -short -count=1 ./... -coverpkg ./...
+
+.PHONY: coverage
+coverage:
+	go tool cover -html=cov.out -o coverage_report.html
+	goverreport -coverprofile cov.out -packages -sort block
+
+.PHONY: coverage_short
+coverage_short:
+	go tool cover -html=cov_short.out -o coverage_report_short.html
+	goverreport -coverprofile cov_short.out -packages -sort block
 
 .PHONY: install_lint
 install_lint:
@@ -109,13 +119,6 @@ clean_gen:
 	rm -f ./internal/metamorph/metamorph_api/*.pb.go
 	rm -f ./internal/blocktx/blocktx_api/*.pb.go
 	rm -f ./internal/callbacker/callbacker_api/*.pb.go
-
-.PHONY: coverage
-coverage:
-	rm -f ./cov.out
-	go test -coverprofile=./cov.out -covermode=atomic  ./... 2>&1 > gotest.out -coverpkg ./...
-	go tool cover -html=cov.out -o coverage-report.html
-	goverreport -coverprofile cov.out -packages -sort block
 
 .PHONY: install_coverage
 install_coverage:

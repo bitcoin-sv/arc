@@ -395,4 +395,66 @@ func TestReorg(t *testing.T) {
 
 		verifyTxs(t, expectedTxs, publishedTxs)
 	})
+
+	t.Run("unorphan blocks until gap", func(t *testing.T) {
+		defer pruneTables(t, dbConn)
+		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
+
+		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+
+		const (
+			blockHash822017Longest = "00000000000000000643d48201cf609b8cc50befe804194f19a7ec61cf046239"
+			blockHash822017Stale   = "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000"
+			blockHash822018Orphan  = "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde"
+			blockHash822019Orphan  = "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656"
+			blockHash822020Orphan  = "00000000000000000a5c4d27edc0178e953a5bb0ab0081e66cb30c8890484076"
+			blockHash822021        = "d46bf0a189927b62c8ff785d393a545093ca01af159aed771a8d94749f06c060"
+			blockHash822022Orphan  = "0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c"
+			blockHash822023Orphan  = "0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd"
+		)
+
+		blockHash := testutils.RevChainhash(t, blockHash822021)
+		txHash := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
+		merkleRoot := testutils.RevChainhash(t, "de0753d9ce6f92e340843cbfdd11e58beff8c578956ecdec4c461b018a26b8a9")
+		prevhash := testutils.RevChainhash(t, blockHash822017Longest)
+
+		// should become LONGEST
+		blockMessage := &bcnet.BlockMessage{
+			Hash: blockHash,
+			Header: &wire.BlockHeader{
+				Version:    541065216,
+				PrevBlock:  *prevhash, // block with status ORPHANED at height 822020 - connected to STALE chain
+				MerkleRoot: *merkleRoot,
+				Bits:       0x1a05db8b, // chainwork: "12301577519373468" higher than the competing chain
+			},
+			Height:            uint64(822021),
+			TransactionHashes: []*chainhash.Hash{txHash},
+		}
+
+		processor.StartBlockProcessing()
+		p2pMsgHandler.OnReceive(blockMessage, nil)
+
+		// Allow DB to process the block and find orphans
+		time.Sleep(1 * time.Second)
+
+		// verify that the orphans before the new block are still orphans
+		verifyBlock(t, store, blockHash822017Stale, 822017, blocktx_api.Status_STALE)
+		verifyBlock(t, store, blockHash822018Orphan, 822018, blocktx_api.Status_ORPHANED)
+		verifyBlock(t, store, blockHash822019Orphan, 822019, blocktx_api.Status_ORPHANED)
+		verifyBlock(t, store, blockHash822020Orphan, 822020, blocktx_api.Status_ORPHANED)
+		// verify that the new block is longest
+		verifyBlock(t, store, blockHash822021, 822021, blocktx_api.Status_LONGEST)
+
+		// verify that the longest chain is still the same
+		verifyBlock(t, store, blockHash822017Longest, 822017, blocktx_api.Status_LONGEST)
+
+		// verify that the blocks after the new block and until the next gap are now LONGEST
+		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_LONGEST)
+		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_LONGEST)
+
+		publishedTxs := getPublishedTxs(publishedTxsCh)
+
+		// verify no transaction was published
+		require.Len(t, publishedTxs, 0)
+	})
 }

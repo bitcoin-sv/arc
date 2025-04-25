@@ -101,6 +101,7 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 // |			will return blocks B and C so they can be repaired
 // D (LONGEST)  and marked as LONGEST
 func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	//This should only return the descendants of a LONGEST block
 	// The way this query works, is that the result from the first SELECT
 	// will be stored in the prevBlocks variable, which is later used
 	// for recursion in the second SELECT.
@@ -112,14 +113,15 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 	q := `
 		WITH RECURSIVE nextBlocks AS (
 			SELECT
-				hash
-				,prevhash
-				,merkleroot
-				,height
-				,processed_at
-				,status
-				,chainwork
-			FROM blocktx.blocks WHERE prevhash = $1
+				b.hash
+				,b.prevhash
+				,b.merkleroot
+				,b.height
+				,b.processed_at
+				,b.status
+				,b.chainwork
+			FROM blocktx.blocks b, (SELECT hash FROM blocktx.blocks WHERE hash = $1 AND status = $2) p 
+			WHERE b.prevhash = $1
 			UNION ALL
 			SELECT
 				b.hash
@@ -129,7 +131,7 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 				,b.processed_at
 				,b.status
 				,b.chainwork
-			FROM blocktx.blocks b JOIN nextBlocks n ON b.prevhash = n.hash AND b.status = $2
+			FROM blocktx.blocks b JOIN nextBlocks n ON b.prevhash = n.hash AND b.status = $3
 			WHERE b.processed_at IS NOT NULL
 		)
 		SELECT
@@ -144,7 +146,7 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 		ORDER BY height
 	`
 
-	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_ORPHANED)
+	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_LONGEST, blocktx_api.Status_ORPHANED)
 	if err != nil {
 		return nil, err
 	}

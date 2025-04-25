@@ -22,9 +22,9 @@ func TestDoubleSpend(t *testing.T) {
 
 		utxos := node_client.GetUtxos(t, bitcoind, address)
 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-		//
-		//callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup := CreateCallbackServer(t)
-		//defer cleanup()
+
+		callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup := CreateCallbackServer(t)
+		defer cleanup()
 
 		tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
@@ -36,8 +36,9 @@ func TestDoubleSpend(t *testing.T) {
 
 		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx1}),
 			map[string]string{
-				"X-WaitFor": StatusSeenOnNetwork,
-				//"X-CallbackUrl": callbackURL,
+				"X-WaitFor":       StatusSeenOnNetwork,
+				"X-CallbackUrl":   callbackURL,
+				"X-CallbackToken": token,
 			},
 			http.StatusOK)
 		require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
@@ -51,8 +52,9 @@ func TestDoubleSpend(t *testing.T) {
 		// submit second transaction
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx2}),
 			map[string]string{
-				"X-WaitFor": StatusDoubleSpendAttempted,
-				//"X-CallbackUrl": callbackURL,
+				"X-WaitFor":       StatusDoubleSpendAttempted,
+				"X-CallbackUrl":   callbackURL,
+				"X-CallbackToken": token,
 			},
 			http.StatusOK)
 		require.Equal(t, StatusDoubleSpendAttempted, resp.TxStatus)
@@ -65,8 +67,9 @@ func TestDoubleSpend(t *testing.T) {
 
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx3}),
 			map[string]string{
-				"X-WaitFor": StatusDoubleSpendAttempted,
-				//"X-CallbackUrl": callbackURL,
+				"X-WaitFor":       StatusDoubleSpendAttempted,
+				"X-CallbackUrl":   callbackURL,
+				"X-CallbackToken": token,
 			},
 			http.StatusOK)
 		require.Equal(t, StatusDoubleSpendAttempted, resp.TxStatus)
@@ -97,14 +100,50 @@ func TestDoubleSpend(t *testing.T) {
 		tx3StatusResp := getRequest[TransactionResponse](t, tx3StatusURL)
 
 		require.Contains(t, []string{tx1StatusResp.TxStatus, tx2StatusResp.TxStatus, tx3StatusResp.TxStatus}, StatusMined)
+		type callbackData struct {
+			txID   string
+			status string
+		}
+
+		var expectedReceivedCallbacks []callbackData
 
 		if tx1StatusResp.TxStatus == StatusMined {
-			checkDoubleSpendResp(t, tx1StatusResp, tx2StatusResp, tx3StatusResp)
+			checkDoubleSpendResponse(t, tx1StatusResp, tx2StatusResp, tx3StatusResp)
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx1.TxID().String(), status: StatusMined})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx2.TxID().String(), status: StatusRejected})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx3.TxID().String(), status: StatusRejected})
 		} else if tx2StatusResp.TxStatus == StatusMined {
-			checkDoubleSpendResp(t, tx2StatusResp, tx1StatusResp, tx3StatusResp)
+			checkDoubleSpendResponse(t, tx2StatusResp, tx1StatusResp, tx3StatusResp)
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx2.TxID().String(), status: StatusMined})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx1.TxID().String(), status: StatusRejected})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx3.TxID().String(), status: StatusRejected})
 		} else if tx3StatusResp.TxStatus == StatusMined {
-			checkDoubleSpendResp(t, tx3StatusResp, tx2StatusResp, tx1StatusResp)
+			checkDoubleSpendResponse(t, tx3StatusResp, tx2StatusResp, tx1StatusResp)
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx3.TxID().String(), status: StatusMined})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx1.TxID().String(), status: StatusRejected})
+			expectedReceivedCallbacks = append(expectedReceivedCallbacks, callbackData{txID: tx2.TxID().String(), status: StatusRejected})
 		}
+
+		// wait for callbacks
+		callbackTimeout := time.After(5 * time.Second)
+
+		var receivedCallbacks []callbackData
+
+	callbackLoop:
+		for {
+			select {
+			case status := <-callbackReceivedChan:
+				receivedCallbacks = append(receivedCallbacks, callbackData{txID: status.Txid, status: status.TxStatus})
+			case err = <-callbackErrChan:
+				t.Fatalf("callback error: %v", err)
+			case <-callbackTimeout:
+				break callbackLoop
+			}
+		}
+
+		t.Log("expected callbacks", expectedReceivedCallbacks)
+		t.Log("received callbacks", receivedCallbacks)
+		require.ElementsMatch(t, expectedReceivedCallbacks, receivedCallbacks)
 
 		// send double spending transaction when previous tx was mined
 		txMined := createTxToNewAddress(t, privateKey, utxos[0])
@@ -116,7 +155,7 @@ func TestDoubleSpend(t *testing.T) {
 	})
 }
 
-func checkDoubleSpendResp(t *testing.T, minedResp TransactionResponse, rejectedResponses ...TransactionResponse) {
+func checkDoubleSpendResponse(t *testing.T, minedResp TransactionResponse, rejectedResponses ...TransactionResponse) {
 	require.Equal(t, *minedResp.ExtraInfo, "previously double spend attempted")
 	for _, rejectedResp := range rejectedResponses {
 		require.Equal(t, StatusRejected, rejectedResp.TxStatus)
@@ -131,9 +170,6 @@ func createTxToNewAddress(t *testing.T, privateKey string, utxo node_client.Unsp
 	require.NoError(t, err)
 
 	newAddress := newKeyset.Address(false)
-	t.Logf("new address from keyset: %s", newAddress)
-
-	require.NoError(t, err)
 	tx1, err := node_client.CreateTx(privateKey, newAddress, utxo)
 	require.NoError(t, err)
 

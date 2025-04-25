@@ -222,8 +222,8 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 }
 
 func CreateCallbackServer(t *testing.T) (callbackURL string, token string, callbackReceivedChan chan *TransactionResponse, callbackErrChan chan error, cleanup func()) {
-	callbackReceivedChan = make(chan *TransactionResponse)
-	callbackErrChan = make(chan error)
+	callbackReceivedChan = make(chan *TransactionResponse, 100)
+	callbackErrChan = make(chan error, 100)
 
 	lis, err := net.Listen("tcp", ":9000")
 	require.NoError(t, err)

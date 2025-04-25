@@ -21,7 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	testutils2 "github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (
@@ -48,7 +48,7 @@ func testmain(m *testing.M) int {
 	}
 
 	port := "5433"
-	resource, connStr, err := testutils2.RunAndMigratePostgresql(pool, port, "metamorph", migrationsPath)
+	resource, connStr, err := testutils.RunAndMigratePostgresql(pool, port, "metamorph", migrationsPath)
 	if err != nil {
 		log.Print(err)
 		return 1
@@ -65,7 +65,7 @@ func testmain(m *testing.M) int {
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	testutils2.PruneTables(t, db, "metamorph.transactions")
+	testutils.PruneTables(t, db, "metamorph.transactions")
 }
 
 func TestPostgresDB(t *testing.T) {
@@ -146,16 +146,16 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get raw txs", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/get_rawtxs")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_rawtxs")
 
 		hash1 := "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"
 		hash2 := "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"
 		hash3 := "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"
 
 		hashes := make([][]byte, 0)
-		hashes = append(hashes, testutils2.RevChainhash(t, hash1).CloneBytes())
-		hashes = append(hashes, testutils2.RevChainhash(t, hash2).CloneBytes())
-		hashes = append(hashes, testutils2.RevChainhash(t, hash3).CloneBytes())
+		hashes = append(hashes, testutils.RevChainhash(t, hash1).CloneBytes())
+		hashes = append(hashes, testutils.RevChainhash(t, hash2).CloneBytes())
+		hashes = append(hashes, testutils.RevChainhash(t, hash3).CloneBytes())
 
 		expectedRawTxs := make([][]byte, 0)
 
@@ -180,11 +180,11 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get many", func(t *testing.T) {
 		// when
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		keys := [][]byte{
-			testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
-			testutils2.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")[:],
+			testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")[:],
+			testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")[:],
 		}
 
 		// then
@@ -197,9 +197,9 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set bulk", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/set_bulk")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_bulk")
 
-		hash2 := testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
+		hash2 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
 
 		data := []*store.Data{
 			{
@@ -257,17 +257,17 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get unmined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		// locked by metamorph-1
-		expectedHash0 := testutils2.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
+		expectedHash0 := testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
 		// offset 0
 		records, err := postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 0)
 		require.NoError(t, err)
 		require.Equal(t, expectedHash0, records[0].Hash)
 
 		// locked by metamorph-1
-		expectedHash1 := testutils2.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
+		expectedHash1 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
 		// offset 1
 		records, err = postgresDB.GetUnmined(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 1, 1)
 		require.NoError(t, err)
@@ -276,20 +276,20 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set locked by", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
 		require.NoError(t, err)
 
 		// locked by NONE
-		expectedHash2 := testutils2.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")
+		expectedHash2 := testutils.RevChainhash(t, "12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357")
 
 		// locked by NONE
-		expectedHash3 := testutils2.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
+		expectedHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
 
 		// check if previously unlocked tx has b
 		// locked by NONE
-		expectedHash4 := testutils2.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
+		expectedHash4 := testutils.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
 
 		// check if previously unlocked tx has been locked
 		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])
@@ -308,28 +308,28 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set unlocked by name", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
 		rows, err := postgresDB.SetUnlockedByName(ctx, "metamorph-3")
 		require.NoError(t, err)
 		require.Equal(t, int64(4), rows)
 
-		hash1 := testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
+		hash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 		hash1Data, err := postgresDB.Get(ctx, hash1[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash1Data.LockedBy)
 
-		hash2 := testutils2.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		hash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
 		hash2Data, err := postgresDB.Get(ctx, hash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash2Data.LockedBy)
 
-		hash3 := testutils2.RevChainhash(t, "f791ec50447e3001b9348930659527ea92dee506e9950014bcc7c5b146e2417f")
+		hash3 := testutils.RevChainhash(t, "f791ec50447e3001b9348930659527ea92dee506e9950014bcc7c5b146e2417f")
 		hash3Data, err := postgresDB.Get(ctx, hash3[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash3Data.LockedBy)
 
-		hash4 := testutils2.RevChainhash(t, "89714f129748e5176a07fc4eb89cf27a9e60340117e6b56bb742acb2873f8140")
+		hash4 := testutils.RevChainhash(t, "89714f129748e5176a07fc4eb89cf27a9e60340117e6b56bb742acb2873f8140")
 		hash4Data, err := postgresDB.Get(ctx, hash4[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash4Data.LockedBy)
@@ -337,28 +337,28 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set unlocked by name except", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
 		rows, err := postgresDB.SetUnlockedByNameExcept(ctx, []string{"metamorph-1", ""})
 		require.NoError(t, err)
 		require.Equal(t, int64(4), rows)
 
-		hash1 := testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
+		hash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
 		hash1Data, err := postgresDB.Get(ctx, hash1[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash1Data.LockedBy)
 
-		hash2 := testutils2.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		hash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
 		hash2Data, err := postgresDB.Get(ctx, hash2[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash2Data.LockedBy)
 
-		hash3 := testutils2.RevChainhash(t, "f791ec50447e3001b9348930659527ea92dee506e9950014bcc7c5b146e2417f")
+		hash3 := testutils.RevChainhash(t, "f791ec50447e3001b9348930659527ea92dee506e9950014bcc7c5b146e2417f")
 		hash3Data, err := postgresDB.Get(ctx, hash3[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash3Data.LockedBy)
 
-		hash4 := testutils2.RevChainhash(t, "89714f129748e5176a07fc4eb89cf27a9e60340117e6b56bb742acb2873f8140")
+		hash4 := testutils.RevChainhash(t, "89714f129748e5176a07fc4eb89cf27a9e60340117e6b56bb742acb2873f8140")
 		hash4Data, err := postgresDB.Get(ctx, hash4[:])
 		require.NoError(t, err)
 		require.Equal(t, "NONE", hash4Data.LockedBy)
@@ -366,40 +366,40 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update status", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/update_status")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_status")
 
 		updates := []store.UpdateStatus{
 			{
-				Hash:   *testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Hash:   *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
+				Hash:   *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Hash:   *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status: metamorph_api.Status_REJECTED,
 				Error:  errors.New("missing inputs"),
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
+				Hash:   *testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Hash:   *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
+				Hash:   *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
 				Status: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
+				Hash:   *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
 			{
-				Hash:   *testutils2.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
+				Hash:   *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			},
 		}
@@ -410,16 +410,16 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, updatedStatuses)
 
 		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, statusUpdates[0].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
 
 		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[1].Status)
 		require.Equal(t, "missing inputs", statusUpdates[1].RejectReason)
-		require.Equal(t, *testutils2.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[1].Hash)
 
 		require.Equal(t, metamorph_api.Status_SEEN_ON_NETWORK, statusUpdates[2].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), *statusUpdates[2].Hash)
 
-		returnedDataRequested, err := postgresDB.Get(ctx, testutils2.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
+		returnedDataRequested, err := postgresDB.Get(ctx, testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f")[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, returnedDataRequested.Status)
 
@@ -430,42 +430,42 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update double spend status", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/update_double_spend")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_double_spend")
 
 		updates := []store.UpdateStatus{
 			{
-				Hash:         *testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Hash:         *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"5678"},
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
+				Hash:         *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"9999", "8888"},
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Hash:         *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
+				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
 				CompetingTxs: []string{"1234"},
 				Error:        errors.New("double spend attempted"),
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
+				Hash:         *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
 			},
 			{
-				Hash:         *testutils2.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
+				Hash:         *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"1234"},
 			},
@@ -477,19 +477,19 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, updatedStatuses)
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[0].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
 		require.True(t, unorderedEqual([]string{"5678", "1234"}, statusUpdates[0].CompetingTxs))
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
 		require.True(t, unorderedEqual([]string{"9999", "8888", "1234", "5678"}, statusUpdates[1].CompetingTxs))
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
 		require.Equal(t, []string{"1234"}, statusUpdates[2].CompetingTxs)
 
 		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[3].Status)
-		require.Equal(t, *testutils2.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
+		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
 		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
 		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
 
@@ -500,16 +500,16 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update mined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)
 		require.NoError(t, err)
 
-		chainHash2 := testutils2.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
-		chainHash3 := testutils2.RevChainhash(t, "a7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7")
-		competingHash := testutils2.RevChainhash(t, "67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff")
-		chainhash4 := testutils2.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
+		chainHash2 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+		chainHash3 := testutils.RevChainhash(t, "a7fd98bd37f9b387dbef4f1a4e4790b9a0d48fb7bbb77455e8f39df0f8909db7")
+		competingHash := testutils.RevChainhash(t, "67fc757d9ed6d119fc0926ae5c82c1a2cf036ec823257cfaea396e49184ec7ff")
+		chainhash4 := testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd")
 
 		txBlocks := []*blocktx_api.TransactionBlock{
 			{
@@ -922,7 +922,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("clear data", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
 		res, err := postgresDB.ClearData(ctx, 14)
 		require.NoError(t, err)
@@ -936,9 +936,9 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get seen on network txs", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
-		txHash := testutils2.RevChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
+		txHash := testutils.RevChainhash(t, "855b2aea1420df52a561fe851297653739677b14c89c0a08e3f70e1942bcb10f")
 		require.NoError(t, err)
 
 		records, err := postgresDB.GetSeenOnNetwork(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), time.Date(2023, 1, 1, 3, 0, 0, 0, time.UTC), 2, 0)
@@ -955,7 +955,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("get stats", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils2.LoadFixtures(t, postgresDB.db, "fixtures/get_stats")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_stats")
 
 		res, err := postgresDB.GetStats(ctx, time.Date(2023, 1, 1, 1, 0, 0, 0, time.UTC), 10*time.Minute, 20*time.Minute)
 		require.NoError(t, err)

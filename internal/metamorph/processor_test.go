@@ -991,7 +991,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 		{
 			name: "success",
 
-			expectedGetSeenCalls:         5,
+			expectedGetSeenCalls:         4,
 			expectedRegisterCalls:        6,
 			expectedPublishMarshallCalls: 0,
 		},
@@ -1007,7 +1007,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			name:        "failed to register transactions",
 			registerErr: errors.New("failed to register txs"),
 
-			expectedGetSeenCalls:         5,
+			expectedGetSeenCalls:         4,
 			expectedRegisterCalls:        6,
 			expectedPublishMarshallCalls: 6,
 		},
@@ -1060,7 +1060,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(50*time.Millisecond),
+				metamorph.WithProcessSeenOnNetworkTxsInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)

@@ -121,7 +121,11 @@ func NewProcessor(
 
 func (p *Processor) Start() error {
 	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
-		p.registerTxsChan <- msg
+		select {
+		case p.registerTxsChan <- msg:
+		default:
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -136,7 +140,10 @@ func (p *Processor) Start() error {
 		}
 
 		for _, tx := range serialized.Transactions {
-			p.registerTxsChan <- tx.Hash
+			select {
+			case p.registerTxsChan <- tx.Hash:
+			default:
+			}
 		}
 
 		return nil
@@ -295,7 +302,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 	}
 
 	if rowsAffected > 0 {
-		p.logger.Info("registered tx hashes", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
+		p.logger.Info("Registered transactions", slog.Int("hashes", len(txHashes)), slog.Int64("new", rowsAffected))
 	}
 
 	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
@@ -307,7 +314,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 		return nil
 	}
 
-	p.logger.Info("mined tx hashes", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
+	p.logger.Info("Found mined transactions", slog.Int("hashes", len(txHashes)), slog.Int("mined", len(minedTxs)))
 
 	minedTxsIncludingMP, err := p.calculateMerklePaths(p.ctx, minedTxs)
 	if err != nil {
@@ -591,30 +598,27 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 
 	finished := make(chan struct{})
 	defer func() {
+		inserted := atomic.LoadInt64(&txsInserted)
+		p.logProgress(now, inserted, totalSize, blockhash, block)
+
 		finished <- struct{}{}
 	}()
 	go func() {
-		step := int64(math.Ceil(float64(len(txs)) / 5))
+		const totalSteps = 5
+		step := int64(math.Ceil(float64(len(txs)) / totalSteps))
 
 		showProgress := step
-		ticker := time.NewTicker(1 * time.Second)
+		checkProgressTicker := time.NewTicker(1 * time.Second)
 		for {
 			select {
-			case <-ticker.C:
+			case <-checkProgressTicker.C:
 				inserted := atomic.LoadInt64(&txsInserted)
 				if inserted > showProgress {
-					percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
-					p.logger.Info(
-						fmt.Sprintf("%d txs out of %d stored", inserted, totalSize),
-						slog.Int64("percentage", percentage),
-						slog.String("hash", blockhash.String()),
-						slog.Uint64("height", block.Height),
-						slog.String("duration", time.Since(now).String()),
-					)
+					p.logProgress(now, inserted, totalSize, blockhash, block)
 					showProgress += step
 				}
 			case <-finished:
-				ticker.Stop()
+				checkProgressTicker.Stop()
 				return
 			}
 		}
@@ -644,6 +648,20 @@ func (p *Processor) storeTransactions(ctx context.Context, blockID uint64, block
 	}
 
 	return nil
+}
+
+func (p *Processor) logProgress(now time.Time, inserted int64, totalSize int, blockhash *chainhash.Hash, block *blocktx_api.Block) {
+	timeElapsed := time.Since(now)
+	percentage := int64(math.Floor(100 * float64(inserted) / float64(totalSize)))
+	p.logger.Info("Storing block transactions",
+		slog.Int64("count", inserted),
+		slog.Int("total", totalSize),
+		slog.Int64("percentage", percentage),
+		slog.String("hash", blockhash.String()),
+		slog.Uint64("height", block.Height),
+		slog.String("duration", timeElapsed.String()),
+		slog.Float64("txs/s", float64(inserted)/timeElapsed.Seconds()),
+	)
 }
 
 func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {

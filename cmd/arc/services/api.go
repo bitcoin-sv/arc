@@ -297,6 +297,7 @@ func extendRequestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerCon
 			"X-MaxTimeout",
 			"X-WaitFor",
 			"X-CumulativeFeeValidation",
+			"Authorization",
 		},
 		HandleError: true, // forwards error to the global error handler, so it can decide appropriate status code
 		LogValuesFunc: func(c echo.Context, v echomiddleware.RequestLoggerValues) error {

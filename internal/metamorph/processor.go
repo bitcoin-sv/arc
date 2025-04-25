@@ -581,11 +581,10 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
-		sendCallback := false
+		sendCallback := data.Status >= metamorph_api.Status_REJECTED
+
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
-		} else {
-			sendCallback = data.Status >= metamorph_api.Status_REJECTED
 		}
 
 		if sendCallback && len(data.Callbacks) > 0 {

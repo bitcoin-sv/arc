@@ -405,7 +405,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 		updatedStatuses := 3
 
-		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatus(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 
@@ -423,7 +423,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_ACCEPTED_BY_NETWORK, returnedDataRequested.Status)
 
-		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		statusUpdates, err = postgresDB.UpdateStatus(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 0)
 	})
@@ -667,7 +667,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err := postgresDB.UpdateStatusBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatus(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -696,7 +696,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err = postgresDB.UpdateStatusBulk(ctx, updates)
+		statusUpdates, err = postgresDB.UpdateStatus(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -811,7 +811,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -848,7 +848,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -888,7 +888,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -921,7 +921,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err := postgresDB.UpdateStatusHistoryBulk(ctx, updates)
+		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 

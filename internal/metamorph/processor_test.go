@@ -542,14 +542,14 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-				UpdateStatusBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+				UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
 						return tc.updateResp[counter-1], tc.updateErr
 					}
 					return nil, tc.updateErr
 				},
-				UpdateStatusHistoryBulkFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+				UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					return nil, nil
 				},
 				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
@@ -610,7 +610,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			time.Sleep(time.Millisecond * 300)
 
 			// then
-			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusBulkCalls()))
+			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
 			require.Equal(t, tc.expectedDoubleSpendCalls, len(metamorphStore.UpdateDoubleSpendCalls()))
 			require.Equal(t, tc.expectedCallbacks, len(mqClient.PublishMarshalCalls()))
 			sut.Shutdown()

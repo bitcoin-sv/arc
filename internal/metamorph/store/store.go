@@ -75,8 +75,8 @@ type MetamorphStore interface {
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
 	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*Data, error)
-	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
-	UpdateStatusHistoryBulk(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
+	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
+	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	Close(ctx context.Context) error

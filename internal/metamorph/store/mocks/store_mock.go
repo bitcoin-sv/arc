@@ -76,11 +76,11 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
 //				panic("mock out the UpdateMined method")
 //			},
-//			UpdateStatusBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-//				panic("mock out the UpdateStatusBulk method")
+//			UpdateStatusFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+//				panic("mock out the UpdateStatus method")
 //			},
-//			UpdateStatusHistoryBulkFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-//				panic("mock out the UpdateStatusHistoryBulk method")
+//			UpdateStatusHistoryFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+//				panic("mock out the UpdateStatusHistory method")
 //			},
 //		}
 //
@@ -143,11 +143,11 @@ type MetamorphStoreMock struct {
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error)
 
-	// UpdateStatusBulkFunc mocks the UpdateStatusBulk method.
-	UpdateStatusBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
+	// UpdateStatusFunc mocks the UpdateStatus method.
+	UpdateStatusFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
 
-	// UpdateStatusHistoryBulkFunc mocks the UpdateStatusHistoryBulk method.
-	UpdateStatusHistoryBulkFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
+	// UpdateStatusHistoryFunc mocks the UpdateStatusHistory method.
+	UpdateStatusHistoryFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -289,15 +289,15 @@ type MetamorphStoreMock struct {
 			// TxsBlocks is the txsBlocks argument value.
 			TxsBlocks []*blocktx_api.TransactionBlock
 		}
-		// UpdateStatusBulk holds details about calls to the UpdateStatusBulk method.
-		UpdateStatusBulk []struct {
+		// UpdateStatus holds details about calls to the UpdateStatus method.
+		UpdateStatus []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Updates is the updates argument value.
 			Updates []store.UpdateStatus
 		}
-		// UpdateStatusHistoryBulk holds details about calls to the UpdateStatusHistoryBulk method.
-		UpdateStatusHistoryBulk []struct {
+		// UpdateStatusHistory holds details about calls to the UpdateStatusHistory method.
+		UpdateStatusHistory []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Updates is the updates argument value.
@@ -322,8 +322,8 @@ type MetamorphStoreMock struct {
 	lockSetUnlockedByNameExcept sync.RWMutex
 	lockUpdateDoubleSpend       sync.RWMutex
 	lockUpdateMined             sync.RWMutex
-	lockUpdateStatusBulk        sync.RWMutex
-	lockUpdateStatusHistoryBulk sync.RWMutex
+	lockUpdateStatus            sync.RWMutex
+	lockUpdateStatusHistory     sync.RWMutex
 }
 
 // ClearData calls ClearDataFunc.
@@ -998,10 +998,10 @@ func (mock *MetamorphStoreMock) UpdateMinedCalls() []struct {
 	return calls
 }
 
-// UpdateStatusBulk calls UpdateStatusBulkFunc.
-func (mock *MetamorphStoreMock) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-	if mock.UpdateStatusBulkFunc == nil {
-		panic("MetamorphStoreMock.UpdateStatusBulkFunc: method is nil but MetamorphStore.UpdateStatusBulk was just called")
+// UpdateStatus calls UpdateStatusFunc.
+func (mock *MetamorphStoreMock) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+	if mock.UpdateStatusFunc == nil {
+		panic("MetamorphStoreMock.UpdateStatusFunc: method is nil but MetamorphStore.UpdateStatus was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -1010,17 +1010,17 @@ func (mock *MetamorphStoreMock) UpdateStatusBulk(ctx context.Context, updates []
 		Ctx:     ctx,
 		Updates: updates,
 	}
-	mock.lockUpdateStatusBulk.Lock()
-	mock.calls.UpdateStatusBulk = append(mock.calls.UpdateStatusBulk, callInfo)
-	mock.lockUpdateStatusBulk.Unlock()
-	return mock.UpdateStatusBulkFunc(ctx, updates)
+	mock.lockUpdateStatus.Lock()
+	mock.calls.UpdateStatus = append(mock.calls.UpdateStatus, callInfo)
+	mock.lockUpdateStatus.Unlock()
+	return mock.UpdateStatusFunc(ctx, updates)
 }
 
-// UpdateStatusBulkCalls gets all the calls that were made to UpdateStatusBulk.
+// UpdateStatusCalls gets all the calls that were made to UpdateStatus.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.UpdateStatusBulkCalls())
-func (mock *MetamorphStoreMock) UpdateStatusBulkCalls() []struct {
+//	len(mockedMetamorphStore.UpdateStatusCalls())
+func (mock *MetamorphStoreMock) UpdateStatusCalls() []struct {
 	Ctx     context.Context
 	Updates []store.UpdateStatus
 } {
@@ -1028,16 +1028,16 @@ func (mock *MetamorphStoreMock) UpdateStatusBulkCalls() []struct {
 		Ctx     context.Context
 		Updates []store.UpdateStatus
 	}
-	mock.lockUpdateStatusBulk.RLock()
-	calls = mock.calls.UpdateStatusBulk
-	mock.lockUpdateStatusBulk.RUnlock()
+	mock.lockUpdateStatus.RLock()
+	calls = mock.calls.UpdateStatus
+	mock.lockUpdateStatus.RUnlock()
 	return calls
 }
 
-// UpdateStatusHistoryBulk calls UpdateStatusHistoryBulkFunc.
-func (mock *MetamorphStoreMock) UpdateStatusHistoryBulk(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
-	if mock.UpdateStatusHistoryBulkFunc == nil {
-		panic("MetamorphStoreMock.UpdateStatusHistoryBulkFunc: method is nil but MetamorphStore.UpdateStatusHistoryBulk was just called")
+// UpdateStatusHistory calls UpdateStatusHistoryFunc.
+func (mock *MetamorphStoreMock) UpdateStatusHistory(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+	if mock.UpdateStatusHistoryFunc == nil {
+		panic("MetamorphStoreMock.UpdateStatusHistoryFunc: method is nil but MetamorphStore.UpdateStatusHistory was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -1046,17 +1046,17 @@ func (mock *MetamorphStoreMock) UpdateStatusHistoryBulk(ctx context.Context, upd
 		Ctx:     ctx,
 		Updates: updates,
 	}
-	mock.lockUpdateStatusHistoryBulk.Lock()
-	mock.calls.UpdateStatusHistoryBulk = append(mock.calls.UpdateStatusHistoryBulk, callInfo)
-	mock.lockUpdateStatusHistoryBulk.Unlock()
-	return mock.UpdateStatusHistoryBulkFunc(ctx, updates)
+	mock.lockUpdateStatusHistory.Lock()
+	mock.calls.UpdateStatusHistory = append(mock.calls.UpdateStatusHistory, callInfo)
+	mock.lockUpdateStatusHistory.Unlock()
+	return mock.UpdateStatusHistoryFunc(ctx, updates)
 }
 
-// UpdateStatusHistoryBulkCalls gets all the calls that were made to UpdateStatusHistoryBulk.
+// UpdateStatusHistoryCalls gets all the calls that were made to UpdateStatusHistory.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.UpdateStatusHistoryBulkCalls())
-func (mock *MetamorphStoreMock) UpdateStatusHistoryBulkCalls() []struct {
+//	len(mockedMetamorphStore.UpdateStatusHistoryCalls())
+func (mock *MetamorphStoreMock) UpdateStatusHistoryCalls() []struct {
 	Ctx     context.Context
 	Updates []store.UpdateStatus
 } {
@@ -1064,8 +1064,8 @@ func (mock *MetamorphStoreMock) UpdateStatusHistoryBulkCalls() []struct {
 		Ctx     context.Context
 		Updates []store.UpdateStatus
 	}
-	mock.lockUpdateStatusHistoryBulk.RLock()
-	calls = mock.calls.UpdateStatusHistoryBulk
-	mock.lockUpdateStatusHistoryBulk.RUnlock()
+	mock.lockUpdateStatusHistory.RLock()
+	calls = mock.calls.UpdateStatusHistory
+	mock.lockUpdateStatusHistory.RUnlock()
 	return calls
 }

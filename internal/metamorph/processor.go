@@ -559,7 +559,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	var updatedData []*store.Data
 
 	if len(statusUpdates) > 0 {
-		updatedData, err = p.store.UpdateStatusBulk(ctx, statusUpdates)
+		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
 		if err != nil {
 			return err
 		}
@@ -574,7 +574,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}
 
 	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
-	_, err = p.store.UpdateStatusHistoryBulk(ctx, statusHistoryUpdates)
+	_, err = p.store.UpdateStatusHistory(ctx, statusHistoryUpdates)
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}

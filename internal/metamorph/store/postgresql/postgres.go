@@ -600,7 +600,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -710,7 +710,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusHistoryBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)

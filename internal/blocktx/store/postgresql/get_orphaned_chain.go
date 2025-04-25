@@ -93,22 +93,23 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 // It searches for the block whose parent is the given hash and finds children blocks recursively
 // using the prevhash field from that found block.
 //
-// A (LONGEST)	In this scenario, the block B and C where marked as STALE
-// | 		    while block A (part of the longest chain) was missing
-// B (STALE)    but after ARC received it C and E are marked as STALE.
-// |
-// C (STALE) 	Function GetStaleChainBackFromHash(ctx, E), given the hash A
-// |			will return blocks B and C so they can be repaired
-// D (LONGEST)  and marked as LONGEST
+// A (LONGEST-MISSING)
+// B (STALE)
+// C (STALE)
+// In this scenario, the block B and C were marked as STALE while block A (part of the longest chain) was missing
+// but after ARC received it, B and C should be marked as LONGEST again.
+// Function GetStaleChainBackFromHash(ctx, E), given the hash A will return blocks B and C so they can be repaired
+
 func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 	//This should only return the descendants of a LONGEST block
-	// The way this query works, is that the result from the first SELECT
-	// will be stored in the prevBlocks variable, which is later used
+	// The way this query works, is that the first SELECT will only return
+	// a record if the parent block is LONGEST. If so, the result
+	// will be stored in the nextBlocks variable, which is later used
 	// for recursion in the second SELECT.
 	//
 	// Then entire recursion happens in the second SELECT, after UNION ALL,
-	// and the first SELECT is just to set up the prevBlocks variable with
-	// the first, initial value. Then, the prevBlocks variable is recursively
+	// and the first SELECT is just to set up the nextBlocks variable with
+	// the first, initial value. Then, the nextBlocks variable is recursively
 	// updated with values returned from the second SELECT.
 	q := `
 		WITH RECURSIVE nextBlocks AS (

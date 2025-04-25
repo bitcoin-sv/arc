@@ -558,6 +558,11 @@ func (p *Processor) insertBlockAndStoreTransactions(ctx context.Context, incomin
 		return err
 	}
 
+	if err = p.handleSkippedBlock(ctx, incomingBlock); err != nil {
+		p.logger.Error("unable to store transactions from block", slog.String("hash", getHashStringNoErr(incomingBlock.Hash)), slog.String("err", err.Error()))
+		return err
+	}
+
 	return nil
 }
 
@@ -703,6 +708,30 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	}
 
 	return nil, nil, true
+}
+
+func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.Block) (err error) {
+	ctx, span := tracing.StartTracing(ctx, "handleSkippedBlock", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	orphanedBlocks, err := p.store.GetOrphansForwardFromHash(ctx, block.Hash)
+	if err != nil {
+		p.logger.Error("unable to get Orphaned blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
+		return err
+	}
+	blockStatusUpdates := []store.BlockStatusUpdate{}
+	for _, b := range orphanedBlocks {
+		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
+		blockStatusUpdates = append(blockStatusUpdates, update)
+	}
+
+	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api.Block, longestBlocks []*blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, err error) {

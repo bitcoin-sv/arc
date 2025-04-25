@@ -86,3 +86,80 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 
 	return
 }
+
+// GetOrphansForwardFromHash is a function that recursively searches for blocks
+// marked as STALE from the given hash - forward until there is a gap
+//
+// It searches for the block whose parent is the given hash and finds children blocks recursively
+// using the prevhash field from that found block.
+//
+// A (LONGEST-MISSING)
+// B (STALE)
+// C (STALE)
+// In this scenario, the block B and C were marked as STALE while block A (part of the longest chain) was missing
+// but after ARC received it, B and C should be marked as LONGEST again.
+// Function GetStaleChainBackFromHash(ctx, E), given the hash A will return blocks B and C so they can be repaired
+
+func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	//This should only return the descendants of a LONGEST block
+	// The way this query works, is that the first SELECT will only return
+	// a record if the parent block is LONGEST. If so, the result
+	// will be stored in the nextBlocks variable, which is later used
+	// for recursion in the second SELECT.
+	//
+	// Then entire recursion happens in the second SELECT, after UNION ALL,
+	// and the first SELECT is just to set up the nextBlocks variable with
+	// the first, initial value. Then, the nextBlocks variable is recursively
+	// updated with values returned from the second SELECT.
+	q := `
+		WITH RECURSIVE nextBlocks AS (
+			SELECT
+				b.hash
+				,b.prevhash
+				,b.merkleroot
+				,b.height
+				,b.processed_at
+				,b.status
+				,b.chainwork
+			FROM blocktx.blocks b, (SELECT hash FROM blocktx.blocks WHERE hash = $1 AND status = $2) p 
+			WHERE b.prevhash = $1
+			UNION ALL
+			SELECT
+				b.hash
+				,b.prevhash
+				,b.merkleroot
+				,b.height
+				,b.processed_at
+				,b.status
+				,b.chainwork
+			FROM blocktx.blocks b JOIN nextBlocks n ON b.prevhash = n.hash AND b.status = $3
+			WHERE b.processed_at IS NOT NULL
+		)
+		SELECT
+			hash
+		 ,prevhash
+		 ,merkleroot
+		 ,height
+		 ,processed_at
+		 ,status
+		 ,chainwork
+		FROM nextBlocks
+		ORDER BY height
+	`
+
+	rows, err := p.db.QueryContext(ctx, q, hash, blocktx_api.Status_LONGEST, blocktx_api.Status_ORPHANED)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orphans, err := p.parseBlocks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	// first element in orphans
+	// will be the given block
+
+	return orphans, nil
+}

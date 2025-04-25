@@ -52,6 +52,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetOrphansBackToNonOrphanAncestorFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
 //				panic("mock out the GetOrphansBackToNonOrphanAncestor method")
 //			},
+//			GetOrphansForwardFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+//				panic("mock out the GetOrphansForwardFromHash method")
+//			},
 //			GetRegisteredTxsByBlockHashesFunc: func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error) {
 //				panic("mock out the GetRegisteredTxsByBlockHashes method")
 //			},
@@ -121,6 +124,9 @@ type BlocktxStoreMock struct {
 
 	// GetOrphansBackToNonOrphanAncestorFunc mocks the GetOrphansBackToNonOrphanAncestor method.
 	GetOrphansBackToNonOrphanAncestorFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error)
+
+	// GetOrphansForwardFromHashFunc mocks the GetOrphansForwardFromHash method.
+	GetOrphansForwardFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 
 	// GetRegisteredTxsByBlockHashesFunc mocks the GetRegisteredTxsByBlockHashes method.
 	GetRegisteredTxsByBlockHashesFunc func(ctx context.Context, blockHashes [][]byte) ([]store.BlockTransaction, error)
@@ -218,6 +224,13 @@ type BlocktxStoreMock struct {
 		}
 		// GetOrphansBackToNonOrphanAncestor holds details about calls to the GetOrphansBackToNonOrphanAncestor method.
 		GetOrphansBackToNonOrphanAncestor []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash []byte
+		}
+		// GetOrphansForwardFromHash holds details about calls to the GetOrphansForwardFromHash method.
+		GetOrphansForwardFromHash []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Hash is the hash argument value.
@@ -321,6 +334,7 @@ type BlocktxStoreMock struct {
 	lockGetLongestChainFromHeight         sync.RWMutex
 	lockGetMinedTransactions              sync.RWMutex
 	lockGetOrphansBackToNonOrphanAncestor sync.RWMutex
+	lockGetOrphansForwardFromHash         sync.RWMutex
 	lockGetRegisteredTxsByBlockHashes     sync.RWMutex
 	lockGetStaleChainBackFromHash         sync.RWMutex
 	lockGetStats                          sync.RWMutex
@@ -682,6 +696,42 @@ func (mock *BlocktxStoreMock) GetOrphansBackToNonOrphanAncestorCalls() []struct 
 	mock.lockGetOrphansBackToNonOrphanAncestor.RLock()
 	calls = mock.calls.GetOrphansBackToNonOrphanAncestor
 	mock.lockGetOrphansBackToNonOrphanAncestor.RUnlock()
+	return calls
+}
+
+// GetOrphansForwardFromHash calls GetOrphansForwardFromHashFunc.
+func (mock *BlocktxStoreMock) GetOrphansForwardFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
+	if mock.GetOrphansForwardFromHashFunc == nil {
+		panic("BlocktxStoreMock.GetOrphansForwardFromHashFunc: method is nil but BlocktxStore.GetOrphansForwardFromHash was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash []byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetOrphansForwardFromHash.Lock()
+	mock.calls.GetOrphansForwardFromHash = append(mock.calls.GetOrphansForwardFromHash, callInfo)
+	mock.lockGetOrphansForwardFromHash.Unlock()
+	return mock.GetOrphansForwardFromHashFunc(ctx, hash)
+}
+
+// GetOrphansForwardFromHashCalls gets all the calls that were made to GetOrphansForwardFromHash.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.GetOrphansForwardFromHashCalls())
+func (mock *BlocktxStoreMock) GetOrphansForwardFromHashCalls() []struct {
+	Ctx  context.Context
+	Hash []byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash []byte
+	}
+	mock.lockGetOrphansForwardFromHash.RLock()
+	calls = mock.calls.GetOrphansForwardFromHash
+	mock.lockGetOrphansForwardFromHash.RUnlock()
 	return calls
 }
 

@@ -184,6 +184,10 @@ func TestHandleBlock(t *testing.T) {
 					return nil, nil
 				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _ uint64, _ uint64) error { return nil },
+				GetOrphansForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+					return []*blocktx_api.Block{}, nil
+				},
+				UpdateBlocksStatusesFunc: func(_ context.Context, _ []store.BlockStatusUpdate) error { return nil },
 			}
 
 			storeMock.InsertBlockTransactionsFunc = func(_ context.Context, _ uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error {
@@ -263,7 +267,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 		expectedStatus           blocktx_api.Status
 	}{
 		{
-			name:               "block already exists - should be ingored",
+			name:               "block already exists - should be ignored",
 			blockAlreadyExists: true,
 			expectedStatus:     blocktx_api.Status_UNKNOWN,
 		},
@@ -410,10 +414,12 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 					}, nil
 				},
 				UpdateBlocksStatusesFunc: func(_ context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
-					mtx.Lock()
-					tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
-					insertedBlockStatus = tipStatusUpdate.Status
-					mtx.Unlock()
+					if len(blockStatusUpdates) > 0 {
+						mtx.Lock()
+						tipStatusUpdate := blockStatusUpdates[len(blockStatusUpdates)-1]
+						insertedBlockStatus = tipStatusUpdate.Status
+						mtx.Unlock()
+					}
 					return nil
 				},
 				GetOrphansBackToNonOrphanAncestorFunc: func(_ context.Context, hash []byte) ([]*blocktx_api.Block, *blocktx_api.Block, error) {
@@ -438,6 +444,9 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 				},
 				MarkBlockAsDoneFunc: func(_ context.Context, _ *chainhash.Hash, _, _ uint64) error {
 					return nil
+				},
+				GetOrphansForwardFromHashFunc: func(_ context.Context, _ []byte) ([]*blocktx_api.Block, error) {
+					return []*blocktx_api.Block{}, nil
 				},
 			}
 

@@ -839,14 +839,22 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			reject_reason=bulk_query.reject_reason,
 			competing_txs=bulk_query.competing_txs,
 			last_modified=$1,
-			status_history=status_history || json_build_object(
-				'status', bulk_query.status,
-				'timestamp',  bulk_query.timestamp
-			)::JSONB
+			status_history=status_history
+					|| COALESCE(
+						bulk_query.history_update || json_build_object(
+							'status', bulk_query.status,
+							'timestamp', bulk_query.timestamp
+						)::JSONB,
+						json_build_object(
+							'status', bulk_query.status,
+							'timestamp', bulk_query.timestamp
+						)::JSONB
+					)
 			FROM
 			(
-				SELECT * FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::TIMESTAMP WITH TIME ZONE[])
-				AS t(hash, status, reject_reason, competing_txs, timestamp)
+				SELECT t.hash, t.status, t.reject_reason, t.competing_txs, t.timestamp, t.history_update
+				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::TIMESTAMP WITH TIME ZONE[], $7::JSONB[])
+				AS t(hash, status, reject_reason, competing_txs, timestamp, history_update)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
@@ -871,13 +879,24 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
     `
 
 	txHashes := make([][]byte, len(updates))
+	statusHistories := make([]*string, len(updates))
 	timestamps := make([]time.Time, len(updates))
-	for i := 0; i < len(updates); i++ {
+	for i, update := range updates {
 		txHashes[i] = updates[i].Hash[:]
 		timestamps[i] = updates[i].Timestamp
 		if timestamps[i].IsZero() {
 			timestamps[i] = p.now()
 		}
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := json.Marshal(update.StatusHistory)
+			if err != nil {
+				return nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
 	}
 
 	tx, err := p.db.Begin()
@@ -917,7 +936,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 	}
 
-	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps))
+	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps), pq.Array(statusHistories))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))

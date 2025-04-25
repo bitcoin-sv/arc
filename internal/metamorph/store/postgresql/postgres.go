@@ -914,7 +914,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	competingTxsData := getCompetingTxsFromRows(rows)
+	compTxsData := getCompetingTxsFromRows(rows)
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
@@ -927,7 +927,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		for _, tx := range competingTxsData {
+		for _, tx := range compTxsData {
 			if bytes.Equal(txHashes[i], tx.hash) {
 				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
 				competingTxs[i] = strings.Join(uniqueTxs, ",")
@@ -1041,8 +1041,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	}
 	defer rows.Close()
 
-	competingTxsData := getCompetingTxsFromRows(rows)
-	rejectedResponses := updateDoubleSpendRejected(ctx, competingTxsData, tx)
+	compTxsData := getCompetingTxsFromRows(rows)
 
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
@@ -1066,7 +1065,70 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
+	rejectedResponses, err := p.updateDoubleSpendRejected(ctx, compTxsData)
+	if err != nil {
+		return nil, errors.Join(store.ErrUpdateCompeting, err)
+	}
+
 	return append(res, rejectedResponses...), nil
+}
+
+func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData) ([]*store.Data, error) {
+	qRejectDoubleSpends := `
+		UPDATE metamorph.transactions t
+		SET
+			status=$1,
+			reject_reason=$2
+		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
+			AND t.status < $1::INT
+		RETURNING t.stored_at
+		,t.hash
+		,t.status
+		,t.block_height
+		,t.block_hash
+		,t.callbacks
+		,t.full_status_updates
+		,t.reject_reason
+		,t.competing_txs
+		,t.raw_tx
+		,t.locked_by
+		,t.merkle_path
+		,t.retries
+		,t.status_history
+		,t.last_modified
+		;
+	`
+	rejectReason := "double spend attempted"
+
+	rejectedCompetingTxs := make([][]byte, 0)
+	for _, tx := range competingTxsData {
+		for _, competingTx := range tx.competingTxs {
+			hash, err := chainhash.NewHashFromStr(competingTx)
+			if err != nil {
+				continue
+			}
+
+			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
+		}
+	}
+
+	if len(rejectedCompetingTxs) == 0 {
+		return nil, nil
+	}
+	// update competing
+	rows, err := p.db.QueryContext(ctx, qRejectDoubleSpends, metamorph_api.Status_REJECTED, rejectReason, pq.Array(rejectedCompetingTxs))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	res, err := getStoreDataFromRows(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -12,7 +13,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
-var ErrNotFound = errors.New("key could not be found")
+var (
+	ErrNotFound        = errors.New("key could not be found")
+	ErrUpdateCompeting = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
+)
 
 type Data struct {
 	RawTx             []byte

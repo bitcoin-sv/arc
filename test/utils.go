@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -218,6 +219,47 @@ func respondToCallback(w http.ResponseWriter, success bool) error {
 		return err
 	}
 	return nil
+}
+
+func CreateCallbackServer(t *testing.T) (callbackURL string, token string, callbackReceivedChan chan *TransactionResponse, callbackErrChan chan error, cleanup func()) {
+	callbackReceivedChan = make(chan *TransactionResponse)
+	callbackErrChan = make(chan error)
+
+	lis, err := net.Listen("tcp", ":9000")
+	require.NoError(t, err)
+	mux := http.NewServeMux()
+
+	cleanupFuncs := make([]func(), 0)
+
+	cleanupFuncs = append(cleanupFuncs, func() {
+		t.Log("closing listener")
+		err = lis.Close()
+		require.NoError(t, err)
+	})
+
+	callbackURL, token = registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+	cleanupFuncs = append(cleanupFuncs, func() {
+		t.Log("closing channels")
+
+		close(callbackReceivedChan)
+		close(callbackErrChan)
+	})
+
+	go func() {
+		t.Logf("starting callback server")
+		err = http.Serve(lis, mux)
+		if err != nil {
+			t.Log("callback server stopped")
+		}
+	}()
+
+	cleanup = func() {
+		for _, cleanupFunc := range cleanupFuncs {
+			cleanupFunc()
+		}
+	}
+
+	return callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup
 }
 
 func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBatch bool, tx *sdkTx.Transaction) {

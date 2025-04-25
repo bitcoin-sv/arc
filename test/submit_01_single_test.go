@@ -128,47 +128,6 @@ func TestSubmitSingle(t *testing.T) {
 	}
 }
 
-func CreateCallbackServer(t *testing.T) (callbackURL string, token string, callbackReceivedChan chan *TransactionResponse, callbackErrChan chan error, cleanup func()) {
-	callbackReceivedChan = make(chan *TransactionResponse)
-	callbackErrChan = make(chan error)
-
-	lis, err := net.Listen("tcp", ":9000")
-	require.NoError(t, err)
-	mux := http.NewServeMux()
-
-	cleanupFuncs := make([]func(), 0)
-
-	cleanupFuncs = append(cleanupFuncs, func() {
-		t.Log("closing listener")
-		err = lis.Close()
-		require.NoError(t, err)
-	})
-
-	callbackURL, token = registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
-	cleanupFuncs = append(cleanupFuncs, func() {
-		t.Log("closing channels")
-
-		close(callbackReceivedChan)
-		close(callbackErrChan)
-	})
-
-	go func() {
-		t.Logf("starting callback server")
-		err = http.Serve(lis, mux)
-		if err != nil {
-			t.Log("callback server stopped")
-		}
-	}()
-
-	cleanup = func() {
-		for _, cleanupFunc := range cleanupFuncs {
-			cleanupFunc()
-		}
-	}
-
-	return callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup
-}
-
 func TestSubmitMined(t *testing.T) {
 	t.Run("submit mined tx + calculate merkle path", func(t *testing.T) {
 		// Submit an unregistered, already mined transaction. ARC should return the status as MINED for the transaction.

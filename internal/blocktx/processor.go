@@ -51,6 +51,7 @@ const (
 	waitForBlockProcessing             = 5 * time.Minute
 	parallellism                       = 5
 	publishMinedMessageSizeDefault     = 256
+	topic                              = "topic: %s"
 )
 
 type Processor struct {
@@ -129,14 +130,14 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxTopic), err)
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxTopic), err)
 	}
 
 	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.Transactions{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
+			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
 		}
 
 		for _, tx := range serialized.Transactions {
@@ -149,7 +150,7 @@ func (p *Processor) Start() error {
 		return nil
 	})
 	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf("topic: %s", mq.RegisterTxsTopic), err)
+		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
 	}
 
 	p.StartBlockRequesting()

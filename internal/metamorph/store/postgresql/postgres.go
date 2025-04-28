@@ -23,6 +23,7 @@ import (
 
 const (
 	postgresDriverName = "postgres"
+	failedRollback     = "failed to rollback: %v"
 )
 
 type PostgreSQL struct {
@@ -883,7 +884,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
 		}
 		return nil, err
 	}
@@ -914,7 +915,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
 		}
 		return nil, err
 	}
@@ -923,7 +924,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	res, err = getStoreDataFromRows(rows)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollbackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
 		}
 		return nil, err
 	}
@@ -1010,7 +1011,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 		return nil, err
 	}
@@ -1022,7 +1023,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 		return nil, err
 	}
@@ -1031,7 +1032,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	res, err := getStoreDataFromRows(rows)
 	if err != nil {
 		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 		return nil, err
 	}

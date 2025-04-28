@@ -13,6 +13,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
+const failedRollback = "failed to rollback: %v"
+
 // SetBlockProcessing tries to insert a record to the block processing table in order to mark a certain block as being processed by an instance. A new entry will be inserted successfully if there is no entry from any instance inserted less than `lockTime` ago and if there are less than `maxParallelProcessing` blocks currently being processed by the instance denoted by `setProcessedBy`.
 func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
 	// Try to set a block as being processed by this instance
@@ -27,7 +29,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	if err != nil {
 		rollBackErr := tx.Rollback()
 		if rollBackErr != nil {
-			return "", errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			return "", errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 		return "", err
 	}
@@ -51,7 +53,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	if err != nil {
 		rollBackErr := tx.Rollback()
 		if rollBackErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			err = errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 
 		if errors.Is(err, sql.ErrNoRows) {
@@ -71,7 +73,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 	if err != nil {
 		rollBackErr := tx.Rollback()
 		if rollBackErr != nil {
-			return "", errors.Join(err, fmt.Errorf("failed to rollback: %v", rollBackErr))
+			return "", errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
 		}
 		return "", err
 	}

@@ -24,10 +24,10 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 	var lowestHeight uint64
 
 	err := p.db.QueryRow(qTopHeight).Scan(&topHeight, &lowestHeight)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = store.ErrNotFound
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, store.ErrNotFound
-		}
 		return nil, err
 	}
 
@@ -46,8 +46,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 
 		merkleBytes = util.ReverseBytes(merkleBytes)
 
-		err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{}))
-		if err != nil {
+		if err = p.db.QueryRow(qMerkleRoot, merkleBytes, mr.BlockHeight).Scan(new(interface{})); err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}

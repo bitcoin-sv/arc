@@ -40,25 +40,31 @@ func CalculateMerkleRootsFromBumps(bumps []*sdkTx.MerklePath) ([]MerkleRootVerif
 }
 
 func calculateMerkleRootFromBump(bump *sdkTx.MerklePath) (string, error) {
-	blockMerkleRoot := ""
-	for _, pathElement := range bump.Path {
-		for _, pe := range pathElement {
-			if pe.Txid != nil {
-				mr, err := bump.ComputeRoot(pe.Hash)
-				if err != nil {
-					return "", err
-				}
-				if blockMerkleRoot == "" {
-					blockMerkleRoot = mr.String()
-				} else if blockMerkleRoot != mr.String() {
-					return "", ErrBUMPDifferentMerkleRoots
-				}
+	var computedRoot string
+
+	for _, pathGroup := range bump.Path {
+		for _, element := range pathGroup {
+			if element.Txid == nil {
+				continue
+			}
+
+			root, err := bump.ComputeRoot(element.Hash)
+			if err != nil {
+				return "", err
+			}
+
+			rootStr := root.String()
+			if computedRoot == "" {
+				computedRoot = rootStr
+			} else if computedRoot != rootStr {
+				return "", ErrBUMPDifferentMerkleRoots
 			}
 		}
 	}
 
-	if blockMerkleRoot == "" {
+	if computedRoot == "" {
 		return "", ErrBUMPEmptyMerkleRoot
 	}
-	return blockMerkleRoot, nil
+
+	return computedRoot, nil
 }

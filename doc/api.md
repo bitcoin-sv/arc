@@ -1523,6 +1523,7 @@ Transaction details
 |txStatus|SEEN_ON_NETWORK|
 |txStatus|DOUBLE_SPEND_ATTEMPTED|
 |txStatus|REJECTED|
+|txStatus|MINED_IN_STALE_BLOCK|
 |txStatus|MINED|
 
 <h2 id="tocS_Error">Error</h2>

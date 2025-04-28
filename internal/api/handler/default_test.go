@@ -381,7 +381,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[0],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -389,7 +389,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[1],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -397,7 +397,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[2],
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -406,7 +406,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: given content-type application/xml does not match any of the allowed content-types"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: given content-type application/xml does not match any of the allowed content-types"),
 		},
 		{
 			name:        "invalid tx - text/plain",
@@ -414,7 +414,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: encoding/hex: invalid byte: U+0074 't'"),
 		},
 		{
 			name:        "invalid json - application/json",
@@ -422,7 +422,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: "test",
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: invalid character 'e' in literal true (expecting 'r')"),
 		},
 		{
 			name:        "invalid tx - incorrect json field, application/json",
@@ -430,7 +430,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: fmt.Sprintf("{\"txHex\": \"%s\"}", validTx),
 
 			expectedStatus:   400,
-			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transaction from request: no transaction found - empty request body"),
+			expectedResponse: *api.NewErrorFields(api.ErrStatusBadRequest, "error parsing transactions from request: no transaction found - empty request body"),
 			expectedError:    ErrEmptyBody,
 		},
 		{
@@ -652,7 +652,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 					return nil, nil
 				},
 
-				GetTransactionStatusFunc: func(_ context.Context, _ string) (*metamorph.TransactionStatus, error) {
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
 					return nil, metamorph.ErrTransactionNotFound
 				},
 
@@ -822,8 +822,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
-			echo.MIMETextPlain:       "error parsing transaction from request: encoding/hex: invalid byte: U+0074 't'",
-			echo.MIMEApplicationJSON: "error parsing transaction from request: invalid character 'e' in literal true (expecting 'r')",
+			echo.MIMETextPlain:       "error parsing transactions from request: encoding/hex: invalid byte: U+0074 't'",
+			echo.MIMEApplicationJSON: "error parsing transactions from request: invalid character 'e' in literal true (expecting 'r')",
 			echo.MIMEOctetStream:     "",
 		}
 
@@ -1278,26 +1278,26 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 func TestGetTransactionOptions(t *testing.T) {
 	tt := []struct {
 		name   string
-		params api.POSTTransactionParams
+		params api.POSTTransactionsParams
 
 		expectedError   error
 		expectedOptions *metamorph.TransactionOptions
 	}{
 		{
 			name:   "no options",
-			params: api.POSTTransactionParams{},
+			params: api.POSTTransactionsParams{},
 
 			expectedOptions: &metamorph.TransactionOptions{},
 		},
 		{
 			name:   "max timeout",
-			params: api.POSTTransactionParams{},
+			params: api.POSTTransactionsParams{},
 
 			expectedOptions: &metamorph.TransactionOptions{},
 		},
 		{
 			name: "valid callback url",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XCallbackUrl:   PtrTo("http://api.callme.com"),
 				XCallbackToken: PtrTo("1234"),
 			},
@@ -1309,7 +1309,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "invalid callback url",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XCallbackUrl: PtrTo("api.callme.com"),
 			},
 
@@ -1317,7 +1317,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - QUEUED",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("QUEUED"),
 			},
 
@@ -1327,7 +1327,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - RECEIVED",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("RECEIVED"),
 			},
 
@@ -1337,7 +1337,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - SENT_TO_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("SENT_TO_NETWORK"),
 			},
 
@@ -1347,7 +1347,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - ACCEPTED_BY_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("ACCEPTED_BY_NETWORK"),
 			},
 
@@ -1357,7 +1357,7 @@ func TestGetTransactionOptions(t *testing.T) {
 		},
 		{
 			name: "wait for - SEEN_ON_NETWORK",
-			params: api.POSTTransactionParams{
+			params: api.POSTTransactionsParams{
 				XWaitFor: PtrTo("SEEN_ON_NETWORK"),
 			},
 
@@ -1369,7 +1369,7 @@ func TestGetTransactionOptions(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			options, actualErr := getTransactionOptions(tc.params, make([]string, 0))
+			options, actualErr := getTransactionsOptions(tc.params, make([]string, 0))
 
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)

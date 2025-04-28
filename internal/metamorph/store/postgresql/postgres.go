@@ -555,7 +555,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -599,15 +599,15 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLa
 	WHERE
 		t.status = $1
 		AND t.locked_by = $4
-		AND t.last_submitted_at < (	SELECT max_ts - $5 * INTERVAL '1 SEC' FROM txs_mined_ts ) -- last submitted at least 'sinceLastMined' time ago since last transaction was marked as mined
-		AND t.last_submitted_at > $6 -- last submitted at most 'fromAgo' time ago
+		AND t.last_submitted_at < (	SELECT max_ts - $5 * INTERVAL '1 SEC' FROM txs_mined_ts ) -- last submitted at least 'sinceLastMinedDuration' ago since last transaction was marked as mined
+		AND t.last_submitted_at > $6 -- last submitted at most 'fromDuration' time ago
 	ORDER BY t.last_submitted_at DESC
 	LIMIT $2 OFFSET $3
 	;
 `
-	getSeenFromAgo := p.now().Add(-1 * fromAgo)
+	getSeenFromAgo := p.now().Add(-1 * fromDuration)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, sinceLastMined.Seconds(), getSeenFromAgo)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, sinceLastMinedDuration.Seconds(), getSeenFromAgo)
 	if err != nil {
 		return nil, err
 	}

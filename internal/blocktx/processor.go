@@ -722,7 +722,12 @@ func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.B
 		p.logger.Error("unable to get Orphaned blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return err
 	}
-	blockStatusUpdates := []store.BlockStatusUpdate{}
+
+	if len(orphanedBlocks) == 0 {
+		return nil
+	}
+
+	var blockStatusUpdates []store.BlockStatusUpdate
 	for _, b := range orphanedBlocks {
 		update := store.BlockStatusUpdate{Hash: b.Hash, Status: blocktx_api.Status_LONGEST}
 		blockStatusUpdates = append(blockStatusUpdates, update)
@@ -732,6 +737,9 @@ func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.B
 	if err != nil {
 		return err
 	}
+
+	p.logger.Info("Updated orphaned blocks to status LONGEST", slog.Int("count", len(orphanedBlocks)))
+
 	return nil
 }
 

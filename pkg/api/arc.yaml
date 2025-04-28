@@ -604,6 +604,7 @@ components:
             "SEEN_ON_NETWORK",
             "DOUBLE_SPEND_ATTEMPTED",
             "REJECTED",
+            "MINED_IN_STALE_BLOCK",
             "MINED",
           ]
           description: Transaction status

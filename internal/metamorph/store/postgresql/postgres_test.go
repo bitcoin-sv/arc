@@ -793,6 +793,46 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, &unmined, updatedTx)
 	})
 
+	t.Run("updated mined - reject double spending", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_mined_double_spend_attempted")
+
+		// Even though it shouldn't happen in theory, competing transactions which have been marked of competing with each other could all be mined if the ZMQ message marking them as competing was false. Then it has to be ensured that those competing transactions should be updated as MINED only without a REJECTED update being produced
+
+		chainHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
+		chainHash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		chainHash3 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
+
+		txBlocks := []*blocktx_api.TransactionBlock{
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainHash1[:],
+				MerklePath:      "merkle-path-1",
+				BlockStatus:     blocktx_api.Status_LONGEST,
+			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainHash2[:],
+				MerklePath:      "merkle-path-2",
+				BlockStatus:     blocktx_api.Status_LONGEST,
+			},
+			{
+				BlockHash:       testdata.Block1Hash[:],
+				BlockHeight:     100,
+				TransactionHash: chainHash3[:],
+				MerklePath:      "merkle-path-3",
+				BlockStatus:     blocktx_api.Status_LONGEST,
+			},
+		}
+		expectedUpdates := 3 // 3 for updates for mined status, no updates for rejected status
+
+		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
+		require.NoError(t, err)
+		require.Len(t, updated, expectedUpdates)
+	})
+
 	t.Run("update status history - status bigger than actual with history", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 

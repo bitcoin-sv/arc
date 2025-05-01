@@ -54,8 +54,8 @@ metamorph:
   maxRetries: 1000 # maximum number of times a transaction is re-announced
   processStatusUpdateInterval: 5s # interval of processing status updates
   reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
-  reAnnounceSeen: 10min # time duration since last transaction was marked as mined after which SEEN_ON_NETWORK transactions last submitted prior should be re-announced
-  reRegisterSeen: 10min # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
+  reAnnounceSeen: 10m # time duration since last transaction was marked as mined after which SEEN_ON_NETWORK transactions last submitted prior should be re-announced
+  reRegisterSeen: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy

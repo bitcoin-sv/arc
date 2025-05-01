@@ -50,8 +50,8 @@ metamorph:
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
   reAnnounceUnseenInterval: 60s
-  reAnnounceSeen: 10min
-  reRegisterSeen: 10min
+  reAnnounceSeen: 10m
+  reRegisterSeen: 10m
   monitorPeers: true
   health:
     minimumHealthyConnections: 2

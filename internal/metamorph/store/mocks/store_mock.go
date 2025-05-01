@@ -40,7 +40,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
 //				panic("mock out the GetRawTxs method")
 //			},
-//			GetSeenFunc: func(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+//			GetSeenFunc: func(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetSeen method")
 //			},
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
@@ -108,7 +108,7 @@ type MetamorphStoreMock struct {
 	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	// GetSeenFunc mocks the GetSeen method.
-	GetSeenFunc func(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error)
+	GetSeenFunc func(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
@@ -195,10 +195,10 @@ type MetamorphStoreMock struct {
 		GetSeen []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// FromAgo is the fromAgo argument value.
-			FromAgo time.Duration
-			// SinceLastMined is the sinceLastMined argument value.
-			SinceLastMined time.Duration
+			// FromDuration is the fromDuration argument value.
+			FromDuration time.Duration
+			// SinceLastMinedDuration is the sinceLastMinedDuration argument value.
+			SinceLastMinedDuration time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -539,27 +539,27 @@ func (mock *MetamorphStoreMock) GetRawTxsCalls() []struct {
 }
 
 // GetSeen calls GetSeenFunc.
-func (mock *MetamorphStoreMock) GetSeen(ctx context.Context, fromAgo time.Duration, sinceLastMined time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+func (mock *MetamorphStoreMock) GetSeen(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 	if mock.GetSeenFunc == nil {
 		panic("MetamorphStoreMock.GetSeenFunc: method is nil but MetamorphStore.GetSeen was just called")
 	}
 	callInfo := struct {
-		Ctx            context.Context
-		FromAgo        time.Duration
-		SinceLastMined time.Duration
-		Limit          int64
-		Offset         int64
+		Ctx                    context.Context
+		FromDuration           time.Duration
+		SinceLastMinedDuration time.Duration
+		Limit                  int64
+		Offset                 int64
 	}{
-		Ctx:            ctx,
-		FromAgo:        fromAgo,
-		SinceLastMined: sinceLastMined,
-		Limit:          limit,
-		Offset:         offset,
+		Ctx:                    ctx,
+		FromDuration:           fromDuration,
+		SinceLastMinedDuration: sinceLastMinedDuration,
+		Limit:                  limit,
+		Offset:                 offset,
 	}
 	mock.lockGetSeen.Lock()
 	mock.calls.GetSeen = append(mock.calls.GetSeen, callInfo)
 	mock.lockGetSeen.Unlock()
-	return mock.GetSeenFunc(ctx, fromAgo, sinceLastMined, limit, offset)
+	return mock.GetSeenFunc(ctx, fromDuration, sinceLastMinedDuration, limit, offset)
 }
 
 // GetSeenCalls gets all the calls that were made to GetSeen.
@@ -567,18 +567,18 @@ func (mock *MetamorphStoreMock) GetSeen(ctx context.Context, fromAgo time.Durati
 //
 //	len(mockedMetamorphStore.GetSeenCalls())
 func (mock *MetamorphStoreMock) GetSeenCalls() []struct {
-	Ctx            context.Context
-	FromAgo        time.Duration
-	SinceLastMined time.Duration
-	Limit          int64
-	Offset         int64
+	Ctx                    context.Context
+	FromDuration           time.Duration
+	SinceLastMinedDuration time.Duration
+	Limit                  int64
+	Offset                 int64
 } {
 	var calls []struct {
-		Ctx            context.Context
-		FromAgo        time.Duration
-		SinceLastMined time.Duration
-		Limit          int64
-		Offset         int64
+		Ctx                    context.Context
+		FromDuration           time.Duration
+		SinceLastMinedDuration time.Duration
+		Limit                  int64
+		Offset                 int64
 	}
 	mock.lockGetSeen.RLock()
 	calls = mock.calls.GetSeen

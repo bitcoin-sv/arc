@@ -15,7 +15,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -33,8 +32,6 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -253,35 +250,16 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			announceMsgCounter := &atomic.Int32{}
-			requestMsgCounter := &atomic.Int32{}
-
-			peer := &p2pMocks.PeerIMock{
-				WriteMsgFunc: func(msg wire.Message) {
-					if msg.Command() == wire.CmdInv {
-						announceMsgCounter.Add(1)
-					} else if msg.Command() == wire.CmdGetData {
-						requestMsgCounter.Add(1)
-					}
-				},
-				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-				StringFunc:    func() string { return "peer" },
-				ConnectedFunc: func() bool { return true },
-			}
-
 			cStore := &cacheMocks.StoreMock{
 				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
 					return nil
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			err := pm.AddPeer(peer)
-			require.NoError(t, err)
-
-			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
-			defer messenger.Shutdown()
-			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
+			messenger := &mocks.MediatorMock{
+				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
 				PublishAsyncFunc: func(_ string, _ []byte) error {
@@ -291,7 +269,7 @@ func TestProcessTransaction(t *testing.T) {
 
 			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return tc.registerTxErr }}
 
-			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
+			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -322,8 +300,8 @@ func TestProcessTransaction(t *testing.T) {
 			time.Sleep(250 * time.Millisecond)
 			// then
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
-			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
-			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
+			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
+			require.Equal(t, tc.expectedRequestCalls, len(messenger.AskForTxAsyncCalls()))
 			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
 		})
 	}
@@ -1193,20 +1171,10 @@ func TestProcessorHealth(t *testing.T) {
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			for range tc.peersAdded {
-				peer := p2pMocks.PeerIMock{
-					NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-					ConnectedFunc: func() bool { return true },
-					StringFunc:    func() string { return "peer" },
-				}
-				require.NoError(t, pm.AddPeer(&peer))
+			messenger := &mocks.MediatorMock{
+				CountConnectedPeersFunc: func() uint { return uint(tc.peersAdded) },
 			}
-			cStore := &cacheMocks.StoreMock{}
-
-			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
-
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, nil, messenger, nil,
 				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

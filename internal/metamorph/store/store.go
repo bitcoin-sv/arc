@@ -78,7 +78,7 @@ type MetamorphStore interface {
 	SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error)
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
-	GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*Data, error)
+	GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*Data, error)
 	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*Data, err error)
 	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
@@ -90,6 +90,11 @@ type MetamorphStore interface {
 
 	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
 	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
+
+	SetRequested(ctx context.Context, hashes []*chainhash.Hash) error
+	GetAndDeleteUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
+	DeleteConfirmedRequested(ctx context.Context) (rowsAffected int64, err error)
+	MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error
 }
 
 type UpdateStatus struct {

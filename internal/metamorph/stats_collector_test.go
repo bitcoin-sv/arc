@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStartCollectStats(t *testing.T) {
@@ -52,7 +53,7 @@ func TestStartCollectStats(t *testing.T) {
 			messenger := &bcnet.Mediator{}
 
 			processor, err := metamorph.NewProcessor(mtmStore, nil, messenger, nil,
-				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: metamorph.LogLevelDefault}))),
+				metamorph.WithProcessorLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))),
 				metamorph.WithStatCollectionInterval(10*time.Millisecond),
 			)
 			require.NoError(t, err)

@@ -1078,7 +1078,7 @@ func TestReAnnounceSeen(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenSinceLastMinedFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
+				GetSeenPendingFunc: func(_ context.Context, _ time.Duration, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
 					require.Equal(t, int64(50), limit)
 
 					if tc.getSeenErr != nil {
@@ -1099,9 +1099,13 @@ func TestReAnnounceSeen(t *testing.T) {
 						{Hash: testdata.TX1Hash},
 					}, nil
 				},
+				SetRequestedFunc:      func(_ context.Context, _ []*chainhash.Hash) error { return nil },
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &bcnet.Mediator{}
+			pm := &mocks.MediatorMock{
+				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			blockTxClient := &btxMocks.ClientMock{
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
@@ -1128,7 +1132,7 @@ func TestReAnnounceSeen(t *testing.T) {
 			metamorph.ReAnnounceSeen(context.TODO(), sut)
 
 			// then
-			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenSinceLastMinedCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenPendingCalls()))
 		})
 	}
 }

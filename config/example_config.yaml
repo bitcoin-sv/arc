@@ -14,7 +14,7 @@ messageQueue:
     fileStorage: false # if enabled messages are persisted on disk instead of in memory
   URL: nats://nats:4222 # URL for message queue
   initialize: true # initialize streams and consumers
-rebroadcastExpiration: 24h # time after which transactions are not re-broadcasted anymore
+reBroadcastExpiration: 24h # time since last submitted after which transactions are not re-broadcasted anymore
 
 tracing:
   enabled: true # if true, then tracing is enabled
@@ -51,10 +51,11 @@ metamorph:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
-  maxRetries: 1000 # maximum number of times a transaction is re-broadcasted
+  maxRetries: 1000 # maximum number of times a transaction is re-announced
   processStatusUpdateInterval: 5s # interval of processing status updates
-  rebroadcastUnseenInterval: 60s # time interval in which unseen transactions are re-broadcasted
-  rebroadcastSeenBeforeLastMined: 1h # time until the last transaction was marked as mined when seen transactions should be re-broadcasted
+  reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
+  reAnnounceSeen: 10min # time duration since last transaction was marked as mined after which SEEN_ON_NETWORK transactions last submitted prior should be re-announced
+  reRegisterSeen: 10min # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy

@@ -83,7 +83,7 @@ func TestNewProcessor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.messenger, nil,
-				metamorph.WithRebroadcastUnseenExpiration(time.Second*5),
+				metamorph.WithReBroadcastExpiration(time.Second*5),
 				metamorph.WithProcessorLogger(slog.Default()),
 			)
 
@@ -856,7 +856,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithRebroadcastUnseenTxsInterval(time.Millisecond*20),
+				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -865,7 +865,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when
-			sut.StartRebroadcastUnseenTxs()
+			sut.StartReAnnounceUnseenTxs()
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -1067,7 +1067,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			sut.StartRebroadcastSeenTxs()
+			sut.StartReAnnounceSeenTxs()
 
 			select {
 			case <-stop:
@@ -1145,7 +1145,7 @@ func TestProcessorHealth(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
-				metamorph.WithRebroadcastUnseenTxsInterval(time.Millisecond*20),
+				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}),

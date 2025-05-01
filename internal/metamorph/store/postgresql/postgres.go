@@ -555,7 +555,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+func (p *PostgreSQL) GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -614,6 +614,54 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, si
 	defer rows.Close()
 
 	return getStoreDataFromRows(rows)
+}
+
+func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	q := `SELECT
+    		stored_at
+			,hash
+			,status
+			,block_height
+			,block_hash
+			,callbacks
+			,full_status_updates
+			,reject_reason
+			,competing_txs
+			,raw_tx
+			,locked_by
+			,merkle_path
+			,retries
+			,status_history
+			,last_modified
+	FROM metamorph.transactions
+	WHERE locked_by = $6
+	AND status = $1
+	AND last_submitted_at > $2
+	AND last_submitted_at <= $3
+	LIMIT $4 OFFSET $5
+	`
+
+	from := p.now().Add(-1 * fromDuration)
+	to := p.now().Add(-1 * toDuration)
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, from, to, limit, offset, p.hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	res, err = getStoreDataFromRows(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {

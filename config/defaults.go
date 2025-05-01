@@ -14,7 +14,7 @@ func getDefaultArcConfig() *ArcConfig {
 		Prometheus:            getDefaultPrometheusConfig(),
 		GrpcMessageSize:       100000000,
 		Network:               "regtest",
-		RebroadcastExpiration: 24 * time.Hour,
+		ReBroadcastExpiration: 24 * time.Hour,
 		MessageQueue:          getDefaultMessageQueueConfig(),
 		Tracing:               getDefaultTracingConfig(),
 		PeerRPC:               getDefaultPeerRPCConfig(),
@@ -57,14 +57,14 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
-		ListenAddr:                     "localhost:8001",
-		DialAddr:                       "localhost:8001",
-		Db:                             getDbConfig("metamorph"),
-		RebroadcastUnseenInterval:      60 * time.Second,
-		RebroadcastSeenBeforeLastMined: 5 * time.Minute,
-		MaxRetries:                     1000,
-		ProcessStatusUpdateInterval:    5 * time.Second,
-		MonitorPeers:                   false,
+		ListenAddr:                  "localhost:8001",
+		DialAddr:                    "localhost:8001",
+		Db:                          getDbConfig("metamorph"),
+		ReAnnounceUnseenInterval:    60 * time.Second,
+		ReAnnounceSeen:              5 * time.Minute,
+		MaxRetries:                  1000,
+		ProcessStatusUpdateInterval: 5 * time.Second,
+		MonitorPeers:                false,
 		Health: &HealthConfig{
 			MinimumHealthyConnections: 2,
 		},

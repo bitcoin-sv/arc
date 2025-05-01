@@ -62,19 +62,20 @@ var (
 )
 
 type Processor struct {
-	store                          store.MetamorphStore
-	cacheStore                     cache.Store
-	hostname                       string
-	bcMediator                     Mediator
-	mqClient                       mq.MessageQueueClient
-	logger                         *slog.Logger
-	rebroadcastExpiration          time.Duration
-	rebroadcastSeenBeforeLastMined time.Duration
-	now                            func() time.Time
-	stats                          *processorStats
-	maxRetries                     int
-	minimumHealthyConnections      int
-	callbackSender                 CallbackSender
+	store                     store.MetamorphStore
+	cacheStore                cache.Store
+	hostname                  string
+	bcMediator                Mediator
+	mqClient                  mq.MessageQueueClient
+	logger                    *slog.Logger
+	rebroadcastExpiration     time.Duration
+	reAnnoucneSeen            time.Duration
+	reRegisterSeen            time.Duration
+	now                       func() time.Time
+	stats                     *processorStats
+	maxRetries                int
+	minimumHealthyConnections int
+	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
 	statusMessageCh   chan *metamorph_p2p.TxStatusMessage
@@ -95,8 +96,8 @@ type Processor struct {
 	processStatusUpdatesInterval  time.Duration
 	processStatusUpdatesBatchSize int
 
-	rebroadcastUnseenTxsInterval time.Duration
-	rebroadcastSeenTxsInterval   time.Duration
+	reAnnounceUnseenInterval   time.Duration
+	rebroadcastSeenTxsInterval time.Duration
 
 	processTransactionsInterval  time.Duration
 	processTransactionsBatchSize int
@@ -139,22 +140,22 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 	}
 
 	p := &Processor{
-		store:                          s,
-		cacheStore:                     c,
-		hostname:                       hostname,
-		bcMediator:                     bcMediator,
-		rebroadcastExpiration:          rebroadcastExpirationDefault,
-		rebroadcastSeenBeforeLastMined: recheckSeenUntilAgoDefault,
-		maxRetries:                     maxRetriesDefault,
-		minimumHealthyConnections:      minimumHealthyConnectionsDefault,
-		now:                            time.Now,
+		store:                     s,
+		cacheStore:                c,
+		hostname:                  hostname,
+		bcMediator:                bcMediator,
+		rebroadcastExpiration:     rebroadcastExpirationDefault,
+		reAnnoucneSeen:            recheckSeenUntilAgoDefault,
+		maxRetries:                maxRetriesDefault,
+		minimumHealthyConnections: minimumHealthyConnectionsDefault,
+		now:                       time.Now,
 
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
-		rebroadcastUnseenTxsInterval: rebroadcastUnseenInterval,
-		rebroadcastSeenTxsInterval:   seenOnNetworkTransactionRequestingInterval,
-		lockTransactionsInterval:     rebroadcastUnseenInterval,
+		reAnnounceUnseenInterval:   rebroadcastUnseenInterval,
+		rebroadcastSeenTxsInterval: seenOnNetworkTransactionRequestingInterval,
+		lockTransactionsInterval:   rebroadcastUnseenInterval,
 
 		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
 		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
@@ -223,8 +224,9 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
-	p.StartRebroadcastUnseenTxs()
-	p.StartRebroadcastSeenTxs()
+	p.StartReAnnounceUnseenTxs()
+	p.StartReAnnounceSeenTxs()
+	p.StartRequestSeenTxs()
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
 	if statsEnabled {
@@ -260,7 +262,7 @@ func (p *Processor) unlockRecords() error {
 	if err != nil {
 		return err
 	}
-	p.logger.Info("unlocked items", slog.Int64("number", unlockedItems))
+	p.logger.Info("unlocked items", slog.Int64("count", unlockedItems))
 
 	return nil
 }
@@ -618,8 +620,8 @@ func (p *Processor) StartLockTransactions() {
 	}()
 }
 
-// StartRebroadcastSeenTxs periodically re-registers and re-broadcasts SEEN_ON_NETWORK transactions
-func (p *Processor) StartRebroadcastSeenTxs() {
+// StartRequestSeenTxs periodically re-registers and SEEN_ON_NETWORK transactions
+func (p *Processor) StartRequestSeenTxs() {
 	ticker := time.NewTicker(p.rebroadcastSeenTxsInterval)
 	p.waitGroup.Add(1)
 
@@ -631,7 +633,7 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartRebroadcastSeenTxs", p.tracingEnabled, p.tracingAttributes...)
+				ctx, span := tracing.StartTracing(p.ctx, "StartRequestingSeenOnNetworkTxs", p.tracingEnabled, p.tracingAttributes...)
 
 				var offset int64
 				var totalSeenOnNetworkTxs int
@@ -639,7 +641,63 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 				var err error
 
 				for {
-					seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.rebroadcastSeenBeforeLastMined, loadSeenOnNetworkLimit, offset)
+					seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadSeenOnNetworkLimit, offset)
+					if err != nil {
+						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
+						break
+					}
+
+					if len(seenOnNetworkTxs) == 0 {
+						break
+					}
+
+					offset += loadSeenOnNetworkLimit
+					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
+
+					err = p.registerTransactions(ctx, seenOnNetworkTxs)
+					if err != nil {
+						p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
+					}
+
+					time.Sleep(100 * time.Millisecond)
+				}
+
+				if totalSeenOnNetworkTxs > 0 {
+					p.logger.Info("Seen txs re-registered", slog.Int("count", totalSeenOnNetworkTxs))
+				}
+
+				if span != nil {
+					span.SetAttributes(attribute.Int("re-registered", totalSeenOnNetworkTxs))
+				}
+
+				tracing.EndTracing(span, nil)
+			}
+		}
+	}()
+}
+
+// StartReAnnounceSeenTxs periodically re-broadcasts SEEN_ON_NETWORK transactions
+func (p *Processor) StartReAnnounceSeenTxs() {
+	ticker := time.NewTicker(p.rebroadcastSeenTxsInterval)
+	p.waitGroup.Add(1)
+
+	go func() {
+		defer p.waitGroup.Done()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				ctx, span := tracing.StartTracing(p.ctx, "StartReAnnounceSeenTxs", p.tracingEnabled, p.tracingAttributes...)
+
+				var offset int64
+				var totalSeenOnNetworkTxs int
+				var seenOnNetworkTxs []*store.Data
+				var err error
+
+				for {
+					seenOnNetworkTxs, err = p.store.GetSeenSinceLastMined(ctx, p.rebroadcastExpiration, p.reAnnoucneSeen, loadSeenOnNetworkLimit, offset)
 					if err != nil {
 						p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 						break
@@ -652,12 +710,6 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 					offset += loadSeenOnNetworkLimit
 					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
-					// re-register transactions
-					err = p.registerTransactions(ctx, seenOnNetworkTxs)
-					if err != nil {
-						p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
-					}
-
 					// re-announce transactions
 					for _, tx := range seenOnNetworkTxs {
 						p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
@@ -668,11 +720,11 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 				}
 
 				if totalSeenOnNetworkTxs > 0 {
-					p.logger.Info("Seen txs re-registered and re-announced", slog.Int("number", totalSeenOnNetworkTxs))
+					p.logger.Info("Seen txs re-announced", slog.Int("count", totalSeenOnNetworkTxs))
 				}
 
 				if span != nil {
-					span.SetAttributes(attribute.Int("rebroadcasted", totalSeenOnNetworkTxs))
+					span.SetAttributes(attribute.Int("re-announced", totalSeenOnNetworkTxs))
 				}
 
 				tracing.EndTracing(span, nil)
@@ -681,14 +733,14 @@ func (p *Processor) StartRebroadcastSeenTxs() {
 	}()
 }
 
-// StartRebroadcastUnseenTxs periodically re-broadcasts transactions with status lower than SEEN_ON_NETWORK
-func (p *Processor) StartRebroadcastUnseenTxs() {
+// StartReAnnounceUnseenTxs periodically re-broadcasts transactions with status lower than SEEN_ON_NETWORK
+func (p *Processor) StartReAnnounceUnseenTxs() {
 	p.waitGroup.Add(1)
 
 	go func() {
 		defer p.waitGroup.Done()
 
-		ticker := time.NewTicker(p.rebroadcastUnseenTxsInterval)
+		ticker := time.NewTicker(p.reAnnounceUnseenInterval)
 		defer ticker.Stop()
 
 		for {
@@ -696,7 +748,7 @@ func (p *Processor) StartRebroadcastUnseenTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartRebroadcastUnseenTxs", p.tracingEnabled, p.tracingAttributes...)
+				ctx, span := tracing.StartTracing(p.ctx, "StartReAnnounceUnseenTxs", p.tracingEnabled, p.tracingAttributes...)
 
 				// define from what point in time we are interested in unmined transactions
 				getUnseenSince := p.now().Add(-1 * p.rebroadcastExpiration)
@@ -938,7 +990,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 	// store in database
 	err = p.store.SetBulk(ctx, sReq)
 	if err != nil {
-		p.logger.Error("Failed to bulk store txs", slog.Int("number", len(sReq)), slog.String("err", err.Error()))
+		p.logger.Error("Failed to bulk store txs", slog.Int("count", len(sReq)), slog.String("err", err.Error()))
 		return
 	}
 

@@ -19,13 +19,19 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithRebroadcastSeenBeforeLastMined(d time.Duration) func(*Processor) {
+func WithReAnnounceSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.rebroadcastSeenBeforeLastMined = d
+		p.reAnnoucneSeen = d
 	}
 }
 
-func WithRebroadcastUnseenExpiration(d time.Duration) func(*Processor) {
+func WithReRegisterSeen(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.reRegisterSeen = d
+	}
+}
+
+func WithReBroadcastExpiration(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.rebroadcastExpiration = d
 	}
@@ -43,9 +49,9 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 	}
 }
 
-func WithRebroadcastUnseenTxsInterval(d time.Duration) func(*Processor) {
+func WithReAnnounceUnseenInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.rebroadcastUnseenTxsInterval = d
+		p.reAnnounceUnseenInterval = d
 	}
 }
 

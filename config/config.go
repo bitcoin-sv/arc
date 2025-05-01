@@ -19,7 +19,7 @@ type ArcConfig struct {
 	Prometheus            *PrometheusConfig   `mapstructure:"prometheus"`
 	GrpcMessageSize       int                 `mapstructure:"grpcMessageSize"`
 	Network               string              `mapstructure:"network"`
-	RebroadcastExpiration time.Duration       `mapstructure:"rebroadcastExpiration"`
+	ReBroadcastExpiration time.Duration       `mapstructure:"reBroadcastExpiration"`
 	MessageQueue          *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing               *TracingConfig      `mapstructure:"tracing"`
 	PeerRPC               *PeerRPCConfig      `mapstructure:"peerRpc"`
@@ -86,18 +86,19 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                     string                               `mapstructure:"listenAddr"`
-	DialAddr                       string                               `mapstructure:"dialAddr"`
-	Db                             *DbConfig                            `mapstructure:"db"`
-	RebroadcastUnseenInterval      time.Duration                        `mapstructure:"rebroadcastUnseenInterval"`
-	RebroadcastSeenBeforeLastMined time.Duration                        `mapstructure:"rebroadcastSeenBeforeLastMined"`
-	MaxRetries                     int                                  `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval    time.Duration                        `mapstructure:"processStatusUpdateInterval"`
-	MonitorPeers                   bool                                 `mapstructure:"monitorPeers"`
-	Health                         *HealthConfig                        `mapstructure:"health"`
-	RejectCallbackContaining       []string                             `mapstructure:"rejectCallbackContaining"`
-	Stats                          *StatsConfig                         `mapstructure:"stats"`
-	BlockchainNetwork              *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
+	ListenAddr                  string                               `mapstructure:"listenAddr"`
+	DialAddr                    string                               `mapstructure:"dialAddr"`
+	Db                          *DbConfig                            `mapstructure:"db"`
+	ReAnnounceUnseenInterval    time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
+	ReAnnounceSeen              time.Duration                        `mapstructure:"reAnnounceSeen"`
+	ReRegisterSeen              time.Duration                        `mapstructure:"reRegisterSeen"`
+	MaxRetries                  int                                  `mapstructure:"maxRetries"`
+	ProcessStatusUpdateInterval time.Duration                        `mapstructure:"processStatusUpdateInterval"`
+	MonitorPeers                bool                                 `mapstructure:"monitorPeers"`
+	Health                      *HealthConfig                        `mapstructure:"health"`
+	RejectCallbackContaining    []string                             `mapstructure:"rejectCallbackContaining"`
+	Stats                       *StatsConfig                         `mapstructure:"stats"`
+	BlockchainNetwork           *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type HealthConfig struct {

@@ -135,9 +135,10 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	processorOpts = append(processorOpts,
-		metamorph.WithRebroadcastUnseenExpiration(arcConfig.RebroadcastExpiration),
-		metamorph.WithRebroadcastUnseenTxsInterval(mtmConfig.RebroadcastUnseenInterval),
-		metamorph.WithRebroadcastSeenBeforeLastMined(mtmConfig.RebroadcastSeenBeforeLastMined),
+		metamorph.WithReBroadcastExpiration(arcConfig.ReBroadcastExpiration),
+		metamorph.WithReAnnounceUnseenInterval(mtmConfig.ReAnnounceUnseenInterval),
+		metamorph.WithReAnnounceSeen(mtmConfig.ReAnnounceSeen),
+		metamorph.WithReRegisterSeen(mtmConfig.ReRegisterSeen),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),

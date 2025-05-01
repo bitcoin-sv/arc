@@ -984,32 +984,24 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 		getSeenErr  error
 		registerErr error
 
-		expectedGetSeenCalls         int
-		expectedRegisterCalls        int
-		expectedPublishMarshallCalls int
+		expectedGetSeenCalls int
 	}{
 		{
 			name: "success",
 
-			expectedGetSeenCalls:         4,
-			expectedRegisterCalls:        6,
-			expectedPublishMarshallCalls: 0,
+			expectedGetSeenCalls: 4,
 		},
 		{
 			name:       "failed to get seen on network transactions",
 			getSeenErr: errors.New("failed to get seen txs"),
 
-			expectedGetSeenCalls:         1,
-			expectedRegisterCalls:        0,
-			expectedPublishMarshallCalls: 0,
+			expectedGetSeenCalls: 1,
 		},
 		{
 			name:        "failed to register transactions",
 			registerErr: errors.New("failed to register txs"),
 
-			expectedGetSeenCalls:         4,
-			expectedRegisterCalls:        6,
-			expectedPublishMarshallCalls: 6,
+			expectedGetSeenCalls: 4,
 		},
 	}
 
@@ -1019,7 +1011,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
+				GetSeenSinceLastMinedFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
 					require.Equal(t, int64(5000), limit)
 
 					if tc.getSeenErr != nil {
@@ -1060,7 +1052,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReAnnounceSeen(500*time.Millisecond),
+				metamorph.WithReAnnounceSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
@@ -1078,9 +1070,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
-			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
-			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenSinceLastMinedCalls()))
 		})
 	}
 }

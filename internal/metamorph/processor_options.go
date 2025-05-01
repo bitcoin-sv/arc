@@ -25,6 +25,12 @@ func WithReAnnounceSeen(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithReAnnounceSeenInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.reAnnounceSeenInterval = d
+	}
+}
+
 func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.reRegisterSeen = d

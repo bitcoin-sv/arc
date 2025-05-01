@@ -21,7 +21,7 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 
 func WithReAnnounceSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.reAnnoucneSeen = d
+		p.reAnnounceSeen = d
 	}
 }
 
@@ -155,12 +155,6 @@ func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 func WithBlocktxClient(client blocktx.Client) func(*Processor) {
 	return func(p *Processor) {
 		p.blocktxClient = client
-	}
-}
-
-func WithRebroadcastSeenTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.rebroadcastSeenTxsInterval = d
 	}
 }
 

@@ -1157,7 +1157,7 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReAnnounceSeen(500*time.Millisecond),
+				metamorph.WithReRegisterSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)

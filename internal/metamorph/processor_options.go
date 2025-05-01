@@ -37,6 +37,12 @@ func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithReRegisterSeenInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.reRegisterSeenInterval = d
+	}
+}
+
 func WithReBroadcastExpiration(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.rebroadcastExpiration = d

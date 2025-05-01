@@ -244,7 +244,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 		}
 	}
 	p.StartSendStatusUpdate()
-	p.StartProcessSubmittedTxs()
+	p.StartProcessSubmitted()
 
 	return nil
 }
@@ -360,8 +360,8 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
-// StartProcessSubmittedTxs starts processing txs submitted to message queue
-func (p *Processor) StartProcessSubmittedTxs() {
+// StartProcessSubmitted starts processing txs submitted to message queue
+func (p *Processor) StartProcessSubmitted() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {

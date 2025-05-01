@@ -618,7 +618,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	}
 }
 
-func TestStartProcessSubmittedTxs(t *testing.T) {
+func TestStartProcessSubmitted(t *testing.T) {
 	tt := []struct {
 		name   string
 		txReqs []*metamorph_api.PostTransactionRequest
@@ -728,7 +728,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
 			// when
-			sut.StartProcessSubmittedTxs()
+			sut.StartProcessSubmitted()
 			defer sut.Shutdown()
 
 			for _, req := range tc.txReqs {

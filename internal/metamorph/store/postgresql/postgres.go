@@ -600,7 +600,7 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -710,7 +710,7 @@ func (p *PostgreSQL) UpdateStatusBulk(ctx context.Context, updates []store.Updat
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatusHistoryBulk(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusHistoryBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -839,14 +839,22 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			reject_reason=bulk_query.reject_reason,
 			competing_txs=bulk_query.competing_txs,
 			last_modified=$1,
-			status_history=status_history || json_build_object(
-				'status', bulk_query.status,
-				'timestamp', last_modified
-			)::JSONB
+			status_history=status_history
+					|| COALESCE(
+						bulk_query.history_update || json_build_object(
+							'status', bulk_query.status,
+							'timestamp', bulk_query.timestamp
+						)::JSONB,
+						json_build_object(
+							'status', bulk_query.status,
+							'timestamp', bulk_query.timestamp
+						)::JSONB
+					)
 			FROM
 			(
-				SELECT * FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[])
-				AS t(hash, status, reject_reason, competing_txs)
+				SELECT t.hash, t.status, t.reject_reason, t.competing_txs, t.timestamp, t.history_update
+				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::TIMESTAMP WITH TIME ZONE[], $7::JSONB[])
+				AS t(hash, status, reject_reason, competing_txs, timestamp, history_update)
 			) AS bulk_query
 			WHERE metamorph.transactions.hash=bulk_query.hash
 				AND metamorph.transactions.status <= bulk_query.status
@@ -871,8 +879,24 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
     `
 
 	txHashes := make([][]byte, len(updates))
-	for i := 0; i < len(updates); i++ {
+	statusHistories := make([]*string, len(updates))
+	timestamps := make([]time.Time, len(updates))
+	for i, update := range updates {
 		txHashes[i] = updates[i].Hash[:]
+		timestamps[i] = updates[i].Timestamp
+		if timestamps[i].IsZero() {
+			timestamps[i] = p.now()
+		}
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := json.Marshal(update.StatusHistory)
+			if err != nil {
+				return nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
 	}
 
 	tx, err := p.db.Begin()
@@ -890,7 +914,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 	defer rows.Close()
 
-	competingTxsData := getCompetingTxsFromRows(rows)
+	compTxsData := getCompetingTxsFromRows(rows)
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
@@ -903,7 +927,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		for _, tx := range competingTxsData {
+		for _, tx := range compTxsData {
 			if bytes.Equal(txHashes[i], tx.hash) {
 				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
 				competingTxs[i] = strings.Join(uniqueTxs, ",")
@@ -912,7 +936,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		}
 	}
 
-	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs))
+	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps), pq.Array(statusHistories))
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
@@ -1017,8 +1041,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	}
 	defer rows.Close()
 
-	competingTxsData := getCompetingTxsFromRows(rows)
-	rejectedResponses := updateDoubleSpendRejected(ctx, competingTxsData, tx)
+	compTxsData := getCompetingTxsFromRows(rows)
 
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
 	if err != nil {
@@ -1042,7 +1065,70 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
+	rejectedResponses, err := p.updateDoubleSpendRejected(ctx, compTxsData)
+	if err != nil {
+		return nil, errors.Join(store.ErrUpdateCompeting, err)
+	}
+
 	return append(res, rejectedResponses...), nil
+}
+
+func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData) ([]*store.Data, error) {
+	qRejectDoubleSpends := `
+		UPDATE metamorph.transactions t
+		SET
+			status=$1,
+			reject_reason=$2
+		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
+			AND t.status < $1::INT
+		RETURNING t.stored_at
+		,t.hash
+		,t.status
+		,t.block_height
+		,t.block_hash
+		,t.callbacks
+		,t.full_status_updates
+		,t.reject_reason
+		,t.competing_txs
+		,t.raw_tx
+		,t.locked_by
+		,t.merkle_path
+		,t.retries
+		,t.status_history
+		,t.last_modified
+		;
+	`
+	rejectReason := "double spend attempted"
+
+	rejectedCompetingTxs := make([][]byte, 0)
+	for _, tx := range competingTxsData {
+		for _, competingTx := range tx.competingTxs {
+			hash, err := chainhash.NewHashFromStr(competingTx)
+			if err != nil {
+				continue
+			}
+
+			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
+		}
+	}
+
+	if len(rejectedCompetingTxs) == 0 {
+		return nil, nil
+	}
+	// update competing
+	rows, err := p.db.QueryContext(ctx, qRejectDoubleSpends, metamorph_api.Status_REJECTED, rejectReason, pq.Array(rejectedCompetingTxs))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	res, err := getStoreDataFromRows(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {

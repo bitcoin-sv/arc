@@ -143,33 +143,8 @@ func TestSubmitMined(t *testing.T) {
 		txID := utxos[0].Txid
 		merklePathStr := getMerklePath(t, txID)
 
-		callbackReceivedChan := make(chan *TransactionResponse)
-		callbackErrChan := make(chan error)
-
-		lis, err := net.Listen("tcp", ":9000")
-		require.NoError(t, err)
-		mux := http.NewServeMux()
-		defer func() {
-			t.Log("closing listener")
-			err = lis.Close()
-			require.NoError(t, err)
-		}()
-
-		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
-		defer func() {
-			t.Log("closing channels")
-
-			close(callbackReceivedChan)
-			close(callbackErrChan)
-		}()
-
-		go func() {
-			t.Logf("starting callback server")
-			err = http.Serve(lis, mux)
-			if err != nil {
-				t.Log("callback server stopped")
-			}
-		}()
+		callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup := CreateCallbackServer(t)
+		defer cleanup()
 
 		// when
 		transactionResponse := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: exRawTx}),

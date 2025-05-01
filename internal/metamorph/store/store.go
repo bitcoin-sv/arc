@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -12,7 +13,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
-var ErrNotFound = errors.New("key could not be found")
+var (
+	ErrNotFound        = errors.New("key could not be found")
+	ErrUpdateCompeting = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
+)
 
 type Data struct {
 	RawTx             []byte
@@ -75,8 +79,8 @@ type MetamorphStore interface {
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
 	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*Data, error)
-	UpdateStatusBulk(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
-	UpdateStatusHistoryBulk(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
+	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
+	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	Close(ctx context.Context) error

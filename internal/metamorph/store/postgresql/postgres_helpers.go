@@ -1,17 +1,16 @@
 package postgresql
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/ccoveille/go-safecast"
-	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 type competingTxsData struct {
@@ -173,64 +172,6 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 	}
 
 	return dbData
-}
-
-func updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData, tx *sql.Tx) []*store.Data {
-	qRejectDoubleSpends := `
-		UPDATE metamorph.transactions t
-		SET
-			status=$1,
-			reject_reason=$2
-		WHERE t.hash IN (SELECT UNNEST($3::BYTEA[]))
-			AND t.status < $1::INT
-		RETURNING t.stored_at
-		,t.hash
-		,t.status
-		,t.block_height
-		,t.block_hash
-		,t.callbacks
-		,t.full_status_updates
-		,t.reject_reason
-		,t.competing_txs
-		,t.raw_tx
-		,t.locked_by
-		,t.merkle_path
-		,t.retries
-		,t.status_history
-		,t.last_modified
-		;
-	`
-	rejectReason := "double spend attempted"
-
-	rejectedCompetingTxs := make([][]byte, 0)
-	for _, tx := range competingTxsData {
-		for _, competingTx := range tx.competingTxs {
-			hash, err := chainhash.NewHashFromStr(competingTx)
-			if err != nil {
-				continue
-			}
-
-			rejectedCompetingTxs = append(rejectedCompetingTxs, hash.CloneBytes())
-		}
-	}
-
-	if len(rejectedCompetingTxs) == 0 {
-		return nil
-	}
-
-	rows, err := tx.QueryContext(ctx, qRejectDoubleSpends, metamorph_api.Status_REJECTED, rejectReason, pq.Array(rejectedCompetingTxs))
-	if err != nil {
-		return nil
-	}
-
-	defer rows.Close()
-
-	res, err := getStoreDataFromRows(rows)
-	if err != nil {
-		return nil
-	}
-
-	return res
 }
 
 func readCallbacksFromDB(callbacks []byte) ([]store.Callback, error) {

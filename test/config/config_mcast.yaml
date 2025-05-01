@@ -49,7 +49,7 @@ metamorph:
       maxOpenConns: 80
       sslMode: disable
   maxRetries: 1000
-  processStatusUpdateInterval: 50ms
+  statusUpdateInterval: 50ms
   reAnnounceUnseenInterval: 60s
   reAnnounceSeen: 10m
   reRegisterSeen: 10m

@@ -34,7 +34,7 @@ const (
 	reRegisterSeenIntervalDefault    = 3 * time.Minute
 
 	rebroadcastExpirationDefault  = 24 * time.Hour
-	recheckSeenUntilAgoDefault    = 1 * time.Hour
+	reAnnounceSeenDefault         = 1 * time.Hour
 	reAnnounceSeenIntervalDefault = 15 * time.Minute
 	LogLevelDefault               = slog.LevelInfo
 
@@ -44,8 +44,8 @@ const (
 	loadSeenOnNetworkLimit           = int64(5000)
 	minimumHealthyConnectionsDefault = 2
 
-	processStatusUpdatesIntervalDefault  = 500 * time.Millisecond
-	processStatusUpdatesBatchSizeDefault = 1000
+	statusUpdatesIntervalDefault  = 500 * time.Millisecond
+	statusUpdatesBatchSizeDefault = 1000
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
@@ -91,9 +91,9 @@ type Processor struct {
 	minedTxsChan     chan *blocktx_api.TransactionBlocks
 	submittedTxsChan chan *metamorph_api.PostTransactionRequest
 
-	storageStatusUpdateCh         chan store.UpdateStatus
-	processStatusUpdatesInterval  time.Duration
-	processStatusUpdatesBatchSize int
+	storageStatusUpdateCh  chan store.UpdateStatus
+	statusUpdatesInterval  time.Duration
+	statusUpdatesBatchSize int
 
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
@@ -158,21 +158,21 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
-		reAnnounceSeen:           recheckSeenUntilAgoDefault,
+		reAnnounceSeen:           reAnnounceSeenDefault,
 		reAnnounceSeenInterval:   reAnnounceSeenIntervalDefault,
 		reAnnounceUnseenInterval: rebroadcastUnseenIntervalDefault,
 		reRegisterSeenInterval:   reRegisterSeenIntervalDefault,
 		lockTransactionsInterval: lockTransactionsIntervalDefault,
 
-		processStatusUpdatesInterval:  processStatusUpdatesIntervalDefault,
-		processStatusUpdatesBatchSize: processStatusUpdatesBatchSizeDefault,
-		storageStatusUpdateCh:         make(chan store.UpdateStatus, processStatusUpdatesBatchSizeDefault),
-		stats:                         newProcessorStats(),
-		waitGroup:                     &sync.WaitGroup{},
-		registerBatchSize:             registerBatchSizeDefault,
-		statCollectionInterval:        statCollectionIntervalDefault,
-		processTransactionsInterval:   processTransactionsIntervalDefault,
-		processTransactionsBatchSize:  processTransactionsBatchSizeDefault,
+		statusUpdatesInterval:        statusUpdatesIntervalDefault,
+		statusUpdatesBatchSize:       statusUpdatesBatchSizeDefault,
+		storageStatusUpdateCh:        make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
+		stats:                        newProcessorStats(),
+		waitGroup:                    &sync.WaitGroup{},
+		registerBatchSize:            registerBatchSizeDefault,
+		statCollectionInterval:       statCollectionIntervalDefault,
+		processTransactionsInterval:  processTransactionsIntervalDefault,
+		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
 
 		processMinedInterval:  processMinedIntervalDefault,
 		processMinedBatchSize: processMinedBatchSizeDefault,
@@ -463,7 +463,7 @@ func (p *Processor) StartSendStatusUpdate() {
 }
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
-	ticker := time.NewTicker(p.processStatusUpdatesInterval)
+	ticker := time.NewTicker(p.statusUpdatesInterval)
 	p.waitGroup.Add(1)
 
 	ctx := p.ctx
@@ -489,7 +489,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					return
 				}
 
-				if statusUpdateCount >= p.processStatusUpdatesBatchSize {
+				if statusUpdateCount >= p.statusUpdatesBatchSize {
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
 						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
@@ -497,7 +497,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
-					ticker.Reset(p.processStatusUpdatesInterval)
+					ticker.Reset(p.statusUpdatesInterval)
 				}
 			case <-ticker.C:
 				statusUpdateCount, err := p.getStatusUpdateCount()
@@ -514,7 +514,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
-					ticker.Reset(p.processStatusUpdatesInterval)
+					ticker.Reset(p.statusUpdatesInterval)
 				}
 			}
 		}

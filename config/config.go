@@ -86,19 +86,19 @@ type PeerPortConfig struct {
 }
 
 type MetamorphConfig struct {
-	ListenAddr                  string                               `mapstructure:"listenAddr"`
-	DialAddr                    string                               `mapstructure:"dialAddr"`
-	Db                          *DbConfig                            `mapstructure:"db"`
-	ReAnnounceUnseenInterval    time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
-	ReAnnounceSeen              time.Duration                        `mapstructure:"reAnnounceSeen"`
-	ReRegisterSeen              time.Duration                        `mapstructure:"reRegisterSeen"`
-	MaxRetries                  int                                  `mapstructure:"maxRetries"`
-	ProcessStatusUpdateInterval time.Duration                        `mapstructure:"processStatusUpdateInterval"`
-	MonitorPeers                bool                                 `mapstructure:"monitorPeers"`
-	Health                      *HealthConfig                        `mapstructure:"health"`
-	RejectCallbackContaining    []string                             `mapstructure:"rejectCallbackContaining"`
-	Stats                       *StatsConfig                         `mapstructure:"stats"`
-	BlockchainNetwork           *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
+	ListenAddr               string                               `mapstructure:"listenAddr"`
+	DialAddr                 string                               `mapstructure:"dialAddr"`
+	Db                       *DbConfig                            `mapstructure:"db"`
+	ReAnnounceUnseenInterval time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
+	ReAnnounceSeen           time.Duration                        `mapstructure:"reAnnounceSeen"`
+	ReRegisterSeen           time.Duration                        `mapstructure:"reRegisterSeen"`
+	MaxRetries               int                                  `mapstructure:"maxRetries"`
+	StatusUpdateInterval     time.Duration                        `mapstructure:"statusUpdateInterval"`
+	MonitorPeers             bool                                 `mapstructure:"monitorPeers"`
+	Health                   *HealthConfig                        `mapstructure:"health"`
+	RejectCallbackContaining []string                             `mapstructure:"rejectCallbackContaining"`
+	Stats                    *StatsConfig                         `mapstructure:"stats"`
+	BlockchainNetwork        *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 }
 
 type HealthConfig struct {

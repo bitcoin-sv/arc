@@ -143,7 +143,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
-		metamorph.WithProcessStatusUpdatesInterval(mtmConfig.ProcessStatusUpdateInterval),
+		metamorph.WithStatusUpdatesInterval(mtmConfig.StatusUpdateInterval),
 		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),

@@ -79,9 +79,9 @@ func WithLockTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
+func WithStatusUpdatesInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processStatusUpdatesInterval = d
+		p.statusUpdatesInterval = d
 	}
 }
 
@@ -111,7 +111,7 @@ func WithProcessMinedBatchSize(batchSize int) func(*Processor) {
 
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
-		p.processStatusUpdatesBatchSize = size
+		p.statusUpdatesBatchSize = size
 	}
 }
 

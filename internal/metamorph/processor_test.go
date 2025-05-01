@@ -587,7 +587,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				messenger,
 				statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
-				metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
+				metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 				metamorph.WithProcessStatusUpdatesBatchSize(3),
 				metamorph.WithMessageQueueClient(mqClient),
 			)

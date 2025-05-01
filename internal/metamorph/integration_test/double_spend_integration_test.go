@@ -93,7 +93,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
 		metamorph.WithMinedTxsChan(minedTxChannel),
 		metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
-		metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
+		metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 		metamorph.WithProcessStatusUpdatesBatchSize(3))
 	require.NoError(t, err)
 	defer processor.Shutdown()

@@ -751,14 +751,14 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 	}
 }
 
-func TestProcessExpiredTransactions(t *testing.T) {
+func TestReAnnounceUnseen(t *testing.T) {
 	tt := []struct {
 		name          string
 		retries       int
 		getUnminedErr error
 
-		expectedRequests      int32
-		expectedAnnouncements int32
+		expectedRequests      int
+		expectedAnnouncements int
 	}{
 		{
 			name:    "expired txs",
@@ -821,32 +821,16 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			var announceMsgCounter atomic.Int32
-			var requestMsgCounter atomic.Int32
-			peer := &p2pMocks.PeerIMock{
-				WriteMsgFunc: func(msg wire.Message) {
-					if msg.Command() == wire.CmdInv {
-						announceMsgCounter.Add(1)
-					} else if msg.Command() == wire.CmdGetData {
-						requestMsgCounter.Add(1)
-					}
-				},
-				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-				StringFunc:    func() string { return "peer" },
-				ConnectedFunc: func() bool { return true },
-			}
-
 			cStore := &cacheMocks.StoreMock{
 				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
 					return nil
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			err := pm.AddPeer(peer)
-			require.NoError(t, err)
-
-			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
+			messenger := &mocks.MediatorMock{
+				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
 				PublishAsyncFunc: func(_ string, _ []byte) error {
@@ -856,7 +840,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -865,15 +848,15 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when
-			sut.StartReAnnounceUnseenTxs()
+			metamorph.ReAnnounceUnseen(context.TODO(), sut)
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
 			time.Sleep(250 * time.Millisecond)
 
 			// then
-			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter.Load())
-			require.Equal(t, tc.expectedRequests, requestMsgCounter.Load())
+			require.Equal(t, tc.expectedAnnouncements, len(messenger.AnnounceTxAsyncCalls()))
+			require.Equal(t, tc.expectedRequests, len(messenger.AskForTxAsyncCalls()))
 		})
 	}
 }
@@ -978,7 +961,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 }
 
-func TestStartReAnnounceSeenTxs(t *testing.T) {
+func TestReAnnounceSeen(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
@@ -1052,22 +1035,13 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReAnnounceSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartReAnnounceSeenTxs()
-
-			select {
-			case <-stop:
-				t.Log("received stop signal")
-			case <-time.After(5 * time.Second):
-				t.Fatal("timed out waiting for processor to stop")
-			}
-			sut.Shutdown()
+			metamorph.ReAnnounceSeen(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenSinceLastMinedCalls()))
@@ -1075,7 +1049,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 	}
 }
 
-func TestStartRegisterSeenTxs(t *testing.T) {
+func TestRegisterSeen(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
@@ -1157,22 +1131,13 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReRegisterSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartRegisterSeenTxs()
-
-			select {
-			case <-stop:
-				t.Log("received stop signal")
-			case <-time.After(5 * time.Second):
-				t.Fatal("timed out waiting for processor to stop")
-			}
-			sut.Shutdown()
+			metamorph.RegisterSeenTxs(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))

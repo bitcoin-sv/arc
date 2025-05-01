@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"reflect"
+	"runtime"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
@@ -248,9 +251,11 @@ func getCallbackBlockHash(d *store.Data) string {
 	return d.BlockHash.String()
 }
 
-func (p *Processor) StartFunc(tickerInterval time.Duration, funcName string, startFunc func(context.Context, *Processor)) {
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue) {
 	ticker := time.NewTicker(tickerInterval)
 	p.waitGroup.Add(1)
+
+	funcName := runtime.FuncForPC(reflect.ValueOf(routine).Pointer()).Name()
 
 	go func() {
 		defer func() {
@@ -264,7 +269,10 @@ func (p *Processor) StartFunc(tickerInterval time.Duration, funcName string, sta
 				return
 			case <-ticker.C:
 				ctx, span := tracing.StartTracing(p.ctx, funcName, p.tracingEnabled, p.tracingAttributes...)
-				startFunc(ctx, p)
+				attr := routine(ctx, p)
+				if span != nil && len(attr) > 0 {
+					span.SetAttributes(attr...)
+				}
 				tracing.EndTracing(span, nil)
 			}
 		}

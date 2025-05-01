@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
@@ -27,77 +27,66 @@ func TestRateBroadcasterStart(t *testing.T) {
 	require.NoError(t, err)
 
 	tt := []struct {
-		name                               string
-		getBalanceWithRetriesErr           error
-		getUTXOsWithRetriesErr             error
-		broadcastTransactionsErr           error
-		limit                              int64
-		initialUtxoSetLen                  int
-		rateTxsPerSecond                   int
-		batchSize                          int
-		transactionCount                   int64
+		name                     string
+		getBalanceWithRetriesErr error
+		getUTXOsWithRetriesErr   error
+		broadcastTransactionsErr error
+		limit                    int64
+		initialUtxoSetLen        int
+		rateTxsPerSecond         int
+		batchSize                int
+
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
 		expectedLimit                      int64
 		expectedUtxoSetLen                 int
 	}{
 		{
-			name:                               "success",
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
+			name:              "success",
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+
 			expectedBroadcastTransactionsCalls: 0,
 			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "success with jitter",
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedUtxoSetLen:                 2,
-		},
-		{
-			name:                               "error - failed to get balance",
-			getBalanceWithRetriesErr:           errors.New("utxo client error"),
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
+			name:                     "error - failed to get balance",
+			getBalanceWithRetriesErr: errors.New("utxo client error"),
+			rateTxsPerSecond:         2,
+			batchSize:                2,
+
 			expectedError:                      broadcaster.ErrFailedToGetBalance,
 			expectedBroadcastTransactionsCalls: 0,
 			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "error - failed to get utxos",
-			getUTXOsWithRetriesErr:             errors.New("failed to get utxos"),
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
+			name:                   "error - failed to get utxos",
+			getUTXOsWithRetriesErr: errors.New("failed to get utxos"),
+			rateTxsPerSecond:       2,
+			batchSize:              2,
+
 			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
 			expectedBroadcastTransactionsCalls: 0,
 		},
 		{
-			name:                               "broadcast transactions",
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedUtxoSetLen:                 2,
-		},
-		{
-			name:                               "success - limit reached",
-			limit:                              2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          2,
+			name:              "success - limit reached",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         2,
+
 			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
 			expectedUtxoSetLen:                 2,
 		},
 		{
-			name:                               "error - utxo set smaller than batchSize",
-			limit:                              2,
-			initialUtxoSetLen:                  2,
-			rateTxsPerSecond:                   2,
-			batchSize:                          1000,
+			name:              "error - utxo set smaller than batchSize",
+			limit:             2,
+			initialUtxoSetLen: 2,
+			rateTxsPerSecond:  2,
+			batchSize:         1000,
+
 			expectedError:                      broadcaster.ErrTooSmallUTXOSet,
 			expectedBroadcastTransactionsCalls: 0,
 			expectedLimit:                      2,
@@ -187,7 +176,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedUtxoSetLen, sut.GetUtxoSetLen())
 			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
-			require.Equal(t, tc.transactionCount, sut.GetTxCount())
+			require.Equal(t, int64(0), sut.GetTxCount())
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			sut.Shutdown()
@@ -196,22 +185,17 @@ func TestRateBroadcasterStart(t *testing.T) {
 	}
 }
 
-func TestRateBroadcasterStartAsync(t *testing.T) {
+func TestRateBroadcasterStartBroadcast(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
 	tt := []struct {
-		name                     string
-		getBalanceWithRetriesErr error
-		getUTXOsWithRetriesErr   error
-		broadcastTransactionsErr error
-		limit                    int64
-		initialUtxoSetLen        int
-		asyncTest                bool
-		rateTxsPerSecond         int
-		batchSize                int
-		transactionCount         int64
-		jitterSize               int64
+		name             string
+		limit            int64
+		rateTxsPerSecond int
+		batchSize        int
+		expectedTxCount  int64
+		jitterSize       int64
 
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
@@ -219,16 +203,16 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 		expectedUtxoSetLen                 int
 	}{
 		{
-			name:                               "success - async batch with jitter ",
-			limit:                              2,
-			initialUtxoSetLen:                  10,
-			rateTxsPerSecond:                   10,
-			batchSize:                          10,
-			transactionCount:                   0,
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
+			name:             "success - limit reached with jitter",
+			limit:            10,
+			rateTxsPerSecond: 10,
+			batchSize:        4,
+			jitterSize:       1,
+
+			expectedTxCount:                    16,
+			expectedBroadcastTransactionsCalls: 4,
+			expectedLimit:                      10,
 			expectedUtxoSetLen:                 10,
-			jitterSize:                         2,
 		},
 	}
 
@@ -246,14 +230,9 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 			}
 			utxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
-					return 1000, 0, tc.getBalanceWithRetriesErr
+					return 1000, 0, nil
 				},
 				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
-					if tc.getUTXOsWithRetriesErr != nil {
-						return nil, tc.getUTXOsWithRetriesErr
-					}
-
-					utxosToReturn := sdkTx.UTXOs{}
 					baseUtxo := sdkTx.UTXOs{
 						{
 							TxID:          hash1,
@@ -262,7 +241,8 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 							Satoshis:      1000,
 						},
 					}
-					for i := 0; i < tc.initialUtxoSetLen; i++ {
+					utxosToReturn := sdkTx.UTXOs{}
+					for i := 0; i < 200; i++ {
 						utxosToReturn = append(utxosToReturn, baseUtxo...)
 					}
 
@@ -274,9 +254,6 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 
 			client := &mocks.ArcClientMock{
 				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _ string, _ string, _ bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
-					if tc.broadcastTransactionsErr != nil {
-						return nil, tc.broadcastTransactionsErr
-					}
 					var statuses []*metamorph_api.TransactionStatus
 					for _, tx := range txs {
 						statuses = append(statuses, &metamorph_api.TransactionStatus{
@@ -307,30 +284,24 @@ func TestRateBroadcasterStartAsync(t *testing.T) {
 			)
 			require.NoError(t, err)
 
+			tickerCh <- time.Now()
+			tickerCh <- time.Now()
+			tickerCh <- time.Now()
+			tickerCh <- time.Now()
+
 			// when then
 			err = sut.Start()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
-			require.NoError(t, err)
-			tickerCh <- time.Now()
-			go func() {
-				wg := &sync.WaitGroup{}
-				wg.Add(1)
-				go func() {
-					close(tickerCh)
-					defer wg.Done()
-					time.Sleep(2 * time.Second)
-				}()
-				wg.Wait()
-			}()
-			require.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
-			require.Equal(t, tc.transactionCount, sut.GetTxCount())
-			require.Equal(t, tc.expectedLimit, sut.GetLimit())
-			require.Equal(t, int64(0), sut.GetConnectionCount())
-			sut.Shutdown()
-			sut.Wait()
+
+			time.Sleep(2 * time.Second)
+
+			assert.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
+			assert.Equal(t, tc.expectedTxCount, sut.GetTxCount())
+			assert.Equal(t, tc.expectedLimit, sut.GetLimit())
+			assert.Equal(t, int64(0), sut.GetConnectionCount())
 		})
 	}
 }

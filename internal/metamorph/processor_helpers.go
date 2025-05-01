@@ -1,6 +1,7 @@
 package metamorph
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
@@ -244,4 +246,27 @@ func getCallbackBlockHash(d *store.Data) string {
 	}
 
 	return d.BlockHash.String()
+}
+
+func (p *Processor) StartFunc(tickerInterval time.Duration, funcName string, startFunc func(context.Context, *Processor)) {
+	ticker := time.NewTicker(tickerInterval)
+	p.waitGroup.Add(1)
+
+	go func() {
+		defer func() {
+			p.waitGroup.Done()
+			ticker.Stop()
+		}()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				ctx, span := tracing.StartTracing(p.ctx, funcName, p.tracingEnabled, p.tracingAttributes...)
+				startFunc(ctx, p)
+				tracing.EndTracing(span, nil)
+			}
+		}
+	}()
 }

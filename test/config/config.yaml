@@ -17,7 +17,7 @@ tracing:
   enabled: false
   sample: 100
   dialAddr: http://jaeger:4317
-rebroadcastExpiration: 24h
+reBroadcastExpiration: 24h
 
 peerRpc:
   password: bitcoin
@@ -48,8 +48,9 @@ metamorph:
       sslMode: disable
   maxRetries: 1000
   processStatusUpdateInterval: 50ms
-  rebroadcastUnseenInterval: 60s
-  rebroadcastSeenBeforeLastMined: 1h
+  reAnnounceUnseenInterval: 60s
+  reAnnounceSeen: 10min
+  reRegisterSeen: 10min
   monitorPeers: true
   health:
     minimumHealthyConnections: 2

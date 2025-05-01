@@ -1,23 +1,25 @@
 ---
-logFormat: tint
 logLevel: INFO
+logFormat: tint
 profilerAddr: "[::]:9999"
 prometheus:
   enabled: true
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
+network: regtest
 messageQueue:
   streaming:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
   initialize: true
+reBroadcastExpiration: 24h
+
 tracing:
   enabled: false
   sample: 100
   dialAddr: http://jaeger:4317
-reBroadcastExpiration: 24h
 
 peerRpc:
   password: bitcoin
@@ -62,14 +64,14 @@ metamorph:
     mode: hybrid
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
     mcast:
       tx:
         address: "[ff05::1]:9999"
@@ -104,14 +106,14 @@ blocktx:
     mode: hybrid
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
     mcast:
       block:
         address: "[ff05::3]:9979"

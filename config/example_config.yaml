@@ -176,8 +176,6 @@ k8sWatcher:
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
   dialAddr: localhost:8021 # address for other services to dial callbacker service
-  health:
-    serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
   pause: 1s # pause between sending next callback to the same receiver - must be greater 0s
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)

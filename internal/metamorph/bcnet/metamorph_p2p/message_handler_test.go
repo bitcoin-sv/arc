@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/wire"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p/wire"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -37,9 +38,10 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 			name:    wire.CmdTx,
 			wireMsg: wire.NewMsgTx(70001),
 			expectedOnChannelMsg: &TxStatusMessage{
-				Hash:   ptrTo(wire.NewMsgTx(70001).TxHash()),
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-				Peer:   peerAddr,
+				Hash:          ptrTo(wire.NewMsgTx(70001).TxHash()),
+				Status:        metamorph_api.Status_SEEN_ON_NETWORK,
+				Peer:          peerAddr,
+				ReceivedRawTx: true,
 			},
 		},
 		{

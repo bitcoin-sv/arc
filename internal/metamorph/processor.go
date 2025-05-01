@@ -33,15 +33,13 @@ const (
 	lockTransactionsIntervalDefault  = 60 * time.Second
 	reRegisterSeenIntervalDefault    = 3 * time.Minute
 
-	rebroadcastExpirationDefault  = 24 * time.Hour
-	reAnnounceSeenDefault         = 1 * time.Hour
-	reAnnounceSeenIntervalDefault = 15 * time.Minute
-	LogLevelDefault               = slog.LevelInfo
+	checkUnconfirmedSeenIntervalDefault = 5 * time.Minute
+	rebroadcastExpirationDefault        = 24 * time.Hour
+	reAnnounceSeenDefault               = 1 * time.Hour
+	reAnnounceSeenIntervalDefault       = 5 * time.Minute
+	logLevelDefault                     = slog.LevelInfo
 
-	txCacheTTL = 10 * time.Minute
-
-	loadUnminedLimit                 = int64(50)
-	loadSeenOnNetworkLimit           = int64(50)
+	loadLimit                        = int64(50)
 	minimumHealthyConnectionsDefault = 2
 
 	statusUpdatesIntervalDefault  = 500 * time.Millisecond
@@ -101,6 +99,8 @@ type Processor struct {
 	reAnnounceSeen         time.Duration
 	reAnnounceSeenInterval time.Duration
 
+	checkUnconfirmedSeenInterval time.Duration
+
 	reAnnounceUnseenInterval time.Duration
 
 	rebroadcastExpiration time.Duration
@@ -158,12 +158,12 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
-		reAnnounceSeen:           reAnnounceSeenDefault,
-		reAnnounceSeenInterval:   reAnnounceSeenIntervalDefault,
-		reAnnounceUnseenInterval: rebroadcastUnseenIntervalDefault,
-		reRegisterSeenInterval:   reRegisterSeenIntervalDefault,
-		lockTransactionsInterval: lockTransactionsIntervalDefault,
-
+		reAnnounceSeen:               reAnnounceSeenDefault,
+		reAnnounceSeenInterval:       reAnnounceSeenIntervalDefault,
+		reAnnounceUnseenInterval:     rebroadcastUnseenIntervalDefault,
+		reRegisterSeenInterval:       reRegisterSeenIntervalDefault,
+		lockTransactionsInterval:     lockTransactionsIntervalDefault,
+		checkUnconfirmedSeenInterval: checkUnconfirmedSeenIntervalDefault,
 		statusUpdatesInterval:        statusUpdatesIntervalDefault,
 		statusUpdatesBatchSize:       statusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:        make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
@@ -178,7 +178,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		processMinedBatchSize: processMinedBatchSizeDefault,
 	}
 
-	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: LogLevelDefault})).With(slog.String("service", "mtm"))
+	p.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevelDefault})).With(slog.String("service", "mtm"))
 
 	// apply options to processor
 	for _, opt := range opts {
@@ -234,6 +234,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen, "ReAnnounceUnseen")
 	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
 	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
+	p.StartRoutine(p.checkUnconfirmedSeenInterval, CheckUnconfirmedSeen, "CheckUnconfirmedSeen")
 
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
@@ -429,6 +430,13 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				if msg.ReceivedRawTx {
+					err := p.store.MarkConfirmedRequested(p.ctx, msg.Hash)
+					if err != nil {
+						p.logger.Error("failed to delete confirmed seen", slog.String("err", err.Error()))
+					}
+				}
+
 				// if we receive new update check if we have client connection waiting for status and send it
 				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 					Hash:         msg.Hash,
@@ -621,7 +629,7 @@ func (p *Processor) StartLockTransactions() {
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.rebroadcastExpiration)
-				err := p.store.SetLocked(p.ctx, expiredSince, loadUnminedLimit)
+				err := p.store.SetLocked(p.ctx, expiredSince, loadLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
@@ -872,6 +880,7 @@ func callbackExists(callback store.Callback, data *store.Data) bool {
 }
 
 func (p *Processor) saveTxToCache(hash *chainhash.Hash) error {
+	const txCacheTTL = 10 * time.Minute
 	return p.cacheStore.Set(hash.String(), []byte("1"), txCacheTTL)
 }
 

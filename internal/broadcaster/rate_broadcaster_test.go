@@ -198,7 +198,6 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 		jitterSize       int64
 
 		expectedBroadcastTransactionsCalls int
-		expectedError                      error
 		expectedLimit                      int64
 		expectedUtxoSetLen                 int
 	}{
@@ -291,10 +290,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 
 			// when then
 			err = sut.Start()
-			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
-				return
-			}
+			require.NoError(t, err)
 
 			time.Sleep(2 * time.Second)
 

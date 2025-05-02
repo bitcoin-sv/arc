@@ -44,7 +44,6 @@ func TestExtractHeightForRegtest(t *testing.T) {
 }
 
 func TestMessageRead(t *testing.T) {
-
 	t.Run("Message read", func(t *testing.T) {
 		// given
 		msgBlock := wire.NewMsgBlock(wire.NewBlockHeader(0, blockHash, blockHash, 0, 0))

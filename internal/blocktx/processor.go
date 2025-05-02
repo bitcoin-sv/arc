@@ -16,12 +16,10 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -57,7 +55,7 @@ const (
 type Processor struct {
 	hostname                    string
 	blockRequestCh              chan blocktx_p2p.BlockRequest
-	blockProcessCh              chan *bcnet.BlockMessage
+	blockProcessCh              chan *BlockMessage
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -69,6 +67,7 @@ type Processor struct {
 	registerTxsBatchSize        int
 	tracingEnabled              bool
 	tracingAttributes           []attribute.KeyValue
+	nodeClient                  NodeClient
 
 	incomingIsLongest       bool
 	publishMinedMessageSize int
@@ -85,7 +84,8 @@ func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
 	blockRequestCh chan blocktx_p2p.BlockRequest,
-	blockProcessCh chan *bcnet.BlockMessage,
+	blockProcessCh chan *BlockMessage,
+	nodeClient NodeClient,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -97,7 +97,7 @@ func NewProcessor(
 		store:                       storeI,
 		logger:                      logger.With(slog.String("module", "processor")),
 		blockRequestCh:              blockRequestCh,
-		blockProcessCh:              blockProcessCh,
+		blockProcessCh:              make(chan *BlockMessage, 100),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
@@ -107,6 +107,7 @@ func NewProcessor(
 		publishMinedMessageSize:     publishMinedMessageSizeDefault,
 		now:                         time.Now,
 		waitGroup:                   &sync.WaitGroup{},
+		nodeClient:                  nodeClient,
 	}
 
 	for _, opt := range opts {
@@ -118,6 +119,39 @@ func NewProcessor(
 	p.ctx = ctx
 
 	return p, nil
+}
+
+type BlockMessage struct {
+	Hash              *chainhash.Hash
+	Header            *BlockHeader
+	Height            uint64
+	TransactionHashes []*chainhash.Hash
+	Size              uint64
+}
+
+type BlockHeader struct {
+	// Version of the block.  This is not the same as the protocol version.
+	Version int32
+
+	// Hash of the previous block header in the block chain.
+	PrevBlock chainhash.Hash
+
+	// Merkle tree reference to hash of all transactions for the block.
+	MerkleRoot chainhash.Hash
+
+	// Time the block was created.  This is, unfortunately, encoded as a
+	// uint32 on the wire and therefore is limited to 2106.
+	Timestamp time.Time
+
+	// Difficulty target for the block.
+	Bits uint32
+
+	// Nonce used to generate the block.
+	Nonce uint64
+}
+
+type NodeClient interface {
+	GetBlock(ctx context.Context, id string) (message *BlockMessage, err error)
 }
 
 func (p *Processor) Start() error {
@@ -171,7 +205,7 @@ func (p *Processor) StartBlockRequesting() {
 				return
 			case req := <-p.blockRequestCh:
 				hash := req.Hash
-				peer := req.Peer
+				//peer := req.Peer
 
 				// lock block for the current instance to process
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, p.maxBlockProcessingDuration, maxBlocksInProgress)
@@ -188,12 +222,18 @@ func (p *Processor) StartBlockRequesting() {
 					continue
 				}
 
-				p.logger.Info("Sending block request", slog.String("hash", hash.String()))
-				msg := wire.NewMsgGetDataSizeHint(1)
-				_ = msg.AddInvVect(wire.NewInvVect(wire.InvTypeBlock, hash)) // ignore error at this point
-				peer.WriteMsg(msg)
+				ctx, cancel := context.WithTimeout(p.ctx, 10*time.Minute)
+				defer cancel()
 
-				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
+				p.logger.Info("===== getting block", "hash", hash)
+
+				blockMessage, err := p.nodeClient.GetBlock(ctx, hash.String())
+				if err != nil {
+					p.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					continue
+				}
+
+				p.blockProcessCh <- blockMessage
 			}
 		}
 	}()
@@ -332,7 +372,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 	return nil
 }
 
-func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *BlockMessage) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
@@ -399,7 +439,7 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)

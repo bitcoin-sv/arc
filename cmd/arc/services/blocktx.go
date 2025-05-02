@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
@@ -104,7 +105,20 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
 
-	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
+	pc := arcConfig.PeerRPC
+	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
+	nodeClient, err := node_client.New(nc)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
+	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, nil, nodeClient, processorOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

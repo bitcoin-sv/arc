@@ -211,7 +211,7 @@ func TestHandleBlock(t *testing.T) {
 			blockProcessCh := make(chan *bcnet.BlockMessage, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, nil, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
 			require.NoError(t, err)
 
 			blockMessage := &bcnet.BlockMessage{
@@ -456,7 +456,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh)
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, nil)
 			require.NoError(t, err)
 
 			txHash, err := chainhash.NewHashFromStr("be181e91217d5f802f695e52144078f8dfbe51b8a815c3d6fb48c0d853ec683b")
@@ -803,7 +803,7 @@ func TestStartBlockRequesting(t *testing.T) {
 
 			peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh)
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, nil)
 			require.NoError(t, err)
 
 			// when

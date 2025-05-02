@@ -3,18 +3,24 @@ package node_client
 import (
 	"context"
 	"errors"
+	"math/big"
 	"runtime"
 	"strings"
+	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/ccoveille/go-safecast"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (
 	ErrFailedToGetRawTransaction   = errors.New("failed to get raw transaction")
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+	ErrFailedToGetBlockTxIDs       = errors.New("failed to get block tx IDs")
 )
 
 type NodeClient struct {
@@ -101,4 +107,80 @@ func (n NodeClient) GetRawTransaction(ctx context.Context, id string) (rt *sdkTx
 	}
 
 	return rt, nil
+}
+
+func (n NodeClient) GetBlock(ctx context.Context, id string) (message *blocktx.BlockMessage, err error) {
+	_, span := tracing.StartTracing(ctx, "NodeClient_GetBlockTxIDs", n.tracingEnabled, n.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	block, err := n.bitcoinClient.GetBlock(ctx, id)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToGetBlockTxIDs, err)
+	}
+
+	return blockToBlockMessage(block)
+}
+
+func blockToBlockMessage(block *Block) (*blocktx.BlockMessage, error) {
+	blockHash, err := chainhash.NewHashFromStr(block.Hash)
+	if err != nil {
+		return nil, err
+	}
+	prevBlockHash, err := chainhash.NewHashFromStr(block.PreviousBlockHash)
+	if err != nil {
+		return nil, err
+	}
+	merkleRoot, err := chainhash.NewHashFromStr(block.MerkleRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	version, err := safecast.ToInt32(block.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	unixTimestamp, err := safecast.ToInt64(block.Time)
+	if err != nil {
+		return nil, err
+	}
+
+	n := new(big.Int)
+	n.SetString(block.Bits, 16)
+	bits, err := safecast.ToUint32(n.Int64())
+	if err != nil {
+		return nil, err
+	}
+
+	header := &blocktx.BlockHeader{
+		Version:    version,
+		PrevBlock:  *prevBlockHash,
+		MerkleRoot: *merkleRoot,
+		Timestamp:  time.Unix(unixTimestamp, 0),
+		Bits:       bits,
+		Nonce:      block.Nonce,
+	}
+
+	txHashes := make([]*chainhash.Hash, len(block.Tx))
+
+	for i, tx := range block.Tx {
+		txHash, err := chainhash.NewHashFromStr(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		txHashes[i] = txHash
+	}
+
+	b := &blocktx.BlockMessage{
+		Hash:              blockHash,
+		Header:            header,
+		Height:            block.Height,
+		TransactionHashes: txHashes,
+		Size:              block.Size,
+	}
+
+	return b, nil
 }

@@ -1,11 +1,22 @@
 package bcnet
 
 import (
-	"testing"
-
+	"bytes"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
+)
+
+const (
+	peerAddr   string          = "localhost:1234"
+	bitcoinNet wire.BitcoinNet = wire.TestNet
+)
+
+var (
+	blockHash, _ = chainhash.NewHashFromStr("00000000000007b1f872a8abe664223d65acd22a500b1b8eb5db3fe09a9837ff")
 )
 
 func TestExtractHeight(t *testing.T) {
@@ -30,4 +41,20 @@ func TestExtractHeightForRegtest(t *testing.T) {
 
 	// then
 	assert.Equalf(t, uint64(2012), height, "height should be 2012, got %d", height)
+}
+
+func TestMessageRead(t *testing.T) {
+
+	t.Run("Message read", func(t *testing.T) {
+		// given
+		msgBlock := wire.NewMsgBlock(wire.NewBlockHeader(0, blockHash, blockHash, 0, 0))
+		msgTx := wire.NewMsgTx(0)
+
+		var buff bytes.Buffer
+		err := wire.WriteMessage(&buff, msgBlock, wire.ProtocolVersion, bitcoinNet)
+		require.NoError(t, err)
+		err = wire.WriteMessage(&buff, msgTx, wire.ProtocolVersion, bitcoinNet)
+		require.NoError(t, err)
+		wire.ReadMessageN(&buff, 0, wire.TestNet)
+	})
 }

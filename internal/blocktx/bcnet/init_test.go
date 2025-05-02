@@ -54,6 +54,7 @@ func TestMessageRead(t *testing.T) {
 		require.NoError(t, err)
 		err = wire.WriteMessage(&buff, msgTx, wire.ProtocolVersion, bitcoinNet)
 		require.NoError(t, err)
-		wire.ReadMessageN(&buff, 0, wire.TestNet)
+		_, _, _, _ = wire.ReadMessageN(&buff, 0, wire.TestNet)
+		require.NoError(t, err)
 	})
 }

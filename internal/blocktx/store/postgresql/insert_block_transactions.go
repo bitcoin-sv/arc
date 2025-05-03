@@ -27,7 +27,14 @@ func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64
 		copyRows[pos] = []any{blockID, tx.Hash, tx.MerkleTreeIndex}
 	}
 
-	err = p.conn.Raw(func(driverConn any) error {
+	conn, err := p.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer conn.Close()
+
+	err = conn.Raw(func(driverConn any) error {
 		c, ok := driverConn.(*stdlib.Conn)
 		if !ok {
 			return errors.New("driverConn.(*stdlib.Conn) conversion failed")

@@ -738,7 +738,9 @@ func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.B
 		return err
 	}
 
-	p.logger.Info("Updated orphaned blocks to status LONGEST", slog.Int("count", len(orphanedBlocks)))
+	for _, orphanedBlock := range orphanedBlocks {
+		p.logger.Info("Updated orphaned block to status LONGEST", slog.String("hash", getHashStringNoErr(orphanedBlock.Hash)))
+	}
 
 	return nil
 }

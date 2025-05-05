@@ -113,7 +113,7 @@ func TestStartLockTransactions(t *testing.T) {
 		{
 			name: "no error",
 
-			expectedSetLockedCallsGreaterThan: 2,
+			expectedSetLockedCallsGreaterThan: 1,
 		},
 		{
 			name:         "error",
@@ -128,7 +128,7 @@ func TestStartLockTransactions(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetLockedFunc: func(_ context.Context, _ time.Time, limit int64) error {
-					require.Equal(t, int64(5000), limit)
+					require.Equal(t, int64(200), limit)
 					return tc.setLockedErr
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },

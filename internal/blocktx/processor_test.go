@@ -3,6 +3,7 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"os"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
@@ -502,6 +504,9 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 	tx9 := testutils.Chainhash(t, "bf272086e71d381269b33deea4e92b1730bda919b04497aed919694c0d29d264")
 	merkleRoot1 := testutils.HexDecodeString(t, "c991fcf57466c387779b009b13c85a8ab31f2e24a3b04e97d2dcbda608f7f2d0")
 	blockHash1 := testutils.RevHexDecodeString(t, "000000000286022fd64a660ec826def3b9cfc6cfcf3d0c7ee992cc81385fef44")
+
+	arcConfig, err := config.Load(*flag.String("config", "", "Path to configuration file"))
+	require.NoError(t, err)
 	tt := []struct {
 		name                string
 		batchSize           int
@@ -724,6 +729,11 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				blocktx.WithRegisterTxsBatchSize(tc.batchSize),
 				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithPublishMinedMessageSize(3),
+				blocktx.WithRetentionDays(1),
+				blocktx.WithTracer(arcConfig.Tracing.KeyValueAttributes...),
+				blocktx.WithTransactionBatchSize(1),
+				blocktx.WithMaxBlockProcessingDuration(1),
+				blocktx.WithIncomingIsLongest(true),
 			)
 			require.NoError(t, err)
 

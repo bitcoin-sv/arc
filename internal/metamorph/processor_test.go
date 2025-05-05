@@ -1117,7 +1117,7 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(5000), limit)
+					require.Equal(t, int64(200), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}

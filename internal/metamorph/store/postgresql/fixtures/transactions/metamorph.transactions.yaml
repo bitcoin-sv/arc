@@ -40,11 +40,26 @@
   status: 120
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 90
+      timestamp: 2023-10-01T14:00:00.00 #2025-04-22T12:07:18.51
+    - status: 120
+      timestamp: 2023-10-01T14:02:00.00
 - hash: 0xa24845611f9518f0c1a5978b77a18317b6878086ce5d81f65c3d778db33a7b1d
   locked_by: metamorph-1
   status: 120
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 90
+      timestamp: 2023-10-01T14:02:00.00
+    - status: 120
+      timestamp: 2023-10-01T14:04:00.00
+- hash: 0x3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2023-10-01 14:04:00
+  last_submitted_at: 2023-10-01 13:30:00
 - hash: 0x12c04cfc5643f1cd25639ad42d6f8f0489557699d92071d7e0a5b940438c4357
   locked_by: NONE
   status: 40

@@ -14,6 +14,7 @@ messageQueue:
     fileStorage: false # if enabled messages are persisted on disk instead of in memory
   URL: nats://nats:4222 # URL for message queue
   initialize: true # initialize streams and consumers
+reBroadcastExpiration: 24h # time since last submitted after which transactions are not re-broadcasted anymore
 
 tracing:
   enabled: true # if true, then tracing is enabled
@@ -50,13 +51,11 @@ metamorph:
       maxIdleConns: 10 # maximum idle connections
       maxOpenConns: 80 # maximum open connections
       sslMode: disable
-  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
-  unseenTransactionRebroadcastingInterval: 60s # time interval in which unseen transactions are re-broadcasted
-  maxRetries: 1000 # maximum number of times a transaction is re-broadcasted
-  processStatusUpdateInterval: 5s # interval of processing status updates
-  recheckSeen: # re-check SEEN_ON_NETWORK transactions that have been last submitted inside a moving time window in the past whether they were mined
-    fromAgo: 24h # start of moving time window
-    untilAgo: 1h # end of moving time window
+  maxRetries: 1000 # maximum number of times a transaction is re-announced
+  statusUpdateInterval: 5s # interval of processing status updates
+  reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
+  reAnnounceSeen: 10m # time duration since last transaction was marked as mined after which SEEN_ON_NETWORK transactions last submitted prior should be re-announced
+  reRegisterSeen: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy
@@ -140,7 +139,6 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
   wocMainnet: false # query main or test net on www.whatsonchain.com
   requestExtendedLogs: true # if true, the logs will include request methods & headers
-  processorCacheExpiryTime: 24h # time after which processor cache is cleaned
   defaultPolicy: # default policy of bitcoin node
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000
@@ -178,8 +176,6 @@ k8sWatcher:
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
   dialAddr: localhost:8021 # address for other services to dial callbacker service
-  health:
-    serverDialAddr: localhost:8025 # address at which the grpc health server is exposed
   pause: 1s # pause between sending next callback to the same receiver - must be greater 0s
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)

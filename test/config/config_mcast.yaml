@@ -1,18 +1,21 @@
 ---
-logFormat: tint
 logLevel: INFO
+logFormat: tint
 profilerAddr: "[::]:9999"
 prometheus:
   enabled: true
   endpoint: /metrics
   addr: :2112
 grpcMessageSize: 100000000
+network: regtest
 messageQueue:
   streaming:
     enabled: true
     fileStorage: false
   URL: nats://nats-1:4222,nats://nats-2:4223
   initialize: true
+reBroadcastExpiration: 24h
+
 tracing:
   enabled: false
   sample: 100
@@ -45,13 +48,11 @@ metamorph:
       maxIdleConns: 10
       maxOpenConns: 80
       sslMode: disable
-  processorCacheExpiryTime: 24h
-  unseenTransactionRebroadcastingInterval: 60s
   maxRetries: 1000
-  processStatusUpdateInterval: 50ms
-  recheckSeen:
-    fromAgo: 24h
-    untilAgo: 1h
+  statusUpdateInterval: 50ms
+  reAnnounceUnseenInterval: 60s
+  reAnnounceSeen: 10m
+  reRegisterSeen: 10m
   monitorPeers: true
   health:
     minimumHealthyConnections: 2
@@ -63,14 +64,14 @@ metamorph:
     mode: hybrid
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
     mcast:
       tx:
         address: "[ff05::1]:9999"
@@ -105,14 +106,14 @@ blocktx:
     mode: hybrid
     network: regtest
     peers:
-    - host: node1
-      port:
-        p2p: 18333
-        zmq: 28332
-    - host: node2
-      port:
-        p2p: 18333
-        zmq: 28332
+      - host: node1
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
     mcast:
       block:
         address: "[ff05::3]:9979"
@@ -122,7 +123,6 @@ api:
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   wocMainnet: false
   requestExtendedLogs: true
-  processorCacheExpiryTime: 24h
   defaultPolicy:
     excessiveblocksize: 2000000000
     blockmaxsize: 512000000

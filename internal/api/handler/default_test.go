@@ -694,7 +694,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
-				WithCacheExpiryTime(23*time.Hour),
+				WithRebroadcastExpiration(23*time.Hour),
 				WithTracer(tracer))
 			require.NoError(t, err)
 

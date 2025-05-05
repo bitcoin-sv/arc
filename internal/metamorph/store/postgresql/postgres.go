@@ -517,8 +517,8 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 	return nil
 }
 
-func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) (data []*store.Data, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetUnmined", p.tracingEnabled, p.tracingAttributes...)
+func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) (data []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetUnseen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -555,8 +555,69 @@ func (p *PostgreSQL) GetUnmined(ctx context.Context, since time.Time, limit int6
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, untilTime time.Time, limit int64, offset int64) (res []*store.Data, err error) {
-	ctx, span := tracing.StartTracing(ctx, "GetSeenOnNetwork", p.tracingEnabled, p.tracingAttributes...)
+func (p *PostgreSQL) GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	q := `
+	-- get the maximum time stamp when the last transaction was marked as mined as max_ts from status history
+	WITH txs_mined_ts AS (
+	SELECT
+		max(txs_mined.ts) AS max_ts
+	FROM
+		(
+		SELECT
+			TO_TIMESTAMP(elem->>'timestamp', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS ts
+		FROM
+			metamorph.transactions t,
+			LATERAL jsonb_array_elements(status_history) AS elem
+		WHERE
+			(elem->>'status')::int = 120
+			AND t.status = 120
+	  ) AS txs_mined
+	  )
+	SELECT
+		t.stored_at,
+		t.hash,
+		t.status,
+		t.block_height,
+		t.block_hash,
+		t.callbacks,
+		t.full_status_updates,
+		t.reject_reason,
+		t.competing_txs,
+		t.raw_tx,
+		t.locked_by,
+		t.merkle_path,
+		t.retries,
+		t.status_history,
+		t.last_modified
+	FROM
+		metamorph.transactions t
+	WHERE
+		t.status = $1
+		AND t.locked_by = $4
+		AND t.last_submitted_at < (	SELECT max_ts - $5 * INTERVAL '1 SEC' FROM txs_mined_ts ) -- last submitted at least 'sinceLastMinedDuration' ago since last transaction was marked as mined
+		AND t.last_submitted_at > $6 -- last submitted at most 'fromDuration' time ago
+	ORDER BY t.last_submitted_at DESC
+	LIMIT $2 OFFSET $3
+	;
+`
+	getSeenFromAgo := p.now().Add(-1 * fromDuration)
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, sinceLastMinedDuration.Seconds(), getSeenFromAgo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return getStoreDataFromRows(rows)
+}
+
+func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
@@ -585,7 +646,10 @@ func (p *PostgreSQL) GetSeenOnNetwork(ctx context.Context, since time.Time, unti
 	LIMIT $4 OFFSET $5
 	`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, since, untilTime, limit, offset, p.hostname)
+	from := p.now().Add(-1 * fromDuration)
+	to := p.now().Add(-1 * toDuration)
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, from, to, limit, offset, p.hostname)
 	if err != nil {
 		return nil, err
 	}

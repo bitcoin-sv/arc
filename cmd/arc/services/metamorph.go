@@ -134,15 +134,16 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
-	processorOpts = append(processorOpts, metamorph.WithCacheExpiryTime(mtmConfig.ProcessorCacheExpiryTime),
-		metamorph.WithProcessExpiredTxsInterval(mtmConfig.UnseenTransactionRebroadcastingInterval),
-		metamorph.WithRecheckSeenUntilAgo(mtmConfig.RecheckSeen.UntilAgo),
-		metamorph.WithRecheckSeenFromAgo(mtmConfig.RecheckSeen.FromAgo),
+	processorOpts = append(processorOpts,
+		metamorph.WithReBroadcastExpiration(arcConfig.ReBroadcastExpiration),
+		metamorph.WithReAnnounceUnseenInterval(mtmConfig.ReAnnounceUnseenInterval),
+		metamorph.WithReAnnounceSeen(mtmConfig.ReAnnounceSeen),
+		metamorph.WithReRegisterSeen(mtmConfig.ReRegisterSeen),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
-		metamorph.WithProcessStatusUpdatesInterval(mtmConfig.ProcessStatusUpdateInterval),
+		metamorph.WithStatusUpdatesInterval(mtmConfig.StatusUpdateInterval),
 		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),

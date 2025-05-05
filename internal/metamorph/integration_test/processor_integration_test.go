@@ -61,7 +61,7 @@ func TestProcessor(t *testing.T) {
 		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, mediator, statusMessageChannel,
-			metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
+			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(mqClient),
 			metamorph.WithBlocktxClient(blocktxClient),
 		)

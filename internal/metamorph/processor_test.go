@@ -83,7 +83,7 @@ func TestNewProcessor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.messenger, nil,
-				metamorph.WithCacheExpiryTime(time.Second*5),
+				metamorph.WithReBroadcastExpiration(time.Second*5),
 				metamorph.WithProcessorLogger(slog.Default()),
 			)
 
@@ -236,7 +236,7 @@ func TestProcessTransaction(t *testing.T) {
 
 					return nil
 				},
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -587,7 +587,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				messenger,
 				statusMessageChannel,
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
-				metamorph.WithProcessStatusUpdatesInterval(200*time.Millisecond),
+				metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 				metamorph.WithProcessStatusUpdatesBatchSize(3),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
@@ -794,7 +794,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -856,7 +856,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -865,7 +865,7 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when
-			sut.StartProcessExpiredTransactions()
+			sut.StartReAnnounceUnseenTxs()
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -978,38 +978,30 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 }
 
-func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
+func TestStartReAnnounceSeenTxs(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
 		registerErr error
 
-		expectedGetSeenCalls         int
-		expectedRegisterCalls        int
-		expectedPublishMarshallCalls int
+		expectedGetSeenCalls int
 	}{
 		{
 			name: "success",
 
-			expectedGetSeenCalls:         4,
-			expectedRegisterCalls:        6,
-			expectedPublishMarshallCalls: 0,
+			expectedGetSeenCalls: 4,
 		},
 		{
 			name:       "failed to get seen on network transactions",
 			getSeenErr: errors.New("failed to get seen txs"),
 
-			expectedGetSeenCalls:         1,
-			expectedRegisterCalls:        0,
-			expectedPublishMarshallCalls: 0,
+			expectedGetSeenCalls: 1,
 		},
 		{
 			name:        "failed to register transactions",
 			registerErr: errors.New("failed to register txs"),
 
-			expectedGetSeenCalls:         4,
-			expectedRegisterCalls:        6,
-			expectedPublishMarshallCalls: 6,
+			expectedGetSeenCalls: 4,
 		},
 	}
 
@@ -1019,7 +1011,7 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenOnNetworkFunc: func(_ context.Context, _ time.Time, _ time.Time, limit int64, _ int64) ([]*store.Data, error) {
+				GetSeenSinceLastMinedFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
 					require.Equal(t, int64(5000), limit)
 
 					if tc.getSeenErr != nil {
@@ -1060,14 +1052,15 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithProcessSeenOnNetworkTxsInterval(500*time.Millisecond),
+				metamorph.WithReAnnounceSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartRequestingSeenOnNetworkTxs()
+			sut.StartReAnnounceSeenTxs()
+
 			select {
 			case <-stop:
 				t.Log("received stop signal")
@@ -1077,7 +1070,112 @@ func TestStartRequestingSeenOnNetworkTxs(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenOnNetworkCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenSinceLastMinedCalls()))
+		})
+	}
+}
+
+func TestStartRegisterSeenTxs(t *testing.T) {
+	tt := []struct {
+		name        string
+		getSeenErr  error
+		registerErr error
+
+		expectedGetSeenCalls         int
+		expectedRegisterCalls        int
+		expectedPublishMarshallCalls int
+	}{
+		{
+			name: "success",
+
+			expectedGetSeenCalls:         4,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 0,
+		},
+		{
+			name:       "failed to get seen on network transactions",
+			getSeenErr: errors.New("failed to get seen txs"),
+
+			expectedGetSeenCalls:         1,
+			expectedRegisterCalls:        0,
+			expectedPublishMarshallCalls: 0,
+		},
+		{
+			name:        "failed to register transactions",
+			registerErr: errors.New("failed to register txs"),
+
+			expectedGetSeenCalls:         4,
+			expectedRegisterCalls:        6,
+			expectedPublishMarshallCalls: 6,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			iterations := 0
+			stop := make(chan struct{}, 1)
+
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
+					require.Equal(t, int64(5000), limit)
+
+					if tc.getSeenErr != nil {
+						stop <- struct{}{}
+
+						return nil, tc.getSeenErr
+					}
+
+					if iterations >= 3 {
+						stop <- struct{}{}
+						return []*store.Data{}, nil
+					}
+
+					iterations++
+					return []*store.Data{
+						{Hash: testdata.TX1Hash},
+						{Hash: testdata.TX1Hash},
+						{Hash: testdata.TX1Hash},
+					}, nil
+				},
+				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+			}
+			pm := &bcnet.Mediator{}
+
+			blockTxClient := &btxMocks.ClientMock{
+				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
+			}
+			mqClient := &mqMocks.MessageQueueClientMock{
+				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+					return nil
+				},
+			}
+
+			cStore := &cacheMocks.StoreMock{}
+			sut, err := metamorph.NewProcessor(
+				metamorphStore,
+				cStore,
+				pm,
+				nil,
+				metamorph.WithBlocktxClient(blockTxClient),
+				metamorph.WithReRegisterSeenInterval(500*time.Millisecond),
+				metamorph.WithRegisterBatchSizeDefault(2),
+				metamorph.WithMessageQueueClient(mqClient),
+			)
+			require.NoError(t, err)
+
+			// when
+			sut.StartRegisterSeenTxs()
+
+			select {
+			case <-stop:
+				t.Log("received stop signal")
+			case <-time.After(5 * time.Second):
+				t.Fatal("timed out waiting for processor to stop")
+			}
+			sut.Shutdown()
+
+			// then
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
 			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
 			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
 		})
@@ -1111,7 +1209,7 @@ func TestProcessorHealth(t *testing.T) {
 					return &store.Data{Hash: testdata.TX2Hash}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
-				GetUnminedFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
+				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.Data, error) {
 					if offset != 0 {
 						return nil, nil
 					}
@@ -1144,7 +1242,7 @@ func TestProcessorHealth(t *testing.T) {
 			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
-				metamorph.WithProcessExpiredTxsInterval(time.Millisecond*20),
+				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
 				}),

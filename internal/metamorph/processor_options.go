@@ -19,21 +19,33 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithRecheckSeenFromAgo(d time.Duration) func(*Processor) {
+func WithReAnnounceSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.recheckSeenFromAgo = d
+		p.reAnnounceSeen = d
 	}
 }
 
-func WithRecheckSeenUntilAgo(d time.Duration) func(*Processor) {
+func WithReAnnounceSeenInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.recheckSeenUntilAgo = d
+		p.reAnnounceSeenInterval = d
 	}
 }
 
-func WithCacheExpiryTime(d time.Duration) func(*Processor) {
+func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.mapExpiryTime = d
+		p.reRegisterSeen = d
+	}
+}
+
+func WithReRegisterSeenInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.reRegisterSeenInterval = d
+	}
+}
+
+func WithReBroadcastExpiration(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.rebroadcastExpiration = d
 	}
 }
 
@@ -49,9 +61,9 @@ func WithNow(nowFunc func() time.Time) func(*Processor) {
 	}
 }
 
-func WithProcessExpiredTxsInterval(d time.Duration) func(*Processor) {
+func WithReAnnounceUnseenInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processExpiredTxsInterval = d
+		p.reAnnounceUnseenInterval = d
 	}
 }
 
@@ -67,9 +79,9 @@ func WithLockTxsInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithProcessStatusUpdatesInterval(d time.Duration) func(*Processor) {
+func WithStatusUpdatesInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.processStatusUpdatesInterval = d
+		p.statusUpdatesInterval = d
 	}
 }
 
@@ -99,7 +111,7 @@ func WithProcessMinedBatchSize(batchSize int) func(*Processor) {
 
 func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
-		p.processStatusUpdatesBatchSize = size
+		p.statusUpdatesBatchSize = size
 	}
 }
 
@@ -155,12 +167,6 @@ func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 func WithBlocktxClient(client blocktx.Client) func(*Processor) {
 	return func(p *Processor) {
 		p.blocktxClient = client
-	}
-}
-
-func WithProcessSeenOnNetworkTxsInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.processSeenOnNetworkTxsInterval = d
 	}
 }
 

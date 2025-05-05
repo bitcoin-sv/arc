@@ -77,8 +77,9 @@ type MetamorphStore interface {
 	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error)
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnmined(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
-	GetSeenOnNetwork(ctx context.Context, since time.Time, until time.Time, limit int64, offset int64) ([]*Data, error)
+	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
+	GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*Data, error)
+	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*Data, err error)
 	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)

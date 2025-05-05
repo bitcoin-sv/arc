@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	timeoutSecondsDefault = 5
-	mapExpiryTimeDefault  = 24 * time.Hour
+	timeoutSecondsDefault        = 5
+	rebroadcastExpirationDefault = 24 * time.Hour
 )
 
 var (
@@ -54,7 +54,7 @@ type ArcDefaultHandler struct {
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
-	mapExpiryTime                 time.Duration
+	rebroadcastExpiration         time.Duration
 	defaultTimeout                time.Duration
 	mrVerifier                    validator.MerkleVerifierI
 	tracingEnabled                bool
@@ -91,9 +91,9 @@ func WithServerMaxTimeoutDefault(timeout time.Duration) func(*ArcDefaultHandler)
 	}
 }
 
-func WithCacheExpiryTime(d time.Duration) func(*ArcDefaultHandler) {
+func WithRebroadcastExpiration(d time.Duration) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
-		p.mapExpiryTime = d
+		p.rebroadcastExpiration = d
 	}
 }
 
@@ -148,7 +148,7 @@ func NewDefault(
 		now:                     time.Now,
 		mrVerifier:              mr,
 		txFinder:                cachedFinder,
-		mapExpiryTime:           mapExpiryTimeDefault,
+		rebroadcastExpiration:   rebroadcastExpirationDefault,
 		defaultTimeout:          timeoutSecondsDefault * time.Second,
 		maxTxSizePolicy:         maxTxSizePolicy,
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
@@ -363,7 +363,7 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 						break
 					}
 				}
-				if time.Since(tx.LastSubmitted.AsTime()) > m.mapExpiryTime || !exists {
+				if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
 					allProcessed = false
 					break
 				}

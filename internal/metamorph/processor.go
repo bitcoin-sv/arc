@@ -40,8 +40,8 @@ const (
 
 	txCacheTTL = 10 * time.Minute
 
-	loadUnminedLimit                 = int64(5000)
-	loadSeenOnNetworkLimit           = int64(5000)
+	loadUnminedLimit                 = int64(200)
+	loadSeenOnNetworkLimit           = int64(200)
 	minimumHealthyConnectionsDefault = 2
 
 	statusUpdatesIntervalDefault  = 500 * time.Millisecond

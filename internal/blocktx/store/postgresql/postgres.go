@@ -22,7 +22,6 @@ const (
 
 type PostgreSQL struct {
 	db                        *sql.DB
-	conn                      *sql.Conn
 	now                       func() time.Time
 	maxPostgresBulkInsertRows int
 	tracingEnabled            bool
@@ -58,15 +57,8 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	db.SetMaxIdleConns(idleConns)
 	db.SetMaxOpenConns(maxOpenConns)
 
-	// get an existing connection from the pool instead of creating a new one
-	conn, err := db.Conn(context.TODO())
-	if err != nil {
-		return nil, errors.Join(store.ErrUnableToGetSQLConnection, err)
-	}
-
 	p := &PostgreSQL{
 		db:                        db,
-		conn:                      conn,
 		now:                       time.Now,
 		maxPostgresBulkInsertRows: maxPostgresBulkInsertRows,
 	}

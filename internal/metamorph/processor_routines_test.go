@@ -25,7 +25,6 @@ func TestStartRoutine(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			s := &storeMocks.MetamorphStoreMock{
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) {
 					return 0, nil
@@ -55,7 +54,6 @@ func TestStartRoutine(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 
 			sut.Shutdown()
-
 		})
 	}
 }

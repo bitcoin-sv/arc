@@ -1128,7 +1128,7 @@ func TestRegisterSeen(t *testing.T) {
 func TestProcessorHealth(t *testing.T) {
 	tt := []struct {
 		name       string
-		peersAdded int
+		peersAdded uint
 
 		expectedErr error
 	}{
@@ -1172,7 +1172,7 @@ func TestProcessorHealth(t *testing.T) {
 			}
 
 			messenger := &mocks.MediatorMock{
-				CountConnectedPeersFunc: func() uint { return uint(tc.peersAdded) },
+				CountConnectedPeersFunc: func() uint { return tc.peersAdded },
 			}
 			sut, err := metamorph.NewProcessor(metamorphStore, nil, messenger, nil,
 				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),

@@ -42,8 +42,7 @@ func TestStartRoutine(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			testFunc := func(ctx context.Context, p *metamorph.Processor) []attribute.KeyValue {
-
+			testFunc := func(_ context.Context, _ *metamorph.Processor) []attribute.KeyValue {
 				time.Sleep(200 * time.Millisecond)
 
 				return []attribute.KeyValue{attribute.Int("atr", 5)}

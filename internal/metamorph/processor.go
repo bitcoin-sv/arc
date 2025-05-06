@@ -231,9 +231,9 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
-	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen)
-	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen)
-	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs)
+	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen, "ReAnnounceUnseen")
+	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
+	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
 
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()

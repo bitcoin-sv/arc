@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"reflect"
-	"runtime"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -251,11 +249,9 @@ func getCallbackBlockHash(d *store.Data) string {
 	return d.BlockHash.String()
 }
 
-func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue) {
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue, routineName string) {
 	ticker := time.NewTicker(tickerInterval)
 	p.waitGroup.Add(1)
-
-	funcName := runtime.FuncForPC(reflect.ValueOf(routine).Pointer()).Name()
 
 	go func() {
 		defer func() {
@@ -268,7 +264,7 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(cont
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, funcName, p.tracingEnabled, p.tracingAttributes...)
+				ctx, span := tracing.StartTracing(p.ctx, routineName, p.tracingEnabled, p.tracingAttributes...)
 				attr := routine(ctx, p)
 				if span != nil && len(attr) > 0 {
 					span.SetAttributes(attr...)

@@ -136,6 +136,11 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
+	if btxConfig.AutoHeal != nil && btxConfig.AutoHeal.Enabled {
+		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
+		workers.StartAutoHeal()
+	}
+
 	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
 		MaxMsgSize:         arcConfig.GrpcMessageSize,

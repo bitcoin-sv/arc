@@ -717,10 +717,19 @@ func (p *Processor) handleSkippedBlock(ctx context.Context, block *blocktx_api.B
 		tracing.EndTracing(span, err)
 	}()
 
-	orphanedBlocks, err := p.store.GetOrphansForwardFromHash(ctx, block.Hash)
-	if err != nil {
-		p.logger.Error("unable to get Orphaned blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
-		return err
+	maxRetries := 5
+	var orphanedBlocks []*blocktx_api.Block
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		orphanedBlocks, lastErr = p.store.GetOrphansForwardFromHash(ctx, block.Hash)
+		if lastErr == nil {
+			break
+		}
+		p.logger.Error("unable to get Orphaned blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", lastErr.Error()), slog.Int("retries", i))
+		time.Sleep(200 * time.Millisecond)
+	}
+	if lastErr != nil {
+		return lastErr
 	}
 
 	if len(orphanedBlocks) == 0 {

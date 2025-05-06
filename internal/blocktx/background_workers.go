@@ -100,3 +100,17 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 
 	return nil
 }
+
+func (w *BackgroundWorkers) StartAutoHeal() {
+	w.workersWg.Add(1)
+	go func() {
+		_ = func() error {
+			defer w.workersWg.Done()
+			_, err := w.store.AutoHealOrphans(w.ctx)
+			if err != nil {
+				w.logger.Error("failed to auto heal orphans", slog.String("err", err.Error()))
+			}
+			return err
+		}()
+	}()
+}

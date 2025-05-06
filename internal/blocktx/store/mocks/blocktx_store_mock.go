@@ -22,6 +22,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
+//			AutoHealOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
+//				panic("mock out the AutoHealOrphans method")
+//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -95,6 +98,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
+	// AutoHealOrphansFunc mocks the AutoHealOrphans method.
+	AutoHealOrphansFunc func(ctx context.Context) ([]*blocktx_api.Block, error)
+
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -163,6 +169,11 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// AutoHealOrphans holds details about calls to the AutoHealOrphans method.
+		AutoHealOrphans []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -324,6 +335,7 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
+	lockAutoHealOrphans                   sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
 	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
@@ -346,6 +358,38 @@ type BlocktxStoreMock struct {
 	lockUpdateBlocksStatuses              sync.RWMutex
 	lockUpsertBlock                       sync.RWMutex
 	lockVerifyMerkleRoots                 sync.RWMutex
+}
+
+// AutoHealOrphans calls AutoHealOrphansFunc.
+func (mock *BlocktxStoreMock) AutoHealOrphans(ctx context.Context) ([]*blocktx_api.Block, error) {
+	if mock.AutoHealOrphansFunc == nil {
+		panic("BlocktxStoreMock.AutoHealOrphansFunc: method is nil but BlocktxStore.AutoHealOrphans was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockAutoHealOrphans.Lock()
+	mock.calls.AutoHealOrphans = append(mock.calls.AutoHealOrphans, callInfo)
+	mock.lockAutoHealOrphans.Unlock()
+	return mock.AutoHealOrphansFunc(ctx)
+}
+
+// AutoHealOrphansCalls gets all the calls that were made to AutoHealOrphans.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.AutoHealOrphansCalls())
+func (mock *BlocktxStoreMock) AutoHealOrphansCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockAutoHealOrphans.RLock()
+	calls = mock.calls.AutoHealOrphans
+	mock.lockAutoHealOrphans.RUnlock()
+	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.

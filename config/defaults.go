@@ -98,6 +98,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
 		MonitorPeers:                  false,
+		AutoHeal:                      getAutoHealConfig(),
 		FillGaps:                      getFillGapsConfig(),
 		MaxAllowedBlockHeightMismatch: 3,
 		MaxBlockProcessingDuration:    5 * time.Minute,
@@ -193,6 +194,13 @@ func getFillGapsConfig() *FillGapsConfig {
 	return &FillGapsConfig{
 		Enabled:  true,
 		Interval: 15 * time.Minute,
+	}
+}
+
+func getAutoHealConfig() *AutoHealConfig {
+	return &AutoHealConfig{
+		Enabled:  true,
+		Interval: 5 * time.Minute,
 	}
 }
 

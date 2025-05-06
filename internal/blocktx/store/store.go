@@ -32,6 +32,7 @@ type Stats struct {
 }
 
 type BlocktxStore interface {
+	AutoHealOrphans(ctx context.Context) (healedOrphans []*blocktx_api.Block, err error)
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (rowsAffected int64, err error)
 	GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
 	GetLongestBlockByHeight(ctx context.Context, height uint64) (*blocktx_api.Block, error)

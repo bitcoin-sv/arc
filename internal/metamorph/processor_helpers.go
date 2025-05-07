@@ -1,18 +1,21 @@
 package metamorph
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
@@ -244,4 +247,30 @@ func getCallbackBlockHash(d *store.Data) string {
 	}
 
 	return d.BlockHash.String()
+}
+
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue, routineName string) {
+	ticker := time.NewTicker(tickerInterval)
+	p.waitGroup.Add(1)
+
+	go func() {
+		defer func() {
+			p.waitGroup.Done()
+			ticker.Stop()
+		}()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				ctx, span := tracing.StartTracing(p.ctx, routineName, p.tracingEnabled, p.tracingAttributes...)
+				attr := routine(ctx, p)
+				if span != nil && len(attr) > 0 {
+					span.SetAttributes(attr...)
+				}
+				tracing.EndTracing(span, nil)
+			}
+		}
+	}()
 }

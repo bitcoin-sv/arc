@@ -40,8 +40,8 @@ const (
 
 	txCacheTTL = 10 * time.Minute
 
-	loadUnminedLimit                 = int64(200)
-	loadSeenOnNetworkLimit           = int64(200)
+	loadUnminedLimit                 = int64(50)
+	loadSeenOnNetworkLimit           = int64(50)
 	minimumHealthyConnectionsDefault = 2
 
 	statusUpdatesIntervalDefault  = 500 * time.Millisecond
@@ -231,9 +231,10 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
-	p.StartReAnnounceUnseenTxs()
-	p.StartReAnnounceSeenTxs()
-	p.StartRegisterSeenTxs()
+	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen, "ReAnnounceUnseen")
+	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
+	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
+
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
 	if statsEnabled {
@@ -243,7 +244,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 		}
 	}
 	p.StartSendStatusUpdate()
-	p.StartProcessSubmittedTxs()
+	p.StartProcessSubmitted()
 
 	return nil
 }
@@ -359,8 +360,8 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
-// StartProcessSubmittedTxs starts processing txs submitted to message queue
-func (p *Processor) StartProcessSubmittedTxs() {
+// StartProcessSubmitted starts processing txs submitted to message queue
+func (p *Processor) StartProcessSubmitted() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {
@@ -624,197 +625,6 @@ func (p *Processor) StartLockTransactions() {
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
-			}
-		}
-	}()
-}
-
-// StartRegisterSeenTxs periodically re-registers and SEEN_ON_NETWORK transactions
-func (p *Processor) StartRegisterSeenTxs() {
-	ticker := time.NewTicker(p.reRegisterSeenInterval)
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
-
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartRegisterSeenTxs", p.tracingEnabled, p.tracingAttributes...)
-
-				var offset int64
-				var totalSeenOnNetworkTxs int
-				var seenOnNetworkTxs []*store.Data
-				var err error
-
-				for {
-					seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadSeenOnNetworkLimit, offset)
-					if err != nil {
-						p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
-						break
-					}
-
-					if len(seenOnNetworkTxs) == 0 {
-						break
-					}
-
-					offset += loadSeenOnNetworkLimit
-					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
-
-					err = p.registerTransactions(ctx, seenOnNetworkTxs)
-					if err != nil {
-						p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
-					}
-
-					time.Sleep(100 * time.Millisecond)
-				}
-
-				if totalSeenOnNetworkTxs > 0 {
-					p.logger.Info("Seen txs re-registered", slog.Int("count", totalSeenOnNetworkTxs))
-				}
-
-				if span != nil {
-					span.SetAttributes(attribute.Int("re-registered", totalSeenOnNetworkTxs))
-				}
-
-				tracing.EndTracing(span, nil)
-			}
-		}
-	}()
-}
-
-// StartReAnnounceSeenTxs periodically re-broadcasts SEEN_ON_NETWORK transactions
-func (p *Processor) StartReAnnounceSeenTxs() {
-	ticker := time.NewTicker(p.reAnnounceSeenInterval)
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
-
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartReAnnounceSeenTxs", p.tracingEnabled, p.tracingAttributes...)
-
-				var offset int64
-				var totalSeenOnNetworkTxs int
-				var seenOnNetworkTxs []*store.Data
-				var err error
-
-				for {
-					seenOnNetworkTxs, err = p.store.GetSeenSinceLastMined(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, loadSeenOnNetworkLimit, offset)
-					if err != nil {
-						p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
-						break
-					}
-
-					if len(seenOnNetworkTxs) == 0 {
-						break
-					}
-
-					offset += loadSeenOnNetworkLimit
-					totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
-
-					// re-announce transactions
-					for _, tx := range seenOnNetworkTxs {
-						p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
-						p.bcMediator.AnnounceTxAsync(ctx, tx)
-					}
-
-					time.Sleep(100 * time.Millisecond)
-				}
-
-				if totalSeenOnNetworkTxs > 0 {
-					p.logger.Info("Seen txs re-announced", slog.Int("count", totalSeenOnNetworkTxs))
-				}
-
-				if span != nil {
-					span.SetAttributes(attribute.Int("re-announced", totalSeenOnNetworkTxs))
-				}
-
-				tracing.EndTracing(span, nil)
-			}
-		}
-	}()
-}
-
-// StartReAnnounceUnseenTxs periodically re-broadcasts transactions with status lower than SEEN_ON_NETWORK
-func (p *Processor) StartReAnnounceUnseenTxs() {
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
-
-		ticker := time.NewTicker(p.reAnnounceUnseenInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				ctx, span := tracing.StartTracing(p.ctx, "StartReAnnounceUnseenTxs", p.tracingEnabled, p.tracingAttributes...)
-
-				// define from what point in time we are interested in unmined transactions
-				getUnseenSince := p.now().Add(-1 * p.rebroadcastExpiration)
-				var offset int64
-
-				requested := 0
-				announced := 0
-				for {
-					// get all transactions since then chunk by chunk
-					unminedTxs, err := p.store.GetUnseen(ctx, getUnseenSince, loadUnminedLimit, offset)
-					if err != nil {
-						p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
-						break
-					}
-
-					offset += loadUnminedLimit
-					if len(unminedTxs) == 0 {
-						break
-					}
-
-					for _, tx := range unminedTxs {
-						if tx.Retries > p.maxRetries {
-							continue
-						}
-
-						// save the tx to cache again, in case it was removed or expired
-						err := p.saveTxToCache(tx.Hash)
-						if err != nil {
-							p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
-							continue
-						}
-
-						// mark that we retried processing this transaction once more
-						if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
-							p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-						}
-
-						// every second time request tx, every other time announce tx
-						if tx.Retries%2 != 0 {
-							// Send GETDATA to peers to see if they have it
-							p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
-							p.bcMediator.AskForTxAsync(ctx, tx)
-							requested++
-							continue
-						}
-
-						p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
-						p.bcMediator.AnnounceTxAsync(ctx, tx)
-						announced++
-					}
-				}
-
-				if announced > 0 || requested > 0 {
-					p.logger.Info("Retried unseen transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnseenSince))
-				}
-
-				tracing.EndTracing(span, nil)
 			}
 		}
 	}()

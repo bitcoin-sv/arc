@@ -2,24 +2,20 @@ package integrationtest
 
 import (
 	"context"
-	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
@@ -35,20 +31,10 @@ func TestProcessor(t *testing.T) {
 
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
-		peer := &p2p_mocks.PeerIMock{
-			WriteMsgFunc:  func(_ wire.Message) {},
-			NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-			StringFunc:    func() string { return "peer" },
-			ConnectedFunc: func() bool { return true },
+		messenger := &mocks.MediatorMock{
+			AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+			AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
 		}
-
-		pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-		err = pm.AddPeer(peer)
-		require.NoError(t, err)
-
-		messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
-		defer messenger.Shutdown()
-		mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
 
 		mqClient := &mqMocks.MessageQueueClientMock{
 			PublishAsyncFunc: func(_ string, _ []byte) error {
@@ -60,7 +46,7 @@ func TestProcessor(t *testing.T) {
 
 		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
-		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, mediator, statusMessageChannel,
+		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 			metamorph.WithMessageQueueClient(mqClient),
 			metamorph.WithBlocktxClient(blocktxClient),

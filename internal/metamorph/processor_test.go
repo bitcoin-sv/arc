@@ -15,7 +15,6 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -33,8 +32,6 @@ import (
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/bitcoin-sv/arc/internal/p2p"
-	p2pMocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -128,7 +125,7 @@ func TestStartLockTransactions(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetLockedFunc: func(_ context.Context, _ time.Time, limit int64) error {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 					return tc.setLockedErr
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
@@ -253,35 +250,16 @@ func TestProcessTransaction(t *testing.T) {
 				},
 			}
 
-			announceMsgCounter := &atomic.Int32{}
-			requestMsgCounter := &atomic.Int32{}
-
-			peer := &p2pMocks.PeerIMock{
-				WriteMsgFunc: func(msg wire.Message) {
-					if msg.Command() == wire.CmdInv {
-						announceMsgCounter.Add(1)
-					} else if msg.Command() == wire.CmdGetData {
-						requestMsgCounter.Add(1)
-					}
-				},
-				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-				StringFunc:    func() string { return "peer" },
-				ConnectedFunc: func() bool { return true },
-			}
-
 			cStore := &cacheMocks.StoreMock{
 				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
 					return nil
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			err := pm.AddPeer(peer)
-			require.NoError(t, err)
-
-			messenger := p2p.NewNetworkMessenger(slog.Default(), pm)
-			defer messenger.Shutdown()
-			mediator := bcnet.NewMediator(slog.Default(), true, messenger, nil)
+			messenger := &mocks.MediatorMock{
+				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
 				PublishAsyncFunc: func(_ string, _ []byte) error {
@@ -291,7 +269,7 @@ func TestProcessTransaction(t *testing.T) {
 
 			blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return tc.registerTxErr }}
 
-			sut, err := metamorph.NewProcessor(s, cStore, mediator, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
+			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -322,8 +300,8 @@ func TestProcessTransaction(t *testing.T) {
 			time.Sleep(250 * time.Millisecond)
 			// then
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
-			require.Equal(t, tc.expectedAnnounceCalls, int(announceMsgCounter.Load()))
-			require.Equal(t, tc.expectedRequestCalls, int(requestMsgCounter.Load()))
+			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
+			require.Equal(t, tc.expectedRequestCalls, len(messenger.AskForTxAsyncCalls()))
 			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
 		})
 	}
@@ -618,7 +596,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	}
 }
 
-func TestStartProcessSubmittedTxs(t *testing.T) {
+func TestStartProcessSubmitted(t *testing.T) {
 	tt := []struct {
 		name   string
 		txReqs []*metamorph_api.PostTransactionRequest
@@ -728,7 +706,7 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
 			// when
-			sut.StartProcessSubmittedTxs()
+			sut.StartProcessSubmitted()
 			defer sut.Shutdown()
 
 			for _, req := range tc.txReqs {
@@ -751,14 +729,14 @@ func TestStartProcessSubmittedTxs(t *testing.T) {
 	}
 }
 
-func TestProcessExpiredTransactions(t *testing.T) {
+func TestReAnnounceUnseen(t *testing.T) {
 	tt := []struct {
 		name          string
 		retries       int
 		getUnminedErr error
 
-		expectedRequests      int32
-		expectedAnnouncements int32
+		expectedRequests      int
+		expectedAnnouncements int
 	}{
 		{
 			name:    "expired txs",
@@ -821,32 +799,16 @@ func TestProcessExpiredTransactions(t *testing.T) {
 				},
 			}
 
-			var announceMsgCounter atomic.Int32
-			var requestMsgCounter atomic.Int32
-			peer := &p2pMocks.PeerIMock{
-				WriteMsgFunc: func(msg wire.Message) {
-					if msg.Command() == wire.CmdInv {
-						announceMsgCounter.Add(1)
-					} else if msg.Command() == wire.CmdGetData {
-						requestMsgCounter.Add(1)
-					}
-				},
-				NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-				StringFunc:    func() string { return "peer" },
-				ConnectedFunc: func() bool { return true },
-			}
-
 			cStore := &cacheMocks.StoreMock{
 				SetFunc: func(_ string, _ []byte, _ time.Duration) error {
 					return nil
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			err := pm.AddPeer(peer)
-			require.NoError(t, err)
-
-			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
+			messenger := &mocks.MediatorMock{
+				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
 				PublishAsyncFunc: func(_ string, _ []byte) error {
@@ -856,7 +818,6 @@ func TestProcessExpiredTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
 				metamorph.WithMessageQueueClient(publisher),
-				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -865,15 +826,15 @@ func TestProcessExpiredTransactions(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when
-			sut.StartReAnnounceUnseenTxs()
+			metamorph.ReAnnounceUnseen(context.TODO(), sut)
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
 			time.Sleep(250 * time.Millisecond)
 
 			// then
-			require.Equal(t, tc.expectedAnnouncements, announceMsgCounter.Load())
-			require.Equal(t, tc.expectedRequests, requestMsgCounter.Load())
+			require.Equal(t, tc.expectedAnnouncements, len(messenger.AnnounceTxAsyncCalls()))
+			require.Equal(t, tc.expectedRequests, len(messenger.AskForTxAsyncCalls()))
 		})
 	}
 }
@@ -978,7 +939,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 }
 
-func TestStartReAnnounceSeenTxs(t *testing.T) {
+func TestReAnnounceSeen(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
@@ -1012,7 +973,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetSeenSinceLastMinedFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}
@@ -1052,22 +1013,13 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReAnnounceSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartReAnnounceSeenTxs()
-
-			select {
-			case <-stop:
-				t.Log("received stop signal")
-			case <-time.After(5 * time.Second):
-				t.Fatal("timed out waiting for processor to stop")
-			}
-			sut.Shutdown()
+			metamorph.ReAnnounceSeen(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenSinceLastMinedCalls()))
@@ -1075,7 +1027,7 @@ func TestStartReAnnounceSeenTxs(t *testing.T) {
 	}
 }
 
-func TestStartRegisterSeenTxs(t *testing.T) {
+func TestRegisterSeen(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
@@ -1117,7 +1069,7 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}
@@ -1157,22 +1109,13 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
-				metamorph.WithReRegisterSeenInterval(500*time.Millisecond),
 				metamorph.WithRegisterBatchSizeDefault(2),
 				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
 			// when
-			sut.StartRegisterSeenTxs()
-
-			select {
-			case <-stop:
-				t.Log("received stop signal")
-			case <-time.After(5 * time.Second):
-				t.Fatal("timed out waiting for processor to stop")
-			}
-			sut.Shutdown()
+			metamorph.RegisterSeenTxs(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
@@ -1185,7 +1128,7 @@ func TestStartRegisterSeenTxs(t *testing.T) {
 func TestProcessorHealth(t *testing.T) {
 	tt := []struct {
 		name       string
-		peersAdded int
+		peersAdded uint
 
 		expectedErr error
 	}{
@@ -1228,20 +1171,10 @@ func TestProcessorHealth(t *testing.T) {
 				},
 			}
 
-			pm := p2p.NewPeerManager(slog.Default(), wire.TestNet)
-			for range tc.peersAdded {
-				peer := p2pMocks.PeerIMock{
-					NetworkFunc:   func() wire.BitcoinNet { return wire.TestNet },
-					ConnectedFunc: func() bool { return true },
-					StringFunc:    func() string { return "peer" },
-				}
-				require.NoError(t, pm.AddPeer(&peer))
+			messenger := &mocks.MediatorMock{
+				CountConnectedPeersFunc: func() uint { return tc.peersAdded },
 			}
-			cStore := &cacheMocks.StoreMock{}
-
-			messenger := bcnet.NewMediator(slog.Default(), true, p2p.NewNetworkMessenger(slog.Default(), pm), nil)
-
-			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
+			sut, err := metamorph.NewProcessor(metamorphStore, nil, messenger, nil,
 				metamorph.WithReAnnounceUnseenInterval(time.Millisecond*20),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)

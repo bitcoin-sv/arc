@@ -125,7 +125,7 @@ func TestStartLockTransactions(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetLockedFunc: func(_ context.Context, _ time.Time, limit int64) error {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 					return tc.setLockedErr
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
@@ -973,7 +973,7 @@ func TestReAnnounceSeen(t *testing.T) {
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetSeenSinceLastMinedFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}
@@ -1069,7 +1069,7 @@ func TestRegisterSeen(t *testing.T) {
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(200), limit)
+					require.Equal(t, int64(50), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}

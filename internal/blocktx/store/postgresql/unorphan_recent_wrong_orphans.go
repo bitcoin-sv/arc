@@ -5,7 +5,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
-// AutoHealOrphans searches for the LONGEST blocks in the last 1000
+// UnorphanRecentWrongOrphans searches for the LONGEST blocks in the last 1000
 // then recursively searches for blocks marked as ORPHANED
 // whose hash matches the prevhash of the given block,
 // and then repeats that recursively for each newly found orphaned block until

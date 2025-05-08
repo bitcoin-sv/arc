@@ -80,7 +80,6 @@ SELECT btu.hash, btu.prevhash, btu.status FROM (
 	if err != nil {
 		return
 	}
-	defer p.db.Close()
 	defer rows.Close()
 
 	healedOrphans, err = p.parseBlocks(rows)

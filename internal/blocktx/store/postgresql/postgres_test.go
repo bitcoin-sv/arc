@@ -368,7 +368,7 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("auto heal orphaned blocks", func(t *testing.T) {
 		// given
-		prepareDb(t, postgresDB, "fixtures/get_auto_heal_chain")
+		prepareDb(t, postgresDB, "fixtures/unorphan_recent_wrong_orphans")
 
 		hash0Orphan := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 		hash1Orphan := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")

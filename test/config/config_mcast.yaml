@@ -100,6 +100,9 @@ blocktx:
   fillGaps:
     enabled: true
     interval: 120s
+  unorphanRecentWrongOrphans:
+    enabled: true
+    interval: 120s
   maxAllowedBlockHeightMismatch: 3
   p2pReadBufferSize: 8388608
   bcnet:

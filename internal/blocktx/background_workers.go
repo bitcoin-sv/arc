@@ -101,16 +101,29 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 	return nil
 }
 
-func (w *BackgroundWorkers) StartAutoHeal() {
+func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Duration) {
 	w.workersWg.Add(1)
+
 	go func() {
-		_ = func() error {
-			defer w.workersWg.Done()
-			_, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
-			if err != nil {
-				w.logger.Error("failed to auto heal orphans", slog.String("err", err.Error()))
+		defer w.workersWg.Done()
+
+		ticker := time.NewTicker(interval)
+		i := 0
+
+		for {
+			select {
+			case <-ticker.C:
+				_, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
+				if err != nil {
+					w.logger.Error("failed to auto heal orphans", slog.String("err", err.Error()))
+				}
+
+				i++
+				ticker.Reset(interval)
+
+			case <-w.ctx.Done():
+				return
 			}
-			return err
-		}()
+		}
 	}()
 }

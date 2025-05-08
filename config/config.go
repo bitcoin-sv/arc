@@ -114,7 +114,7 @@ type BlocktxConfig struct {
 	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
 	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
 	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
-	AutoHeal                      *AutoHealConfig                    `mapstructure:"autoHeal"`
+	UnorphanRecentWrongOrphans    *UnorphanRecentWrongOrphansConfig  `mapstructure:"unorphanRecentWrongOrphans"`
 	MaxAllowedBlockHeightMismatch uint64                             `mapstructure:"maxAllowedBlockHeightMismatch"`
 	MessageQueue                  *MessageQueueConfig                `mapstructure:"mq"`
 	P2pReadBufferSize             int                                `mapstructure:"p2pReadBufferSize"`
@@ -180,7 +180,7 @@ type FillGapsConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 }
 
-type AutoHealConfig struct {
+type UnorphanRecentWrongOrphansConfig struct {
 	Enabled  bool          `mapstructure:"enabled"`
 	Interval time.Duration `mapstructure:"interval"`
 }

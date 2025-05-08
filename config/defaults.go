@@ -98,7 +98,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
 		MonitorPeers:                  false,
-		AutoHeal:                      getAutoHealConfig(),
+		UnorphanRecentWrongOrphans:    getUnorphanRecentWrongOrphansConfig(),
 		FillGaps:                      getFillGapsConfig(),
 		MaxAllowedBlockHeightMismatch: 3,
 		MaxBlockProcessingDuration:    5 * time.Minute,
@@ -197,8 +197,8 @@ func getFillGapsConfig() *FillGapsConfig {
 	}
 }
 
-func getAutoHealConfig() *AutoHealConfig {
-	return &AutoHealConfig{
+func getUnorphanRecentWrongOrphansConfig() *UnorphanRecentWrongOrphansConfig {
+	return &UnorphanRecentWrongOrphansConfig{
 		Enabled:  true,
 		Interval: 5 * time.Minute,
 	}

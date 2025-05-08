@@ -136,9 +136,9 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
 	}
 
-	if btxConfig.AutoHeal != nil && btxConfig.AutoHeal.Enabled {
+	if btxConfig.UnorphanRecentWrongOrphans != nil && btxConfig.UnorphanRecentWrongOrphans.Enabled {
 		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
-		workers.StartAutoHeal()
+		workers.StartUnorphanRecentWrongOrphans(btxConfig.UnorphanRecentWrongOrphans.Interval)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{

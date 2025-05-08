@@ -106,7 +106,7 @@ func (w *BackgroundWorkers) StartAutoHeal() {
 	go func() {
 		_ = func() error {
 			defer w.workersWg.Done()
-			_, err := w.store.AutoHealOrphans(w.ctx)
+			_, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
 			if err != nil {
 				w.logger.Error("failed to auto heal orphans", slog.String("err", err.Error()))
 			}

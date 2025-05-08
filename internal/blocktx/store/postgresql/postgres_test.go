@@ -383,7 +383,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualHealedOrphans, err := postgresDB.AutoHealOrphans(ctx)
+		actualHealedOrphans, err := postgresDB.UnorphanRecentWrongOrphans(ctx)
 		require.NoError(t, err)
 
 		// then

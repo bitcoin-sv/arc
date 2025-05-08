@@ -22,9 +22,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			AutoHealOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
-//				panic("mock out the AutoHealOrphans method")
-//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -82,6 +79,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
+//			UnorphanRecentWrongOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
+//				panic("mock out the UnorphanRecentWrongOrphans method")
+//			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
@@ -98,9 +98,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
-	// AutoHealOrphansFunc mocks the AutoHealOrphans method.
-	AutoHealOrphansFunc func(ctx context.Context) ([]*blocktx_api.Block, error)
-
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -158,6 +155,9 @@ type BlocktxStoreMock struct {
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
 
+	// UnorphanRecentWrongOrphansFunc mocks the UnorphanRecentWrongOrphans method.
+	UnorphanRecentWrongOrphansFunc func(ctx context.Context) ([]*blocktx_api.Block, error)
+
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
 
@@ -169,11 +169,6 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// AutoHealOrphans holds details about calls to the AutoHealOrphans method.
-		AutoHealOrphans []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -311,6 +306,11 @@ type BlocktxStoreMock struct {
 			// MaxParallelProcessing is the maxParallelProcessing argument value.
 			MaxParallelProcessing int
 		}
+		// UnorphanRecentWrongOrphans holds details about calls to the UnorphanRecentWrongOrphans method.
+		UnorphanRecentWrongOrphans []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// UpdateBlocksStatuses holds details about calls to the UpdateBlocksStatuses method.
 		UpdateBlocksStatuses []struct {
 			// Ctx is the ctx argument value.
@@ -335,7 +335,6 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
-	lockAutoHealOrphans                   sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
 	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
@@ -355,41 +354,10 @@ type BlocktxStoreMock struct {
 	lockPing                              sync.RWMutex
 	lockRegisterTransactions              sync.RWMutex
 	lockSetBlockProcessing                sync.RWMutex
+	lockUnorphanRecentWrongOrphans        sync.RWMutex
 	lockUpdateBlocksStatuses              sync.RWMutex
 	lockUpsertBlock                       sync.RWMutex
 	lockVerifyMerkleRoots                 sync.RWMutex
-}
-
-// AutoHealOrphans calls AutoHealOrphansFunc.
-func (mock *BlocktxStoreMock) AutoHealOrphans(ctx context.Context) ([]*blocktx_api.Block, error) {
-	if mock.AutoHealOrphansFunc == nil {
-		panic("BlocktxStoreMock.AutoHealOrphansFunc: method is nil but BlocktxStore.AutoHealOrphans was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockAutoHealOrphans.Lock()
-	mock.calls.AutoHealOrphans = append(mock.calls.AutoHealOrphans, callInfo)
-	mock.lockAutoHealOrphans.Unlock()
-	return mock.AutoHealOrphansFunc(ctx)
-}
-
-// AutoHealOrphansCalls gets all the calls that were made to AutoHealOrphans.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.AutoHealOrphansCalls())
-func (mock *BlocktxStoreMock) AutoHealOrphansCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockAutoHealOrphans.RLock()
-	calls = mock.calls.AutoHealOrphans
-	mock.lockAutoHealOrphans.RUnlock()
-	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -1080,6 +1048,38 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing
 	mock.lockSetBlockProcessing.RUnlock()
+	return calls
+}
+
+// UnorphanRecentWrongOrphans calls UnorphanRecentWrongOrphansFunc.
+func (mock *BlocktxStoreMock) UnorphanRecentWrongOrphans(ctx context.Context) ([]*blocktx_api.Block, error) {
+	if mock.UnorphanRecentWrongOrphansFunc == nil {
+		panic("BlocktxStoreMock.UnorphanRecentWrongOrphansFunc: method is nil but BlocktxStore.UnorphanRecentWrongOrphans was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockUnorphanRecentWrongOrphans.Lock()
+	mock.calls.UnorphanRecentWrongOrphans = append(mock.calls.UnorphanRecentWrongOrphans, callInfo)
+	mock.lockUnorphanRecentWrongOrphans.Unlock()
+	return mock.UnorphanRecentWrongOrphansFunc(ctx)
+}
+
+// UnorphanRecentWrongOrphansCalls gets all the calls that were made to UnorphanRecentWrongOrphans.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.UnorphanRecentWrongOrphansCalls())
+func (mock *BlocktxStoreMock) UnorphanRecentWrongOrphansCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockUnorphanRecentWrongOrphans.RLock()
+	calls = mock.calls.UnorphanRecentWrongOrphans
+	mock.lockUnorphanRecentWrongOrphans.RUnlock()
 	return calls
 }
 

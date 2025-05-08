@@ -3,6 +3,7 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel/attribute"
 	"log/slog"
 	"os"
 	"sync"
@@ -724,6 +725,11 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				blocktx.WithRegisterTxsBatchSize(tc.batchSize),
 				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithPublishMinedMessageSize(3),
+				blocktx.WithRetentionDays(1),
+				blocktx.WithTracer([]attribute.KeyValue{attribute.Int("atr", 5)}...),
+				blocktx.WithTransactionBatchSize(1),
+				blocktx.WithMaxBlockProcessingDuration(1),
+				blocktx.WithIncomingIsLongest(true),
 			)
 			require.NoError(t, err)
 

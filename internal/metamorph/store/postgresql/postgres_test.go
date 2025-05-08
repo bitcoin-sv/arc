@@ -479,7 +479,7 @@ func TestPostgresDB(t *testing.T) {
 				Timestamp:    timestamp,
 			},
 		}
-		updatedStatuses := 4
+		updatedStatuses := 5
 
 		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates)
 		require.NoError(t, err)

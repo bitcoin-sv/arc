@@ -64,10 +64,6 @@ SELECT btu.hash, btu.prevhash, btu.status FROM (
 	WHERE b.status = $1
 	ORDER BY height ASC;
 `
-	_, err = p.db.Begin()
-	if err != nil {
-		return
-	}
 	_, err = p.db.ExecContext(ctx, qDropTempTable)
 	if err != nil {
 		return

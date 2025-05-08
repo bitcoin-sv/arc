@@ -19,8 +19,8 @@ func (p *PostgreSQL) UnorphanRecentWrongOrphans(ctx context.Context) (healedOrph
 	// and the first SELECT is just to set up the `recent_orphans` variable with
 	// the first, initial value. Then, the `recent_orphans` variable is recursively
 	// updated with values returned from the second SELECT.
-	q_drop_temp_table := `drop table if exists tmp_blocks_to_unorphan;`
-	q_create_temp_table := `
+	qDropTempTable := `drop table if exists tmp_blocks_to_unorphan;`
+	qCreateTempTable := `
 create table blocks_to_unorphan AS
 SELECT btu.hash, btu.prevhash, btu.status FROM (
     WITH RECURSIVE recent_orphans AS (SELECT *
@@ -46,14 +46,14 @@ SELECT btu.hash, btu.prevhash, btu.status FROM (
       WHERE status = $2
 ) as btu;
 `
-	q_update_unorphan_blocks := `
+	qUpdateUnorphanBlocks := `
 	UPDATE blocktx.blocks b
 	SET status = $1
 	FROM blocks_to_unorphan
 	WHERE blocks_to_unorphan.hash = b.hash;
 `
 
-	q_select_updated_blocks := `
+	qSelectUpdatedBlocks := `
 	SELECT b.hash
 		, b.prevhash
 		, b.merkleroot
@@ -64,23 +64,27 @@ SELECT btu.hash, btu.prevhash, btu.status FROM (
 	WHERE b.status = $1
 	ORDER BY height ASC;
 `
-	p.db.Begin()
-	_, err = p.db.ExecContext(ctx, q_drop_temp_table)
+	_, err = p.db.Begin()
 	if err != nil {
 		return
 	}
-	_, err = p.db.ExecContext(ctx, q_create_temp_table, blocktx_api.Status_LONGEST, blocktx_api.Status_ORPHANED)
+	_, err = p.db.ExecContext(ctx, qDropTempTable)
 	if err != nil {
 		return
 	}
-	_, err = p.db.ExecContext(ctx, q_update_unorphan_blocks, blocktx_api.Status_LONGEST)
+	_, err = p.db.ExecContext(ctx, qCreateTempTable, blocktx_api.Status_LONGEST, blocktx_api.Status_ORPHANED)
 	if err != nil {
 		return
 	}
-	rows, err := p.db.QueryContext(ctx, q_select_updated_blocks, blocktx_api.Status_LONGEST)
+	_, err = p.db.ExecContext(ctx, qUpdateUnorphanBlocks, blocktx_api.Status_LONGEST)
 	if err != nil {
 		return
 	}
+	rows, err := p.db.QueryContext(ctx, qSelectUpdatedBlocks, blocktx_api.Status_LONGEST)
+	if err != nil {
+		return
+	}
+	defer p.db.Close()
 	defer rows.Close()
 
 	healedOrphans, err = p.parseBlocks(rows)

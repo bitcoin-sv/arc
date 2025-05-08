@@ -461,7 +461,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
-				Status:       metamorph_api.Status_SEEN_ON_NETWORK,
+				Status:       metamorph_api.Status_REJECTED,
 				CompetingTxs: []string{"1234"},
 				Error:        errors.New("double spend attempted"),
 				Timestamp:    timestamp,
@@ -509,7 +509,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
 		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
 
-		res, err := postgresDB.Get(ctx, updates[5].Hash[:])
+		res, err := postgresDB.Get(ctx, updates[6].Hash[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, res.Status)
 

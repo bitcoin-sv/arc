@@ -456,7 +456,7 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"},
+				CompetingTxs: []string{"7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"},
 				Timestamp:    timestamp,
 			},
 			{
@@ -474,7 +474,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
-				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				Status:       metamorph_api.Status_SEEN_ON_NETWORK,
 				CompetingTxs: []string{"1234"},
 				Timestamp:    timestamp,
 			},

@@ -111,6 +111,9 @@ blocktx:
   fillGaps:
     enabled: true
     interval: 15m # time interval to check and fill gaps in processed blocks
+  unorphanRecentWrongOrphans:
+    enabled: true
+    interval: 5m # time interval to check and fix wrong orphan blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
   p2pReadBufferSize: 8388608 # size of read buffer for p2p messeges
   bcnet:

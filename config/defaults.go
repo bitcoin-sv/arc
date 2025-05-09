@@ -98,6 +98,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
 		MonitorPeers:                  false,
+		UnorphanRecentWrongOrphans:    getUnorphanRecentWrongOrphansConfig(),
 		FillGaps:                      getFillGapsConfig(),
 		MaxAllowedBlockHeightMismatch: 3,
 		MaxBlockProcessingDuration:    5 * time.Minute,
@@ -193,6 +194,13 @@ func getFillGapsConfig() *FillGapsConfig {
 	return &FillGapsConfig{
 		Enabled:  true,
 		Interval: 15 * time.Minute,
+	}
+}
+
+func getUnorphanRecentWrongOrphansConfig() *UnorphanRecentWrongOrphansConfig {
+	return &UnorphanRecentWrongOrphansConfig{
+		Enabled:  true,
+		Interval: 5 * time.Minute,
 	}
 }
 

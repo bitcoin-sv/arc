@@ -1,0 +1,101 @@
+- inserted_at: 2023-12-15 14:00:00
+  id: 0
+  hash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  prevhash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
+  merkleroot: 0x7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483
+  height: 822015
+  processed_at: 2023-12-15 14:10:00
+  size: 86840000
+  tx_count: 23477
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:30:00
+# AUTOHEAL BATCH 1
+  id: 1
+  hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
+  prevhash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822016
+  processed_at: 2023-12-15 14:30:00
+  size: 20160000
+  tx_count: 6523
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false
+- inserted_at: 2023-12-15 14:30:00
+  id: 2
+  hash: 0x00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9
+  prevhash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822017
+  processed_at: 2023-12-15 14:30:00
+  size: 20160000
+  tx_count: 6523
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:40:00
+  # AUTOHEAL BATCH 2
+  id: 3
+  hash: 0x0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1
+  prevhash: 0x00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9
+  merkleroot: 0x4b58b0402a84012269b124f78c91a78a814eb3c9caa03f1df1d33172b23082d1
+  height: 822018
+  processed_at: 2023-12-15 14:40:00
+  size: 299650000
+  tx_count: 62162
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false
+- inserted_at: 2023-12-15 14:40:00
+  id: 4
+  hash: 0x00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656
+  prevhash: 0x0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1
+  merkleroot: 0x4b58b0402a84012269b124f78c91a78a814eb3c9caa03f1df1d33172b23082d1
+  height: 822019
+  processed_at: 2023-12-15 14:40:00
+  size: 299650000
+  tx_count: 62162
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false
+- inserted_at: 2023-12-15 14:50:00
+  id: 5
+  hash: 0x000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca
+  prevhash: 0x00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656
+  merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
+  height: 822020
+  processed_at: 2023-12-15 14:10:00
+  size: 8630000
+  tx_count: 36724
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false
+
+# GAP
+
+- inserted_at: 2023-12-15 14:50:00
+  id: 6
+  hash: 0x0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c
+  prevhash: 0x0000000000000000094510c50011a891b74ef054d6cac0a5ae8bd60f02c85f1d
+  merkleroot: 0xda71199f8ed9203d8a765595e6c030a22e5ed8330b1abb467a82c97d7d21d512
+  height: 822022
+  processed_at: 2023-12-15 14:10:00
+  size: 8630000
+  tx_count: 36724
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false
+- inserted_at: 2023-12-15 14:50:00
+  id: 7
+  hash: 0x0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd
+  prevhash: 0x0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c
+  merkleroot: 0xda71199f8ed9203d8a765595e6c030a22e5ed8330b1abb467a82c97d7d21d512
+  height: 822023
+  processed_at: 2023-12-15 14:10:00
+  size: 8630000
+  tx_count: 36724
+  status: 30 # ORPHANED
+  chainwork: '123456'
+  is_longest: false

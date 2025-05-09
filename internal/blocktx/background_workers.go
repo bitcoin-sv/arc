@@ -100,3 +100,27 @@ func (w *BackgroundWorkers) fillGaps(peer p2p.PeerI, retentionDays int, blockReq
 
 	return nil
 }
+
+func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Duration) {
+	w.workersWg.Add(1)
+
+	go func() {
+		defer w.workersWg.Done()
+
+		ticker := time.NewTicker(interval)
+		for {
+			select {
+			case <-ticker.C:
+				rows, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
+				if err != nil {
+					w.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))
+				}
+				for _, b := range rows {
+					w.logger.Info("Successfully unorphaned block", slog.Uint64("height", b.Height), slog.String("hash", string(b.Hash)))
+				}
+			case <-w.ctx.Done():
+				return
+			}
+		}
+	}()
+}

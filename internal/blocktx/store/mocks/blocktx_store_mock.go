@@ -79,6 +79,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			SetBlockProcessingFunc: func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error) {
 //				panic("mock out the SetBlockProcessing method")
 //			},
+//			UnorphanRecentWrongOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
+//				panic("mock out the UnorphanRecentWrongOrphans method")
+//			},
 //			UpdateBlocksStatusesFunc: func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error {
 //				panic("mock out the UpdateBlocksStatuses method")
 //			},
@@ -151,6 +154,9 @@ type BlocktxStoreMock struct {
 
 	// SetBlockProcessingFunc mocks the SetBlockProcessing method.
 	SetBlockProcessingFunc func(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
+
+	// UnorphanRecentWrongOrphansFunc mocks the UnorphanRecentWrongOrphans method.
+	UnorphanRecentWrongOrphansFunc func(ctx context.Context) ([]*blocktx_api.Block, error)
 
 	// UpdateBlocksStatusesFunc mocks the UpdateBlocksStatuses method.
 	UpdateBlocksStatusesFunc func(ctx context.Context, blockStatusUpdates []store.BlockStatusUpdate) error
@@ -300,6 +306,11 @@ type BlocktxStoreMock struct {
 			// MaxParallelProcessing is the maxParallelProcessing argument value.
 			MaxParallelProcessing int
 		}
+		// UnorphanRecentWrongOrphans holds details about calls to the UnorphanRecentWrongOrphans method.
+		UnorphanRecentWrongOrphans []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// UpdateBlocksStatuses holds details about calls to the UpdateBlocksStatuses method.
 		UpdateBlocksStatuses []struct {
 			// Ctx is the ctx argument value.
@@ -343,6 +354,7 @@ type BlocktxStoreMock struct {
 	lockPing                              sync.RWMutex
 	lockRegisterTransactions              sync.RWMutex
 	lockSetBlockProcessing                sync.RWMutex
+	lockUnorphanRecentWrongOrphans        sync.RWMutex
 	lockUpdateBlocksStatuses              sync.RWMutex
 	lockUpsertBlock                       sync.RWMutex
 	lockVerifyMerkleRoots                 sync.RWMutex
@@ -1036,6 +1048,38 @@ func (mock *BlocktxStoreMock) SetBlockProcessingCalls() []struct {
 	mock.lockSetBlockProcessing.RLock()
 	calls = mock.calls.SetBlockProcessing
 	mock.lockSetBlockProcessing.RUnlock()
+	return calls
+}
+
+// UnorphanRecentWrongOrphans calls UnorphanRecentWrongOrphansFunc.
+func (mock *BlocktxStoreMock) UnorphanRecentWrongOrphans(ctx context.Context) ([]*blocktx_api.Block, error) {
+	if mock.UnorphanRecentWrongOrphansFunc == nil {
+		panic("BlocktxStoreMock.UnorphanRecentWrongOrphansFunc: method is nil but BlocktxStore.UnorphanRecentWrongOrphans was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockUnorphanRecentWrongOrphans.Lock()
+	mock.calls.UnorphanRecentWrongOrphans = append(mock.calls.UnorphanRecentWrongOrphans, callInfo)
+	mock.lockUnorphanRecentWrongOrphans.Unlock()
+	return mock.UnorphanRecentWrongOrphansFunc(ctx)
+}
+
+// UnorphanRecentWrongOrphansCalls gets all the calls that were made to UnorphanRecentWrongOrphans.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.UnorphanRecentWrongOrphansCalls())
+func (mock *BlocktxStoreMock) UnorphanRecentWrongOrphansCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockUnorphanRecentWrongOrphans.RLock()
+	calls = mock.calls.UnorphanRecentWrongOrphans
+	mock.lockUnorphanRecentWrongOrphans.RUnlock()
 	return calls
 }
 

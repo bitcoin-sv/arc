@@ -73,7 +73,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			SetUnlockedByNameExceptFunc: func(ctx context.Context, except []string) (int64, error) {
 //				panic("mock out the SetUnlockedByNameExcept method")
 //			},
-//			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+//			UpdateDoubleSpendFunc: func(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) ([]*store.Data, error) {
 //				panic("mock out the UpdateDoubleSpend method")
 //			},
 //			UpdateMinedFunc: func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error) {
@@ -144,7 +144,7 @@ type MetamorphStoreMock struct {
 	SetUnlockedByNameExceptFunc func(ctx context.Context, except []string) (int64, error)
 
 	// UpdateDoubleSpendFunc mocks the UpdateDoubleSpend method.
-	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error)
+	UpdateDoubleSpendFunc func(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) ([]*store.Data, error)
 
 	// UpdateMinedFunc mocks the UpdateMined method.
 	UpdateMinedFunc func(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.Data, error)
@@ -300,6 +300,8 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Updates is the updates argument value.
 			Updates []store.UpdateStatus
+			// UpdateCompetingTxs is the updateCompetingTxs argument value.
+			UpdateCompetingTxs bool
 		}
 		// UpdateMined holds details about calls to the UpdateMined method.
 		UpdateMined []struct {
@@ -995,21 +997,23 @@ func (mock *MetamorphStoreMock) SetUnlockedByNameExceptCalls() []struct {
 }
 
 // UpdateDoubleSpend calls UpdateDoubleSpendFunc.
-func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) ([]*store.Data, error) {
+func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) ([]*store.Data, error) {
 	if mock.UpdateDoubleSpendFunc == nil {
 		panic("MetamorphStoreMock.UpdateDoubleSpendFunc: method is nil but MetamorphStore.UpdateDoubleSpend was just called")
 	}
 	callInfo := struct {
-		Ctx     context.Context
-		Updates []store.UpdateStatus
+		Ctx                context.Context
+		Updates            []store.UpdateStatus
+		UpdateCompetingTxs bool
 	}{
-		Ctx:     ctx,
-		Updates: updates,
+		Ctx:                ctx,
+		Updates:            updates,
+		UpdateCompetingTxs: updateCompetingTxs,
 	}
 	mock.lockUpdateDoubleSpend.Lock()
 	mock.calls.UpdateDoubleSpend = append(mock.calls.UpdateDoubleSpend, callInfo)
 	mock.lockUpdateDoubleSpend.Unlock()
-	return mock.UpdateDoubleSpendFunc(ctx, updates)
+	return mock.UpdateDoubleSpendFunc(ctx, updates, updateCompetingTxs)
 }
 
 // UpdateDoubleSpendCalls gets all the calls that were made to UpdateDoubleSpend.
@@ -1017,12 +1021,14 @@ func (mock *MetamorphStoreMock) UpdateDoubleSpend(ctx context.Context, updates [
 //
 //	len(mockedMetamorphStore.UpdateDoubleSpendCalls())
 func (mock *MetamorphStoreMock) UpdateDoubleSpendCalls() []struct {
-	Ctx     context.Context
-	Updates []store.UpdateStatus
+	Ctx                context.Context
+	Updates            []store.UpdateStatus
+	UpdateCompetingTxs bool
 } {
 	var calls []struct {
-		Ctx     context.Context
-		Updates []store.UpdateStatus
+		Ctx                context.Context
+		Updates            []store.UpdateStatus
+		UpdateCompetingTxs bool
 	}
 	mock.lockUpdateDoubleSpend.RLock()
 	calls = mock.calls.UpdateDoubleSpend

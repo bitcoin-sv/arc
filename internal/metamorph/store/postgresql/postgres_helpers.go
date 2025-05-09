@@ -163,7 +163,6 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 		}
 
 		data.hash = hash
-
 		if competingTxs.String != "" {
 			data.competingTxs = strings.Split(competingTxs.String, ",")
 		}

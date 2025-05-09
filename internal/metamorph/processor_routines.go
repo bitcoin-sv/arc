@@ -2,15 +2,12 @@ package metamorph
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
@@ -109,12 +106,13 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		for _, txHash := range txHashes {
 			p.logger.Debug("Re-announcing seen tx", slog.String("hash", txHash.String()))
 
-			p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-				Start:  time.Now(),
-				Hash:   txHash,
-				Status: metamorph_api.Status_REJECTED,
-				Err:    errors.New("transaction rejected as not existing in node mempool"),
-			}
+			// Todo: uncomment after testing
+			//p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+			//	Start:  time.Now(),
+			//	Hash:   txHash,
+			//	Status: metamorph_api.Status_REJECTED,
+			//	Err:    errors.New("transaction rejected as not existing in node mempool"),
+			//}
 		}
 
 		time.Sleep(100 * time.Millisecond)

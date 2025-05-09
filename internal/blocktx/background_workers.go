@@ -118,7 +118,7 @@ func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Durati
 					w.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))
 				}
 				for _, b := range rows {
-					w.logger.Info("Successfully unorphaned ", slog.String("block", b.String()))
+					w.logger.Info("Successfully unorphaned block", slog.Uint64("height", b.Height))
 				}
 
 				i++

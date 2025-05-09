@@ -1034,7 +1034,10 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 				}
 			}
 		}
-		p.UpdateDoubleSpend(ctx, compTxUpdates, false)
+		_, err := p.UpdateDoubleSpend(ctx, compTxUpdates, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = tx.Commit()

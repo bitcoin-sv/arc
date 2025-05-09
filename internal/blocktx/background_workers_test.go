@@ -134,7 +134,7 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 			const fillUnorphanRecentWrongOrphansInterval = 50 * time.Millisecond
 
 			storeMock := &storeMocks.BlocktxStoreMock{
-				UnorphanRecentWrongOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
+				UnorphanRecentWrongOrphansFunc: func(_ context.Context) ([]*blocktx_api.Block, error) {
 					return tc.expectedUnorphanedBlocks, nil
 				},
 			}

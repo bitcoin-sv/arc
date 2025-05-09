@@ -1024,17 +1024,20 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		compTxUpdates := make([]store.UpdateStatus, 0)
 		for _, cmptx := range allComletingTxs {
 			hash, err := hex.DecodeString(cmptx)
-			if err == nil {
-				txHash, err := chainhash.NewHash(hash)
-				if err == nil {
-					compTxUpdates = append(compTxUpdates, store.UpdateStatus{
-						Hash:   *txHash,
-						Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-					})
-				}
+			if err != nil {
+				return nil, err
 			}
+			txHash, err := chainhash.NewHash(hash)
+			if err != nil {
+				return nil, err
+			}
+			compTxUpdates = append(compTxUpdates, store.UpdateStatus{
+				Hash:   *txHash,
+				Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
 		}
-		_, err := p.UpdateDoubleSpend(ctx, compTxUpdates, false)
+
+		_, err = p.UpdateDoubleSpend(ctx, compTxUpdates, false)
 		if err != nil {
 			return nil, err
 		}

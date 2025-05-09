@@ -1423,7 +1423,7 @@ func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash)
 	return nil
 }
 
-// MarkConfirmed updates the confirmed_at date to timestamp now
+// MarkConfirmedRequested updates the confirmed_at date to timestamp now
 func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.requested_transactions SET confirmed_at = $1 WHERE hash = $2`
 
@@ -1435,7 +1435,7 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetAndDeleteUnconfirmedSeen gets and deletes all entries in table requested_transactions which have either never been confirmed or were last confirmation was more than 'fromAgo' time ago
+// GetAndDeleteUnconfirmedRequested gets and deletes all entries in table requested_transactions which have either never been confirmed or were last confirmation was more than 'fromAgo' time ago
 func (p *PostgreSQL) GetAndDeleteUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
 	DELETE FROM metamorph.requested_transactions
@@ -1481,7 +1481,7 @@ func (p *PostgreSQL) GetAndDeleteUnconfirmedRequested(ctx context.Context, fromA
 	return hashes, nil
 }
 
-// DeleteConfirmedSeen deletes all hashes from requested_transactions table where the status has changed
+// DeleteConfirmedRequested deletes all hashes from requested_transactions table where the status has changed
 func (p *PostgreSQL) DeleteConfirmedRequested(ctx context.Context) (rowsAffected int64, err error) {
 	q := `
 	DELETE FROM metamorph.requested_transactions dus

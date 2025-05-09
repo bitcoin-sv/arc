@@ -82,7 +82,6 @@ func getMetamorphConfig() *MetamorphConfig {
 					Host: "localhost",
 					Port: &PeerPortConfig{
 						P2P: 18333,
-						ZMQ: 28332,
 					},
 				},
 			},
@@ -113,7 +112,6 @@ func getBlocktxConfig() *BlocktxConfig {
 					Host: "localhost",
 					Port: &PeerPortConfig{
 						P2P: 18333,
-						ZMQ: 28332,
 					},
 				},
 			},
@@ -199,7 +197,7 @@ func getFillGapsConfig() *FillGapsConfig {
 
 func getUnorphanRecentWrongOrphansConfig() *UnorphanRecentWrongOrphansConfig {
 	return &UnorphanRecentWrongOrphansConfig{
-		Enabled:  true,
+		Enabled:  false,
 		Interval: 5 * time.Minute,
 	}
 }

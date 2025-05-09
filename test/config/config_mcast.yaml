@@ -71,7 +71,6 @@ metamorph:
       - host: node2
         port:
           p2p: 18333
-          zmq: 28332
     mcast:
       tx:
         address: "[ff05::1]:9999"
@@ -101,7 +100,7 @@ blocktx:
     enabled: true
     interval: 120s
   unorphanRecentWrongOrphans:
-    enabled: true
+    enabled: false
     interval: 120s
   maxAllowedBlockHeightMismatch: 3
   p2pReadBufferSize: 8388608
@@ -112,11 +111,9 @@ blocktx:
       - host: node1
         port:
           p2p: 18333
-          zmq: 28332
       - host: node2
         port:
           p2p: 18333
-          zmq: 28332
     mcast:
       block:
         address: "[ff05::3]:9979"

@@ -366,7 +366,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("auto heal orphaned blocks", func(t *testing.T) {
+	t.Run("unorphan recent wrong orphaned blocks", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/unorphan_recent_wrong_orphans")
 
@@ -375,7 +375,7 @@ func TestPostgresDB(t *testing.T) {
 		hash2Orphan := testutils.RevChainhash(t, "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 		hash3Orphan := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
-		expectedHealedOrphans := []*chainhash.Hash{
+		expectedUnorphanedBlocks := []*chainhash.Hash{
 			hash0Orphan,
 			hash1Orphan,
 			hash2Orphan,
@@ -383,13 +383,16 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		// when
-		actualHealedOrphans, err := postgresDB.UnorphanRecentWrongOrphans(ctx)
+		actualUnorphanedBlocks, err := postgresDB.UnorphanRecentWrongOrphans(ctx)
 		require.NoError(t, err)
 
 		// then
-		require.Equal(t, len(expectedHealedOrphans), len(actualHealedOrphans))
-		for i, b := range actualHealedOrphans {
-			require.Equal(t, expectedHealedOrphans[i][:], b.Hash)
+		require.Equal(t, len(expectedUnorphanedBlocks), len(actualUnorphanedBlocks))
+		for i, b := range actualUnorphanedBlocks {
+			require.Equal(t, expectedUnorphanedBlocks[i][:], b.Hash)
+			actualBlockInDb, err := postgresDB.GetBlock(ctx, expectedUnorphanedBlocks[i])
+			require.NoError(t, err)
+			require.Equal(t, actualBlockInDb.Status, blocktx_api.Status_LONGEST)
 		}
 	})
 

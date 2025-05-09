@@ -113,10 +113,11 @@ func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Durati
 		for {
 			select {
 			case <-ticker.C:
-				_, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
+				rows, err := w.store.UnorphanRecentWrongOrphans(w.ctx)
 				if err != nil {
-					w.logger.Error("failed to auto heal orphans", slog.String("err", err.Error()))
+					w.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))
 				}
+				w.logger.Info("Successfully unorphaned ", slog.AnyValue(rows))
 
 				i++
 				ticker.Reset(interval)

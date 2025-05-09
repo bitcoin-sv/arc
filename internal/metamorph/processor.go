@@ -575,7 +575,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}
 
 	if len(doubleSpendUpdates) > 0 {
-		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates)
+		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates, true)
 		if err != nil {
 			return err
 		}

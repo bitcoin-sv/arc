@@ -25,7 +25,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/cache"
 	cacheMocks "github.com/bitcoin-sv/arc/internal/cache/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -44,7 +43,7 @@ func TestNewProcessor(t *testing.T) {
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 	}
 
-	nMessenger := &bcnet.Mediator{}
+	nMessenger := &mocks.MediatorMock{}
 	cStore := &cacheMocks.StoreMock{}
 
 	tt := []struct {
@@ -132,7 +131,7 @@ func TestStartLockTransactions(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 
-			messenger := &bcnet.Mediator{}
+			messenger := &mocks.MediatorMock{}
 			cStore := &cacheMocks.StoreMock{}
 
 			// when
@@ -543,7 +542,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				},
 			}
 
-			messenger := &bcnet.Mediator{}
+			messenger := &mocks.MediatorMock{}
 			cStore := cache.NewMemoryStore()
 			for _, i := range tc.inputs {
 				if i.registered {
@@ -892,7 +891,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &bcnet.Mediator{}
+			pm := &mocks.MediatorMock{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
 			callbackSender := &mocks.CallbackSenderMock{
 				SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
@@ -1201,7 +1200,7 @@ func TestRegisterSeen(t *testing.T) {
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
-			pm := &bcnet.Mediator{}
+			pm := &mocks.MediatorMock{}
 
 			blockTxClient := &btxMocks.ClientMock{
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
@@ -1231,6 +1230,78 @@ func TestRegisterSeen(t *testing.T) {
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
 			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
 			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
+		})
+	}
+}
+
+func TestRejectUnconfirmedRequested(t *testing.T) {
+	tt := []struct {
+		name                        string
+		deleteConfirmedRequestedErr error
+		getAndDeleteUnconfirmedErr  error
+
+		expectedDeleteConfirmedCalls int
+		expectedGetAndDeleteCalls    int
+	}{
+		{
+			name: "success",
+
+			expectedDeleteConfirmedCalls: 1,
+			expectedGetAndDeleteCalls:    4,
+		},
+		{
+			name:                        "error - failed to delete confirmed requested",
+			deleteConfirmedRequestedErr: errors.New("failed to delete confirmed requested"),
+
+			expectedDeleteConfirmedCalls: 1,
+			expectedGetAndDeleteCalls:    0,
+		},
+		{
+			name:                       "error - failed to get and delete unconfirmed requested",
+			getAndDeleteUnconfirmedErr: errors.New("failed to get and delete unconfirmed requested"),
+
+			expectedDeleteConfirmedCalls: 1,
+			expectedGetAndDeleteCalls:    1,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			iteration := 0
+
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				DeleteConfirmedRequestedFunc: func(_ context.Context) (int64, error) { return 5, tc.deleteConfirmedRequestedErr },
+				GetAndDeleteUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
+					if iteration >= 3 {
+						return nil, nil
+					}
+					iteration++
+
+					if tc.getAndDeleteUnconfirmedErr != nil {
+						return nil, tc.getAndDeleteUnconfirmedErr
+					}
+					return []*chainhash.Hash{testdata.TX1Hash, testdata.TX1Hash, testdata.TX1Hash}, nil
+				},
+			}
+			pm := &mocks.MediatorMock{}
+
+			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
+
+			cStore := &cacheMocks.StoreMock{}
+			sut, err := metamorph.NewProcessor(
+				metamorphStore,
+				cStore,
+				pm,
+				statusMessageChannel,
+			)
+			require.NoError(t, err)
+
+			// when
+			metamorph.RejectUnconfirmedRequested(context.TODO(), sut)
+
+			// then
+			assert.Equal(t, tc.expectedDeleteConfirmedCalls, len(metamorphStore.DeleteConfirmedRequestedCalls()))
+			assert.Equal(t, tc.expectedGetAndDeleteCalls, len(metamorphStore.GetAndDeleteUnconfirmedRequestedCalls()))
 		})
 	}
 }
@@ -1336,7 +1407,7 @@ func TestStart(t *testing.T) {
 				return 0, nil
 			}}
 
-			pm := &bcnet.Mediator{}
+			pm := &mocks.MediatorMock{}
 
 			cStore := &cacheMocks.StoreMock{}
 

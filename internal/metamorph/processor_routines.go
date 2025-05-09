@@ -74,20 +74,23 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
-// CheckUnconfirmedSeen re-broadcasts SEEN_ON_NETWORK transactions
-func CheckUnconfirmedSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
+// RejectUnconfirmedRequested re-broadcasts SEEN_ON_NETWORK transactions
+func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
 	var txHashes []*chainhash.Hash
 	var err error
 
+	// first delete all requested transactions which have transitioned to another status
 	rows, err := p.store.DeleteConfirmedRequested(ctx)
 	if err != nil {
 		p.logger.Error("Failed to delete confirmed seen", slog.String("err", err.Error()))
 		return nil
 	}
 
-	p.logger.Info("deleted rows", slog.Int64("count", rows))
+	if rows > 0 {
+		p.logger.Info("Deleted confirmed requested", slog.Int64("count", rows))
+	}
 
 	for {
 		txHashes, err = p.store.GetAndDeleteUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
@@ -113,6 +116,8 @@ func CheckUnconfirmedSeen(ctx context.Context, p *Processor) []attribute.KeyValu
 				Err:    errors.New("transaction rejected as not existing in node mempool"),
 			}
 		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	if totalRejected > 0 {

@@ -234,7 +234,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen, "ReAnnounceUnseen")
 	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
 	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
-	p.StartRoutine(p.checkUnconfirmedSeenInterval, CheckUnconfirmedSeen, "CheckUnconfirmedSeen")
+	p.StartRoutine(p.checkUnconfirmedSeenInterval, RejectUnconfirmedRequested, "RejectUnconfirmedRequested")
 
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()

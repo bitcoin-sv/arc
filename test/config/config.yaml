@@ -66,7 +66,7 @@ metamorph:
       - host: node1
         port:
           p2p: 18333
-        zmq: 28332
+          zmq: 28332
       - host: node2
         port:
           p2p: 18333

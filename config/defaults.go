@@ -197,7 +197,7 @@ func getFillGapsConfig() *FillGapsConfig {
 
 func getUnorphanRecentWrongOrphansConfig() *UnorphanRecentWrongOrphansConfig {
 	return &UnorphanRecentWrongOrphansConfig{
-		Enabled:  true,
+		Enabled:  false,
 		Interval: 5 * time.Minute,
 	}
 }

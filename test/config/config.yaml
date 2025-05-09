@@ -94,7 +94,7 @@ blocktx:
     enabled: true
     interval: 1s
   unorphanRecentWrongOrphans:
-      enabled: true
+      enabled: false
       interval: 1s
   maxAllowedBlockHeightMismatch: 3
   p2pReadBufferSize: 8388608

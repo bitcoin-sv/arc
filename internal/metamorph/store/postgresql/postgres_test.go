@@ -454,16 +454,16 @@ func TestPostgresDB(t *testing.T) {
 				Timestamp:    timestamp,
 			},
 			{
+				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update expected
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+				CompetingTxs: []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"},
+				Timestamp:    timestamp,
+			},
+			{
 				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
 				CompetingTxs: []string{"1234"},
 				Error:        errors.New("double spend attempted"),
-				Timestamp:    timestamp,
-			},
-			{
-				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update expected
-				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"},
 				Timestamp:    timestamp,
 			},
 			{

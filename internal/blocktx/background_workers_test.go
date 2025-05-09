@@ -3,6 +3,7 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"log/slog"
 	"os"
 	"testing"
@@ -105,6 +106,49 @@ func TestStartFillGaps(t *testing.T) {
 
 			sut.GracefulStop()
 			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+		})
+	}
+}
+
+func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
+	tt := []struct {
+		name                     string
+		expectedUnorphanedBlocks []*blocktx_api.Block
+	}{
+		{
+			name: "success",
+			expectedUnorphanedBlocks: []*blocktx_api.Block{
+				{
+					Height: 822014,
+				},
+				{
+					Height: 822015,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			const fillUnorphanRecentWrongOrphansInterval = 50 * time.Millisecond
+
+			storeMock := &storeMocks.BlocktxStoreMock{
+				UnorphanRecentWrongOrphansFunc: func(ctx context.Context) ([]*blocktx_api.Block, error) {
+					return tc.expectedUnorphanedBlocks, nil
+				},
+			}
+
+			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
+
+			// when
+			sut.StartUnorphanRecentWrongOrphans(fillUnorphanRecentWrongOrphansInterval)
+
+			// then
+			sut.GracefulStop()
+			actualUnorphanedBlocks, err := storeMock.UnorphanRecentWrongOrphans(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, len(tc.expectedUnorphanedBlocks), len(actualUnorphanedBlocks))
 		})
 	}
 }

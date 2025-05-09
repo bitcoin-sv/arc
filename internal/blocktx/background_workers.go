@@ -117,7 +117,9 @@ func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Durati
 				if err != nil {
 					w.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))
 				}
-				w.logger.Info("Successfully unorphaned ", slog.AnyValue(rows))
+				for _, b := range rows {
+					w.logger.Info("Successfully unorphaned ", slog.String("block", b.String()))
+				}
 
 				i++
 				ticker.Reset(interval)

@@ -108,8 +108,6 @@ func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Durati
 		defer w.workersWg.Done()
 
 		ticker := time.NewTicker(interval)
-		i := 0
-
 		for {
 			select {
 			case <-ticker.C:
@@ -118,12 +116,8 @@ func (w *BackgroundWorkers) StartUnorphanRecentWrongOrphans(interval time.Durati
 					w.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))
 				}
 				for _, b := range rows {
-					w.logger.Info("Successfully unorphaned block", slog.Uint64("height", b.Height))
+					w.logger.Info("Successfully unorphaned block", slog.Uint64("height", b.Height), slog.String("hash", string(b.Hash)))
 				}
-
-				i++
-				ticker.Reset(interval)
-
 			case <-w.ctx.Done():
 				return
 			}

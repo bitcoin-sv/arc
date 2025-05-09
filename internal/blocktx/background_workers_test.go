@@ -131,7 +131,7 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			const fillUnorphanRecentWrongOrphansInterval = 50 * time.Millisecond
+			const unorphanRecentWrongOrphansInterval = 50 * time.Millisecond
 
 			storeMock := &storeMocks.BlocktxStoreMock{
 				UnorphanRecentWrongOrphansFunc: func(_ context.Context) ([]*blocktx_api.Block, error) {
@@ -142,7 +142,7 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
 
 			// when
-			sut.StartUnorphanRecentWrongOrphans(fillUnorphanRecentWrongOrphansInterval)
+			sut.StartUnorphanRecentWrongOrphans(unorphanRecentWrongOrphansInterval)
 
 			// then
 			sut.GracefulStop()

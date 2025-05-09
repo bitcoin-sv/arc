@@ -71,7 +71,6 @@ metamorph:
       - host: node2
         port:
           p2p: 18333
-          zmq: 28332
     mcast:
       tx:
         address: "[ff05::1]:9999"
@@ -112,11 +111,9 @@ blocktx:
       - host: node1
         port:
           p2p: 18333
-          zmq: 28332
       - host: node2
         port:
           p2p: 18333
-          zmq: 28332
     mcast:
       block:
         address: "[ff05::3]:9979"

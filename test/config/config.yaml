@@ -71,6 +71,10 @@ metamorph:
         port:
           p2p: 18333
           zmq: 28332
+      - host: node3
+        port:
+          p2p: 18333
+          zmq: 28332
 
 blocktx:
   listenAddr: 0.0.0.0:8011
@@ -108,6 +112,10 @@ blocktx:
           p2p: 18333
           zmq: 28332
       - host: node2
+        port:
+          p2p: 18333
+          zmq: 28332
+      - host: node3
         port:
           p2p: 18333
           zmq: 28332

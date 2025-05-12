@@ -142,7 +142,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	minedTxChannel <- minedMsg
 
 	// give metamorph time to parse mined msg
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	// verify that the 1st hash is mined
 	minedTxData, err := metamorphStore.Get(context.Background(), minedTxHash[:])

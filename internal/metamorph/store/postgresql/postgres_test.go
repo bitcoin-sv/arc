@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -482,7 +481,6 @@ func TestPostgresDB(t *testing.T) {
 		}
 		updatedStatuses := 5
 		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, true)
-		fmt.Println("shota ", err)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 
@@ -513,7 +511,7 @@ func TestPostgresDB(t *testing.T) {
 		res, err := postgresDB.Get(ctx, testutils.RevChainhash(t, "aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002")[:])
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, res.Status)
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, false)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 0)
 	})

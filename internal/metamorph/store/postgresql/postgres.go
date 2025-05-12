@@ -1021,8 +1021,10 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	if updateCompetingTxs {
+		fmt.Println("shota here")
 		compTxUpdates := make([]store.UpdateStatus, 0)
 		for _, cmptx := range allComletingTxs {
+			fmt.Println("shota here 1 ")
 			hash, err := hex.DecodeString(cmptx)
 			if err != nil {
 				return nil, err

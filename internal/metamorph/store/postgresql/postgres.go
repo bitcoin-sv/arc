@@ -1027,10 +1027,12 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			fmt.Println("shota here 1 ")
 			hash, err := hex.DecodeString(cmptx)
 			if err != nil {
+				fmt.Println(err)
 				return nil, err
 			}
 			txHash, err := chainhash.NewHash(hash)
 			if err != nil {
+				fmt.Println(err)
 				return nil, err
 			}
 			compTxUpdates = append(compTxUpdates, store.UpdateStatus{

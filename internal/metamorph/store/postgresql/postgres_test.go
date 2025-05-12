@@ -439,19 +439,19 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"5678"},
+				CompetingTxs: []string{"eee1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"9999", "8888"},
+				CompetingTxs: []string{"ddd1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c", "ccc1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"bbb1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Timestamp:    timestamp,
 			},
 			{
@@ -463,20 +463,20 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"bbb1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Error:        errors.New("double spend attempted"),
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"bbb1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"bbb1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"},
 				Timestamp:    timestamp,
 			},
 		}

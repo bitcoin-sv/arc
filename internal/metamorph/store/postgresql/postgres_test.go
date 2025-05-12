@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -438,7 +439,7 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"5555532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
+				CompetingTxs: []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
@@ -481,6 +482,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 		updatedStatuses := 5
 		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, true)
+		fmt.Println("shota ", err)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 
@@ -490,11 +492,11 @@ func TestPostgresDB(t *testing.T) {
 			{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp},
 			{Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 0, 0, time.UTC)},
 		}, statusUpdates[0].StatusHistory)
-		require.ElementsMatch(t, []string{"5555532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[0].CompetingTxs)
+		require.ElementsMatch(t, []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[0].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
 		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[1].StatusHistory)
-		require.ElementsMatch(t, []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "5555532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[1].CompetingTxs)
+		require.ElementsMatch(t, []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[1].CompetingTxs)
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)

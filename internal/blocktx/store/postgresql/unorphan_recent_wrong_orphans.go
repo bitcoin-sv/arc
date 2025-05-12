@@ -44,7 +44,14 @@ func (p *PostgreSQL) UnorphanRecentWrongOrphans(ctx context.Context) (unorphaned
 																  FROM recent_orphans as parent
 																		   JOIN blocktx.blocks as child ON child.prevhash = parent.hash
 																  WHERE child.processed_at IS NOT NULL
-																	AND child.status = $2)
+																	AND child.status = $2
+																    AND (SELECT COUNT(*) 
+																         FROM blocktx.blocks c
+																         WHERE c.prevhash = parent.hash
+																         AND c.processed_at IS NOT NULL
+																         AND c.status = $1
+																         ) = 0
+																  )
 								SELECT  r.hash
 								FROM recent_orphans r
 								WHERE status = $2

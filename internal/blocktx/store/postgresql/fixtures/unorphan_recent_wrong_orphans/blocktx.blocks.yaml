@@ -84,11 +84,23 @@
   status: 30 # ORPHANED
   chainwork: '123456'
   is_longest: false
-
+# 7 not to be unorphaned as has the same parent as 6 but less chainwork: 
+- inserted_at: 2023-12-15 14:50:00
+  id: 7
+  hash: 0x000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a86561bad
+  prevhash: 0x00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656
+  merkleroot: 0xc458aa382364e216c9c0533175ec8579a544c750ca181b18296e784d1dc53085
+  height: 822020
+  processed_at: 2023-12-15 14:10:00
+  size: 8630000
+  tx_count: 36724
+  status: 30 # ORPHANED
+  chainwork: '123455'
+  is_longest: false
 # GAP
 
 - inserted_at: 2023-12-15 14:50:00
-  id: 7
+  id: 8
   hash: 0x0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c
   prevhash: 0x0000000000000000094510c50011a891b74ef054d6cac0a5ae8bd60f02c85f1d
   merkleroot: 0xda71199f8ed9203d8a765595e6c030a22e5ed8330b1abb467a82c97d7d21d512
@@ -100,7 +112,7 @@
   chainwork: '123456'
   is_longest: false
 - inserted_at: 2023-12-15 14:50:00
-  id: 8
+  id: 9
   hash: 0x0000000000000000082131979a4e25a5101912a5f8461e18f306d23e158161cd
   prevhash: 0x0000000000000000059d6add76e3ddb8ec4f5ffd6efecd4c8b8c577bd32aed6c
   merkleroot: 0xda71199f8ed9203d8a765595e6c030a22e5ed8330b1abb467a82c97d7d21d512

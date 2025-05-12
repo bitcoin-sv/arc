@@ -15,9 +15,9 @@ import (
 const (
 	defaultMaximumMessageSize = 32 * 1024 * 1024
 	defaultReadBufferSize     = 4096
-
-	defaultPingInterval   = time.Minute
-	defaultHealthTreshold = 3 * time.Minute
+	connectionTimeoutDefault  = 30 * time.Second
+	defaultPingInterval       = time.Minute
+	defaultHealthTreshold     = 3 * time.Minute
 
 	commandKey = "cmd"
 	errKey     = "err"
@@ -39,12 +39,12 @@ type Peer struct {
 	servicesFlag     wire.ServiceFlag
 	userAgentName    *string
 	userAgentVersion *string
-	dial             func(network, address string) (net.Conn, error)
+	dialer           Dialer
 
-	lConn net.Conn
-
-	l  *slog.Logger
-	mh MessageHandlerI
+	connectionTimeout time.Duration
+	lConn             net.Conn
+	logger            *slog.Logger
+	mh                MessageHandlerI
 
 	writeCh      chan wire.Message
 	nWriters     uint8
@@ -57,16 +57,22 @@ type Peer struct {
 	isUnhealthyCh   chan struct{}
 }
 
+type Dialer interface {
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}
+
 func NewPeer(logger *slog.Logger, msgHandler MessageHandlerI, address string, network wire.BitcoinNet, options ...PeerOptions) *Peer {
 	p := &Peer{
-		dial: net.Dial,
-		l: logger.With(
+		dialer: &net.Dialer{},
+		logger: logger.With(
 			slog.Group("peer",
 				slog.String("network", network.String()),
 				slog.String("address", address),
 			),
 		),
 		mh: msgHandler,
+
+		connectionTimeout: connectionTimeoutDefault,
 
 		address:      address,
 		network:      network,
@@ -98,7 +104,7 @@ func (p *Peer) Connect() bool {
 	defer p.startMu.Unlock()
 
 	if p.connected.Load() {
-		p.l.Warn("Unexpected Connect() call. Peer is connected already.")
+		p.logger.Warn("Unexpected Connect() call. Peer is connected already.")
 		return true
 	}
 
@@ -113,7 +119,7 @@ func (p *Peer) Restart() bool {
 	p.startMu.Lock()
 	defer p.startMu.Unlock()
 
-	p.l.Info("Restarting")
+	p.logger.Info("Restarting")
 	if p.connected.Load() {
 		p.disconnect()
 	}
@@ -129,9 +135,9 @@ func (p *Peer) Shutdown() {
 		return
 	}
 
-	p.l.Info("Shutting down peer")
+	p.logger.Info("Shutting down peer")
 	p.disconnect()
-	p.l.Info("Shutdown peer complete")
+	p.logger.Info("Shutdown peer complete")
 }
 
 func (p *Peer) IsUnhealthyCh() <-chan struct{} {
@@ -150,19 +156,22 @@ func (p *Peer) String() string {
 }
 
 func (p *Peer) connect() bool {
-	p.l.Info("Connecting")
+	p.logger.Info("Connecting")
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	p.execCtx = ctx
-	p.cancelExecCtx = cancelFn
+	ctx := context.Background()
 
-	lc, err := p.dial("tcp", p.address)
+	ctxDial, cancelDialFn := context.WithTimeout(ctx, p.connectionTimeout)
+	defer cancelDialFn()
+
+	lc, err := p.dialer.DialContext(ctxDial, "tcp", p.address)
 	if err != nil {
-		p.l.Error("Failed to dial node",
-			slog.String("additional-info", err.Error()),
-		)
+		p.logger.Error("Failed to dial node", slog.String("err", err.Error()))
 		return false
 	}
+
+	execCtx, cancelFn := context.WithCancel(ctx)
+	p.execCtx = execCtx
+	p.cancelExecCtx = cancelFn
 
 	if ok := p.handshake(lc); !ok {
 		_ = lc.Close()
@@ -180,7 +189,7 @@ func (p *Peer) connect() bool {
 	p.healthMonitor()
 
 	p.connected.Store(true)
-	p.l.Info("Ready")
+	p.logger.Info("Ready")
 
 	return true
 }
@@ -200,7 +209,7 @@ func (p *Peer) handshake(c net.Conn) (ok bool) {
 
 	nonce, err := wire.RandomUint64()
 	if err != nil {
-		p.l.Warn("Handshake: failed to generate nonce, send VER with 0 nonce", slog.String(errKey, err.Error()))
+		p.logger.Warn("Handshake: failed to generate nonce, send VER with 0 nonce", slog.String(errKey, err.Error()))
 	}
 
 	const lastBlock = int32(0)
@@ -209,14 +218,14 @@ func (p *Peer) handshake(c net.Conn) (ok bool) {
 	if p.userAgentName != nil && p.userAgentVersion != nil {
 		err = verMsg.AddUserAgent(*p.userAgentName, *p.userAgentVersion)
 		if err != nil {
-			p.l.Warn("Handshake: failed to add user agent, send VER without user agent", slog.String(errKey, err.Error()))
+			p.logger.Warn("Handshake: failed to add user agent, send VER without user agent", slog.String(errKey, err.Error()))
 		}
 	}
 
 	err = wire.WriteMessage(c, verMsg, wire.ProtocolVersion, p.network)
 	const handshakeFailed = "Handshake failed"
 	if err != nil {
-		p.l.Error(handshakeFailed,
+		p.logger.Error(handshakeFailed,
 			slog.String("reason", "failed to write VER message"),
 			slog.String(errKey, err.Error()),
 		)
@@ -224,7 +233,7 @@ func (p *Peer) handshake(c net.Conn) (ok bool) {
 		return false
 	}
 
-	p.l.Debug("Sent", slogUpperString(commandKey, verMsg.Command()))
+	p.logger.Debug("Sent", slogUpperString(commandKey, verMsg.Command()))
 
 	// wait for ACK, and VER from node send VERACK
 	handshakeReadCtx, handshakeDoneFn := context.WithCancel(p.execCtx)
@@ -260,12 +269,12 @@ handshakeLoop:
 			return false
 
 		case <-time.After(1 * time.Minute):
-			p.l.Error(handshakeFailed, slog.String("reason", "handshake timeout"))
+			p.logger.Error(handshakeFailed, slog.String("reason", "handshake timeout"))
 			return false
 
 		case result := <-read:
 			if result.err != nil {
-				p.l.Error(handshakeFailed, slog.String(errKey, result.err.Error()))
+				p.logger.Error(handshakeFailed, slog.String(errKey, result.err.Error()))
 				return false
 			}
 
@@ -273,7 +282,7 @@ handshakeLoop:
 
 			switch nmsg.Command() {
 			case wire.CmdVerAck:
-				p.l.Debug("Handshake: received VERACK")
+				p.logger.Debug("Handshake: received VERACK")
 				receivedVerAck = true
 
 				if sentVerAck {
@@ -281,9 +290,9 @@ handshakeLoop:
 				}
 
 			case wire.CmdVersion:
-				p.l.Debug("Handshake: received VER")
+				p.logger.Debug("Handshake: received VER")
 				if sentVerAck {
-					p.l.Warn("Handshake: received version message after sending verack.")
+					p.logger.Warn("Handshake: received version message after sending verack.")
 					continue
 				}
 
@@ -291,14 +300,14 @@ handshakeLoop:
 				ackMsg := wire.NewMsgVerAck()
 				err = wire.WriteMessage(c, ackMsg, wire.ProtocolVersion, p.network)
 				if err != nil {
-					p.l.Error(handshakeFailed,
+					p.logger.Error(handshakeFailed,
 						slog.String("reason", "failed to write VERACK message"),
 						slog.String(errKey, err.Error()),
 					)
 					return false
 				}
 
-				p.l.Debug("Handshake: sent VERACK")
+				p.logger.Debug("Handshake: sent VERACK")
 				sentVerAck = true
 
 				if receivedVerAck {
@@ -306,7 +315,7 @@ handshakeLoop:
 				}
 
 			default:
-				p.l.Warn("Handshake: received unexpected message. Message was ignored", slogUpperString(commandKey, nmsg.Command()))
+				p.logger.Warn("Handshake: received unexpected message. Message was ignored", slogUpperString(commandKey, nmsg.Command()))
 			}
 		}
 	}
@@ -319,8 +328,8 @@ func (p *Peer) keepAlive() {
 	p.execWg.Add(1)
 
 	go func() {
-		p.l.Debug("Start keep-alive")
-		defer p.l.Debug("Stop keep-alive")
+		p.logger.Debug("Start keep-alive")
+		defer p.logger.Debug("Stop keep-alive")
 		defer p.execWg.Done()
 
 		t := time.NewTicker(p.pingInterval)
@@ -333,7 +342,7 @@ func (p *Peer) keepAlive() {
 			case <-t.C:
 				nonce, err := wire.RandomUint64()
 				if err != nil {
-					p.l.Error("KeepAlive: failed to generate nonce for PING message", slog.String(errKey, err.Error()))
+					p.logger.Error("KeepAlive: failed to generate nonce for PING message", slog.String(errKey, err.Error()))
 					continue
 				}
 
@@ -347,8 +356,8 @@ func (p *Peer) healthMonitor() {
 	p.execWg.Add(1)
 
 	go func() {
-		p.l.Debug("Start health monitor")
-		defer p.l.Debug("Stop health monitor")
+		p.logger.Debug("Start health monitor")
+		defer p.logger.Debug("Stop health monitor")
 		defer p.execWg.Done()
 
 		// if no ping/pong signal is received for certain amount of time, mark peer as unhealthy and disconnect
@@ -363,11 +372,11 @@ func (p *Peer) healthMonitor() {
 			case <-p.aliveCh:
 				// ping-pong received so reset ticker
 				t.Reset(p.healthThreshold)
-				p.l.Log(context.Background(), slogLvlTrace, "Connection is healthy - reset ticker", slog.Duration("interval", p.healthThreshold))
+				p.logger.Log(context.Background(), slogLvlTrace, "Connection is healthy - reset ticker", slog.Duration("interval", p.healthThreshold))
 
 			case <-t.C:
 				// no ping or pong for too long
-				p.l.Warn("Peer unhealthy - disconnecting")
+				p.logger.Warn("Peer unhealthy - disconnecting")
 				p.unhealthyDisconnect()
 				return
 			}
@@ -376,7 +385,7 @@ func (p *Peer) healthMonitor() {
 }
 
 func (p *Peer) disconnect() {
-	p.l.Info("Disconnecting")
+	p.logger.Info("Disconnecting")
 
 	p.cancelExecCtx()
 	p.execWg.Wait()
@@ -387,7 +396,7 @@ func (p *Peer) disconnect() {
 	p.cancelExecCtx = nil
 
 	p.connected.Store(false)
-	p.l.Info("Disconnected")
+	p.logger.Info("Disconnected")
 }
 
 func (p *Peer) unhealthyDisconnect() {
@@ -406,7 +415,7 @@ func (p *Peer) listenForMessages() {
 	p.execWg.Add(1)
 
 	go func() {
-		l := p.l
+		l := p.logger
 		l.Debug("Starting read handler")
 		defer l.Debug("Shutting down read handler")
 		defer p.execWg.Done()
@@ -443,7 +452,7 @@ func (p *Peer) listenForMessages() {
 			case wire.CmdPing:
 				ping, ok := msg.(*wire.MsgPing)
 				if !ok {
-					p.l.Warn("Received invalid PING")
+					p.logger.Warn("Received invalid PING")
 					continue
 				}
 
@@ -465,7 +474,7 @@ func (p *Peer) sendMessages(n uint8) {
 	p.execWg.Add(1)
 
 	go func() {
-		l := p.l.With(slog.Int("instance", int(n)))
+		l := p.logger.With(slog.Int("instance", int(n)))
 
 		l.Debug("Starting write handler")
 		defer l.Debug("Shutting down write handler")

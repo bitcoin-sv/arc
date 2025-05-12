@@ -1,6 +1,7 @@
 package p2p_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -36,14 +37,18 @@ func Test_Connect(t *testing.T) {
 		toPeerConn, fromPeerConn := connutil.AsyncPipe()
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 
+		dialer := &mocks.DialerMock{
+			DialContextFunc: func(_ context.Context, _ string, _ string) (net.Conn, error) {
+				return toPeerConn, nil
+			},
+		}
+
 		sut := p2p.NewPeer(
 			slog.Default(),
 			mhMq,
 			peerAddr,
 			bitcoinNet,
-			p2p.WithDialer(func(_, _ string) (net.Conn, error) {
-				return toPeerConn, nil
-			}),
+			p2p.WithDialer(dialer),
 		)
 
 		// when
@@ -360,15 +365,19 @@ func peerWithConn(t *testing.T, msgHandler p2p.MessageHandlerI, opts ...p2p.Peer
 
 	toPeerConn, fromPeerConn = connutil.AsyncPipe()
 
+	dialer := &mocks.DialerMock{
+		DialContextFunc: func(_ context.Context, _ string, _ string) (net.Conn, error) {
+			return toPeerConn, nil
+		},
+	}
+
 	peer = p2p.NewPeer(
 		slog.Default(),
 		msgHandler,
 		peerAddr,
 		bitcoinNet,
 		append(opts,
-			p2p.WithDialer(func(_, _ string) (net.Conn, error) {
-				return toPeerConn, nil
-			}),
+			p2p.WithDialer(dialer),
 		)...,
 	)
 

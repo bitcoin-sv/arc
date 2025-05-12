@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"net"
 	"time"
 
 	"github.com/libsv/go-p2p/wire"
@@ -53,8 +52,14 @@ func WithServiceFlag(flag wire.ServiceFlag) PeerOptions {
 	}
 }
 
-func WithDialer(dial func(network, address string) (net.Conn, error)) PeerOptions {
+func WithDialer(dial Dialer) PeerOptions {
 	return func(p *Peer) {
-		p.dial = dial
+		p.dialer = dial
+	}
+}
+
+func WithConnectionTimeout(d time.Duration) PeerOptions {
+	return func(p *Peer) {
+		p.connectionTimeout = d
 	}
 }

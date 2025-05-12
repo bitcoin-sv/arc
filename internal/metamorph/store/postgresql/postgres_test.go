@@ -731,7 +731,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, true)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, false)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 

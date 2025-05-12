@@ -1036,7 +1036,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 				Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			})
 		}
-
+		fmt.Println("shota ", compTxUpdates)
 		_, err = p.UpdateDoubleSpend(ctx, compTxUpdates, false)
 		if err != nil {
 			return nil, err

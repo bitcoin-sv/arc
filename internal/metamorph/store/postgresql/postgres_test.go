@@ -482,7 +482,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 		updatedStatuses := 5
 		fmt.Println("shota 1")
-		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, false)
+		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 

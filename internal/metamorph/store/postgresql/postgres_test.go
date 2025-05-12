@@ -517,7 +517,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, res.Status)
 
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, true)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, false)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 0)
 	})

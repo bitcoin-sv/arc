@@ -29,6 +29,7 @@ import (
 const (
 	maximumBlockSize      = 4294967296 // 4Gb
 	blockProcessingBuffer = 100
+	p2pConnectionTimeout  = 30 * time.Second
 )
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -310,7 +311,10 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 	}
 
 	if version.Version != "" {
-		opts = append(opts, p2p.WithUserAgent("ARC", version.Version))
+		opts = append(opts,
+			p2p.WithUserAgent("ARC", version.Version),
+			p2p.WithConnectionTimeout(p2pConnectionTimeout),
+		)
 	}
 
 	opts = append(opts, additionalOpts...)

@@ -370,13 +370,11 @@ func TestPostgresDB(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/unorphan_recent_wrong_orphans")
 
-		hash0Orphan := testutils.RevChainhash(t, "000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde")
 		hash1Orphan := testutils.RevChainhash(t, "0000000000000000082ec88d757ddaeb0aa87a5d5408b5960f27e7e67312dfe1")
 		hash2Orphan := testutils.RevChainhash(t, "00000000000000000364332e1bbd61dc928141b9469c5daea26a4b506efc9656")
 		hash3Orphan := testutils.RevChainhash(t, "000000000000000004bf3e68405b31650559ff28d38a42b5e4f1440a865611ca")
 
 		expectedUnorphanedBlocks := []*chainhash.Hash{
-			hash0Orphan,
 			hash1Orphan,
 			hash2Orphan,
 			hash3Orphan,

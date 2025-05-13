@@ -1048,10 +1048,10 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-
-		chainHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
-		chainHash2 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
-		chainHash3 := testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		chainHash1 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+		chainHash2 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+		chainHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
 		hashes := []*chainhash.Hash{chainHash1, chainHash2, chainHash3}
 
 		err := postgresDB.SetRequested(ctx, hashes)
@@ -1061,7 +1061,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("mark confirmed requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/mark_confirmed_requested")
-		chainHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
+		chainHash1 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
 
 		err := postgresDB.MarkConfirmedRequested(ctx, chainHash1)
 		require.NoError(t, err)
@@ -1071,67 +1071,28 @@ func TestPostgresDB(t *testing.T) {
 
 		var requestedAt time.Time
 		expectedRequestedAt := now
-		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM metamorph.requested_transactions WHERE hash = $1", chainHash1[:]))
+		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
 
 		require.True(t, expectedRequestedAt.Equal(requestedAt))
 	})
 
-	t.Run("delete confirmed requested", func(t *testing.T) {
+	t.Run("get unconfirmed requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_confirmed_requested")
-		rows, err := postgresDB.DeleteConfirmedRequested(ctx)
-		require.NoError(t, err)
-
-		require.Equal(t, int64(2), rows)
-
-		d, err := sqlx.Open("postgres", dbInfo)
-		require.NoError(t, err)
-		var result [][]byte
-		require.NoError(t, d.Select(&result, "SELECT hash FROM metamorph.requested_transactions"))
-
-		require.Len(t, result, 2)
-
-		hashes := make([]string, len(result))
-		for i, record := range result {
-			hashes[i] = hex.EncodeToString(record)
-		}
-
-		require.Contains(t, hashes, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
-		require.Contains(t, hashes, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
-	})
-
-	t.Run("get and delete unconfirmed requested", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete_unconfirmed_requested")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unconfirmed_requested")
 
 		postgresDB.now = func() time.Time {
 			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
 		}
 		fromAgo := 10 * time.Minute
 
-		rows, err := postgresDB.GetAndDeleteUnconfirmedRequested(ctx, fromAgo, 5, 0)
+		rows, err := postgresDB.GetUnconfirmedRequested(ctx, fromAgo, 5, 0)
 		require.NoError(t, err)
 
-		chainHash1 := testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853")
-		chainHash2 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
-		chainHash3 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
-		expectedRows := []*chainhash.Hash{chainHash1, chainHash2, chainHash3}
+		chainHash1 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
+		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+		expectedRows := []*chainhash.Hash{chainHash1, chainHash2}
 
 		require.ElementsMatch(t, expectedRows, rows)
-
-		d, err := sqlx.Open("postgres", dbInfo)
-		require.NoError(t, err)
-		var result [][]byte
-		require.NoError(t, d.Select(&result, "SELECT hash FROM metamorph.requested_transactions"))
-
-		require.Len(t, result, 1)
-
-		hashes := make([]string, len(result))
-		for i, record := range result {
-			hashes[i] = hex.EncodeToString(record)
-		}
-
-		require.Contains(t, hashes, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430")
 
 		postgresDB.now = func() time.Time { return now }
 	})

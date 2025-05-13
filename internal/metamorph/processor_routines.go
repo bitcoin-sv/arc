@@ -78,19 +78,8 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var txHashes []*chainhash.Hash
 	var err error
 
-	// first delete all requested transactions which have transitioned to another status
-	rows, err := p.store.DeleteConfirmedRequested(ctx)
-	if err != nil {
-		p.logger.Error("Failed to delete confirmed seen", slog.String("err", err.Error()))
-		return nil
-	}
-
-	if rows > 0 {
-		p.logger.Info("Deleted confirmed requested", slog.Int64("count", rows))
-	}
-
 	for {
-		txHashes, err = p.store.GetAndDeleteUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
+		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
@@ -104,7 +93,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		}
 
 		for _, txHash := range txHashes {
-			p.logger.Debug("Re-announcing seen tx", slog.String("hash", txHash.String()))
+			p.logger.Debug("Rejecting unconfirmed tx", slog.String("hash", txHash.String()))
 
 			// Todo: uncomment after testing
 			//p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{

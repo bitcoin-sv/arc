@@ -556,7 +556,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-// GetSeenPending returns all transactions which are pending in SEEN_ON_NETWORK status for longer than 10min
+// GetSeenPending returns all transactions which are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
 func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -564,24 +564,7 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Durat
 	}()
 
 	q := `
-	SELECT
-		seen_txs.stored_at,
-		seen_txs.hash,
-		seen_txs.status,
-		seen_txs.block_height,
-		seen_txs.block_hash,
-		seen_txs.callbacks,
-		seen_txs.full_status_updates,
-		seen_txs.reject_reason,
-		seen_txs.competing_txs,
-		seen_txs.raw_tx,
-		seen_txs.locked_by,
-		seen_txs.merkle_path,
-		seen_txs.retries,
-		seen_txs.status_history,
-		seen_txs.last_modified
-	FROM
-	(SELECT
+	WITH seen_txs AS (SELECT
 		TO_TIMESTAMP(substring(elem->>'timestamp' from 1 for 22), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')::TIMESTAMP WITHOUT TIME ZONE AS seen_at,
 		t.stored_at AT TIME ZONE 'UTC' AS stored_at_utc,
 		t.stored_at,
@@ -599,18 +582,39 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Durat
 		t.retries,
 		t.status_history,
 		t.last_modified,
-		t.last_submitted_at
+		t.last_submitted_at,
+	 	t.requested_at,
+	 	t.confirmed_at
 	FROM
-		metamorph.transactions t, LATERAL jsonb_array_elements(status_history) AS elem
+		metamorph.transactions t,
+	    LATERAL jsonb_array_elements(status_history) AS elem
 	WHERE
 	(elem->>'status')::int = $1
-	AND t.status = $1) AS seen_txs
-	LEFT JOIN metamorph.requested_transactions us ON us.hash = seen_txs.hash
+	AND t.status = $1
+	)
+	SELECT
+		seen_txs.stored_at,
+		seen_txs.hash,
+		seen_txs.status,
+		seen_txs.block_height,
+		seen_txs.block_hash,
+		seen_txs.callbacks,
+		seen_txs.full_status_updates,
+		seen_txs.reject_reason,
+		seen_txs.competing_txs,
+		seen_txs.raw_tx,
+		seen_txs.locked_by,
+		seen_txs.merkle_path,
+		seen_txs.retries,
+		seen_txs.status_history,
+		seen_txs.last_modified
+	FROM seen_txs
 	WHERE seen_txs.last_submitted_at > $2
 	AND $8 - seen_txs.seen_at > $3 * INTERVAL '1 SEC'
-	AND us IS NULL OR (us.requested_at < $4 AND COALESCE(us.confirmed_at, '1900-01-01') < $4)
+	AND COALESCE(seen_txs.requested_at, '1900-01-01') < $4 AND COALESCE(seen_txs.confirmed_at, '1900-01-01') < $4
 	AND seen_txs.locked_by = $5
-	LIMIT $6 OFFSET $7;
+	LIMIT $6 OFFSET $7
+	;
 	`
 
 	getSeenFromAgo := p.now().Add(-1 * fromDuration)
@@ -1406,9 +1410,15 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 }
 
 func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash) error {
-	q := `INSERT INTO metamorph.requested_transactions (hash)
-		SELECT UNNEST($1::BYTEA[])
-		ON CONFLICT (hash) DO UPDATE SET requested_at = $2`
+	q := `
+		UPDATE metamorph.transactions SET requested_at = $2
+		FROM
+		(
+		SELECT t.hash
+		FROM UNNEST($1::BYTEA[]) AS t(hash)
+		) AS bulk_query
+		WHERE metamorph.transactions.hash = bulk_query.hash
+		`
 
 	hashArray := make([][]byte, len(hashes))
 	for i, hash := range hashes {
@@ -1425,7 +1435,7 @@ func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash)
 
 // MarkConfirmedRequested updates the confirmed_at date to timestamp now
 func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error {
-	q := `UPDATE metamorph.requested_transactions SET confirmed_at = $1 WHERE hash = $2`
+	q := `UPDATE metamorph.transactions SET confirmed_at = $1 WHERE hash = $2`
 
 	_, err := p.db.ExecContext(ctx, q, p.now(), hash[:])
 	if err != nil {
@@ -1435,23 +1445,15 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetAndDeleteUnconfirmedRequested gets and deletes all entries in table requested_transactions which have either never been confirmed or were last confirmation was more than 'fromAgo' time ago
-func (p *PostgreSQL) GetAndDeleteUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or were last confirmation was more than 'fromAgo' time ago
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
-	DELETE FROM metamorph.requested_transactions
-	WHERE hash IN (
-		SELECT hash FROM metamorph.requested_transactions
-		WHERE confirmed_at IS NULL OR confirmed_at < $1 -- either no confirmation or the last confirmation was more than 'fromAgo' time ago
-		LIMIT $2 OFFSET $3
-		FOR UPDATE
-	)
-	RETURNING
-		hash
-		`
-
+	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $4
+	LIMIT $2 OFFSET $3
+	`
 	since := p.now().Add(-fromAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, since, limit, offset)
+	rows, err := p.db.QueryContext(ctx, q, since, limit, offset, metamorph_api.Status_SEEN_ON_NETWORK)
 	if err != nil {
 		return nil, err
 	}
@@ -1479,28 +1481,4 @@ func (p *PostgreSQL) GetAndDeleteUnconfirmedRequested(ctx context.Context, fromA
 	}
 
 	return hashes, nil
-}
-
-// DeleteConfirmedRequested deletes all hashes from requested_transactions table where the status has changed
-func (p *PostgreSQL) DeleteConfirmedRequested(ctx context.Context) (rowsAffected int64, err error) {
-	q := `
-	DELETE FROM metamorph.requested_transactions dus
-	WHERE dus.hash IN (
-		SELECT t.hash FROM metamorph.requested_transactions us
-		JOIN metamorph.transactions t ON t.hash = us.hash
-		WHERE t.status != $1
-	)
-	`
-
-	res, err := p.db.ExecContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK)
-	if err != nil {
-		return 0, err
-	}
-
-	rowsAffected, err = res.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
-	return rowsAffected, nil
 }

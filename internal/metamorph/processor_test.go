@@ -1236,32 +1236,21 @@ func TestRegisterSeen(t *testing.T) {
 
 func TestRejectUnconfirmedRequested(t *testing.T) {
 	tt := []struct {
-		name                        string
-		deleteConfirmedRequestedErr error
-		getAndDeleteUnconfirmedErr  error
+		name                       string
+		getAndDeleteUnconfirmedErr error
 
-		expectedDeleteConfirmedCalls int
-		expectedGetAndDeleteCalls    int
+		expectedGetUnconfirmedCalls int
 	}{
 		{
 			name: "success",
 
-			expectedDeleteConfirmedCalls: 1,
-			expectedGetAndDeleteCalls:    4,
-		},
-		{
-			name:                        "error - failed to delete confirmed requested",
-			deleteConfirmedRequestedErr: errors.New("failed to delete confirmed requested"),
-
-			expectedDeleteConfirmedCalls: 1,
-			expectedGetAndDeleteCalls:    0,
+			expectedGetUnconfirmedCalls: 4,
 		},
 		{
 			name:                       "error - failed to get and delete unconfirmed requested",
 			getAndDeleteUnconfirmedErr: errors.New("failed to get and delete unconfirmed requested"),
 
-			expectedDeleteConfirmedCalls: 1,
-			expectedGetAndDeleteCalls:    1,
+			expectedGetUnconfirmedCalls: 1,
 		},
 	}
 
@@ -1270,8 +1259,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			iteration := 0
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				DeleteConfirmedRequestedFunc: func(_ context.Context) (int64, error) { return 5, tc.deleteConfirmedRequestedErr },
-				GetAndDeleteUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
+				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
 					if iteration >= 3 {
 						return nil, nil
 					}
@@ -1300,8 +1288,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			metamorph.RejectUnconfirmedRequested(context.TODO(), sut)
 
 			// then
-			assert.Equal(t, tc.expectedDeleteConfirmedCalls, len(metamorphStore.DeleteConfirmedRequestedCalls()))
-			assert.Equal(t, tc.expectedGetAndDeleteCalls, len(metamorphStore.GetAndDeleteUnconfirmedRequestedCalls()))
+			assert.Equal(t, tc.expectedGetUnconfirmedCalls, len(metamorphStore.GetUnconfirmedRequestedCalls()))
 		})
 	}
 }

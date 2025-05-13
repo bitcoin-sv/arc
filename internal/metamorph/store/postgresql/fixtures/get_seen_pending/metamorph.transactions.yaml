@@ -21,6 +21,7 @@
       timestamp: 2025-05-08T10:53:34.260275433Z
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:52:00.000 +0200
 
 # existing in requested_transactions, just confirmed => don't return
 - hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
@@ -33,6 +34,8 @@
       timestamp: 2025-05-08T10:53:34.260275433Z
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:52:00.000 +0200
+  confirmed_at: 2025-05-08 13:10:34.260 +0200
 
 # existing in requested_transactions, requested long ago => return
 - hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
@@ -45,6 +48,7 @@
       timestamp: 2025-05-08T10:53:34.260275433Z
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:10:00.000 +0200
 
 # not existing in requested_transactions, pending less than 5min => don't return
 - hash: 0x62b59fcc3084b178989898807bc54ee8a8be0e53e2c1dbb78928ccba20154598
@@ -69,3 +73,5 @@
       timestamp: 2025-05-08T10:53:34.260275433Z
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:10:00.000 +0200
+  confirmed_at: 2025-05-08 12:12:34.260 +0200

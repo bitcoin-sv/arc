@@ -118,33 +118,36 @@ func (b *UTXORateBroadcaster) Start() error {
 			b.logger.Info("shutting down broadcaster")
 			b.wg.Done()
 		}()
-
-		for {
-			select {
-			case <-b.ctx.Done():
-				return
-			case <-tickerCh:
-				txs, err := b.createSelfPayingTxs()
-				if err != nil {
-					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
-					b.shutdown <- struct{}{}
-					continue
-				}
-
-				if b.limit > 0 && atomic.LoadInt64(&b.totalTxs) >= b.limit {
-					b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
-					b.shutdown <- struct{}{}
-				}
-
-				b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
-
-			case responseErr := <-errCh:
-				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
-			}
-		}
+		checkTicker(b, tickerCh, errCh)
 	}()
 
 	return nil
+}
+
+func checkTicker(b *UTXORateBroadcaster, tickerCh <-chan time.Time, errCh chan error) {
+	for {
+		select {
+		case <-b.ctx.Done():
+			return
+		case <-tickerCh:
+			txs, err := b.createSelfPayingTxs()
+			if err != nil {
+				b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
+				b.shutdown <- struct{}{}
+				continue
+			}
+
+			if b.limit > 0 && atomic.LoadInt64(&b.totalTxs) >= b.limit {
+				b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
+				b.shutdown <- struct{}{}
+			}
+
+			b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
+
+		case responseErr := <-errCh:
+			b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+		}
+	}
 }
 
 func (b *UTXORateBroadcaster) createSelfPayingTxs() (sdkTx.Transactions, error) {
@@ -172,53 +175,9 @@ utxoLoop:
 			}
 
 			if b.sizeJitterMax > 0 {
-				// Add additional inputs to the transaction
-				randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
+				err = addAdditionalInputs(b, &tx, &amount)
 				if err != nil {
-					return nil, fmt.Errorf("failed to generate random number: %v", err)
-				}
-				numOfInputs := randInt.Int64()
-
-				for i := int64(0); i < numOfInputs; i++ {
-					additionalUtxo, ok := <-b.utxoCh
-					if !ok {
-						return nil, ErrNotEnoughUTXOsForBatch
-					}
-
-					err = tx.AddInputsFromUTXOs(additionalUtxo)
-					if err != nil {
-						return nil, errors.Join(ErrFailedToAddInput, err)
-					}
-
-					amount += additionalUtxo.Satoshis
-				}
-
-				// Add additional OP_RETURN with random data to the transaction
-
-				randJitter, err := cRand.Int(cRand.Reader, big.NewInt(b.sizeJitterMax))
-				if err != nil {
-					return nil, fmt.Errorf("failed to generate random number: %v", err)
-				}
-				dataSize := randJitter.Int64()
-
-				if err != nil {
-					return nil, fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
-				}
-
-				randomBytes := make([]byte, dataSize)
-				_, err = cRand.Read(randomBytes)
-				if err != nil {
-					return nil, fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
-				}
-
-				testHeader := []byte(" sizeJitter random bytes - ")
-				if b.opReturn != "" {
-					testHeader = append([]byte(b.opReturn), testHeader...)
-				}
-
-				err = tx.AddOpReturnOutput(append(testHeader, randomBytes...))
-				if err != nil {
-					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+					return nil, err
 				}
 			}
 
@@ -261,6 +220,58 @@ utxoLoop:
 	}
 
 	return txs, nil
+}
+
+func addAdditionalInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount *uint64) error {
+	// Add additional inputs to the transaction
+	randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
+	if err != nil {
+		return fmt.Errorf("failed to generate random number: %v", err)
+	}
+	numOfInputs := randInt.Int64()
+
+	for i := int64(0); i < numOfInputs; i++ {
+		additionalUtxo, ok := <-b.utxoCh
+		if !ok {
+			return ErrNotEnoughUTXOsForBatch
+		}
+
+		err = (*tx).AddInputsFromUTXOs(additionalUtxo)
+		if err != nil {
+			return errors.Join(ErrFailedToAddInput, err)
+		}
+
+		*amount += additionalUtxo.Satoshis
+	}
+
+	// Add additional OP_RETURN with random data to the transaction
+
+	randJitter, err := cRand.Int(cRand.Reader, big.NewInt(b.sizeJitterMax))
+	if err != nil {
+		return fmt.Errorf("failed to generate random number: %v", err)
+	}
+	dataSize := randJitter.Int64()
+
+	if err != nil {
+		return fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
+	}
+
+	randomBytes := make([]byte, dataSize)
+	_, err = cRand.Read(randomBytes)
+	if err != nil {
+		return fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
+	}
+
+	testHeader := []byte(" sizeJitter random bytes - ")
+	if b.opReturn != "" {
+		testHeader = append([]byte(b.opReturn), testHeader...)
+	}
+
+	err = (*tx).AddOpReturnOutput(append(testHeader, randomBytes...))
+	if err != nil {
+		return fmt.Errorf("failed to add OP_RETURN output: %v", err)
+	}
+	return nil
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {

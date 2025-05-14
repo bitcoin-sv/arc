@@ -945,6 +945,13 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	// given
 	metamorphStore := &storeMocks.MetamorphStoreMock{
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+		UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+			return nil, nil
+		},
+		UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
+			fmt.Println("shota 33")
+			return nil, nil
+		},
 	}
 	pm := &bcnet.Mediator{}
 	callbackSender := &mocks.CallbackSenderMock{

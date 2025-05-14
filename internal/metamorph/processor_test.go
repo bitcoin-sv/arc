@@ -939,6 +939,53 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 }
 
+func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
+	// given
+	metamorphStore := &storeMocks.MetamorphStoreMock{}
+	pm := &bcnet.Mediator{}
+	callbackSender := &mocks.CallbackSenderMock{
+		SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
+	}
+
+	mqClient := &mqMocks.MessageQueueClientMock{
+		PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+			return nil
+		},
+	}
+
+	cStore := &cacheMocks.StoreMock{
+		DelFunc: func(_ ...string) error {
+			return nil
+		},
+	}
+	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)
+	sut, err := metamorph.NewProcessor(
+		metamorphStore,
+		cStore,
+		pm,
+		statusMessageChannel,
+		metamorph.WithCallbackSender(callbackSender),
+		metamorph.WithMessageQueueClient(mqClient),
+	)
+	require.NoError(t, err)
+
+	statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
+		Hash:         testdata.TX1Hash,
+		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		Err:          nil,
+		CompetingTxs: []string{testdata.TX2Hash.String()},
+	}
+
+	// when
+	sut.StartProcessMinedCallbacks()
+
+	time.Sleep(50 * time.Millisecond)
+	sut.Shutdown()
+
+	// then
+	require.Equal(t, 1, len(mqClient.PublishMarshalCalls()))
+}
+
 func TestReAnnounceSeen(t *testing.T) {
 	tt := []struct {
 		name        string

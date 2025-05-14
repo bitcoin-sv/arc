@@ -71,7 +71,7 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("shotuna 6")
+	fmt.Println("shotuna 6 ")
 	return nil
 }
 

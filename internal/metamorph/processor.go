@@ -580,6 +580,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	var updatedData []*store.Data
 	fmt.Println("shotaeee 4")
 	if len(statusUpdates) > 0 {
+		fmt.Println("shotaeee 42")
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
 		if err != nil {
 			return err
@@ -587,6 +588,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}
 	fmt.Println("shotaeee 5")
 	if len(doubleSpendUpdates) > 0 {
+		fmt.Println("shotaeee 55")
 		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates, true)
 		if err != nil {
 			return err

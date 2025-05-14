@@ -987,7 +987,12 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return 1, nil
 		},
 		MapExtractAllFunc: func(_ string) (map[string][]byte, error) {
-			return map[string][]byte{testdata.TX2Hash.String(): testdata.TX2Hash.CloneBytes()}, nil
+			j, _ := json.Marshal(store.UpdateStatus{
+				CompetingTxs: []string{testdata.TX2Hash.String()},
+				Hash:         chainhash.Hash(testdata.TX1Hash.CloneBytes()),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+			return map[string][]byte{testdata.TX2Hash.String(): j}, nil
 		},
 	}
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)

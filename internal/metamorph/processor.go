@@ -447,6 +447,7 @@ func (p *Processor) StartSendStatusUpdate() {
 
 				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
 
+				fmt.Println("shota 2")
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -479,6 +480,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
+				fmt.Println("shota 1")
 				// Ensure no duplicate statuses
 				err := p.updateStatusMap(statusUpdate)
 				if err != nil {

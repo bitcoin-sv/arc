@@ -433,7 +433,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				if msg.ReceivedRawTx {
 					err := p.store.MarkConfirmedRequested(p.ctx, msg.Hash)
 					if err != nil {
-						p.logger.Error("failed to delete confirmed seen", slog.String("err", err.Error()))
+						p.logger.Error("Failed to mark confirmed requested", slog.String("err", err.Error()))
 					}
 				}
 

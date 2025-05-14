@@ -429,7 +429,6 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
-				fmt.Println("shota 3")
 				// if we receive new update check if we have client connection waiting for status and send it
 				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 					Hash:         msg.Hash,
@@ -438,21 +437,16 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 				})
 
-				fmt.Println("shota 5")
 				if !found {
-					fmt.Println("shota 4")
 					found = p.txFoundInCache(msg.Hash)
 				}
 
-				fmt.Println("shota 6")
 				if !found {
-					fmt.Println("shota 7")
 					continue
 				}
 
 				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
 
-				fmt.Println("shota 2")
 				// update status of transaction in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
@@ -461,7 +455,6 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 					Timestamp:    msg.Start,
 				}
-				fmt.Println("shota 8")
 
 				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
 				if msg.Status == metamorph_api.Status_REJECTED {
@@ -486,20 +479,17 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
-				fmt.Println("shota 132")
 				// Ensure no duplicate statuses
 				err := p.updateStatusMap(statusUpdate)
 				if err != nil {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
 					return
 				}
-				fmt.Println("shota 10")
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
 					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
-				fmt.Println("shota 11")
 				if statusUpdateCount >= p.statusUpdatesBatchSize {
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
@@ -511,16 +501,13 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					ticker.Reset(p.statusUpdatesInterval)
 				}
 			case <-ticker.C:
-				fmt.Println("shota 12")
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
 					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
 
-				fmt.Println("shota 13")
 				if statusUpdateCount > 0 {
-					fmt.Println("shota 14")
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
 						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
@@ -536,22 +523,18 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context) error {
-	fmt.Println("shota 9")
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-	fmt.Println("shotaeee 1")
 	statusUpdatesMap, err := p.getAndDeleteAllTransactionStatuses()
 	if err != nil {
 		return err
 	}
-	fmt.Println("shotaeee 2")
 	if len(statusUpdatesMap) == 0 {
 		return nil
 	}
-	fmt.Println("shotaeee 3")
 	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
 	doubleSpendUpdates := make([]store.UpdateStatus, 0)
 
@@ -578,17 +561,13 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}()
 
 	var updatedData []*store.Data
-	fmt.Println("shotaeee 4")
 	if len(statusUpdates) > 0 {
-		fmt.Println("shotaeee 42")
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
 		if err != nil {
 			return err
 		}
 	}
-	fmt.Println("shotaeee 5")
 	if len(doubleSpendUpdates) > 0 {
-		fmt.Println("shotaeee 55")
 		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates, true)
 		if err != nil {
 			return err
@@ -601,18 +580,14 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
-	fmt.Println("shotaeee 6", updatedData)
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
 		sendCallback := data.Status >= metamorph_api.Status_REJECTED
-		fmt.Println("shotaeee 7")
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 		}
-		fmt.Println("shotaeee 8", sendCallback)
 		if sendCallback && len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
-			fmt.Println("shotaeee 9", requests)
 			for _, request := range requests {
 				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
 				if err != nil {

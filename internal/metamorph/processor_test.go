@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -942,7 +941,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 }
 
 func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
-	fmt.Println("shota start")
 	// given
 	metamorphStore := &storeMocks.MetamorphStoreMock{
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },

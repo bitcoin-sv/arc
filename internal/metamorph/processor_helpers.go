@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -33,7 +32,6 @@ func (p *Processor) GetProcessorMapSize() int {
 }
 
 func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
-	fmt.Println("shotuna 1")
 	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheNotFound) {
@@ -42,7 +40,6 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		}
 		return err
 	}
-	fmt.Println("shotuna 2")
 	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
 		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
 	}
@@ -55,40 +52,33 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		currentStatusUpdate.Status = statusUpdate.Status
 		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
-	fmt.Println("shotuna 3")
 	return p.setTransactionStatus(*currentStatusUpdate)
 }
 
 func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
-	fmt.Println("shotuna 4")
 	bytes, err := json.Marshal(status)
 	if err != nil {
 		return errors.Join(ErrFailedToSerialize, err)
 	}
 
-	fmt.Println("shotuna 5")
 	err = p.cacheStore.MapSet(CacheStatusUpdateHash, status.Hash.String(), bytes)
 	if err != nil {
 		return err
 	}
-	fmt.Println("shotuna 6 ")
 	return nil
 }
 
 func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStatus, error) {
-	fmt.Println("shotuna 11")
 	bytes, err := p.cacheStore.MapGet(CacheStatusUpdateHash, hash.String())
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("shotuna 12")
 
 	var status store.UpdateStatus
 	err = json.Unmarshal(bytes, &status)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("shotuna 13")
 
 	return &status, nil
 }

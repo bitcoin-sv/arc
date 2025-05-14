@@ -1101,29 +1101,25 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 
 func PipeP2pToBlocktx(bcnetBlockMsgCh chan *bcnet.BlockMessage, blockMsgCh chan *BlockMessage) {
 	go func() {
-		for {
-			select {
-			case p2pBlockMsg := <-bcnetBlockMsgCh:
-
-				header := &BlockHeader{
-					Version:    p2pBlockMsg.Header.Version,
-					PrevBlock:  p2pBlockMsg.Header.PrevBlock,
-					MerkleRoot: p2pBlockMsg.Header.MerkleRoot,
-					Timestamp:  p2pBlockMsg.Header.Timestamp,
-					Bits:       p2pBlockMsg.Header.Bits,
-					Nonce:      uint64(p2pBlockMsg.Header.Nonce),
-				}
-
-				blockMsg := &BlockMessage{
-					Hash:              p2pBlockMsg.Hash,
-					Header:            header,
-					Height:            p2pBlockMsg.Height,
-					TransactionHashes: p2pBlockMsg.TransactionHashes,
-					Size:              p2pBlockMsg.Size,
-				}
-
-				blockMsgCh <- blockMsg
+		for p2pBlockMsg := range bcnetBlockMsgCh {
+			header := &BlockHeader{
+				Version:    p2pBlockMsg.Header.Version,
+				PrevBlock:  p2pBlockMsg.Header.PrevBlock,
+				MerkleRoot: p2pBlockMsg.Header.MerkleRoot,
+				Timestamp:  p2pBlockMsg.Header.Timestamp,
+				Bits:       p2pBlockMsg.Header.Bits,
+				Nonce:      uint64(p2pBlockMsg.Header.Nonce),
 			}
+
+			blockMsg := &BlockMessage{
+				Hash:              p2pBlockMsg.Hash,
+				Header:            header,
+				Height:            p2pBlockMsg.Height,
+				TransactionHashes: p2pBlockMsg.TransactionHashes,
+				Size:              p2pBlockMsg.Size,
+			}
+
+			blockMsgCh <- blockMsg
 		}
 	}()
 }

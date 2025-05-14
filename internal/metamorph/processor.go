@@ -542,16 +542,16 @@ func (p *Processor) checkAndUpdate(ctx context.Context) error {
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shotaeee 1")
 	statusUpdatesMap, err := p.getAndDeleteAllTransactionStatuses()
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("shotaeee 2")
 	if len(statusUpdatesMap) == 0 {
 		return nil
 	}
-
+	fmt.Println("shotaeee 3")
 	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
 	doubleSpendUpdates := make([]store.UpdateStatus, 0)
 
@@ -578,14 +578,14 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}()
 
 	var updatedData []*store.Data
-
+	fmt.Println("shotaeee 4")
 	if len(statusUpdates) > 0 {
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
 		if err != nil {
 			return err
 		}
 	}
-
+	fmt.Println("shotaeee 5")
 	if len(doubleSpendUpdates) > 0 {
 		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates, true)
 		if err != nil {
@@ -599,7 +599,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
-
+	fmt.Println("shotaeee 6")
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
 		sendCallback := data.Status >= metamorph_api.Status_REJECTED

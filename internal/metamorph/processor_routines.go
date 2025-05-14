@@ -93,7 +93,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		}
 
 		for _, txHash := range txHashes {
-			p.logger.Debug("Rejecting unconfirmed tx", slog.String("hash", txHash.String()))
+			p.logger.Info("Rejecting unconfirmed tx (disabled)", slog.String("hash", txHash.String()))
 
 			// Todo: uncomment after testing
 			//p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
@@ -114,7 +114,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	return []attribute.KeyValue{attribute.Int("rejected", totalRejected)}
 }
 
-// ReAnnounceSeen re-broadcasts and re-requests SEEN_ON_NETWORK transactions that have been pending since more than 10 min
+// ReAnnounceSeen re-broadcasts and re-requests SEEN_ON_NETWORK transactions that have been pending
 func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
@@ -153,7 +153,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 
 	err = p.store.SetRequested(ctx, hashes)
 	if err != nil {
-		p.logger.Error("Failed to store hashes", slog.String("err", err.Error()))
+		p.logger.Error("Failed to mark seen txs requested", slog.String("err", err.Error()))
 	}
 
 	if totalSeenOnNetworkTxs > 0 {

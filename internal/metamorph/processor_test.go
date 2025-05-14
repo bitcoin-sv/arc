@@ -977,7 +977,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	}
 
 	// when
-	sut.StartProcessMinedCallbacks()
+	sut.StartSendStatusUpdate()
 
 	time.Sleep(50 * time.Millisecond)
 	sut.Shutdown()

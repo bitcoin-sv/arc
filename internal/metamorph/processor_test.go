@@ -972,6 +972,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 
 	mqClient := &mqMocks.MessageQueueClientMock{
 		PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+			fmt.Println("mdaaaa")
 			return nil
 		},
 	}

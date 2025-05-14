@@ -599,17 +599,18 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
-	fmt.Println("shotaeee 6")
+	fmt.Println("shotaeee 6", updatedData)
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
 		sendCallback := data.Status >= metamorph_api.Status_REJECTED
-
+		fmt.Println("shotaeee 7")
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 		}
-
+		fmt.Println("shotaeee 8", sendCallback)
 		if sendCallback && len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
+			fmt.Println("shotaeee 9", requests)
 			for _, request := range requests {
 				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
 				if err != nil {

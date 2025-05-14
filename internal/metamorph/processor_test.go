@@ -968,6 +968,8 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		metamorph.WithMessageQueueClient(mqClient),
 	)
 	require.NoError(t, err)
+	// when
+	sut.StartSendStatusUpdate()
 
 	statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 		Hash:         testdata.TX1Hash,
@@ -975,9 +977,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		Err:          nil,
 		CompetingTxs: []string{testdata.TX2Hash.String()},
 	}
-
-	// when
-	sut.StartSendStatusUpdate()
 
 	time.Sleep(50 * time.Millisecond)
 	sut.Shutdown()

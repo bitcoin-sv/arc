@@ -76,16 +76,19 @@ func (p *Processor) setTransactionStatus(status store.UpdateStatus) error {
 }
 
 func (p *Processor) getTransactionStatus(hash chainhash.Hash) (*store.UpdateStatus, error) {
+	fmt.Println("shotuna 11")
 	bytes, err := p.cacheStore.MapGet(CacheStatusUpdateHash, hash.String())
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("shotuna 12")
 
 	var status store.UpdateStatus
 	err = json.Unmarshal(bytes, &status)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("shotuna 13")
 
 	return &status, nil
 }

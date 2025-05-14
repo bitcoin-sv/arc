@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -972,7 +973,12 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return testdata.TX1Hash.CloneBytes(), nil
 		},
 		MapGetFunc: func(_ string, _ string) ([]byte, error) {
-			return testdata.TX1Hash.CloneBytes(), nil
+			j, _ := json.Marshal(store.UpdateStatus{
+				CompetingTxs: []string{testdata.TX2Hash.String()},
+				Hash:         chainhash.Hash(testdata.TX1Hash.CloneBytes()),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+			return j, nil
 		},
 	}
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)

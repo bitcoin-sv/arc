@@ -953,6 +953,9 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			fmt.Println("shota 33")
 			return nil, nil
 		},
+		UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+			return nil, nil
+		},
 	}
 	pm := &bcnet.Mediator{}
 	callbackSender := &mocks.CallbackSenderMock{

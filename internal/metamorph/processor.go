@@ -486,20 +486,20 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
-				fmt.Println("shota 1")
+				fmt.Println("shota 132")
 				// Ensure no duplicate statuses
 				err := p.updateStatusMap(statusUpdate)
 				if err != nil {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
 					return
 				}
-
+				fmt.Println("shota 10")
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
 					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
-
+				fmt.Println("shota 11")
 				if statusUpdateCount >= p.statusUpdatesBatchSize {
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
@@ -511,13 +511,16 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					ticker.Reset(p.statusUpdatesInterval)
 				}
 			case <-ticker.C:
+				fmt.Println("shota 12")
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
 					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
 
+				fmt.Println("shota 13")
 				if statusUpdateCount > 0 {
+					fmt.Println("shota 14")
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
 						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
@@ -533,7 +536,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context) error {
-	fmt.Println("shotaaa")
+	fmt.Println("shota 9")
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

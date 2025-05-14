@@ -978,6 +978,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	require.NoError(t, err)
 	// when
 	sut.StartSendStatusUpdate()
+	sut.StartProcessStatusUpdatesInStorage()
 
 	statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
 		Hash:         testdata.TX1Hash,

@@ -461,6 +461,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 					Timestamp:    msg.Start,
 				}
+				fmt.Println("shota 8")
 
 				// if tx is rejected, we don't expect any more status updates on this channel - remove from cache
 				if msg.Status == metamorph_api.Status_REJECTED {

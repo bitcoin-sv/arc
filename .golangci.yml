@@ -138,7 +138,7 @@ linters:
       enable-all-rules: true
       rules:
         - name: cognitive-complexity
-          disabled: false
+          disabled: true
           exclude: [ "TEST" ]
           arguments: [ 40 ]
           severity: "warning"
@@ -157,7 +157,7 @@ linters:
         - name: import-alias-naming
           disabled: true
         - name: cyclomatic
-          disabled: false
+          disabled: true
           exclude: [ "TEST" ]
           arguments: [ 20 ]
           severity: "warning"

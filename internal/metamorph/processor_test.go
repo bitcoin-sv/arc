@@ -987,7 +987,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return 1, nil
 		},
 		MapExtractAllFunc: func(_ string) (map[string][]byte, error) {
-			return map[string][]byte{}, nil
+			return map[string][]byte{testdata.TX2Hash.String(): testdata.TX2Hash.CloneBytes()}, nil
 		},
 	}
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)

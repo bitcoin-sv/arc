@@ -957,6 +957,9 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		DelFunc: func(_ ...string) error {
 			return nil
 		},
+		GetFunc: func(_ string) ([]byte, error) {
+			return nil, nil
+		},
 	}
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)
 	sut, err := metamorph.NewProcessor(

@@ -47,7 +47,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 		logger,
 		store,
 		nil,
-		blockProcessCh,
+		blockProcessCh, nil,
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithRegisterTxsChan(registerTxChannel),
 		blocktx.WithRegisterTxsBatchSize(1), // process transaction immediately

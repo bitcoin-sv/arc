@@ -19,6 +19,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
@@ -100,12 +101,54 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),
 		blocktx.WithIncomingIsLongest(btxConfig.IncomingIsLongest),
+		blocktx.WithGetBlockByRPC(btxConfig.GetBlockByRPC),
 	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
+	blockProcessCh2 := make(chan *blocktx.BlockMessage, blockProcessingBuffer)
 
-	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
+	go func() {
+		for {
+			select {
+			case p2pBlockMsg := <-blockProcessCh:
+
+				header := &blocktx.BlockHeader{
+					Version:    p2pBlockMsg.Header.Version,
+					PrevBlock:  p2pBlockMsg.Header.PrevBlock,
+					MerkleRoot: p2pBlockMsg.Header.MerkleRoot,
+					Timestamp:  p2pBlockMsg.Header.Timestamp,
+					Bits:       p2pBlockMsg.Header.Bits,
+					Nonce:      uint64(p2pBlockMsg.Header.Nonce),
+				}
+
+				blockMsg := &blocktx.BlockMessage{
+					Hash:              p2pBlockMsg.Hash,
+					Header:            header,
+					Height:            p2pBlockMsg.Height,
+					TransactionHashes: p2pBlockMsg.TransactionHashes,
+					Size:              p2pBlockMsg.Size,
+				}
+
+				blockProcessCh2 <- blockMsg
+			}
+		}
+	}()
+
+	pc := arcConfig.PeerRPC
+	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
+	nodeClient, err := node_client.New(nc)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to create node client: %v", err)
+	}
+
+	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh2, nodeClient, processorOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

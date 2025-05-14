@@ -1,0 +1,77 @@
+# not existing in requested_transactions => return
+- hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+
+# existing in requested_transactions, just requested => don't return
+- hash: 0xcd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:52:00.000 +0200
+
+# existing in requested_transactions, just confirmed => don't return
+- hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:52:00.000 +0200
+  confirmed_at: 2025-05-08 13:10:34.260 +0200
+
+# existing in requested_transactions, requested long ago => return
+- hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:10:00.000 +0200
+
+# not existing in requested_transactions, pending less than 5min => don't return
+- hash: 0x62b59fcc3084b178989898807bc54ee8a8be0e53e2c1dbb78928ccba20154598
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T11:12:34.577864+00:00
+
+# existing in requested_transactions, requested and confirmed long ago => return
+- hash: 0x8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:10:00.000 +0200
+  confirmed_at: 2025-05-08 12:12:34.260 +0200

@@ -970,6 +970,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		pm,
 		statusMessageChannel,
 		metamorph.WithCallbackSender(callbackSender),
+		metamorph.WithStatusUpdatesInterval(10*time.Millisecond),
 		metamorph.WithMessageQueueClient(mqClient),
 	)
 	require.NoError(t, err)
@@ -983,7 +984,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		CompetingTxs: []string{testdata.TX2Hash.String()},
 	}
 
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 	sut.Shutdown()
 
 	// then

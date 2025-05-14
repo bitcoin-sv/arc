@@ -525,6 +525,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context) error {
+	fmt.Println("shotaaa")
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "checkAndUpdate", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {

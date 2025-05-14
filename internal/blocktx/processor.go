@@ -21,6 +21,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -1096,6 +1097,35 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 	}
 
 	return updatedTxs, nil
+}
+
+func PipeP2pToBlocktx(bcnetBlockMsgCh chan *bcnet.BlockMessage, blockMsgCh chan *BlockMessage) {
+	go func() {
+		for {
+			select {
+			case p2pBlockMsg := <-bcnetBlockMsgCh:
+
+				header := &BlockHeader{
+					Version:    p2pBlockMsg.Header.Version,
+					PrevBlock:  p2pBlockMsg.Header.PrevBlock,
+					MerkleRoot: p2pBlockMsg.Header.MerkleRoot,
+					Timestamp:  p2pBlockMsg.Header.Timestamp,
+					Bits:       p2pBlockMsg.Header.Bits,
+					Nonce:      uint64(p2pBlockMsg.Header.Nonce),
+				}
+
+				blockMsg := &BlockMessage{
+					Hash:              p2pBlockMsg.Hash,
+					Header:            header,
+					Height:            p2pBlockMsg.Height,
+					TransactionHashes: p2pBlockMsg.TransactionHashes,
+					Size:              p2pBlockMsg.Size,
+				}
+
+				blockMsgCh <- blockMsg
+			}
+		}
+	}()
 }
 
 func (p *Processor) Shutdown() {

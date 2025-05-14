@@ -105,35 +105,10 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
-	blockProcessCh2 := make(chan *blocktx.BlockMessage, blockProcessingBuffer)
+	bcnetBlockMsgCh := make(chan *bcnet.BlockMessage, blockProcessingBuffer)
+	blockMsgCh := make(chan *blocktx.BlockMessage, blockProcessingBuffer)
 
-	go func() {
-		for {
-			select {
-			case p2pBlockMsg := <-blockProcessCh:
-
-				header := &blocktx.BlockHeader{
-					Version:    p2pBlockMsg.Header.Version,
-					PrevBlock:  p2pBlockMsg.Header.PrevBlock,
-					MerkleRoot: p2pBlockMsg.Header.MerkleRoot,
-					Timestamp:  p2pBlockMsg.Header.Timestamp,
-					Bits:       p2pBlockMsg.Header.Bits,
-					Nonce:      uint64(p2pBlockMsg.Header.Nonce),
-				}
-
-				blockMsg := &blocktx.BlockMessage{
-					Hash:              p2pBlockMsg.Hash,
-					Header:            header,
-					Height:            p2pBlockMsg.Height,
-					TransactionHashes: p2pBlockMsg.TransactionHashes,
-					Size:              p2pBlockMsg.Size,
-				}
-
-				blockProcessCh2 <- blockMsg
-			}
-		}
-	}()
+	blocktx.PipeP2pToBlocktx(bcnetBlockMsgCh, blockMsgCh)
 
 	pc := arcConfig.PeerRPC
 	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
@@ -148,7 +123,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to create node client: %v", err)
 	}
 
-	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh2, nodeClient, processorOpts...)
+	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockMsgCh, nodeClient, processorOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -169,7 +144,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		}
 	}
 
-	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
+	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, bcnetBlockMsgCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)

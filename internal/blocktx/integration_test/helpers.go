@@ -24,7 +24,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	blockProcessCh := make(chan *bcnet.BlockMessage, 10)
+	bcnetBlockMsgCh := make(chan *bcnet.BlockMessage, 10)
 
 	publishedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
 	registerTxChannel := make(chan []byte, 10)
@@ -41,13 +41,16 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 			return nil
 		},
 	}
+	blockMsgCh := make(chan *blocktx.BlockMessage, 100)
+	blocktx.PipeP2pToBlocktx(bcnetBlockMsgCh, blockMsgCh)
 
-	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
+	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, bcnetBlockMsgCh)
 	processor, err := blocktx.NewProcessor(
 		logger,
 		store,
 		nil,
-		blockProcessCh, nil,
+		blockMsgCh,
+		nil,
 		blocktx.WithMessageQueueClient(mqClient),
 		blocktx.WithRegisterTxsChan(registerTxChannel),
 		blocktx.WithRegisterTxsBatchSize(1), // process transaction immediately

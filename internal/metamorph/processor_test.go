@@ -941,7 +941,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 
 func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	// given
-	metamorphStore := &storeMocks.MetamorphStoreMock{}
+	metamorphStore := &storeMocks.MetamorphStoreMock{
+		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+	}
 	pm := &bcnet.Mediator{}
 	callbackSender := &mocks.CallbackSenderMock{
 		SendCallbackFunc: func(_ context.Context, _ *store.Data) {},

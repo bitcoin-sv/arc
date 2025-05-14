@@ -123,6 +123,7 @@ type BlocktxConfig struct {
 	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
 	MaxBlockProcessingDuration    time.Duration                      `mapstructure:"maxBlockProcessingDuration"`
+	GetBlockByRPC                 bool                               `mapstructure:"getBlockByRPC"`
 	MonitorPeers                  bool                               `mapstructure:"monitorPeers"`
 	FillGaps                      *FillGapsConfig                    `mapstructure:"fillGaps"`
 	UnorphanRecentWrongOrphans    *UnorphanRecentWrongOrphansConfig  `mapstructure:"unorphanRecentWrongOrphans"`

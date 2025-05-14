@@ -108,6 +108,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		FillGaps:                      getFillGapsConfig(),
 		MaxAllowedBlockHeightMismatch: 3,
 		MaxBlockProcessingDuration:    5 * time.Minute,
+		GetBlockByRPC:                 false,
 		MessageQueue:                  &MessageQueueConfig{},
 		P2pReadBufferSize:             8 * 1024 * 1024,
 		IncomingIsLongest:             false,

@@ -120,6 +120,7 @@ blocktx:
     enabled: false
     interval: 5m # time interval to check and fix wrong orphan blocks
   maxAllowedBlockHeightMismatch: 3 # maximum number of blocks that can be ahead of current highest block in blocktx, used for merkle roots verification
+  getBlockByRPC: false # If enabled blocktx will call the RPC getblock command to receive a block by block hash. If disabled blocktx requests and receives a block via p2p network
   p2pReadBufferSize: 8388608 # size of read buffer for p2p messeges
   bcnet:
     mode: classic # [classic|hybrid]

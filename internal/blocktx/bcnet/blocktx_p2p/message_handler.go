@@ -4,10 +4,11 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
-	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to blockchain.BlockMessage")

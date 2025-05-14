@@ -1,9 +1,14 @@
 package node_client_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"flag"
+	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"strconv"
 	"testing"
@@ -192,5 +197,37 @@ func TestNodeClient(t *testing.T) {
 
 		// then
 		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("get block", func(t *testing.T) {
+		newBlock, err := bitcoind.Generate(1)
+		require.NoError(t, err)
+
+		blockMessage, err := sut.GetBlock(ctx, newBlock[0])
+		require.NoError(t, err)
+
+		require.Len(t, blockMessage.TransactionHashes, 1)
+	})
+}
+
+func TestConvertBits(t *testing.T) {
+	t.Run("convert", func(t *testing.T) {
+		n := new(big.Int)
+		n.SetString("1d00ffff", 16)
+
+		fmt.Println(n.Int64())
+
+		//bits, err := hex.DecodeString("18129353")
+		bits, err := hex.DecodeString("1d00ffff")
+		require.NoError(t, err)
+
+		//bits := []byte{0xcb, 0x04, 0x04, 0x1b} // little-endian
+
+		var bitsInt32 int32
+		buf := bytes.NewReader(bits)
+		err = binary.Read(buf, binary.BigEndian, &bitsInt32)
+		require.NoError(t, err)
+
+		fmt.Println(bitsInt32)
 	})
 }

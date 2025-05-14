@@ -75,3 +75,9 @@ func WithPublishMinedMessageSize(size int) func(*Processor) {
 		processor.publishMinedMessageSize = size
 	}
 }
+
+func WithGetBlockByRPC(getBlockByRPC bool) func(*Processor) {
+	return func(processor *Processor) {
+		processor.getBlockByRPC = getBlockByRPC
+	}
+}

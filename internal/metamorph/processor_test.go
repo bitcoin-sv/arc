@@ -958,8 +958,15 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 				}}, nil
 		},
 		UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
-			fmt.Println("shota 33")
-			return nil, nil
+			return []*store.Data{
+				{
+					Hash:   testdata.TX1Hash,
+					Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					Callbacks: []store.Callback{
+						{CallbackURL: "http://callback.com"},
+					},
+					FullStatusUpdates: true,
+				}}, nil
 		},
 		UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 			return nil, nil

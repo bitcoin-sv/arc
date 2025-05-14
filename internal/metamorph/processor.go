@@ -438,11 +438,15 @@ func (p *Processor) StartSendStatusUpdate() {
 					CompetingTxs: msg.CompetingTxs,
 				})
 
+				fmt.Println("shota 5")
 				if !found {
+					fmt.Println("shota 4")
 					found = p.txFoundInCache(msg.Hash)
 				}
 
+				fmt.Println("shota 6")
 				if !found {
+					fmt.Println("shota 7")
 					continue
 				}
 

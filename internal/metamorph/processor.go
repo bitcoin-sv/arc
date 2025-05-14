@@ -429,6 +429,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				fmt.Println("shota 3")
 				// if we receive new update check if we have client connection waiting for status and send it
 				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 					Hash:         msg.Hash,

@@ -979,11 +979,11 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 
 	mqClient := &mqMocks.MessageQueueClientMock{
 		PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-			fmt.Println("mdaaaa")
 			return nil
 		},
 	}
 
+	i := 0
 	cStore := &cacheMocks.StoreMock{
 		DelFunc: func(_ ...string) error {
 			return nil
@@ -1006,6 +1006,10 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return 1, nil
 		},
 		MapExtractAllFunc: func(_ string) (map[string][]byte, error) {
+			i++
+			if i > 1 {
+				return nil, nil
+			}
 			j, _ := json.Marshal(store.UpdateStatus{
 				CompetingTxs: []string{testdata.TX2Hash.String()},
 				Hash:         chainhash.Hash(testdata.TX1Hash.CloneBytes()),

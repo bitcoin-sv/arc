@@ -980,6 +980,9 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			})
 			return j, nil
 		},
+		MapSetFunc: func(_ string, _ string, _ []byte) error {
+			return nil
+		},
 	}
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)
 	sut, err := metamorph.NewProcessor(

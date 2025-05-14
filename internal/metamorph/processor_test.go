@@ -947,7 +947,15 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	metamorphStore := &storeMocks.MetamorphStoreMock{
 		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 		UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
-			return nil, nil
+			return []*store.Data{
+				{
+					Hash:   testdata.TX1Hash,
+					Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					Callbacks: []store.Callback{
+						{CallbackURL: "http://callback.com"},
+					},
+					FullStatusUpdates: true,
+				}}, nil
 		},
 		UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
 			fmt.Println("shota 33")

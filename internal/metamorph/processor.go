@@ -485,11 +485,13 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
 					return
 				}
+
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
 					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
 					return
 				}
+
 				if statusUpdateCount >= p.statusUpdatesBatchSize {
 					err := p.checkAndUpdate(ctx)
 					if err != nil {
@@ -528,13 +530,16 @@ func (p *Processor) checkAndUpdate(ctx context.Context) error {
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
+
 	statusUpdatesMap, err := p.getAndDeleteAllTransactionStatuses()
 	if err != nil {
 		return err
 	}
+
 	if len(statusUpdatesMap) == 0 {
 		return nil
 	}
+
 	statusUpdates := make([]store.UpdateStatus, 0, len(statusUpdatesMap))
 	doubleSpendUpdates := make([]store.UpdateStatus, 0)
 
@@ -561,12 +566,14 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	}()
 
 	var updatedData []*store.Data
+
 	if len(statusUpdates) > 0 {
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
 		if err != nil {
 			return err
 		}
 	}
+
 	if len(doubleSpendUpdates) > 0 {
 		updatedDoubleSpendData, err := p.store.UpdateDoubleSpend(ctx, doubleSpendUpdates, true)
 		if err != nil {
@@ -580,12 +587,15 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 	if err != nil {
 		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
+
 	for _, data := range updatedData {
 		p.logger.Debug("Status updated for tx", slog.String("status", data.Status.String()), slog.String("hash", data.Hash.String()))
 		sendCallback := data.Status >= metamorph_api.Status_REJECTED
+
 		if data.FullStatusUpdates {
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 		}
+
 		if sendCallback && len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {

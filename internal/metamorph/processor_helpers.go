@@ -40,6 +40,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		}
 		return err
 	}
+
 	if shouldUpdateCompetingTxs(statusUpdate, *currentStatusUpdate) {
 		currentStatusUpdate.CompetingTxs = mergeUnique(statusUpdate.CompetingTxs, currentStatusUpdate.CompetingTxs)
 	}
@@ -52,6 +53,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 		currentStatusUpdate.Status = statusUpdate.Status
 		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
+
 	return p.setTransactionStatus(*currentStatusUpdate)
 }
 

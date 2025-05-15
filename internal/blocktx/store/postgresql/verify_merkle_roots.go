@@ -51,11 +51,7 @@ func (p *PostgreSQL) VerifyMerkleRoots(
 				return nil, err
 			}
 
-			if isOlderThanLowestHeight(mr.BlockHeight, lowestHeight) {
-				continue
-			}
-
-			if isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {
+			if isOlderThanLowestHeight(mr.BlockHeight, lowestHeight) || isWithinAllowedMismatch(mr.BlockHeight, topHeight, maxAllowedBlockHeightMismatch) {
 				continue
 			}
 

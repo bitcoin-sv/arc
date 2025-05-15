@@ -56,14 +56,9 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 		XWaitFor: &waitFor,
 	}
 
-	if callbackURL != "" {
-		params.XCallbackUrl = &callbackURL
-	}
-	if callbackToken != "" {
-		params.XCallbackToken = &callbackToken
-	}
+	params.XCallbackUrl = &callbackURL
+	params.XCallbackToken = &callbackToken
 	params.XFullStatusUpdates = &fullStatusUpdates
-
 	params.XSkipFeeValidation = &skipFeeValidation
 
 	body := make([]api.TransactionRequest, len(txs))
@@ -136,9 +131,7 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Tra
 		XWaitFor: &waitFor,
 	}
 
-	if callbackURL != "" {
-		params.XCallbackUrl = &callbackURL
-	}
+	params.XCallbackUrl = &callbackURL
 
 	rawTx, err := tx.EFHex()
 	if err != nil {
@@ -153,29 +146,16 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Tra
 		return nil, err
 	}
 
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		return readJSONBody(response)
+	}
+
+	var bodyResponse Response
 	var bodyBytes []byte
 	bodyBytes, err = io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
-
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		if response.Body != nil {
-			// read body into json map
-			var body map[string]interface{}
-			err = json.Unmarshal(bodyBytes, &body)
-			if err == nil {
-				responseBody, ok := body["detail"].(string)
-				if ok {
-					return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(responseBody))
-				}
-				return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(string(bodyBytes)))
-			}
-		}
-		return nil, errors.Join(ErrFailedToBroadcastTx, fmt.Errorf("status: %s", response.Status))
-	}
-
-	var bodyResponse Response
 	err = json.Unmarshal(bodyBytes, &bodyResponse)
 	if err != nil {
 		return nil, err
@@ -190,6 +170,23 @@ func (a *APIBroadcaster) BroadcastTransaction(ctx context.Context, tx *sdkTx.Tra
 	}
 
 	return res, nil
+}
+
+func readJSONBody(response *http.Response) (*metamorph_api.TransactionStatus, error) {
+	if response.Body != nil {
+		var bodyBytes []byte
+		// read body into json map
+		var body map[string]interface{}
+		err := json.Unmarshal(bodyBytes, &body)
+		if err == nil {
+			responseBody, ok := body["detail"].(string)
+			if ok {
+				return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(responseBody))
+			}
+			return nil, errors.Join(ErrFailedToBroadcastTx, errors.New(string(bodyBytes)))
+		}
+	}
+	return nil, errors.Join(ErrFailedToBroadcastTx, fmt.Errorf("status: %s", response.Status))
 }
 
 func getArcClient(arcServer string, auth *Auth) (*api.Client, error) {

@@ -827,13 +827,7 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 	p.logger.Info("orphaned chain found", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("status", block.Status.String()))
 
 	if ancestor.Status == blocktx_api.Status_STALE {
-		ok = p.acceptIntoChain(ctx, orphans, ancestor.Status)
-		if !ok {
-			return nil, nil, false
-		}
-
-		block.Status = blocktx_api.Status_STALE
-		return p.handleStaleBlock(ctx, block)
+		return p.acceptIntoChainAndHandleStale(ctx, block, orphans)
 	}
 
 	if ancestor.Status == blocktx_api.Status_LONGEST {
@@ -853,13 +847,7 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 		}
 
 		if competingBlock != nil && !bytes.Equal(competingBlock.Hash, orphans[0].Hash) {
-			ok = p.acceptIntoChain(ctx, orphans, blocktx_api.Status_STALE)
-			if !ok {
-				return nil, nil, false
-			}
-
-			block.Status = blocktx_api.Status_STALE
-			return p.handleStaleBlock(ctx, block)
+			return p.acceptIntoChainAndHandleStale(ctx, block, orphans)
 		}
 
 		ok = p.acceptIntoChain(ctx, orphans, ancestor.Status) // LONGEST
@@ -873,6 +861,16 @@ func (p *Processor) handleOrphans(ctx context.Context, block *blocktx_api.Block)
 	}
 
 	return nil, nil, true
+}
+
+func (p *Processor) acceptIntoChainAndHandleStale(ctx context.Context, block *blocktx_api.Block, orphans []*blocktx_api.Block) (longestTxs, staleTxs []store.BlockTransaction, ok bool) {
+	ok = p.acceptIntoChain(ctx, orphans, blocktx_api.Status_STALE)
+	if !ok {
+		return nil, nil, false
+	}
+
+	block.Status = blocktx_api.Status_STALE
+	return p.handleStaleBlock(ctx, block)
 }
 
 func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.Block, chain blocktx_api.Status) (ok bool) {

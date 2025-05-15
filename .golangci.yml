@@ -139,6 +139,9 @@ linters:
       rules:
         - name: cognitive-complexity
           disabled: true
+          exclude: [ "TEST" ]
+          arguments: [ 40 ]
+          severity: "warning"
         - name: line-length-limit
           disabled: true
         - name: add-constant
@@ -155,6 +158,9 @@ linters:
           disabled: true
         - name: cyclomatic
           disabled: true
+          exclude: [ "TEST" ]
+          arguments: [ 20 ]
+          severity: "warning"
         - name: use-any
           disabled: true
         - name: confusing-results

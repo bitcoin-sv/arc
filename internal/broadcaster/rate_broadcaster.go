@@ -112,42 +112,43 @@ func (b *UTXORateBroadcaster) Start() error {
 	}
 	errCh := make(chan error, 100)
 
+	startBroadcastSelfPayingTxs(b, tickerCh, errCh)
+	return nil
+}
+
+func startBroadcastSelfPayingTxs(b *UTXORateBroadcaster, tickerCh <-chan time.Time, errCh chan error) {
 	b.wg.Add(1)
 	go func() {
 		defer func() {
 			b.logger.Info("shutting down broadcaster")
 			b.wg.Done()
 		}()
-		checkTicker(b, tickerCh, errCh)
-	}()
 
-	return nil
-}
+		for {
+			select {
+			case <-b.ctx.Done():
+				return
+			case <-tickerCh:
+				txs, err := b.createSelfPayingTxs()
+				if err != nil {
+					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
+					b.shutdown <- struct{}{}
+					continue
+				}
 
-func checkTicker(b *UTXORateBroadcaster, tickerCh <-chan time.Time, errCh chan error) {
-	for {
-		select {
-		case <-b.ctx.Done():
-			return
-		case <-tickerCh:
-			txs, err := b.createSelfPayingTxs()
-			if err != nil {
-				b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
-				b.shutdown <- struct{}{}
-				continue
+				if b.limit > 0 && atomic.LoadInt64(&b.totalTxs) >= b.limit {
+					b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
+					b.shutdown <- struct{}{}
+				}
+
+				b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
+
+			case responseErr := <-errCh:
+				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			}
-
-			if b.limit > 0 && atomic.LoadInt64(&b.totalTxs) >= b.limit {
-				b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
-				b.shutdown <- struct{}{}
-			}
-
-			b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
-
-		case responseErr := <-errCh:
-			b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 		}
-	}
+
+	}()
 }
 
 func (b *UTXORateBroadcaster) createSelfPayingTxs() (sdkTx.Transactions, error) {
@@ -159,58 +160,14 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-			tx := sdkTx.NewTransaction()
-			amount := utxo.Satoshis
 
-			err := tx.AddInputsFromUTXOs(utxo)
-			if err != nil {
-				return nil, errors.Join(ErrFailedToAddInput, err)
-			}
-
-			if b.opReturn != "" {
-				err = tx.AddOpReturnOutput([]byte(b.opReturn))
-				if err != nil {
-					return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
-				}
-			}
-
-			if b.sizeJitterMax > 0 {
-				err = addAdditionalInputs(b, &tx, &amount)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			fee, err := ComputeFee(tx, b.feeModel)
+			tx, err := b.createSelfPayingTx(utxo)
 			if err != nil {
 				return nil, err
 			}
-
-			if amount <= fee {
-				if len(b.utxoCh) == 0 {
-					return nil, ErrNotEnoughUTXOs
-				}
-
-				if len(b.utxoCh) < b.batchSize {
-					return nil, ErrNotEnoughUTXOsForBatch
-				}
-
+			if tx == nil {
 				continue
 			}
-			amount -= fee
-
-			err = PayTo(tx, b.ks.Script, amount)
-			if err != nil {
-				return nil, errors.Join(ErrFailedToAddOutput, err)
-			}
-
-			err = SignAllInputs(tx, b.ks.PrivateKey)
-			if err != nil {
-				return nil, errors.Join(ErrFailedToFillInputs, err)
-			}
-
-			b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
-
 			txs = append(txs, tx)
 
 			if len(txs) >= b.batchSize {
@@ -222,7 +179,62 @@ utxoLoop:
 	return txs, nil
 }
 
-func addAdditionalInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount *uint64) error {
+func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Transaction, error) {
+	tx := sdkTx.NewTransaction()
+	amount := utxo.Satoshis
+
+	err := tx.AddInputsFromUTXOs(utxo)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToAddInput, err)
+	}
+
+	if b.opReturn != "" {
+		err = tx.AddOpReturnOutput([]byte(b.opReturn))
+		if err != nil {
+			return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+		}
+	}
+
+	if b.sizeJitterMax > 0 {
+		err = addRandomDataInputs(b, &tx, &amount)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fee, err := ComputeFee(tx, b.feeModel)
+	if err != nil {
+		return nil, err
+	}
+
+	if amount <= fee {
+		if len(b.utxoCh) == 0 {
+			return nil, ErrNotEnoughUTXOs
+		}
+
+		if len(b.utxoCh) < b.batchSize {
+			return nil, ErrNotEnoughUTXOsForBatch
+		}
+
+		return nil, nil
+	}
+	amount -= fee
+
+	err = PayTo(tx, b.ks.Script, amount)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToAddOutput, err)
+	}
+
+	err = SignAllInputs(tx, b.ks.PrivateKey)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToFillInputs, err)
+	}
+
+	b.satoshiMap.Store(tx.TxID(), tx.Outputs[0].Satoshis)
+	return tx, nil
+}
+
+func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount *uint64) error {
 	// Add additional inputs to the transaction
 	randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
 	if err != nil {

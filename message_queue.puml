@@ -1,0 +1,40 @@
+@startuml
+
+digraph arc {
+    rankdir=TB;
+    newrank=true
+    rank1 [fixedsize=true; width=0.01; height=0.01; label="", style=invisible];
+    rank2 [fixedsize=true; width=0.01; height=0.01; label="", style=invisible];
+    rank3 [fixedsize=true; width=0.01; height=0.01; label="", style=invisible];
+
+    rank1 -> rank2 [color=white];
+
+    graph [fontsize=10 fontname="Verdana"];
+    node [shape=record fontsize=10 fontname="Verdana"];
+    edge [fontsize=9 fontname="Verdana"];
+
+    subgraph cluster_message_queue_1 {
+      label = "topic: \"register-tx\"";
+      message_queue_1 [label="<f0> msq|<f1> msg|<fn> ... |<f2> msg|<f3> msg"]
+    }
+
+    subgraph cluster_message_queue_2 {
+      label = "topic: \"tx-mined\"";
+      message_queue_2 [label="<f0> msq|<f1> msg|<fn> ... |<f2> msg|<f3> msg"]
+    }
+
+    metamorph [shape=rectangle, style=filled]
+    blocktx [shape=rectangle, style=filled]
+
+    metamorph -> message_queue_1:f0 [label="  publish"]
+    metamorph -> message_queue_2:f0 [label="  subscribe"]
+
+    blocktx -> message_queue_1:f3 [label="  subscribe"]
+    blocktx -> message_queue_2:f3 [label="  publish"]
+
+    {rank=same; rank1; message_queue_1;}
+    {rank=same; rank2; blocktx; metamorph;}
+    {rank=same; rank3; message_queue_2;}
+}
+
+@enduml

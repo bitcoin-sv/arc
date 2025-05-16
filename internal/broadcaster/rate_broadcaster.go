@@ -298,18 +298,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
 			// In case of error put utxos back in channel
-			for _, tx := range txs {
-				for _, input := range tx.Inputs {
-					unusedUtxo := &sdkTx.UTXO{
-						TxID:          input.SourceTXID,
-						Vout:          0,
-						LockingScript: b.ks.Script,
-						Satoshis:      *input.SourceTxSatoshis(),
-					}
-					b.utxoCh <- unusedUtxo
-				}
-			}
-
+			putUTXOSBackInChannel(b, txs)
 			if errors.Is(err, context.Canceled) {
 				atomic.AddInt64(&b.connectionCount, -1)
 				return
@@ -318,31 +307,47 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		}
 
 		atomic.AddInt64(&b.connectionCount, -1)
-
-		for _, res := range resp {
-			sat, found := b.satoshiMap.Load(res.Txid)
-			satoshis, isValid := sat.(uint64)
-
-			hash, _ := chainhash.NewHashFromHex(res.Txid)
-			if err != nil {
-				b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
-			}
-
-			if found && isValid {
-				newUtxo := &sdkTx.UTXO{
-					TxID:          hash,
-					Vout:          0,
-					LockingScript: b.ks.Script,
-					Satoshis:      satoshis,
-				}
-				b.utxoCh <- newUtxo
-			}
-
-			b.satoshiMap.Delete(res.Txid)
-
-			atomic.AddInt64(&b.totalTxs, 1)
-		}
+		putNewUTXOSInChannel(b, resp)
 	}()
+}
+func putUTXOSBackInChannel(b *UTXORateBroadcaster, txs sdkTx.Transactions) {
+	for _, tx := range txs {
+		for _, input := range tx.Inputs {
+			unusedUtxo := &sdkTx.UTXO{
+				TxID:          input.SourceTXID,
+				Vout:          0,
+				LockingScript: b.ks.Script,
+				Satoshis:      *input.SourceTxSatoshis(),
+			}
+			b.utxoCh <- unusedUtxo
+		}
+	}
+}
+
+func putNewUTXOSInChannel(b *UTXORateBroadcaster, resp []*metamorph_api.TransactionStatus) {
+	for _, res := range resp {
+		sat, found := b.satoshiMap.Load(res.Txid)
+		satoshis, isValid := sat.(uint64)
+
+		hash, err := chainhash.NewHashFromHex(res.Txid)
+		if err != nil {
+			b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+		}
+
+		if found && isValid {
+			newUtxo := &sdkTx.UTXO{
+				TxID:          hash,
+				Vout:          0,
+				LockingScript: b.ks.Script,
+				Satoshis:      satoshis,
+			}
+			b.utxoCh <- newUtxo
+		}
+
+		b.satoshiMap.Delete(res.Txid)
+
+		atomic.AddInt64(&b.totalTxs, 1)
+	}
 }
 
 func (b *UTXORateBroadcaster) Shutdown() {

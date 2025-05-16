@@ -36,7 +36,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (
@@ -142,7 +142,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 	minedTxChannel <- minedMsg
 
 	// give metamorph time to parse mined msg
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	// verify that the 1st hash is mined
 	minedTxData, err := metamorphStore.Get(context.Background(), minedTxHash[:])

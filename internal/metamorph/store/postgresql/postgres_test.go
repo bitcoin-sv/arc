@@ -438,50 +438,49 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"5678"},
+				CompetingTxs: []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"9999", "8888"},
+				CompetingTxs: []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
-				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Error:        errors.New("double spend attempted"),
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 		}
-		updatedStatuses := 4
-
-		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates)
+		updatedStatuses := 5
+		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 
@@ -491,25 +490,28 @@ func TestPostgresDB(t *testing.T) {
 			{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp},
 			{Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 0, 0, time.UTC)},
 		}, statusUpdates[0].StatusHistory)
-		require.ElementsMatch(t, []string{"5678", "1234"}, statusUpdates[0].CompetingTxs)
-
+		require.ElementsMatch(t, []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[0].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
 		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[1].StatusHistory)
-		require.ElementsMatch(t, []string{"9999", "8888", "1234", "5678"}, statusUpdates[1].CompetingTxs)
+		require.ElementsMatch(t, []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[1].CompetingTxs)
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
 		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[2].StatusHistory)
-		require.Equal(t, []string{"1234"}, statusUpdates[2].CompetingTxs)
-
-		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[3].Status)
-		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
-		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[3].StatusHistory)
-		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
-		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
-
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[2].CompetingTxs)
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[3].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), *statusUpdates[3].Hash)
+		require.Equal(t, []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"}, statusUpdates[3].CompetingTxs)
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[4].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[4].Hash)
+		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[4].StatusHistory)
+		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[4].CompetingTxs)
+		require.Equal(t, "double spend attempted", statusUpdates[4].RejectReason)
+		res, err := postgresDB.Get(ctx, testutils.RevChainhash(t, "aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002")[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, res.Status)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 0)
 	})
@@ -721,7 +723,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, false)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 

@@ -177,13 +177,10 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 					return nil, err
 				}
 
-				err = b.consolidateToFundingKeyset(tx, txSatoshis, fundingKeySet)
+				err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, &satoshiMap)
 				if err != nil {
 					return nil, err
 				}
-
-				txsConsolidation = append(txsConsolidation, tx)
-				satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 			}
 
 			if len(txsConsolidation) > 0 {
@@ -198,14 +195,11 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 		}
 
 		if len(tx.Inputs) >= b.maxInputs {
-			err = b.consolidateToFundingKeyset(tx, txSatoshis, fundingKeySet)
+			err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, &satoshiMap)
 			if err != nil {
 				return nil, err
 			}
 
-			txsConsolidation = append(txsConsolidation, tx)
-
-			satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 			tx = sdkTx.NewTransaction()
 			txSatoshis = 0
 		}
@@ -219,7 +213,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 	return txsConsolidationBatches, nil
 }
 
-func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet) error {
+func (b *UTXOConsolidator) consolidateToFundingKeyset(txsConsolidation *sdkTx.Transactions, tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet, satoshiMap *map[string]uint64) error {
 	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return err
@@ -234,6 +228,10 @@ func (b *UTXOConsolidator) consolidateToFundingKeyset(tx *sdkTx.Transaction, txS
 	if err != nil {
 		return err
 	}
+
+	(*txsConsolidation) = append((*txsConsolidation), tx)
+	(*satoshiMap)[tx.TxID().String()] = tx.TotalOutputSatoshis()
+
 	return nil
 }
 

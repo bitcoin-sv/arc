@@ -147,7 +147,6 @@ func startBroadcastSelfPayingTxs(b *UTXORateBroadcaster, tickerCh <-chan time.Ti
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
 			}
 		}
-
 	}()
 }
 

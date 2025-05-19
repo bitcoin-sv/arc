@@ -42,7 +42,7 @@ RUN go build \
      -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
-RUN go build -ldflags -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
+RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Deploy the application binary into a lean image
 FROM scratch

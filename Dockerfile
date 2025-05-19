@@ -7,7 +7,7 @@ ARG MAIN="./cmd/arc/main.go"
 
 RUN apk --update add ca-certificates
 
-RUN apk add --no-cache build-base
+RUN apk add --no-cache build-base gcompat
 
 WORKDIR /app
 

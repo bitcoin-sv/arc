@@ -1,14 +1,19 @@
-FROM golang:1.24-bookworm AS build-stage
+FROM debian:bookworm AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        golang wget ca-certificates build-essential && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential git ca-certificates wget \
+        gcc g++ pkg-config
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+build-essential ca-certificates wget git
+
+ENV CGO_ENABLED=1 \
+    CGO_LDFLAGS="-lstdc++"
 
 WORKDIR /app
 

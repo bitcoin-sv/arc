@@ -5,6 +5,7 @@ ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
+ENV CGO_ENABLED=0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         golang wget ca-certificates build-essential && \
@@ -34,7 +35,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Deploy the application binary into a lean image
-FROM scratch
+FROM gcr.io/distroless/cc-debian11
 
 WORKDIR /service
 

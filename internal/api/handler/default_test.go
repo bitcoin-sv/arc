@@ -662,7 +662,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 
 			merkleRootsVerifier := &btxMocks.ClientMock{
-				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
 			}

@@ -1,4 +1,4 @@
-FROM golang:1.24.1-alpine3.21 AS build-stage
+FROM golang:1.24.1-bookworm AS builder
 
 ARG APP_COMMIT
 ARG APP_VERSION

@@ -682,35 +682,9 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
-	txHashes := make([][]byte, len(updates))
-	statuses := make([]metamorph_api.Status, len(updates))
-	rejectReasons := make([]string, len(updates))
-	statusHistories := make([]*string, len(updates))
-	timestamps := make([]time.Time, len(updates))
-
-	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
-		statuses[i] = update.Status
-		timestamps[i] = update.Timestamp
-		if timestamps[i].IsZero() {
-			timestamps[i] = p.now()
-		}
-
-		if update.Error != nil {
-			rejectReasons[i] = update.Error.Error()
-		}
-
-		var historyDataStr *string
-		if update.StatusHistory != nil {
-			historyData, err := json.Marshal(update.StatusHistory)
-			if err != nil {
-				return nil, err
-			}
-			historyStr := string(historyData)
-			historyDataStr = &historyStr
-		}
-		statusHistories[i] = historyDataStr
+	txHashes, statuses, rejectReasons, statusHistories, timestamps, err := p.prepareStatusHistories(updates)
+	if err != nil {
+		return nil, err
 	}
 
 	qBulk := `
@@ -785,6 +759,39 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 	}
 
 	return res, nil
+}
+func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]byte, []metamorph_api.Status, []string, []*string, []time.Time, error) {
+
+	txHashes := make([][]byte, len(updates))
+	statuses := make([]metamorph_api.Status, len(updates))
+	rejectReasons := make([]string, len(updates))
+	statusHistories := make([]*string, len(updates))
+	timestamps := make([]time.Time, len(updates))
+
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+		timestamps[i] = update.Timestamp
+		if timestamps[i].IsZero() {
+			timestamps[i] = p.now()
+		}
+
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := json.Marshal(update.StatusHistory)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
+	}
+	return txHashes, statuses, rejectReasons, statusHistories, timestamps, nil
 }
 
 func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {

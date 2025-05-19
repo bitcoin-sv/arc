@@ -584,7 +584,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
 
-			blockHeight, err := m.btxClient.CurrentBlockHeight(nil)
+			blockHeight, err := m.btxClient.CurrentBlockHeight(ctx)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}

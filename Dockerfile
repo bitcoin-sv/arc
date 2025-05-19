@@ -1,10 +1,12 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-ubuntu24.04 AS build-stage
+FROM --platform=$BUILDPLATFORM debian:sid-slim AS build-stage   # glibc 2.39
 
-
+# install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential g++ pkg-config wget git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+      wget ca-certificates build-essential g++ git pkg-config \
+   && wget -qO- https://go.dev/dl/go1.22.3.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
+   && rm -rf /var/lib/apt/lists/*
 
+ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=1
 ENV CGO_LDFLAGS="-lstdc++"
 

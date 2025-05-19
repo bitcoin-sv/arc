@@ -7,7 +7,7 @@ ARG MAIN="./cmd/arc/main.go"
 
 RUN apk --update add ca-certificates
 
-RUN apt-get install -y --no-install-recommends build-essential
+RUN apk add --no-cache build-base
 
 WORKDIR /app
 

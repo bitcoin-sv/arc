@@ -47,7 +47,7 @@ var (
 
 type ArcDefaultHandler struct {
 	TransactionHandler      metamorph.TransactionHandler
-	btxClient               *blocktx.BtxClient
+	btxClient               blocktx.Client
 	NodePolicy              *bitcoin.Settings
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
@@ -118,7 +118,7 @@ type Option func(f *ArcDefaultHandler)
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler metamorph.TransactionHandler,
-	btxClient *blocktx.BtxClient,
+	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
 	cachedFinder validator.TxFinderI,
 	opts ...Option,

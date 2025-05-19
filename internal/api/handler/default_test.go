@@ -661,8 +661,8 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
-				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+			merkleRootsVerifier := &btxMocks.ClientMock{
+				VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
 			}
@@ -1022,7 +1022,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
+		merkleRootsVerifier := &btxMocks.ClientMock{
 			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 				return nil, nil
 			},
@@ -1104,7 +1104,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
+		merkleRootsVerifier := &btxMocks.ClientMock{
 			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 				return nil, nil
 			},
@@ -1177,7 +1177,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		merkleRootsVerifier := &btxMocks.MerkleRootsVerifierMock{
+		merkleRootsVerifier := &btxMocks.ClientMock{
 			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 				return nil, nil
 			},

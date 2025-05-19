@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*            # <-- use apt instead of apk
 
 ENV CGO_ENABLED=1
+ENV CGO_LDFLAGS="-lstdc++"
 
 WORKDIR /app
 
@@ -26,6 +27,8 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY pkg/ pkg/
 COPY config/ config/
+
+ENV CGO_LDFLAGS="-lstdc++"
 
 # Add grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \

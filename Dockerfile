@@ -3,6 +3,7 @@ FROM debian:sid AS build-stage
 # install Go 1.24.x (sid’s repo or tarball)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates golang && \
+    golang wget ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 ARG APP_COMMIT

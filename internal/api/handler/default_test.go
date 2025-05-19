@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -664,6 +665,11 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			merkleRootsVerifier := &btxMocks.ClientMock{
 				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
+				},
+				CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{
+						CurrentBlockHeight: 1,
+					}, nil
 				},
 			}
 

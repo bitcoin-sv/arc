@@ -666,7 +666,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return nil, nil
 				},
-				CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{
 						CurrentBlockHeight: 1,
 					}, nil

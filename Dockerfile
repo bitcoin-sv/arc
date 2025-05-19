@@ -1,4 +1,4 @@
-FROM debian:sid AS build-stage
+FROM golang:1.24-bookworm AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION

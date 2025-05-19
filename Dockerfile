@@ -5,8 +5,6 @@ ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-RUN apk add --no-cache build-base gcompat
-
 # In the Debian/Bookworm build stage
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates && \

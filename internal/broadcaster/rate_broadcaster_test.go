@@ -274,7 +274,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 						})
 					}
 					if tc.putBackToChannel {
-						return nil, context.Canceled
+						return nil, context.Canceled //errors.New("put utxos back to channel")
 					}
 					return statuses, nil
 				},

@@ -44,8 +44,7 @@ RUN go build \
 # Build broadcaster-cli binary
 RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
-# Deploy the application binary into a lean image
-FROM scratch
+FROM debian:sid-slim
 
 WORKDIR /service
 

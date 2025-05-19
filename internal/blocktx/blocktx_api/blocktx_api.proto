@@ -93,7 +93,7 @@ message RowsAffectedResponse {
 
 // swagger:model CurrentBlockHeightResponse
 message CurrentBlockHeightResponse {
-  int32 currentBlockHeight = 1;
+  uint64 currentBlockHeight = 1;
 }
 
 message DelUnfinishedBlockProcessingRequest {

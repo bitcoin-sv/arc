@@ -219,6 +219,7 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	defer func() {
 		tracing.EndTracing(span, nil)
 	}()
+
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))
 	remainingIDs := map[string]struct{}{}

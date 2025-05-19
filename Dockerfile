@@ -2,7 +2,7 @@ FROM debian:sid AS build-stage
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates golang wget && \
+        golang wget ca-certificates build-essential && \
     rm -rf /var/lib/apt/lists/*
 
 ARG APP_COMMIT

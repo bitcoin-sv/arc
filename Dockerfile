@@ -1,4 +1,4 @@
-FROM debian:bookworm AS build-stage
+FROM golang:1.24-bookworm AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION
@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 build-essential ca-certificates wget git
+
 
 ENV CGO_ENABLED=1 \
     CGO_LDFLAGS="-lstdc++"

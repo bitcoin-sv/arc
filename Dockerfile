@@ -1,9 +1,12 @@
-FROM --platform=$BUILDPLATFORM golang:1.24.1-bookworm AS build-stage
+FROM --platform=$BUILDPLATFORM golang:1.22-ubuntu24.04 AS build-stage
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ca-certificates gcc g++ wget make git pkg-config && \
-    rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential g++ pkg-config wget git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CGO_ENABLED=1
+ENV CGO_LDFLAGS="-lstdc++"
 
 ARG APP_COMMIT
 ARG APP_VERSION
@@ -13,9 +16,6 @@ ARG MAIN="./cmd/arc/main.go"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates build-essential wget \
     && rm -rf /var/lib/apt/lists/*            # <-- use apt instead of apk
-
-ENV CGO_ENABLED=1
-ENV CGO_LDFLAGS="-lstdc++"
 
 WORKDIR /app
 

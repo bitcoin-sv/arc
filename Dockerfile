@@ -1,14 +1,14 @@
 FROM debian:sid AS build-stage
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        golang wget ca-certificates build-essential && \
-    rm -rf /var/lib/apt/lists/*
-
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        golang wget ca-certificates build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

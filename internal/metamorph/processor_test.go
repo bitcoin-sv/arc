@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"sync"
@@ -530,7 +531,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
 					return nil, nil
 				},
-				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
 						return tc.updateResp[counter-1], tc.updateErr
@@ -937,6 +938,111 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
+}
+
+func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
+	// given
+	metamorphStore := &storeMocks.MetamorphStoreMock{
+		SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
+		UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+			return []*store.Data{
+				{
+					Hash:   testdata.TX1Hash,
+					Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					Callbacks: []store.Callback{
+						{CallbackURL: "http://callback.com"},
+					},
+					FullStatusUpdates: true,
+				}}, nil
+		},
+		UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
+			return []*store.Data{
+				{
+					Hash:   testdata.TX1Hash,
+					Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+					Callbacks: []store.Callback{
+						{CallbackURL: "http://callback.com"},
+					},
+					FullStatusUpdates: true,
+				}}, nil
+		},
+		UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+			return nil, nil
+		},
+	}
+	pm := &bcnet.Mediator{}
+	callbackSender := &mocks.CallbackSenderMock{
+		SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
+	}
+
+	mqClient := &mqMocks.MessageQueueClientMock{
+		PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+			return nil
+		},
+	}
+
+	i := 0
+	cStore := &cacheMocks.StoreMock{
+		DelFunc: func(_ ...string) error {
+			return nil
+		},
+		GetFunc: func(_ string) ([]byte, error) {
+			return testdata.TX1Hash.CloneBytes(), nil
+		},
+		MapGetFunc: func(_ string, _ string) ([]byte, error) {
+			j, _ := json.Marshal(store.UpdateStatus{
+				CompetingTxs: []string{testdata.TX2Hash.String()},
+				Hash:         chainhash.Hash(testdata.TX1Hash.CloneBytes()),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+			return j, nil
+		},
+		MapSetFunc: func(_ string, _ string, _ []byte) error {
+			return nil
+		},
+		MapLenFunc: func(_ string) (int64, error) {
+			return 1, nil
+		},
+		MapExtractAllFunc: func(_ string) (map[string][]byte, error) {
+			i++
+			if i > 1 {
+				return nil, nil
+			}
+			j, _ := json.Marshal(store.UpdateStatus{
+				CompetingTxs: []string{testdata.TX2Hash.String()},
+				Hash:         chainhash.Hash(testdata.TX1Hash.CloneBytes()),
+				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+			return map[string][]byte{testdata.TX2Hash.String(): j}, nil
+		},
+	}
+	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)
+	sut, err := metamorph.NewProcessor(
+		metamorphStore,
+		cStore,
+		pm,
+		statusMessageChannel,
+		metamorph.WithCallbackSender(callbackSender),
+		metamorph.WithStatusUpdatesInterval(10*time.Millisecond),
+		metamorph.WithMessageQueueClient(mqClient),
+	)
+	require.NoError(t, err)
+	// when
+	sut.StartSendStatusUpdate()
+	sut.StartProcessStatusUpdatesInStorage()
+
+	statusMessageChannel <- &metamorph_p2p.TxStatusMessage{
+		Hash:         testdata.TX1Hash,
+		Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		Err:          nil,
+		CompetingTxs: []string{testdata.TX2Hash.String()},
+	}
+
+	time.Sleep(200 * time.Millisecond)
+	sut.Shutdown()
+
+	// then
+	require.Equal(t, 1, len(mqClient.PublishMarshalCalls()))
 }
 
 func TestReAnnounceSeen(t *testing.T) {

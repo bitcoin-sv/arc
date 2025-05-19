@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -890,7 +891,7 @@ func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.Up
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -982,6 +983,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	statuses := make([]metamorph_api.Status, len(updates))
 	competingTxs := make([]string, len(updates))
+	allComletingTxs := make([]string, 0)
 	rejectReasons := make([]string, len(updates))
 
 	for i, update := range updates {
@@ -995,6 +997,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			if bytes.Equal(txHashes[i], tx.hash) {
 				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
 				competingTxs[i] = strings.Join(uniqueTxs, ",")
+				allComletingTxs = append(allComletingTxs, uniqueTxs...)
 				break
 			}
 		}
@@ -1015,6 +1018,30 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
 		}
 		return nil, err
+	}
+
+	if updateCompetingTxs {
+		compTxUpdates := make([]store.UpdateStatus, 0)
+		for _, cmptx := range allComletingTxs {
+			hash, err := hex.DecodeString(cmptx)
+			if err != nil {
+				fmt.Println(err)
+				return nil, err
+			}
+			txHash, err := chainhash.NewHash(hash)
+			if err != nil {
+				fmt.Println(err, cmptx)
+				return nil, err
+			}
+			compTxUpdates = append(compTxUpdates, store.UpdateStatus{
+				Hash:   *txHash,
+				Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+		}
+		_, err = p.UpdateDoubleSpend(ctx, compTxUpdates, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = tx.Commit()

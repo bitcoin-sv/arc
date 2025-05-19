@@ -5,6 +5,8 @@ ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
+RUN apk add --no-cache ca-certificates build-base  # ← build-base = gcc + g++ + make + musl-dev
+
 RUN apk --update add ca-certificates
 
 ENV CGO_ENABLED=1 \

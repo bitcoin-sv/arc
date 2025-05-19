@@ -1,4 +1,9 @@
-FROM golang:1.24-bookworm AS build-stage
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS build-stage
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates gcc g++ wget make git pkg-config && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG APP_COMMIT
 ARG APP_VERSION

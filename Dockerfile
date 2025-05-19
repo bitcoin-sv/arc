@@ -1,4 +1,4 @@
-FROM golang:1.24.1-bookworm AS build-stage
+FROM golang:1.24.1-sid AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION

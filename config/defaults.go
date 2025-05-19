@@ -13,7 +13,7 @@ func getDefaultArcConfig() *ArcConfig {
 		ProfilerAddr:          "", // optional
 		Prometheus:            getDefaultPrometheusConfig(),
 		GrpcMessageSize:       100000000,
-		Network:               "regtest",
+		Network:               "testnet",
 		ReBroadcastExpiration: 24 * time.Hour,
 		MessageQueue:          getDefaultMessageQueueConfig(),
 		Tracing:               getDefaultTracingConfig(),
@@ -37,7 +37,7 @@ func getDefaultPrometheusConfig() *PrometheusConfig {
 
 func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
-		URL: "nats://nats:4222",
+		URL: "nats://localhost:4222",
 		Streaming: MessageQueueStreaming{
 			Enabled:     true,
 			FileStorage: false,
@@ -76,7 +76,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		},
 		BlockchainNetwork: &BlockchainNetwork[*MetamorphGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",
@@ -106,7 +106,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		IncomingIsLongest:             false,
 		BlockchainNetwork: &BlockchainNetwork[*BlocktxGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",
@@ -122,7 +122,7 @@ func getBlocktxConfig() *BlocktxConfig {
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
 		Address:             "localhost:9090",
-		WocAPIKey:           "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		WocAPIKey:           "testnet_9e1f312f7fb909af6a72862dc6d41472",
 		WocMainnet:          false,
 		RequestExtendedLogs: false,
 		DefaultPolicy: &bitcoin.Settings{

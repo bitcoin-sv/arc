@@ -108,3 +108,7 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 
 	return &emptypb.Empty{}, nil
 }
+
+func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*blocktx_api.CurrentBlockHeightResponse, error) {
+	return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: 1}, nil
+}

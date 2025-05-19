@@ -3,6 +3,7 @@ package txfinder
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"time"
@@ -192,6 +193,7 @@ func (f Finder) getRawTxsFromWoc(ctx context.Context, remainingIDs map[string]st
 	ids := getKeys(remainingIDs)
 	wocTxs, err = f.wocClient.GetRawTxs(ctx, ids)
 	if err != nil {
+		fmt.Println("shota ", err)
 		f.logger.WarnContext(ctx, "failed to get transactions from WoC", slog.Any("err", err))
 		return foundTxs
 	}
@@ -219,7 +221,6 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 	defer func() {
 		tracing.EndTracing(span, nil)
 	}()
-
 	// NOTE: we can ignore ALL errors from providers, if one returns err we go to another
 	foundTxs := make([]*sdkTx.Transaction, 0, len(ids))
 	remainingIDs := map[string]struct{}{}
@@ -230,16 +231,19 @@ func (f Finder) GetRawTxs(ctx context.Context, source validator.FindSourceFlag, 
 
 	// try to get transactions from the handler
 	if len(remainingIDs) > 0 && source.Has(validator.SourceTransactionHandler) {
+		fmt.Println("shota a")
 		foundTxs = append(foundTxs, f.getRawTxsFromTransactionHandler(ctx, remainingIDs)...)
 	}
 
 	// try to get remaining txs from the node
 	if len(remainingIDs) > 0 && source.Has(validator.SourceNodes) && f.nodeClient != nil {
+		fmt.Println("shota b")
 		foundTxs = append(foundTxs, f.getRawTxsFromNode(ctx, remainingIDs)...)
 	}
 
 	// try WoC
 	if len(remainingIDs) > 0 && source.Has(validator.SourceWoC) {
+		fmt.Println("shota c")
 		foundTxs = append(foundTxs, f.getRawTxsFromWoc(ctx, remainingIDs)...)
 	}
 

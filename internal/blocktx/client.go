@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // check if BtxClient implements all necessary interfaces
@@ -79,4 +80,8 @@ func (btc *BtxClient) RegisterTransactions(ctx context.Context, hashes [][]byte)
 	}
 
 	return nil
+}
+
+func (btc *BtxClient) CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+	return btc.client.CurrentBlockHeight(ctx, &emptypb.Empty{})
 }

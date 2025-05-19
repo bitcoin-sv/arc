@@ -26,6 +26,9 @@ service BlockTxAPI {
   // RegisterTransactions registers multiple transactions in blocktx
   rpc RegisterTransactions (Transactions) returns (google.protobuf.Empty) {}
 
+  // CurrentBlockHeight returns current block height
+  rpc CurrentBlockHeight (google.protobuf.Empty) returns (CurrentBlockHeightResponse) {}
+
 }
 
 // swagger:model HealthResponse
@@ -86,6 +89,11 @@ message ClearData {
 // swagger:model RowsAffectedResponse
 message RowsAffectedResponse {
   int64 rows = 1;
+}
+
+// swagger:model CurrentBlockHeightResponse
+message CurrentBlockHeightResponse {
+  int64 currentBlockHeight = 1;
 }
 
 message DelUnfinishedBlockProcessingRequest {

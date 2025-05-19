@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ccoveille/go-safecast"
 	"github.com/labstack/echo/v4"
@@ -33,6 +34,7 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
+	genesisForkBLock             = 620539
 )
 
 var (
@@ -45,6 +47,7 @@ var (
 
 type ArcDefaultHandler struct {
 	TransactionHandler      metamorph.TransactionHandler
+	btxClient               *blocktx.BtxClient
 	NodePolicy              *bitcoin.Settings
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
@@ -115,12 +118,12 @@ type Option func(f *ArcDefaultHandler)
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler metamorph.TransactionHandler,
-	merkleRootsVerifier blocktx.MerkleRootsVerifier,
+	btxClient *blocktx.BtxClient,
 	policy *bitcoin.Settings,
 	cachedFinder validator.TxFinderI,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-	mr := merkle_verifier.New(merkleRootsVerifier)
+	mr := merkle_verifier.New((blocktx.MerkleRootsVerifier(btxClient)))
 
 	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
 	var err error
@@ -153,6 +156,7 @@ func NewDefault(
 		maxTxSizePolicy:         maxTxSizePolicy,
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:     maxscriptsizepolicy,
+		btxClient:               btxClient,
 	}
 
 	// apply options
@@ -576,6 +580,22 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
+			if err != nil {
+				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+			}
+
+			blockHeight, err := m.btxClient.CurrentBlockHeight(nil)
+			if err != nil {
+				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+			}
+
+			utxo := make([]int32, 0, len(transaction.Inputs))
+			for i, _ := range transaction.Inputs {
+				utxo[i] = genesisForkBLock
+			}
+
+			se := goscript.NewScriptEngine("main")
+			err = se.VerifyScript(txsHex, utxo, blockHeight.CurrentBlockHeight, true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

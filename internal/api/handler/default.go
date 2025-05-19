@@ -590,12 +590,17 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			utxo := make([]int32, 0, len(transaction.Inputs))
-			for i, _ := range transaction.Inputs {
+			for i := range transaction.Inputs {
 				utxo[i] = genesisForkBLock
 			}
 
+			height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+			if err != nil {
+				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
+			}
+
 			se := goscript.NewScriptEngine("main")
-			err = se.VerifyScript(txsHex, utxo, int32(blockHeight.CurrentBlockHeight), true)
+			err = se.VerifyScript(txsHex, utxo, height, true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

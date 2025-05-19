@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
@@ -35,7 +36,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	}
 
 	// add blocktx, header service or custom implementation of merkle roots verifier
-	merkleRootVerifier := &CustomMerkleRootsVerifier{}
+	merkleRootVerifier := &mocks.ClientMock{}
 
 	// create default handler
 	defaultHandler, _ := handler.NewDefault(

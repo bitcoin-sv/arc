@@ -292,6 +292,19 @@ func (p *Processor) StartProcessRegisterTxs() {
 	}()
 }
 
+func (p *Processor) CurrentBlockHeight() (uint64, error) {
+	block, err := p.store.GetChainTip(p.ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if block == nil {
+		return 0, errors.New("block height not found")
+	}
+
+	return block.Height, nil
+}
+
 func (p *Processor) processTransactions(txHashes [][]byte) error {
 	if len(txHashes) == 0 {
 		return nil

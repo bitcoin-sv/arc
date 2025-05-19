@@ -539,6 +539,51 @@ func (x *RowsAffectedResponse) GetRows() int64 {
 	return 0
 }
 
+// swagger:model CurrentBlockHeightResponse
+type CurrentBlockHeightResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	CurrentBlockHeight uint64                 `protobuf:"varint,1,opt,name=currentBlockHeight,proto3" json:"currentBlockHeight,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CurrentBlockHeightResponse) Reset() {
+	*x = CurrentBlockHeightResponse{}
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CurrentBlockHeightResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CurrentBlockHeightResponse) ProtoMessage() {}
+
+func (x *CurrentBlockHeightResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CurrentBlockHeightResponse.ProtoReflect.Descriptor instead.
+func (*CurrentBlockHeightResponse) Descriptor() ([]byte, []int) {
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CurrentBlockHeightResponse) GetCurrentBlockHeight() uint64 {
+	if x != nil {
+		return x.CurrentBlockHeight
+	}
+	return 0
+}
+
 type DelUnfinishedBlockProcessingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProcessedBy   string                 `protobuf:"bytes,1,opt,name=processed_by,json=processedBy,proto3" json:"processed_by,omitempty"`
@@ -548,7 +593,7 @@ type DelUnfinishedBlockProcessingRequest struct {
 
 func (x *DelUnfinishedBlockProcessingRequest) Reset() {
 	*x = DelUnfinishedBlockProcessingRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +605,7 @@ func (x *DelUnfinishedBlockProcessingRequest) String() string {
 func (*DelUnfinishedBlockProcessingRequest) ProtoMessage() {}
 
 func (x *DelUnfinishedBlockProcessingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +618,7 @@ func (x *DelUnfinishedBlockProcessingRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use DelUnfinishedBlockProcessingRequest.ProtoReflect.Descriptor instead.
 func (*DelUnfinishedBlockProcessingRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{8}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DelUnfinishedBlockProcessingRequest) GetProcessedBy() string {
@@ -593,7 +638,7 @@ type MerkleRootVerificationRequest struct {
 
 func (x *MerkleRootVerificationRequest) Reset() {
 	*x = MerkleRootVerificationRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +650,7 @@ func (x *MerkleRootVerificationRequest) String() string {
 func (*MerkleRootVerificationRequest) ProtoMessage() {}
 
 func (x *MerkleRootVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +663,7 @@ func (x *MerkleRootVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootVerificationRequest.ProtoReflect.Descriptor instead.
 func (*MerkleRootVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{9}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MerkleRootVerificationRequest) GetMerkleRoot() string {
@@ -644,7 +689,7 @@ type MerkleRootsVerificationRequest struct {
 
 func (x *MerkleRootsVerificationRequest) Reset() {
 	*x = MerkleRootsVerificationRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +701,7 @@ func (x *MerkleRootsVerificationRequest) String() string {
 func (*MerkleRootsVerificationRequest) ProtoMessage() {}
 
 func (x *MerkleRootsVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +714,7 @@ func (x *MerkleRootsVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootsVerificationRequest.ProtoReflect.Descriptor instead.
 func (*MerkleRootsVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{10}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MerkleRootsVerificationRequest) GetMerkleRoots() []*MerkleRootVerificationRequest {
@@ -688,7 +733,7 @@ type MerkleRootVerificationResponse struct {
 
 func (x *MerkleRootVerificationResponse) Reset() {
 	*x = MerkleRootVerificationResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +745,7 @@ func (x *MerkleRootVerificationResponse) String() string {
 func (*MerkleRootVerificationResponse) ProtoMessage() {}
 
 func (x *MerkleRootVerificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +758,7 @@ func (x *MerkleRootVerificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootVerificationResponse.ProtoReflect.Descriptor instead.
 func (*MerkleRootVerificationResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{11}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MerkleRootVerificationResponse) GetUnverifiedBlockHeights() []uint64 {
@@ -760,7 +805,9 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\tClearData\x12$\n" +
 	"\rretentionDays\x18\x01 \x01(\x05R\rretentionDays\"*\n" +
 	"\x14RowsAffectedResponse\x12\x12\n" +
-	"\x04rows\x18\x01 \x01(\x03R\x04rows\"H\n" +
+	"\x04rows\x18\x01 \x01(\x03R\x04rows\"L\n" +
+	"\x1aCurrentBlockHeightResponse\x12.\n" +
+	"\x12currentBlockHeight\x18\x01 \x01(\x04R\x12currentBlockHeight\"H\n" +
 	"#DelUnfinishedBlockProcessingRequest\x12!\n" +
 	"\fprocessed_by\x18\x01 \x01(\tR\vprocessedBy\"c\n" +
 	"\x1dMerkleRootVerificationRequest\x12\x1f\n" +
@@ -776,7 +823,7 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\aLONGEST\x10\n" +
 	"\x12\t\n" +
 	"\x05STALE\x10\x14\x12\f\n" +
-	"\bORPHANED\x10\x1e2\xfe\x03\n" +
+	"\bORPHANED\x10\x1e2\xd7\x04\n" +
 	"\n" +
 	"BlockTxAPI\x12?\n" +
 	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1b.blocktx_api.HealthResponse\"\x00\x12J\n" +
@@ -784,7 +831,8 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\x1bClearRegisteredTransactions\x12\x16.blocktx_api.ClearData\x1a!.blocktx_api.RowsAffectedResponse\"\x00\x12o\n" +
 	"\x11VerifyMerkleRoots\x12+.blocktx_api.MerkleRootsVerificationRequest\x1a+.blocktx_api.MerkleRootVerificationResponse\"\x00\x12I\n" +
 	"\x13RegisterTransaction\x12\x18.blocktx_api.Transaction\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
-	"\x14RegisterTransactions\x12\x19.blocktx_api.Transactions\x1a\x16.google.protobuf.Empty\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
+	"\x14RegisterTransactions\x12\x19.blocktx_api.Transactions\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
+	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
 
 var (
 	file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescOnce sync.Once
@@ -799,7 +847,7 @@ func file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP() []byte {
 }
 
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_goTypes = []any{
 	(Status)(0),                                 // 0: blocktx_api.Status
 	(*HealthResponse)(nil),                      // 1: blocktx_api.HealthResponse
@@ -810,34 +858,37 @@ var file_internal_blocktx_blocktx_api_blocktx_api_proto_goTypes = []any{
 	(*Transaction)(nil),                         // 6: blocktx_api.Transaction
 	(*ClearData)(nil),                           // 7: blocktx_api.ClearData
 	(*RowsAffectedResponse)(nil),                // 8: blocktx_api.RowsAffectedResponse
-	(*DelUnfinishedBlockProcessingRequest)(nil), // 9: blocktx_api.DelUnfinishedBlockProcessingRequest
-	(*MerkleRootVerificationRequest)(nil),       // 10: blocktx_api.MerkleRootVerificationRequest
-	(*MerkleRootsVerificationRequest)(nil),      // 11: blocktx_api.MerkleRootsVerificationRequest
-	(*MerkleRootVerificationResponse)(nil),      // 12: blocktx_api.MerkleRootVerificationResponse
-	(*timestamppb.Timestamp)(nil),               // 13: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                       // 14: google.protobuf.Empty
+	(*CurrentBlockHeightResponse)(nil),          // 9: blocktx_api.CurrentBlockHeightResponse
+	(*DelUnfinishedBlockProcessingRequest)(nil), // 10: blocktx_api.DelUnfinishedBlockProcessingRequest
+	(*MerkleRootVerificationRequest)(nil),       // 11: blocktx_api.MerkleRootVerificationRequest
+	(*MerkleRootsVerificationRequest)(nil),      // 12: blocktx_api.MerkleRootsVerificationRequest
+	(*MerkleRootVerificationResponse)(nil),      // 13: blocktx_api.MerkleRootVerificationResponse
+	(*timestamppb.Timestamp)(nil),               // 14: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                       // 15: google.protobuf.Empty
 }
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_depIdxs = []int32{
-	13, // 0: blocktx_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
+	14, // 0: blocktx_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 1: blocktx_api.Block.status:type_name -> blocktx_api.Status
 	6,  // 2: blocktx_api.Transactions.transactions:type_name -> blocktx_api.Transaction
 	0,  // 3: blocktx_api.TransactionBlock.block_status:type_name -> blocktx_api.Status
 	4,  // 4: blocktx_api.TransactionBlocks.transaction_blocks:type_name -> blocktx_api.TransactionBlock
-	10, // 5: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
-	14, // 6: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
+	11, // 5: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
+	15, // 6: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
 	7,  // 7: blocktx_api.BlockTxAPI.ClearBlocks:input_type -> blocktx_api.ClearData
 	7,  // 8: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:input_type -> blocktx_api.ClearData
-	11, // 9: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
+	12, // 9: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
 	6,  // 10: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
 	3,  // 11: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
-	1,  // 12: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
-	8,  // 13: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
-	8,  // 14: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
-	12, // 15: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
-	14, // 16: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
-	14, // 17: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
+	15, // 12: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
+	1,  // 13: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
+	8,  // 14: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
+	8,  // 15: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
+	13, // 16: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
+	15, // 17: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
+	15, // 18: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
+	9,  // 19: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -854,7 +905,7 @@ func file_internal_blocktx_blocktx_api_blocktx_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc), len(file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

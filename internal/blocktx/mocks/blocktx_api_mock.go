@@ -27,6 +27,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			ClearRegisteredTransactionsFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearRegisteredTransactions method")
 //			},
+//			CurrentBlockHeightFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.CurrentBlockHeightResponse, error) {
+//				panic("mock out the CurrentBlockHeight method")
+//			},
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
@@ -51,6 +54,9 @@ type BlockTxAPIClientMock struct {
 
 	// ClearRegisteredTransactionsFunc mocks the ClearRegisteredTransactions method.
 	ClearRegisteredTransactionsFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
+
+	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
+	CurrentBlockHeightFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.CurrentBlockHeightResponse, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
@@ -81,6 +87,15 @@ type BlockTxAPIClientMock struct {
 			Ctx context.Context
 			// In is the in argument value.
 			In *blocktx_api.ClearData
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
+		// CurrentBlockHeight holds details about calls to the CurrentBlockHeight method.
+		CurrentBlockHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *emptypb.Empty
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -123,6 +138,7 @@ type BlockTxAPIClientMock struct {
 	}
 	lockClearBlocks                 sync.RWMutex
 	lockClearRegisteredTransactions sync.RWMutex
+	lockCurrentBlockHeight          sync.RWMutex
 	lockHealth                      sync.RWMutex
 	lockRegisterTransaction         sync.RWMutex
 	lockRegisterTransactions        sync.RWMutex
@@ -206,6 +222,46 @@ func (mock *BlockTxAPIClientMock) ClearRegisteredTransactionsCalls() []struct {
 	mock.lockClearRegisteredTransactions.RLock()
 	calls = mock.calls.ClearRegisteredTransactions
 	mock.lockClearRegisteredTransactions.RUnlock()
+	return calls
+}
+
+// CurrentBlockHeight calls CurrentBlockHeightFunc.
+func (mock *BlockTxAPIClientMock) CurrentBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.CurrentBlockHeightResponse, error) {
+	if mock.CurrentBlockHeightFunc == nil {
+		panic("BlockTxAPIClientMock.CurrentBlockHeightFunc: method is nil but BlockTxAPIClient.CurrentBlockHeight was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *emptypb.Empty
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockCurrentBlockHeight.Lock()
+	mock.calls.CurrentBlockHeight = append(mock.calls.CurrentBlockHeight, callInfo)
+	mock.lockCurrentBlockHeight.Unlock()
+	return mock.CurrentBlockHeightFunc(ctx, in, opts...)
+}
+
+// CurrentBlockHeightCalls gets all the calls that were made to CurrentBlockHeight.
+// Check the length with:
+//
+//	len(mockedBlockTxAPIClient.CurrentBlockHeightCalls())
+func (mock *BlockTxAPIClientMock) CurrentBlockHeightCalls() []struct {
+	Ctx  context.Context
+	In   *emptypb.Empty
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *emptypb.Empty
+		Opts []grpc.CallOption
+	}
+	mock.lockCurrentBlockHeight.RLock()
+	calls = mock.calls.CurrentBlockHeight
+	mock.lockCurrentBlockHeight.RUnlock()
 	return calls
 }
 

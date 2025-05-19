@@ -595,7 +595,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			se := goscript.NewScriptEngine("main")
-			err = se.VerifyScript(txsHex, utxo, blockHeight.CurrentBlockHeight, true)
+			err = se.VerifyScript(txsHex, utxo, int32(blockHeight.CurrentBlockHeight), true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

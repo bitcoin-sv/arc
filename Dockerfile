@@ -5,7 +5,6 @@ ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-ENV CGO_ENABLED=0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         golang wget ca-certificates build-essential && \
@@ -22,6 +21,8 @@ COPY internal/ internal/
 COPY pkg/ pkg/
 COPY config/ config/
 
+ENV CGO_LDFLAGS="-lstdc++"
+
 # Add grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
@@ -32,7 +33,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
      -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Deploy the application binary into a lean image
 FROM gcr.io/distroless/cc-debian12

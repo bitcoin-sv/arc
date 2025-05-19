@@ -1,17 +1,11 @@
-FROM golang:1.24-bookworm AS build-stage
+FROM golang:1.24.1-alpine3.21 AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential git ca-certificates wget \
-        gcc g++ pkg-config
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-build-essential ca-certificates wget git
-
+RUN apk --update add ca-certificates
 
 ENV CGO_ENABLED=1 \
     CGO_LDFLAGS="-lstdc++"
@@ -27,8 +21,6 @@ COPY internal/ internal/
 COPY pkg/ pkg/
 COPY config/ config/
 
-ENV CGO_LDFLAGS="-lstdc++"
-
 # Add grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
@@ -42,7 +34,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Deploy the application binary into a lean image
-FROM gcr.io/distroless/cc-debian12
+FROM scratch
 
 WORKDIR /service
 

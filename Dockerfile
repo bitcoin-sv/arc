@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS build-stage
+FROM --platform=$BUILDPLATFORM golang:1.24.1-bookworm AS build-stage
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

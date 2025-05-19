@@ -1,14 +1,14 @@
-FROM golang:1.24.1-sid AS build-stage
+FROM debian:sid AS build-stage
+
+# install Go 1.24.x (sid’s repo or tarball)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates golang && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
-
-# In the Debian/Bookworm build stage
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

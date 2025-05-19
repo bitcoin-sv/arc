@@ -1,16 +1,15 @@
-FROM golang:1.24.1-alpine3.21 AS build-stage
+FROM golang:1.24-bullseye AS build-stage
 
 ARG APP_COMMIT
 ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-RUN apk add --no-cache ca-certificates build-base  # ← build-base = gcc + g++ + make + musl-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates build-essential wget \
+    && rm -rf /var/lib/apt/lists/*            # <-- use apt instead of apk
 
-RUN apk --update add ca-certificates
-
-ENV CGO_ENABLED=1 \
-    CGO_LDFLAGS="-lstdc++"
+ENV CGO_ENABLED=1
 
 WORKDIR /app
 
@@ -28,12 +27,12 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
-RUN GOOS=linux GOARCH=amd64 go build \
+RUN go build \
      -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" \
      -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
-RUN GOOS=linux GOARCH=amd64 go build -ldflags -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
+RUN go build -ldflags -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Deploy the application binary into a lean image
 FROM scratch

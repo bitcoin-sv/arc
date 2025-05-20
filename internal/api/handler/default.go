@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ccoveille/go-safecast"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
+	apihelpers "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -34,9 +34,9 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
-	genesisForkBlockMain         = 620539
-	genesisForkBlockTest         = 1344302
-	genesisForkBlockRegtest      = 10000
+	GenesisForkBlockMain         = int32(620539)
+	GenesisForkBlockTest         = int32(1344302)
+	GenesisForkBlockRegtest      = int32(10000)
 )
 
 var (
@@ -56,7 +56,8 @@ type ArcDefaultHandler struct {
 	maxscriptsizepolicy     uint64
 
 	logger                        *slog.Logger
-	network                       string
+	scriptVerifier                apihelpers.ScriptVerifier
+	genesisForkBLock              int32
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
@@ -120,11 +121,12 @@ type Option func(f *ArcDefaultHandler)
 
 func NewDefault(
 	logger *slog.Logger,
-	network string,
 	transactionHandler metamorph.TransactionHandler,
 	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
 	cachedFinder validator.TxFinderI,
+	scriptVerifier apihelpers.ScriptVerifier,
+	genesisForkBLock int32,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
 	mr := merkle_verifier.New((blocktx.MerkleRootsVerifier(btxClient)))
@@ -161,7 +163,8 @@ func NewDefault(
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:     maxscriptsizepolicy,
 		btxClient:               btxClient,
-		network:                 network,
+		scriptVerifier:          scriptVerifier,
+		genesisForkBLock:        genesisForkBLock,
 	}
 
 	// apply options
@@ -599,30 +602,12 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
-			var network string
-			var genesisForkBLock int32
-			switch m.network {
-			case "mainnet":
-				network = "main"
-				genesisForkBLock = genesisForkBlockMain
-			case "testnet":
-				genesisForkBLock = genesisForkBlockTest
-				network = "test"
-			case "regtest":
-				genesisForkBLock = genesisForkBlockRegtest
-			}
-
 			utxo := make([]int32, len(transaction.Inputs))
 			for i := range transaction.Inputs {
-				utxo[i] = genesisForkBLock
+				utxo[i] = m.genesisForkBLock
 			}
 
-			se := goscript.NewScriptEngine(network)
-			h := height
-			if h < genesisForkBLock {
-				h = genesisForkBLock
-			}
-			err = se.VerifyScript(txsHex, utxo, h, false)
+			err = m.scriptVerifier.VerifyScript(txsHex, utxo, height, false)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

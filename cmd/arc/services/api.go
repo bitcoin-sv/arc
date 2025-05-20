@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
@@ -159,7 +160,20 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
 	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	defaultAPIHandler, err := apiHandler.NewDefault(logger, arcConfig.Network, mtmClient, blockTxClient, policy, cachedFinder, apiOpts...)
+	network := arcConfig.Network
+	genesisBlock := apiHandler.GenesisForkBlockRegtest
+	switch arcConfig.Network {
+	case "testnet":
+		network = "test"
+		genesisBlock = apiHandler.GenesisForkBlockTest
+	case "mainnet":
+		network = "main"
+		genesisBlock = apiHandler.GenesisForkBlockMain
+	}
+
+	se := goscript.NewScriptEngine(network)
+
+	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, se, genesisBlock, apiOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"github.com/bitcoin-sv/arc/internal/api/dictionary"
 	"log"
+
+	"github.com/bitcoin-sv/arc/internal/api/dictionary"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"

@@ -22,6 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 // This example does not use the configuration files or env variables,
@@ -94,9 +95,22 @@ func main() {
 
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
+	network := arcConfig.Network
+	genesisBlock := apiHandler.GenesisForkBlockRegtest
+	switch arcConfig.Network {
+	case "testnet":
+		network = "test"
+		genesisBlock = apiHandler.GenesisForkBlockTest
+	case "mainnet":
+		network = "main"
+		genesisBlock = apiHandler.GenesisForkBlockMain
+	}
+
+	se := goscript.NewScriptEngine(network)
+
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, "testnet", metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock); err != nil {
 		panic(err)
 	}
 

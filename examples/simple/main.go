@@ -10,8 +10,10 @@ import (
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	merklerootsverifier "github.com/bitcoin-sv/arc/internal/api/merkle_roots_verifier"
+	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 func main() {
@@ -34,10 +36,15 @@ func main() {
 	merkleRootsVerifier := merklerootsverifier.NewAllowAllVerifier()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	scriptVerifierMock := &apimocks.ScriptVerifierMock{
+		VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			return nil
+		},
+	}
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, "testnet", txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest); err != nil {
 		panic(err)
 	}
 

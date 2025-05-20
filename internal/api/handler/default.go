@@ -609,7 +609,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			err = m.scriptVerifier.VerifyScript(txsHex, utxo, height, false)
 			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+				return nil, nil, api.NewErrorFields(api.ErrStatusUnlockingScripts, err.Error())
 			}
 
 			txsHex = txsHex[bytesUsed:]

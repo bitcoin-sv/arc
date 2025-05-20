@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -603,7 +604,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			se := goscript.NewScriptEngine(m.network)
-			fmt.Println("shota", txsHex, utxo, height)
+			fmt.Println("shota", hex.EncodeToString(txsHex), utxo, height)
 			err = se.VerifyScript(txsHex, utxo, height, true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())

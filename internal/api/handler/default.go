@@ -34,7 +34,9 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
-	genesisForkBLock             = 620539
+	genesisForkBlockMain         = 620539
+	genesisForkBlockTest         = 1344302
+	genesisForkBlockRegtest      = 10000
 )
 
 var (
@@ -603,11 +605,16 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			}
 
 			var network string
+			var genesisForkBLock int32
 			switch m.network {
 			case "mainnet":
 				network = "main"
+				genesisForkBLock = genesisForkBlockMain
 			case "testnet":
+				genesisForkBLock = genesisForkBlockTest
 				network = "test"
+			case "regtest":
+				genesisForkBLock = genesisForkBlockRegtest
 			}
 
 			se := goscript.NewScriptEngine(network)

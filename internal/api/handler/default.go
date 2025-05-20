@@ -613,10 +613,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			for i := range transaction.Inputs {
 				utxo[i] = m.genesisForkBLock
 			}
-
-			if height < m.genesisForkBLock {
-				height = m.genesisForkBLock
-			}
+			fmt.Println("shota", height, m.genesisForkBLock)
 
 			err = m.scriptVerifier.VerifyScript(transaction.Bytes(), utxo, height, false)
 			if err != nil {

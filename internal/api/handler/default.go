@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -613,7 +614,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			for i := range transaction.Inputs {
 				utxo[i] = m.genesisForkBLock
 			}
-			fmt.Println("shota", height, m.genesisForkBLock)
+			fmt.Println("shota", hex.EncodeToString(transaction.Bytes()), utxo, height, m.genesisForkBLock)
 
 			err = m.scriptVerifier.VerifyScript(transaction.Bytes(), utxo, height, false)
 			if err != nil {

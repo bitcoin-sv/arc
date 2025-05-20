@@ -383,7 +383,6 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 
 	switch block.Status {
 	case blocktx_api.Status_LONGEST:
-		fmt.Println("shota 2", blockMsg.Height)
 		longestTxs, ok = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
 	case blocktx_api.Status_STALE:
 		longestTxs, staleTxs, ok = p.handleStaleBlock(ctx, block)

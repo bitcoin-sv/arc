@@ -51,84 +51,108 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 		errFields.ExtraInfo = &extraInfo
 	}
 
-	switch status {
-	case ErrStatusBadRequest: // 400
-		errFields.Detail = "The request seems to be malformed and cannot be processed"
-		errFields.Title = "Bad request"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusBadRequest))
-	case ErrStatusNotFound: // 404
-		errFields.Detail = "The requested resource could not be found"
-		errFields.Title = "Not found"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusNotFound))
-	case ErrStatusGeneric: // 409
-		errFields.Detail = "Transaction could not be processed"
-		errFields.Title = "Generic error"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusGeneric))
-	case ErrStatusTxFormat: // 460
-		errFields.Detail = "Missing input scripts: Transaction could not be transformed to extended format"
-		errFields.Title = "Not extended format"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusTxFormat))
-	case ErrStatusUnlockingScripts: // 461
-		errFields.Detail = "Transaction is malformed and cannot be processed"
-		errFields.Title = "Malformed transaction"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusUnlockingScripts))
-	case ErrStatusInputs: // 462
-		errFields.Detail = "Transaction is invalid because the inputs are non-existent or spent"
-		errFields.Title = "Invalid inputs"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusInputs))
-	case ErrStatusMalformed: // 463
-		errFields.Detail = "Transaction is malformed and cannot be processed"
-		errFields.Title = "Malformed transaction"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMalformed))
-	case ErrStatusOutputs: // 464
-		errFields.Detail = "Transaction is invalid because the outputs are non-existent or invalid"
-		errFields.Title = "Invalid outputs"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusOutputs))
-	case ErrStatusFees: // 465
-		errFields.Detail = "Fees are insufficient"
-		errFields.Title = "Fee too low"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFees))
-	case ErrStatusConflict: // 466
-		errFields.Detail = "Transaction is valid, but there is a conflicting tx in the block template"
-		errFields.Title = "Conflicting tx found"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusConflict))
-	case ErrStatusMinedAncestorsNotFound: // 467
-		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction in provided beef transactions"
-		errFields.Title = "Mined ancestors not found"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFound))
-	case ErrStatusCalculatingMerkleRoots: // 468
-		errFields.Detail = "BEEF validation failed: couldn't calculate Merkle Roots from given BUMPs"
-		errFields.Title = "Invalid BUMPs"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusCalculatingMerkleRoots))
-	case ErrStatusValidatingMerkleRoots: // 469
-		errFields.Detail = "BEEF validation failed: couldn't validate Merkle Roots"
-		errFields.Title = "Merkle Roots validation failed"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusValidatingMerkleRoots))
-	case ErrStatusFrozenPolicy: // 471
-		errFields.Detail = "Input Frozen (blacklist manager policy blacklisted)"
-		errFields.Title = "Input Frozen"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFrozenPolicy))
-	case ErrStatusFrozenConsensus: // 472
-		errFields.Detail = "Input Frozen (blacklist manager consensus blacklisted)"
-		errFields.Title = "Input Frozen"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFrozenConsensus))
-	case ErrStatusCumulativeFees: // 473
-		errFields.Detail = "Cumulative fee validation failed"
-		errFields.Title = "Cumulative fee validation failed"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusCumulativeFees))
-	case ErrStatusTxSize: // 474
-		errFields.Detail = "Transaction size validation failed"
-		errFields.Title = "Transaction size validation failed"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusTxSize))
-	case ErrStatusMinedAncestorsNotFoundInBUMP: // 475
-		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction in provided BUMPs"
-		errFields.Title = "Mined ancestors not found in BUMPs"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFoundInBUMP))
-	default:
+	var statusList = map[StatusCode]*ErrorFields{
+		ErrStatusBadRequest: { // 400
+			Detail: "The request seems to be malformed and cannot be processed",
+			Title:  "Bad request",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusBadRequest)),
+		},
+		ErrStatusNotFound: { // 404
+			Detail: "The requested resource could not be found",
+			Title:  "Not found",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusNotFound)),
+		},
+		ErrStatusGeneric: { // 409
+			Detail: "Transaction could not be processed",
+			Title:  "Generic error",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusGeneric)),
+		},
+		ErrStatusTxFormat: { // 460
+			Detail: "Missing input scripts: Transaction could not be transformed to extended format",
+			Title:  "Not extended format",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusTxFormat)),
+		},
+		ErrStatusUnlockingScripts: { // 461
+			Detail: "Transaction is malformed and cannot be processed",
+			Title:  "Malformed transaction",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusUnlockingScripts)),
+		},
+		ErrStatusInputs: { // 462
+			Detail: "Transaction is invalid because the inputs are non-existent or spent",
+			Title:  "Invalid inputs",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusInputs)),
+		},
+		ErrStatusMalformed: { // 463
+			Detail: "Transaction is malformed and cannot be processed",
+			Title:  "Malformed transaction",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMalformed)),
+		},
+		ErrStatusOutputs: { // 464
+			Detail: "Transaction is invalid because the outputs are non-existent or invalid",
+			Title:  "Invalid outputs",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusOutputs)),
+		},
+		ErrStatusFees: { // 465
+			Detail: "Fees are insufficient",
+			Title:  "Fee too low",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFees)),
+		},
+		ErrStatusConflict: { // 466
+			Detail: "Transaction is valid, but there is a conflicting tx in the block template",
+			Title:  "Conflicting tx found",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusConflict)),
+		},
+		ErrStatusMinedAncestorsNotFound: { // 467
+			Detail: "BEEF validation failed: couldn't find mined ancestor of the transaction in provided beef transactions",
+			Title:  "Mined ancestors not found",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFound)),
+		},
+		ErrStatusCalculatingMerkleRoots: { // 468
+			Detail: "BEEF validation failed: couldn't calculate Merkle Roots from given BUMPs",
+			Title:  "Invalid BUMPs",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusCalculatingMerkleRoots)),
+		},
+		ErrStatusValidatingMerkleRoots: { // 469
+			Detail: "BEEF validation failed: couldn't validate Merkle Roots",
+			Title:  "Merkle Roots validation failed",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusValidatingMerkleRoots)),
+		},
+		ErrStatusFrozenPolicy: { // 471
+			Detail: "Input Frozen (blacklist manager policy blacklisted)",
+			Title:  "Input Frozen",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFrozenPolicy)),
+		},
+		ErrStatusFrozenConsensus: { // 472
+			Detail: "Input Frozen (blacklist manager consensus blacklisted)",
+			Title:  "Input Frozen",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusFrozenConsensus)),
+		},
+		ErrStatusCumulativeFees: { // 473
+			Detail: "Cumulative fee validation failed",
+			Title:  "Cumulative fee validation failed",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusCumulativeFees)),
+		},
+		ErrStatusTxSize: { // 474
+			Detail: "Transaction size validation failed",
+			Title:  "Transaction size validation failed",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusTxSize)),
+		},
+		ErrStatusMinedAncestorsNotFoundInBUMP: { // 475
+			Detail: "BEEF validation failed: couldn't find mined ancestor of the transaction in provided BUMPs",
+			Title:  "Mined ancestors not found in BUMPs",
+			Type:   arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFoundInBUMP)),
+		},
+	}
+	errInfo, ok := statusList[status]
+	if !ok {
 		errFields.Status = int(ErrStatusGeneric)
 		errFields.Detail = "Transaction could not be processed"
 		errFields.Title = "Generic error"
 		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusGeneric))
+	} else {
+		errFields.Detail = errInfo.Detail
+		errFields.Title = errInfo.Title
+		errFields.Type = errInfo.Type
 	}
 
 	return &errFields

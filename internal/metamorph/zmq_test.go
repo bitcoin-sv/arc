@@ -18,6 +18,7 @@ import (
 
 var zmqEndpoint = "tcp://127.0.0.1:5555"
 var zmqEndpointURL, _ = url.Parse(zmqEndpoint)
+var zmqNotExistingURL, _ = url.Parse("https://notexisting.url")
 var statusMessageCh chan *metamorph_p2p.TxStatusMessage
 var zmqMessages = make(chan []string, 10)
 

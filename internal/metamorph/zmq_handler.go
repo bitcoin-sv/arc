@@ -23,15 +23,20 @@ type ZMQHandler struct {
 	addSubscription    chan subscriptionRequest
 	removeSubscription chan subscriptionRequest
 	logger             *slog.Logger
+	refreshRate        time.Duration
 }
 
 func NewZMQHandler(ctx context.Context, zmqURL *url.URL, logger *slog.Logger) *ZMQHandler {
+	return NewZMQHandlerWithRefreshRate(ctx, zmqURL, logger, 10*time.Second)
+}
+func NewZMQHandlerWithRefreshRate(ctx context.Context, zmqURL *url.URL, logger *slog.Logger, refreshRate time.Duration) *ZMQHandler {
 	zmq := &ZMQHandler{
 		address:            fmt.Sprintf("tcp://%s:%s", zmqURL.Hostname(), zmqURL.Port()),
 		subscriptions:      make(map[string][]chan []string),
 		addSubscription:    make(chan subscriptionRequest, 10),
 		removeSubscription: make(chan subscriptionRequest, 10),
 		logger:             logger.With(slog.String("module", "zmq-handler")),
+		refreshRate:        refreshRate,
 	}
 
 	go zmq.start(ctx)
@@ -54,8 +59,8 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 		if err := zmqHandler.socket.Dial(zmqHandler.address); err != nil {
 			zmqHandler.err = err
 			zmqHandler.logger.Error("Could not dial ZMQ", slog.String("address", zmqHandler.address), slog.String("error", err.Error()))
-			zmqHandler.logger.Info("Attempting to re-establish ZMQ connection in 10 seconds...")
-			time.Sleep(10 * time.Second)
+			zmqHandler.logger.Info("Attempting to re-establish ZMQ connection in ...", slog.Duration("refreshRate", zmqHandler.refreshRate))
+			time.Sleep(zmqHandler.refreshRate)
 			continue
 		}
 
@@ -69,63 +74,9 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 			zmqHandler.logger.Info("ZMQ: Subscribed", slog.String("topic", topic))
 		}
 
-	OUT:
-		for {
-			select {
-			case <-ctx.Done():
-				zmqHandler.logger.Info("ZMQ: Context done, exiting")
-				return
-			case req := <-zmqHandler.addSubscription:
-				if err := zmqHandler.socket.SetOption(zmq4.OptionSubscribe, req.topic); err != nil {
-					zmqHandler.logger.Error("ZMQ: Failed to subscribe", slog.String("topic", req.topic))
-				} else {
-					zmqHandler.logger.Info("ZMQ: Subscribed", slog.String("topic", req.topic))
-				}
-
-				subscribers := zmqHandler.subscriptions[req.topic]
-				subscribers = append(subscribers, req.ch)
-
-				zmqHandler.subscriptions[req.topic] = subscribers
-
-			case req := <-zmqHandler.removeSubscription:
-				subscribers := zmqHandler.subscriptions[req.topic]
-				for i, subscriber := range subscribers {
-					if subscriber == req.ch {
-						subscribers = append(subscribers[:i], subscribers[i+1:]...)
-						zmqHandler.logger.Info("Removed subscription", slog.String("topic", req.topic))
-						break
-					}
-				}
-				zmqHandler.subscriptions[req.topic] = subscribers
-
-			default:
-				msg, err := zmqHandler.socket.Recv()
-				if err != nil {
-					if errors.Is(err, context.Canceled) {
-						return
-					}
-					zmqHandler.logger.Error("zmqHandler.socket.Recv()", slog.String("error", err.Error()))
-					break OUT
-				}
-
-				if !zmqHandler.connected {
-					zmqHandler.connected = true
-					zmqHandler.logger.Info("ZMQ: Connection observed", slog.String("address", zmqHandler.address))
-				}
-
-				subscribers := zmqHandler.subscriptions[string(msg.Frames[0])]
-
-				sequence := "N/A"
-
-				if len(msg.Frames) > 2 && len(msg.Frames[2]) == 4 {
-					s := binary.LittleEndian.Uint32(msg.Frames[2])
-					sequence = strconv.FormatInt(int64(s), 10)
-				}
-
-				for _, subscriber := range subscribers {
-					subscriber <- []string{string(msg.Frames[0]), hex.EncodeToString(msg.Frames[1]), sequence}
-				}
-			}
+		err := zmqHandler.checkZMQHandlerCases(ctx)
+		if err != nil {
+			return
 		}
 
 		if zmqHandler.connected {
@@ -134,8 +85,8 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 			}
 			zmqHandler.connected = false
 		}
-		zmqHandler.logger.Info("Attempting to re-establish ZMQ connection in 10 seconds...")
-		time.Sleep(10 * time.Second)
+		zmqHandler.logger.Info("Attempting to re-establish ZMQ connection in ...", slog.Duration("refreshRate", zmqHandler.refreshRate))
+		time.Sleep(zmqHandler.refreshRate)
 	}
 }
 
@@ -162,5 +113,67 @@ func (zmqHandler *ZMQHandler) Unsubscribe(topic string, ch chan []string) error 
 		ch:    ch,
 	}
 
+	return nil
+}
+
+func (zmqHandler *ZMQHandler) checkZMQHandlerCases(ctx context.Context) error {
+OUT:
+	for {
+		select {
+		case <-ctx.Done():
+			zmqHandler.logger.Info("ZMQ: Context done, exiting")
+			return errors.New("context done")
+		case req := <-zmqHandler.addSubscription:
+			if err := zmqHandler.socket.SetOption(zmq4.OptionSubscribe, req.topic); err != nil {
+				zmqHandler.logger.Error("ZMQ: Failed to subscribe", slog.String("topic", req.topic))
+			} else {
+				zmqHandler.logger.Info("ZMQ: Subscribed", slog.String("topic", req.topic))
+			}
+
+			subscribers := zmqHandler.subscriptions[req.topic]
+			subscribers = append(subscribers, req.ch)
+
+			zmqHandler.subscriptions[req.topic] = subscribers
+
+		case req := <-zmqHandler.removeSubscription:
+			subscribers := zmqHandler.subscriptions[req.topic]
+			for i, subscriber := range subscribers {
+				if subscriber == req.ch {
+					subscribers = append(subscribers[:i], subscribers[i+1:]...)
+					zmqHandler.logger.Info("Removed subscription", slog.String("topic", req.topic))
+					break
+				}
+			}
+			zmqHandler.subscriptions[req.topic] = subscribers
+
+		default:
+			msg, err := zmqHandler.socket.Recv()
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return err
+				}
+				zmqHandler.logger.Error("zmqHandler.socket.Recv()", slog.String("error", err.Error()))
+				break OUT
+			}
+
+			if !zmqHandler.connected {
+				zmqHandler.connected = true
+				zmqHandler.logger.Info("ZMQ: Connection observed", slog.String("address", zmqHandler.address))
+			}
+
+			subscribers := zmqHandler.subscriptions[string(msg.Frames[0])]
+
+			sequence := "N/A"
+
+			if len(msg.Frames) > 2 && len(msg.Frames[2]) == 4 {
+				s := binary.LittleEndian.Uint32(msg.Frames[2])
+				sequence = strconv.FormatInt(int64(s), 10)
+			}
+
+			for _, subscriber := range subscribers {
+				subscriber <- []string{string(msg.Frames[0]), hex.EncodeToString(msg.Frames[1]), sequence}
+			}
+		}
+	}
 	return nil
 }

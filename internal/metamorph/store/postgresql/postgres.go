@@ -760,8 +760,8 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 
 	return res, nil
 }
-func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]byte, []metamorph_api.Status, []string, []*string, []time.Time, error) {
 
+func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]byte, []metamorph_api.Status, []string, []*string, []time.Time, error) {
 	txHashes := make([][]byte, len(updates))
 	statuses := make([]metamorph_api.Status, len(updates))
 	rejectReasons := make([]string, len(updates))

@@ -608,6 +608,9 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				utxo[i] = m.genesisForkBLock
 			}
 
+			if height < m.genesisForkBLock {
+				height = m.genesisForkBLock
+			}
 			fmt.Println("shota 0 ", hex.EncodeToString(txsHex), utxo, height)
 			err = m.scriptVerifier.VerifyScript(txsHex, utxo, height, false)
 			if err != nil {

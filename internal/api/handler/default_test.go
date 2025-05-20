@@ -97,7 +97,7 @@ var (
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		defaultHandler, err := NewDefault(testLogger, nil, nil, nil, nil)
+		defaultHandler, err := NewDefault(testLogger, "test", nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -106,7 +106,7 @@ func TestNewDefault(t *testing.T) {
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -142,7 +142,7 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -170,7 +170,7 @@ func TestGETHealth(t *testing.T) {
 				return errors.New("some connection error")
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -315,7 +315,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			defaultHandler, err := NewDefault(testLogger, txHandler, nil, nil, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			defaultHandler, err := NewDefault(testLogger, "test", txHandler, nil, nil, nil, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -696,7 +696,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			urlRestrictions := []string{"skiptest"}
 			tracer := attribute.KeyValue{Key: "test", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder,
+			sut, err := NewDefault(testLogger, "test", txHandler, merkleRootsVerifier, &policy, finder,
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
@@ -752,7 +752,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		// when
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -776,7 +776,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		// given
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -805,7 +805,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid mime type", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -824,7 +824,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid txs", func(t *testing.T) {
 		// given
-		sut, err := NewDefault(testLogger, nil, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", nil, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -882,7 +882,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
 			return nil
 		}}
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, finder)
+		sut, err := NewDefault(testLogger, "test", txHandler, nil, defaultPolicy, finder)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -934,7 +934,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -975,7 +975,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, nil, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", txHandler, nil, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -1034,7 +1034,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil)
+		sut, err := NewDefault(testLogger, "test", txHandler, merkleRootsVerifier, defaultPolicy, nil)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1119,7 +1119,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
 			return nil
 		}}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
+		sut, err := NewDefault(testLogger, "test", txHandler, merkleRootsVerifier, defaultPolicy, finder)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1191,7 +1191,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
 			return nil
 		}}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder)
+		sut, err := NewDefault(testLogger, "test", txHandler, merkleRootsVerifier, defaultPolicy, finder)
 		require.NoError(t, err)
 
 		// when

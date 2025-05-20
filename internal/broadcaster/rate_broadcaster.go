@@ -298,7 +298,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
 			// In case of error put utxos back in channel
-			putUTXOSBackInChannel(b, txs)
+			b.putUTXOSBackInChannel(txs)
 			if errors.Is(err, context.Canceled) {
 				atomic.AddInt64(&b.connectionCount, -1)
 				return
@@ -307,10 +307,10 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		}
 
 		atomic.AddInt64(&b.connectionCount, -1)
-		putNewUTXOSInChannel(b, resp)
+		b.putNewUTXOSInChannel(resp)
 	}()
 }
-func putUTXOSBackInChannel(b *UTXORateBroadcaster, txs sdkTx.Transactions) {
+func (b *UTXORateBroadcaster) putUTXOSBackInChannel(txs sdkTx.Transactions) {
 	for _, tx := range txs {
 		for _, input := range tx.Inputs {
 			unusedUtxo := &sdkTx.UTXO{
@@ -324,7 +324,7 @@ func putUTXOSBackInChannel(b *UTXORateBroadcaster, txs sdkTx.Transactions) {
 	}
 }
 
-func putNewUTXOSInChannel(b *UTXORateBroadcaster, resp []*metamorph_api.TransactionStatus) {
+func (b *UTXORateBroadcaster) putNewUTXOSInChannel(resp []*metamorph_api.TransactionStatus) {
 	for _, res := range resp {
 		sat, found := b.satoshiMap.Load(res.Txid)
 		satoshis, isValid := sat.(uint64)

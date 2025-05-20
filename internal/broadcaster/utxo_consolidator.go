@@ -177,7 +177,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 					return nil, err
 				}
 
-				err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, &satoshiMap)
+				err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, satoshiMap)
 				if err != nil {
 					return nil, err
 				}
@@ -195,7 +195,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 		}
 
 		if len(tx.Inputs) >= b.maxInputs {
-			err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, &satoshiMap)
+			err = b.consolidateToFundingKeyset(&txsConsolidation, tx, txSatoshis, fundingKeySet, satoshiMap)
 			if err != nil {
 				return nil, err
 			}
@@ -213,7 +213,7 @@ func (b *UTXOConsolidator) createConsolidationTxs(utxoSet *list.List, satoshiMap
 	return txsConsolidationBatches, nil
 }
 
-func (b *UTXOConsolidator) consolidateToFundingKeyset(txsConsolidation *sdkTx.Transactions, tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet, satoshiMap *map[string]uint64) error {
+func (b *UTXOConsolidator) consolidateToFundingKeyset(txsConsolidation *sdkTx.Transactions, tx *sdkTx.Transaction, txSatoshis uint64, fundingKeySet *keyset.KeySet, satoshiMap map[string]uint64) error {
 	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func (b *UTXOConsolidator) consolidateToFundingKeyset(txsConsolidation *sdkTx.Tr
 	}
 
 	(*txsConsolidation) = append((*txsConsolidation), tx)
-	(*satoshiMap)[tx.TxID().String()] = tx.TotalOutputSatoshis()
+	satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 
 	return nil
 }

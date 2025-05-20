@@ -599,11 +599,6 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
-			utxo := make([]int32, len(transaction.Inputs))
-			for i := range transaction.Inputs {
-				utxo[i] = genesisForkBLock
-			}
-
 			var network string
 			var genesisForkBLock int32
 			switch m.network {
@@ -615,6 +610,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				network = "test"
 			case "regtest":
 				genesisForkBLock = genesisForkBlockRegtest
+			}
+
+			utxo := make([]int32, len(transaction.Inputs))
+			for i := range transaction.Inputs {
+				utxo[i] = genesisForkBLock
 			}
 
 			se := goscript.NewScriptEngine(network)

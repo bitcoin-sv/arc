@@ -299,7 +299,7 @@ func (p *Processor) CurrentBlockHeight() (uint64, error) {
 	}
 
 	if block == nil {
-		return 0, nil
+		return 0, errors.New("block height not found")
 	}
 
 	return block.Height, nil

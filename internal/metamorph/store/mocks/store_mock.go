@@ -43,17 +43,23 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetSeenFunc: func(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetSeen method")
 //			},
-//			GetSeenSinceLastMinedFunc: func(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
-//				panic("mock out the GetSeenSinceLastMined method")
+//			GetSeenPendingFunc: func(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+//				panic("mock out the GetSeenPending method")
 //			},
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
+//			},
+//			GetUnconfirmedRequestedFunc: func(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+//				panic("mock out the GetUnconfirmedRequested method")
 //			},
 //			GetUnseenFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetUnseen method")
 //			},
 //			IncrementRetriesFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the IncrementRetries method")
+//			},
+//			MarkConfirmedRequestedFunc: func(ctx context.Context, hash *chainhash.Hash) error {
+//				panic("mock out the MarkConfirmedRequested method")
 //			},
 //			PingFunc: func(ctx context.Context) error {
 //				panic("mock out the Ping method")
@@ -66,6 +72,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			},
 //			SetLockedFunc: func(ctx context.Context, since time.Time, limit int64) error {
 //				panic("mock out the SetLocked method")
+//			},
+//			SetRequestedFunc: func(ctx context.Context, hashes []*chainhash.Hash) error {
+//				panic("mock out the SetRequested method")
 //			},
 //			SetUnlockedByNameFunc: func(ctx context.Context, lockedBy string) (int64, error) {
 //				panic("mock out the SetUnlockedByName method")
@@ -113,17 +122,23 @@ type MetamorphStoreMock struct {
 	// GetSeenFunc mocks the GetSeen method.
 	GetSeenFunc func(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
-	// GetSeenSinceLastMinedFunc mocks the GetSeenSinceLastMined method.
-	GetSeenSinceLastMinedFunc func(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error)
+	// GetSeenPendingFunc mocks the GetSeenPending method.
+	GetSeenPendingFunc func(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
+
+	// GetUnconfirmedRequestedFunc mocks the GetUnconfirmedRequested method.
+	GetUnconfirmedRequestedFunc func(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
 
 	// GetUnseenFunc mocks the GetUnseen method.
 	GetUnseenFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error)
 
 	// IncrementRetriesFunc mocks the IncrementRetries method.
 	IncrementRetriesFunc func(ctx context.Context, hash *chainhash.Hash) error
+
+	// MarkConfirmedRequestedFunc mocks the MarkConfirmedRequested method.
+	MarkConfirmedRequestedFunc func(ctx context.Context, hash *chainhash.Hash) error
 
 	// PingFunc mocks the Ping method.
 	PingFunc func(ctx context.Context) error
@@ -136,6 +151,9 @@ type MetamorphStoreMock struct {
 
 	// SetLockedFunc mocks the SetLocked method.
 	SetLockedFunc func(ctx context.Context, since time.Time, limit int64) error
+
+	// SetRequestedFunc mocks the SetRequested method.
+	SetRequestedFunc func(ctx context.Context, hashes []*chainhash.Hash) error
 
 	// SetUnlockedByNameFunc mocks the SetUnlockedByName method.
 	SetUnlockedByNameFunc func(ctx context.Context, lockedBy string) (int64, error)
@@ -210,14 +228,16 @@ type MetamorphStoreMock struct {
 			// Offset is the offset argument value.
 			Offset int64
 		}
-		// GetSeenSinceLastMined holds details about calls to the GetSeenSinceLastMined method.
-		GetSeenSinceLastMined []struct {
+		// GetSeenPending holds details about calls to the GetSeenPending method.
+		GetSeenPending []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// FromDuration is the fromDuration argument value.
 			FromDuration time.Duration
-			// SinceLastMinedDuration is the sinceLastMinedDuration argument value.
-			SinceLastMinedDuration time.Duration
+			// SinceLastRequestedDuration is the sinceLastRequestedDuration argument value.
+			SinceLastRequestedDuration time.Duration
+			// PendingSince is the pendingSince argument value.
+			PendingSince time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -234,6 +254,17 @@ type MetamorphStoreMock struct {
 			// NotMinedLimit is the notMinedLimit argument value.
 			NotMinedLimit time.Duration
 		}
+		// GetUnconfirmedRequested holds details about calls to the GetUnconfirmedRequested method.
+		GetUnconfirmedRequested []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// FromAgo is the fromAgo argument value.
+			FromAgo time.Duration
+			// Limit is the limit argument value.
+			Limit int64
+			// Offset is the offset argument value.
+			Offset int64
+		}
 		// GetUnseen holds details about calls to the GetUnseen method.
 		GetUnseen []struct {
 			// Ctx is the ctx argument value.
@@ -247,6 +278,13 @@ type MetamorphStoreMock struct {
 		}
 		// IncrementRetries holds details about calls to the IncrementRetries method.
 		IncrementRetries []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+		}
+		// MarkConfirmedRequested holds details about calls to the MarkConfirmedRequested method.
+		MarkConfirmedRequested []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Hash is the hash argument value.
@@ -279,6 +317,13 @@ type MetamorphStoreMock struct {
 			Since time.Time
 			// Limit is the limit argument value.
 			Limit int64
+		}
+		// SetRequested holds details about calls to the SetRequested method.
+		SetRequested []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hashes is the hashes argument value.
+			Hashes []*chainhash.Hash
 		}
 		// SetUnlockedByName holds details about calls to the SetUnlockedByName method.
 		SetUnlockedByName []struct {
@@ -332,14 +377,17 @@ type MetamorphStoreMock struct {
 	lockGetMany                 sync.RWMutex
 	lockGetRawTxs               sync.RWMutex
 	lockGetSeen                 sync.RWMutex
-	lockGetSeenSinceLastMined   sync.RWMutex
+	lockGetSeenPending          sync.RWMutex
 	lockGetStats                sync.RWMutex
+	lockGetUnconfirmedRequested sync.RWMutex
 	lockGetUnseen               sync.RWMutex
 	lockIncrementRetries        sync.RWMutex
+	lockMarkConfirmedRequested  sync.RWMutex
 	lockPing                    sync.RWMutex
 	lockSet                     sync.RWMutex
 	lockSetBulk                 sync.RWMutex
 	lockSetLocked               sync.RWMutex
+	lockSetRequested            sync.RWMutex
 	lockSetUnlockedByName       sync.RWMutex
 	lockSetUnlockedByNameExcept sync.RWMutex
 	lockUpdateDoubleSpend       sync.RWMutex
@@ -608,51 +656,55 @@ func (mock *MetamorphStoreMock) GetSeenCalls() []struct {
 	return calls
 }
 
-// GetSeenSinceLastMined calls GetSeenSinceLastMinedFunc.
-func (mock *MetamorphStoreMock) GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
-	if mock.GetSeenSinceLastMinedFunc == nil {
-		panic("MetamorphStoreMock.GetSeenSinceLastMinedFunc: method is nil but MetamorphStore.GetSeenSinceLastMined was just called")
+// GetSeenPending calls GetSeenPendingFunc.
+func (mock *MetamorphStoreMock) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+	if mock.GetSeenPendingFunc == nil {
+		panic("MetamorphStoreMock.GetSeenPendingFunc: method is nil but MetamorphStore.GetSeenPending was just called")
 	}
 	callInfo := struct {
-		Ctx                    context.Context
-		FromDuration           time.Duration
-		SinceLastMinedDuration time.Duration
-		Limit                  int64
-		Offset                 int64
+		Ctx                        context.Context
+		FromDuration               time.Duration
+		SinceLastRequestedDuration time.Duration
+		PendingSince               time.Duration
+		Limit                      int64
+		Offset                     int64
 	}{
-		Ctx:                    ctx,
-		FromDuration:           fromDuration,
-		SinceLastMinedDuration: sinceLastMinedDuration,
-		Limit:                  limit,
-		Offset:                 offset,
+		Ctx:                        ctx,
+		FromDuration:               fromDuration,
+		SinceLastRequestedDuration: sinceLastRequestedDuration,
+		PendingSince:               pendingSince,
+		Limit:                      limit,
+		Offset:                     offset,
 	}
-	mock.lockGetSeenSinceLastMined.Lock()
-	mock.calls.GetSeenSinceLastMined = append(mock.calls.GetSeenSinceLastMined, callInfo)
-	mock.lockGetSeenSinceLastMined.Unlock()
-	return mock.GetSeenSinceLastMinedFunc(ctx, fromDuration, sinceLastMinedDuration, limit, offset)
+	mock.lockGetSeenPending.Lock()
+	mock.calls.GetSeenPending = append(mock.calls.GetSeenPending, callInfo)
+	mock.lockGetSeenPending.Unlock()
+	return mock.GetSeenPendingFunc(ctx, fromDuration, sinceLastRequestedDuration, pendingSince, limit, offset)
 }
 
-// GetSeenSinceLastMinedCalls gets all the calls that were made to GetSeenSinceLastMined.
+// GetSeenPendingCalls gets all the calls that were made to GetSeenPending.
 // Check the length with:
 //
-//	len(mockedMetamorphStore.GetSeenSinceLastMinedCalls())
-func (mock *MetamorphStoreMock) GetSeenSinceLastMinedCalls() []struct {
-	Ctx                    context.Context
-	FromDuration           time.Duration
-	SinceLastMinedDuration time.Duration
-	Limit                  int64
-	Offset                 int64
+//	len(mockedMetamorphStore.GetSeenPendingCalls())
+func (mock *MetamorphStoreMock) GetSeenPendingCalls() []struct {
+	Ctx                        context.Context
+	FromDuration               time.Duration
+	SinceLastRequestedDuration time.Duration
+	PendingSince               time.Duration
+	Limit                      int64
+	Offset                     int64
 } {
 	var calls []struct {
-		Ctx                    context.Context
-		FromDuration           time.Duration
-		SinceLastMinedDuration time.Duration
-		Limit                  int64
-		Offset                 int64
+		Ctx                        context.Context
+		FromDuration               time.Duration
+		SinceLastRequestedDuration time.Duration
+		PendingSince               time.Duration
+		Limit                      int64
+		Offset                     int64
 	}
-	mock.lockGetSeenSinceLastMined.RLock()
-	calls = mock.calls.GetSeenSinceLastMined
-	mock.lockGetSeenSinceLastMined.RUnlock()
+	mock.lockGetSeenPending.RLock()
+	calls = mock.calls.GetSeenPending
+	mock.lockGetSeenPending.RUnlock()
 	return calls
 }
 
@@ -697,6 +749,50 @@ func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
 	mock.lockGetStats.RLock()
 	calls = mock.calls.GetStats
 	mock.lockGetStats.RUnlock()
+	return calls
+}
+
+// GetUnconfirmedRequested calls GetUnconfirmedRequestedFunc.
+func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+	if mock.GetUnconfirmedRequestedFunc == nil {
+		panic("MetamorphStoreMock.GetUnconfirmedRequestedFunc: method is nil but MetamorphStore.GetUnconfirmedRequested was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		FromAgo time.Duration
+		Limit   int64
+		Offset  int64
+	}{
+		Ctx:     ctx,
+		FromAgo: fromAgo,
+		Limit:   limit,
+		Offset:  offset,
+	}
+	mock.lockGetUnconfirmedRequested.Lock()
+	mock.calls.GetUnconfirmedRequested = append(mock.calls.GetUnconfirmedRequested, callInfo)
+	mock.lockGetUnconfirmedRequested.Unlock()
+	return mock.GetUnconfirmedRequestedFunc(ctx, fromAgo, limit, offset)
+}
+
+// GetUnconfirmedRequestedCalls gets all the calls that were made to GetUnconfirmedRequested.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetUnconfirmedRequestedCalls())
+func (mock *MetamorphStoreMock) GetUnconfirmedRequestedCalls() []struct {
+	Ctx     context.Context
+	FromAgo time.Duration
+	Limit   int64
+	Offset  int64
+} {
+	var calls []struct {
+		Ctx     context.Context
+		FromAgo time.Duration
+		Limit   int64
+		Offset  int64
+	}
+	mock.lockGetUnconfirmedRequested.RLock()
+	calls = mock.calls.GetUnconfirmedRequested
+	mock.lockGetUnconfirmedRequested.RUnlock()
 	return calls
 }
 
@@ -777,6 +873,42 @@ func (mock *MetamorphStoreMock) IncrementRetriesCalls() []struct {
 	mock.lockIncrementRetries.RLock()
 	calls = mock.calls.IncrementRetries
 	mock.lockIncrementRetries.RUnlock()
+	return calls
+}
+
+// MarkConfirmedRequested calls MarkConfirmedRequestedFunc.
+func (mock *MetamorphStoreMock) MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error {
+	if mock.MarkConfirmedRequestedFunc == nil {
+		panic("MetamorphStoreMock.MarkConfirmedRequestedFunc: method is nil but MetamorphStore.MarkConfirmedRequested was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockMarkConfirmedRequested.Lock()
+	mock.calls.MarkConfirmedRequested = append(mock.calls.MarkConfirmedRequested, callInfo)
+	mock.lockMarkConfirmedRequested.Unlock()
+	return mock.MarkConfirmedRequestedFunc(ctx, hash)
+}
+
+// MarkConfirmedRequestedCalls gets all the calls that were made to MarkConfirmedRequested.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.MarkConfirmedRequestedCalls())
+func (mock *MetamorphStoreMock) MarkConfirmedRequestedCalls() []struct {
+	Ctx  context.Context
+	Hash *chainhash.Hash
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash *chainhash.Hash
+	}
+	mock.lockMarkConfirmedRequested.RLock()
+	calls = mock.calls.MarkConfirmedRequested
+	mock.lockMarkConfirmedRequested.RUnlock()
 	return calls
 }
 
@@ -921,6 +1053,42 @@ func (mock *MetamorphStoreMock) SetLockedCalls() []struct {
 	mock.lockSetLocked.RLock()
 	calls = mock.calls.SetLocked
 	mock.lockSetLocked.RUnlock()
+	return calls
+}
+
+// SetRequested calls SetRequestedFunc.
+func (mock *MetamorphStoreMock) SetRequested(ctx context.Context, hashes []*chainhash.Hash) error {
+	if mock.SetRequestedFunc == nil {
+		panic("MetamorphStoreMock.SetRequestedFunc: method is nil but MetamorphStore.SetRequested was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}{
+		Ctx:    ctx,
+		Hashes: hashes,
+	}
+	mock.lockSetRequested.Lock()
+	mock.calls.SetRequested = append(mock.calls.SetRequested, callInfo)
+	mock.lockSetRequested.Unlock()
+	return mock.SetRequestedFunc(ctx, hashes)
+}
+
+// SetRequestedCalls gets all the calls that were made to SetRequested.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.SetRequestedCalls())
+func (mock *MetamorphStoreMock) SetRequestedCalls() []struct {
+	Ctx    context.Context
+	Hashes []*chainhash.Hash
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Hashes []*chainhash.Hash
+	}
+	mock.lockSetRequested.RLock()
+	calls = mock.calls.SetRequested
+	mock.lockSetRequested.RUnlock()
 	return calls
 }
 

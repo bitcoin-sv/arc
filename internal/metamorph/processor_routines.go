@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -20,13 +21,13 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	announced := 0
 	for {
 		// get all transactions since then chunk by chunk
-		unminedTxs, err := p.store.GetUnseen(ctx, getUnseenSince, loadUnminedLimit, offset)
+		unminedTxs, err := p.store.GetUnseen(ctx, getUnseenSince, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 			break
 		}
 
-		offset += loadUnminedLimit
+		offset += loadLimit
 		if len(unminedTxs) == 0 {
 			break
 		}
@@ -70,34 +71,89 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
-// ReAnnounceSeen re-broadcasts SEEN_ON_NETWORK transactions
-func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
+// RejectUnconfirmedRequested re-broadcasts SEEN_ON_NETWORK transactions
+func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
-	var totalSeenOnNetworkTxs int
-	var seenOnNetworkTxs []*store.Data
+	var totalRejected int
+	var txHashes []*chainhash.Hash
 	var err error
 
 	for {
-		seenOnNetworkTxs, err = p.store.GetSeenSinceLastMined(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, loadSeenOnNetworkLimit, offset)
+		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
 		}
 
-		if len(seenOnNetworkTxs) == 0 {
+		offset += loadLimit
+		totalRejected += len(txHashes)
+
+		if len(txHashes) == 0 {
 			break
 		}
 
-		offset += loadSeenOnNetworkLimit
-		totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
+		for _, txHash := range txHashes {
+			p.logger.Info("Rejecting unconfirmed tx (disabled)", slog.String("hash", txHash.String()))
 
-		// re-announce transactions
-		for _, tx := range seenOnNetworkTxs {
-			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AnnounceTxAsync(ctx, tx)
+			// Todo: uncomment after testing
+			//p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+			//	Start:  time.Now(),
+			//	Hash:   txHash,
+			//	Status: metamorph_api.Status_REJECTED,
+			//	Err:    errors.New("transaction rejected as not existing in node mempool"),
+			//}
 		}
 
 		time.Sleep(100 * time.Millisecond)
+	}
+
+	if totalRejected > 0 {
+		p.logger.Info("Rejected txs", slog.Int("count", totalRejected))
+	}
+
+	return []attribute.KeyValue{attribute.Int("rejected", totalRejected)}
+}
+
+// ReAnnounceSeen re-broadcasts and re-requests SEEN_ON_NETWORK transactions that have been pending
+func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
+	var offset int64
+	var totalSeenOnNetworkTxs int
+	var pendingSeen []*store.Data
+	var hashes []*chainhash.Hash
+	var err error
+	const pendingSince = 10 * time.Minute
+	for {
+		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, pendingSince, loadLimit, offset)
+		if err != nil {
+			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
+			break
+		}
+		hashes = make([]*chainhash.Hash, len(pendingSeen))
+
+		if len(pendingSeen) == 0 {
+			break
+		}
+
+		offset += loadLimit
+		totalSeenOnNetworkTxs += len(pendingSeen)
+
+		// re-announce transactions
+		for i, tx := range pendingSeen {
+			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
+			p.bcMediator.AskForTxAsync(ctx, tx)
+
+			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
+			p.bcMediator.AnnounceTxAsync(ctx, tx)
+
+			hashes[i] = tx.Hash
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	err = p.store.SetRequested(ctx, hashes)
+	if err != nil {
+		p.logger.Error("Failed to mark seen txs requested", slog.String("err", err.Error()))
 	}
 
 	if totalSeenOnNetworkTxs > 0 {
@@ -115,7 +171,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var err error
 
 	for {
-		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadSeenOnNetworkLimit, offset)
+		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
 			break
@@ -125,7 +181,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		offset += loadSeenOnNetworkLimit
+		offset += loadLimit
 		totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 		err = p.registerTransactions(ctx, seenOnNetworkTxs)

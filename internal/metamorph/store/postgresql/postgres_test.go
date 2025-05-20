@@ -12,7 +12,9 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -992,23 +994,33 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 13, numberOfRemainingTxs)
 	})
 
-	t.Run("get seen", func(t *testing.T) {
+	t.Run("get seen pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_seen_pending")
 
-		txHash := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+		postgresDB.now = func() time.Time {
+			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
+		}
+
+		fromDuration := 24 * time.Hour
+		sinceLastRequestedDuration := 30 * time.Minute
+		pendingSince := 5 * time.Minute
+
+		records, err := postgresDB.GetSeenPending(ctx, fromDuration, sinceLastRequestedDuration, pendingSince, 5, 0)
 		require.NoError(t, err)
 
-		records, err := postgresDB.GetSeenSinceLastMined(ctx, 1*time.Hour, 5*time.Minute, 2, 0)
-		require.NoError(t, err)
+		require.Equal(t, 3, len(records))
 
-		require.Equal(t, 1, len(records))
-		require.Equal(t, txHash, records[0].Hash)
-		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
+		hashes := make([]string, len(records))
+		for i, record := range records {
+			hashes[i] = hex.EncodeToString(record.Hash.CloneBytes())
+		}
 
-		records, err = postgresDB.GetSeenSinceLastMined(ctx, 1*time.Hour, 3*time.Hour, 2, 100)
-		require.NoError(t, err)
-		require.Equal(t, 0, len(records))
+		require.Contains(t, hashes, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		require.Contains(t, hashes, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
+		require.Contains(t, hashes, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+
+		postgresDB.now = func() time.Time { return now }
 	})
 
 	t.Run("get stats", func(t *testing.T) {
@@ -1032,5 +1044,56 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(2), res.StatusNotSeen)
 		require.Equal(t, int64(6), res.StatusMinedTotal)
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
+	})
+
+	t.Run("set requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		chainHash1 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+		chainHash2 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+		chainHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
+		hashes := []*chainhash.Hash{chainHash1, chainHash2, chainHash3}
+
+		err := postgresDB.SetRequested(ctx, hashes)
+		require.NoError(t, err)
+	})
+
+	t.Run("mark confirmed requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/mark_confirmed_requested")
+		chainHash1 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+
+		err := postgresDB.MarkConfirmedRequested(ctx, chainHash1)
+		require.NoError(t, err)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+
+		var requestedAt time.Time
+		expectedRequestedAt := now
+		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
+
+		require.True(t, expectedRequestedAt.Equal(requestedAt))
+	})
+
+	t.Run("get unconfirmed requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unconfirmed_requested")
+
+		postgresDB.now = func() time.Time {
+			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
+		}
+		fromAgo := 10 * time.Minute
+
+		rows, err := postgresDB.GetUnconfirmedRequested(ctx, fromAgo, 5, 0)
+		require.NoError(t, err)
+
+		chainHash1 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
+		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+		expectedRows := []*chainhash.Hash{chainHash1, chainHash2}
+
+		require.ElementsMatch(t, expectedRows, rows)
+
+		postgresDB.now = func() time.Time { return now }
 	})
 }

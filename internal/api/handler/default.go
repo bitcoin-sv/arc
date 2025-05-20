@@ -54,6 +54,7 @@ type ArcDefaultHandler struct {
 	maxscriptsizepolicy     uint64
 
 	logger                        *slog.Logger
+	network                       string
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
@@ -117,6 +118,7 @@ type Option func(f *ArcDefaultHandler)
 
 func NewDefault(
 	logger *slog.Logger,
+	network string,
 	transactionHandler metamorph.TransactionHandler,
 	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
@@ -157,6 +159,7 @@ func NewDefault(
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:     maxscriptsizepolicy,
 		btxClient:               btxClient,
+		network:                 network,
 	}
 
 	// apply options
@@ -599,7 +602,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
-			se := goscript.NewScriptEngine("main")
+			se := goscript.NewScriptEngine(m.network)
 			err = se.VerifyScript(txsHex, utxo, height, true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())

@@ -159,7 +159,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
 	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, apiOpts...)
+	defaultAPIHandler, err := apiHandler.NewDefault(logger, arcConfig.Network, mtmClient, blockTxClient, policy, cachedFinder, apiOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

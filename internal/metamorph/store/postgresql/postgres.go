@@ -962,25 +962,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		;
     `
 
-	txHashes := make([][]byte, len(updates))
-	statusHistories := make([]*string, len(updates))
-	timestamps := make([]time.Time, len(updates))
-	for i, update := range updates {
-		txHashes[i] = updates[i].Hash[:]
-		timestamps[i] = updates[i].Timestamp
-		if timestamps[i].IsZero() {
-			timestamps[i] = p.now()
-		}
-		var historyDataStr *string
-		if update.StatusHistory != nil {
-			historyData, err := json.Marshal(update.StatusHistory)
-			if err != nil {
-				return nil, err
-			}
-			historyStr := string(historyData)
-			historyDataStr = &historyStr
-		}
-		statusHistories[i] = historyDataStr
+	txHashes, _, _, statusHistories, timestamps, err := p.prepareStatusHistories(updates)
+	if err != nil {
+		return nil, err
 	}
 
 	tx, err := p.db.Begin()
@@ -1000,26 +984,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	compTxsData := getCompetingTxsFromRows(rows)
 
-	statuses := make([]metamorph_api.Status, len(updates))
-	competingTxs := make([]string, len(updates))
-	allComletingTxs := make([]string, 0)
-	rejectReasons := make([]string, len(updates))
-
-	for i, update := range updates {
-		statuses[i] = update.Status
-
-		if update.Error != nil {
-			rejectReasons[i] = update.Error.Error()
-		}
-
-		for _, tx := range compTxsData {
-			if bytes.Equal(txHashes[i], tx.hash) {
-				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
-				competingTxs[i] = strings.Join(uniqueTxs, ",")
-				allComletingTxs = append(allComletingTxs, uniqueTxs...)
-				break
-			}
-		}
+	statuses, competingTxs, allCompetingTxs, rejectReasons, err := p.prepareCompetingTxs(updates, compTxsData, txHashes)
+	if err != nil {
+		return nil, err
 	}
 
 	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps), pq.Array(statusHistories))
@@ -1041,7 +1008,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	if updateCompetingTxs {
 		compTxUpdates := make([]store.UpdateStatus, 0)
-		for _, cmptx := range allComletingTxs {
+		for _, cmptx := range allCompetingTxs {
 			hash, err := hex.DecodeString(cmptx)
 			if err != nil {
 				fmt.Println(err)
@@ -1069,6 +1036,31 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	return res, nil
+}
+
+func (p *PostgreSQL) prepareCompetingTxs(updates []store.UpdateStatus, compTxsData []competingTxsData, txHashes [][]byte) ([]metamorph_api.Status, []string, []string, []string, error) {
+	statuses := make([]metamorph_api.Status, len(updates))
+	competingTxs := make([]string, len(updates))
+	allCompetingTxs := make([]string, 0)
+	rejectReasons := make([]string, len(updates))
+
+	for i, update := range updates {
+		statuses[i] = update.Status
+
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
+		for _, tx := range compTxsData {
+			if bytes.Equal(txHashes[i], tx.hash) {
+				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
+				competingTxs[i] = strings.Join(uniqueTxs, ",")
+				allCompetingTxs = append(allCompetingTxs, uniqueTxs...)
+				break
+			}
+		}
+	}
+	return statuses, competingTxs, allCompetingTxs, rejectReasons, nil
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) (data []*store.Data, err error) {

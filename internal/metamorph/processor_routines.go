@@ -32,36 +32,9 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		for _, tx := range unminedTxs {
-			if tx.Retries > p.maxRetries {
-				continue
-			}
-
-			// save the tx to cache again, in case it was removed or expired
-			err := p.saveTxToCache(tx.Hash)
-			if err != nil {
-				p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
-				continue
-			}
-
-			// mark that we retried processing this transaction once more
-			if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
-				p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-			}
-
-			// every second time request tx, every other time announce tx
-			if tx.Retries%2 != 0 {
-				// Send GETDATA to peers to see if they have it
-				p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
-				p.bcMediator.AskForTxAsync(ctx, tx)
-				requested++
-				continue
-			}
-
-			p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AnnounceTxAsync(ctx, tx)
-			announced++
-		}
+		announcedUnseen, requestedUnseen := p.reAnnounceUnseenTxs(ctx, unminedTxs)
+		announced += announcedUnseen
+		requested += requestedUnseen
 	}
 
 	if announced > 0 || requested > 0 {
@@ -69,6 +42,42 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	}
 
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
+}
+
+func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store.Data) (int, int) {
+	requested := 0
+	announced := 0
+	for _, tx := range unminedTxs {
+		if tx.Retries > p.maxRetries {
+			continue
+		}
+
+		// save the tx to cache again, in case it was removed or expired
+		err := p.saveTxToCache(tx.Hash)
+		if err != nil {
+			p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+			continue
+		}
+
+		// mark that we retried processing this transaction once more
+		if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
+			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+		}
+
+		// every second time request tx, every other time announce tx
+		if tx.Retries%2 != 0 {
+			// Send GETDATA to peers to see if they have it
+			p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
+			p.bcMediator.AskForTxAsync(ctx, tx)
+			requested++
+			continue
+		}
+
+		p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
+		p.bcMediator.AnnounceTxAsync(ctx, tx)
+		announced++
+	}
+	return announced, requested
 }
 
 // RejectUnconfirmedRequested re-broadcasts SEEN_ON_NETWORK transactions

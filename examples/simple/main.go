@@ -37,7 +37,7 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	scriptVerifierMock := &apimocks.ScriptVerifierMock{
-		VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 			return nil
 		},
 	}

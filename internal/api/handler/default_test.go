@@ -99,7 +99,7 @@ var (
 
 func TestNewDefault(t *testing.T) {
 	scriptVerifierMock := &apimocks.ScriptVerifierMock{
-		VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 			return nil
 		},
 	}
@@ -113,7 +113,7 @@ func TestNewDefault(t *testing.T) {
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -155,7 +155,7 @@ func TestGETHealth(t *testing.T) {
 		}
 
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -188,7 +188,7 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -338,7 +338,7 @@ func TestGETTransactionStatus(t *testing.T) {
 			}
 
 			scriptVerifierMock := &apimocks.ScriptVerifierMock{
-				VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 					return nil
 				},
 			}
@@ -721,7 +721,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 
 			scriptVerifierMock := &apimocks.ScriptVerifierMock{
-				VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 					return nil
 				},
 			}
@@ -786,7 +786,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("empty tx", func(t *testing.T) {
 		// when
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -813,7 +813,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid parameters", func(t *testing.T) {
 		// given
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -849,7 +849,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid mime type", func(t *testing.T) {
 		// given
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -873,7 +873,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	t.Run("invalid txs", func(t *testing.T) {
 		// given
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -936,7 +936,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			return nil
 		}}
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -993,7 +993,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -1039,7 +1039,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -1103,7 +1103,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -1193,7 +1193,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			return nil
 		}}
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
@@ -1270,7 +1270,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			return nil
 		}}
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError {
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}

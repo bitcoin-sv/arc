@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -607,6 +608,7 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				utxo[i] = m.genesisForkBLock
 			}
 
+			fmt.Println("shota 0 ", hex.EncodeToString(txsHex), utxo, height)
 			err = m.scriptVerifier.VerifyScript(txsHex, utxo, height, false)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusUnlockingScripts, err.Error())

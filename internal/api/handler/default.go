@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -593,6 +592,13 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}
 
+			txsHex = txsHex[bytesUsed:]
+
+			v := defaultValidator.New(m.NodePolicy, m.txFinder)
+			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
+				fails = append(fails, arcError)
+				continue
+			}
 			blockHeight, err := m.btxClient.CurrentBlockHeight(ctx)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
@@ -611,18 +617,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 			if height < m.genesisForkBLock {
 				height = m.genesisForkBLock
 			}
-			fmt.Println("shota 0 ", hex.EncodeToString(txsHex), utxo, height)
-			err = m.scriptVerifier.VerifyScript(txsHex, utxo, height, false)
+
+			err = m.scriptVerifier.VerifyScript(transaction.Bytes(), utxo, height, false)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusUnlockingScripts, err.Error())
-			}
-
-			txsHex = txsHex[bytesUsed:]
-
-			v := defaultValidator.New(m.NodePolicy, m.txFinder)
-			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
-				fails = append(fails, arcError)
-				continue
 			}
 
 			submittedTxs = append(submittedTxs, transaction)

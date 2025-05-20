@@ -969,7 +969,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return nil, nil
 		},
 	}
-	pm := &bcnet.Mediator{}
+	pm := &mocks.MediatorMock{}
 	callbackSender := &mocks.CallbackSenderMock{
 		SendCallbackFunc: func(_ context.Context, _ *store.Data) {},
 	}

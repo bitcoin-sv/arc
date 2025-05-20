@@ -41,7 +41,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	// create default handler
 	defaultHandler, _ := handler.NewDefault(
 		nil,
-		"test",
+		"testnet",
 		node,
 		merkleRootVerifier,
 		nil,

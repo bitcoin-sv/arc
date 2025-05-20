@@ -37,7 +37,7 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, "test", txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil); err != nil {
+	if handler, err = apiHandler.NewDefault(logger, "testnet", txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil); err != nil {
 		panic(err)
 	}
 

@@ -603,8 +603,8 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
-			se := goscript.NewScriptEngine(m.network)
-			fmt.Println("shota", "test", hex.EncodeToString(txsHex), utxo, height)
+			se := goscript.NewScriptEngine("test")
+			fmt.Println("shota", m.network, hex.EncodeToString(txsHex), utxo, height)
 			err = se.VerifyScript(txsHex, utxo, height, true)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())

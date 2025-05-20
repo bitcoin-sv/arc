@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -593,25 +592,30 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
-			utxo := make([]int32, len(transaction.Inputs))
-			for i := range transaction.Inputs {
-				utxo[i] = genesisForkBLock
-			}
-
 			height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 			}
 
+			utxo := make([]int32, len(transaction.Inputs))
+			for i := range transaction.Inputs {
+				utxo[i] = genesisForkBLock
+			}
+
 			var network string
-			if m.network == "mainnet" {
+			switch m.network {
+			case "mainnet":
 				network = "main"
-			} else if m.network == "testnet" {
+			case "testnet":
 				network = "test"
 			}
+
 			se := goscript.NewScriptEngine(network)
-			fmt.Println("shota", network, hex.EncodeToString(txsHex), utxo, height)
-			err = se.VerifyScript(txsHex, utxo, height, false)
+			h := height
+			if h < genesisForkBLock {
+				h = genesisForkBLock
+			}
+			err = se.VerifyScript(txsHex, utxo, h, false)
 			if err != nil {
 				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
 			}

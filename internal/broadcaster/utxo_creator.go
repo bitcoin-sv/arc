@@ -217,7 +217,7 @@ func (b *UTXOCreator) Shutdown() {
 	b.wg.Wait()
 }
 
-func (b *UTXOCreator) collectRightSizedUTXOs(utxos sdkTx.UTXOs, utxoSet *list.List, requestedSatoshisPerOutput uint64, requestedOutputs uint64) interface{} {
+func (b *UTXOCreator) collectRightSizedUTXOs(utxos sdkTx.UTXOs, utxoSet *list.List, requestedSatoshisPerOutput uint64, requestedOutputs uint64) error {
 	for _, utxo := range utxos {
 		// collect right sized utxos
 		if utxo.Satoshis >= requestedSatoshisPerOutput {
@@ -237,7 +237,7 @@ func (b *UTXOCreator) collectRightSizedUTXOs(utxos sdkTx.UTXOs, utxoSet *list.Li
 	return nil
 }
 
-func (b *UTXOCreator) createRightSizedUTXOs(lastUtxoSetLen int, satoshiMap map[string][]splittingOutput, utxoSet *list.List, requestedOutputs uint64, requestedSatoshisPerOutput uint64) interface{} {
+func (b *UTXOCreator) createRightSizedUTXOs(lastUtxoSetLen int, satoshiMap map[string][]splittingOutput, utxoSet *list.List, requestedOutputs uint64, requestedSatoshisPerOutput uint64) error {
 	for {
 		if lastUtxoSetLen >= utxoSet.Len() {
 			b.logger.Error("utxo set length hasn't changed since last iteration")

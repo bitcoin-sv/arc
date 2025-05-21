@@ -45,7 +45,6 @@ func TestScriptValidation(t *testing.T) {
 	se := goscript.NewScriptEngine("main")
 	b, _ := tx.EF()
 	err := se.VerifyScript(b, utxo, blockHeight, true)
-	assert.Equal(t, 1, 2)
 	assert.Nil(t, err, "VerifyExtend should return no error")
 }
 

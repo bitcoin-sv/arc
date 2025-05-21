@@ -119,7 +119,7 @@ func TestValidator(t *testing.T) {
 			sut := New(policy, tc.finder, btxClient, se, int32(632099))
 
 			// when
-			fmt.Println("shota before ", hex.EncodeToString(tx.Bytes()))
+			fmt.Println("shota before ", tc.txHex, hex.EncodeToString(tx.Bytes()))
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
 
 			// then

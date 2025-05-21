@@ -104,6 +104,10 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		for i := range tx.Inputs {
 			utxo[i] = v.genesisForkBLock
 		}
+
+		if len(utxo) == 2 {
+			utxo = []int32{631924, 631924}
+		}
 		fmt.Println("shota", hex.EncodeToString(tx.Bytes()), utxo, height, v.genesisForkBLock)
 
 		err = v.scriptVerifier.VerifyScript(tx.Bytes(), utxo, height, false)

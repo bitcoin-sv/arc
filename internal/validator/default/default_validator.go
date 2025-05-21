@@ -110,7 +110,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		}
 		fmt.Println("shota", hex.EncodeToString(tx.Bytes()), utxo, height, v.genesisForkBLock)
 
-		err = v.scriptVerifier.VerifyScript(tx.Bytes(), utxo, height, false)
+		err = v.scriptVerifier.VerifyScript(tx.Bytes(), utxo, height, true)
 		if err != nil {
 			return err
 		}

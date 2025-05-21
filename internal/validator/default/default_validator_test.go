@@ -175,7 +175,7 @@ func TestValidator(t *testing.T) {
 				}, nil
 			},
 		}
-		sut := New(policy, nil, btxClient, se, handler.GenesisForkBlockRegtest)
+		sut := New(policy, nil, btxClient, se, int32(10000))
 
 		// when
 		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -315,7 +315,7 @@ func BenchmarkValidator(b *testing.B) {
 			}, nil
 		},
 	}
-	sut := New(policy, nil, btxClient, se, handler.GenesisForkBlockRegtest)
+	sut := New(policy, nil, btxClient, se, int32(10000))
 
 	for i := 0; i < b.N; i++ {
 		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -335,7 +335,7 @@ func TestFeeCalculation(t *testing.T) {
 			}, nil
 		},
 	}
-	sut := New(policy, nil, btxClient, se, handler.GenesisForkBlockRegtest)
+	sut := New(policy, nil, btxClient, se, int32(10000))
 
 	// when
 	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

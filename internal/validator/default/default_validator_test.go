@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
@@ -97,7 +96,7 @@ func TestValidator(t *testing.T) {
 					}, nil
 				},
 			}
-			sut := New(policy, tc.finder, btxClient, se, handler.GenesisForkBlockTest)
+			sut := New(policy, tc.finder, btxClient, se, int32(10000))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -133,7 +132,7 @@ func TestValidator(t *testing.T) {
 					}, nil
 				},
 			}
-			sut := New(policy, nil, btxClient, se, handler.GenesisForkBlockTest)
+			sut := New(policy, nil, btxClient, se, int32(10000))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

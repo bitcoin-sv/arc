@@ -12,7 +12,6 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	apihelpers "github.com/bitcoin-sv/arc/internal/api"
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -28,11 +27,11 @@ type DefaultValidator struct {
 	policy           *bitcoin.Settings
 	txFinder         validator.TxFinderI
 	btxClient        blocktx.Client
-	scriptVerifier   apihelpers.ScriptVerifier
+	scriptVerifier   internalApi.ScriptVerifier
 	genesisForkBLock int32
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, btxClient blocktx.Client, sv apihelpers.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, btxClient blocktx.Client, sv internalApi.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
 	return &DefaultValidator{
 		btxClient:        btxClient,
 		scriptVerifier:   sv,

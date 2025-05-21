@@ -93,11 +93,11 @@ func TestValidator(t *testing.T) {
 			btxClient := &btxMocks.ClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 10000,
+						CurrentBlockHeight: 1,
 					}, nil
 				},
 			}
-			sut := New(policy, tc.finder, btxClient, se, int32(10000))
+			sut := New(policy, tc.finder, btxClient, se, int32(1))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

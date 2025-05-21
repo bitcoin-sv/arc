@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -43,7 +44,9 @@ func TestScriptValidation(t *testing.T) {
 	eTx, _ := hex.DecodeString(eTxHEX)
 
 	se := goscript.NewScriptEngine("main")
+	fmt.Println("shota 2", hex.EncodeToString(eTx))
 	err := se.VerifyScript(eTx, utxo, blockHeight, true)
+	assert.Equal(t, 1, 2)
 	assert.Nil(t, err, "VerifyExtend should return no error")
 }
 

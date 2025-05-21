@@ -43,7 +43,8 @@ func TestScriptValidation(t *testing.T) {
 	tx, _ := sdkTx.NewTransactionFromHex(eTxHEX)
 	fmt.Println("shota2 ", tx.TxID())
 	se := goscript.NewScriptEngine("main")
-	err := se.VerifyScript(tx.Bytes(), utxo, blockHeight, true)
+	b, _ := tx.EF()
+	err := se.VerifyScript(b, utxo, blockHeight, true)
 	assert.Equal(t, 1, 2)
 	assert.Nil(t, err, "VerifyExtend should return no error")
 }

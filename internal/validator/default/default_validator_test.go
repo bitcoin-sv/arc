@@ -88,6 +88,7 @@ func TestValidator(t *testing.T) {
 			// extended tx
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
+			require.True(t, isExtended(tx))
 			se := goscript.NewScriptEngine("regtest")
 			btxClient := &btxMocks.ClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {

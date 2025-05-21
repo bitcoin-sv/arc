@@ -1056,6 +1056,24 @@ func TestPostgresDB(t *testing.T) {
 
 		err := postgresDB.SetRequested(ctx, hashes)
 		require.NoError(t, err)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+
+		var requestedAt1 time.Time
+		expectedRequestedAt1 := now
+		require.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
+		require.True(t, expectedRequestedAt1.Equal(requestedAt1))
+
+		var requestedAt2 time.Time
+		expectedRequestedAt2 := now
+		require.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash2[:]))
+		require.True(t, expectedRequestedAt2.Equal(requestedAt2))
+
+		var requestedAt3 time.Time
+		expectedRequestedAt3 := now
+		require.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash3[:]))
+		require.True(t, expectedRequestedAt3.Equal(requestedAt3))
 	})
 
 	t.Run("mark confirmed requested", func(t *testing.T) {

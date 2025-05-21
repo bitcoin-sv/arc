@@ -158,11 +158,13 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 		}
 
 		time.Sleep(100 * time.Millisecond)
-	}
 
-	err = p.store.SetRequested(ctx, hashes)
-	if err != nil {
-		p.logger.Error("Failed to mark seen txs requested", slog.String("err", err.Error()))
+		err = p.store.SetRequested(ctx, hashes)
+		if err != nil {
+			p.logger.Error("Failed to mark seen txs requested", slog.String("err", err.Error()))
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	if totalSeenOnNetworkTxs > 0 {

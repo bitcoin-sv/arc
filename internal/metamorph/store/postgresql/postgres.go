@@ -556,7 +556,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-// GetSeenPending returns all transactions which are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
+// GetSeenPending returns all transactions that are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
 func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -610,17 +610,17 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Durat
 		seen_txs.last_modified
 	FROM seen_txs
 	WHERE seen_txs.last_submitted_at > $2
-	AND $8 - seen_txs.seen_at > $3 * INTERVAL '1 SEC'
-	AND COALESCE(seen_txs.requested_at, '1900-01-01') < $4 AND COALESCE(seen_txs.confirmed_at, '1900-01-01') < $4
-	AND seen_txs.locked_by = $5
-	LIMIT $6 OFFSET $7
+	AND $3 - seen_txs.seen_at > $4 * INTERVAL '1 SEC'
+	AND COALESCE(seen_txs.requested_at, '1900-01-01') < $5 AND COALESCE(seen_txs.confirmed_at, '1900-01-01') < $5
+	AND seen_txs.locked_by = $6
+	LIMIT $7 OFFSET $8
 	;
 	`
 
 	getSeenFromAgo := p.now().Add(-1 * fromDuration)
 	sinceLastRequested := p.now().Add(-1 * sinceLastRequestedDuration)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, getSeenFromAgo, pendingSince.Seconds(), sinceLastRequested, p.hostname, limit, offset, p.now())
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, getSeenFromAgo, p.now(), pendingSince.Seconds(), sinceLastRequested, p.hostname, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1412,12 +1412,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash) error {
 	q := `
 		UPDATE metamorph.transactions SET requested_at = $2
-		FROM
-		(
-		SELECT t.hash
-		FROM UNNEST($1::BYTEA[]) AS t(hash)
-		) AS bulk_query
-		WHERE metamorph.transactions.hash = bulk_query.hash
+		WHERE hash = ANY($1::BYTEA[]);
 		`
 
 	hashArray := make([][]byte, len(hashes))
@@ -1445,7 +1440,7 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or were last confirmation was more than 'fromAgo' time ago
+// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or where last confirmation was more than 'fromAgo' time ago
 func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
 	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $4

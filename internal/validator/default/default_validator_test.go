@@ -40,12 +40,10 @@ func TestScriptValidation(t *testing.T) {
 	utxo := []int32{631924, 631924}
 	blockHeight := int32(632099)
 
-	eTx, _ := hex.DecodeString(eTxHEX)
+	tx, _ := sdkTx.NewTransactionFromHex(eTxHEX)
 
 	se := goscript.NewScriptEngine("main")
-	fmt.Println("shota 2", hex.EncodeToString(eTx))
-	err := se.VerifyScript(eTx, utxo, blockHeight, true)
-	assert.Equal(t, 1, 2)
+	err := se.VerifyScript(tx.Bytes(), utxo, blockHeight, true)
 	assert.Nil(t, err, "VerifyExtend should return no error")
 }
 

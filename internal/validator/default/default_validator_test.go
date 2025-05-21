@@ -8,6 +8,10 @@ import (
 	"os"
 	"testing"
 
+	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	bdkscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -85,7 +89,19 @@ func TestValidator(t *testing.T) {
 			// extended tx
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
-			sut := New(policy, tc.finder)
+			scriptVerifierMock := &apimocks.ScriptVerifierMock{
+				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) bdkscript.ScriptError {
+					return nil
+				},
+			}
+			btxClient := &btxMocks.ClientMock{
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{
+						CurrentBlockHeight: 1,
+					}, nil
+				},
+			}
+			sut := New(policy, tc.finder, btxClient, scriptVerifierMock, 0)
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -113,7 +129,19 @@ func TestValidator(t *testing.T) {
 			tx, err := sdkTx.NewTransactionFromHex(txStr)
 			require.NoError(t, err, "Could not parse tx hex")
 			policy := getPolicy(5)
-			sut := New(policy, nil)
+			scriptVerifierMock := &apimocks.ScriptVerifierMock{
+				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) bdkscript.ScriptError {
+					return nil
+				},
+			}
+			btxClient := &btxMocks.ClientMock{
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{
+						CurrentBlockHeight: 1,
+					}, nil
+				},
+			}
+			sut := New(policy, nil, btxClient, scriptVerifierMock, 0)
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -147,7 +175,19 @@ func TestValidator(t *testing.T) {
 		}
 
 		policy := getPolicy(5)
-		sut := New(policy, nil)
+		scriptVerifierMock := &apimocks.ScriptVerifierMock{
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) bdkscript.ScriptError {
+				return nil
+			},
+		}
+		btxClient := &btxMocks.ClientMock{
+			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+				return &blocktx_api.CurrentBlockHeightResponse{
+					CurrentBlockHeight: 1,
+				}, nil
+			},
+		}
+		sut := New(policy, nil, btxClient, scriptVerifierMock, 0)
 
 		// when
 		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -279,7 +319,19 @@ func BenchmarkValidator(b *testing.B) {
 	// extended tx
 	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 	policy := getPolicy(500)
-	sut := New(policy, nil)
+	scriptVerifierMock := &apimocks.ScriptVerifierMock{
+		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) bdkscript.ScriptError {
+			return nil
+		},
+	}
+	btxClient := &btxMocks.ClientMock{
+		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+			return &blocktx_api.CurrentBlockHeightResponse{
+				CurrentBlockHeight: 1,
+			}, nil
+		},
+	}
+	sut := New(policy, nil, btxClient, scriptVerifierMock, 0)
 
 	for i := 0; i < b.N; i++ {
 		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -291,7 +343,19 @@ func TestFeeCalculation(t *testing.T) {
 	tx, err := sdkTx.NewTransactionFromHex("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
 	require.NoError(t, err)
 	policy := getPolicy(50)
-	sut := New(policy, nil)
+	scriptVerifierMock := &apimocks.ScriptVerifierMock{
+		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) bdkscript.ScriptError {
+			return nil
+		},
+	}
+	btxClient := &btxMocks.ClientMock{
+		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+			return &blocktx_api.CurrentBlockHeightResponse{
+				CurrentBlockHeight: 1,
+			}, nil
+		},
+	}
+	sut := New(policy, nil, btxClient, scriptVerifierMock, 0)
 
 	// when
 	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

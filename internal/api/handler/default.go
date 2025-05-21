@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -595,30 +594,10 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 
 			txsHex = txsHex[bytesUsed:]
 
-			v := defaultValidator.New(m.NodePolicy, m.txFinder)
+			v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
 			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 				fails = append(fails, arcError)
 				continue
-			}
-			blockHeight, err := m.btxClient.CurrentBlockHeight(ctx)
-			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			}
-
-			height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
-			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusGeneric, err.Error())
-			}
-
-			utxo := make([]int32, len(transaction.Inputs))
-			for i := range transaction.Inputs {
-				utxo[i] = m.genesisForkBLock
-			}
-			fmt.Println("shota", hex.EncodeToString(transaction.Bytes()), utxo, height, m.genesisForkBLock)
-
-			err = m.scriptVerifier.VerifyScript(transaction.Bytes(), utxo, height, false)
-			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusUnlockingScripts, err.Error())
 			}
 
 			submittedTxs = append(submittedTxs, transaction)

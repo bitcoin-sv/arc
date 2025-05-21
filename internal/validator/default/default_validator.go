@@ -2,15 +2,19 @@ package defaultvalidator
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	"github.com/ccoveille/go-safecast"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
+	apihelpers "github.com/bitcoin-sv/arc/internal/api"
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -21,14 +25,20 @@ var (
 )
 
 type DefaultValidator struct {
-	policy   *bitcoin.Settings
-	txFinder validator.TxFinderI
+	policy           *bitcoin.Settings
+	txFinder         validator.TxFinderI
+	btxClient        blocktx.Client
+	scriptVerifier   apihelpers.ScriptVerifier
+	genesisForkBLock int32
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, btxClient blocktx.Client, sv apihelpers.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
 	return &DefaultValidator{
-		policy:   policy,
-		txFinder: finder,
+		btxClient:        btxClient,
+		scriptVerifier:   sv,
+		genesisForkBLock: genesisForkBLock,
+		policy:           policy,
+		txFinder:         finder,
 	}
 }
 
@@ -81,8 +91,25 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	if scriptValidation == validator.StandardScriptValidation {
-		if err := checkScripts(tx); err != nil {
-			return validator.NewError(err, api.ErrStatusUnlockingScripts)
+		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
+		if err != nil {
+			return err
+		}
+
+		height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+		if err != nil {
+			return err
+		}
+
+		utxo := make([]int32, len(tx.Inputs))
+		for i := range tx.Inputs {
+			utxo[i] = v.genesisForkBLock
+		}
+		fmt.Println("shota", hex.EncodeToString(tx.Bytes()), utxo, height, v.genesisForkBLock)
+
+		err = v.scriptVerifier.VerifyScript(tx.Bytes(), utxo, height, false)
+		if err != nil {
+			return err
 		}
 	}
 

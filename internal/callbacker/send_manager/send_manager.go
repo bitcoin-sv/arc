@@ -176,7 +176,9 @@ func (m *SendManager) Start() {
 
 	go func() {
 		var err error
-		defer m.storeRemaingCallbacks(callbackBatch)
+		defer func() {
+			m.storeRemaingCallbacks(callbackBatch)
+		}()
 		lastIterationWasBatch := false
 
 		for {

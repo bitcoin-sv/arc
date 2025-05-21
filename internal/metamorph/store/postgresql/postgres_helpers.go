@@ -89,14 +89,18 @@ func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) 
 
 	data.StoredAt = storedAt.UTC()
 
-	data.Hash, err = chainhash.NewHash(txHash)
-	if err != nil {
-		return nil, err
+	if len(txHash) > 0 {
+		data.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	data.BlockHash, err = chainhash.NewHash(blockHash)
-	if err != nil {
-		return nil, err
+	if len(blockHash) > 0 {
+		data.BlockHash, err = chainhash.NewHash(blockHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if status.Valid {
@@ -107,7 +111,6 @@ func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) 
 	if err != nil {
 		return nil, err
 	}
-
 	if blockHeight.Valid {
 		data.BlockHeight = blockHeightUint64
 	}

@@ -177,7 +177,7 @@ func (m *SendManager) Start() {
 	go func() {
 		var err error
 		defer func() {
-			m.storeRemaingCallbacks(callbackBatch)
+			m.storeRemainingCallbacks(callbackBatch)
 		}()
 		lastIterationWasBatch := false
 
@@ -381,7 +381,7 @@ func (m *SendManager) GracefulStop() {
 	m.entriesWg.Wait()
 }
 
-func (m *SendManager) storeRemaingCallbacks(callbackBatch []*callbacker.CallbackEntry) {
+func (m *SendManager) storeRemainingCallbacks(callbackBatch []*callbacker.CallbackEntry) {
 	var err error
 	// read all from callback queue and store in database
 	data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))

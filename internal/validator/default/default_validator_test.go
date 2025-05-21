@@ -92,7 +92,7 @@ func TestValidator(t *testing.T) {
 			btxClient := &btxMocks.ClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 1,
+						CurrentBlockHeight: 10000,
 					}, nil
 				},
 			}
@@ -128,7 +128,7 @@ func TestValidator(t *testing.T) {
 			btxClient := &btxMocks.ClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 1,
+						CurrentBlockHeight: 10000,
 					}, nil
 				},
 			}
@@ -170,7 +170,7 @@ func TestValidator(t *testing.T) {
 		btxClient := &btxMocks.ClientMock{
 			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
+					CurrentBlockHeight: 10000,
 				}, nil
 			},
 		}
@@ -310,7 +310,7 @@ func BenchmarkValidator(b *testing.B) {
 	btxClient := &btxMocks.ClientMock{
 		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 			return &blocktx_api.CurrentBlockHeightResponse{
-				CurrentBlockHeight: 1,
+				CurrentBlockHeight: 10000,
 			}, nil
 		},
 	}
@@ -330,7 +330,7 @@ func TestFeeCalculation(t *testing.T) {
 	btxClient := &btxMocks.ClientMock{
 		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 			return &blocktx_api.CurrentBlockHeightResponse{
-				CurrentBlockHeight: 1,
+				CurrentBlockHeight: 10000,
 			}, nil
 		},
 	}

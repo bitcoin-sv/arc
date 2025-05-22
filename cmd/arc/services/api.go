@@ -171,7 +171,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		genesisBlock = apiHandler.GenesisForkBlockMain
 	}
 
-	fmt.Println("shotuna ", network, genesisBlock)
 	se := goscript.NewScriptEngine(network)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, se, genesisBlock, apiOpts...)

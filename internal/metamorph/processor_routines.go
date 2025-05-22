@@ -88,7 +88,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var err error
 
 	for {
-		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
+		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.reAnnounceSeen, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break

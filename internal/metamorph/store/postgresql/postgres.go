@@ -1439,15 +1439,16 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or where last confirmation was more than 'fromAgo' time ago
-func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or where last confirmation was more than 'sinceLastRequestedDuration' time ago
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, sinceLastRequestedDuration time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
-	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $4
-	LIMIT $2 OFFSET $3
+	SELECT hash FROM metamorph.transactions t WHERE (requested_at IS NOT NULL AND (requested_at < $1)) AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $2
+	LIMIT $3 OFFSET $4
 	`
-	since := p.now().Add(-fromAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, since, limit, offset, metamorph_api.Status_SEEN_ON_NETWORK)
+	sinceLastRequested := p.now().Add(-1 * sinceLastRequestedDuration)
+
+	rows, err := p.db.QueryContext(ctx, q, sinceLastRequested, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset)
 	if err != nil {
 		return nil, err
 	}

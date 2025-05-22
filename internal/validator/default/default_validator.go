@@ -2,7 +2,6 @@ package defaultvalidator
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -66,7 +65,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	if err != nil {
 		return err
 	}
-	fmt.Println("shota aq 2", hex.EncodeToString(tx.Bytes()))
+
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
@@ -104,15 +103,14 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			utxo[i] = v.genesisForkBLock
 		}
 
-		fmt.Println("shota", hex.EncodeToString(tx.Bytes()), utxo, height, v.genesisForkBLock)
-
 		b, err := tx.EF()
 		if err != nil {
 			return err
 		}
+
 		err = v.scriptVerifier.VerifyScript(b, utxo, height, true)
 		if err != nil {
-			return err
+			return validator.NewError(err, api.ErrStatusUnlockingScripts)
 		}
 	}
 

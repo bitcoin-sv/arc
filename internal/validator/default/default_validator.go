@@ -52,7 +52,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		tracing.EndTracing(span, spanErr)
 	}()
 
-	fmt.Println("shota aq", hex.EncodeToString(tx.Bytes()))
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
@@ -88,7 +87,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
-	fmt.Println("shota aq 3", hex.EncodeToString(tx.Bytes()))
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	if scriptValidation == validator.StandardScriptValidation {
 		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
@@ -106,12 +104,13 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			utxo[i] = v.genesisForkBLock
 		}
 
-		if len(utxo) == 2 {
-			utxo = []int32{631924, 631924}
-		}
 		fmt.Println("shota", hex.EncodeToString(tx.Bytes()), utxo, height, v.genesisForkBLock)
 
-		err = v.scriptVerifier.VerifyScript(tx.Bytes(), utxo, height, true)
+		b, err := tx.EF()
+		if err != nil {
+			return err
+		}
+		err = v.scriptVerifier.VerifyScript(b, utxo, height, true)
 		if err != nil {
 			return err
 		}

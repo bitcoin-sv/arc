@@ -17,7 +17,7 @@ build:
 .PHONY: build_release
 build_release:
 	mkdir -p build
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X $(REPOSITORY)/internal/version.Commit=$(APP_COMMIT) -X $(REPOSITORY)/internal/version.Version=$(APP_VERSION)" -o build/arc_linux_amd64 ./cmd/arc/main.go
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-X $(REPOSITORY)/internal/version.Commit=$(APP_COMMIT) -X $(REPOSITORY)/internal/version.Version=$(APP_VERSION)" -o build/arc_linux_amd64 ./cmd/arc/main.go
 
 .PHONY: build_docker
 build_docker:

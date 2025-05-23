@@ -26,6 +26,7 @@ const (
 	BlockTxAPI_VerifyMerkleRoots_FullMethodName           = "/blocktx_api.BlockTxAPI/VerifyMerkleRoots"
 	BlockTxAPI_RegisterTransaction_FullMethodName         = "/blocktx_api.BlockTxAPI/RegisterTransaction"
 	BlockTxAPI_RegisterTransactions_FullMethodName        = "/blocktx_api.BlockTxAPI/RegisterTransactions"
+	BlockTxAPI_CurrentBlockHeight_FullMethodName          = "/blocktx_api.BlockTxAPI/CurrentBlockHeight"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -44,6 +45,8 @@ type BlockTxAPIClient interface {
 	RegisterTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// RegisterTransactions registers multiple transactions in blocktx
 	RegisterTransactions(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// CurrentBlockHeight returns current block height
+	CurrentBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentBlockHeightResponse, error)
 }
 
 type blockTxAPIClient struct {
@@ -114,6 +117,16 @@ func (c *blockTxAPIClient) RegisterTransactions(ctx context.Context, in *Transac
 	return out, nil
 }
 
+func (c *blockTxAPIClient) CurrentBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentBlockHeightResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CurrentBlockHeightResponse)
+	err := c.cc.Invoke(ctx, BlockTxAPI_CurrentBlockHeight_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility.
@@ -130,6 +143,8 @@ type BlockTxAPIServer interface {
 	RegisterTransaction(context.Context, *Transaction) (*emptypb.Empty, error)
 	// RegisterTransactions registers multiple transactions in blocktx
 	RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error)
+	// CurrentBlockHeight returns current block height
+	CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -157,6 +172,9 @@ func (UnimplementedBlockTxAPIServer) RegisterTransaction(context.Context, *Trans
 }
 func (UnimplementedBlockTxAPIServer) RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterTransactions not implemented")
+}
+func (UnimplementedBlockTxAPIServer) CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CurrentBlockHeight not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 func (UnimplementedBlockTxAPIServer) testEmbeddedByValue()                    {}
@@ -287,6 +305,24 @@ func _BlockTxAPI_RegisterTransactions_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_CurrentBlockHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).CurrentBlockHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_CurrentBlockHeight_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).CurrentBlockHeight(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -317,6 +353,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterTransactions",
 			Handler:    _BlockTxAPI_RegisterTransactions_Handler,
+		},
+		{
+			MethodName: "CurrentBlockHeight",
+			Handler:    _BlockTxAPI_CurrentBlockHeight_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

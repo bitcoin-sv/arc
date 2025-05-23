@@ -19,6 +19,7 @@ import (
 
 type ProcessorI interface {
 	RegisterTransaction(txHash []byte)
+	CurrentBlockHeight() (uint64, error)
 }
 
 type PeerManager interface {
@@ -107,4 +108,9 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*blocktx_api.CurrentBlockHeightResponse, error) {
+	height, err := s.processor.CurrentBlockHeight()
+	return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: height}, err
 }

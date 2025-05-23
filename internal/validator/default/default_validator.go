@@ -7,10 +7,12 @@ import (
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	"github.com/ccoveille/go-safecast"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -21,14 +23,20 @@ var (
 )
 
 type DefaultValidator struct {
-	policy   *bitcoin.Settings
-	txFinder validator.TxFinderI
+	policy           *bitcoin.Settings
+	txFinder         validator.TxFinderI
+	btxClient        blocktx.Client
+	scriptVerifier   internalApi.ScriptVerifier
+	genesisForkBLock int32
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, btxClient blocktx.Client, sv internalApi.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
 	return &DefaultValidator{
-		policy:   policy,
-		txFinder: finder,
+		btxClient:        btxClient,
+		scriptVerifier:   sv,
+		genesisForkBLock: genesisForkBLock,
+		policy:           policy,
+		txFinder:         finder,
 	}
 }
 
@@ -78,10 +86,30 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
-
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	if scriptValidation == validator.StandardScriptValidation {
-		if err := checkScripts(tx); err != nil {
+		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
+		if err != nil {
+			return err
+		}
+
+		height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+		if err != nil {
+			return err
+		}
+
+		utxo := make([]int32, len(tx.Inputs))
+		for i := range tx.Inputs {
+			utxo[i] = v.genesisForkBLock
+		}
+
+		b, err := tx.EF()
+		if err != nil {
+			return err
+		}
+
+		err = v.scriptVerifier.VerifyScript(b, utxo, height, true)
+		if err != nil {
 			return validator.NewError(err, api.ErrStatusUnlockingScripts)
 		}
 	}

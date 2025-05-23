@@ -8,9 +8,12 @@ import (
 	"github.com/ordishs/go-bitcoin"
 
 	"github.com/bitcoin-sv/arc/internal/api/handler"
+	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 // CustomHandler is our custom arc handler
@@ -35,8 +38,13 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	}
 
 	// add blocktx, header service or custom implementation of merkle roots verifier
-	merkleRootVerifier := &CustomMerkleRootsVerifier{}
+	merkleRootVerifier := &mocks.ClientMock{}
 
+	scriptVerifierMock := &apimocks.ScriptVerifierMock{
+		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
+			return nil
+		},
+	}
 	// create default handler
 	defaultHandler, _ := handler.NewDefault(
 		nil,
@@ -44,7 +52,8 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		merkleRootVerifier,
 		nil,
 		nil,
-		nil,
+		scriptVerifierMock,
+		handler.GenesisForkBlockTest,
 	)
 
 	// create custom handler

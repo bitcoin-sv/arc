@@ -372,31 +372,11 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 		}
 
 		// if nothing to update return
-		var successes []*api.TransactionResponse
+
 		if allTransactionsProcessed {
-			for _, tx := range txStatuses {
-				successes = append(successes, &api.TransactionResponse{
-					Status:       int(api.StatusOK),
-					Title:        "OK",
-					BlockHash:    &tx.BlockHash,
-					BlockHeight:  &tx.BlockHeight,
-					TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
-					ExtraInfo:    &tx.ExtraInfo,
-					CompetingTxs: &tx.CompetingTxs,
-					Timestamp:    m.now(),
-					Txid:         tx.TxID,
-					MerklePath:   &tx.MerklePath,
-				})
-			}
-			// merge success and fail results
-			responses := make([]any, 0, len(successes))
-			for _, o := range successes {
-				responses = append(responses, o)
-			}
-			return PostResponse{int(api.StatusOK), responses}
+			return m.postResponseForAllTxsProcessed(txStatuses)
 		}
 	}
-
 	successes, fails, e := m.processTransactions(reqCtx, txsHex, transactionOptions)
 	if e != nil {
 		if span != nil {
@@ -410,6 +390,12 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 	// each transaction in the slice will have the result of the transaction submission
 
 	// merge success and fail results
+	responses := mergeSuccessAndFailResults(successes, fails)
+
+	return PostResponse{int(api.StatusOK), responses}
+}
+
+func mergeSuccessAndFailResults(successes []*api.TransactionResponse, fails []*api.ErrorFields) []any {
 	responses := make([]any, 0, len(successes)+len(fails))
 	for _, o := range successes {
 		responses = append(responses, o)
@@ -417,7 +403,30 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 	for _, fo := range fails {
 		responses = append(responses, fo)
 	}
+	return responses
+}
 
+func (m ArcDefaultHandler) postResponseForAllTxsProcessed(txStatuses []*metamorph.TransactionStatus) PostResponse {
+	var successes []*api.TransactionResponse
+	for _, tx := range txStatuses {
+		successes = append(successes, &api.TransactionResponse{
+			Status:       int(api.StatusOK),
+			Title:        "OK",
+			BlockHash:    &tx.BlockHash,
+			BlockHeight:  &tx.BlockHeight,
+			TxStatus:     (api.TransactionResponseTxStatus)(tx.Status),
+			ExtraInfo:    &tx.ExtraInfo,
+			CompetingTxs: &tx.CompetingTxs,
+			Timestamp:    m.now(),
+			Txid:         tx.TxID,
+			MerklePath:   &tx.MerklePath,
+		})
+	}
+	// merge success and fail results
+	responses := make([]any, 0, len(successes))
+	for _, o := range successes {
+		responses = append(responses, o)
+	}
 	return PostResponse{int(api.StatusOK), responses}
 }
 

@@ -1,4 +1,4 @@
-FROM golang:1.24.3-bullseye AS build-stage
+FROM golang:1.24.3-bookworm AS build-stage
 
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \

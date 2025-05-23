@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:sid-slim AS build-stage
+FROM golang:1.24.3-bullseye AS build-stage
 
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \

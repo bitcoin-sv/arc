@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:sid-slim AS build-stage
+FROM --platform=$BUILDPLATFORM ubuntu:24.04 AS build-stage
 
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -49,7 +49,7 @@ RUN go test --tags=e2e ./test -c -o /e2e_test.test
 # Deploy the application binary into a lean image
 FROM scratch
 
-WORKDIR /serviceg
+WORKDIR /service
 
 COPY --from=build-stage /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build-stage /arc_linux_amd64 /service/arc

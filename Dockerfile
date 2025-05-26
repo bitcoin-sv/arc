@@ -3,12 +3,14 @@ FROM --platform=$BUILDPLATFORM ubuntu:24.04 AS build-stage
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
       wget ca-certificates build-essential g++ git pkg-config \
-   && wget -qO- https://go.dev/dl/go1.24.1.linux-arm64.tar.gz | tar -C /usr/local -xzf - \
+   && wget -qO- https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
    && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=1
 ENV CGO_LDFLAGS="-lstdc++"
+ENV GOOS=linux
+ENV GOARCH=amd64
 
 ARG APP_COMMIT
 ARG APP_VERSION

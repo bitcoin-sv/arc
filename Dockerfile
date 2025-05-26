@@ -44,7 +44,7 @@ RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 FROM debian:sid-slim
 
-WORKDIR /serviceg
+WORKDIR /service
 
 COPY --from=build-stage /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build-stage /arc_linux_amd64 /service/arc

@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM debian:sid-slim AS build-stage
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \
       wget ca-certificates build-essential g++ git pkg-config \
-   && wget -qO- https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
+   && wget -qO- https://go.dev/dl/go1.24.1.linux-arm64.tar.gz | tar -C /usr/local -xzf - \
    && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/usr/local/go/bin:${PATH}"
@@ -17,7 +17,7 @@ ARG MAIN="./cmd/arc/main.go"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates build-essential wget \
-    && rm -rf /var/lib/apt/lists/*            # <-- use apt instead of apk
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -44,7 +44,7 @@ RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 FROM debian:sid-slim
 
-WORKDIR /service
+WORKDIR /serviceg
 
 COPY --from=build-stage /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build-stage /arc_linux_amd64 /service/arc

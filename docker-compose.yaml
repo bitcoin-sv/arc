@@ -1,4 +1,4 @@
-version: '3'
+
 services:
   node1:
     container_name: node1

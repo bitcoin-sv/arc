@@ -9,22 +9,23 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"testing"
 	"time"
 )
 
-func TestNewZMQHandler(t *testing.T) {
+func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	var handler *metamorph.ZMQHandler
 	var zmq *metamorph.ZMQ
 
-	srv, cli := ZMQ4StartServer(t)
+	srv, cli := zMQ4StartServer(t)
 	defer srv.Close()
 	defer cli.Close()
 
-	handler = metamorph.NewZMQHandler(context.Background(), zmqEndpointURL, logger)
+	handler = metamorph.NewZMQHandlerWithRefreshRate(context.Background(), zmqURL, logger, 1*time.Second)
 	require.NotNil(t, handler)
 	zmq, err := metamorph.NewZMQ(zmqEndpointURL, statusMessageCh, handler, logger)
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestNewZMQHandler(t *testing.T) {
 					require.NoError(t, err)
 				}
 			}()
-			time.Sleep(1 * time.Second)
+			time.Sleep(waitingTime)
 		})
 	}
 
@@ -78,12 +79,21 @@ func TestNewZMQHandler(t *testing.T) {
 	cli.Close()
 	err = handler.Subscribe("hashblock", zmqMessages)
 	require.NoError(t, err)
-	time.Sleep(1 * time.Second)
+	time.Sleep(waitingTime)
 	err = handler.Unsubscribe("hashtx2", zmqMessages)
 	require.NoError(t, err)
+	time.Sleep(waitingTime)
 }
 
-func ZMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
+func TestNewZMQHandler(t *testing.T) {
+	testNewZMQHandler(t, zmqEndpointURL, 1*time.Second)
+}
+
+func TestNewZMQHandlerWrongURL(t *testing.T) {
+	testNewZMQHandler(t, zmqNotExistingURL, 1*time.Millisecond)
+}
+
+func zMQ4StartServer(t *testing.T) (zmq4.Socket, zmq4.Socket) {
 	ctx := context.Background()
 	ep, err := endPoint(t, "tcp")
 	require.NoError(t, err)

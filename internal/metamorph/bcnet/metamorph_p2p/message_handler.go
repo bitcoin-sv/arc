@@ -20,12 +20,13 @@ import (
 var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
 
 type TxStatusMessage struct {
-	Start        time.Time
-	Hash         *chainhash.Hash
-	Status       metamorph_api.Status
-	Peer         string
-	Err          error
-	CompetingTxs []string
+	Start         time.Time
+	Hash          *chainhash.Hash
+	Status        metamorph_api.Status
+	Peer          string
+	Err           error
+	CompetingTxs  []string
+	ReceivedRawTx bool
 }
 
 var _ p2p.MessageHandlerI = (*MsgHandler)(nil)
@@ -139,10 +140,11 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 
 	hash := msg.TxHash()
 	h.messageCh <- &TxStatusMessage{
-		Hash:   &hash,
-		Status: metamorph_api.Status_SEEN_ON_NETWORK,
-		Peer:   peer.String(),
-		Start:  h.now(),
+		Hash:          &hash,
+		Status:        metamorph_api.Status_SEEN_ON_NETWORK,
+		Peer:          peer.String(),
+		Start:         h.now(),
+		ReceivedRawTx: true,
 	}
 }
 

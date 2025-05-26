@@ -29,6 +29,7 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 COPY pkg/ pkg/
 COPY config/ config/
+COPY test/ test/
 
 # Add grpc_health_probe
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
@@ -42,12 +43,17 @@ RUN go build \
 # Build broadcaster-cli binary
 RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
-FROM debian:sid-slim
+# Build e2e test binary
+RUN go test --tags=e2e ./test -c -o /e2e_test.test
+
+# Deploy the application binary into a lean image
+FROM scratch
 
 WORKDIR /service
 
 COPY --from=build-stage /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build-stage /arc_linux_amd64 /service/arc
+COPY --from=build-stage /e2e_test.test /service/e2e_test.test
 COPY --from=build-stage /broadcaster-cli_linux_amd64 /service/broadcaster-cli
 COPY --from=build-stage /bin/grpc_health_probe /bin/grpc_health_probe
 COPY deployments/passwd /etc/passwd

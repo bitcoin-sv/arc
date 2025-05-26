@@ -36,7 +36,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (
@@ -56,107 +56,109 @@ func TestDoubleSpendDetection(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	defer pruneTables(t, dbConn)
-	testutils.LoadFixtures(t, dbConn, "fixtures")
+	t.Run("double spend detection", func(t *testing.T) {
+		defer pruneTables(t, dbConn)
+		testutils.LoadFixtures(t, dbConn, "fixtures/double_spend_detection")
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
-	minedTxChannel := make(chan *blocktx_api.TransactionBlocks, 10)
+		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
+		minedTxChannel := make(chan *blocktx_api.TransactionBlocks, 10)
 
-	mockedZMQ := &mocks.ZMQIMock{
-		SubscribeFunc: func(s string, stringsCh chan []string) error {
-			if s != zmqTopic {
+		mockedZMQ := &mocks.ZMQIMock{
+			SubscribeFunc: func(s string, stringsCh chan []string) error {
+				if s != zmqTopic {
+					return nil
+				}
+				event := make([]string, 0)
+				event = append(event, zmqTopic)
+				event = append(event, msgDoubleSpendAttempted)
+				event = append(event, "2459")
+				stringsCh <- event
 				return nil
-			}
-			event := make([]string, 0)
-			event = append(event, zmqTopic)
-			event = append(event, msgDoubleSpendAttempted)
-			event = append(event, "2459")
-			stringsCh <- event
-			return nil
-		},
-	}
-
-	metamorphStore, err := postgresql.New(dbInfo, "double-spend-integration-test", 10, 80)
-	require.NoError(t, err)
-	defer metamorphStore.Close(context.Background())
-
-	cStore := cache.NewMemoryStore()
-	for _, h := range hashes {
-		err := cStore.Set(h, []byte("1"), 10*time.Minute) // make sure txs are registered
-		require.NoError(t, err)
-	}
-
-	pm := &bcnet.Mediator{}
-
-	processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
-		metamorph.WithMinedTxsChan(minedTxChannel),
-		metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
-		metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
-		metamorph.WithProcessStatusUpdatesBatchSize(3))
-	require.NoError(t, err)
-	defer processor.Shutdown()
-
-	processor.StartProcessStatusUpdatesInStorage()
-	processor.StartSendStatusUpdate()
-	processor.StartProcessMinedCallbacks()
-
-	zmqURL, err := url.Parse("https://some-url.com")
-	require.NoError(t, err)
-
-	zmq, err := metamorph.NewZMQ(zmqURL, statusMessageChannel, mockedZMQ, logger)
-	require.NoError(t, err)
-	cleanup, err := zmq.Start()
-	require.NoError(t, err)
-	defer cleanup()
-
-	// give metamorph time to parse ZMQ message
-	time.Sleep(500 * time.Millisecond)
-
-	for i, hashStr := range hashes {
-		h, err := chainhash.NewHashFromStr(hashStr)
-		require.NoError(t, err)
-
-		txData, err := metamorphStore.Get(context.Background(), h[:])
-		require.NoError(t, err)
-
-		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, txData.Status)
-		require.Equal(t, hashes[i], txData.Hash.String())
-	}
-
-	minedTxHash, err := chainhash.NewHashFromStr(hashes[0])
-	require.NoError(t, err)
-
-	minedMsg := &blocktx_api.TransactionBlocks{
-		TransactionBlocks: []*blocktx_api.TransactionBlock{
-			{
-				BlockHash:       testutils.RevChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
-				BlockHeight:     888888,
-				TransactionHash: minedTxHash[:],
-				MerklePath:      "merkle-path-1",
 			},
-		},
-	}
+		}
 
-	minedTxChannel <- minedMsg
+		metamorphStore, err := postgresql.New(dbInfo, "double-spend-integration-test", 10, 80)
+		require.NoError(t, err)
+		defer metamorphStore.Close(context.Background())
 
-	// give metamorph time to parse mined msg
-	time.Sleep(500 * time.Millisecond)
+		cStore := cache.NewMemoryStore()
+		for _, h := range hashes {
+			err := cStore.Set(h, []byte("1"), 10*time.Minute) // make sure txs are registered
+			require.NoError(t, err)
+		}
 
-	// verify that the 1st hash is mined
-	minedTxData, err := metamorphStore.Get(context.Background(), minedTxHash[:])
-	require.NoError(t, err)
+		pm := &bcnet.Mediator{}
 
-	require.Equal(t, metamorph_api.Status_MINED, minedTxData.Status)
+		processor, err := metamorph.NewProcessor(metamorphStore, cStore, pm, statusMessageChannel,
+			metamorph.WithMinedTxsChan(minedTxChannel),
+			metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
+			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
+			metamorph.WithProcessStatusUpdatesBatchSize(3))
+		require.NoError(t, err)
+		defer processor.Shutdown()
 
-	// verify that the 2nd hash is rejected
-	rejectedHash, err := chainhash.NewHashFromStr(hashes[1])
-	require.NoError(t, err)
+		processor.StartProcessStatusUpdatesInStorage()
+		processor.StartSendStatusUpdate()
+		processor.StartProcessMinedCallbacks()
 
-	rejectedTxData, err := metamorphStore.Get(context.Background(), rejectedHash[:])
-	require.NoError(t, err)
+		zmqURL, err := url.Parse("https://some-url.com")
+		require.NoError(t, err)
 
-	require.Equal(t, metamorph_api.Status_REJECTED, rejectedTxData.Status)
-	require.Equal(t, "double spend attempted", rejectedTxData.RejectReason)
+		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageChannel, mockedZMQ, logger)
+		require.NoError(t, err)
+		cleanup, err := zmq.Start()
+		require.NoError(t, err)
+		defer cleanup()
+
+		// give metamorph time to parse ZMQ message
+		time.Sleep(500 * time.Millisecond)
+
+		for i, hashStr := range hashes {
+			h, err := chainhash.NewHashFromStr(hashStr)
+			require.NoError(t, err)
+
+			txData, err := metamorphStore.Get(context.Background(), h[:])
+			require.NoError(t, err)
+
+			require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, txData.Status)
+			require.Equal(t, hashes[i], txData.Hash.String())
+		}
+
+		minedTxHash, err := chainhash.NewHashFromStr(hashes[0])
+		require.NoError(t, err)
+
+		minedMsg := &blocktx_api.TransactionBlocks{
+			TransactionBlocks: []*blocktx_api.TransactionBlock{
+				{
+					BlockHash:       testutils.RevChainhash(t, "000000000000000003a450dba927fa46fe26079c32244a2f70301de574d84269")[:],
+					BlockHeight:     888888,
+					TransactionHash: minedTxHash[:],
+					MerklePath:      "merkle-path-1",
+				},
+			},
+		}
+
+		minedTxChannel <- minedMsg
+
+		// give metamorph time to parse mined msg
+		time.Sleep(1000 * time.Millisecond)
+
+		// verify that the 1st hash is mined
+		minedTxData, err := metamorphStore.Get(context.Background(), minedTxHash[:])
+		require.NoError(t, err)
+
+		require.Equal(t, metamorph_api.Status_MINED, minedTxData.Status)
+
+		// verify that the 2nd hash is rejected
+		rejectedHash, err := chainhash.NewHashFromStr(hashes[1])
+		require.NoError(t, err)
+
+		rejectedTxData, err := metamorphStore.Get(context.Background(), rejectedHash[:])
+		require.NoError(t, err)
+
+		require.Equal(t, metamorph_api.Status_REJECTED, rejectedTxData.Status)
+		require.Equal(t, "double spend attempted", rejectedTxData.RejectReason)
+	})
 }

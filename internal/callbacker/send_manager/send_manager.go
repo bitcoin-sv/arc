@@ -177,30 +177,8 @@ func (m *SendManager) Start() {
 	go func() {
 		var err error
 		defer func() {
-			// read all from callback queue and store in database
-			data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))
-
-			m.mu.Lock()
-			m.callbackQueue = append(m.callbackQueue, callbackBatch...)
-			for i, entry := range m.callbackQueue {
-				data[i] = toStoreDto(m.url, *entry)
-			}
-
-			m.callbackQueue = m.callbackQueue[:0]
-			m.mu.Unlock()
-
-			if len(data) > 0 {
-				err = m.store.SetMany(context.Background(), data)
-				if err != nil {
-					m.logger.Error("Failed to set remaining callbacks from queue", slog.String("err", err.Error()))
-				} else {
-					m.logger.Info("Stored remaining callbacks from queue", slog.Int("length", len(data)))
-				}
-			}
-
-			m.entriesWg.Done()
+			m.storeRemainingCallbacks(callbackBatch)
 		}()
-
 		lastIterationWasBatch := false
 
 		for {
@@ -401,4 +379,30 @@ func (m *SendManager) GracefulStop() {
 	}
 
 	m.entriesWg.Wait()
+}
+
+func (m *SendManager) storeRemainingCallbacks(callbackBatch []*callbacker.CallbackEntry) {
+	var err error
+	// read all from callback queue and store in database
+	data := make([]*store.CallbackData, len(m.callbackQueue)+len(callbackBatch))
+
+	m.mu.Lock()
+	m.callbackQueue = append(m.callbackQueue, callbackBatch...)
+	for i, entry := range m.callbackQueue {
+		data[i] = toStoreDto(m.url, *entry)
+	}
+
+	m.callbackQueue = m.callbackQueue[:0]
+	m.mu.Unlock()
+
+	if len(data) > 0 {
+		err = m.store.SetMany(context.Background(), data)
+		if err != nil {
+			m.logger.Error("Failed to set remaining callbacks from queue", slog.String("err", err.Error()))
+		} else {
+			m.logger.Info("Stored remaining callbacks from queue", slog.Int("length", len(data)))
+		}
+	}
+
+	m.entriesWg.Done()
 }

@@ -198,9 +198,9 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 		jitterSize       int64
 
 		expectedBroadcastTransactionsCalls int
-		expectedError                      error
 		expectedLimit                      int64
 		expectedUtxoSetLen                 int
+		putBackToChannel                   bool
 	}{
 		{
 			name:             "success - limit reached with jitter",
@@ -214,7 +214,19 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			expectedLimit:                      10,
 			expectedUtxoSetLen:                 10,
 		},
-	}
+		{
+			name:             "error - put utxos back to channel",
+			limit:            10,
+			rateTxsPerSecond: 10,
+			batchSize:        4,
+			jitterSize:       1,
+
+			expectedTxCount:                    0,
+			expectedBroadcastTransactionsCalls: 5,
+			expectedLimit:                      10,
+			expectedUtxoSetLen:                 10,
+			putBackToChannel:                   true,
+		}}
 
 	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	hash1, err := chainhash.NewHash(txIDbytes)
@@ -261,6 +273,9 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
 					}
+					if tc.putBackToChannel {
+						return nil, context.Canceled
+					}
 					return statuses, nil
 				},
 			}
@@ -284,17 +299,17 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			tickerCh <- time.Now()
-			tickerCh <- time.Now()
-			tickerCh <- time.Now()
-			tickerCh <- time.Now()
+			num := 4
+			if tc.putBackToChannel {
+				num = 5
+			}
+			for i := 0; i < num; i++ {
+				tickerCh <- time.Now()
+			}
 
 			// when then
 			err = sut.Start()
-			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
-				return
-			}
+			require.NoError(t, err)
 
 			time.Sleep(2 * time.Second)
 

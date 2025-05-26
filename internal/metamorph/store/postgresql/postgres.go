@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -555,30 +556,17 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetSeenSinceLastMined(ctx context.Context, fromDuration time.Duration, sinceLastMinedDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+// GetSeenPending returns all transactions that are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
+func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
 	q := `
-	-- get the maximum time stamp when the last transaction was marked as mined as max_ts from status history
-	WITH txs_mined_ts AS (
-	SELECT
-		max(txs_mined.ts) AS max_ts
-	FROM
-		(
-		SELECT
-			TO_TIMESTAMP(elem->>'timestamp', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS ts
-		FROM
-			metamorph.transactions t,
-			LATERAL jsonb_array_elements(status_history) AS elem
-		WHERE
-			(elem->>'status')::int = 120
-			AND t.status = 120
-	  ) AS txs_mined
-	  )
-	SELECT
+	WITH seen_txs AS (SELECT
+		TO_TIMESTAMP(substring(elem->>'timestamp' from 1 for 22), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')::TIMESTAMP WITHOUT TIME ZONE AS seen_at,
+		t.stored_at AT TIME ZONE 'UTC' AS stored_at_utc,
 		t.stored_at,
 		t.hash,
 		t.status,
@@ -593,21 +581,46 @@ func (p *PostgreSQL) GetSeenSinceLastMined(ctx context.Context, fromDuration tim
 		t.merkle_path,
 		t.retries,
 		t.status_history,
-		t.last_modified
+		t.last_modified,
+		t.last_submitted_at,
+	 	t.requested_at,
+	 	t.confirmed_at
 	FROM
-		metamorph.transactions t
+		metamorph.transactions t,
+	    LATERAL jsonb_array_elements(status_history) AS elem
 	WHERE
-		t.status = $1
-		AND t.locked_by = $4
-		AND t.last_submitted_at < (	SELECT max_ts - $5 * INTERVAL '1 SEC' FROM txs_mined_ts ) -- last submitted at least 'sinceLastMinedDuration' ago since last transaction was marked as mined
-		AND t.last_submitted_at > $6 -- last submitted at most 'fromDuration' time ago
-	ORDER BY t.last_submitted_at DESC
-	LIMIT $2 OFFSET $3
+	(elem->>'status')::int = $1
+	AND t.status = $1
+	)
+	SELECT
+		seen_txs.stored_at,
+		seen_txs.hash,
+		seen_txs.status,
+		seen_txs.block_height,
+		seen_txs.block_hash,
+		seen_txs.callbacks,
+		seen_txs.full_status_updates,
+		seen_txs.reject_reason,
+		seen_txs.competing_txs,
+		seen_txs.raw_tx,
+		seen_txs.locked_by,
+		seen_txs.merkle_path,
+		seen_txs.retries,
+		seen_txs.status_history,
+		seen_txs.last_modified
+	FROM seen_txs
+	WHERE seen_txs.last_submitted_at > $2
+	AND $3 - seen_txs.seen_at > $4 * INTERVAL '1 SEC'
+	AND COALESCE(seen_txs.requested_at, '1900-01-01') < $5 AND COALESCE(seen_txs.confirmed_at, '1900-01-01') < $5
+	AND seen_txs.locked_by = $6
+	LIMIT $7 OFFSET $8
 	;
-`
-	getSeenFromAgo := p.now().Add(-1 * fromDuration)
+	`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset, p.hostname, sinceLastMinedDuration.Seconds(), getSeenFromAgo)
+	getSeenFromAgo := p.now().Add(-1 * fromDuration)
+	sinceLastRequested := p.now().Add(-1 * sinceLastRequestedDuration)
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, getSeenFromAgo, p.now(), pendingSince.Seconds(), sinceLastRequested, p.hostname, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -669,35 +682,9 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
-	txHashes := make([][]byte, len(updates))
-	statuses := make([]metamorph_api.Status, len(updates))
-	rejectReasons := make([]string, len(updates))
-	statusHistories := make([]*string, len(updates))
-	timestamps := make([]time.Time, len(updates))
-
-	for i, update := range updates {
-		txHashes[i] = update.Hash.CloneBytes()
-		statuses[i] = update.Status
-		timestamps[i] = update.Timestamp
-		if timestamps[i].IsZero() {
-			timestamps[i] = p.now()
-		}
-
-		if update.Error != nil {
-			rejectReasons[i] = update.Error.Error()
-		}
-
-		var historyDataStr *string
-		if update.StatusHistory != nil {
-			historyData, err := json.Marshal(update.StatusHistory)
-			if err != nil {
-				return nil, err
-			}
-			historyStr := string(historyData)
-			historyDataStr = &historyStr
-		}
-		statusHistories[i] = historyDataStr
+	txHashes, statuses, rejectReasons, statusHistories, timestamps, err := p.prepareStatusHistories(updates)
+	if err != nil {
+		return nil, err
 	}
 
 	qBulk := `
@@ -772,6 +759,39 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 	}
 
 	return res, nil
+}
+
+func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]byte, []metamorph_api.Status, []string, []*string, []time.Time, error) {
+	txHashes := make([][]byte, len(updates))
+	statuses := make([]metamorph_api.Status, len(updates))
+	rejectReasons := make([]string, len(updates))
+	statusHistories := make([]*string, len(updates))
+	timestamps := make([]time.Time, len(updates))
+
+	for i, update := range updates {
+		txHashes[i] = update.Hash.CloneBytes()
+		statuses[i] = update.Status
+		timestamps[i] = update.Timestamp
+		if timestamps[i].IsZero() {
+			timestamps[i] = p.now()
+		}
+
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
+		var historyDataStr *string
+		if update.StatusHistory != nil {
+			historyData, err := json.Marshal(update.StatusHistory)
+			if err != nil {
+				return nil, nil, nil, nil, nil, err
+			}
+			historyStr := string(historyData)
+			historyDataStr = &historyStr
+		}
+		statusHistories[i] = historyDataStr
+	}
+	return txHashes, statuses, rejectReasons, statusHistories, timestamps, nil
 }
 
 func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
@@ -890,7 +910,7 @@ func (p *PostgreSQL) UpdateStatusHistory(ctx context.Context, updates []store.Up
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -942,25 +962,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		;
     `
 
-	txHashes := make([][]byte, len(updates))
-	statusHistories := make([]*string, len(updates))
-	timestamps := make([]time.Time, len(updates))
-	for i, update := range updates {
-		txHashes[i] = updates[i].Hash[:]
-		timestamps[i] = updates[i].Timestamp
-		if timestamps[i].IsZero() {
-			timestamps[i] = p.now()
-		}
-		var historyDataStr *string
-		if update.StatusHistory != nil {
-			historyData, err := json.Marshal(update.StatusHistory)
-			if err != nil {
-				return nil, err
-			}
-			historyStr := string(historyData)
-			historyDataStr = &historyStr
-		}
-		statusHistories[i] = historyDataStr
+	txHashes, _, _, statusHistories, timestamps, err := p.prepareStatusHistories(updates)
+	if err != nil {
+		return nil, err
 	}
 
 	tx, err := p.db.Begin()
@@ -980,24 +984,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	compTxsData := getCompetingTxsFromRows(rows)
 
-	statuses := make([]metamorph_api.Status, len(updates))
-	competingTxs := make([]string, len(updates))
-	rejectReasons := make([]string, len(updates))
-
-	for i, update := range updates {
-		statuses[i] = update.Status
-
-		if update.Error != nil {
-			rejectReasons[i] = update.Error.Error()
-		}
-
-		for _, tx := range compTxsData {
-			if bytes.Equal(txHashes[i], tx.hash) {
-				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
-				competingTxs[i] = strings.Join(uniqueTxs, ",")
-				break
-			}
-		}
+	statuses, competingTxs, allCompetingTxs, rejectReasons, err := p.prepareCompetingTxs(updates, compTxsData, txHashes)
+	if err != nil {
+		return nil, err
 	}
 
 	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps), pq.Array(statusHistories))
@@ -1017,12 +1006,61 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 		return nil, err
 	}
 
+	if updateCompetingTxs {
+		compTxUpdates := make([]store.UpdateStatus, 0)
+		for _, cmptx := range allCompetingTxs {
+			hash, err := hex.DecodeString(cmptx)
+			if err != nil {
+				fmt.Println(err)
+				return nil, err
+			}
+			txHash, err := chainhash.NewHash(hash)
+			if err != nil {
+				fmt.Println(err, cmptx)
+				return nil, err
+			}
+			compTxUpdates = append(compTxUpdates, store.UpdateStatus{
+				Hash:   *txHash,
+				Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+			})
+		}
+		_, err = p.UpdateDoubleSpend(ctx, compTxUpdates, false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
+}
+
+func (p *PostgreSQL) prepareCompetingTxs(updates []store.UpdateStatus, compTxsData []competingTxsData, txHashes [][]byte) ([]metamorph_api.Status, []string, []string, []string, error) {
+	statuses := make([]metamorph_api.Status, len(updates))
+	competingTxs := make([]string, len(updates))
+	allCompetingTxs := make([]string, 0)
+	rejectReasons := make([]string, len(updates))
+
+	for i, update := range updates {
+		statuses[i] = update.Status
+
+		if update.Error != nil {
+			rejectReasons[i] = update.Error.Error()
+		}
+
+		for _, tx := range compTxsData {
+			if bytes.Equal(txHashes[i], tx.hash) {
+				uniqueTxs := mergeUnique(update.CompetingTxs, tx.competingTxs)
+				competingTxs[i] = strings.Join(uniqueTxs, ",")
+				allCompetingTxs = append(allCompetingTxs, uniqueTxs...)
+				break
+			}
+		}
+	}
+	return statuses, competingTxs, allCompetingTxs, rejectReasons, nil
 }
 
 func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) (data []*store.Data, err error) {
@@ -1368,4 +1406,73 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	}
 
 	return stats, nil
+}
+
+func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash) error {
+	q := `
+		UPDATE metamorph.transactions SET requested_at = $2
+		WHERE hash = ANY($1::BYTEA[]);
+		`
+
+	hashArray := make([][]byte, len(hashes))
+	for i, hash := range hashes {
+		hashArray[i] = hash[:]
+	}
+
+	_, err := p.db.ExecContext(ctx, q, pq.Array(hashArray), p.now())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MarkConfirmedRequested updates the confirmed_at date to timestamp now
+func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error {
+	q := `UPDATE metamorph.transactions SET confirmed_at = $1 WHERE hash = $2`
+
+	_, err := p.db.ExecContext(ctx, q, p.now(), hash[:])
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or where last confirmation was more than 'fromAgo' time ago
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+	q := `
+	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $4
+	LIMIT $2 OFFSET $3
+	`
+	since := p.now().Add(-fromAgo)
+
+	rows, err := p.db.QueryContext(ctx, q, since, limit, offset, metamorph_api.Status_SEEN_ON_NETWORK)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hashes := make([]*chainhash.Hash, 0)
+
+	for rows.Next() {
+		var hashBytes []byte
+		err = rows.Scan(&hashBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		newHash, err := chainhash.NewHash(hashBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		hashes = append(hashes, newHash)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return hashes, nil
 }

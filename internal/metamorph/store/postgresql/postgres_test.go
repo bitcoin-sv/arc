@@ -12,7 +12,9 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -438,50 +440,49 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:         *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"5678"},
+				CompetingTxs: []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"9999", "8888"},
+				CompetingTxs: []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
-				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
+				Hash:         *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update expected
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update expected - old status < new status
 				Status:       metamorph_api.Status_REJECTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Error:        errors.New("double spend attempted"),
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 			{
 				Hash:         *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-				CompetingTxs: []string{"1234"},
+				CompetingTxs: []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"},
 				Timestamp:    timestamp,
 			},
 		}
-		updatedStatuses := 4
-
-		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates)
+		updatedStatuses := 5
+		statusUpdates, err := postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, updatedStatuses)
 
@@ -491,25 +492,28 @@ func TestPostgresDB(t *testing.T) {
 			{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp},
 			{Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 0, 0, time.UTC)},
 		}, statusUpdates[0].StatusHistory)
-		require.ElementsMatch(t, []string{"5678", "1234"}, statusUpdates[0].CompetingTxs)
-
+		require.ElementsMatch(t, []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[0].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
 		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[1].StatusHistory)
-		require.ElementsMatch(t, []string{"9999", "8888", "1234", "5678"}, statusUpdates[1].CompetingTxs)
+		require.ElementsMatch(t, []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[1].CompetingTxs)
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
 		require.Equal(t, *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
 		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[2].StatusHistory)
-		require.Equal(t, []string{"1234"}, statusUpdates[2].CompetingTxs)
-
-		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[3].Status)
-		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[3].Hash)
-		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[3].StatusHistory)
-		require.Equal(t, []string{"1234"}, statusUpdates[3].CompetingTxs)
-		require.Equal(t, "double spend attempted", statusUpdates[3].RejectReason)
-
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[2].CompetingTxs)
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[3].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), *statusUpdates[3].Hash)
+		require.Equal(t, []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"}, statusUpdates[3].CompetingTxs)
+		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[4].Status)
+		require.Equal(t, *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[4].Hash)
+		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[4].StatusHistory)
+		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[4].CompetingTxs)
+		require.Equal(t, "double spend attempted", statusUpdates[4].RejectReason)
+		res, err := postgresDB.Get(ctx, testutils.RevChainhash(t, "aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002")[:])
+		require.NoError(t, err)
+		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, res.Status)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, true)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 0)
 	})
@@ -721,7 +725,7 @@ func TestPostgresDB(t *testing.T) {
 			},
 		}
 
-		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates)
+		statusUpdates, err = postgresDB.UpdateDoubleSpend(ctx, updates, false)
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
@@ -990,23 +994,33 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 13, numberOfRemainingTxs)
 	})
 
-	t.Run("get seen", func(t *testing.T) {
+	t.Run("get seen pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_seen_pending")
 
-		txHash := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+		postgresDB.now = func() time.Time {
+			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
+		}
+
+		fromDuration := 24 * time.Hour
+		sinceLastRequestedDuration := 30 * time.Minute
+		pendingSince := 5 * time.Minute
+
+		records, err := postgresDB.GetSeenPending(ctx, fromDuration, sinceLastRequestedDuration, pendingSince, 5, 0)
 		require.NoError(t, err)
 
-		records, err := postgresDB.GetSeenSinceLastMined(ctx, 1*time.Hour, 5*time.Minute, 2, 0)
-		require.NoError(t, err)
+		require.Equal(t, 3, len(records))
 
-		require.Equal(t, 1, len(records))
-		require.Equal(t, txHash, records[0].Hash)
-		require.Equal(t, records[0].LockedBy, postgresDB.hostname)
+		hashes := make([]string, len(records))
+		for i, record := range records {
+			hashes[i] = hex.EncodeToString(record.Hash.CloneBytes())
+		}
 
-		records, err = postgresDB.GetSeenSinceLastMined(ctx, 1*time.Hour, 3*time.Hour, 2, 100)
-		require.NoError(t, err)
-		require.Equal(t, 0, len(records))
+		require.Contains(t, hashes, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
+		require.Contains(t, hashes, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
+		require.Contains(t, hashes, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+
+		postgresDB.now = func() time.Time { return now }
 	})
 
 	t.Run("get stats", func(t *testing.T) {
@@ -1030,5 +1044,74 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(2), res.StatusNotSeen)
 		require.Equal(t, int64(6), res.StatusMinedTotal)
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
+	})
+
+	t.Run("set requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		chainHash1 := testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
+		chainHash2 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+		chainHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
+		hashes := []*chainhash.Hash{chainHash1, chainHash2, chainHash3}
+
+		err := postgresDB.SetRequested(ctx, hashes)
+		require.NoError(t, err)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+
+		var requestedAt1 time.Time
+		expectedRequestedAt1 := now
+		require.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
+		require.True(t, expectedRequestedAt1.Equal(requestedAt1))
+
+		var requestedAt2 time.Time
+		expectedRequestedAt2 := now
+		require.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash2[:]))
+		require.True(t, expectedRequestedAt2.Equal(requestedAt2))
+
+		var requestedAt3 time.Time
+		expectedRequestedAt3 := now
+		require.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash3[:]))
+		require.True(t, expectedRequestedAt3.Equal(requestedAt3))
+	})
+
+	t.Run("mark confirmed requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/mark_confirmed_requested")
+		chainHash1 := testutils.RevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
+
+		err := postgresDB.MarkConfirmedRequested(ctx, chainHash1)
+		require.NoError(t, err)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+
+		var requestedAt time.Time
+		expectedRequestedAt := now
+		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
+
+		require.True(t, expectedRequestedAt.Equal(requestedAt))
+	})
+
+	t.Run("get unconfirmed requested", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unconfirmed_requested")
+
+		postgresDB.now = func() time.Time {
+			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
+		}
+		fromAgo := 10 * time.Minute
+
+		rows, err := postgresDB.GetUnconfirmedRequested(ctx, fromAgo, 5, 0)
+		require.NoError(t, err)
+
+		chainHash1 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
+		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+		expectedRows := []*chainhash.Hash{chainHash1, chainHash2}
+
+		require.ElementsMatch(t, expectedRows, rows)
+
+		postgresDB.now = func() time.Time { return now }
 	})
 }

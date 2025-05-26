@@ -172,7 +172,7 @@ services:
       retries: 3
 
   callbacker:
-    build: ./
+    image: arc-blocktx
     expose:
       - "8021"
     command: [ "./arc", "-callbacker=true", "-config=." ]
@@ -185,6 +185,8 @@ services:
         condition: service_healthy
       nats-2:
         condition: service_healthy
+      blocktx:
+        condition: service_started
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
@@ -194,7 +196,7 @@ services:
       retries: 3
 
   metamorph:
-    build: ./
+    image: arc-blocktx
     expose:
       - "8001"
     command: [ "./arc", "-metamorph=true", "-config=." ]
@@ -218,7 +220,7 @@ services:
       retries: 3
 
   api:
-    build: ./
+    image: arc-blocktx
     ports:
       - "8011:8011"
       - "9090:9090"
@@ -248,9 +250,8 @@ services:
       - OTEL_EXPORTER_OTLP_INSECURE=true
 
   tests:
-    build:
-      context: ./
-      dockerfile: ./test/Dockerfile
+    image: arc-blocktx
+    command: [ "./e2e_test.test" ]
     depends_on:
       - api
 

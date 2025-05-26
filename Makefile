@@ -47,7 +47,7 @@ run_e2e_mcast_tests:
 
 .PHONY: test
 test:
-	go test -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
+	CGO_ENABLED=1 go test -ldflags="-w -s" -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
 
 .PHONY: test_short
 test_short:

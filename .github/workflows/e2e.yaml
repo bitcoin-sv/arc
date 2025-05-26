@@ -23,5 +23,6 @@ jobs:
 
       - name: e2e test
         run: |
+          docker build . -t test-arc
           docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --exit-code-from tests
           docker compose down

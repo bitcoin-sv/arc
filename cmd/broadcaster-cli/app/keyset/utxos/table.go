@@ -16,14 +16,15 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
+type row struct {
+	satoshis string
+	outputs  string
+}
+
 func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, keySets map[string]*keyset.KeySet, isTestnet bool, wocClient broadcaster.UtxoClient, maxRows int) table.Writer {
 	keyTotalOutputs := make([]int, len(keySets))
 	keyHeaderRow := make([]interface{}, 0)
 	headerRow := make([]interface{}, 0)
-	type row struct {
-		satoshis string
-		outputs  string
-	}
 	columns := make([][]row, len(keySets))
 	maxRowNr := 0
 	counter := 0
@@ -61,28 +62,7 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 			return satoshiSlice[j] < satoshiSlice[i]
 		})
 
-		totalOutputs := 0
-		for _, satoshi := range satoshiSlice {
-			satString := strconv.FormatUint(satoshi, 10)
-
-			if satoshi == 1 {
-				satString = satString + " " + emoji.CrossMark.String()
-			}
-
-			columns[counter] = append(columns[counter], row{
-				satoshis: satString,
-				outputs:  strconv.Itoa(outputsMap[satoshi]),
-			})
-
-			// Do not count 1-sat outputs, as they can't be used as utxos for transactions
-			if satoshi == 1 {
-				continue
-			}
-
-			totalOutputs += outputsMap[satoshi]
-		}
-
-		keyTotalOutputs[counter] = totalOutputs
+		keyTotalOutputs[counter] = getTotalOutputs(counter, satoshiSlice, columns, outputsMap)
 
 		if len(columns[counter]) > maxRowNr {
 			maxRowNr = len(columns[counter])
@@ -140,4 +120,28 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 	t.AppendRow(totalRow)
 
 	return t
+}
+
+func getTotalOutputs(counter int, satoshiSlice []uint64, columns [][]row, outputsMap map[uint64]int) int {
+	totalOutputs := 0
+	for _, satoshi := range satoshiSlice {
+		satString := strconv.FormatUint(satoshi, 10)
+
+		if satoshi == 1 {
+			satString = satString + " " + emoji.CrossMark.String()
+		}
+
+		columns[counter] = append(columns[counter], row{
+			satoshis: satString,
+			outputs:  strconv.Itoa(outputsMap[satoshi]),
+		})
+
+		// Do not count 1-sat outputs, as they can't be used as utxos for transactions
+		if satoshi == 1 {
+			continue
+		}
+
+		totalOutputs += outputsMap[satoshi]
+	}
+	return totalOutputs
 }

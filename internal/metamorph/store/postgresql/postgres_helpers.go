@@ -3,10 +3,7 @@ package postgresql
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/ccoveille/go-safecast"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"strings"
 	"time"
 )
@@ -89,32 +86,19 @@ func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) 
 
 	data.StoredAt = storedAt.UTC()
 
-	if len(txHash) > 0 {
-		data.Hash, err = chainhash.NewHash(txHash)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(blockHash) > 0 {
-		data.BlockHash, err = chainhash.NewHash(blockHash)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if status.Valid {
-		data.Status = metamorph_api.Status(status.Int32)
-	}
-
-	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
+	err = data.UpdateTxHash(txHash)
 	if err != nil {
 		return nil, err
 	}
-	if blockHeight.Valid {
-		data.BlockHeight = blockHeightUint64
+	err = data.UpdateBlockHash(blockHash)
+	if err != nil {
+		return nil, err
 	}
-
+	err = data.UpdateBlockHeightFromSQL(blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	data.UpdateStatusFromSQL(status)
 	if len(callbacksData) > 0 {
 		callbacks, err := readCallbacksFromDB(callbacksData)
 		if err != nil {
@@ -122,7 +106,6 @@ func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) 
 		}
 		data.Callbacks = callbacks
 	}
-
 	if len(statusHistory) > 0 {
 		sHistory, err := readStatusHistoryFromDB(statusHistory)
 		if err != nil {
@@ -130,19 +113,9 @@ func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) 
 		}
 		data.StatusHistory = sHistory
 	}
-
-	if retries.Valid {
-		data.Retries = int(retries.Int32)
-	}
-
-	if competingTxs.String != "" {
-		data.CompetingTxs = strings.Split(competingTxs.String, ",")
-	}
-
-	if lastModified.Valid {
-		data.LastModified = lastModified.Time.UTC()
-	}
-
+	data.UpdateRetriesFromSQL(retries)
+	data.UpdateCompetingTxs(competingTxs)
+	data.UpdateLastModifiedFromSQL(lastModified)
 	data.RejectReason = rejectReason.String
 	data.MerklePath = merklePath.String
 	return data, nil

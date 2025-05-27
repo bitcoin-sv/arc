@@ -119,17 +119,7 @@ func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error
 		nats.ReconnectHandler(func(_ *nats.Conn) {
 			logger.Info("client reconnected")
 		}),
-		nats.ClosedHandler(func(_ *nats.Conn) {
-			logger.Warn("client closed")
-			if len(cfg.clientClosedCh) > 0 {
-				for _, ch := range cfg.clientClosedCh {
-					select {
-					case ch <- struct{}{}:
-					default:
-					}
-				}
-			}
-		}),
+		nats.ClosedHandler(closeHandler(logger, cfg)),
 		nats.RetryOnFailedConnect(cfg.retryOnFailedConnect),
 		nats.PingInterval(cfg.pingInterval),
 		nats.MaxPingsOutstanding(cfg.maxPingsOutstanding),
@@ -144,4 +134,17 @@ func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error
 	}
 
 	return nc, nil
+}
+
+func closeHandler(logger *slog.Logger, cfg *NatsConfig) nats.ConnHandler {
+	logger.Warn("client closed")
+	if len(cfg.clientClosedCh) > 0 {
+		for _, ch := range cfg.clientClosedCh {
+			select {
+			case ch <- struct{}{}:
+			default:
+			}
+		}
+	}
+	return nil
 }

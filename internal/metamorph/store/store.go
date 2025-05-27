@@ -2,9 +2,12 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccoveille/go-safecast"
+	"strings"
 	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -147,4 +150,58 @@ func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
+}
+
+func (d *Data) UpdateStatusFromSQL(status sql.NullInt32) {
+	if status.Valid {
+		d.Status = metamorph_api.Status(status.Int32)
+	}
+}
+func (d *Data) UpdateBlockHash(blockHash []byte) error {
+	if len(blockHash) > 0 {
+		var err error
+		d.BlockHash, err = chainhash.NewHash(blockHash)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (d *Data) UpdateTxHash(txHash []byte) error {
+	if len(txHash) > 0 {
+		var err error
+		d.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *Data) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
+	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
+	if err != nil {
+		return err
+	}
+	if blockHeight.Valid {
+		d.BlockHeight = blockHeightUint64
+	}
+	return nil
+}
+
+func (d *Data) UpdateRetriesFromSQL(retries sql.NullInt32) {
+	if retries.Valid {
+		d.Retries = int(retries.Int32)
+	}
+}
+
+func (d *Data) UpdateLastModifiedFromSQL(lastModified sql.NullTime) {
+	if lastModified.Valid {
+		d.LastModified = lastModified.Time.UTC()
+	}
+}
+func (d *Data) UpdateCompetingTxs(competingTxs sql.NullString) {
+	if competingTxs.String != "" {
+		d.CompetingTxs = strings.Split(competingTxs.String, ",")
+	}
 }

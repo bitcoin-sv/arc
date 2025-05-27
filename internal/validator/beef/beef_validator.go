@@ -41,23 +41,17 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *beef.BEEF, 
 			return tx, err
 		}
 
-		if feeValidation == validator.StandardFeeValidation {
-			if err := standardCheckFees(tx, beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
-				return tx, err
-			}
+		if err := standardCheckFees(tx, beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil && feeValidation == validator.StandardFeeValidation {
+			return tx, err
 		}
 
-		if scriptValidation == validator.StandardScriptValidation {
-			if err := validateScripts(tx, beefTx.Transactions); err != nil {
-				return tx, err
-			}
+		if err := validateScripts(tx, beefTx.Transactions); err != nil && scriptValidation == validator.StandardScriptValidation {
+			return tx, err
 		}
 	}
 
-	if feeValidation == validator.CumulativeFeeValidation {
-		if err := cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
-			return beefTx.GetLatestTx(), err
-		}
+	if err := cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil && feeValidation == validator.CumulativeFeeValidation {
+		return beefTx.GetLatestTx(), err
 	}
 
 	if err := ensureAncestorsArePresentInBump(beefTx.GetLatestTx(), beefTx); err != nil {

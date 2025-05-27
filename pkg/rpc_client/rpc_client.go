@@ -71,13 +71,9 @@ func sendJSONRPCCall[T any](ctx context.Context, method string, params []interfa
 			msg, msgOk = v["message"].(string)
 		}
 		if ok && msgOk {
-			err = errors.New(msg)
-		} else {
-			err = errors.New("HTTP error: " + resp.Status)
+			return nil, errors.New(msg)
 		}
-		if err != nil {
-			return nil, err
-		}
+		return nil, errors.New("HTTP error: " + resp.Status)
 	}
 
 	err = json.Unmarshal(data, &rpcResponse)

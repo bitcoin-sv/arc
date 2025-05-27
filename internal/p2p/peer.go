@@ -420,11 +420,10 @@ func (p *Peer) listenForMessages() {
 		reader := NewWireReaderSize(p.lConn, p.maxMsgSize, p.readBuffSize)
 		for {
 			msg, err := reader.ReadNextMsg(p.execCtx, wire.ProtocolVersion, p.network)
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-
 				l.Error("Failed to read message", slog.String("err", err.Error()))
 				// stop peer
 				p.unhealthyDisconnect()

@@ -3,12 +3,11 @@ package p2p
 import (
 	"context"
 	"errors"
+	"github.com/libsv/go-p2p/wire"
 	"log/slog"
 	"sort"
 	"sync"
 	"time"
-
-	"github.com/libsv/go-p2p/wire"
 )
 
 var ErrPeerNetworkMismatch = errors.New("peer network mismatch")
@@ -158,25 +157,28 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 
 			case <-p.IsUnhealthyCh():
 				m.l.Warn("Peer unhealthy - restarting", slog.String("peer", peer.String()))
-
-			restartLoop:
-				for {
-					select {
-					case <-m.execCtx.Done():
-						return
-
-					default:
-						success := p.Restart()
-						if success {
-							break restartLoop
-						}
-						m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
-						time.Sleep(5 * time.Second)
-
-						m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
-					}
+				if m.restartPeers(p, peer) {
+					return
 				}
 			}
 		}
 	}(peer)
+}
+
+func (m *PeerManager) restartPeers(p PeerI, peer PeerI) bool {
+	for {
+		select {
+		case <-m.execCtx.Done():
+			return true
+		default:
+			success := p.Restart()
+			if success {
+				return false
+			}
+			m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
+			time.Sleep(5 * time.Second)
+
+			m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
+		}
+	}
 }

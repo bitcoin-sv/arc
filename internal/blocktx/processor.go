@@ -969,22 +969,7 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 
 	// gather all transactions with missing merkle paths for each block in a map
 	// to avoid getting all transaction from the same block multiple times
-	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath)
-
-	for _, tx := range txs {
-		blockTransactionWithMerklePath := store.BlockTransactionWithMerklePath{
-			BlockTransaction: store.BlockTransaction{
-				TxHash:          tx.TxHash,
-				BlockHash:       tx.BlockHash,
-				BlockHeight:     tx.BlockHeight,
-				MerkleTreeIndex: tx.MerkleTreeIndex,
-				BlockStatus:     tx.BlockStatus,
-				MerkleRoot:      tx.MerkleRoot,
-			},
-		}
-
-		blockTxsMap[hex.EncodeToString(tx.BlockHash)] = append(blockTxsMap[hex.EncodeToString(tx.BlockHash)], blockTransactionWithMerklePath)
-	}
+	blockTxsMap := getBlockTransactionsWithMerklePath(txs)
 
 	for bh, blockTxs := range blockTxsMap {
 		blockHash, err := hex.DecodeString(bh)
@@ -1000,62 +985,83 @@ func (p *Processor) calculateMerklePaths(ctx context.Context, txs []store.BlockT
 		if len(txHashes) == 0 {
 			continue
 		}
-
 		merkleTree := bc.BuildMerkleTreeStoreChainHash(txHashes)
-
-		for _, tx := range blockTxs {
-			merkleIndex := tx.MerkleTreeIndex
-
-			txHash, err := chainhash.NewHash(tx.TxHash)
-			const merkleTreeIndex = "merkle tree index"
-			const blockHash = "block hash"
-			if err != nil {
-				p.logger.Error("Failed to create chain hash", slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
-				continue
-			}
-			txID := txHash.String()
-
-			txIndex := uint64(merkleIndex)
-			if merkleIndex < 0 {
-				p.logger.Warn("missing merkle tree index for transaction", slog.String("hash", getHashStringNoErr(tx.TxHash)))
-				continue
-			}
-			bump, err := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, txIndex)
-			if err != nil {
-				p.logger.Error("Failed to create bump from Merkle tree and index", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
-				continue
-			}
-
-			bumpHex, err := bump.String()
-			if err != nil {
-				p.logger.Error("Failed to create bump string", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
-				continue
-			}
-
-			path, err := sdkTx.NewMerklePathFromHex(bumpHex)
-			if err != nil {
-				p.logger.Error("Failed to create Merkle path from bump", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
-				continue
-			}
-
-			root, err := path.ComputeRootHex(&txID)
-			if err != nil {
-				p.logger.Error("Failed to compute root for tx", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
-				continue
-			}
-
-			merkleRoot := tx.GetMerkleRootString()
-			if root != merkleRoot {
-				p.logger.Error("Comparison of Merkle roots failed", slog.String("calc root", root), slog.String("block root", merkleRoot), slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh))
-				continue
-			}
-
-			tx.MerklePath = bumpHex
-			updatedTxs = append(updatedTxs, tx)
-		}
+		p.udpdateTxsListFromBlockTxs(blockTxs, merkleTree, &updatedTxs, bh)
 	}
 
 	return updatedTxs, nil
+}
+
+func (p *Processor) udpdateTxsListFromBlockTxs(blockTxs []store.BlockTransactionWithMerklePath, merkleTree []*chainhash.Hash, updatedTxs *[]store.BlockTransactionWithMerklePath, bh string) {
+	for _, tx := range blockTxs {
+		merkleIndex := tx.MerkleTreeIndex
+
+		txHash, err := chainhash.NewHash(tx.TxHash)
+		const merkleTreeIndex = "merkle tree index"
+		const blockHash = "block hash"
+		if err != nil {
+			p.logger.Error("Failed to create chain hash", slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
+			continue
+		}
+		txID := txHash.String()
+
+		txIndex := uint64(merkleIndex)
+		if merkleIndex < 0 {
+			p.logger.Warn("missing merkle tree index for transaction", slog.String("hash", getHashStringNoErr(tx.TxHash)))
+			continue
+		}
+		bump, err := bc.NewBUMPFromMerkleTreeAndIndex(tx.BlockHeight, merkleTree, txIndex)
+		if err != nil {
+			p.logger.Error("Failed to create bump from Merkle tree and index", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
+			continue
+		}
+
+		bumpHex, err := bump.String()
+		if err != nil {
+			p.logger.Error("Failed to create bump string", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
+			continue
+		}
+
+		path, err := sdkTx.NewMerklePathFromHex(bumpHex)
+		if err != nil {
+			p.logger.Error("Failed to create Merkle path from bump", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
+			continue
+		}
+
+		root, err := path.ComputeRootHex(&txID)
+		if err != nil {
+			p.logger.Error("Failed to compute root for tx", slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh), slog.String("err", err.Error()))
+			continue
+		}
+
+		merkleRoot := tx.GetMerkleRootString()
+		if root != merkleRoot {
+			p.logger.Error("Comparison of Merkle roots failed", slog.String("calc root", root), slog.String("block root", merkleRoot), slog.String("hash", txID), slog.Int64(merkleTreeIndex, merkleIndex), slog.String(blockHash, bh))
+			continue
+		}
+
+		tx.MerklePath = bumpHex
+		*updatedTxs = append(*updatedTxs, tx)
+	}
+}
+
+func getBlockTransactionsWithMerklePath(txs []store.BlockTransaction) map[string][]store.BlockTransactionWithMerklePath {
+	blockTxsMap := make(map[string][]store.BlockTransactionWithMerklePath)
+	for _, tx := range txs {
+		blockTransactionWithMerklePath := store.BlockTransactionWithMerklePath{
+			BlockTransaction: store.BlockTransaction{
+				TxHash:          tx.TxHash,
+				BlockHash:       tx.BlockHash,
+				BlockHeight:     tx.BlockHeight,
+				MerkleTreeIndex: tx.MerkleTreeIndex,
+				BlockStatus:     tx.BlockStatus,
+				MerkleRoot:      tx.MerkleRoot,
+			},
+		}
+
+		blockTxsMap[hex.EncodeToString(tx.BlockHash)] = append(blockTxsMap[hex.EncodeToString(tx.BlockHash)], blockTransactionWithMerklePath)
+	}
+	return blockTxsMap
 }
 
 func (p *Processor) Shutdown() {

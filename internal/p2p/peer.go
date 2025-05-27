@@ -255,10 +255,14 @@ func (p *Peer) handshake(c net.Conn) (ok bool) {
 		}
 	}(handshakeReadCtx)
 
+	return p.performHandShake(c, read, readController, handshakeFailed)
+	// if we exit the handshake loop, the handshake has completed successfully
+}
+
+func (p *Peer) performHandShake(c net.Conn, read chan readResult, readController chan struct{}, handshakeFailed string) bool {
 	receivedVerAck := false
 	sentVerAck := false
-
-handshakeLoop:
+	var err error
 	for {
 		// "read" next message
 		readController <- struct{}{}
@@ -285,10 +289,6 @@ handshakeLoop:
 				p.logger.Debug("Handshake: received VERACK")
 				receivedVerAck = true
 
-				if sentVerAck {
-					break handshakeLoop
-				}
-
 			case wire.CmdVersion:
 				p.logger.Debug("Handshake: received VER")
 				if sentVerAck {
@@ -310,17 +310,14 @@ handshakeLoop:
 				p.logger.Debug("Handshake: sent VERACK")
 				sentVerAck = true
 
-				if receivedVerAck {
-					break handshakeLoop
-				}
-
 			default:
 				p.logger.Warn("Handshake: received unexpected message. Message was ignored", slogUpperString(commandKey, nmsg.Command()))
 			}
 		}
+		if receivedVerAck && sentVerAck {
+			break
+		}
 	}
-
-	// if we exit the handshake loop, the handshake has completed successfully
 	return true
 }
 

@@ -566,52 +566,11 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 		tracing.EndTracing(span, err)
 	}()
 
-	var submittedTxs []*sdkTx.Transaction
-
 	// decode and validate txs
-	var txIDs []string
-	for len(txsHex) != 0 {
-		hexFormat := validator.GetHexFormat(txsHex)
+	txIDs, submittedTxs, fails, errFields := m.getTxDataFromHex(ctx, options, txsHex, fails)
 
-		if hexFormat == validator.BeefHex {
-			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
-			if err != nil {
-				errStr := errors.Join(ErrDecodingBeef, err).Error()
-				return nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
-			}
-
-			txsHex = remainingBytes
-
-			v := beefValidator.New(m.NodePolicy, m.mrVerifier)
-			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
-				fails = append(fails, arcError)
-				continue
-			}
-
-			for _, tx := range beefTx.Transactions {
-				if !tx.IsMined() {
-					submittedTxs = append(submittedTxs, tx.Transaction)
-				}
-			}
-
-			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
-		} else {
-			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
-			if err != nil {
-				return nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			}
-
-			txsHex = txsHex[bytesUsed:]
-
-			v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
-			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
-				fails = append(fails, arcError)
-				continue
-			}
-
-			submittedTxs = append(submittedTxs, transaction)
-			txIDs = append(txIDs, transaction.TxID().String())
-		}
+	if errFields != nil {
+		return nil, nil, errFields
 	}
 
 	if len(submittedTxs) == 0 {
@@ -651,6 +610,61 @@ func (m ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byt
 	}
 
 	return successes, fails, nil
+}
+
+func (m ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamorph.TransactionOptions, txsHex []byte, fails []*api.ErrorFields) ([]string, []*sdkTx.Transaction, []*api.ErrorFields, *api.ErrorFields) {
+	var submittedTxs []*sdkTx.Transaction
+	var txIDs []string
+	for len(txsHex) != 0 {
+		hexFormat := validator.GetHexFormat(txsHex)
+
+		if hexFormat == validator.BeefHex {
+			beefTx, remainingBytes, err := beef.DecodeBEEF(txsHex)
+			if err != nil {
+				errStr := errors.Join(ErrDecodingBeef, err).Error()
+				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
+			}
+
+			txsHex = remainingBytes
+
+			v := beefValidator.New(m.NodePolicy, m.mrVerifier)
+			if arcError := m.validateBEEFTransaction(ctx, v, beefTx, options); arcError != nil {
+				fails = append(fails, arcError)
+				continue
+			}
+
+			submittedTxs = append(submittedTxs, appendedMinedTxs(beefTx.Transactions)...)
+			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
+			continue
+		}
+
+		transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
+		if err != nil {
+			return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+
+		txsHex = txsHex[bytesUsed:]
+
+		v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
+		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
+			fails = append(fails, arcError)
+			continue
+		}
+
+		submittedTxs = append(submittedTxs, transaction)
+		txIDs = append(txIDs, transaction.TxID().String())
+	}
+	return txIDs, submittedTxs, fails, nil
+}
+
+func appendedMinedTxs(txs []*beef.TxData) []*sdkTx.Transaction {
+	var submittedTxs []*sdkTx.Transaction
+	for _, tx := range txs {
+		if !tx.IsMined() {
+			submittedTxs = append(submittedTxs, tx.Transaction)
+		}
+	}
+	return submittedTxs
 }
 
 func (m ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {

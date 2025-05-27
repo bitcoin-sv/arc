@@ -17,10 +17,6 @@ ARG APP_VERSION
 ARG REPOSITORY="github.com/bitcoin-sv/arc"
 ARG MAIN="./cmd/arc/main.go"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates build-essential wget \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 COPY go.mod go.sum ./

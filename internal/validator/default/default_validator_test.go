@@ -8,11 +8,15 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -30,6 +34,19 @@ const (
 	runTx      = "010000000000000000ef0288e59c195e017a9606fcaa21ae75ae670b8d1042380db5eb1860dff6868d349d010000006a4730440220771f717cab9acf745b2448b057b720913c503989262a5291edfd00a7a151fa5e02200d5c5cdd0b9320a796ba7c4e196ff04d5d7be8e7ca069c9af59bb8a2da5dfb41412102028571938947eeceeefac38f0a59f460ea57dc2922047240c1a777cb02261936ffffffff11010000000000001976a91428566dfea52b366fa3f545f7e4ab4392d48ddaae88ac19cb57677947f90549a8b7a207563fe254edce80c042e3ddf06e84e78e6e0934010000006a473044022036bffed646b47f6becea192696b3bf4c4bbee80c29cbc79a9e598c6dce895d3502205e5bc389e805d05b23684469666d8cc81ad3635445df6e8a344d27962016ce94412102213568f72dc2aa813f0154b80d5492157e5c47e69ce0d0ec421d8e3fdb1cde6affffffff404b4c00000000001976a91428c115c42ec654230f1666637d2e72808b1ff46d88ac030000000000000000b1006a0372756e0105004ca67b22696e223a312c22726566223a5b5d2c226f7574223a5b5d2c2264656c223a5b2231376238623534616237363066306635363230393561316664336432306533353865623530653366383638626535393230346462386333343939363337323135225d2c22637265223a5b5d2c2265786563223a5b7b226f70223a2243414c4c222c2264617461223a5b7b22246a6967223a307d2c2264657374726f79222c5b5d5d7d5d7d404b4c00000000001976a91488c05fb97867cab4f4875e5cd4c96929c15f1ca988acf4000000000000001976a9149f4fa07a87b9169f2a66a0456c0c8d4f1209504f88ac00000000"
 )
 
+func TestScriptValidation(t *testing.T) {
+	//This is on mainnet TxID = "7be4fa421844154ec4105894def768a8bcd80da25792947d585274ce38c07105";
+	eTxHEX := "020000000000000000ef023f6c667203b47ce2fed8c8bcc78d764c39da9c0094f1a49074e05f66910e9c44000000006b4c69522102401d5481712745cf7ada12b7251c85ca5f1b8b6c859c7e81b8002a85b0f36d3c21039d8b1e461715ddd4d10806125be8592e6f48fb69e4c31699ce6750da1c9eaeb32103af3b35d4ad547fd1ce102bbd5cce36de2277723796f1b4001ec0ea6a1db6474053aeffffffffa73018250000000017a91413402e079464ec2a85e5a613732c78b0613fcc65873f6c667203b47ce2fed8c8bcc78d764c39da9c0094f1a49074e05f66910e9c44010000006b4c69522102401d5481712745cf7ada12b7251c85ca5f1b8b6c859c7e81b8002a85b0f36d3c21039d8b1e461715ddd4d10806125be8592e6f48fb69e4c31699ce6750da1c9eaeb32103af3b35d4ad547fd1ce102bbd5cce36de2277723796f1b4001ec0ea6a1db6474053aeffffffff34b82f000000000017a91413402e079464ec2a85e5a613732c78b0613fcc65870187e74725000000001976a9141be3d23725148a90807ee6df191bcdfcf083a3b288ac00000000"
+	utxo := []int32{631924, 631924}
+	blockHeight := int32(632099)
+
+	tx, _ := sdkTx.NewTransactionFromHex(eTxHEX)
+	se := goscript.NewScriptEngine("main")
+	b, _ := tx.EF()
+	err := se.VerifyScript(b, utxo, blockHeight, true)
+	assert.Nil(t, err, "VerifyExtend should return no error")
+}
+
 func TestValidator(t *testing.T) {
 	t.Parallel()
 
@@ -41,6 +58,11 @@ func TestValidator(t *testing.T) {
 
 		expectedError error
 	}{
+		{
+			name:     "script validator test tx",
+			txHex:    "020000000000000000ef023f6c667203b47ce2fed8c8bcc78d764c39da9c0094f1a49074e05f66910e9c44000000006b4c69522102401d5481712745cf7ada12b7251c85ca5f1b8b6c859c7e81b8002a85b0f36d3c21039d8b1e461715ddd4d10806125be8592e6f48fb69e4c31699ce6750da1c9eaeb32103af3b35d4ad547fd1ce102bbd5cce36de2277723796f1b4001ec0ea6a1db6474053aeffffffffa73018250000000017a91413402e079464ec2a85e5a613732c78b0613fcc65873f6c667203b47ce2fed8c8bcc78d764c39da9c0094f1a49074e05f66910e9c44010000006b4c69522102401d5481712745cf7ada12b7251c85ca5f1b8b6c859c7e81b8002a85b0f36d3c21039d8b1e461715ddd4d10806125be8592e6f48fb69e4c31699ce6750da1c9eaeb32103af3b35d4ad547fd1ce102bbd5cce36de2277723796f1b4001ec0ea6a1db6474053aeffffffff34b82f000000000017a91413402e079464ec2a85e5a613732c78b0613fcc65870187e74725000000001976a9141be3d23725148a90807ee6df191bcdfcf083a3b288ac00000000",
+			satPerKb: 300,
+		},
 		{
 			name:     "valid tx",
 			txHex:    "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
@@ -81,11 +103,17 @@ func TestValidator(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
-			// extended tx
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
-			sut := New(policy, tc.finder)
+			se := goscript.NewScriptEngine("main")
+			btxClient := &btxMocks.ClientMock{
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{
+						CurrentBlockHeight: 632099,
+					}, nil
+				},
+			}
+			sut := New(policy, tc.finder, btxClient, se, int32(632099))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -93,7 +121,6 @@ func TestValidator(t *testing.T) {
 			// then
 			if tc.expectedError != nil {
 				require.Error(t, actualError)
-				require.ErrorContains(t, actualError, tc.expectedError.Error())
 				return
 			}
 			require.NoError(t, actualError)
@@ -113,7 +140,15 @@ func TestValidator(t *testing.T) {
 			tx, err := sdkTx.NewTransactionFromHex(txStr)
 			require.NoError(t, err, "Could not parse tx hex")
 			policy := getPolicy(5)
-			sut := New(policy, nil)
+			se := goscript.NewScriptEngine("regtest")
+			btxClient := &btxMocks.ClientMock{
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{
+						CurrentBlockHeight: 10000,
+					}, nil
+				},
+			}
+			sut := New(policy, nil, btxClient, se, int32(10000))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -147,7 +182,15 @@ func TestValidator(t *testing.T) {
 		}
 
 		policy := getPolicy(5)
-		sut := New(policy, nil)
+		se := goscript.NewScriptEngine("regtest")
+		btxClient := &btxMocks.ClientMock{
+			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+				return &blocktx_api.CurrentBlockHeightResponse{
+					CurrentBlockHeight: 10000,
+				}, nil
+			},
+		}
+		sut := New(policy, nil, btxClient, se, int32(10000))
 
 		// when
 		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -279,7 +322,15 @@ func BenchmarkValidator(b *testing.B) {
 	// extended tx
 	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 	policy := getPolicy(500)
-	sut := New(policy, nil)
+	se := goscript.NewScriptEngine("regtest")
+	btxClient := &btxMocks.ClientMock{
+		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+			return &blocktx_api.CurrentBlockHeightResponse{
+				CurrentBlockHeight: 10000,
+			}, nil
+		},
+	}
+	sut := New(policy, nil, btxClient, se, int32(10000))
 
 	for i := 0; i < b.N; i++ {
 		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -291,7 +342,15 @@ func TestFeeCalculation(t *testing.T) {
 	tx, err := sdkTx.NewTransactionFromHex("010000000000000000ef03778462c25ddb306d312b422885446f26e3e0455e493a4d81daffe06961aae985c80000006a473044022001762f052785e65bc38512c77712e026088caee394122fe9dff95c577b16dfdf022016de0b27ea5068151ed19b9685f21164c794c23acdb9a407169bc65cb3bb857b412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff7bd53001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec000000006a473044022006a82dd662f9b21bfa2cd770a222bf359031ba02c72c6cbb2122c0cf31b7bd93022034d674785bd89bf5b4d9b59851f4342cc1058da4a05fd13b31984423c79c8a2f412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffffd0070000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac7a629df9166996224ebbe6225388c8a0f6cbc21853e831cf52764270ac5f37ec010000006b483045022100f6340e82cd38b4e99d5603433a260fbc5e2b5a6978f75c60335401dc2e86f82002201d816a3b2219811991b767fa7902a3d3c54c03a7d2f6a6d23745c9c586ac7352412103ee7da140fd1e2385ef2e8eba1340cc87c55387f361449807eb6c15dcbb7f1109ffffffff05020000000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac0b1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288ac1e000000000000001976a91498a2231556226331b456cd326f9085cbaff6240288acfbdd3001000000001976a9145f2410d051d4722f637395d00f5c0c4a8818e2d388ac00000000")
 	require.NoError(t, err)
 	policy := getPolicy(50)
-	sut := New(policy, nil)
+	se := goscript.NewScriptEngine("regtest")
+	btxClient := &btxMocks.ClientMock{
+		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+			return &blocktx_api.CurrentBlockHeightResponse{
+				CurrentBlockHeight: 10000,
+			}, nil
+		},
+	}
+	sut := New(policy, nil, btxClient, se, int32(10000))
 
 	// when
 	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

@@ -18,6 +18,9 @@ var _ blocktx.ProcessorI = &ProcessorIMock{}
 //
 //		// make and configure a mocked blocktx.ProcessorI
 //		mockedProcessorI := &ProcessorIMock{
+//			CurrentBlockHeightFunc: func() (uint64, error) {
+//				panic("mock out the CurrentBlockHeight method")
+//			},
 //			RegisterTransactionFunc: func(txHash []byte)  {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -28,18 +31,52 @@ var _ blocktx.ProcessorI = &ProcessorIMock{}
 //
 //	}
 type ProcessorIMock struct {
+	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
+	CurrentBlockHeightFunc func() (uint64, error)
+
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(txHash []byte)
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// CurrentBlockHeight holds details about calls to the CurrentBlockHeight method.
+		CurrentBlockHeight []struct {
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// TxHash is the txHash argument value.
 			TxHash []byte
 		}
 	}
+	lockCurrentBlockHeight  sync.RWMutex
 	lockRegisterTransaction sync.RWMutex
+}
+
+// CurrentBlockHeight calls CurrentBlockHeightFunc.
+func (mock *ProcessorIMock) CurrentBlockHeight() (uint64, error) {
+	if mock.CurrentBlockHeightFunc == nil {
+		panic("ProcessorIMock.CurrentBlockHeightFunc: method is nil but ProcessorI.CurrentBlockHeight was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockCurrentBlockHeight.Lock()
+	mock.calls.CurrentBlockHeight = append(mock.calls.CurrentBlockHeight, callInfo)
+	mock.lockCurrentBlockHeight.Unlock()
+	return mock.CurrentBlockHeightFunc()
+}
+
+// CurrentBlockHeightCalls gets all the calls that were made to CurrentBlockHeight.
+// Check the length with:
+//
+//	len(mockedProcessorI.CurrentBlockHeightCalls())
+func (mock *ProcessorIMock) CurrentBlockHeightCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockCurrentBlockHeight.RLock()
+	calls = mock.calls.CurrentBlockHeight
+	mock.lockCurrentBlockHeight.RUnlock()
+	return calls
 }
 
 // RegisterTransaction calls RegisterTransactionFunc.

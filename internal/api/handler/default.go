@@ -17,6 +17,7 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
+	apihelpers "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/api/handler/internal/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -33,6 +34,9 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
+	GenesisForkBlockMain         = int32(620539)
+	GenesisForkBlockTest         = int32(1344302)
+	GenesisForkBlockRegtest      = int32(10000)
 )
 
 var (
@@ -45,12 +49,15 @@ var (
 
 type ArcDefaultHandler struct {
 	TransactionHandler      metamorph.TransactionHandler
+	btxClient               blocktx.Client
 	NodePolicy              *bitcoin.Settings
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
 	maxscriptsizepolicy     uint64
 
 	logger                        *slog.Logger
+	scriptVerifier                apihelpers.ScriptVerifier
+	genesisForkBLock              int32
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
 	txFinder                      validator.TxFinderI
@@ -115,12 +122,14 @@ type Option func(f *ArcDefaultHandler)
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler metamorph.TransactionHandler,
-	merkleRootsVerifier blocktx.MerkleRootsVerifier,
+	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
 	cachedFinder validator.TxFinderI,
+	scriptVerifier apihelpers.ScriptVerifier,
+	genesisForkBLock int32,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
-	mr := merkle_verifier.New(merkleRootsVerifier)
+	mr := merkle_verifier.New((blocktx.MerkleRootsVerifier(btxClient)))
 
 	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
 	var err error
@@ -153,6 +162,9 @@ func NewDefault(
 		maxTxSizePolicy:         maxTxSizePolicy,
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:     maxscriptsizepolicy,
+		btxClient:               btxClient,
+		scriptVerifier:          scriptVerifier,
+		genesisForkBLock:        genesisForkBLock,
 	}
 
 	// apply options
@@ -633,7 +645,7 @@ func (m ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamo
 
 		txsHex = txsHex[bytesUsed:]
 
-		v := defaultValidator.New(m.NodePolicy, m.txFinder)
+		v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
 		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 			fails = append(fails, arcError)
 			continue

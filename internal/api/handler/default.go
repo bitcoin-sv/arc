@@ -623,23 +623,24 @@ func (m ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamo
 
 			submittedTxs = append(submittedTxs, appendedMinedTxs(beefTx.Transactions)...)
 			txIDs = append(txIDs, beefTx.GetLatestTx().TxID().String())
-		} else {
-			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
-			if err != nil {
-				return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
-			}
-
-			txsHex = txsHex[bytesUsed:]
-
-			v := defaultValidator.New(m.NodePolicy, m.txFinder)
-			if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
-				fails = append(fails, arcError)
-				continue
-			}
-
-			submittedTxs = append(submittedTxs, transaction)
-			txIDs = append(txIDs, transaction.TxID().String())
+			continue
 		}
+
+		transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
+		if err != nil {
+			return nil, nil, nil, api.NewErrorFields(api.ErrStatusBadRequest, err.Error())
+		}
+
+		txsHex = txsHex[bytesUsed:]
+
+		v := defaultValidator.New(m.NodePolicy, m.txFinder)
+		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
+			fails = append(fails, arcError)
+			continue
+		}
+
+		submittedTxs = append(submittedTxs, transaction)
+		txIDs = append(txIDs, transaction.TxID().String())
 	}
 	return txIDs, submittedTxs, fails, nil
 }

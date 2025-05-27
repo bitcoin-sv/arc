@@ -47,7 +47,7 @@ RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 RUN go test --tags=e2e ./test -c -o /e2e_test.test
 
 # Deploy the application binary into a lean image
-FROM scratch
+FROM debian:sid-slim
 
 WORKDIR /service
 

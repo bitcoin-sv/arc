@@ -51,7 +51,7 @@ func run() error {
 	}
 
 	logger = logger.With(slog.String("host", hostname))
-	shutdownFns, err := smartStart(arcConfig, logger, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker)
+	shutdownFns, err := startServices(arcConfig, logger, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func run() error {
 	return nil
 }
 
-func smartStart(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
+func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
 	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache store: %v", err)

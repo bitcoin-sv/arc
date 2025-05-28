@@ -1453,7 +1453,7 @@ func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedA
 	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
 	                                            AND (confirmed_at IS NULL OR confirmed_at < requested_at)
 	                                            AND status = $2
-	LIMIT $4 OFFSET $5
+	LIMIT $3 OFFSET $4
 	`
 	requestedBefore := p.now().Add(-lastRequestedAgo)
 

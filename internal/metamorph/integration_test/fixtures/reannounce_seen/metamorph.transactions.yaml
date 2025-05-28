@@ -10,7 +10,7 @@
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
 
-# requested long ago => return
+# confirmed longer ago than requested => don't return
 - hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
   locked_by: re-announce-integration-test
   status: 90
@@ -22,6 +22,7 @@
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
   requested_at: 2025-05-08 12:10:00.000 +0200
+  confirmed_at: 2025-05-08 11:12:34.260 +0200
 
 # requested and confirmed long ago => return
 - hash: 0x8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e

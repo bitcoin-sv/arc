@@ -19,9 +19,9 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithReAnnounceSeen(d time.Duration) func(*Processor) {
+func WithReAnnounceSeenLastConfirmedAgo(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.reAnnounceSeen = d
+		p.reAnnounceSeenLastConfirmedAgo = d
 	}
 }
 
@@ -37,15 +37,15 @@ func WithRejectPendingSeenEnabled(rejectPendingSeen bool) func(*Processor) {
 	}
 }
 
-func WithRejectPendingSeenPending(d time.Duration) func(*Processor) {
+func WithReAnnounceSeenPendingSince(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.rejectPendingSeenPending = d
+		p.reAnnounceSeenPendingSince = d
 	}
 }
 
-func WithRejectPendingSeenRequested(d time.Duration) func(*Processor) {
+func WithRejectPendingSeenLastRequestedAgo(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.rejectPendingSeenRequested = d
+		p.rejectPendingSeenLastRequestedAgo = d
 	}
 }
 

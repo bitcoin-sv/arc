@@ -43,7 +43,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetSeenFunc: func(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetSeen method")
 //			},
-//			GetSeenPendingFunc: func(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+//			GetSeenPendingFunc: func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 //				panic("mock out the GetSeenPending method")
 //			},
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
@@ -123,7 +123,7 @@ type MetamorphStoreMock struct {
 	GetSeenFunc func(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetSeenPendingFunc mocks the GetSeenPending method.
-	GetSeenPendingFunc func(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error)
+	GetSeenPendingFunc func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.Data, error)
 
 	// GetStatsFunc mocks the GetStats method.
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
@@ -232,12 +232,12 @@ type MetamorphStoreMock struct {
 		GetSeenPending []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// FromDuration is the fromDuration argument value.
-			FromDuration time.Duration
-			// SinceLastRequestedDuration is the sinceLastRequestedDuration argument value.
-			SinceLastRequestedDuration time.Duration
-			// PendingSince is the pendingSince argument value.
-			PendingSince time.Duration
+			// LastSubmittedSince is the lastSubmittedSince argument value.
+			LastSubmittedSince time.Duration
+			// ConfirmedAgo is the confirmedAgo argument value.
+			ConfirmedAgo time.Duration
+			// SeenAgo is the seenAgo argument value.
+			SeenAgo time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -657,29 +657,29 @@ func (mock *MetamorphStoreMock) GetSeenCalls() []struct {
 }
 
 // GetSeenPending calls GetSeenPendingFunc.
-func (mock *MetamorphStoreMock) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) ([]*store.Data, error) {
+func (mock *MetamorphStoreMock) GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.Data, error) {
 	if mock.GetSeenPendingFunc == nil {
 		panic("MetamorphStoreMock.GetSeenPendingFunc: method is nil but MetamorphStore.GetSeenPending was just called")
 	}
 	callInfo := struct {
-		Ctx                        context.Context
-		FromDuration               time.Duration
-		SinceLastRequestedDuration time.Duration
-		PendingSince               time.Duration
-		Limit                      int64
-		Offset                     int64
+		Ctx                context.Context
+		LastSubmittedSince time.Duration
+		ConfirmedAgo       time.Duration
+		SeenAgo            time.Duration
+		Limit              int64
+		Offset             int64
 	}{
-		Ctx:                        ctx,
-		FromDuration:               fromDuration,
-		SinceLastRequestedDuration: sinceLastRequestedDuration,
-		PendingSince:               pendingSince,
-		Limit:                      limit,
-		Offset:                     offset,
+		Ctx:                ctx,
+		LastSubmittedSince: lastSubmittedSince,
+		ConfirmedAgo:       confirmedAgo,
+		SeenAgo:            seenAgo,
+		Limit:              limit,
+		Offset:             offset,
 	}
 	mock.lockGetSeenPending.Lock()
 	mock.calls.GetSeenPending = append(mock.calls.GetSeenPending, callInfo)
 	mock.lockGetSeenPending.Unlock()
-	return mock.GetSeenPendingFunc(ctx, fromDuration, sinceLastRequestedDuration, pendingSince, limit, offset)
+	return mock.GetSeenPendingFunc(ctx, lastSubmittedSince, confirmedAgo, seenAgo, limit, offset)
 }
 
 // GetSeenPendingCalls gets all the calls that were made to GetSeenPending.
@@ -687,20 +687,20 @@ func (mock *MetamorphStoreMock) GetSeenPending(ctx context.Context, fromDuration
 //
 //	len(mockedMetamorphStore.GetSeenPendingCalls())
 func (mock *MetamorphStoreMock) GetSeenPendingCalls() []struct {
-	Ctx                        context.Context
-	FromDuration               time.Duration
-	SinceLastRequestedDuration time.Duration
-	PendingSince               time.Duration
-	Limit                      int64
-	Offset                     int64
+	Ctx                context.Context
+	LastSubmittedSince time.Duration
+	ConfirmedAgo       time.Duration
+	SeenAgo            time.Duration
+	Limit              int64
+	Offset             int64
 } {
 	var calls []struct {
-		Ctx                        context.Context
-		FromDuration               time.Duration
-		SinceLastRequestedDuration time.Duration
-		PendingSince               time.Duration
-		Limit                      int64
-		Offset                     int64
+		Ctx                context.Context
+		LastSubmittedSince time.Duration
+		ConfirmedAgo       time.Duration
+		SeenAgo            time.Duration
+		Limit              int64
+		Offset             int64
 	}
 	mock.lockGetSeenPending.RLock()
 	calls = mock.calls.GetSeenPending

@@ -46,7 +46,7 @@ func TestReAnnounceSeen(t *testing.T) {
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithReBroadcastExpiration(24*time.Hour),
-			metamorph.WithReAnnounceSeen(30*time.Minute),
+			metamorph.WithReAnnounceSeenLastConfirmedAgo(30*time.Minute),
 		)
 		require.NoError(t, err)
 		defer sut.Shutdown()

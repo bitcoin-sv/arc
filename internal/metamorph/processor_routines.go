@@ -95,7 +95,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var err error
 
 	for {
-		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenRequested, loadLimit, offset)
+		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
@@ -140,7 +140,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var err error
 
 	for {
-		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, p.rejectPendingSeenPending, loadLimit, offset)
+		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeenLastConfirmedAgo, p.reAnnounceSeenPendingSince, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break

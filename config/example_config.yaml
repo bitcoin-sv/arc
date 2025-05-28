@@ -56,8 +56,10 @@ metamorph:
   reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
   reAnnounceSeen:
     pendingSince: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
-    requestedSince: 5m # time duration after which SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
-    rejectPendingEnabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
+    lastConfirmedAgo: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+  rejectPendingSeen:
+    enabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
+    lastRequestedAgo: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
   reRegisterSeen: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:

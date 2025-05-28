@@ -1101,7 +1101,6 @@ func TestPostgresDB(t *testing.T) {
 		postgresDB.now = func() time.Time {
 			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
 		}
-		fromAgo := 10 * time.Minute
 		requestedAgo := 4 * time.Minute
 
 		rows, err := postgresDB.GetUnconfirmedRequested(ctx, requestedAgo, 5, 0)

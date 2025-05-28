@@ -618,7 +618,7 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, lastSubmittedSince time
 	    seen_txs.requested_at IS NOT NULL AND seen_txs.confirmed_at IS NOT NULL -- requested and confirmed before
 		AND seen_txs.confirmed_at > seen_txs.requested_at -- confirmation was after last request
 		AND seen_txs.confirmed_at < $4 -- confirmation before specified date
-	)
+	))
 	AND seen_txs.locked_by = $5
 	LIMIT $6 OFFSET $7
 	;

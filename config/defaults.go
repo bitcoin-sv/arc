@@ -63,9 +63,14 @@ func getMetamorphConfig() *MetamorphConfig {
 		ReAnnounceUnseenInterval: 60 * time.Second,
 		ReAnnounceSeen:           10 * time.Minute,
 		ReRegisterSeen:           10 * time.Minute,
-		MaxRetries:               1000,
-		StatusUpdateInterval:     5 * time.Second,
-		MonitorPeers:             false,
+		RejectPendingSeen: &RejectPendingSeenConfig{
+			Enabled:   false,
+			Pending:   10 * time.Minute,
+			Requested: 5 * time.Minute,
+		},
+		MaxRetries:           1000,
+		StatusUpdateInterval: 5 * time.Second,
+		MonitorPeers:         false,
 		Health: &HealthConfig{
 			MinimumHealthyConnections: 2,
 		},

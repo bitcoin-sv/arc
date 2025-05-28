@@ -92,6 +92,7 @@ type MetamorphConfig struct {
 	ReAnnounceUnseenInterval time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
 	ReAnnounceSeen           time.Duration                        `mapstructure:"reAnnounceSeen"`
 	ReRegisterSeen           time.Duration                        `mapstructure:"reRegisterSeen"`
+	RejectPendingSeen        *RejectPendingSeenConfig             `mapstructure:"rejectPendingSeen"`
 	MaxRetries               int                                  `mapstructure:"maxRetries"`
 	StatusUpdateInterval     time.Duration                        `mapstructure:"statusUpdateInterval"`
 	MonitorPeers             bool                                 `mapstructure:"monitorPeers"`
@@ -99,6 +100,12 @@ type MetamorphConfig struct {
 	RejectCallbackContaining []string                             `mapstructure:"rejectCallbackContaining"`
 	Stats                    *StatsConfig                         `mapstructure:"stats"`
 	BlockchainNetwork        *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
+}
+
+type RejectPendingSeenConfig struct {
+	Enabled   bool          `mapstructure:"enabled"`
+	Pending   time.Duration `mapstructure:"pending"`
+	Requested time.Duration `mapstructure:"requested"`
 }
 
 type HealthConfig struct {

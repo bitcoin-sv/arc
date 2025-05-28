@@ -557,7 +557,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 }
 
 // GetSeenPending returns all transactions that are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
-func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Duration, sinceLastRequestedDuration time.Duration, pendingSince time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+func (p *PostgreSQL) GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -610,17 +610,25 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, fromDuration time.Durat
 		seen_txs.last_modified
 	FROM seen_txs
 	WHERE seen_txs.last_submitted_at > $2
-	AND $3 - seen_txs.seen_at > $4 * INTERVAL '1 SEC'
-	AND COALESCE(seen_txs.requested_at, '1900-01-01') < $5 AND COALESCE(seen_txs.confirmed_at, '1900-01-01') < $5
-	AND seen_txs.locked_by = $6
-	LIMIT $7 OFFSET $8
+-- 	AND $3 - seen_txs.seen_at > $4 * INTERVAL '1 SEC'
+	AND seen_txs.seen_at < $3
+	AND (
+		seen_txs.requested_at IS NULL -- either never been requested
+	OR (
+	    seen_txs.requested_at IS NOT NULL AND seen_txs.confirmed_at IS NOT NULL -- requested and confirmed before
+		AND seen_txs.confirmed_at > seen_txs.requested_at -- confirmation was after last request
+		AND seen_txs.confirmed_at < $4 -- confirmation before specified date
+	)
+	AND seen_txs.locked_by = $5
+	LIMIT $6 OFFSET $7
 	;
 	`
 
-	getSeenFromAgo := p.now().Add(-1 * fromDuration)
-	sinceLastRequested := p.now().Add(-1 * sinceLastRequestedDuration)
+	lastSubmittedAfter := p.now().Add(-1 * lastSubmittedSince)
+	confirmedBefore := p.now().Add(-1 * confirmedAgo)
+	seenBefore := p.now().Add(-1 * seenAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, getSeenFromAgo, p.now(), pendingSince.Seconds(), sinceLastRequested, p.hostname, limit, offset)
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, lastSubmittedAfter, seenBefore, confirmedBefore, p.hostname, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -1439,15 +1447,17 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetUnconfirmedRequested gets all entries in table requested_transactions which have either never been confirmed or where last confirmation was more than 'fromAgo' time ago
-func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+// GetUnconfirmedRequested transactions which have been requested more than `requestedAgo` time ago either never been confirmed or where last confirmation was longer ago than last request
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
-	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND (confirmed_at IS NULL OR confirmed_at < $1) AND status = $4
-	LIMIT $2 OFFSET $3
+	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
+	                                            AND (confirmed_at IS NULL OR confirmed_at < requested_at)
+	                                            AND status = $2
+	LIMIT $4 OFFSET $5
 	`
-	since := p.now().Add(-fromAgo)
+	requestedBefore := p.now().Add(-requestedAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, since, limit, offset, metamorph_api.Status_SEEN_ON_NETWORK)
+	rows, err := p.db.QueryContext(ctx, q, requestedBefore, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset)
 	if err != nil {
 		return nil, err
 	}

@@ -49,7 +49,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
-//			GetUnconfirmedRequestedFunc: func(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+//			GetUnconfirmedRequestedFunc: func(ctx context.Context, requestedAgo time.Duration, confirmedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 //				panic("mock out the GetUnconfirmedRequested method")
 //			},
 //			GetUnseenFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error) {
@@ -129,7 +129,7 @@ type MetamorphStoreMock struct {
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
 
 	// GetUnconfirmedRequestedFunc mocks the GetUnconfirmedRequested method.
-	GetUnconfirmedRequestedFunc func(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
+	GetUnconfirmedRequestedFunc func(ctx context.Context, requestedAgo time.Duration, confirmedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
 
 	// GetUnseenFunc mocks the GetUnseen method.
 	GetUnseenFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*store.Data, error)
@@ -258,8 +258,10 @@ type MetamorphStoreMock struct {
 		GetUnconfirmedRequested []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// FromAgo is the fromAgo argument value.
-			FromAgo time.Duration
+			// RequestedAgo is the requestedAgo argument value.
+			RequestedAgo time.Duration
+			// ConfirmedAgo is the confirmedAgo argument value.
+			ConfirmedAgo time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -753,25 +755,27 @@ func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
 }
 
 // GetUnconfirmedRequested calls GetUnconfirmedRequestedFunc.
-func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	if mock.GetUnconfirmedRequestedFunc == nil {
 		panic("MetamorphStoreMock.GetUnconfirmedRequestedFunc: method is nil but MetamorphStore.GetUnconfirmedRequested was just called")
 	}
 	callInfo := struct {
-		Ctx     context.Context
-		FromAgo time.Duration
-		Limit   int64
-		Offset  int64
+		Ctx          context.Context
+		RequestedAgo time.Duration
+		ConfirmedAgo time.Duration
+		Limit        int64
+		Offset       int64
 	}{
-		Ctx:     ctx,
-		FromAgo: fromAgo,
-		Limit:   limit,
-		Offset:  offset,
+		Ctx:          ctx,
+		RequestedAgo: requestedAgo,
+		ConfirmedAgo: confirmedAgo,
+		Limit:        limit,
+		Offset:       offset,
 	}
 	mock.lockGetUnconfirmedRequested.Lock()
 	mock.calls.GetUnconfirmedRequested = append(mock.calls.GetUnconfirmedRequested, callInfo)
 	mock.lockGetUnconfirmedRequested.Unlock()
-	return mock.GetUnconfirmedRequestedFunc(ctx, fromAgo, limit, offset)
+	return mock.GetUnconfirmedRequestedFunc(ctx, requestedAgo, confirmedAgo, limit, offset)
 }
 
 // GetUnconfirmedRequestedCalls gets all the calls that were made to GetUnconfirmedRequested.
@@ -779,16 +783,18 @@ func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, fro
 //
 //	len(mockedMetamorphStore.GetUnconfirmedRequestedCalls())
 func (mock *MetamorphStoreMock) GetUnconfirmedRequestedCalls() []struct {
-	Ctx     context.Context
-	FromAgo time.Duration
-	Limit   int64
-	Offset  int64
+	Ctx          context.Context
+	RequestedAgo time.Duration
+	ConfirmedAgo time.Duration
+	Limit        int64
+	Offset       int64
 } {
 	var calls []struct {
-		Ctx     context.Context
-		FromAgo time.Duration
-		Limit   int64
-		Offset  int64
+		Ctx          context.Context
+		RequestedAgo time.Duration
+		ConfirmedAgo time.Duration
+		Limit        int64
+		Offset       int64
 	}
 	mock.lockGetUnconfirmedRequested.RLock()
 	calls = mock.calls.GetUnconfirmedRequested

@@ -33,14 +33,15 @@ const (
 	lockTransactionsIntervalDefault  = 60 * time.Second
 	reRegisterSeenIntervalDefault    = 3 * time.Minute
 
-	checkUnconfirmedSeenIntervalDefault = 5 * time.Minute
+	checkUnconfirmedSeenIntervalDefault = 2 * time.Minute
 	rebroadcastExpirationDefault        = 24 * time.Hour
 	reAnnounceSeenDefault               = 1 * time.Hour
-	reAnnounceSeenIntervalDefault       = 5 * time.Minute
+	reAnnounceSeenIntervalDefault       = 2 * time.Minute
 	logLevelDefault                     = slog.LevelInfo
-
-	loadLimit                        = int64(50)
-	minimumHealthyConnectionsDefault = 2
+	pendingSince                        = 10 * time.Minute
+	requestedAgo                        = 5 * time.Minute
+	loadLimit                           = int64(50)
+	minimumHealthyConnectionsDefault    = 2
 
 	statusUpdatesIntervalDefault  = 500 * time.Millisecond
 	statusUpdatesBatchSizeDefault = 1000
@@ -96,8 +97,11 @@ type Processor struct {
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
 
-	reAnnounceSeen         time.Duration
-	reAnnounceSeenInterval time.Duration
+	reAnnounceSeen             time.Duration
+	reAnnounceSeenInterval     time.Duration
+	rejectPendingSeenEnabled   bool
+	rejectPendingSeenPending   time.Duration
+	rejectPendingSeenRequested time.Duration
 
 	checkUnconfirmedSeenInterval time.Duration
 
@@ -161,6 +165,8 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		reAnnounceSeen:               reAnnounceSeenDefault,
 		reAnnounceSeenInterval:       reAnnounceSeenIntervalDefault,
 		reAnnounceUnseenInterval:     rebroadcastUnseenIntervalDefault,
+		rejectPendingSeenPending:     pendingSince,
+		rejectPendingSeenRequested:   requestedAgo,
 		reRegisterSeenInterval:       reRegisterSeenIntervalDefault,
 		lockTransactionsInterval:     lockTransactionsIntervalDefault,
 		checkUnconfirmedSeenInterval: checkUnconfirmedSeenIntervalDefault,

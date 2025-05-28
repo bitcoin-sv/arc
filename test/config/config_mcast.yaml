@@ -53,6 +53,10 @@ metamorph:
   reAnnounceUnseenInterval: 60s
   reAnnounceSeen: 10m
   reRegisterSeen: 10m
+  rejectPendingSeen:
+    enabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
+    pending: 10m
+    requested: 5m
   monitorPeers: true
   health:
     minimumHealthyConnections: 2

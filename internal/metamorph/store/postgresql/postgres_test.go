@@ -1102,9 +1102,12 @@ func TestPostgresDB(t *testing.T) {
 			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
 		}
 		fromAgo := 10 * time.Minute
+		requestedAgo := 4 * time.Minute
 
-		rows, err := postgresDB.GetUnconfirmedRequested(ctx, fromAgo, 5, 0)
+		rows, err := postgresDB.GetUnconfirmedRequested(ctx, requestedAgo, 5, 0)
 		require.NoError(t, err)
+
+		require.Len(t, rows, 2)
 
 		chainHash1 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
 		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")

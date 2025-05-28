@@ -25,21 +25,27 @@ func WithReAnnounceSeen(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithReAnnounceSeenInterval(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.reAnnounceSeenInterval = d
-	}
-}
-
 func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.reRegisterSeen = d
 	}
 }
 
-func WithReRegisterSeenInterval(d time.Duration) func(*Processor) {
+func WithRejectPendingSeenEnabled(rejectPendingSeen bool) func(*Processor) {
 	return func(p *Processor) {
-		p.reRegisterSeenInterval = d
+		p.rejectPendingSeenEnabled = rejectPendingSeen
+	}
+}
+
+func WithRejectPendingSeenPending(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.rejectPendingSeenPending = d
+	}
+}
+
+func WithRejectPendingSeenRequested(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.rejectPendingSeenRequested = d
 	}
 }
 

@@ -14,6 +14,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
+var (
+	ErrRejectUnconfirmed = errors.New("transaction rejected as not existing in node mempool")
+)
+
 // ReAnnounceUnseen re-broadcasts transactions with status lower than SEEN_ON_NETWORK
 func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	// define from what point in time we are interested in unmined transactions
@@ -83,7 +87,7 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store
 	return announced, requested
 }
 
-// RejectUnconfirmedRequested re-broadcasts SEEN_ON_NETWORK transactions
+// RejectUnconfirmedRequested finds transactions which have been requested, but not confirmed by any node and rejects them
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
@@ -91,7 +95,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var err error
 
 	for {
-		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rebroadcastExpiration, loadLimit, offset)
+		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenRequested, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
@@ -105,12 +109,15 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		}
 
 		for _, txHash := range txHashes {
-			p.logger.Info("Rejecting unconfirmed tx", slog.String("hash", txHash.String()))
-			p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-				Start:  time.Now(),
-				Hash:   txHash,
-				Status: metamorph_api.Status_REJECTED,
-				Err:    errors.New("transaction rejected as not existing in node mempool"),
+			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", txHash.String()))
+
+			if p.rejectPendingSeenEnabled {
+				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+					Start:  time.Now(),
+					Hash:   txHash,
+					Status: metamorph_api.Status_REJECTED,
+					Err:    ErrRejectUnconfirmed,
+				}
 			}
 		}
 
@@ -131,9 +138,9 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var pendingSeen []*store.Data
 	var hashes []*chainhash.Hash
 	var err error
-	const pendingSince = 10 * time.Minute
+
 	for {
-		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, pendingSince, loadLimit, offset)
+		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeen, p.rejectPendingSeenPending, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break

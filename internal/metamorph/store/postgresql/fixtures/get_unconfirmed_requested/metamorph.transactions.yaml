@@ -47,3 +47,15 @@
       timestamp: 2025-05-08T10:53:34.577864+00:00
   requested_at: 2025-05-08 12:10:00.000 +0200
   confirmed_at: 2025-05-08 12:12:34.260 +0200
+
+- hash: 0xc908e0f6fdc3c50a7eb290f2b4348705d15eeefd7fe3952e7d73983426b0cb01
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 13:13:00.000 +0200

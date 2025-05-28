@@ -92,7 +92,7 @@ type MetamorphStore interface {
 	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	SetRequested(ctx context.Context, hashes []*chainhash.Hash) error
-	GetUnconfirmedRequested(ctx context.Context, fromAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
+	GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
 	MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error
 }
 

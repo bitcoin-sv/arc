@@ -69,7 +69,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	sender, err = callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to create callback sender: %v", err)
+		return nil, fmt.Errorf("ffailed to create callback sender: %v", err)
 	}
 
 	runNewManager := func(url string) callbacker.SendManagerI {

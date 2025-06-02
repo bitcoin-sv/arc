@@ -51,7 +51,12 @@ metamorph:
   maxRetries: 1000
   statusUpdateInterval: 50ms
   reAnnounceUnseenInterval: 60s
-  reAnnounceSeen: 10m
+  reAnnounceSeen:
+    pendingSince: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+    lastConfirmedAgo: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+  rejectPendingSeen:
+    enabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
+    lastRequestedAgo: 10m
   reRegisterSeen: 10m
   monitorPeers: true
   health:

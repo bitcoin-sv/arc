@@ -1003,13 +1003,13 @@ func TestPostgresDB(t *testing.T) {
 		}
 
 		fromDuration := 24 * time.Hour
-		sinceLastRequestedDuration := 30 * time.Minute
-		pendingSince := 5 * time.Minute
+		confirmedAgo := 30 * time.Minute
+		seenAgo := 5 * time.Minute
 
-		records, err := postgresDB.GetSeenPending(ctx, fromDuration, sinceLastRequestedDuration, pendingSince, 5, 0)
+		records, err := postgresDB.GetSeenPending(ctx, fromDuration, confirmedAgo, seenAgo, 5, 0)
 		require.NoError(t, err)
 
-		require.Equal(t, 3, len(records))
+		require.Len(t, records, 4)
 
 		hashes := make([]string, len(records))
 		for i, record := range records {
@@ -1019,6 +1019,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Contains(t, hashes, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
 		require.Contains(t, hashes, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
 		require.Contains(t, hashes, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
+		require.Contains(t, hashes, "3be40aab70b9061e81465039fea525170b31b9e7e9af1933acf50335b171c9b4")
 
 		postgresDB.now = func() time.Time { return now }
 	})
@@ -1101,10 +1102,12 @@ func TestPostgresDB(t *testing.T) {
 		postgresDB.now = func() time.Time {
 			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
 		}
-		fromAgo := 10 * time.Minute
+		requestedAgo := 4 * time.Minute
 
-		rows, err := postgresDB.GetUnconfirmedRequested(ctx, fromAgo, 5, 0)
+		rows, err := postgresDB.GetUnconfirmedRequested(ctx, requestedAgo, 5, 0)
 		require.NoError(t, err)
+
+		require.Len(t, rows, 2)
 
 		chainHash1 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
 		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")

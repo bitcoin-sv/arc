@@ -37,7 +37,7 @@
   requested_at: 2025-05-08 12:52:00.000 +0200
   confirmed_at: 2025-05-08 13:10:34.260 +0200
 
-# requested long ago => return
+# confirmed long ago => return
 - hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
   locked_by: metamorph-1
   status: 90
@@ -49,6 +49,21 @@
     - status: 90
       timestamp: 2025-05-08T10:53:34.577864+00:00
   requested_at: 2025-05-08 12:10:00.000 +0200
+  confirmed_at: 2025-05-08 12:30:34.260 +0200
+
+# last confirmed longer ago than requested => don't return
+- hash: 0x9105f3cd88aee9a8eccd0d5b6d1ebbf420a43c17a281dc1bd6bc881e7c1f1325
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+  requested_at: 2025-05-08 12:10:00.000 +0200
+  confirmed_at: 2025-05-08 11:30:34.260 +0200
 
 # pending less than 5min => don't return
 - hash: 0x62b59fcc3084b178989898807bc54ee8a8be0e53e2c1dbb78928ccba20154598
@@ -61,6 +76,18 @@
       timestamp: 2025-05-08T10:53:34.260275433Z
     - status: 90
       timestamp: 2025-05-08T11:12:34.577864+00:00
+
+# pending just long enough => return
+- hash: 0x3be40aab70b9061e81465039fea525170b31b9e7e9af1933acf50335b171c9b4
+  locked_by: metamorph-1
+  status: 90
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 90
+      timestamp: 2025-05-08T11:09:34.577864+00:00
 
 # requested and confirmed long ago => return
 - hash: 0x8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e

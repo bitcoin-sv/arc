@@ -46,7 +46,7 @@ func TestReAnnounceSeen(t *testing.T) {
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithReBroadcastExpiration(24*time.Hour),
-			metamorph.WithReAnnounceSeen(30*time.Minute),
+			metamorph.WithReAnnounceSeenLastConfirmedAgo(30*time.Minute),
 		)
 		require.NoError(t, err)
 		defer sut.Shutdown()
@@ -66,7 +66,7 @@ func TestReAnnounceSeen(t *testing.T) {
 		assert.True(t, expectedRequestedAt1.Equal(requestedAt1))
 
 		var requestedAt2 time.Time
-		expectedRequestedAt2 := now
+		expectedRequestedAt2 := time.Date(2025, 5, 8, 10, 10, 0, 0, time.UTC)
 		assert.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash2[:]))
 		assert.True(t, expectedRequestedAt2.Equal(requestedAt2))
 

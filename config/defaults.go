@@ -61,11 +61,18 @@ func getMetamorphConfig() *MetamorphConfig {
 		DialAddr:                 "localhost:8001",
 		Db:                       getDbConfig("metamorph"),
 		ReAnnounceUnseenInterval: 60 * time.Second,
-		ReAnnounceSeen:           10 * time.Minute,
-		ReRegisterSeen:           10 * time.Minute,
-		MaxRetries:               1000,
-		StatusUpdateInterval:     5 * time.Second,
-		MonitorPeers:             false,
+		ReAnnounceSeen: &ReAnnounceSeenConfig{
+			PendingSince:     10 * time.Minute,
+			LastConfirmedAgo: 15 * time.Minute,
+		},
+		ReRegisterSeen: 10 * time.Minute,
+		RejectPendingSeen: &RejectPendingSeenConfig{
+			Enabled:          false,
+			LastRequestedAgo: 5 * time.Minute,
+		},
+		MaxRetries:           1000,
+		StatusUpdateInterval: 5 * time.Second,
+		MonitorPeers:         false,
 		Health: &HealthConfig{
 			MinimumHealthyConnections: 2,
 		},

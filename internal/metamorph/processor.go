@@ -33,14 +33,15 @@ const (
 	lockTransactionsIntervalDefault  = 60 * time.Second
 	reRegisterSeenIntervalDefault    = 3 * time.Minute
 
-	checkUnconfirmedSeenIntervalDefault = 5 * time.Minute
-	rebroadcastExpirationDefault        = 24 * time.Hour
-	reAnnounceSeenDefault               = 1 * time.Hour
-	reAnnounceSeenIntervalDefault       = 5 * time.Minute
-	logLevelDefault                     = slog.LevelInfo
-
-	loadLimit                        = int64(50)
-	minimumHealthyConnectionsDefault = 2
+	checkUnconfirmedSeenIntervalDefault      = 2 * time.Minute
+	rebroadcastExpirationDefault             = 24 * time.Hour
+	reAnnounceSeenDefault                    = 1 * time.Hour
+	reAnnounceSeenIntervalDefault            = 2 * time.Minute
+	logLevelDefault                          = slog.LevelInfo
+	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
+	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
+	loadLimit                                = int64(50)
+	minimumHealthyConnectionsDefault         = 2
 
 	statusUpdatesIntervalDefault  = 500 * time.Millisecond
 	statusUpdatesBatchSizeDefault = 1000
@@ -96,8 +97,12 @@ type Processor struct {
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
 
-	reAnnounceSeen         time.Duration
-	reAnnounceSeenInterval time.Duration
+	reAnnounceSeenInterval         time.Duration
+	reAnnounceSeenLastConfirmedAgo time.Duration
+	reAnnounceSeenPendingSince     time.Duration
+
+	rejectPendingSeenEnabled          bool
+	rejectPendingSeenLastRequestedAgo time.Duration
 
 	checkUnconfirmedSeenInterval time.Duration
 
@@ -158,21 +163,23 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
-		reAnnounceSeen:               reAnnounceSeenDefault,
-		reAnnounceSeenInterval:       reAnnounceSeenIntervalDefault,
-		reAnnounceUnseenInterval:     rebroadcastUnseenIntervalDefault,
-		reRegisterSeenInterval:       reRegisterSeenIntervalDefault,
-		lockTransactionsInterval:     lockTransactionsIntervalDefault,
-		checkUnconfirmedSeenInterval: checkUnconfirmedSeenIntervalDefault,
-		statusUpdatesInterval:        statusUpdatesIntervalDefault,
-		statusUpdatesBatchSize:       statusUpdatesBatchSizeDefault,
-		storageStatusUpdateCh:        make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
-		stats:                        newProcessorStats(),
-		waitGroup:                    &sync.WaitGroup{},
-		registerBatchSize:            registerBatchSizeDefault,
-		statCollectionInterval:       statCollectionIntervalDefault,
-		processTransactionsInterval:  processTransactionsIntervalDefault,
-		processTransactionsBatchSize: processTransactionsBatchSizeDefault,
+		reAnnounceSeenLastConfirmedAgo:    reAnnounceSeenDefault,
+		reAnnounceSeenInterval:            reAnnounceSeenIntervalDefault,
+		reAnnounceUnseenInterval:          rebroadcastUnseenIntervalDefault,
+		reAnnounceSeenPendingSince:        reAnnounceSeenPendingSinceDefault,
+		rejectPendingSeenLastRequestedAgo: rejectPendingSeenLastRequestedAgoDefault,
+		reRegisterSeenInterval:            reRegisterSeenIntervalDefault,
+		lockTransactionsInterval:          lockTransactionsIntervalDefault,
+		checkUnconfirmedSeenInterval:      checkUnconfirmedSeenIntervalDefault,
+		statusUpdatesInterval:             statusUpdatesIntervalDefault,
+		statusUpdatesBatchSize:            statusUpdatesBatchSizeDefault,
+		storageStatusUpdateCh:             make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
+		stats:                             newProcessorStats(),
+		waitGroup:                         &sync.WaitGroup{},
+		registerBatchSize:                 registerBatchSizeDefault,
+		statCollectionInterval:            statCollectionIntervalDefault,
+		processTransactionsInterval:       processTransactionsIntervalDefault,
+		processTransactionsBatchSize:      processTransactionsBatchSizeDefault,
 
 		processMinedInterval:  processMinedIntervalDefault,
 		processMinedBatchSize: processMinedBatchSizeDefault,

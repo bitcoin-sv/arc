@@ -1281,6 +1281,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				cStore,
 				pm,
 				statusMessageChannel,
+				metamorph.WithRejectPendingSeenEnabled(true),
 			)
 			require.NoError(t, err)
 

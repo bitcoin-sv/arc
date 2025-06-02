@@ -397,7 +397,7 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
-	allTxs := append(longestTxs, staleTxs...)
+	allTxs := append(longestTxs)
 
 	txsToPublish, err := p.calculateMerklePaths(ctx, allTxs)
 	if err != nil {

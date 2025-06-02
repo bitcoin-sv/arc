@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 )
 
 func TestReorg(t *testing.T) {
@@ -126,7 +127,7 @@ func TestReorg(t *testing.T) {
 	}
 
 	// invalidate the chain with tx1 and tx2
-	client, err := node_client.NewRPCClient(nodeHost, nodePort, nodeUser, nodePassword)
+	client, err := rpc_client.NewRPCClient(nodeHost, nodePort, nodeUser, nodePassword)
 	require.NoError(t, err)
 
 	err = client.InvalidateBlock(context.TODO(), invHash)

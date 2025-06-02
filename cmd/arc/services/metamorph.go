@@ -162,7 +162,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
-	err = startZMQs(logger, arcConfig.Metamorph.BlockchainNetwork.Peers, stopFn, statusMessageCh, shutdownFns)
+	err = startZMQs(logger, arcConfig.Metamorph.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func enableTracing(arcConfig *config.ArcConfig, logger *slog.Logger) ([]func(), 
 	return shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts
 }
 
-func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns []func()) error {
+func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns *[]func()) error {
 	for i, peerSetting := range peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
@@ -220,7 +220,7 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
 		cleanup, err := zmq.Start()
-		shutdownFns = append(shutdownFns, cleanup)
+		*shutdownFns = append(*shutdownFns, cleanup)
 		if err != nil {
 			stopFn()
 			return fmt.Errorf("failed to start ZMQ: %v", err)

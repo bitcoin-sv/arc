@@ -122,7 +122,7 @@ func Generate(t *testing.T, bitcoind *bitcoin.Bitcoind, amount uint64) string {
 
 	// run command instead
 	blockHash := ExecCommandGenerate(t, bitcoind, amount)
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	t.Logf(
 		"generated %d block(s): block hash: %s",

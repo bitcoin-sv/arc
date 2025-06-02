@@ -179,11 +179,7 @@ func TestReorg(t *testing.T) {
 	// verify that previous mined tx1 have updated block info
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, staleHash)
 
-	time.Sleep(5 * time.Second)
-	node_client.Generate(t, bitcoind, 1)
-	time.Sleep(5 * time.Second)
-	node_client.Generate(t, bitcoind, 1)
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMinedInStaleBlock, tx2BlockHash)

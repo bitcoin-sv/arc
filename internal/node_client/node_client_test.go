@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
@@ -101,7 +102,7 @@ func TestNodeClient(t *testing.T) {
 	ctx := context.Background()
 
 	setup()
-	nc, err := node_client.NewRPCClient(host, hostPort, user, password)
+	nc, err := rpc_client.NewRPCClient(host, hostPort, user, password)
 	require.NoError(t, err)
 
 	sut, err := node_client.New(nc)

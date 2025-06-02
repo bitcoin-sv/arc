@@ -9,6 +9,7 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 type NodeClient struct {
-	bitcoinClient     *RPCClient
+	bitcoinClient     *rpc_client.RPCClient
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -36,7 +37,7 @@ func WithTracer(attr ...attribute.KeyValue) func(s *NodeClient) {
 	}
 }
 
-func New(n *RPCClient, opts ...func(client *NodeClient)) (NodeClient, error) {
+func New(n *rpc_client.RPCClient, opts ...func(client *NodeClient)) (NodeClient, error) {
 	node := NodeClient{
 		bitcoinClient: n,
 	}

@@ -1,4 +1,4 @@
-package node_client
+package rpc_client
 
 import (
 	"bytes"

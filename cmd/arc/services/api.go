@@ -34,6 +34,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
@@ -145,7 +146,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	pc := arcConfig.PeerRPC
 
-	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
+	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create node client: %v", err)

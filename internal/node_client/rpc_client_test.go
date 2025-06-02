@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 )
 
 func TestRPCClient(t *testing.T) {
@@ -18,7 +19,7 @@ func TestRPCClient(t *testing.T) {
 	ctx := context.Background()
 
 	setup()
-	sut, err := node_client.NewRPCClient(host, hostPort, user, password)
+	sut, err := rpc_client.NewRPCClient(host, hostPort, user, password)
 	require.NoError(t, err)
 
 	address, _ := node_client.FundNewWallet(t, bitcoind)

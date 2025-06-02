@@ -181,9 +181,7 @@ func TestReorg(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 	node_client.Generate(t, bitcoind, 1)
-	node_client.Generate(t, bitcoind, 1)
-	node_client.Generate(t, bitcoind, 1)
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, staleHash)

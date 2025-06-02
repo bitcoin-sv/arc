@@ -182,7 +182,7 @@ func TestReorg(t *testing.T) {
 	node_client.Generate(t, bitcoind, 1)
 
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
-	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, staleHash)
+	checkStatusBlockHash(t, tx2.TxID().String(), StatusMinedInStaleBlock, tx2BlockHash)
 
 	merklePathTx1 = getMerklePath(t, tx1.TxID().String())
 

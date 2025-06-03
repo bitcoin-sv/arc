@@ -378,16 +378,17 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return err
 	}
 
-	var longestTxs []store.BlockTransaction
+	var longestTxs, staleTxs []store.BlockTransaction
 	var ok bool
 
 	switch block.Status {
 	case blocktx_api.Status_LONGEST:
 		longestTxs, ok = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
 	case blocktx_api.Status_STALE:
-		longestTxs, _, ok = p.handleStaleBlock(ctx, block)
+		fmt.Println("handler stale block")
+		longestTxs, staleTxs, ok = p.handleStaleBlock(ctx, block)
 	case blocktx_api.Status_ORPHANED:
-		longestTxs, _, ok = p.handleOrphans(ctx, block)
+		longestTxs, staleTxs, ok = p.handleOrphans(ctx, block)
 	default:
 		return ErrUnexpectedBlockStatus
 	}
@@ -397,7 +398,8 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
-	allTxs := longestTxs
+	allTxs := append(longestTxs, staleTxs...)
+	fmt.Println("publish mined", allTxs)
 
 	txsToPublish, err := p.calculateMerklePaths(ctx, allTxs)
 	if err != nil {

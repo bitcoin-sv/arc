@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -541,7 +542,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	if err != nil {
 		return nil, nil, err
 	}
-
+	fmt.Println("shota ", hex.EncodeToString(hash), data.Status)
 	var storedAt *timestamppb.Timestamp
 	if !data.StoredAt.IsZero() {
 		storedAt = timestamppb.New(data.StoredAt)

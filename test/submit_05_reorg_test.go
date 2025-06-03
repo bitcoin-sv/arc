@@ -212,4 +212,6 @@ func TestReorg(t *testing.T) {
 			t.Fatal("callback exceeded timeout")
 		}
 	}
+
+	time.Sleep(10 * time.Second) // wait for callbacks to be processed
 }

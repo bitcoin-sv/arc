@@ -185,7 +185,7 @@ func TestReorg(t *testing.T) {
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, staleHash)
 
 	// verify that tx2 is now MINED_IN_STALE_BLOCK
-	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, tx2BlockHash)
+	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, staleHash)
 
 	merklePathTx1 = getMerklePath(t, tx1.TxID().String())
 

@@ -198,6 +198,8 @@ func (p *Processor) Start() error {
 }
 
 func (p *Processor) StartBlockRequesting() {
+	const maxBlockFetchingDuration = 2 * time.Minute
+
 	p.waitGroup.Add(1)
 
 	go func() {
@@ -226,7 +228,7 @@ func (p *Processor) StartBlockRequesting() {
 				}
 
 				if p.getBlockByRPC {
-					ctx, cancel := context.WithTimeout(p.ctx, 10*time.Minute)
+					ctx, cancel := context.WithTimeout(p.ctx, maxBlockFetchingDuration)
 					defer cancel()
 
 					p.logger.Info("Requesting block by RPC", slog.String("hash", hash.String()))

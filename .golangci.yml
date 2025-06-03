@@ -140,7 +140,7 @@ linters:
         - name: cognitive-complexity
           disabled: true
           exclude: [ "TEST" ]
-          arguments: [ 40 ]
+          arguments: [ 20 ]
           severity: "warning"
         - name: line-length-limit
           disabled: true

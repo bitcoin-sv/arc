@@ -399,7 +399,10 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 	}
 
 	allTxs := append(longestTxs, staleTxs...)
-	fmt.Println("publish mined", allTxs)
+	fmt.Println("publish mined", len(allTxs))
+	for _, t := range allTxs {
+		fmt.Println("shota hash", hex.EncodeToString(t.TxHash))
+	}
 
 	txsToPublish, err := p.calculateMerklePaths(ctx, allTxs)
 	if err != nil {

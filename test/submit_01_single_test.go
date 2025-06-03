@@ -2,12 +2,8 @@
 
 package test
 
-import (
-	"embed"
-)
-
 //go:embed fixtures/malformedTxHexString.txt
-var fixtures embed.FS
+// var fixtures embed.FS
 
 // func TestSubmitSingle(t *testing.T) {
 // 	address, privateKey := node_client.FundNewWallet(t, bitcoind)

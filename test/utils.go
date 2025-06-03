@@ -12,15 +12,9 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
-	"sync"
 	"testing"
 	"time"
 
-	ec "github.com/bsv-blockchain/go-sdk/primitives/ec"
-	"github.com/bsv-blockchain/go-sdk/script"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 	safe "github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -262,87 +256,87 @@ func CreateCallbackServer(t *testing.T) (callbackURL string, token string, callb
 	return callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup
 }
 
-func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBatch bool, tx *sdkTx.Transaction) {
-	t.Helper()
-	time.Sleep(100 * time.Millisecond)
-	rawTx, err := tx.EFHex()
-	require.NoError(t, err)
+// func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBatch bool, tx *sdkTx.Transaction) {
+// 	t.Helper()
+// 	time.Sleep(100 * time.Millisecond)
+// 	rawTx, err := tx.EFHex()
+// 	require.NoError(t, err)
 
-	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
-		map[string]string{
-			"X-WaitFor":       StatusSeenOnNetwork,
-			"X-CallbackUrl":   callbackURL,
-			"X-CallbackToken": token,
-			"X-CallbackBatch": strconv.FormatBool(callbackBatch),
-			"X-MaxTimeout":    "7",
-		}, http.StatusOK)
-	require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
-}
+// 	response := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx}),
+// 		map[string]string{
+// 			"X-WaitFor":       StatusSeenOnNetwork,
+// 			"X-CallbackUrl":   callbackURL,
+// 			"X-CallbackToken": token,
+// 			"X-CallbackBatch": strconv.FormatBool(callbackBatch),
+// 			"X-MaxTimeout":    "7",
+// 		}, http.StatusOK)
+// 	require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
+// }
 
-func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) func(w http.ResponseWriter, rc chan T, ec chan error, status T) {
-	t.Helper()
+// func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) func(w http.ResponseWriter, rc chan T, ec chan error, status T) {
+// 	t.Helper()
 
-	responseVisitMap := make(map[string]int)
-	mu := &sync.Mutex{}
+// 	responseVisitMap := make(map[string]int)
+// 	mu := &sync.Mutex{}
 
-	calbackResponseFn := func(w http.ResponseWriter, rc chan T, _ chan error, status T) {
-		mu.Lock()
-		txID := status.GetTxID()
-		callbackCounter := responseVisitMap[txID]
-		callbackCounter++
-		responseVisitMap[txID] = callbackCounter
-		mu.Unlock()
+// 	calbackResponseFn := func(w http.ResponseWriter, rc chan T, _ chan error, status T) {
+// 		mu.Lock()
+// 		txID := status.GetTxID()
+// 		callbackCounter := responseVisitMap[txID]
+// 		callbackCounter++
+// 		responseVisitMap[txID] = callbackCounter
+// 		mu.Unlock()
 
-		// Let ARC send the same callback few times
-		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
+// 		// Let ARC send the same callback few times
+// 		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
 
-		err := respondToCallback(w, respondWithSuccess)
-		if err != nil {
-			t.Fatalf("Failed to respond to callback: %v", err)
-		}
+// 		err := respondToCallback(w, respondWithSuccess)
+// 		if err != nil {
+// 			t.Fatalf("Failed to respond to callback: %v", err)
+// 		}
 
-		rc <- status
-	}
-	return calbackResponseFn
-}
+// 		rc <- status
+// 	}
+// 	return calbackResponseFn
+// }
 
-func generateNewUnlockingScriptFromRandomKey() (*script.Script, error) {
-	privKey, err := ec.NewPrivateKey()
-	if err != nil {
-		return nil, err
-	}
+// func generateNewUnlockingScriptFromRandomKey() (*script.Script, error) {
+// 	privKey, err := ec.NewPrivateKey()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	address, err := script.NewAddressFromPublicKey(privKey.PubKey(), false)
-	if err != nil {
-		return nil, err
-	}
+// 	address, err := script.NewAddressFromPublicKey(privKey.PubKey(), false)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	sc, err := p2pkh.Lock(address)
-	if err != nil {
-		return nil, err
-	}
-	return sc, nil
-}
+// 	sc, err := p2pkh.Lock(address)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return sc, nil
+// }
 
-func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
-	require.NotNil(t, statusResponse.MerklePath)
+// func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
+// 	require.NotNil(t, statusResponse.MerklePath)
 
-	bump, err := bc.NewBUMPFromStr(*statusResponse.MerklePath)
-	require.NoError(t, err)
+// 	bump, err := bc.NewBUMPFromStr(*statusResponse.MerklePath)
+// 	require.NoError(t, err)
 
-	jsonB, err := json.Marshal(bump)
-	require.NoError(t, err)
-	t.Logf("BUMPjson: %s", string(jsonB))
+// 	jsonB, err := json.Marshal(bump)
+// 	require.NoError(t, err)
+// 	t.Logf("BUMPjson: %s", string(jsonB))
 
-	root, err := bump.CalculateRootGivenTxid(statusResponse.Txid)
-	require.NoError(t, err)
+// 	root, err := bump.CalculateRootGivenTxid(statusResponse.Txid)
+// 	require.NoError(t, err)
 
-	require.NotNil(t, statusResponse.BlockHeight)
-	bh, err := safe.ToInt(*statusResponse.BlockHeight)
-	require.NoError(t, err)
-	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, bh)
-	require.Equal(t, blockRoot, root)
-}
+// 	require.NotNil(t, statusResponse.BlockHeight)
+// 	bh, err := safe.ToInt(*statusResponse.BlockHeight)
+// 	require.NoError(t, err)
+// 	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, bh)
+// 	require.Equal(t, blockRoot, root)
+// }
 
 func checkStatus(t *testing.T, txID string, expectedStatus string) {
 	statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txID)

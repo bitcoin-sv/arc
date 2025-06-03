@@ -2,7 +2,9 @@ package postgresql
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -28,6 +30,7 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 		blockHashes[i] = update.Hash
 		statuses[i] = update.Status
 		isLongest[i] = update.Status == blocktx_api.Status_LONGEST
+		fmt.Println("shota block status update", hex.EncodeToString(update.Hash), update.Status, update.Status == blocktx_api.Status_LONGEST)
 	}
 
 	tx, err := p.db.Begin()

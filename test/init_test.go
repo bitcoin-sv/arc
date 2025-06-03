@@ -23,6 +23,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+var arcEndpointV1Txs string
+
 func setupSut() {
 	log.Println("init tests")
 

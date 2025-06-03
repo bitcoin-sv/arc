@@ -9,9 +9,8 @@ import (
 var (
 	nodeHost = "node1"
 
-	arcEndpoint      = "http://api:9090/"
-	arcEndpointV1Tx  = arcEndpoint + v1Tx
-	arcEndpointV1Txs string
+	arcEndpoint     = "http://api:9090/"
+	arcEndpointV1Tx = arcEndpoint + v1Tx
 )
 
 const (

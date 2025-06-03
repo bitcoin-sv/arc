@@ -1085,7 +1085,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		blockHeights[i] = tx.BlockHeight
 		merklePaths[i] = tx.MerklePath
 		statuses[i] = metamorph_api.Status_MINED
-		fmt.Println("shota aq movida", tx.BlockStatus)
+		fmt.Println("shota aq movida", tx.BlockStatus, hex.EncodeToString(tx.BlockHash))
 		if tx.BlockStatus == blocktx_api.Status_STALE {
 			statuses[i] = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		}

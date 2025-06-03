@@ -16,6 +16,7 @@ import (
 )
 
 func TestReorg(t *testing.T) {
+	fmt.Println("shota TestReorg")
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
@@ -166,7 +167,7 @@ func TestReorg(t *testing.T) {
 	checkStatus(t, txStale.TxID().String(), StatusSeenOnNetwork)
 
 	// verify that nothing changed so far with previous mined txs
-	fmt.Println("shota tx1", tx1.TxID().String())
+	fmt.Println("shota tx1", tx1.EFHex(), tx1.Hex(), tx1.TxID().String())
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
 	fmt.Println("shota tx2", tx2.TxID().String())
 	fmt.Println("shota stale", txStale.TxID().String())

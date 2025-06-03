@@ -436,12 +436,11 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.Bl
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
 	}
 
-	fmt.Println("shota incoming", p.incomingIsLongest)
 	if p.incomingIsLongest {
 		incomingBlock.Status = blocktx_api.Status_LONGEST
 	} else {
 		err = p.assignBlockStatus(ctx, incomingBlock, previousBlockHash)
-		fmt.Println("after assigning", blockMsg.Hash.String(), incomingBlock.Status)
+		fmt.Println("after assigning", blockMsg.Hash.String(), incomingBlock.Status, hex.EncodeToString(incomingBlock.Hash))
 		if err != nil {
 			p.logger.Error("unable to assign block status", slog.String("hash", blockHash.String()), slog.Uint64("height", incomingBlock.Height), slog.String("err", err.Error()))
 			return nil, err

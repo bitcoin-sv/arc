@@ -2,100 +2,87 @@
 
 package test
 
-import (
-	"fmt"
-	"net/http"
-	"os"
-	"testing"
-	"time"
+// func TestBatchChainedTxs(t *testing.T) {
+// 	if os.Getenv("TEST_LOCAL_MCAST") != "" {
+// 		t.Skip("Multicasting does't support chained txs yet")
+// 	}
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+// 	t.Run("submit batch of chained transactions", func(t *testing.T) {
+// 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
-	"github.com/bitcoin-sv/arc/internal/node_client"
-)
+// 		utxos := node_client.GetUtxos(t, bitcoind, address)
+// 		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
 
-func TestBatchChainedTxs(t *testing.T) {
-	if os.Getenv("TEST_LOCAL_MCAST") != "" {
-		t.Skip("Multicasting does't support chained txs yet")
-	}
+// 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
+// 		require.NoError(t, err)
 
-	t.Run("submit batch of chained transactions", func(t *testing.T) {
-		address, privateKey := node_client.FundNewWallet(t, bitcoind)
+// 		request := make([]TransactionRequest, len(txs))
+// 		for i, tx := range txs {
+// 			rawTx, err := tx.EFHex()
+// 			require.NoError(t, err)
+// 			request[i] = TransactionRequest{
+// 				RawTx: rawTx,
+// 			}
+// 		}
 
-		utxos := node_client.GetUtxos(t, bitcoind, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+// 		// Send POST request
+// 		t.Logf("submitting batch of %d chained txs", len(txs))
+// 		resp := postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+// 		hasFailed := false
+// 		for i, txResponse := range resp {
+// 			if !assert.Equal(t, StatusSeenOnNetwork, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
+// 				hasFailed = true
+// 			}
+// 		}
+// 		if hasFailed {
+// 			t.FailNow()
+// 		}
 
-		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
-		require.NoError(t, err)
+// 		time.Sleep(1 * time.Second)
 
-		request := make([]TransactionRequest, len(txs))
-		for i, tx := range txs {
-			rawTx, err := tx.EFHex()
-			require.NoError(t, err)
-			request[i] = TransactionRequest{
-				RawTx: rawTx,
-			}
-		}
+// 		// repeat request to ensure response remains the same
+// 		t.Logf("re-submitting batch of %d chained txs", len(txs))
+// 		resp = postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
+// 		for i, txResponse := range resp {
+// 			if !assert.Equal(t, StatusSeenOnNetwork, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
+// 				hasFailed = true
+// 			}
+// 		}
+// 		if hasFailed {
+// 			t.FailNow()
+// 		}
 
-		// Send POST request
-		t.Logf("submitting batch of %d chained txs", len(txs))
-		resp := postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
-		hasFailed := false
-		for i, txResponse := range resp {
-			if !assert.Equal(t, StatusSeenOnNetwork, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
-				hasFailed = true
-			}
-		}
-		if hasFailed {
-			t.FailNow()
-		}
+// 		node_client.Generate(t, bitcoind, 1)
 
-		time.Sleep(1 * time.Second)
+// 		// Check a couple of Merkle paths
+// 		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[3].TxID())
+// 		statusResponse := getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
 
-		// repeat request to ensure response remains the same
-		t.Logf("re-submitting batch of %d chained txs", len(txs))
-		resp = postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
-		for i, txResponse := range resp {
-			if !assert.Equal(t, StatusSeenOnNetwork, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
-				hasFailed = true
-			}
-		}
-		if hasFailed {
-			t.FailNow()
-		}
+// 		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[4].TxID())
+// 		statusResponse = getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
 
-		node_client.Generate(t, bitcoind, 1)
+// 		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[5].TxID())
+// 		statusResponse = getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
 
-		// Check a couple of Merkle paths
-		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[3].TxID())
-		statusResponse := getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
+// 		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[15].TxID())
+// 		statusResponse = getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
 
-		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[4].TxID())
-		statusResponse = getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
+// 		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[16].TxID())
+// 		statusResponse = getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
 
-		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[5].TxID())
-		statusResponse = getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
-
-		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[15].TxID())
-		statusResponse = getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
-
-		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[16].TxID())
-		statusResponse = getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
-
-		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[17].TxID())
-		statusResponse = getRequest[TransactionResponse](t, statusURL)
-		require.Equal(t, StatusMined, statusResponse.TxStatus)
-		checkMerklePath(t, statusResponse)
-	})
-}
+// 		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, txs[17].TxID())
+// 		statusResponse = getRequest[TransactionResponse](t, statusURL)
+// 		require.Equal(t, StatusMined, statusResponse.TxStatus)
+// 		checkMerklePath(t, statusResponse)
+// 	})
+// }

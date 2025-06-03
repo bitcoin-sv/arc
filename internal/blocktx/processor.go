@@ -378,16 +378,16 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return err
 	}
 
-	var longestTxs, staleTxs []store.BlockTransaction
+	var longestTxs []store.BlockTransaction
 	var ok bool
 
 	switch block.Status {
 	case blocktx_api.Status_LONGEST:
 		longestTxs, ok = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
 	case blocktx_api.Status_STALE:
-		longestTxs, staleTxs, ok = p.handleStaleBlock(ctx, block)
+		longestTxs, _, ok = p.handleStaleBlock(ctx, block)
 	case blocktx_api.Status_ORPHANED:
-		longestTxs, staleTxs, ok = p.handleOrphans(ctx, block)
+		longestTxs, _, ok = p.handleOrphans(ctx, block)
 	default:
 		return ErrUnexpectedBlockStatus
 	}

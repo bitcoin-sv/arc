@@ -341,7 +341,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	p.logger.Info("Updated mined", slog.Int("count", len(txsBlocks)))
 
 	for _, data := range updatedData {
-		fmt.Println(data.Hash.String(), "shota update mined data")
+		fmt.Println(data.Hash.String(), "shota update mined data", data.Status)
 		// if we have a pending request with given transaction hash, provide mined status
 		p.responseProcessor.UpdateStatus(data.Hash, StatusAndError{
 			Hash:   data.Hash,

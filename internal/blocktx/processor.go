@@ -782,7 +782,7 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 		fmt.Println("reorg ... stale", hex.EncodeToString(v.Hash))
 	}
 	for _, v := range longestBlocks {
-		fmt.Println("reorg ... stale", hex.EncodeToString(v.Hash))
+		fmt.Println("reorg ... longest", hex.EncodeToString(v.Hash))
 	}
 
 	staleHashes := make([][]byte, len(staleBlocks))
@@ -806,11 +806,6 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 		blockStatusUpdates[i+len(longestBlocks)] = update
 	}
 
-	fmt.Println("block status updates")
-	for _, v := range blockStatusUpdates {
-		fmt.Println("shota update block statuses", hex.EncodeToString(v.Hash), v.Status)
-	}
-
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, nil, err
@@ -824,20 +819,12 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Println("shota longest", len(longestTxs))
-	for _, v := range longestTxs {
-		fmt.Println("shota hash longest", hex.EncodeToString(v.TxHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
-	}
 
 	// now the previously longest chain is stale,
 	// so staleTxs are from previously longest block hashes
 	staleTxs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, longestHashes)
 	if err != nil {
 		return nil, nil, err
-	}
-	fmt.Println("shota stales", len(staleTxs))
-	for _, v := range staleTxs {
-		fmt.Println("shota hash stales", hex.EncodeToString(v.TxHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
 	}
 
 	staleTxs = exclusiveRightTxs(longestTxs, staleTxs)

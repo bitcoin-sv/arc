@@ -13,8 +13,8 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -124,7 +124,7 @@ func (n NodeClient) GetBlock(ctx context.Context, id string) (message *blocktx.B
 	return blockToBlockMessage(block)
 }
 
-func blockToBlockMessage(block *Block) (*blocktx.BlockMessage, error) {
+func blockToBlockMessage(block *rpc_client.Block) (*blocktx.BlockMessage, error) {
 	blockHash, err := chainhash.NewHashFromStr(block.Hash)
 	if err != nil {
 		return nil, err

@@ -25,28 +25,28 @@ type RPCResponse struct {
 }
 
 type Block struct {
-	Hash              string          `json:"hash"`
-	Confirmations     int64           `json:"confirmations"`
-	Size              uint64          `json:"size"`
-	Height            uint64          `json:"height"`
-	Version           int64           `json:"version"`
-	VersionHex        string          `json:"versionHex"`
-	MerkleRoot        string          `json:"merkleroot"`
-	TxCount           uint64          `json:"txcount"`
-	NTx               uint64          `json:"nTx"`
-	NumTx             uint64          `json:"num_tx"`
-	Tx                []string        `json:"tx"`
-	Time              uint64          `json:"time"`
-	MedianTime        uint64          `json:"mediantime"`
-	Nonce             uint64          `json:"nonce"`
-	Bits              string          `json:"bits"`
-	Difficulty        float64         `json:"difficulty"`
-	Chainwork         string          `json:"chainwork"`
-	PreviousBlockHash string          `json:"previousblockhash"`
-	NextBlockHash     string          `json:"nextblockhash"`
-	CoinbaseTx        *RawTransaction `json:"coinbaseTx"`
-	TotalFees         float64         `json:"totalFees"`
-	Miner             string          `json:"miner"`
+	Hash              string   `json:"hash"`
+	Confirmations     int64    `json:"confirmations"`
+	Size              uint64   `json:"size"`
+	Height            uint64   `json:"height"`
+	Version           int64    `json:"version"`
+	VersionHex        string   `json:"versionHex"`
+	MerkleRoot        string   `json:"merkleroot"`
+	TxCount           uint64   `json:"txcount"`
+	NTx               uint64   `json:"nTx"`
+	NumTx             uint64   `json:"num_tx"`
+	Tx                []string `json:"tx"`
+	Time              uint64   `json:"time"`
+	MedianTime        uint64   `json:"mediantime"`
+	Nonce             uint64   `json:"nonce"`
+	Bits              string   `json:"bits"`
+	Difficulty        float64  `json:"difficulty"`
+	Chainwork         string   `json:"chainwork"`
+	PreviousBlockHash string   `json:"previousblockhash"`
+	NextBlockHash     string   `json:"nextblockhash"`
+	//CoinbaseTx        *RawTransaction `json:"coinbaseTx"`
+	TotalFees float64 `json:"totalFees"`
+	Miner     string  `json:"miner"`
 }
 
 func sendJSONRPCCall[T any](ctx context.Context, method string, params []interface{}, nodeHost string, nodePort int, nodeUser, nodePassword string) (*T, error) {

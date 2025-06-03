@@ -24,6 +24,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -111,7 +112,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	blocktx.PipeP2pToBlocktx(bcnetBlockMsgCh, blockMsgCh)
 
 	pc := arcConfig.PeerRPC
-	nc, err := node_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
+	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create node client: %v", err)

@@ -167,7 +167,8 @@ func TestReorg(t *testing.T) {
 	checkStatus(t, txStale.TxID().String(), StatusSeenOnNetwork)
 
 	// verify that nothing changed so far with previous mined txs
-	fmt.Println("shota tx1", tx1.EFHex(), tx1.Hex(), tx1.TxID().String())
+	dsa, _ := tx1.EFHex()
+	fmt.Println("shota tx1", dsa, tx1.Hex(), tx1.TxID().String())
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
 	fmt.Println("shota tx2", tx2.TxID().String())
 	fmt.Println("shota stale", txStale.TxID().String())

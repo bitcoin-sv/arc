@@ -960,6 +960,10 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
+		fmt.Println("publishing mined")
+		for _, v := range msg.TransactionBlocks {
+			fmt.Println("shota mined", hex.EncodeToString(v.TransactionHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
+		}
 		err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))

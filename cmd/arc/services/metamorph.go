@@ -58,33 +58,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		err error
 	)
 
-	shutdownFns := make([]func(), 0)
-
-	optsServer := make([]metamorph.ServerOption, 0)
-	processorOpts := make([]metamorph.Option, 0)
-	callbackerOpts := make([]callbacker.Option, 0)
-	bcMediatorOpts := make([]bcnet.Option, 0)
-
-	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
-		if err != nil {
-			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, cleanup)
-		}
-
-		attributes := arcConfig.Tracing.KeyValueAttributes
-		hostname, err := os.Hostname()
-		if err == nil {
-			hostnameAttr := attribute.String("hostname", hostname)
-			attributes = append(attributes, hostnameAttr)
-		}
-
-		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
-		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
-		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
-		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
-	}
+	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(arcConfig, logger)
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
@@ -188,8 +162,45 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
+	err = startZMQs(logger, arcConfig.Metamorph.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
+	if err != nil {
+		return nil, err
+	}
+	return stopFn, nil
+}
 
-	for i, peerSetting := range arcConfig.Metamorph.BlockchainNetwork.Peers {
+func enableTracing(arcConfig *config.ArcConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
+	shutdownFns := make([]func(), 0)
+	optsServer := make([]metamorph.ServerOption, 0)
+	processorOpts := make([]metamorph.Option, 0)
+	callbackerOpts := make([]callbacker.Option, 0)
+	bcMediatorOpts := make([]bcnet.Option, 0)
+
+	if arcConfig.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
+		if err != nil {
+			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+		} else {
+			shutdownFns = append(shutdownFns, cleanup)
+		}
+
+		attributes := arcConfig.Tracing.KeyValueAttributes
+		hostname, err := os.Hostname()
+		if err == nil {
+			hostnameAttr := attribute.String("hostname", hostname)
+			attributes = append(attributes, hostnameAttr)
+		}
+
+		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
+		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
+		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
+		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
+	}
+	return shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts
+}
+
+func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns *[]func()) error {
+	for i, peerSetting := range peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
 			logger.Warn("failed to get zmq URL for peer", slog.Int("index", i), slog.String("err", err.Error()))
@@ -204,19 +215,18 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageCh, zmqHandler, logger)
 		if err != nil {
 			stopFn()
-			return nil, fmt.Errorf("failed to create ZMQ: %v", err)
+			return fmt.Errorf("failed to create ZMQ: %v", err)
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
 		cleanup, err := zmq.Start()
-		shutdownFns = append(shutdownFns, cleanup)
+		*shutdownFns = append(*shutdownFns, cleanup)
 		if err != nil {
 			stopFn()
-			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
+			return fmt.Errorf("failed to start ZMQ: %v", err)
 		}
 	}
-
-	return stopFn, nil
+	return nil
 }
 
 func getMtmMqOpts() []nats_jetstream.Option {

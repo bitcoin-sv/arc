@@ -982,11 +982,9 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 
 	// Get current competing transactions and lock them for update
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
-	if err != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
-		}
-		return nil, err
+	rollbackErr := p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 	defer rows.Close()
 
@@ -998,39 +996,22 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	rows, err = tx.QueryContext(ctx, qBulk, p.now(), pq.Array(txHashes), pq.Array(statuses), pq.Array(rejectReasons), pq.Array(competingTxs), pq.Array(timestamps), pq.Array(statusHistories))
-	if err != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
-		}
-		return nil, err
+	rollbackErr = p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 	defer rows.Close()
 
 	res, err = getStoreDataFromRows(rows)
-	if err != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
-		}
-		return nil, err
+	rollbackErr = p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 
 	if updateCompetingTxs {
-		compTxUpdates := make([]store.UpdateStatus, 0)
-		for _, cmptx := range allCompetingTxs {
-			hash, err := hex.DecodeString(cmptx)
-			if err != nil {
-				fmt.Println(err)
-				return nil, err
-			}
-			txHash, err := chainhash.NewHash(hash)
-			if err != nil {
-				fmt.Println(err, cmptx)
-				return nil, err
-			}
-			compTxUpdates = append(compTxUpdates, store.UpdateStatus{
-				Hash:   *txHash,
-				Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-			})
+		compTxUpdates, err := updateCompetingTxsFn(allCompetingTxs)
+		if err != nil {
+			return nil, err
 		}
 		_, err = p.UpdateDoubleSpend(ctx, compTxUpdates, false)
 		if err != nil {
@@ -1044,6 +1025,27 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	return res, nil
+}
+
+func updateCompetingTxsFn(allCompetingTxs []string) ([]store.UpdateStatus, error) {
+	compTxUpdates := make([]store.UpdateStatus, 0)
+	for _, cmptx := range allCompetingTxs {
+		hash, err := hex.DecodeString(cmptx)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		txHash, err := chainhash.NewHash(hash)
+		if err != nil {
+			fmt.Println(err, cmptx)
+			return nil, err
+		}
+		compTxUpdates = append(compTxUpdates, store.UpdateStatus{
+			Hash:   *txHash,
+			Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
+		})
+	}
+	return compTxUpdates, nil
 }
 
 func (p *PostgreSQL) prepareCompetingTxs(updates []store.UpdateStatus, compTxsData []competingTxsData, txHashes [][]byte) ([]metamorph_api.Status, []string, []string, []string, error) {
@@ -1143,31 +1145,25 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	}
 
 	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
-	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
-		}
-		return nil, err
+	rollbackErr := p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 	defer rows.Close()
 
 	compTxsData := getCompetingTxsFromRows(rows)
 
 	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
-	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
-		}
-		return nil, err
+	rollbackErr = p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 
 	defer rows.Close()
 	res, err := getStoreDataFromRows(rows)
-	if err != nil {
-		if rollBackErr := tx.Rollback(); rollBackErr != nil {
-			return nil, errors.Join(err, fmt.Errorf(failedRollback, rollBackErr))
-		}
-		return nil, err
+	rollbackErr = p.rollbackIfFailed(err, tx)
+	if rollbackErr != nil {
+		return nil, rollbackErr
 	}
 
 	err = tx.Commit()
@@ -1485,4 +1481,13 @@ func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedA
 	}
 
 	return hashes, nil
+}
+
+func (p *PostgreSQL) rollbackIfFailed(err error, tx *sql.Tx) error {
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf(failedRollback, rollbackErr))
+		}
+	}
+	return nil
 }

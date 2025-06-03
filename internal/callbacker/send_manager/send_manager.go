@@ -62,8 +62,7 @@ const (
 )
 
 var (
-	ErrSendBatchedCallbacks      = errors.New("failed to send batched callback")
-	ErrElementIsNotCallbackEntry = errors.New("element is not a callback entry")
+	ErrSendBatchedCallbacks = errors.New("failed to send batched callback")
 )
 
 func WithNow(nowFunc func() time.Time) func(*SendManager) {

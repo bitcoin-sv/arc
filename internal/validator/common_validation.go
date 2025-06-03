@@ -155,12 +155,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 		if err != nil {
 			return err
 		}
-
-		for _, op := range parsedUnlockingScript {
-			if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
-				numSigOps++
-			}
-		}
+		numSigOps += countSigOps(parsedUnlockingScript)
 	}
 
 	for _, output := range tx.Outputs {
@@ -168,12 +163,7 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 		if err != nil {
 			return err
 		}
-
-		for _, op := range parsedLockingScript {
-			if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
-				numSigOps++
-			}
-		}
+		numSigOps += countSigOps(parsedLockingScript)
 	}
 
 	if numSigOps > maxSigOps {
@@ -181,6 +171,16 @@ func sigOpsCheck(tx *sdkTx.Transaction, policy *bitcoin.Settings) error {
 	}
 
 	return nil
+}
+
+func countSigOps(lockingScript interpreter.ParsedScript) int64 {
+	numSigOps := int64(0)
+	for _, op := range lockingScript {
+		if op.Value() == script.OpCHECKSIG || op.Value() == script.OpCHECKSIGVERIFY {
+			numSigOps++
+		}
+	}
+	return numSigOps
 }
 
 func pushDataCheck(tx *sdkTx.Transaction) error {

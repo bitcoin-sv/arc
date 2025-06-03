@@ -697,6 +697,10 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	}()
 
 	staleBlocks, err := p.store.GetStaleChainBackFromHash(ctx, block.Hash)
+	fmt.Println("---- shota stale block num ", len(staleBlocks))
+	for _, v := range staleBlocks {
+		fmt.Println("shota hash stale", hex.EncodeToString(v.Hash), v.Height)
+	}
 	if err != nil {
 		p.logger.Error("unable to get STALE blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return nil, nil, false
@@ -708,6 +712,10 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	}
 
 	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
+	fmt.Println("---- shota stale block num ", len(longestBlocks))
+	for _, v := range longestBlocks {
+		fmt.Println("shota hash longest", hex.EncodeToString(v.Hash), v.Height)
+	}
 	if err != nil {
 		p.logger.Error("unable to get LONGEST blocks to verify chainwork", slog.String("hash", getHashStringNoErr(block.Hash)), slog.Uint64("height", block.Height), slog.String("err", err.Error()))
 		return nil, nil, false
@@ -778,12 +786,6 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-	for _, v := range staleBlocks {
-		fmt.Println("reorg ... stale", hex.EncodeToString(v.Hash))
-	}
-	for _, v := range longestBlocks {
-		fmt.Println("reorg ... longest", hex.EncodeToString(v.Hash))
-	}
 
 	staleHashes := make([][]byte, len(staleBlocks))
 	longestHashes := make([][]byte, len(longestBlocks))

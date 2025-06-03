@@ -214,7 +214,7 @@ func (p *Processor) StartBlockRequesting() {
 				processedBy, err := p.store.SetBlockProcessing(p.ctx, hash, p.hostname, p.maxBlockProcessingDuration, maxBlocksInProgress)
 				if err != nil {
 					if errors.Is(err, store.ErrBlockProcessingMaximumReached) {
-						p.logger.Debug("block processing maximum reached", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
+						p.logger.Debug("block processing maximum reached", slog.Int("max", maxBlocksInProgress), slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
 						continue
 					} else if errors.Is(err, store.ErrBlockProcessingInProgress) {
 						p.logger.Debug("block processing already in progress", slog.String("hash", hash.String()), slog.String("processed_by", processedBy))
@@ -229,12 +229,13 @@ func (p *Processor) StartBlockRequesting() {
 					ctx, cancel := context.WithTimeout(p.ctx, 10*time.Minute)
 					defer cancel()
 
+					p.logger.Info("Requesting block by RPC", slog.String("hash", hash.String()))
 					blockMessage, err := p.nodeClient.GetBlock(ctx, hash.String())
 					if err != nil {
 						p.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 						continue
 					}
-					p.logger.Info("Received block", "hash", hash)
+					p.logger.Info("Received block", slog.String("hash", hash.String()))
 
 					p.blockProcessCh <- blockMessage
 					continue

@@ -2,7 +2,6 @@
 
 package test
 
-//go:embed fixtures/malformedTxHexString.txt
 // var fixtures embed.FS
 
 // func TestSubmitSingle(t *testing.T) {

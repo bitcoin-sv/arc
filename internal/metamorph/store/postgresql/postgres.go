@@ -1172,7 +1172,6 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	if err != nil {
 		return nil, errors.Join(store.ErrUpdateCompeting, err)
 	}
-	fmt.Println("shota len ", len(rejectedResponses))
 
 	return append(res, rejectedResponses...), nil
 }

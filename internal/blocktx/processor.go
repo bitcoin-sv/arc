@@ -378,7 +378,7 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return err
 	}
 
-	var longestTxs, staleTxs []store.BlockTransaction
+	var longestTxs []store.BlockTransaction
 	var ok bool
 
 	switch block.Status {
@@ -386,9 +386,9 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		longestTxs, ok = p.getRegisteredTransactions(ctx, []*blocktx_api.Block{block})
 	case blocktx_api.Status_STALE:
 		fmt.Println("handler stale block")
-		longestTxs, staleTxs, ok = p.handleStaleBlock(ctx, block)
+		longestTxs, _, ok = p.handleStaleBlock(ctx, block)
 	case blocktx_api.Status_ORPHANED:
-		longestTxs, staleTxs, ok = p.handleOrphans(ctx, block)
+		longestTxs, _, ok = p.handleOrphans(ctx, block)
 	default:
 		return ErrUnexpectedBlockStatus
 	}
@@ -398,7 +398,7 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 		return ErrFailedToProcessBlock
 	}
 
-	allTxs := append(longestTxs, staleTxs...)
+	allTxs := longestTxs
 	fmt.Println("publish mined", len(allTxs))
 	for _, t := range allTxs {
 		fmt.Println("shota hash", hex.EncodeToString(t.TxHash))

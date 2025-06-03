@@ -4,6 +4,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -165,8 +166,10 @@ func TestReorg(t *testing.T) {
 	checkStatus(t, txStale.TxID().String(), StatusSeenOnNetwork)
 
 	// verify that nothing changed so far with previous mined txs
+	fmt.Println("shota tx1", tx1.TxID().String())
 	checkStatusBlockHash(t, tx1.TxID().String(), StatusMined, invHash)
-
+	fmt.Println("shota tx2", tx2.TxID().String())
+	fmt.Println("shota stale", txStale.TxID().String())
 	checkStatusBlockHash(t, tx2.TxID().String(), StatusMined, tx2BlockHash)
 
 	// make the STALE chain LONGEST by adding 2 new blocks

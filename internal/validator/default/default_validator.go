@@ -1,6 +1,6 @@
 package defaultvalidator
 
-//comment to test the new sonarcloud quality profile
+//comment to test the new sonarcloud quality profile-2
 import (
 	"context"
 	"errors"

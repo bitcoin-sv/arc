@@ -314,6 +314,7 @@ func (p *Processor) StartProcessMinedCallbacks() {
 					continue
 				}
 
+				fmt.Println("shota process mined ticker", len(txsBlocksBuffer))
 				p.updateMined(p.ctx, txsBlocksBuffer)
 				txsBlocksBuffer = []*blocktx_api.TransactionBlock{}
 

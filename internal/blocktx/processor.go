@@ -819,6 +819,10 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("shota stales", len(staleTxs))
+	if len(staleTxs) != 0 {
+		fmt.Println("stale block", staleTxs[0].BlockStatus)
+	}
 
 	staleTxs = exclusiveRightTxs(longestTxs, staleTxs)
 

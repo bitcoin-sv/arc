@@ -331,7 +331,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
-
+	fmt.Println("shota update mined", len(txsBlocks))
 	updatedData, err := p.store.UpdateMined(ctx, txsBlocks)
 	if err != nil {
 		p.logger.Error("failed to register transactions", slog.String("err", err.Error()))

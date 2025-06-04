@@ -58,7 +58,8 @@ func testmain(m *testing.M) int {
 
 func TestNewNatsConnection(t *testing.T) {
 	t.Run("error - wrong URL", func(t *testing.T) {
-		_, err = New("wrong url", slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+		_, err = New("wrong url", slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+			WithRetryOnFailedConnect(false))
 		require.ErrorIs(t, err, ErrNatsConnectionFailed)
 	})
 
@@ -70,6 +71,9 @@ func TestNewNatsConnection(t *testing.T) {
 			WithClientClosedChannel(clientClosedCh),
 			WithMaxReconnects(1),
 			WithReconnectWait(100*time.Millisecond),
+			WithRetryOnFailedConnect(true),
+			WithPingInterval(500*time.Millisecond),
+			WithMaxPingsOutstanding(10),
 		)
 		require.NoError(t, err)
 		testMessage := &test_api.TestMessage{

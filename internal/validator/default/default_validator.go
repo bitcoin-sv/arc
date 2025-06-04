@@ -87,6 +87,15 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
+	scriptValidationErr := v.performStandardScriptValidation(ctx, scriptValidation, tx)
+	if scriptValidationErr != nil {
+		return scriptValidationErr
+	}
+	//everything checks out
+	return nil
+}
+
+func (v *DefaultValidator) performStandardScriptValidation(ctx context.Context, scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction) error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
 		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
 		if err != nil {
@@ -113,8 +122,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return validator.NewError(err, api.ErrStatusUnlockingScripts)
 		}
 	}
-
-	// everything checks out
 	return nil
 }
 func needsExtension(tx *sdkTx.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {

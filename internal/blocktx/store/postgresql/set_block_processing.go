@@ -42,7 +42,7 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 				UNION
 			(SELECT 1 FROM blocktx.block_processing bp
 			LEFT JOIN blocktx.blocks b ON b.hash = bp.block_hash
-			WHERE b.processed_at IS NULL AND bp.processed_by = $2
+			WHERE b.inserted_at IS NOT NULL AND b.processed_at IS NULL AND bp.processed_by = $2
 			OFFSET $4)
 		)
 		RETURNING processed_by

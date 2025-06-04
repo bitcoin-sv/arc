@@ -648,16 +648,27 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "", processedBy)
 
 		// successfully insert new block processing
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh3, "pod-2", lockTime, 3)
+		require.NoError(t, err)
+		require.Equal(t, "pod-2", processedBy)
+
+		// successfully insert new block processing
 		bh0 := testutils.RevChainhash(t, "747468cf7e6639ba9aa277ade1cf27639b0f214cec5719020000000000000000")
 		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh0, "pod-1", lockTime, 2)
 		require.NoError(t, err)
 		require.Equal(t, "pod-1", processedBy)
 
-		// pod-1 already processing 1 block => maximum reached
+		// successfully insert new block processing
 		bh1 := testutils.RevChainhash(t, "f64b7221f28256a0f47521121d0f63b91223d7fe603993c5e676460e00000000")
 		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh1, "pod-1", lockTime, 1)
-		require.ErrorIs(t, err, store.ErrBlockProcessingMaximumReached)
-		require.Equal(t, "", processedBy)
+		require.NoError(t, err)
+		require.Equal(t, "pod-1", processedBy)
+
+		// successfully insert new block processing
+		bh4 := testutils.RevChainhash(t, "76404890880cb36ce68100abb05b3a958e17c0ed274d5c0a0000000000000000")
+		processedBy, err = postgresDB.SetBlockProcessing(ctx, bh4, "pod-3", lockTime, 1)
+		require.NoError(t, err)
+		require.Equal(t, "pod-3", processedBy)
 	})
 
 	t.Run("mark block as done", func(t *testing.T) {

@@ -508,11 +508,13 @@ func (p *Processor) assignBlockStatus(ctx context.Context, block *blocktx_api.Bl
 			return err
 		}
 
+		fmt.Println("shota assigning stale prev")
 		block.Status = blocktx_api.Status_STALE
 		return nil
 	}
 
 	// ORPHANED or STALE
+	fmt.Println("shota assigning previous")
 	block.Status = prevBlock.Status
 
 	return nil
@@ -712,7 +714,7 @@ func (p *Processor) handleStaleBlock(ctx context.Context, block *blocktx_api.Blo
 	}
 
 	longestBlocks, err := p.store.GetLongestChainFromHeight(ctx, lowestHeight)
-	fmt.Println("---- shota stale block num ", len(longestBlocks))
+	fmt.Println("---- shota longest block num ", len(longestBlocks))
 	for _, v := range longestBlocks {
 		fmt.Println("shota hash longest", hex.EncodeToString(v.Hash), v.Height)
 	}

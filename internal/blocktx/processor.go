@@ -820,6 +820,9 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	// now the previously stale chain is the longest,
 	// so longestTxs are from previously stale block hashes
 	longestTxs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, staleHashes)
+	for _, v := range longestTxs {
+		fmt.Println("shota longest ...", hex.EncodeToString(v.TxHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
+	}
 	for _, v := range staleHashes {
 		fmt.Println("shota hash stale", hex.EncodeToString(v))
 	}
@@ -830,6 +833,9 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 	// now the previously longest chain is stale,
 	// so staleTxs are from previously longest block hashes
 	staleTxs, err = p.store.GetRegisteredTxsByBlockHashes(ctx, longestHashes)
+	for _, v := range staleTxs {
+		fmt.Println("shota stales ...", hex.EncodeToString(v.TxHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
+	}
 	for _, v := range longestHashes {
 		fmt.Println("shota hash longest", hex.EncodeToString(v))
 	}
@@ -976,10 +982,6 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		fmt.Println("publishing mined")
-		for _, v := range msg.TransactionBlocks {
-			fmt.Println("shota mined", hex.EncodeToString(v.TransactionHash), hex.EncodeToString(v.BlockHash), v.BlockStatus)
-		}
 		err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
 		if err != nil {
 			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))

@@ -810,6 +810,9 @@ func (p *Processor) performReorg(ctx context.Context, staleBlocks []*blocktx_api
 		blockStatusUpdates[i+len(longestBlocks)] = update
 	}
 
+	for _, v := range blockStatusUpdates {
+		fmt.Println("shota hash update", hex.EncodeToString(v.Hash), v.Status)
+	}
 	err = p.store.UpdateBlocksStatuses(ctx, blockStatusUpdates)
 	if err != nil {
 		return nil, nil, err

@@ -42,16 +42,26 @@ func (p *PostgreSQL) UpdateBlocksStatuses(ctx context.Context, blockStatusUpdate
 	}()
 
 	// first update blocks that are changing statuses to non-LONGEST
-	_, err = tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), false)
+	pa, err := tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), false)
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
 	}
+	af, e := pa.RowsAffected()
+	if e != nil {
+		return e
+	}
+	fmt.Println("shota affected first", af)
 
 	// then update blocks that are changing statuses to LONGEST
-	_, err = tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), true)
+	qw, err := tx.ExecContext(ctx, q, pq.Array(blockHashes), pq.Array(statuses), pq.Array(isLongest), true)
 	if err != nil {
 		return errors.Join(store.ErrFailedToUpdateBlockStatuses, err)
 	}
+	qee, ee := qw.RowsAffected()
+	if ee != nil {
+		return ee
+	}
+	fmt.Println("shota affected second", qee)
 
 	err = tx.Commit()
 	if err != nil {

@@ -164,17 +164,17 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 					select {
 					case <-m.execCtx.Done():
 						return
-
 					default:
-						success := p.Restart()
-						if success {
-							break restartLoop
-						}
-						m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
-						time.Sleep(5 * time.Second)
-
-						m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
 					}
+
+					success := p.Restart()
+					if success {
+						break restartLoop
+					}
+					m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
+					time.Sleep(5 * time.Second)
+
+					m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
 				}
 			}
 		}

@@ -180,8 +180,8 @@ func (m *SendManager) Start() {
 		lastIterationWasBatch := false
 
 		for {
-			ok := m.sendCallbacks(queueTicker, sortQueueTicker, backfillQueueTicker, batchSendTicker, &callbackBatch, &lastIterationWasBatch)
-			if ok {
+			isDone := m.sendCallbacks(queueTicker, sortQueueTicker, backfillQueueTicker, batchSendTicker, &callbackBatch, &lastIterationWasBatch)
+			if isDone {
 				return
 			}
 		}

@@ -125,6 +125,10 @@ OUT:
 		default:
 			err := zmqHandler.receiveMessage()
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return err
+				}
+				zmqHandler.logger.Error("zmqHandler.socket.Recv()", slog.String("error", err.Error()))
 				break OUT
 			}
 		}
@@ -159,10 +163,6 @@ func (zmqHandler *ZMQHandler) removeSubscriptionFn(req subscriptionRequest) {
 func (zmqHandler *ZMQHandler) receiveMessage() error {
 	msg, err := zmqHandler.socket.Recv()
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return err
-		}
-		zmqHandler.logger.Error("zmqHandler.socket.Recv()", slog.String("error", err.Error()))
 		return err
 	}
 

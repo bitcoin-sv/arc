@@ -287,7 +287,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	checkStatusTicker := time.NewTicker(s.checkStatusInterval)
 	defer checkStatusTicker.Stop()
 	for {
-		status := s.checkTxStatus(ctx, &returnedStatus, responseChannel, checkStatusTicker, txID, waitForStatus, span)
+		status := s.checkTxStatus(ctx, returnedStatus, responseChannel, checkStatusTicker, txID, waitForStatus, span)
 		if status != nil {
 			return status
 		}
@@ -549,13 +549,13 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	return result, nil
 }
 
-func (s *Server) checkTxStatus(ctx context.Context, returnedStatus **metamorph_api.TransactionStatus, responseChannel chan StatusAndError, checkStatusTicker *time.Ticker, txID string, waitForStatus metamorph_api.Status, span trace.Span) *metamorph_api.TransactionStatus {
+func (s *Server) checkTxStatus(ctx context.Context, returnedStatus *metamorph_api.TransactionStatus, responseChannel chan StatusAndError, checkStatusTicker *time.Ticker, txID string, waitForStatus metamorph_api.Status, span trace.Span) *metamorph_api.TransactionStatus {
 	var err error
 	select {
 	case <-ctx.Done():
 		// Ensure that function returns at latest when context times out
-		(*returnedStatus).TimedOut = true
-		return (*returnedStatus)
+		returnedStatus.TimedOut = true
+		return returnedStatus
 	case <-checkStatusTicker.C:
 		// It's possible the transaction status was received and updated in db by another metamorph instance
 		// If yes, return new tx status
@@ -567,7 +567,7 @@ func (s *Server) checkTxStatus(ctx context.Context, returnedStatus **metamorph_a
 			return tx
 		}
 	case res := <-responseChannel:
-		(*returnedStatus).Status = res.Status
+		returnedStatus.Status = res.Status
 
 		if span != nil {
 			span.AddEvent("status change", trace.WithAttributes(attribute.String("status", (*returnedStatus).Status.String())))
@@ -580,27 +580,26 @@ func (s *Server) checkTxStatus(ctx context.Context, returnedStatus **metamorph_a
 		if res.Err != nil {
 			(*returnedStatus).RejectReason = res.Err.Error()
 			// Note: return here so that user doesn't have to wait for timeout in case of an error
-			return (*returnedStatus)
-		} else {
-			(*returnedStatus).RejectReason = ""
-			if res.Status == metamorph_api.Status_MINED {
-				var tx *metamorph_api.TransactionStatus
-				tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
-					Txid: txID,
-				})
-				if err != nil {
-					s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
-					(*returnedStatus).RejectReason = err.Error()
-					return (*returnedStatus)
-				}
-
-				return tx
+			return returnedStatus
+		}
+		(*returnedStatus).RejectReason = ""
+		if res.Status == metamorph_api.Status_MINED {
+			var tx *metamorph_api.TransactionStatus
+			tx, err = s.GetTransactionStatus(ctx, &metamorph_api.TransactionStatusRequest{
+				Txid: txID,
+			})
+			if err != nil {
+				s.logger.Error("failed to get mined transaction from storage", slog.String("err", err.Error()))
+				(*returnedStatus).RejectReason = err.Error()
+				return returnedStatus
 			}
+
+			return tx
 		}
 
 		// Return the status if it has greater or equal value
 		if (*returnedStatus).GetStatus() >= waitForStatus {
-			return (*returnedStatus)
+			return returnedStatus
 		}
 	}
 	return nil

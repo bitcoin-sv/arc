@@ -38,11 +38,11 @@ func (p *PostgreSQL) SetBlockProcessing(ctx context.Context, hash *chainhash.Has
 		INSERT INTO blocktx.block_processing (block_hash, processed_by)
 		SELECT $1, $2
 		WHERE NOT EXISTS (
-		  	(SELECT 1 FROM blocktx.block_processing bp WHERE bp.block_hash = $1 AND inserted_at > $3)
+		  	(SELECT 1 FROM blocktx.block_processing bp WHERE bp.block_hash = $1 AND inserted_at > $3) -- only insert new block processing entry, if there is no entry which was inserted less than 'lockTime' ago
 				UNION
-			(SELECT 1 FROM blocktx.block_processing bp
+			(SELECT 1 FROM blocktx.block_processing bp -- only insert new block processing, if this instance is currently processing less than 'maxParallelProcessing' blocks
 			LEFT JOIN blocktx.blocks b ON b.hash = bp.block_hash
-			WHERE b.processed_at IS NULL AND bp.processed_by = $2
+			WHERE b.inserted_at IS NOT NULL AND b.inserted_at > $3 AND b.processed_at IS NULL AND bp.processed_by = $2
 			OFFSET $4)
 		)
 		RETURNING processed_by

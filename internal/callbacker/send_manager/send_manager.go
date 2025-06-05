@@ -322,7 +322,7 @@ func (m *SendManager) storeRemainingCallbacks(callbackBatch []*callbacker.Callba
 	m.entriesWg.Done()
 }
 
-func (m *SendManager) sendCallbacks(queueTicker *time.Ticker, sortQueueTicker *time.Ticker, backfillQueueTicker *time.Ticker, batchSendTicker *time.Ticker, callbackBatch *[]*callbacker.CallbackEntry, lastIterationWasBatch *bool) bool {
+func (m *SendManager) sendCallbacks(queueTicker *time.Ticker, sortQueueTicker *time.Ticker, backfillQueueTicker *time.Ticker, batchSendTicker *time.Ticker, callbackBatch *[]*callbacker.CallbackEntry, lastIterationWasBatch *bool) (isDone bool) {
 	var err error
 	const queueLength = "queue length"
 	const failedToSendCallbacks = "Failed to send batch of callbacks"

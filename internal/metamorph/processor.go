@@ -444,19 +444,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					}
 				}
 
-				// if we receive new update check if we have client connection waiting for status and send it
-				found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
-					Hash:         msg.Hash,
-					Status:       msg.Status,
-					Err:          msg.Err,
-					CompetingTxs: msg.CompetingTxs,
-				})
-
-				if !found {
-					found = p.txFoundInCache(msg.Hash)
-				}
-
-				if !found {
+				if !p.msgIsFound(msg) {
 					continue
 				}
 
@@ -494,29 +482,7 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			case <-p.ctx.Done():
 				return
 			case statusUpdate := <-p.storageStatusUpdateCh:
-				// Ensure no duplicate statuses
-				err := p.updateStatusMap(statusUpdate)
-				if err != nil {
-					p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
-					return
-				}
-
-				statusUpdateCount, err := p.getStatusUpdateCount()
-				if err != nil {
-					p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
-					return
-				}
-
-				if statusUpdateCount >= p.statusUpdatesBatchSize {
-					err := p.checkAndUpdate(ctx)
-					if err != nil {
-						p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
-					}
-
-					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
-					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
-					ticker.Reset(p.statusUpdatesInterval)
-				}
+				p.updateTxStatus(ctx, statusUpdate, ticker)
 			case <-ticker.C:
 				statusUpdateCount, err := p.getStatusUpdateCount()
 				if err != nil {
@@ -907,4 +873,45 @@ func (p *Processor) delTxFromCache(hash *chainhash.Hash) {
 	if err != nil && !errors.Is(err, cache.ErrCacheNotFound) {
 		p.logger.Error("unable to delete transaction from cache", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 	}
+}
+
+func (p *Processor) updateTxStatus(ctx context.Context, statusUpdate store.UpdateStatus, ticker *time.Ticker) {
+	// Ensure no duplicate statuses
+	err := p.updateStatusMap(statusUpdate)
+	if err != nil {
+		p.logger.Error("failed to update status", slog.String("err", err.Error()), slog.String("hash", statusUpdate.Hash.String()))
+		return
+	}
+
+	statusUpdateCount, err := p.getStatusUpdateCount()
+	if err != nil {
+		p.logger.Error("failed to get status update count", slog.String("err", err.Error()))
+		return
+	}
+
+	if statusUpdateCount >= p.statusUpdatesBatchSize {
+		err := p.checkAndUpdate(ctx)
+		if err != nil {
+			p.logger.Error("failed to check and update statuses", slog.String("err", err.Error()))
+		}
+
+		// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+		// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+		ticker.Reset(p.statusUpdatesInterval)
+	}
+}
+
+func (p *Processor) msgIsFound(msg *metamorph_p2p.TxStatusMessage) bool {
+	// if we receive new update check if we have client connection waiting for status and send it
+	found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
+		Hash:         msg.Hash,
+		Status:       msg.Status,
+		Err:          msg.Err,
+		CompetingTxs: msg.CompetingTxs,
+	})
+
+	if !found {
+		found = p.txFoundInCache(msg.Hash)
+	}
+	return found
 }

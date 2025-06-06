@@ -87,19 +87,7 @@ func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error
 	natsOpts := []nats.Option{
 		nats.Name(hostname),
 		nats.ErrorHandler(func(_ *nats.Conn, sub *nats.Subscription, natsErr error) {
-			if natsErr == nil {
-				return
-			}
-			logger.Error("Connection error", slog.String("err", natsErr.Error()))
-			if errors.Is(natsErr, nats.ErrSlowConsumer) {
-				pendingMsgs, _, pendingErr := sub.Pending()
-				if pendingErr != nil {
-					logger.Error("Failed to get pending messages", slog.String("err", pendingErr.Error()))
-					return
-				}
-				logger.Warn("Falling behind with pending messages on subject", slog.Int("messages", pendingMsgs), slog.String("subject", sub.Subject))
-				return
-			}
+			logNatsError(natsErr, sub, logger)
 		}),
 		nats.DiscoveredServersHandler(func(nc *nats.Conn) {
 			logger.Info("Servers", "known", nc.Servers(), "discovered", nc.DiscoveredServers())
@@ -144,4 +132,20 @@ func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error
 	}
 
 	return nc, nil
+}
+
+func logNatsError(natsErr error, sub *nats.Subscription, logger *slog.Logger) {
+	if natsErr == nil {
+		return
+	}
+	logger.Error("Connection error", slog.String("err", natsErr.Error()))
+	if errors.Is(natsErr, nats.ErrSlowConsumer) {
+		pendingMsgs, _, pendingErr := sub.Pending()
+		if pendingErr != nil {
+			logger.Error("Failed to get pending messages", slog.String("err", pendingErr.Error()))
+			return
+		}
+		logger.Warn("Falling behind with pending messages on subject", slog.Int("messages", pendingMsgs), slog.String("subject", sub.Subject))
+		return
+	}
 }

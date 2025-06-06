@@ -189,6 +189,12 @@ func TestReorg(t *testing.T) {
 			switch status.Txid {
 			// verify that callback for tx2 was received
 			case tx2.TxID().String():
+				if status.TxStatus == StatusMined {
+					require.Equal(t, staleHash, *status.BlockHash)
+				}
+				if status.TxStatus == StatusMinedInStaleBlock {
+					require.Equal(t, tx2BlockHash, *status.BlockHash)
+				}
 			// verify that callback for tx1 was received with status MINED and updated merkle path
 			case tx1.TxID().String():
 				require.Equal(t, StatusMined, status.TxStatus)

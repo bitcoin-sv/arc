@@ -444,7 +444,7 @@ func (p *Processor) StartSendStatusUpdate() {
 					}
 				}
 
-				if !p.msgIsFFound(msg) {
+				if !p.msgIsFound(msg) {
 					continue
 				}
 
@@ -901,7 +901,7 @@ func (p *Processor) updateTxStatus(ctx context.Context, statusUpdate store.Updat
 	}
 }
 
-func (p *Processor) msgIsFFound(msg *metamorph_p2p.TxStatusMessage) bool {
+func (p *Processor) msgIsFound(msg *metamorph_p2p.TxStatusMessage) bool {
 	// if we receive new update check if we have client connection waiting for status and send it
 	found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 		Hash:         msg.Hash,

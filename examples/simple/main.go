@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -44,9 +45,13 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest); err != nil {
+	defaultHandler, err := apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest)
+	if err != nil {
 		panic(err)
 	}
+
+	defaultHandler.UpdateCurrentBlockHeight(context.Background())
+	handler = defaultHandler
 
 	// Register the ARC API
 	// the arc handler registers routes under /v1/...

@@ -110,10 +110,13 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	if handler, err = apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock); err != nil {
+	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock)
+	if err != nil {
 		panic(err)
 	}
 
+	defaultHandler.UpdateCurrentBlockHeight(context.Background())
+	handler = defaultHandler
 	// Register the ARC API
 	// the arc handler registers routes under /v1/...
 	api.RegisterHandlers(e, handler)

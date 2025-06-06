@@ -56,6 +56,8 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		handler.GenesisForkBlockTest,
 	)
 
+	defaultHandler.UpdateCurrentBlockHeight(context.Background())
+
 	// create custom handler
 	bitcoinHandler := &CustomHandler{
 		h: *defaultHandler,

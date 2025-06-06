@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -54,6 +55,7 @@ type ArcDefaultHandler struct {
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
 	maxscriptsizepolicy     uint64
+	currentBlockHeight      int32
 
 	logger                        *slog.Logger
 	scriptVerifier                apihelpers.ScriptVerifier
@@ -173,6 +175,22 @@ func NewDefault(
 	}
 
 	return handler, nil
+}
+
+func (v *ArcDefaultHandler) UpdateCurrentBlockHeight(ctx context.Context) {
+	for {
+		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
+		if err != nil {
+			v.logger.Error("Failed to get current block height", slog.String("err", err.Error()))
+		}
+
+		height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+		if err != nil {
+			v.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
+		}
+		atomic.StoreInt32(&v.currentBlockHeight, height)
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
@@ -645,7 +663,7 @@ func (m ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamo
 
 		txsHex = txsHex[bytesUsed:]
 
-		v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
+		v := defaultValidator.New(m.NodePolicy, m.txFinder, atomic.LoadInt32(&m.currentBlockHeight), m.scriptVerifier, m.genesisForkBLock)
 		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 			fails = append(fails, arcError)
 			continue

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
-	"github.com/ccoveille/go-safecast"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -23,20 +23,22 @@ var (
 )
 
 type DefaultValidator struct {
-	policy           *bitcoin.Settings
-	txFinder         validator.TxFinderI
-	btxClient        blocktx.Client
-	scriptVerifier   internalApi.ScriptVerifier
-	genesisForkBLock int32
+	policy             *bitcoin.Settings
+	logger             *slog.Logger
+	txFinder           validator.TxFinderI
+	currentBlockHeight int32
+	btxClient          blocktx.Client
+	scriptVerifier     internalApi.ScriptVerifier
+	genesisForkBLock   int32
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, btxClient blocktx.Client, sv internalApi.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, currentBlockHeight int32, sv internalApi.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
 	return &DefaultValidator{
-		btxClient:        btxClient,
-		scriptVerifier:   sv,
-		genesisForkBLock: genesisForkBLock,
-		policy:           policy,
-		txFinder:         finder,
+		scriptVerifier:     sv,
+		genesisForkBLock:   genesisForkBLock,
+		policy:             policy,
+		txFinder:           finder,
+		currentBlockHeight: currentBlockHeight,
 	}
 }
 
@@ -88,16 +90,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	if scriptValidation == validator.StandardScriptValidation {
-		blockHeight, err := v.btxClient.CurrentBlockHeight(ctx)
-		if err != nil {
-			return err
-		}
-
-		height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
-		if err != nil {
-			return err
-		}
-
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
 			utxo[i] = v.genesisForkBLock
@@ -108,7 +100,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return err
 		}
 
-		err = v.scriptVerifier.VerifyScript(b, utxo, height, true)
+		err = v.scriptVerifier.VerifyScript(b, utxo, v.currentBlockHeight, true)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusUnlockingScripts)
 		}

@@ -115,7 +115,7 @@ func main() {
 		panic(err)
 	}
 
-	go defaultHandler.UpdateCurrentBlockHeight(context.Background())
+	defaultHandler.StartUpdateCurrentBlockHeight()
 	handler = defaultHandler
 	// Register the ARC API
 	// the arc handler registers routes under /v1/...

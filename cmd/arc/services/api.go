@@ -180,7 +180,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
-	go defaultAPIHandler.UpdateCurrentBlockHeight(context.Background())
+	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)

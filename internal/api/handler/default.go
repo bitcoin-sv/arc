@@ -187,24 +187,6 @@ func NewDefault(
 	return handler, nil
 }
 
-func (m *ArcDefaultHandler) UpdateCurrentBlockHeight(ctx context.Context) {
-	for {
-		blockHeight, err := m.btxClient.CurrentBlockHeight(ctx)
-		if err != nil {
-			m.logger.Error("Failed to get current block height", slog.String("err", err.Error()))
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
-		if err != nil {
-			m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
-		}
-		atomic.StoreInt32(&m.currentBlockHeight, height)
-		time.Sleep(CurrentBlockUpdateInterval)
-	}
-}
-
 func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 	ticker := time.NewTicker(CurrentBlockUpdateInterval) // Use constant for this
 	m.waitGroup.Add(1)

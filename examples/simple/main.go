@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -50,7 +49,7 @@ func main() {
 		panic(err)
 	}
 
-	go defaultHandler.UpdateCurrentBlockHeight(context.Background())
+	defaultHandler.StartUpdateCurrentBlockHeight()
 	handler = defaultHandler
 
 	// Register the ARC API

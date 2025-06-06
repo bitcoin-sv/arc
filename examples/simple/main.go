@@ -50,7 +50,7 @@ func main() {
 		panic(err)
 	}
 
-	defaultHandler.UpdateCurrentBlockHeight(context.Background())
+	go defaultHandler.UpdateCurrentBlockHeight(context.Background())
 	handler = defaultHandler
 
 	// Register the ARC API

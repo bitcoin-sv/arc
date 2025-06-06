@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
@@ -12,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -24,10 +22,8 @@ var (
 
 type DefaultValidator struct {
 	policy             *bitcoin.Settings
-	logger             *slog.Logger
 	txFinder           validator.TxFinderI
 	currentBlockHeight int32
-	btxClient          blocktx.Client
 	scriptVerifier     internalApi.ScriptVerifier
 	genesisForkBLock   int32
 }

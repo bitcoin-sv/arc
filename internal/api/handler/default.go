@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
+	CurrentBlockUpdateInterval   = 5 * time.Second
 	GenesisForkBlockMain         = int32(620539)
 	GenesisForkBlockTest         = int32(1344302)
 	GenesisForkBlockRegtest      = int32(10000)
@@ -56,6 +58,9 @@ type ArcDefaultHandler struct {
 	maxTxSigopsCountsPolicy uint64
 	maxscriptsizepolicy     uint64
 	currentBlockHeight      int32
+	waitGroup               *sync.WaitGroup
+	cancelAll               context.CancelFunc
+	ctx                     context.Context
 
 	logger                        *slog.Logger
 	scriptVerifier                apihelpers.ScriptVerifier
@@ -167,12 +172,17 @@ func NewDefault(
 		btxClient:               btxClient,
 		scriptVerifier:          scriptVerifier,
 		genesisForkBLock:        genesisForkBLock,
+		waitGroup:               &sync.WaitGroup{},
 	}
 
 	// apply options
 	for _, opt := range opts {
 		opt(handler)
 	}
+
+	ctx, cancelAll := context.WithCancel(context.Background())
+	handler.cancelAll = cancelAll
+	handler.ctx = ctx
 
 	return handler, nil
 }
@@ -191,8 +201,36 @@ func (m *ArcDefaultHandler) UpdateCurrentBlockHeight(ctx context.Context) {
 			m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
 		}
 		atomic.StoreInt32(&m.currentBlockHeight, height)
-		time.Sleep(5 * time.Second)
+		time.Sleep(CurrentBlockUpdateInterval)
 	}
+}
+
+func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
+	ticker := time.NewTicker(CurrentBlockUpdateInterval) // Use constant for this
+	m.waitGroup.Add(1)
+
+	go func() {
+		defer m.waitGroup.Done()
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-ticker.C:
+				blockHeight, err := m.btxClient.CurrentBlockHeight(m.ctx)
+				if err != nil {
+					m.logger.Error("Failed to get current block height", slog.String("err", err.Error()))
+					time.Sleep(1 * time.Second)
+					continue
+				}
+
+				height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+				if err != nil {
+					m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
+				}
+				atomic.StoreInt32(&m.currentBlockHeight, height)
+			}
+		}
+	}()
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
@@ -846,4 +884,7 @@ func (m ArcDefaultHandler) Shutdown() {
 	if m.stats != nil {
 		m.stats.UnregisterStats()
 	}
+
+	m.cancelAll()
+	m.waitGroup.Wait()
 }

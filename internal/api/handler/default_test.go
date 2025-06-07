@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1667,7 +1668,7 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 		assert.Equal(t, len(btxClient.CurrentBlockHeightCalls()), 1)
-		assert.Equal(t, defaultHandler.currentBlockHeight, int32(24))
+		assert.Equal(t, atomic.LoadInt32(&defaultHandler.currentBlockHeight), int32(24))
 	})
 }
 

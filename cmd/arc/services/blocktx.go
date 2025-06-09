@@ -352,8 +352,6 @@ func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady c
 			close(connectionsReady)
 		}
 	}
-
-	return
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,

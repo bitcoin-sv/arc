@@ -71,7 +71,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, arcConfig, bcMediatorOpts)
+	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, arcConfig, mtmConfig.Health.MinimumHealthyConnections, bcMediatorOpts)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -300,7 +300,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 // Message Handlers:
 // - `metamorph_p2p.NewMsgHandler`: Used in classic mode, handling all communication via P2P.
 // - `metamorph_p2p.NewHybridMsgHandler`: Used in hybrid mode, integrating P2P communication with multicast group updates.
-func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig, mediatorOpts []bcnet.Option) (
+func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig, minConnections int, mediatorOpts []bcnet.Option) (
 	mediator *bcnet.Mediator, messenger *p2p.NetworkMessenger, manager *p2p.PeerManager, multicaster *mcast.Multicaster,
 	messageCh chan *metamorph_p2p.TxStatusMessage, err error) {
 	defer func() {
@@ -354,18 +354,16 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcC
 	}
 
 	manager = p2p.NewPeerManager(l.With(slog.String("module", "peer-mng")), network, managerOpts...)
-	peers, err := connectToPeers(l, network, msgHandler, cfg.Peers,
+	connectionsReady := make(chan struct{})
+	go connectToPeers(l, manager, connectionsReady, minConnections, network, msgHandler, cfg.Peers,
 		p2p.WithNrOfWriteHandlers(8),
 		p2p.WithWriteChannelSize(4096))
 	if err != nil {
 		return
 	}
 
-	for _, p := range peers {
-		if err = manager.AddPeer(p); err != nil {
-			return
-		}
-	}
+	// wait until min peer connections are ready and then continue startup while remaining peers connect
+	<-connectionsReady
 
 	// connect to mcast
 	if cfg.Mode == "hybrid" {

@@ -201,7 +201,6 @@ func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 				blockHeight, err := m.btxClient.CurrentBlockHeight(m.ctx)
 				if err != nil {
 					m.logger.Error("Failed to get current block height", slog.String("err", err.Error()))
-					time.Sleep(1 * time.Second)
 					continue
 				}
 

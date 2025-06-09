@@ -291,8 +291,9 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	return
 }
 
-func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady chan struct{}, minConnections int, network wire.BitcoinNet, msgHandler p2p.MessageHandlerI, peersConfig []*config.PeerConfig, additionalOpts ...p2p.PeerOptions) (err error) {
+func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady chan struct{}, minConnections int, network wire.BitcoinNet, msgHandler p2p.MessageHandlerI, peersConfig []*config.PeerConfig, additionalOpts ...p2p.PeerOptions) {
 	var peers []p2p.PeerI
+	var err error
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -336,7 +337,12 @@ func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady c
 			continue
 		}
 
-		manager.AddPeer(p)
+		err = manager.AddPeer(p)
+		if err != nil {
+			l.Error("could not add a new peer to the manager ", slog.String("err", err.Error()))
+			continue
+		}
+
 		// collect peers just for shutdown
 		peers = append(peers, p)
 

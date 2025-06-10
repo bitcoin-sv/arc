@@ -273,6 +273,7 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 
 	// wait until min peer connections are ready and then continue startup while remaining peers connect
 	<-connectionsReady
+	l.Info("current open peer connections", slog.Int("count", int(manager.CountConnectedPeers())))
 
 	// connect to mcast
 	if cfg.Mode == "hybrid" {

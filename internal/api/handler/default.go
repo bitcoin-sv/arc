@@ -209,7 +209,9 @@ func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 					m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
 					continue
 				}
-				atomic.StoreInt32(&m.currentBlockHeight, height)
+				if atomic.CompareAndSwapInt32(&m.currentBlockHeight, atomic.LoadInt32(&m.currentBlockHeight), height) {
+					m.logger.Info("Current block height updated", slog.Int64("height", int64(height)))
+				}
 			}
 		}
 	}()

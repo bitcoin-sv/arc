@@ -1664,7 +1664,7 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 		}
 		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
 		defaultHandler.StartUpdateCurrentBlockHeight()
-		time.Sleep(CurrentBlockUpdateInterval + 1*time.Second)
+		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 		assert.Equal(t, len(btxClient.CurrentBlockHeightCalls()), 1)

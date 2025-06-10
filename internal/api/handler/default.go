@@ -36,7 +36,7 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
-	CurrentBlockUpdateInterval   = 5 * time.Second
+	currentBlockUpdateInterval   = 5 * time.Second
 	GenesisForkBlockMain         = int32(620539)
 	GenesisForkBlockTest         = int32(1344302)
 	GenesisForkBlockRegtest      = int32(10000)
@@ -188,7 +188,7 @@ func NewDefault(
 }
 
 func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
-	ticker := time.NewTicker(CurrentBlockUpdateInterval) // Use constant for this
+	ticker := time.NewTicker(currentBlockUpdateInterval) // Use constant for this
 	m.waitGroup.Add(1)
 
 	go func() {
@@ -207,6 +207,7 @@ func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 				height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
 				if err != nil {
 					m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
+					continue
 				}
 				atomic.StoreInt32(&m.currentBlockHeight, height)
 			}

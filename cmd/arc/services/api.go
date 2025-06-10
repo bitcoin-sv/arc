@@ -185,6 +185,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)
 
+	shutdownFns = append(shutdownFns, defaultAPIHandler.Shutdown)
+
 	// Serve HTTP until the world ends.
 	go func() {
 		logger.Info("Starting API server", slog.String("address", arcConfig.API.Address))

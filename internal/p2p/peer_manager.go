@@ -13,6 +13,8 @@ import (
 
 var ErrPeerNetworkMismatch = errors.New("peer network mismatch")
 
+const reconnectDelay = time.Minute
+
 type PeerManager struct {
 	execWg        sync.WaitGroup
 	execCtx       context.Context
@@ -171,7 +173,7 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 							break restartLoop
 						}
 						m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
-						time.Sleep(5 * time.Second)
+						time.Sleep(reconnectDelay)
 
 						m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
 					}

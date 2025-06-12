@@ -92,7 +92,7 @@ func (b *UTXORateBroadcaster) Start() error {
 	}
 	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()), slog.String("op return", b.opReturn), slog.Bool("full status updates", b.fullStatusUpdates), slog.String("callback URL", b.callbackURL), slog.String("callback token", b.callbackToken))
 
-	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Script, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
@@ -262,10 +262,6 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 		return fmt.Errorf("failed to generate random number: %v", err)
 	}
 	dataSize := randJitter.Int64()
-
-	if err != nil {
-		return fmt.Errorf("failed to generate random number for filling OP_RETURN: %v", err)
-	}
 
 	randomBytes := make([]byte, dataSize)
 	_, err = cRand.Read(randomBytes)

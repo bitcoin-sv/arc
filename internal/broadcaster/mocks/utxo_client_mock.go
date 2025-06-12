@@ -6,7 +6,6 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
-	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"sync"
 	"time"
@@ -28,10 +27,10 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //			GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
 //				panic("mock out the GetBalanceWithRetries method")
 //			},
-//			GetUTXOsFunc: func(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
+//			GetUTXOsFunc: func(ctx context.Context, address string) (sdkTx.UTXOs, error) {
 //				panic("mock out the GetUTXOs method")
 //			},
-//			GetUTXOsWithRetriesFunc: func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+//			GetUTXOsWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 //				panic("mock out the GetUTXOsWithRetries method")
 //			},
 //			TopUpFunc: func(ctx context.Context, address string) error {
@@ -51,10 +50,10 @@ type UtxoClientMock struct {
 	GetBalanceWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 
 	// GetUTXOsFunc mocks the GetUTXOs method.
-	GetUTXOsFunc func(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error)
+	GetUTXOsFunc func(ctx context.Context, address string) (sdkTx.UTXOs, error)
 
 	// GetUTXOsWithRetriesFunc mocks the GetUTXOsWithRetries method.
-	GetUTXOsWithRetriesFunc func(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
+	GetUTXOsWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
 
 	// TopUpFunc mocks the TopUp method.
 	TopUpFunc func(ctx context.Context, address string) error
@@ -83,8 +82,6 @@ type UtxoClientMock struct {
 		GetUTXOs []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// LockingScript is the lockingScript argument value.
-			LockingScript *script.Script
 			// Address is the address argument value.
 			Address string
 		}
@@ -92,8 +89,6 @@ type UtxoClientMock struct {
 		GetUTXOsWithRetries []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// LockingScript is the lockingScript argument value.
-			LockingScript *script.Script
 			// Address is the address argument value.
 			Address string
 			// ConstantBackoff is the constantBackoff argument value.
@@ -197,23 +192,21 @@ func (mock *UtxoClientMock) GetBalanceWithRetriesCalls() []struct {
 }
 
 // GetUTXOs calls GetUTXOsFunc.
-func (mock *UtxoClientMock) GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
+func (mock *UtxoClientMock) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error) {
 	if mock.GetUTXOsFunc == nil {
 		panic("UtxoClientMock.GetUTXOsFunc: method is nil but UtxoClient.GetUTXOs was just called")
 	}
 	callInfo := struct {
-		Ctx           context.Context
-		LockingScript *script.Script
-		Address       string
+		Ctx     context.Context
+		Address string
 	}{
-		Ctx:           ctx,
-		LockingScript: lockingScript,
-		Address:       address,
+		Ctx:     ctx,
+		Address: address,
 	}
 	mock.lockGetUTXOs.Lock()
 	mock.calls.GetUTXOs = append(mock.calls.GetUTXOs, callInfo)
 	mock.lockGetUTXOs.Unlock()
-	return mock.GetUTXOsFunc(ctx, lockingScript, address)
+	return mock.GetUTXOsFunc(ctx, address)
 }
 
 // GetUTXOsCalls gets all the calls that were made to GetUTXOs.
@@ -221,14 +214,12 @@ func (mock *UtxoClientMock) GetUTXOs(ctx context.Context, lockingScript *script.
 //
 //	len(mockedUtxoClient.GetUTXOsCalls())
 func (mock *UtxoClientMock) GetUTXOsCalls() []struct {
-	Ctx           context.Context
-	LockingScript *script.Script
-	Address       string
+	Ctx     context.Context
+	Address string
 } {
 	var calls []struct {
-		Ctx           context.Context
-		LockingScript *script.Script
-		Address       string
+		Ctx     context.Context
+		Address string
 	}
 	mock.lockGetUTXOs.RLock()
 	calls = mock.calls.GetUTXOs
@@ -237,19 +228,17 @@ func (mock *UtxoClientMock) GetUTXOsCalls() []struct {
 }
 
 // GetUTXOsWithRetries calls GetUTXOsWithRetriesFunc.
-func (mock *UtxoClientMock) GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+func (mock *UtxoClientMock) GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 	if mock.GetUTXOsWithRetriesFunc == nil {
 		panic("UtxoClientMock.GetUTXOsWithRetriesFunc: method is nil but UtxoClient.GetUTXOsWithRetries was just called")
 	}
 	callInfo := struct {
 		Ctx             context.Context
-		LockingScript   *script.Script
 		Address         string
 		ConstantBackoff time.Duration
 		Retries         uint64
 	}{
 		Ctx:             ctx,
-		LockingScript:   lockingScript,
 		Address:         address,
 		ConstantBackoff: constantBackoff,
 		Retries:         retries,
@@ -257,7 +246,7 @@ func (mock *UtxoClientMock) GetUTXOsWithRetries(ctx context.Context, lockingScri
 	mock.lockGetUTXOsWithRetries.Lock()
 	mock.calls.GetUTXOsWithRetries = append(mock.calls.GetUTXOsWithRetries, callInfo)
 	mock.lockGetUTXOsWithRetries.Unlock()
-	return mock.GetUTXOsWithRetriesFunc(ctx, lockingScript, address, constantBackoff, retries)
+	return mock.GetUTXOsWithRetriesFunc(ctx, address, constantBackoff, retries)
 }
 
 // GetUTXOsWithRetriesCalls gets all the calls that were made to GetUTXOsWithRetries.
@@ -266,14 +255,12 @@ func (mock *UtxoClientMock) GetUTXOsWithRetries(ctx context.Context, lockingScri
 //	len(mockedUtxoClient.GetUTXOsWithRetriesCalls())
 func (mock *UtxoClientMock) GetUTXOsWithRetriesCalls() []struct {
 	Ctx             context.Context
-	LockingScript   *script.Script
 	Address         string
 	ConstantBackoff time.Duration
 	Retries         uint64
 } {
 	var calls []struct {
 		Ctx             context.Context
-		LockingScript   *script.Script
 		Address         string
 		ConstantBackoff time.Duration
 		Retries         uint64

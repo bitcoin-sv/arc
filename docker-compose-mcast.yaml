@@ -286,7 +286,6 @@ services:
     expose:
       - "9090"
       - "2112"
-      - "8021"
       - "8033"
     command: [ "./arc", "-api=true", "-config=." ]
     environment:

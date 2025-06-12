@@ -1,17 +1,12 @@
 package handler
 
 import (
-	"context"
 	"log/slog"
-	"time"
 
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/api"
-	"github.com/bitcoin-sv/arc/internal/api/grpc_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 )
 
@@ -42,10 +37,4 @@ func NewServer(logger *slog.Logger, handler api.ArcDefaultHandlerHealth, cfg grp
 	grpc_health_v1.RegisterHealthServer(grpcServer.Srv, s)
 	reflection.Register(s.GrpcServer.Srv)
 	return s, nil
-}
-
-func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*grpc_api.HealthResponse, error) {
-	return &grpc_api.HealthResponse{
-		Timestamp: timestamppb.New(time.Now()),
-	}, nil
 }

@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"github.com/bsv-blockchain/go-sdk/script"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/assert"
@@ -102,6 +102,10 @@ func TestRateBroadcasterStart(t *testing.T) {
 	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	hash1, err := chainhash.NewHash(txIDbytes)
 	require.NoError(t, err)
+	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
+	wocScript, err := hex.DecodeString(lockingScriptStr)
+	require.NoError(t, err)
+	lockingScript := script.Script(wocScript)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
@@ -109,7 +113,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
-				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					if tc.getUTXOsWithRetriesErr != nil {
 						return nil, tc.getUTXOsWithRetriesErr
 					}
@@ -119,7 +123,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 						{
 							TxID:          hash1,
 							Vout:          0,
-							LockingScript: lockingScript,
+							LockingScript: &lockingScript,
 							Satoshis:      1000,
 						},
 					}
@@ -231,6 +235,11 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	hash1, err := chainhash.NewHash(txIDbytes)
 	require.NoError(t, err)
+	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
+	wocScript, err := hex.DecodeString(lockingScriptStr)
+	require.NoError(t, err)
+	lockingScript := script.Script(wocScript)
+	require.NoError(t, err)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
@@ -244,12 +253,12 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, nil
 				},
-				GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					baseUtxo := sdkTx.UTXOs{
 						{
 							TxID:          hash1,
 							Vout:          0,
-							LockingScript: lockingScript,
+							LockingScript: &lockingScript,
 							Satoshis:      1000,
 						},
 					}

@@ -3,6 +3,7 @@ package broadcaster_test
 import (
 	"context"
 	"encoding/hex"
+	"github.com/bsv-blockchain/go-sdk/script"
 	"log/slog"
 	"os"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/api"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
@@ -30,6 +30,11 @@ func TestBroadcaster(t *testing.T) {
 	txIDbytes, _ = hex.DecodeString("1a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	hash2, err := chainhash.NewHash(txIDbytes)
 	require.NoError(t, err)
+	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
+	wocScript, err := hex.DecodeString(lockingScriptStr)
+	require.NoError(t, err)
+	lockingScript := script.Script(wocScript)
+
 	// given
 	mockedUtxoClient := &mocks.UtxoClientMock{
 		GetBalanceFunc: func(_ context.Context, _ string) (uint64, uint64, error) {
@@ -38,34 +43,34 @@ func TestBroadcaster(t *testing.T) {
 		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
-		GetUTXOsFunc: func(_ context.Context, lockingScript *script.Script, _ string) (sdkTx.UTXOs, error) {
+		GetUTXOsFunc: func(_ context.Context, _ string) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          hash1,
 					Vout:          0,
-					LockingScript: lockingScript,
+					LockingScript: &lockingScript,
 					Satoshis:      1000,
 				},
 				{
 					TxID:          hash2,
 					Vout:          1,
-					LockingScript: lockingScript,
+					LockingScript: &lockingScript,
 					Satoshis:      1000,
 				},
 			}, nil // Mock response for UTXOs retrieval with multiple UTXOs
 		},
-		GetUTXOsWithRetriesFunc: func(_ context.Context, lockingScript *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+		GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          hash1,
 					Vout:          0,
-					LockingScript: lockingScript,
+					LockingScript: &lockingScript,
 					Satoshis:      1000,
 				},
 				{
 					TxID:          hash2,
 					Vout:          1,
-					LockingScript: lockingScript,
+					LockingScript: &lockingScript,
 					Satoshis:      1000,
 				},
 			}, nil

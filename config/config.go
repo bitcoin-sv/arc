@@ -197,6 +197,7 @@ type UnorphanRecentWrongOrphansConfig struct {
 }
 type APIConfig struct {
 	Address             string            `mapstructure:"address"`
+	DialAddr            string            `mapstructure:"dialAddr"`
 	WocAPIKey           string            `mapstructure:"wocApiKey"`
 	WocMainnet          bool              `mapstructure:"wocMainnet"`
 	DefaultPolicy       *bitcoin.Settings `mapstructure:"defaultPolicy"`

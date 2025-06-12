@@ -129,6 +129,7 @@ func getBlocktxConfig() *BlocktxConfig {
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
 		Address:             "localhost:9090",
+		DialAddr:            "localhost:8033",
 		WocAPIKey:           "mainnet_XXXXXXXXXXXXXXXXXXXX",
 		WocMainnet:          false,
 		RequestExtendedLogs: false,

@@ -21,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
+	"github.com/bitcoin-sv/arc/internal/api/handler"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -181,6 +182,24 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
+
+	serverCfg := grpc_utils.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "api",
+	}
+
+	server, err := handler.NewServer(logger, defaultAPIHandler, serverCfg)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+	}
+	err = server.ListenAndServe(arcConfig.API.DialAddr)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
+	}
 
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)

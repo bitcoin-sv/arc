@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = ".;grpc_api";
+
+package grpc_api;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service GrpcAPI {
+  rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
+}
+
+// swagger:model HealthResponse
+message HealthResponse {
+  google.protobuf.Timestamp timestamp = 1;
+}

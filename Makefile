@@ -114,11 +114,20 @@ gen:
 	--go-grpc_opt=paths=source_relative \
 	pkg/message_queue/nats/client/test_api/test_api.proto
 
+		protoc \
+	--proto_path=. \
+	--go_out=. \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=. \
+	--go-grpc_opt=paths=source_relative \
+	internal/api/grpc_api/grpc_api.proto
+
 .PHONY: clean_gen
 clean_gen:
 	rm -f ./internal/metamorph/metamorph_api/*.pb.go
 	rm -f ./internal/blocktx/blocktx_api/*.pb.go
 	rm -f ./internal/callbacker/callbacker_api/*.pb.go
+	rm -f ./internal/api/grpc_api/*.pb.go
 
 .PHONY: install_coverage
 install_coverage:

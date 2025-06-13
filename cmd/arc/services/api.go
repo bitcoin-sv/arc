@@ -21,7 +21,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/bitcoin-sv/arc/internal/api/handler"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -190,7 +189,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		Name:               "api",
 	}
 
-	server, err := handler.NewServer(logger, defaultAPIHandler, serverCfg)
+	server, err := apiHandler.NewServer(logger, defaultAPIHandler, serverCfg)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

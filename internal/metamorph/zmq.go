@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/bitcoin-sv/arc/internal/logger"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -14,8 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
-	"github.com/bitcoin-sv/arc/internal/logger"
 )
 
 var allowedTopics = []string{
@@ -115,45 +114,9 @@ func (z *ZMQ) Start() (func(), error) {
 		for c := range ch {
 			switch c[0] {
 			case hashtxTopic:
-				z.logger.Log(context.Background(), logger.LevelTrace, hashtxTopic, slog.String("hash", c[1]))
-				hash, err := chainhash.NewHashFromStr(c[1])
-				if err != nil {
-					z.logger.Error("failed to get hash from string", slog.String("topic", hashtxTopic), slog.String("err", err.Error()))
-					continue
-				}
-
-				z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-					Start:  time.Now(),
-					Hash:   hash,
-					Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-					Peer:   z.url.String(),
-					Err:    nil,
-				}
-
+				z.processHashTxTopic(context.Background(), hashtxTopic, c)
 			case invalidTxTopic:
-				hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)
-				if err != nil {
-					z.logger.Error("failed to parse tx info", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
-					continue
-				}
-
-				if len(competingTxs) == 0 {
-					z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-						Start:        time.Now(),
-						Hash:         hash,
-						Status:       status,
-						Peer:         z.url.String(),
-						Err:          txErr,
-						CompetingTxs: competingTxs,
-					}
-					continue
-				}
-
-				msgs := z.prepareCompetingTxMsgs(hash, competingTxs)
-				for _, msg := range msgs {
-					z.statusMessageCh <- msg
-				}
-
+				z.processInvalidTxTopic(invalidTxTopic, c)
 			case discardedFromMempoolTopic:
 				hash, txErr, err := z.handleDiscardedFromMempool(c)
 				if err != nil {
@@ -337,6 +300,48 @@ func (z *ZMQ) parseDiscardedInfo(c []string) (*ZMQDiscardFromMempool, error) {
 		return nil, err
 	}
 	return &txInfo, nil
+}
+
+func (z *ZMQ) processHashTxTopic(ctx context.Context, hashtxTopic string, c []string) {
+	z.logger.Log(ctx, logger.LevelTrace, hashtxTopic, slog.String("hash", c[1]))
+	hash, err := chainhash.NewHashFromStr(c[1])
+	if err != nil {
+		z.logger.Error("failed to get hash from string", slog.String("topic", hashtxTopic), slog.String("err", err.Error()))
+		return
+	}
+
+	z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+		Start:  time.Now(),
+		Hash:   hash,
+		Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+		Peer:   z.url.String(),
+		Err:    nil,
+	}
+}
+
+func (z *ZMQ) processInvalidTxTopic(invalidTxTopic string, c []string) {
+	hash, status, txErr, competingTxs, err := z.handleInvalidTx(c)
+	if err != nil {
+		z.logger.Error("failed to parse tx info", slog.String("topic", invalidTxTopic), slog.String("err", err.Error()))
+		return
+	}
+
+	if len(competingTxs) == 0 {
+		z.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+			Start:        time.Now(),
+			Hash:         hash,
+			Status:       status,
+			Peer:         z.url.String(),
+			Err:          txErr,
+			CompetingTxs: competingTxs,
+		}
+		return
+	}
+
+	msgs := z.prepareCompetingTxMsgs(hash, competingTxs)
+	for _, msg := range msgs {
+		z.statusMessageCh <- msg
+	}
 }
 
 func contains(s []string, e string) bool {

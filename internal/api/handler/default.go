@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -34,6 +36,7 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
+	currentBlockUpdateInterval   = 5 * time.Second
 	GenesisForkBlockMain         = int32(620539)
 	GenesisForkBlockTest         = int32(1344302)
 	GenesisForkBlockRegtest      = int32(10000)
@@ -54,6 +57,10 @@ type ArcDefaultHandler struct {
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
 	maxscriptsizepolicy     uint64
+	currentBlockHeight      int32
+	waitGroup               *sync.WaitGroup
+	cancelAll               context.CancelFunc
+	ctx                     context.Context
 
 	logger                        *slog.Logger
 	scriptVerifier                apihelpers.ScriptVerifier
@@ -165,6 +172,7 @@ func NewDefault(
 		btxClient:               btxClient,
 		scriptVerifier:          scriptVerifier,
 		genesisForkBLock:        genesisForkBLock,
+		waitGroup:               &sync.WaitGroup{},
 	}
 
 	// apply options
@@ -172,7 +180,43 @@ func NewDefault(
 		opt(handler)
 	}
 
+	ctx, cancelAll := context.WithCancel(context.Background())
+	handler.cancelAll = cancelAll
+	handler.ctx = ctx
+
 	return handler, nil
+}
+
+func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
+	ticker := time.NewTicker(currentBlockUpdateInterval) // Use constant for this
+	m.waitGroup.Add(1)
+
+	go func() {
+		defer m.waitGroup.Done()
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-ticker.C:
+				blockHeight, err := m.btxClient.CurrentBlockHeight(m.ctx)
+				if err != nil {
+					m.logger.Error("Failed to get current block height", slog.String("err", err.Error()))
+					continue
+				}
+
+				height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+				if err != nil {
+					m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
+					continue
+				}
+				old := atomic.LoadInt32(&m.currentBlockHeight)
+				if old < height {
+					atomic.StoreInt32(&m.currentBlockHeight, height)
+					m.logger.Info("Current block height updated", slog.Int64("old height", int64(old)), slog.Int64("new height", int64(height)))
+				}
+			}
+		}
+	}()
 }
 
 func (m ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
@@ -645,7 +689,7 @@ func (m ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamo
 
 		txsHex = txsHex[bytesUsed:]
 
-		v := defaultValidator.New(m.NodePolicy, m.txFinder, m.btxClient, m.scriptVerifier, m.genesisForkBLock)
+		v := defaultValidator.New(m.NodePolicy, m.txFinder, atomic.LoadInt32(&m.currentBlockHeight), m.scriptVerifier, m.genesisForkBLock)
 		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
 			fails = append(fails, arcError)
 			continue
@@ -826,4 +870,7 @@ func (m ArcDefaultHandler) Shutdown() {
 	if m.stats != nil {
 		m.stats.UnregisterStats()
 	}
+
+	m.cancelAll()
+	m.waitGroup.Wait()
 }

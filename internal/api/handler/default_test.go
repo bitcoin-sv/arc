@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1649,6 +1650,26 @@ func Test_handleError(t *testing.T) {
 			require.Equal(t, tc.expectedArcErr, arcErr)
 		})
 	}
+}
+
+func Test_CurrentBlockUpdate(t *testing.T) {
+	scriptVerifierMock := &apimocks.ScriptVerifierMock{}
+	t.Run("check block height updates", func(t *testing.T) {
+		btxClient := &btxMocks.ClientMock{
+			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+				return &blocktx_api.CurrentBlockHeightResponse{
+					CurrentBlockHeight: 24,
+				}, nil
+			},
+		}
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
+		defaultHandler.StartUpdateCurrentBlockHeight()
+		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
+		require.NoError(t, err)
+		assert.NotNil(t, defaultHandler)
+		assert.Equal(t, len(btxClient.CurrentBlockHeightCalls()), 1)
+		assert.Equal(t, atomic.LoadInt32(&defaultHandler.currentBlockHeight), int32(24))
+	})
 }
 
 func find[T any](arr []T, predicate func(T) bool) (T, bool) {

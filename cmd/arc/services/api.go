@@ -180,8 +180,12 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, err
 	}
 
+	defaultAPIHandler.StartUpdateCurrentBlockHeight()
+
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)
+
+	shutdownFns = append(shutdownFns, defaultAPIHandler.Shutdown)
 
 	// Serve HTTP until the world ends.
 	go func() {

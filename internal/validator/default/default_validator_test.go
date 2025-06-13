@@ -8,8 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -106,14 +104,7 @@ func TestValidator(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
 			se := goscript.NewScriptEngine("main")
-			btxClient := &btxMocks.ClientMock{
-				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 632099,
-					}, nil
-				},
-			}
-			sut := New(policy, tc.finder, btxClient, se, int32(632099))
+			sut := New(policy, tc.finder, 632099, se, int32(632099))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -141,14 +132,7 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err, "Could not parse tx hex")
 			policy := getPolicy(5)
 			se := goscript.NewScriptEngine("regtest")
-			btxClient := &btxMocks.ClientMock{
-				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 10000,
-					}, nil
-				},
-			}
-			sut := New(policy, nil, btxClient, se, int32(10000))
+			sut := New(policy, nil, 10000, se, int32(10000))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -183,14 +167,7 @@ func TestValidator(t *testing.T) {
 
 		policy := getPolicy(5)
 		se := goscript.NewScriptEngine("regtest")
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 10000,
-				}, nil
-			},
-		}
-		sut := New(policy, nil, btxClient, se, int32(10000))
+		sut := New(policy, nil, 10000, se, int32(10000))
 
 		// when
 		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -323,14 +300,7 @@ func BenchmarkValidator(b *testing.B) {
 	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 	policy := getPolicy(500)
 	se := goscript.NewScriptEngine("regtest")
-	btxClient := &btxMocks.ClientMock{
-		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-			return &blocktx_api.CurrentBlockHeightResponse{
-				CurrentBlockHeight: 10000,
-			}, nil
-		},
-	}
-	sut := New(policy, nil, btxClient, se, int32(10000))
+	sut := New(policy, nil, 10000, se, int32(10000))
 
 	for i := 0; i < b.N; i++ {
 		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)
@@ -343,14 +313,7 @@ func TestFeeCalculation(t *testing.T) {
 	require.NoError(t, err)
 	policy := getPolicy(50)
 	se := goscript.NewScriptEngine("regtest")
-	btxClient := &btxMocks.ClientMock{
-		CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-			return &blocktx_api.CurrentBlockHeightResponse{
-				CurrentBlockHeight: 10000,
-			}, nil
-		},
-	}
-	sut := New(policy, nil, btxClient, se, int32(10000))
+	sut := New(policy, nil, 10000, se, int32(10000))
 
 	// when
 	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, false)

@@ -129,7 +129,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("create GRPCServer failed: %v", err))
 	}
-	err = server.ListenAndServe(arcConfig.API.DialAddr)
+	err = server.ListenAndServe(arcConfig.API.ListenAddr)
 	if err != nil {
 		panic(fmt.Errorf("serve GRPC server failed: %v", err))
 	}

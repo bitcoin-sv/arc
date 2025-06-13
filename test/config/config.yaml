@@ -116,7 +116,7 @@ blocktx:
 
 api:
   address: 0.0.0.0:9090
-  dialAddr: api:8033
+  dialAddr: 0.0.0.0:8033
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"
   wocMainnet: false
   requestExtendedLogs: true

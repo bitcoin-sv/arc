@@ -194,7 +194,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
-	err = server.ListenAndServe(arcConfig.API.DialAddr)
+	err = server.ListenAndServe(arcConfig.API.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)

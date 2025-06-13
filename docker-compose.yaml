@@ -239,7 +239,7 @@ services:
       metamorph:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=liveness", "-rpc-timeout=5s"]
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s"]
       interval: 6s
       timeout: 5s
       retries: 3

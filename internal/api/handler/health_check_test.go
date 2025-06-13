@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,7 +45,6 @@ func TestCheck(t *testing.T) {
 
 			mockedArcDefaultHandlerHealth := &mocks.ArcDefaultHandlerHealthMock{
 				CurrentBlockHeightFunc: func() int32 {
-					fmt.Println("returning current", tc.currentBlock)
 					return tc.currentBlock
 				},
 			}

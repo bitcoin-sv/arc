@@ -16,7 +16,7 @@ type HealthWatchServer interface {
 	grpc.ServerStream
 }
 
-func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
+func (s *Server) Check(_ context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
 	s.logger.Debug("checking health", slog.String("service", req.Service))
 	if req.Service == readiness {
 		if s.handler.CurrentBlockHeight() == 0 {

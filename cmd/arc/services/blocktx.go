@@ -30,6 +30,7 @@ const (
 	maximumBlockSize      = 4294967296 // 4Gb
 	blockProcessingBuffer = 100
 	p2pConnectionTimeout  = 30 * time.Second
+	minConnections        = 1
 )
 
 func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
@@ -126,7 +127,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		}
 	}
 
-	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, blockProcessCh)
+	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, minConnections, blockProcessCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
@@ -222,7 +223,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 // Message Handlers:
 // - `blocktx_p2p.NewMsgHandler`: Used in classic mode, handles all blockchain communication exclusively via P2P.
 // - `blocktx_p2p.NewHybridMsgHandler`: Used in hybrid mode, seamlessly integrates P2P communication with multicast group updates.
-func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
+func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, minConnections int, blockProcessCh chan<- *bcnet.BlockMessage) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -266,16 +267,13 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	}
 
 	manager = p2p.NewPeerManager(l.With(slog.String("module", "peer-mng")), network, managerOpts...)
-	peers, err := connectToPeers(l, network, msgHandler, cfg.Peers, p2p.WithMaximumMessageSize(maximumBlockSize))
-	if err != nil {
-		return
-	}
 
-	for _, p := range peers {
-		if err = manager.AddPeer(p); err != nil {
-			return
-		}
-	}
+	connectionsReady := make(chan struct{})
+	go connectToPeers(l, manager, connectionsReady, minConnections, network, msgHandler, cfg.Peers, p2p.WithMaximumMessageSize(maximumBlockSize))
+
+	// wait until min peer connections are ready and then continue startup while remaining peers connect
+	<-connectionsReady
+	l.Info("current open peer connections", slog.Uint64("count", uint64(manager.CountConnectedPeers())))
 
 	// connect to mcast
 	if cfg.Mode == "hybrid" {
@@ -294,7 +292,9 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	return
 }
 
-func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.MessageHandlerI, peersConfig []*config.PeerConfig, additionalOpts ...p2p.PeerOptions) (peers []*p2p.Peer, err error) {
+func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady chan struct{}, minConnections int, network wire.BitcoinNet, msgHandler p2p.MessageHandlerI, peersConfig []*config.PeerConfig, additionalOpts ...p2p.PeerOptions) {
+	var peers []p2p.PeerI
+	var err error
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -318,11 +318,12 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 	}
 
 	opts = append(opts, additionalOpts...)
+	var connectedPeers int
 
 	for _, settings := range peersConfig {
 		url, err := settings.GetP2PUrl()
 		if err != nil {
-			return nil, fmt.Errorf("error getting peer url: %w", err)
+			l.Error("error getting peer url: ", slog.String("err", err.Error()))
 		}
 
 		p := p2p.NewPeer(
@@ -337,10 +338,21 @@ func connectToPeers(l *slog.Logger, network wire.BitcoinNet, msgHandler p2p.Mess
 			continue
 		}
 
-		peers = append(peers, p)
-	}
+		err = manager.AddPeer(p)
+		if err != nil {
+			l.Error("could not add a new peer to the manager ", slog.String("err", err.Error()))
+			continue
+		}
 
-	return
+		// collect peers just for shutdown
+		peers = append(peers, p)
+
+		connectedPeers++
+		// notify if we have enough connections and can continue startup
+		if connectedPeers == minConnections {
+			close(connectionsReady)
+		}
+	}
 }
 
 func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,

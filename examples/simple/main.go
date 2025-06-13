@@ -12,6 +12,7 @@ import (
 	merklerootsverifier "github.com/bitcoin-sv/arc/internal/api/merkle_roots_verifier"
 	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
+	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
@@ -50,6 +51,23 @@ func main() {
 	}
 
 	defaultHandler.StartUpdateCurrentBlockHeight()
+
+	serverCfg := grpc_utils.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "api",
+	}
+
+	server, err := apiHandler.NewServer(logger, defaultHandler, serverCfg)
+	if err != nil {
+		panic(fmt.Errorf("create GRPCServer failed: %v", err))
+	}
+	err = server.ListenAndServe(arcConfig.API.DialAddr)
+	if err != nil {
+		panic(fmt.Errorf("serve GRPC server failed: %v", err))
+	}
+
 	handler = defaultHandler
 
 	// Register the ARC API

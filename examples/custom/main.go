@@ -117,6 +117,23 @@ func main() {
 
 	defaultHandler.StartUpdateCurrentBlockHeight()
 	handler = defaultHandler
+
+	serverCfg := grpc_utils.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "api",
+	}
+
+	server, err := apiHandler.NewServer(logger, defaultHandler, serverCfg)
+	if err != nil {
+		panic(fmt.Errorf("create GRPCServer failed: %v", err))
+	}
+	err = server.ListenAndServe(arcConfig.API.DialAddr)
+	if err != nil {
+		panic(fmt.Errorf("serve GRPC server failed: %v", err))
+	}
+
 	// Register the ARC API
 	// the arc handler registers routes under /v1/...
 	api.RegisterHandlers(e, handler)

@@ -3,9 +3,11 @@ package woc_client
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -27,14 +29,13 @@ const (
 )
 
 var (
-	ErrWOCFailedToCreateRequest   = errors.New("failed to create request")
-	ErrWOCFailedToGetUTXOs        = errors.New("failed to get utxos from WoC")
-	ErrWOCRequestFailed           = errors.New("request to WoC failed")
-	ErrWOCResponseNotOK           = errors.New("response status not OK")
-	ErrWOCFailedToDecodeResponse  = errors.New("failed to decode response")
-	ErrWOCFailedToDecodeHexString = errors.New("failed to decode response")
-	ErrWOCFailedToDecodeRawTxs    = errors.New("failed to decode raw txs")
-	ErrWOCFailedToTopUp           = errors.New("top up can only be done on testnet")
+	ErrWOCFailedToCreateRequest  = errors.New("failed to create request")
+	ErrWOCFailedToGetUTXOs       = errors.New("failed to get utxos from WoC")
+	ErrWOCRequestFailed          = errors.New("request to WoC failed")
+	ErrWOCResponseNotOK          = errors.New("response status not OK")
+	ErrWOCFailedToDecodeResponse = errors.New("failed to decode response")
+	ErrWOCFailedToDecodeRawTxs   = errors.New("failed to decode raw txs")
+	ErrWOCFailedToTopUp          = errors.New("top up can only be done on testnet")
 )
 
 type WocClient struct {
@@ -110,13 +111,22 @@ type wocUtxo struct {
 	Vout     uint32 `json:"tx_pos"`
 	Height   uint32 `json:"height"`
 	Satoshis uint64 `json:"value"`
+	Status   string `json:"status"`
 }
 
-type wocBalance struct {
-	Confirmed   uint64 `json:"confirmed"`
+type wocResponse struct {
+	Address string    `json:"address"`
+	Script  string    `json:"script"`
+	Result  []wocUtxo `json:"result"`
+}
+
+type wocConfirmedBalance struct {
+	Confirmed uint64 `json:"confirmed"`
+}
+
+type wocUnconfirmedBalance struct {
 	Unconfirmed uint64 `json:"unconfirmed"`
 }
-
 type WocRawTx struct {
 	TxID          string `json:"txid"`
 	Hex           string `json:"hex"`
@@ -127,12 +137,12 @@ type WocRawTx struct {
 	Error         string `json:"error"`
 }
 
-func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
 	operation := func() (sdkTx.UTXOs, error) {
-		wocUtxos, err := w.GetUTXOs(ctx, lockingScript, address)
+		wocUtxos, err := w.GetUTXOs(ctx, address)
 		if err != nil {
 			return nil, errors.Join(ErrWOCFailedToGetUTXOs, err)
 		}
@@ -151,8 +161,8 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, lockingScript *scri
 }
 
 // GetUTXOs Get UTXOs from WhatsOnChain
-func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error) {
-	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unspent", address), nil)
+func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error) {
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unspent/all", address), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -161,16 +171,21 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
-	var wocUnspent []*wocUtxo
+	var wocUnspent *wocResponse
 	err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
 	if err != nil {
 		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
-	unspent := make(sdkTx.UTXOs, len(wocUnspent))
-	for i, utxo := range wocUnspent {
+	unspent := make(sdkTx.UTXOs, len(wocUnspent.Result))
+	wocScript, err := hex.DecodeString(wocUnspent.Script)
+	if err != nil {
+		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
+	}
+	lockingScript := script.Script(wocScript)
+	for i, utxo := range wocUnspent.Result {
 		h, err := chainhash.NewHashFromHex(utxo.Txid)
 		if err != nil {
 			return unspent, err
@@ -178,7 +193,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 		unspent[i] = &sdkTx.UTXO{
 			TxID:          h,
 			Vout:          utxo.Vout,
-			LockingScript: lockingScript,
+			LockingScript: &lockingScript,
 			Satoshis:      utxo.Satoshis,
 		}
 	}
@@ -187,7 +202,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, lockingScript *script.Script, 
 }
 
 func (w *WocClient) GetBalance(ctx context.Context, address string) (uint64, uint64, error) {
-	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/balance", address), nil)
+	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/confirmed/balance", address), nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -196,15 +211,31 @@ func (w *WocClient) GetBalance(ctx context.Context, address string) (uint64, uin
 	if err != nil {
 		return 0, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
-	var balance wocBalance
-	err = json.NewDecoder(resp.Body).Decode(&balance)
+	var confirmedBalance wocConfirmedBalance
+	err = json.NewDecoder(resp.Body).Decode(&confirmedBalance)
+	if err != nil {
+		return 0, 0, errors.Join(ErrWOCFailedToDecodeResponse, err)
+	}
+	req, err = w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unconfirmed/balance", address), nil)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	resp, err = w.doRequest(req)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var unconfirmedBalance wocUnconfirmedBalance
+	err = json.NewDecoder(resp.Body).Decode(&unconfirmedBalance)
 	if err != nil {
 		return 0, 0, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
-	return balance.Confirmed, balance.Unconfirmed, nil
+	return confirmedBalance.Confirmed, unconfirmedBalance.Unconfirmed, nil
 }
 
 func (w *WocClient) GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
@@ -299,7 +330,7 @@ func (w *WocClient) getRawTxs(ctx context.Context, batch []string) (res []*WocRa
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {

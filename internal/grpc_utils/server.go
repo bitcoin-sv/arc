@@ -2,6 +2,7 @@ package grpc_utils
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 
@@ -46,7 +47,7 @@ func NewGrpcServer(logger *slog.Logger, cfg ServerConfig) (GrpcServer, error) {
 func (s *GrpcServer) ListenAndServe(address string) error {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return ErrServerFailedToListen
+		return errors.Join(ErrServerFailedToListen, fmt.Errorf("address %s: %v", address, err))
 	}
 
 	go func() {

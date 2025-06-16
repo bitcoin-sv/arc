@@ -144,7 +144,7 @@ blocktx:
 
 api:
   address: localhost:9090 # address to start api server on
-  dialAddr: localhost:8033 # address for grpc endpoint
+  listenAddr: localhost:8033 # address for grpc endpoint
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com
   wocMainnet: false # query main or test net on www.whatsonchain.com
   requestExtendedLogs: true # if true, the logs will include request methods & headers

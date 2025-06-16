@@ -229,6 +229,7 @@ services:
     expose:
       - "9090"
       - "2112"
+      - "8033"
     command: [ "./arc", "-api=true", "-config=." ]
     environment:
       - ARC_TRACING_ENABLED
@@ -237,6 +238,11 @@ services:
     depends_on:
       metamorph:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s"]
+      interval: 6s
+      timeout: 5s
+      retries: 3
 
   jaeger:
     image: jaegertracing/all-in-one:1.68.0

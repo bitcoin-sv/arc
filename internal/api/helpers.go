@@ -13,3 +13,7 @@ func FeesToFeeModel(minMiningFee float64) *feemodel.SatoshisPerKilobyte {
 type ScriptVerifier interface {
 	VerifyScript(extendedTX []byte, utxoHeights []int32, blockHeight int32, consensus bool) script.ScriptError
 }
+
+type ArcDefaultHandlerHealth interface {
+	CurrentBlockHeight() int32
+}

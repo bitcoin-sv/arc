@@ -822,6 +822,10 @@ func (m ArcDefaultHandler) getTransactionStatuses(ctx context.Context, txIDs []s
 	return tx, nil
 }
 
+func (m ArcDefaultHandler) CurrentBlockHeight() int32 {
+	return atomic.LoadInt32(&m.currentBlockHeight)
+}
+
 func (ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Transaction, submitErr error) (api.StatusCode, *api.ErrorFields) {
 	if submitErr == nil {
 		return api.StatusOK, nil

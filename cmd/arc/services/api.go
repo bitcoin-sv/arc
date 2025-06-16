@@ -182,6 +182,24 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
+	serverCfg := grpc_utils.ServerConfig{
+		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.GrpcMessageSize,
+		TracingConfig:      arcConfig.Tracing,
+		Name:               "api",
+	}
+
+	server, err := apiHandler.NewServer(logger, defaultAPIHandler, serverCfg)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+	}
+	err = server.ListenAndServe(arcConfig.API.ListenAddr)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
+	}
+
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)
 

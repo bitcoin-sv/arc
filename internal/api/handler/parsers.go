@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/labstack/echo/v4"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/labstack/echo/v4"
 )
 
 var ErrEmptyBody = errors.New("no transaction found - empty request body")
@@ -29,13 +31,13 @@ func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 
 	contentType := request.Header.Get(echo.HeaderContentType)
 
-	switch contentType {
-	case echo.MIMETextPlain:
+	switch {
+	case strings.Contains(contentType, echo.MIMETextPlain):
 		txHex, err = hex.DecodeString(string(body))
 		if err != nil {
 			return nil, err
 		}
-	case echo.MIMEApplicationJSON:
+	case strings.Contains(contentType, echo.MIMEApplicationJSON):
 		var txBody api.POSTTransactionJSONRequestBody
 		if err = json.Unmarshal(body, &txBody); err != nil {
 			return nil, err
@@ -45,7 +47,7 @@ func parseTransactionFromRequest(request *http.Request) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-	case echo.MIMEOctetStream:
+	case strings.Contains(contentType, echo.MIMEOctetStream):
 		return body, nil
 	default:
 		return nil, fmt.Errorf("given content-type %s does not match any of the allowed content-types", contentType)
@@ -64,16 +66,16 @@ func parseTransactionsFromRequest(request *http.Request) ([]byte, error) {
 
 	contentType := request.Header.Get(echo.HeaderContentType)
 
-	switch contentType {
-	case echo.MIMETextPlain:
+	switch {
+	case strings.Contains(contentType, echo.MIMETextPlain):
 		if txHex, err = getTxHexFromMIMETextPlain(request); err != nil {
 			return nil, err
 		}
-	case echo.MIMEApplicationJSON:
+	case strings.Contains(contentType, echo.MIMEApplicationJSON):
 		if txHex, err = getTxHexFromMIMEApplicationJSON(request); err != nil {
 			return nil, err
 		}
-	case echo.MIMEOctetStream:
+	case strings.Contains(contentType, echo.MIMEOctetStream):
 		if txHex, err = getTxHexFromMIMEOctetStream(request); err != nil {
 			return nil, err
 		}

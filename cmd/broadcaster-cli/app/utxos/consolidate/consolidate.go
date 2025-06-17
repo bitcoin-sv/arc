@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "consolidate",
 		Short: "Consolidate UTXO set to 1 output",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -79,9 +78,7 @@ var (
 )
 
 func init() {
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

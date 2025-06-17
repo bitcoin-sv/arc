@@ -26,8 +26,7 @@ var (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "broadcast",
 		Short: "Submit transactions to ARC",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -83,6 +82,10 @@ var (
 			if err != nil {
 				return fmt.Errorf("failed to create client: %v", err)
 			}
+
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
 
 			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
@@ -154,9 +157,7 @@ var (
 )
 
 func init() {
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

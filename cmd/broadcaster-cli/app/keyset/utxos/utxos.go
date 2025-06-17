@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "utxos",
 		Short: "Show distribution of utxo sizes in key set",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -26,6 +25,10 @@ var (
 
 			isTestnet := helper.GetBool("testnet")
 			wocAPIKey := helper.GetString("wocAPIKey")
+
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
 
 			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
@@ -77,9 +80,7 @@ var (
 func init() {
 	var err error
 
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.Flags().IntP("rows", "r", 0, "Maximum rows to show - default: all")
 	err = viper.BindPFlag("rows", Cmd.Flags().Lookup("rows"))

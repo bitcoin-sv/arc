@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "new",
 		Short: "Create new key set",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -28,6 +27,10 @@ var (
 				return err
 			}
 
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
+
 			logger.Info("new keyset", slog.String("keyset", newKeyset.GetMaster().String()))
 			return nil
 		},
@@ -37,9 +40,7 @@ var (
 func init() {
 	var err error
 
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

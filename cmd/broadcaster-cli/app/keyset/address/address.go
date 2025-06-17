@@ -9,12 +9,15 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "address",
 		Short: "Show address of the keyset",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			isTestnet := helper.GetBool("testnet")
+
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
 
 			keySetsMap, err := helper.GetSelectedKeySets()
 			if err != nil {
@@ -35,9 +38,7 @@ var (
 )
 
 func init() {
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

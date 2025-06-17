@@ -16,8 +16,7 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create a UTXO set",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -57,6 +56,10 @@ var (
 
 			names := helper.GetOrderedKeys(keySetsMap)
 
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
+
 			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 			creators := make([]broadcaster.Creator, 0, len(keySetsMap)) // Use the Creator interface for flexibility
 			for _, keyName := range names {
@@ -91,10 +94,7 @@ var (
 )
 
 func init() {
-	//logger := log.Default()
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	logger = helper.NewLogger(logLevel, logFormat)
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags

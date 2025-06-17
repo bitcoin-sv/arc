@@ -16,66 +16,64 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-var (
-	Cmd = &cobra.Command{
-		Use:   "utxos",
-		Short: "Show distribution of utxo sizes in key set",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			maxRows := viper.GetInt("rows")
+var Cmd = &cobra.Command{
+	Use:   "utxos",
+	Short: "Show distribution of utxo sizes in key set",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		maxRows := viper.GetInt("rows")
 
-			isTestnet := helper.GetBool("testnet")
-			wocAPIKey := helper.GetString("wocAPIKey")
+		isTestnet := helper.GetBool("testnet")
+		wocAPIKey := helper.GetString("wocAPIKey")
 
-			logLevel := helper.GetString("logLevel")
-			logFormat := helper.GetString("logFormat")
-			logger := helper.NewLogger(logLevel, logFormat)
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
 
-			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
-			keySetsMap, err := helper.GetSelectedKeySets()
-			if err != nil {
-				return err
-			}
+		keySetsMap, err := helper.GetSelectedKeySets()
+		if err != nil {
+			return err
+		}
 
-			signalChan := make(chan os.Signal, 1)
-			signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
-			ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background())
 
-			go func() {
-				<-signalChan
-				cancel()
-			}()
+		go func() {
+			<-signalChan
+			cancel()
+		}()
 
-			names := helper.GetOrderedKeys(keySetsMap)
-			counter := 0
-			var t table.Writer
-			ksRow := map[string]*keyset.KeySet{}
-			for _, name := range names {
-				ksRow[name] = keySetsMap[name]
-				if counter >= 9 {
-					t = table.NewWriter()
-					t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
-					t.SetStyle(table.StyleColoredBright)
-					fmt.Println(t.Render())
-					fmt.Println()
-					ksRow = map[string]*keyset.KeySet{}
-					counter = 0
-					continue
-				}
-				counter++
-			}
-			if len(ksRow) > 0 {
+		names := helper.GetOrderedKeys(keySetsMap)
+		counter := 0
+		var t table.Writer
+		ksRow := map[string]*keyset.KeySet{}
+		for _, name := range names {
+			ksRow[name] = keySetsMap[name]
+			if counter >= 9 {
 				t = table.NewWriter()
 				t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
 				t.SetStyle(table.StyleColoredBright)
 				fmt.Println(t.Render())
+				fmt.Println()
+				ksRow = map[string]*keyset.KeySet{}
+				counter = 0
+				continue
 			}
+			counter++
+		}
+		if len(ksRow) > 0 {
+			t = table.NewWriter()
+			t := getUtxosTable(ctx, logger, t, ksRow, isTestnet, wocClient, maxRows)
+			t.SetStyle(table.StyleColoredBright)
+			fmt.Println(t.Render())
+		}
 
-			return nil
-		},
-	}
-)
+		return nil
+	},
+}
 
 func init() {
 	var err error

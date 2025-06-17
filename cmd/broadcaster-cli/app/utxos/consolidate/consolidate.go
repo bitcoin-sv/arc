@@ -14,68 +14,66 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-var (
-	Cmd = &cobra.Command{
-		Use:   "consolidate",
-		Short: "Consolidate UTXO set to 1 output",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			isTestnet := helper.GetBool("testnet")
-			authorization := helper.GetString("authorization")
+var Cmd = &cobra.Command{
+	Use:   "consolidate",
+	Short: "Consolidate UTXO set to 1 output",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		isTestnet := helper.GetBool("testnet")
+		authorization := helper.GetString("authorization")
 
-			keySetsMap, err := helper.GetSelectedKeySets()
+		keySetsMap, err := helper.GetSelectedKeySets()
+		if err != nil {
+			return err
+		}
+		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
+
+		arcServer := helper.GetString("apiURL")
+		if arcServer == "" {
+			return errors.New("no api URL was given")
+		}
+
+		wocAPIKey := helper.GetString("wocAPIKey")
+
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
+
+		client, err := helper.CreateClient(&broadcaster.Auth{
+			Authorization: authorization,
+		}, arcServer)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
+
+		names := helper.GetOrderedKeys(keySetsMap)
+
+		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
+		cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
+		for _, keyName := range names {
+			ks := keySetsMap[keyName]
+			c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, broadcaster.WithIsTestnet(isTestnet), broadcaster.WithFees(miningFeeSat))
 			if err != nil {
 				return err
 			}
-			miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
 
-			arcServer := helper.GetString("apiURL")
-			if arcServer == "" {
-				return errors.New("no api URL was given")
-			}
+			cs = append(cs, c)
+		}
+		consolidator := broadcaster.NewMultiKeyUtxoConsolidator(logger, cs)
 
-			wocAPIKey := helper.GetString("wocAPIKey")
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
-			logLevel := helper.GetString("logLevel")
-			logFormat := helper.GetString("logFormat")
-			logger := helper.NewLogger(logLevel, logFormat)
+		go func() {
+			<-signalChan
+			consolidator.Shutdown()
+		}()
 
-			client, err := helper.CreateClient(&broadcaster.Auth{
-				Authorization: authorization,
-			}, arcServer)
-			if err != nil {
-				return fmt.Errorf("failed to create client: %v", err)
-			}
+		logger.Info("Starting consolidator")
+		consolidator.Start()
 
-			names := helper.GetOrderedKeys(keySetsMap)
-
-			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
-			cs := make([]broadcaster.Consolidator, 0, len(keySetsMap))
-			for _, keyName := range names {
-				ks := keySetsMap[keyName]
-				c, err := broadcaster.NewUTXOConsolidator(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, broadcaster.WithIsTestnet(isTestnet), broadcaster.WithFees(miningFeeSat))
-				if err != nil {
-					return err
-				}
-
-				cs = append(cs, c)
-			}
-			consolidator := broadcaster.NewMultiKeyUtxoConsolidator(logger, cs)
-
-			signalChan := make(chan os.Signal, 1)
-			signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
-
-			go func() {
-				<-signalChan
-				consolidator.Shutdown()
-			}()
-
-			logger.Info("Starting consolidator")
-			consolidator.Start()
-
-			return nil
-		},
-	}
-)
+		return nil
+	},
+}
 
 func init() {
 	logger := helper.NewLogger("INFO", "tint")

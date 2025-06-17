@@ -13,89 +13,87 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-var (
-	Cmd = &cobra.Command{
-		Use:   "split",
-		Short: "Split a UTXO",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			txid := helper.GetString("txid")
-			if txid == "" {
-				return errors.New("txid is required")
-			}
+var Cmd = &cobra.Command{
+	Use:   "split",
+	Short: "Split a UTXO",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		txid := helper.GetString("txid")
+		if txid == "" {
+			return errors.New("txid is required")
+		}
 
-			from := helper.GetString("from")
-			if from == "" {
-				return errors.New("from is required")
-			}
+		from := helper.GetString("from")
+		if from == "" {
+			return errors.New("from is required")
+		}
 
-			satoshis := helper.GetUint64("satoshis")
-			if satoshis == 0 {
-				return errors.New("satoshis is required")
-			}
+		satoshis := helper.GetUint64("satoshis")
+		if satoshis == 0 {
+			return errors.New("satoshis is required")
+		}
 
-			vout := helper.GetUint32("vout")
+		vout := helper.GetUint32("vout")
 
-			dryrun := helper.GetBool("dryrun")
+		dryrun := helper.GetBool("dryrun")
 
-			isTestnet := helper.GetBool("testnet")
+		isTestnet := helper.GetBool("testnet")
 
-			authorization := helper.GetString("authorization")
+		authorization := helper.GetString("authorization")
 
-			miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
+		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
 
-			arcServer := helper.GetString("apiURL")
-			if arcServer == "" {
-				return errors.New("no api URL was given")
-			}
+		arcServer := helper.GetString("apiURL")
+		if arcServer == "" {
+			return errors.New("no api URL was given")
+		}
 
-			allKeysMap, err := helper.GetAllKeySets()
-			if err != nil {
-				return err
-			}
+		allKeysMap, err := helper.GetAllKeySets()
+		if err != nil {
+			return err
+		}
 
-			keySetsMap, err := helper.GetSelectedKeySets()
-			if err != nil {
-				return err
-			}
-			logLevel := helper.GetString("logLevel")
-			logFormat := helper.GetString("logFormat")
+		keySetsMap, err := helper.GetSelectedKeySets()
+		if err != nil {
+			return err
+		}
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
 
-			logger := helper.NewLogger(logLevel, logFormat)
+		logger := helper.NewLogger(logLevel, logFormat)
 
-			client, err := helper.CreateClient(&broadcaster.Auth{
-				Authorization: authorization,
-			}, arcServer)
-			if err != nil {
-				return fmt.Errorf("failed to create client: %v", err)
-			}
+		client, err := helper.CreateClient(&broadcaster.Auth{
+			Authorization: authorization,
+		}, arcServer)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 
-			ks := make([]*keyset.KeySet, len(keySetsMap))
-			counter := 0
-			for _, keySet := range keySetsMap {
-				ks[counter] = keySet
-				counter++
-			}
-			fromKs, ok := allKeysMap[from]
-			if !ok {
-				return fmt.Errorf("from not found in keySetsMap: %v", from)
-			}
+		ks := make([]*keyset.KeySet, len(keySetsMap))
+		counter := 0
+		for _, keySet := range keySetsMap {
+			ks[counter] = keySet
+			counter++
+		}
+		fromKs, ok := allKeysMap[from]
+		if !ok {
+			return fmt.Errorf("from not found in keySetsMap: %v", from)
+		}
 
-			splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, ks, broadcaster.WithIsTestnet(isTestnet),
-				broadcaster.WithFees(miningFeeSat),
-			)
-			if err != nil {
-				return fmt.Errorf("failed to create broadcaster: %v", err)
-			}
+		splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, ks, broadcaster.WithIsTestnet(isTestnet),
+			broadcaster.WithFees(miningFeeSat),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create broadcaster: %v", err)
+		}
 
-			err = splitter.SplitUtxo(txid, satoshis, vout, dryrun)
-			if err != nil {
-				return fmt.Errorf("failed to create utxos: %v", err)
-			}
+		err = splitter.SplitUtxo(txid, satoshis, vout, dryrun)
+		if err != nil {
+			return fmt.Errorf("failed to create utxos: %v", err)
+		}
 
-			return nil
-		},
-	}
-)
+		return nil
+	},
+}
 
 func init() {
 	logger := helper.NewLogger("INFO", "tint")

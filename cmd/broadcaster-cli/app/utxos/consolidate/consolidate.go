@@ -3,6 +3,7 @@ package consolidate
 import (
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -23,34 +24,24 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		authorization, err := helper.GetString("authorization")
-		if err != nil {
-			return err
-		}
+		authorization := helper.GetString("authorization")
 
 		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
-		miningFeeSat, err := helper.GetUint64("miningFeeSatPerKb")
-		if err != nil {
-			return err
-		}
+		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
 
-		arcServer, err := helper.GetString("apiURL")
-		if err != nil {
-			return err
-		}
+		arcServer := helper.GetString("apiURL")
 		if arcServer == "" {
 			return errors.New("no api URL was given")
 		}
 
-		wocAPIKey, err := helper.GetString("wocAPIKey")
-		if err != nil {
-			return err
-		}
+		wocAPIKey := helper.GetString("wocAPIKey")
 
-		logger := helper.GetLogger()
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -90,25 +81,25 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	logger := helper.GetLogger()
+	logger := log.Default()
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("fullStatusUpdates")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		err = command.Flags().MarkHidden("callback")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		err = command.Flags().MarkHidden("callbackToken")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		err = command.Flags().MarkHidden("satoshis")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

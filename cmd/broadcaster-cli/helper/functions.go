@@ -49,67 +49,67 @@ func GetKeySetsXpriv(xpriv string) (fundingKeySet *keyset.KeySet, receivingKeySe
 	return fundingKeySet, receivingKeySet, err
 }
 
-func GetString(settingName string) (string, error) {
+func GetString(settingName string) string {
 	setting := viper.GetString(settingName)
 	if setting != "" {
-		return setting, nil
+		return setting
 	}
 
 	return getSettingFromEnvFile[string](settingName)
 }
 
-func GetInt(settingName string) (int, error) {
+func GetInt(settingName string) int {
 	setting := viper.GetInt(settingName)
 	if setting != 0 {
-		return setting, nil
+		return setting
 	}
 
 	return getSettingFromEnvFile[int](settingName)
 }
 
-func GetUint64(settingName string) (uint64, error) {
+func GetUint64(settingName string) uint64 {
 	setting := viper.GetUint64(settingName)
 	if setting != 0 {
-		return setting, nil
+		return setting
 	}
 
 	return getSettingFromEnvFile[uint64](settingName)
 }
 
-func GetUint32(settingName string) (uint32, error) {
+func GetUint32(settingName string) uint32 {
 	setting := viper.GetUint32(settingName)
 	if setting != 0 {
-		return setting, nil
+		return setting
 	}
 
 	return getSettingFromEnvFile[uint32](settingName)
 }
 
-func GetInt64(settingName string) (int64, error) {
+func GetInt64(settingName string) int64 {
 	setting := viper.GetInt64(settingName)
 	if setting != 0 {
-		return setting, nil
+		return setting
 	}
 
 	return getSettingFromEnvFile[int64](settingName)
 }
 
-func getSettingFromEnvFile[T any](settingName string) (T, error) {
+func getSettingFromEnvFile[T any](settingName string) T {
 	var result map[string]interface{}
 	var nullValue T
 
 	err := viper.Unmarshal(&result)
 	if err != nil {
-		return nullValue, err
+		return nullValue
 	}
 
 	value, ok := result[strings.ToLower(settingName)].(T)
 
 	if !ok {
-		return nullValue, nil
+		return nullValue
 	}
 
-	return value, nil
+	return value
 }
 
 func GetBool(settingName string) (bool, error) {
@@ -138,8 +138,32 @@ func GetBool(settingName string) (bool, error) {
 	return boolValue, nil
 }
 
-func GetLogger() *slog.Logger {
-	return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
+func NewLogger(logLevel, logFormat string) *slog.Logger {
+	var slogLevel slog.Level
+
+	switch logLevel {
+	case "INFO":
+		slogLevel = slog.LevelInfo
+	case "WARN":
+		slogLevel = slog.LevelWarn
+	case "ERROR":
+		slogLevel = slog.LevelError
+	case "DEBUG":
+		slogLevel = slog.LevelDebug
+	default:
+		slogLevel = slog.LevelInfo
+	}
+
+	switch logFormat {
+	case "json":
+		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+	case "text":
+		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+	case "tint":
+		return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel}))
+	default:
+		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+	}
 }
 
 func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*keyset.KeySet, error) {

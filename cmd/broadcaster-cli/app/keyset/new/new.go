@@ -1,7 +1,6 @@
 package new
 
 import (
-	"fmt"
 	"log/slog"
 
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
@@ -12,6 +11,7 @@ import (
 )
 
 var (
+	//logger *log.Logger
 	logger *slog.Logger
 	Cmd    = &cobra.Command{
 		Use:   "new",
@@ -32,7 +32,8 @@ var (
 				return err
 			}
 
-			fmt.Println(newKeyset.GetMaster().String())
+			//logger.Println(newKeyset.GetMaster().String())
+			logger.Info("new keyset", slog.String("keyset", newKeyset.GetMaster().String()))
 			return nil
 		},
 	}
@@ -41,17 +42,22 @@ var (
 func init() {
 	var err error
 
-	logger = helper.GetLogger()
+	//logger = log.Default()
+	logLevel := helper.GetString("logLevel")
+	logFormat := helper.GetString("logFormat")
+	logger = helper.NewLogger(logLevel, logFormat)
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err = command.Flags().MarkHidden("keyfile")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark hidden flag", slog.String("flag", "keyfile"), slog.String("err", err.Error()))
+			//logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		err = command.Flags().MarkHidden("wocAPIKey")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark hidden flag", slog.String("flag", "wocAPIKey"), slog.String("err", err.Error()))
+			//logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

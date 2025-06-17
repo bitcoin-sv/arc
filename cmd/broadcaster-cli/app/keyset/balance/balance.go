@@ -19,12 +19,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		wocAPIKey, err := helper.GetString("wocAPIKey")
-		if err != nil {
-			return err
-		}
-
-		logger := helper.GetLogger()
+		wocAPIKey := helper.GetString("wocAPIKey")
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 

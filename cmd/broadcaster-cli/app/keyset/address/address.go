@@ -26,6 +26,9 @@ var (
 
 			names := helper.GetOrderedKeys(keySetsMap)
 
+			//logLevel := helper.GetString("logLevel")
+			//logFormat := helper.GetString("logFormat")
+			//logger := helper.NewLogger(logLevel, logFormat)
 			for _, name := range names {
 				keySet := keySetsMap[name]
 
@@ -38,13 +41,17 @@ var (
 )
 
 func init() {
-	logger = helper.GetLogger()
+	logLevel := helper.GetString("logLevel")
+	logFormat := helper.GetString("logFormat")
+	logger = helper.NewLogger(logLevel, logFormat)
+	//logger := log.Default()
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("wocAPIKey")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("error", err.Error()))
+			//logger.Printf("failed to mark flag hidden: %v", err)
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

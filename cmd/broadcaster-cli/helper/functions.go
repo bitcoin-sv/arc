@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/lmittmann/tint"
@@ -112,30 +111,13 @@ func getSettingFromEnvFile[T any](settingName string) T {
 	return value
 }
 
-func GetBool(settingName string) (bool, error) {
+func GetBool(settingName string) bool {
 	setting := viper.GetBool(settingName)
 	if setting {
-		return true, nil
+		return true
 	}
 
-	var result map[string]interface{}
-
-	err := viper.Unmarshal(&result)
-	if err != nil {
-		return false, err
-	}
-
-	valueString, ok := result[settingName].(string)
-	if !ok {
-		return false, nil
-	}
-
-	boolValue, err := strconv.ParseBool(valueString)
-	if err != nil {
-		return false, err
-	}
-
-	return boolValue, nil
+	return getSettingFromEnvFile[bool](settingName)
 }
 
 func NewLogger(logLevel, logFormat string) *slog.Logger {

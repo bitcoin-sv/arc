@@ -15,10 +15,7 @@ var Cmd = &cobra.Command{
 	Use:   "topup",
 	Short: "Top up funding address with BSV",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
+		isTestnet := helper.GetBool("testnet")
 		wocAPIKey := helper.GetString("wocAPIKey")
 		logLevel := helper.GetString("logLevel")
 		logFormat := helper.GetString("logFormat")

@@ -24,10 +24,7 @@ var (
 		RunE: func(_ *cobra.Command, _ []string) error {
 			maxRows := viper.GetInt("rows")
 
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
+			isTestnet := helper.GetBool("testnet")
 			wocAPIKey := helper.GetString("wocAPIKey")
 
 			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))

@@ -20,11 +20,7 @@ var (
 		Use:   "consolidate",
 		Short: "Consolidate UTXO set to 1 output",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
-
+			isTestnet := helper.GetBool("testnet")
 			authorization := helper.GetString("authorization")
 
 			keySetsMap, err := helper.GetSelectedKeySets()

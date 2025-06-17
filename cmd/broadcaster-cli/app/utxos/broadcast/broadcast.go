@@ -45,15 +45,9 @@ var (
 
 			limit := helper.GetInt64("limit")
 
-			fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
-			if err != nil {
-				return err
-			}
+			fullStatusUpdates := helper.GetBool("fullStatusUpdates")
 
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
+			isTestnet := helper.GetBool("testnet")
 
 			callbackURL := helper.GetString("callback")
 

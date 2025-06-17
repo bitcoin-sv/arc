@@ -36,15 +36,9 @@ var (
 
 			vout := helper.GetUint32("vout")
 
-			dryrun, err := helper.GetBool("dryrun")
-			if err != nil {
-				return err
-			}
+			dryrun := helper.GetBool("dryrun")
 
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
+			isTestnet := helper.GetBool("testnet")
 
 			authorization := helper.GetString("authorization")
 

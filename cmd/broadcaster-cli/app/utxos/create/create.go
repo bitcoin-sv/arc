@@ -31,11 +31,7 @@ var (
 				return errors.New("satoshis must be a value greater than 0")
 			}
 
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
-
+			isTestnet := helper.GetBool("testnet")
 			authorization := helper.GetString("authorization")
 
 			keySetsMap, err := helper.GetSelectedKeySets()

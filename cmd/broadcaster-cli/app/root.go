@@ -17,7 +17,7 @@ var (
 	RootCmd = &cobra.Command{
 		Use:   "broadcaster",
 		Short: "CLI tool to broadcast transactions to ARC",
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			logLevel := helper.GetString("logLevel")
 			logFormat := helper.GetString("logFormat")
 			logger := helper.NewLogger(logLevel, logFormat)

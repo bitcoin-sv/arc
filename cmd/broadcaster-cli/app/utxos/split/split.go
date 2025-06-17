@@ -115,18 +115,15 @@ func init() {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("fullStatusUpdates")
 		if err != nil {
-			//logger.Printf("failed to mark flag hidden: %v", err)
-			logger.Error("failed to mark hidden flag", slog.String("flag", "fullStatusUpdates"), slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "fullStatusUpdates"), slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("callback")
 		if err != nil {
-			logger.Error("failed to mark hidden flag", slog.String("flag", "callback"), slog.String("err", err.Error()))
-			//logger.Printf("failed to mark flag hidden: %v", err)
+			logger.Error("failed to mark flag hidden", slog.String("flag", "callback"), slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("callbackToken")
 		if err != nil {
-			logger.Error("failed to mark hidden flag", slog.String("flag", "callbackToken"), slog.String("err", err.Error()))
-			//logger.Printf("failed to mark flag hidden: %v", err)
+			logger.Error("failed to mark flag hidden", slog.String("flag", "callbackToken"), slog.String("err", err.Error()))
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

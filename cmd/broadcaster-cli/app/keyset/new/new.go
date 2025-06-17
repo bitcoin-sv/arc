@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	//logger *log.Logger
 	logger *slog.Logger
 	Cmd    = &cobra.Command{
 		Use:   "new",
@@ -32,7 +31,6 @@ var (
 				return err
 			}
 
-			//logger.Println(newKeyset.GetMaster().String())
 			logger.Info("new keyset", slog.String("keyset", newKeyset.GetMaster().String()))
 			return nil
 		},
@@ -42,7 +40,6 @@ var (
 func init() {
 	var err error
 
-	//logger = log.Default()
 	logLevel := helper.GetString("logLevel")
 	logFormat := helper.GetString("logFormat")
 	logger = helper.NewLogger(logLevel, logFormat)
@@ -51,13 +48,11 @@ func init() {
 		// Hide unused persistent flags
 		err = command.Flags().MarkHidden("keyfile")
 		if err != nil {
-			logger.Error("failed to mark hidden flag", slog.String("flag", "keyfile"), slog.String("err", err.Error()))
-			//logger.Printf("failed to mark flag hidden: %v", err)
+			logger.Error("failed to mark flag hidden", slog.String("flag", "keyfile"), slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("wocAPIKey")
 		if err != nil {
-			logger.Error("failed to mark hidden flag", slog.String("flag", "wocAPIKey"), slog.String("err", err.Error()))
-			//logger.Printf("failed to mark flag hidden: %v", err)
+			logger.Error("failed to mark flag hidden", slog.String("flag", "wocAPIKey"), slog.String("err", err.Error()))
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

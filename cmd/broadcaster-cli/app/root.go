@@ -17,6 +17,14 @@ var (
 	RootCmd = &cobra.Command{
 		Use:   "broadcaster",
 		Short: "CLI tool to broadcast transactions to ARC",
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
+			if viper.ConfigFileUsed() != "" {
+				logger.Info("config file used", slog.String("filename", viper.ConfigFileUsed()))
+			}
+		},
 	}
 )
 
@@ -58,10 +66,6 @@ func init() {
 		os.Exit(1)
 	}
 
-	logLevel := helper.GetString("logLevel")
-	logFormat := helper.GetString("logFormat")
-	slogLogger := helper.NewLogger(logLevel, logFormat)
-
 	var configFilenameArg string
 	args := os.Args
 	for i, arg := range args {
@@ -81,14 +85,8 @@ func init() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		//logger.Printf("failed to read config file: %v", err)
-		slogLogger.Error("failed to read config file", slog.String("err", err.Error()))
+		logger.Printf("failed to read config file: %v", err)
 		os.Exit(1)
-	}
-
-	if viper.ConfigFileUsed() != "" {
-		//logger.Printf("Config file used: %s", viper.ConfigFileUsed())
-		slogLogger.Info("Config file used", slog.String("filename", viper.ConfigFileUsed()))
 	}
 
 	RootCmd.AddCommand(keyset.Cmd)

@@ -25,153 +25,150 @@ var (
 	ErrTooHighSubmissionRate = errors.New("submission rate is too high")
 )
 
-var Cmd = &cobra.Command{
-	Use:   "broadcast",
-	Short: "Submit transactions to ARC",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		rateTxsPerSecond := helper.GetInt("rate")
-		if rateTxsPerSecond == 0 {
-			return errors.New("rate must be a value greater than 0")
-		}
+var (
+	logger *slog.Logger
+	Cmd    = &cobra.Command{
+		Use:   "broadcast",
+		Short: "Submit transactions to ARC",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			rateTxsPerSecond := helper.GetInt("rate")
+			if rateTxsPerSecond == 0 {
+				return errors.New("rate must be a value greater than 0")
+			}
 
-		waitForStatus := helper.GetInt("waitForStatus")
+			waitForStatus := helper.GetInt("waitForStatus")
 
-		batchSize := helper.GetInt("batchsize")
-		if batchSize == 0 {
-			return errors.New("batch size must be a value greater than 0")
-		}
+			batchSize := helper.GetInt("batchsize")
+			if batchSize == 0 {
+				return errors.New("batch size must be a value greater than 0")
+			}
 
-		limit := helper.GetInt64("limit")
+			limit := helper.GetInt64("limit")
 
-		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
-		if err != nil {
-			return err
-		}
-
-		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
-
-		callbackURL := helper.GetString("callback")
-
-		callbackToken := helper.GetString("callbackToken")
-
-		authorization := helper.GetString("authorization")
-
-		keySetsMap, err := helper.GetSelectedKeySets()
-		if err != nil {
-			return err
-		}
-
-		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
-
-		if miningFeeSat == 0 {
-			return errors.New("no mining fee was given")
-		}
-
-		arcServer := helper.GetString("apiURL")
-		if arcServer == "" {
-			return errors.New("no api URL was given")
-		}
-
-		wocAPIKey := helper.GetString("wocAPIKey")
-
-		opReturn := helper.GetString("opReturn")
-
-		sizeJitterMax := helper.GetInt64("sizeJitter")
-
-		logLevel := helper.GetString("logLevel")
-		logFormat := helper.GetString("logFormat")
-
-		logger := helper.NewLogger(logLevel, logFormat)
-
-		client, err := helper.CreateClient(&broadcaster.Auth{
-			Authorization: authorization,
-		}, arcServer)
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
-
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
-
-		opts := []func(p *broadcaster.Broadcaster){
-			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithCallback(callbackURL, callbackToken),
-			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-			broadcaster.WithBatchSize(batchSize),
-			broadcaster.WithOpReturn(opReturn),
-			broadcaster.WithSizeJitter(sizeJitterMax),
-			broadcaster.WithIsTestnet(isTestnet),
-		}
-
-		if waitForStatus > 0 {
-			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
-		}
-
-		submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(batchSize)
-
-		if submitBatchesPerSecond > millisecondsPerSecond {
-			return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, batchSize, submitBatchesPerSecond))
-		}
-		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
-
-		submitBatchTicker, err := broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-		if err != nil {
-			return err
-		}
-
-		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
-		for keyName, ks := range keySetsMap {
-			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, limit, submitBatchTicker, opts...)
+			fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
 			if err != nil {
 				return err
 			}
 
-			rbs = append(rbs, rb)
-		}
-
-		rateBroadcaster := broadcaster.NewMultiKeyRateBroadcaster(logger, rbs)
-
-		doneChan := make(chan error) // Channel to signal the completion of Start
-		signalChan := make(chan os.Signal, 1)
-		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
-
-		go func() {
-			// Start the broadcasting process
-			err := rateBroadcaster.Start()
-			logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
-			doneChan <- err // Send the completion or error signal
-		}()
-
-		select {
-		case <-signalChan:
-			// If an interrupt signal is received
-			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
-		case err := <-doneChan:
+			isTestnet, err := helper.GetBool("testnet")
 			if err != nil {
-				logger.Error("Error during broadcasting", slog.String("err", err.Error()))
+				return err
 			}
-		}
 
-		// Shutdown the broadcaster in all cases
-		rateBroadcaster.Shutdown()
-		logger.Info("Broadcasting shutdown complete")
-		return nil
-	},
-}
+			callbackURL := helper.GetString("callback")
+
+			callbackToken := helper.GetString("callbackToken")
+
+			authorization := helper.GetString("authorization")
+
+			keySetsMap, err := helper.GetSelectedKeySets()
+			if err != nil {
+				return err
+			}
+
+			miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
+
+			if miningFeeSat == 0 {
+				return errors.New("no mining fee was given")
+			}
+
+			arcServer := helper.GetString("apiURL")
+			if arcServer == "" {
+				return errors.New("no api URL was given")
+			}
+
+			wocAPIKey := helper.GetString("wocAPIKey")
+
+			opReturn := helper.GetString("opReturn")
+
+			sizeJitterMax := helper.GetInt64("sizeJitter")
+
+			client, err := helper.CreateClient(&broadcaster.Auth{
+				Authorization: authorization,
+			}, arcServer)
+			if err != nil {
+				return fmt.Errorf("failed to create client: %v", err)
+			}
+
+			wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
+
+			opts := []func(p *broadcaster.Broadcaster){
+				broadcaster.WithFees(miningFeeSat),
+				broadcaster.WithCallback(callbackURL, callbackToken),
+				broadcaster.WithFullstatusUpdates(fullStatusUpdates),
+				broadcaster.WithBatchSize(batchSize),
+				broadcaster.WithOpReturn(opReturn),
+				broadcaster.WithSizeJitter(sizeJitterMax),
+				broadcaster.WithIsTestnet(isTestnet),
+			}
+
+			if waitForStatus > 0 {
+				opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
+			}
+
+			submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(batchSize)
+
+			if submitBatchesPerSecond > millisecondsPerSecond {
+				return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, batchSize, submitBatchesPerSecond))
+			}
+			submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
+
+			submitBatchTicker, err := broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+			if err != nil {
+				return err
+			}
+
+			rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
+			for keyName, ks := range keySetsMap {
+				rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, limit, submitBatchTicker, opts...)
+				if err != nil {
+					return err
+				}
+
+				rbs = append(rbs, rb)
+			}
+
+			rateBroadcaster := broadcaster.NewMultiKeyRateBroadcaster(logger, rbs)
+
+			doneChan := make(chan error) // Channel to signal the completion of Start
+			signalChan := make(chan os.Signal, 1)
+			signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
+
+			go func() {
+				// Start the broadcasting process
+				err := rateBroadcaster.Start()
+				logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
+				doneChan <- err // Send the completion or error signal
+			}()
+
+			select {
+			case <-signalChan:
+				// If an interrupt signal is received
+				logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
+			case err := <-doneChan:
+				if err != nil {
+					logger.Error("Error during broadcasting", slog.String("err", err.Error()))
+				}
+			}
+
+			// Shutdown the broadcaster in all cases
+			rateBroadcaster.Shutdown()
+			logger.Info("Broadcasting shutdown complete")
+			return nil
+		},
+	}
+)
 
 func init() {
 	logLevel := helper.GetString("logLevel")
 	logFormat := helper.GetString("logFormat")
-	logger := helper.NewLogger(logLevel, logFormat)
+	logger = helper.NewLogger(logLevel, logFormat)
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("satoshis")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
-			//logger.Printf("failed to mark flag hidden: %v", err)
+			logger.Error("failed to mark flag hidden", slog.String("flag", "satoshis"), slog.String("err", err.Error()))
 		}
 
 		// Call parent help func

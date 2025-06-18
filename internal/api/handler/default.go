@@ -212,7 +212,7 @@ func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 				old := atomic.LoadInt32(&m.currentBlockHeight)
 				if old < height {
 					atomic.StoreInt32(&m.currentBlockHeight, height)
-					m.logger.Info("Current block height updated", slog.Int64("old height", int64(old)), slog.Int64("new height", int64(height)))
+					m.logger.Info("Current block height updated", slog.Int64("old", int64(old)), slog.Int64("new", int64(height)))
 				}
 			}
 		}

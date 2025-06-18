@@ -3,7 +3,6 @@ package broadcast
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -30,95 +29,51 @@ var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "Submit transactions to ARC",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		rateTxsPerSecond, err := helper.GetInt("rate")
-		if err != nil {
-			return err
-		}
+		rateTxsPerSecond := helper.GetInt("rate")
 		if rateTxsPerSecond == 0 {
 			return errors.New("rate must be a value greater than 0")
 		}
 
-		waitForStatus, err := helper.GetInt("waitForStatus")
-		if err != nil {
-			return err
-		}
+		waitForStatus := helper.GetInt("waitForStatus")
 
-		batchSize, err := helper.GetInt("batchsize")
-		if err != nil {
-			return err
-		}
+		batchSize := helper.GetInt("batchsize")
 		if batchSize == 0 {
 			return errors.New("batch size must be a value greater than 0")
 		}
 
-		limit, err := helper.GetInt64("limit")
-		if err != nil {
-			return err
-		}
+		limit := helper.GetInt64("limit")
 
-		fullStatusUpdates, err := helper.GetBool("fullStatusUpdates")
-		if err != nil {
-			return err
-		}
+		fullStatusUpdates := helper.GetBool("fullStatusUpdates")
 
-		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
+		isTestnet := helper.GetBool("testnet")
 
-		callbackURL, err := helper.GetString("callback")
-		if err != nil {
-			return err
-		}
+		callbackURL := helper.GetString("callback")
 
-		callbackToken, err := helper.GetString("callbackToken")
-		if err != nil {
-			return err
-		}
+		callbackToken := helper.GetString("callbackToken")
 
-		authorization, err := helper.GetString("authorization")
-		if err != nil {
-			return err
-		}
+		authorization := helper.GetString("authorization")
 
 		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
 
-		miningFeeSat, err := helper.GetUint64("miningFeeSatPerKb")
-		if err != nil {
-			return err
-		}
+		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
 
 		if miningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}
 
-		arcServer, err := helper.GetString("apiURL")
-		if err != nil {
-			return err
-		}
+		arcServer := helper.GetString("apiURL")
 		if arcServer == "" {
 			return errors.New("no api URL was given")
 		}
 
-		wocAPIKey, err := helper.GetString("wocAPIKey")
-		if err != nil {
-			return err
-		}
+		wocAPIKey := helper.GetString("wocAPIKey")
 
-		opReturn, err := helper.GetString("opReturn")
-		if err != nil {
-			return err
-		}
+		opReturn := helper.GetString("opReturn")
 
-		sizeJitterMax, err := helper.GetInt64("sizeJitter")
-		if err != nil {
-			return err
-		}
-
-		logger := helper.GetLogger()
+		sizeJitterMax := helper.GetInt64("sizeJitter")
 
 		client, err := helper.CreateClient(&broadcaster.Auth{
 			Authorization: authorization,
@@ -126,6 +81,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
+
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
@@ -196,12 +155,13 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	logger := helper.GetLogger()
+	logger := helper.NewLogger("INFO", "tint")
+
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("satoshis")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "satoshis"), slog.String("err", err.Error()))
 		}
 
 		// Call parent help func
@@ -212,36 +172,42 @@ func init() {
 	Cmd.Flags().Int("rate", 10, "Transactions per second to be rate broad casted per key set")
 	err = viper.BindPFlag("rate", Cmd.Flags().Lookup("rate"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "rate"), slog.String("err", err.Error()))
+		return
 	}
 
 	Cmd.Flags().Int("batchsize", 10, "Size of batches to submit transactions")
 	err = viper.BindPFlag("batchsize", Cmd.Flags().Lookup("batchsize"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "batchsize"), slog.String("err", err.Error()))
+		return
 	}
 
 	Cmd.Flags().Int("limit", 0, "Limit to number of transactions to be submitted after which broadcaster will stop per key set, default: no limit")
 	err = viper.BindPFlag("limit", Cmd.Flags().Lookup("limit"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "limit"), slog.String("err", err.Error()))
+		return
 	}
 
 	Cmd.Flags().Int("waitForStatus", 0, "Transaction status for which broadcaster should wait")
 	err = viper.BindPFlag("waitForStatus", Cmd.Flags().Lookup("waitForStatus"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "waitForStatus"), slog.String("err", err.Error()))
+		return
 	}
 
 	Cmd.Flags().String("opReturn", "", "Text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added")
 	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "opReturn"), slog.String("err", err.Error()))
+		return
 	}
 
 	Cmd.Flags().Int("sizeJitter", 0, "Enable the option to randomise the transaction size by adding random data and using multiple inputs, the parameter specifies the maximum size of bytes that will be added to OP_RETURN (plus OP_RETURN header if specified)")
 	err = viper.BindPFlag("sizeJitter", Cmd.Flags().Lookup("sizeJitter"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "sizeJitter"), slog.String("err", err.Error()))
+		return
 	}
 }

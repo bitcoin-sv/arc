@@ -1,3 +1,5 @@
+logLevel: DEBUG # mode of logging. Value can be one of DEBUG | INFO | WARN | ERROR
+logFormat: text # format of logging. Value can be one of text | json | tint
 privateKeys: # map of private keys
   key-1: xprv9s21ZrQH143K2XcKfb8mRDRcHdDLBpV2mrYon4JcYc2CZD4cii9Rbwo1fdcH28Md6FChCpm55dXg4NiyznuJ2PNEQfXbCR4pNRezAdcM131
   key-2: xprv9s21ZrQH143K4GD3dFcMGxeF2pWUQsx89PDT1345ZkinZ3qa6irjYfJ1t71PmQUfm1aCLsqM99fCxKjE13zNodgg4XVp8xSTw93erJTPLKf

@@ -25,7 +25,7 @@ const (
 	LevelError   = slog.LevelError
 )
 
-func getSlogLevel(logLevel string) (slog.Level, error) {
+func GetSlogLevel(logLevel string) (slog.Level, error) {
 	switch logLevel {
 	case "INFO":
 		return LevelInfo, nil
@@ -43,7 +43,7 @@ func getSlogLevel(logLevel string) (slog.Level, error) {
 }
 
 func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
-	slogLevel, err := getSlogLevel(logLevel)
+	slogLevel, err := GetSlogLevel(logLevel)
 	if err != nil {
 		return nil, err
 	}

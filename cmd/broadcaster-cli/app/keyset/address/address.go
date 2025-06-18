@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "address",
 		Short: "Show address of the keyset",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
+			isTestnet := helper.GetBool("testnet")
+
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
 
 			keySetsMap, err := helper.GetSelectedKeySets()
 			if err != nil {
@@ -38,13 +38,13 @@ var (
 )
 
 func init() {
-	logger = helper.GetLogger()
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err := command.Flags().MarkHidden("wocAPIKey")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "wocAPIKey"), slog.String("error", err.Error()))
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

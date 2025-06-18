@@ -3,7 +3,7 @@ package utxos
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 
@@ -22,16 +22,13 @@ var Cmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, _ []string) error {
 		maxRows := viper.GetInt("rows")
 
-		isTestnet, err := helper.GetBool("testnet")
-		if err != nil {
-			return err
-		}
-		wocAPIKey, err := helper.GetString("wocAPIKey")
-		if err != nil {
-			return err
-		}
+		isTestnet := helper.GetBool("testnet")
+		wocAPIKey := helper.GetString("wocAPIKey")
 
-		logger := helper.GetLogger()
+		logLevel := helper.GetString("logLevel")
+		logFormat := helper.GetString("logFormat")
+		logger := helper.NewLogger(logLevel, logFormat)
+
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
 		keySetsMap, err := helper.GetSelectedKeySets()
@@ -81,9 +78,12 @@ var Cmd = &cobra.Command{
 func init() {
 	var err error
 
+	logger := helper.NewLogger("INFO", "tint")
+
 	Cmd.Flags().IntP("rows", "r", 0, "Maximum rows to show - default: all")
 	err = viper.BindPFlag("rows", Cmd.Flags().Lookup("rows"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bind flag", slog.String("flag", "rows"), slog.String("err", err.Error()))
+		return
 	}
 }

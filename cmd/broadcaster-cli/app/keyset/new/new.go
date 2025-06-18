@@ -1,7 +1,6 @@
 package new
 
 import (
-	"fmt"
 	"log/slog"
 
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
@@ -12,15 +11,11 @@ import (
 )
 
 var (
-	logger *slog.Logger
-	Cmd    = &cobra.Command{
+	Cmd = &cobra.Command{
 		Use:   "new",
 		Short: "Create new key set",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			isTestnet, err := helper.GetBool("testnet")
-			if err != nil {
-				return err
-			}
+			isTestnet := helper.GetBool("testnet")
 
 			netCfg := chaincfg.MainNet
 			if isTestnet {
@@ -32,7 +27,11 @@ var (
 				return err
 			}
 
-			fmt.Println(newKeyset.GetMaster().String())
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
+
+			logger.Info("new keyset", slog.String("keyset", newKeyset.GetMaster().String()))
 			return nil
 		},
 	}
@@ -41,17 +40,17 @@ var (
 func init() {
 	var err error
 
-	logger = helper.GetLogger()
+	logger := helper.NewLogger("INFO", "tint")
 
 	Cmd.SetHelpFunc(func(command *cobra.Command, strings []string) {
 		// Hide unused persistent flags
 		err = command.Flags().MarkHidden("keyfile")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "keyfile"), slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("wocAPIKey")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "wocAPIKey"), slog.String("err", err.Error()))
 		}
 		// Call parent help func
 		command.Parent().HelpFunc()(command, strings)

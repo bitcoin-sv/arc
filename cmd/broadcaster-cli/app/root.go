@@ -1,6 +1,7 @@
 package app
 
 import (
+	"log"
 	"log/slog"
 	"os"
 
@@ -13,34 +14,55 @@ import (
 )
 
 var (
-	logger  *slog.Logger
 	RootCmd = &cobra.Command{
 		Use:   "broadcaster",
 		Short: "CLI tool to broadcast transactions to ARC",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			logLevel := helper.GetString("logLevel")
+			logFormat := helper.GetString("logFormat")
+			logger := helper.NewLogger(logLevel, logFormat)
+			if viper.ConfigFileUsed() != "" {
+				logger.Info("config file used", slog.String("filename", viper.ConfigFileUsed()))
+			}
+		},
 	}
 )
 
 func init() {
-	logger = helper.GetLogger()
+	logger := log.Default()
 	var err error
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
-		logger.Error("failed to bind flag testnet", slog.String("err", err.Error()))
+		logger.Printf("failed to bind flag testnet: %v", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "List of selected private keys")
 	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
-		logger.Error("failed to bind flag keys", slog.String("err", err.Error()))
+		logger.Printf("failed to bind flag keys: %v", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
 	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
 	if err != nil {
-		logger.Error("failed to bind flag wocAPIKey", slog.String("err", err.Error()))
+		logger.Printf("failed to bind flag wocAPIKey: %v", err)
+		os.Exit(1)
+	}
+
+	RootCmd.PersistentFlags().String("logLevel", "INFO", "mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR")
+	err = viper.BindPFlag("logLevel", RootCmd.PersistentFlags().Lookup("logLevel"))
+	if err != nil {
+		logger.Printf("failed to bind flag logLevel: %v", err)
+		os.Exit(1)
+	}
+
+	RootCmd.PersistentFlags().String("logFormat", "text", "format of logging. Value can be one of text | json | tint")
+	err = viper.BindPFlag("logFormat", RootCmd.PersistentFlags().Lookup("logFormat"))
+	if err != nil {
+		logger.Printf("failed to bind flag logFormat: %v", err)
 		os.Exit(1)
 	}
 
@@ -63,12 +85,8 @@ func init() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		logger.Error("failed to read config file", slog.String("err", err.Error()))
+		logger.Printf("failed to read config file: %v", err)
 		os.Exit(1)
-	}
-
-	if viper.ConfigFileUsed() != "" {
-		logger.Info("Config file used", slog.String("filename", viper.ConfigFileUsed()))
 	}
 
 	RootCmd.AddCommand(keyset.Cmd)

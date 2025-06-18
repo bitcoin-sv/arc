@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"net/url"
 
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 )
 
 var (
@@ -56,8 +57,13 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 		XWaitFor: &waitFor,
 	}
 
-	params.XCallbackUrl = &callbackURL
-	params.XCallbackToken = &callbackToken
+	if callbackURL != "" {
+		params.XCallbackUrl = &callbackURL
+	}
+
+	if callbackToken != "" {
+		params.XCallbackToken = &callbackToken
+	}
 	params.XFullStatusUpdates = &fullStatusUpdates
 	params.XSkipFeeValidation = &skipFeeValidation
 

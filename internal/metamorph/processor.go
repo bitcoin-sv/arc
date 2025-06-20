@@ -539,7 +539,7 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 						continue
 					}
 
-					competingTxIsMined, err := p.blocktxClient.GetCompetingTransactionStatuses(ctx, competingTxs)
+					competingTxIsMined, err := p.blocktxClient.IsCompetingTransactionMined(ctx, competingTxs)
 					if err != nil {
 						p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
 						continue

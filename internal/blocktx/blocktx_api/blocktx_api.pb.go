@@ -915,7 +915,7 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\aLONGEST\x10\n" +
 	"\x12\t\n" +
 	"\x05STALE\x10\x14\x12\f\n" +
-	"\bORPHANED\x10\x1e2\xb6\x05\n" +
+	"\bORPHANED\x10\x1e2\xb2\x05\n" +
 	"\n" +
 	"BlockTxAPI\x12?\n" +
 	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1b.blocktx_api.HealthResponse\"\x00\x12J\n" +
@@ -924,8 +924,8 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\x11VerifyMerkleRoots\x12+.blocktx_api.MerkleRootsVerificationRequest\x1a+.blocktx_api.MerkleRootVerificationResponse\"\x00\x12I\n" +
 	"\x13RegisterTransaction\x12\x18.blocktx_api.Transaction\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x14RegisterTransactions\x12\x19.blocktx_api.Transactions\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
-	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00\x12]\n" +
-	"\x1fGetCompetingTransactionStatuses\x12\x19.blocktx_api.CompetingTxs\x1a\x1d.blocktx_api.CompetingTxMined\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
+	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00\x12Y\n" +
+	"\x1bIsCompetingTransactionMined\x12\x19.blocktx_api.CompetingTxs\x1a\x1d.blocktx_api.CompetingTxMined\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
 
 var (
 	file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescOnce sync.Once
@@ -975,7 +975,7 @@ var file_internal_blocktx_blocktx_api_blocktx_api_proto_depIdxs = []int32{
 	7,  // 10: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
 	4,  // 11: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
 	17, // 12: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
-	8,  // 13: blocktx_api.BlockTxAPI.GetCompetingTransactionStatuses:input_type -> blocktx_api.CompetingTxs
+	8,  // 13: blocktx_api.BlockTxAPI.IsCompetingTransactionMined:input_type -> blocktx_api.CompetingTxs
 	2,  // 14: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
 	10, // 15: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
 	10, // 16: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
@@ -983,7 +983,7 @@ var file_internal_blocktx_blocktx_api_blocktx_api_proto_depIdxs = []int32{
 	17, // 18: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
 	17, // 19: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
 	11, // 20: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
-	1,  // 21: blocktx_api.BlockTxAPI.GetCompetingTransactionStatuses:output_type -> blocktx_api.CompetingTxMined
+	1,  // 21: blocktx_api.BlockTxAPI.IsCompetingTransactionMined:output_type -> blocktx_api.CompetingTxMined
 	14, // [14:22] is the sub-list for method output_type
 	6,  // [6:14] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name

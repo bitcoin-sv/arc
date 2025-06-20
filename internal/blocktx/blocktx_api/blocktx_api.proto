@@ -29,8 +29,8 @@ service BlockTxAPI {
   // CurrentBlockHeight returns current block height
   rpc CurrentBlockHeight (google.protobuf.Empty) returns (CurrentBlockHeightResponse) {}
 
-  // GetCompetingTransactionStatuses returns true if any of the transactions is mined
-  rpc GetCompetingTransactionStatuses(CompetingTxs) returns (CompetingTxMined) {}
+  // IsCompetingTransactionMined returns true if any of the transactions is mined
+  rpc IsCompetingTransactionMined(CompetingTxs) returns (CompetingTxMined) {}
 }
 
 message CompetingTxMined {

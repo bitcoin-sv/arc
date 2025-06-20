@@ -23,7 +23,7 @@ var (
 )
 
 type Client interface {
-	GetCompetingTransactionStatuses(ctx context.Context, hash [][]byte) (bool, error)
+	IsCompetingTransactionMined(ctx context.Context, hash [][]byte) (bool, error)
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
@@ -71,8 +71,8 @@ func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) erro
 	return nil
 }
 
-func (btc *BtxClient) GetCompetingTransactionStatuses(ctx context.Context, hash [][]byte) (bool, error) {
-	mined, err := btc.client.GetCompetingTransactionStatuses(ctx,
+func (btc *BtxClient) IsCompetingTransactionMined(ctx context.Context, hash [][]byte) (bool, error) {
+	mined, err := btc.client.IsCompetingTransactionMined(ctx,
 		&blocktx_api.CompetingTxs{
 			CompetingTxs: hash,
 		})

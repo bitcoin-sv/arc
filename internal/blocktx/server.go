@@ -110,7 +110,7 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 	return &emptypb.Empty{}, nil
 }
 
-func (s *Server) GetCompetingTransactionStatuses(ctx context.Context, req *blocktx_api.CompetingTxs) (*blocktx_api.CompetingTxMined, error) {
+func (s *Server) IsCompetingTransactionMined(ctx context.Context, req *blocktx_api.CompetingTxs) (*blocktx_api.CompetingTxMined, error) {
 	txs, err := s.store.GetMinedTransactions(ctx, req.CompetingTxs)
 	res := blocktx_api.CompetingTxMined{}
 	if err != nil {

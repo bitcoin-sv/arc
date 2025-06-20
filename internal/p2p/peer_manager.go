@@ -146,7 +146,7 @@ func (m *PeerManager) GetPeersForAnnouncement() []PeerI {
 	return sendToPeers
 }
 
-func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
+func (m *PeerManager) startMonitorPeerHealth(peer PeerI) { //nolint:revive //complexity is high due to the go func()
 	m.l.Info("Starting peer health monitoring", slog.String("peer", peer.String()))
 	m.execWg.Add(1)
 

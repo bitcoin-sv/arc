@@ -283,7 +283,7 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks() {
+func (p *Processor) StartProcessMinedCallbacks() { //nolint:revive //complexity is high due to the go func()
 	p.waitGroup.Add(1)
 	var txsBlocksBuffer []*blocktx_api.TransactionBlock
 	ticker := time.NewTicker(p.processMinedInterval)
@@ -377,18 +377,12 @@ func (p *Processor) StartProcessSubmitted() {
 
 		reqs := make([]*store.Data, 0, p.processTransactionsBatchSize)
 		for {
+			processTransactions := false
 			select {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				if len(reqs) > 0 {
-					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
-
-					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
-					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
-					ticker.Reset(p.processTransactionsInterval)
-				}
+				processTransactions = true
 			case submittedTx := <-p.submittedTxsChan:
 				if submittedTx == nil {
 					continue
@@ -414,20 +408,21 @@ func (p *Processor) StartProcessSubmitted() {
 				}
 
 				reqs = append(reqs, sReq)
-				if len(reqs) >= p.processTransactionsBatchSize {
-					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
-
-					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
-					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
-					ticker.Reset(p.processTransactionsInterval)
-				}
+			default:
+				continue
+			}
+			if len(reqs) >= 0 && (processTransactions || len(reqs) >= p.processTransactionsBatchSize) {
+				p.ProcessTransactions(p.ctx, reqs)
+				reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
+				// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
+				// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
+				ticker.Reset(p.processTransactionsInterval)
 			}
 		}
 	}()
 }
 
-func (p *Processor) StartSendStatusUpdate() {
+func (p *Processor) StartSendStatusUpdate() { //nolint:revive //complexity is high due to the go func()
 	p.waitGroup.Add(1)
 	go func() {
 		defer p.waitGroup.Done()

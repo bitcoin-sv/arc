@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -44,7 +44,7 @@ func (b *UTXOConsolidator) Wait() {
 	b.wg.Wait()
 }
 
-func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
+func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error { //nolint:revive //complexity is high due to the go func
 	submitBatchesPerMinute := float64(txsRateTxsPerMinute) / float64(b.batchSize)
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond
@@ -115,37 +115,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 					b.logger.Error("failed to broadcast consolidation txs", slog.String("err", err.Error()))
 					return
 				}
-
-				for _, res := range resp {
-					if res.Status != metamorph_api.Status_SEEN_ON_NETWORK &&
-						res.Status != metamorph_api.Status_ACCEPTED_BY_NETWORK &&
-						res.Status != metamorph_api.Status_SENT_TO_NETWORK {
-						b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
-						for _, tx := range batch {
-							if tx.TxID().String() == res.Txid {
-								b.logger.Debug(tx.String())
-								break
-							}
-						}
-						return
-					}
-					hash, err := chainhash.NewHashFromHex(res.Txid)
-					if err != nil {
-						b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
-						return
-					}
-
-					newUtxo := &sdkTx.UTXO{
-						TxID:          hash,
-						Vout:          0,
-						LockingScript: b.keySet.Script,
-						Satoshis:      satoshiMap[res.Txid],
-					}
-
-					delete(satoshiMap, res.Txid)
-
-					utxoSet.PushBack(newUtxo)
-				}
+				b.processBroadcastResponse(resp, batch, satoshiMap, utxoSet)
 			}
 		}
 	}()
@@ -239,4 +209,37 @@ func (b *UTXOConsolidator) Shutdown() {
 	b.cancelAll()
 
 	b.wg.Wait()
+}
+
+func (b *UTXOConsolidator) processBroadcastResponse(resp []*metamorph_api.TransactionStatus, batch sdkTx.Transactions, satoshiMap map[string]uint64, utxoSet *list.List) {
+	for _, res := range resp {
+		if res.Status != metamorph_api.Status_SEEN_ON_NETWORK &&
+			res.Status != metamorph_api.Status_ACCEPTED_BY_NETWORK &&
+			res.Status != metamorph_api.Status_SENT_TO_NETWORK {
+			b.logger.Error("consolidation tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
+			for _, tx := range batch {
+				if tx.TxID().String() == res.Txid {
+					b.logger.Debug(tx.String())
+					break
+				}
+			}
+			return
+		}
+		hash, err := chainhash.NewHashFromHex(res.Txid)
+		if err != nil {
+			b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+			return
+		}
+
+		newUtxo := &sdkTx.UTXO{
+			TxID:          hash,
+			Vout:          0,
+			LockingScript: b.keySet.Script,
+			Satoshis:      satoshiMap[res.Txid],
+		}
+
+		delete(satoshiMap, res.Txid)
+
+		utxoSet.PushBack(newUtxo)
+	}
 }

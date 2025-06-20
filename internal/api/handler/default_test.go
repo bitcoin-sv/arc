@@ -770,6 +770,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
 				WithRebroadcastExpiration(23*time.Hour),
+				WithServerMaxTimeoutDefault(5*time.Second),
 				WithTracer(tracer))
 			require.NoError(t, err)
 

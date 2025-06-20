@@ -110,6 +110,16 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 	return &emptypb.Empty{}, nil
 }
 
+func (s *Server) GetCompetingTransactionStatuses(ctx context.Context, req *blocktx_api.CompetingTxs) (*blocktx_api.CompetingTxMined, error) {
+	txs, err := s.store.GetMinedTransactions(ctx, req.CompetingTxs)
+	res := blocktx_api.CompetingTxMined{}
+	if err != nil {
+		return &res, err
+	}
+
+	return &blocktx_api.CompetingTxMined{Mined: len(txs) != 0}, nil
+}
+
 func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*blocktx_api.CurrentBlockHeightResponse, error) {
 	height, err := s.processor.CurrentBlockHeight()
 	return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: height}, err

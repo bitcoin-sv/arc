@@ -23,6 +23,9 @@ var _ blocktx.Client = &ClientMock{}
 //			CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 //				panic("mock out the CurrentBlockHeight method")
 //			},
+//			GetCompetingTransactionStatusesFunc: func(ctx context.Context, hash [][]byte) (bool, error) {
+//				panic("mock out the GetCompetingTransactionStatuses method")
+//			},
 //			RegisterTransactionFunc: func(ctx context.Context, hash []byte) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -42,6 +45,9 @@ type ClientMock struct {
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
 
+	// GetCompetingTransactionStatusesFunc mocks the GetCompetingTransactionStatuses method.
+	GetCompetingTransactionStatusesFunc func(ctx context.Context, hash [][]byte) (bool, error)
+
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, hash []byte) error
 
@@ -57,6 +63,13 @@ type ClientMock struct {
 		CurrentBlockHeight []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// GetCompetingTransactionStatuses holds details about calls to the GetCompetingTransactionStatuses method.
+		GetCompetingTransactionStatuses []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash [][]byte
 		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
@@ -80,10 +93,11 @@ type ClientMock struct {
 			MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
 		}
 	}
-	lockCurrentBlockHeight   sync.RWMutex
-	lockRegisterTransaction  sync.RWMutex
-	lockRegisterTransactions sync.RWMutex
-	lockVerifyMerkleRoots    sync.RWMutex
+	lockCurrentBlockHeight              sync.RWMutex
+	lockGetCompetingTransactionStatuses sync.RWMutex
+	lockRegisterTransaction             sync.RWMutex
+	lockRegisterTransactions            sync.RWMutex
+	lockVerifyMerkleRoots               sync.RWMutex
 }
 
 // CurrentBlockHeight calls CurrentBlockHeightFunc.
@@ -115,6 +129,42 @@ func (mock *ClientMock) CurrentBlockHeightCalls() []struct {
 	mock.lockCurrentBlockHeight.RLock()
 	calls = mock.calls.CurrentBlockHeight
 	mock.lockCurrentBlockHeight.RUnlock()
+	return calls
+}
+
+// GetCompetingTransactionStatuses calls GetCompetingTransactionStatusesFunc.
+func (mock *ClientMock) GetCompetingTransactionStatuses(ctx context.Context, hash [][]byte) (bool, error) {
+	if mock.GetCompetingTransactionStatusesFunc == nil {
+		panic("ClientMock.GetCompetingTransactionStatusesFunc: method is nil but Client.GetCompetingTransactionStatuses was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash [][]byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockGetCompetingTransactionStatuses.Lock()
+	mock.calls.GetCompetingTransactionStatuses = append(mock.calls.GetCompetingTransactionStatuses, callInfo)
+	mock.lockGetCompetingTransactionStatuses.Unlock()
+	return mock.GetCompetingTransactionStatusesFunc(ctx, hash)
+}
+
+// GetCompetingTransactionStatusesCalls gets all the calls that were made to GetCompetingTransactionStatuses.
+// Check the length with:
+//
+//	len(mockedClient.GetCompetingTransactionStatusesCalls())
+func (mock *ClientMock) GetCompetingTransactionStatusesCalls() []struct {
+	Ctx  context.Context
+	Hash [][]byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash [][]byte
+	}
+	mock.lockGetCompetingTransactionStatuses.RLock()
+	calls = mock.calls.GetCompetingTransactionStatuses
+	mock.lockGetCompetingTransactionStatuses.RUnlock()
 	return calls
 }
 

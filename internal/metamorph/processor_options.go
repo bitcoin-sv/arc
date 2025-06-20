@@ -91,6 +91,18 @@ func WithStatusUpdatesInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithDoubleSpendCheckInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.doubleSpendTxStatusCheck = d
+	}
+}
+
+func WithdoubleSpendTxStatusOlderThanInterval(d time.Duration) func(*Processor) {
+	return func(p *Processor) {
+		p.doubleSpendTxStatusOlderThan = d
+	}
+}
+
 func WithProcessTransactionsInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.processTransactionsInterval = d

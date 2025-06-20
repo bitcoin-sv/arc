@@ -43,8 +43,10 @@ const (
 	loadLimit                                = int64(50)
 	minimumHealthyConnectionsDefault         = 2
 
-	statusUpdatesIntervalDefault  = 500 * time.Millisecond
-	statusUpdatesBatchSizeDefault = 1000
+	statusUpdatesIntervalDefault        = 500 * time.Millisecond
+	doubleSpendTxStatusCheckDefault     = 10 * time.Second
+	doubleSpendTxStatusOlderThanDefault = 10 * time.Minute
+	statusUpdatesBatchSizeDefault       = 1000
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
@@ -93,6 +95,9 @@ type Processor struct {
 	storageStatusUpdateCh  chan store.UpdateStatus
 	statusUpdatesInterval  time.Duration
 	statusUpdatesBatchSize int
+
+	doubleSpendTxStatusCheck     time.Duration
+	doubleSpendTxStatusOlderThan time.Duration
 
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
@@ -172,6 +177,8 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		lockTransactionsInterval:          lockTransactionsIntervalDefault,
 		checkUnconfirmedSeenInterval:      checkUnconfirmedSeenIntervalDefault,
 		statusUpdatesInterval:             statusUpdatesIntervalDefault,
+		doubleSpendTxStatusCheck:          doubleSpendTxStatusCheckDefault,
+		doubleSpendTxStatusOlderThan:      doubleSpendTxStatusOlderThanDefault,
 		statusUpdatesBatchSize:            statusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:             make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
 		stats:                             newProcessorStats(),
@@ -499,6 +506,61 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 					// Reset ticker to delay the next tick, ensuring the interval starts after the batch is processed.
 					// This prevents unnecessary immediate updates and maintains the intended time interval between batches.
 					ticker.Reset(p.statusUpdatesInterval)
+				}
+			}
+		}
+	}()
+}
+
+func (p *Processor) StartProcessDoubleSpendTxs() {
+	ticker := time.NewTicker(p.doubleSpendTxStatusCheck)
+	p.waitGroup.Add(1)
+
+	ctx := p.ctx
+
+	go func() {
+		defer p.waitGroup.Done()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				doubleSpendTxs, err := p.store.GetDoubleSpendTxs(ctx, p.doubleSpendTxStatusOlderThan)
+				if err != nil {
+					p.logger.Error("failed to get double spend status transactions", slog.String("err", err.Error()))
+					continue
+				}
+
+				for _, doubleSpendTx := range doubleSpendTxs {
+					competingTxs, err := txBytesFromHex(doubleSpendTx.CompetingTxs)
+					if err != nil {
+						p.logger.Error("failed to convert competing txs from hex", slog.String("err", err.Error()))
+						continue
+					}
+
+					competingTxIsMined, err := p.blocktxClient.GetCompetingTransactionStatuses(ctx, competingTxs)
+					if err != nil {
+						p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
+						continue
+					}
+
+					// if ANY of those competing txs gets mined we reject this one
+					if competingTxIsMined {
+						_, err := p.store.UpdateDoubleSpend(ctx, []store.UpdateStatus{
+							{
+								Hash:         *doubleSpendTx.Hash,
+								Status:       metamorph_api.Status_REJECTED,
+								CompetingTxs: doubleSpendTx.CompetingTxs,
+								Timestamp:    p.now(),
+							},
+						}, false)
+						if err != nil {
+							p.logger.Error("failed to update double spend status", slog.String("err", err.Error()), slog.String("hash", doubleSpendTx.Hash.String()))
+						} else {
+							p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()))
+						}
+					}
 				}
 			}
 		}

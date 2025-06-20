@@ -29,6 +29,12 @@ service BlockTxAPI {
   // CurrentBlockHeight returns current block height
   rpc CurrentBlockHeight (google.protobuf.Empty) returns (CurrentBlockHeightResponse) {}
 
+  // GetCompetingTransactionStatuses returns true if any of the transactions is mined
+  rpc GetCompetingTransactionStatuses(CompetingTxs) returns (CompetingTxMined) {}
+}
+
+message CompetingTxMined {
+  bool mined = 1;
 }
 
 // swagger:model HealthResponse
@@ -79,6 +85,10 @@ message TransactionBlocks {
 // swagger:model Transaction
 message Transaction {
   bytes hash = 1; // Little endian
+}
+
+message CompetingTxs {
+  repeated bytes competingTxs = 1;
 }
 
 // swagger:model ClearData

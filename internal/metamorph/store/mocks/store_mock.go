@@ -34,6 +34,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.Data, error) {
 //				panic("mock out the Get method")
 //			},
+//			GetDoubleSpendTxsFunc: func(ctx context.Context, older time.Duration) ([]*store.Data, error) {
+//				panic("mock out the GetDoubleSpendTxs method")
+//			},
 //			GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
 //				panic("mock out the GetMany method")
 //			},
@@ -112,6 +115,9 @@ type MetamorphStoreMock struct {
 
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key []byte) (*store.Data, error)
+
+	// GetDoubleSpendTxsFunc mocks the GetDoubleSpendTxs method.
+	GetDoubleSpendTxsFunc func(ctx context.Context, older time.Duration) ([]*store.Data, error)
 
 	// GetManyFunc mocks the GetMany method.
 	GetManyFunc func(ctx context.Context, keys [][]byte) ([]*store.Data, error)
@@ -200,6 +206,13 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// Key is the key argument value.
 			Key []byte
+		}
+		// GetDoubleSpendTxs holds details about calls to the GetDoubleSpendTxs method.
+		GetDoubleSpendTxs []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Older is the older argument value.
+			Older time.Duration
 		}
 		// GetMany holds details about calls to the GetMany method.
 		GetMany []struct {
@@ -374,6 +387,7 @@ type MetamorphStoreMock struct {
 	lockClose                   sync.RWMutex
 	lockDel                     sync.RWMutex
 	lockGet                     sync.RWMutex
+	lockGetDoubleSpendTxs       sync.RWMutex
 	lockGetMany                 sync.RWMutex
 	lockGetRawTxs               sync.RWMutex
 	lockGetSeen                 sync.RWMutex
@@ -533,6 +547,42 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 	mock.lockGet.RLock()
 	calls = mock.calls.Get
 	mock.lockGet.RUnlock()
+	return calls
+}
+
+// GetDoubleSpendTxs calls GetDoubleSpendTxsFunc.
+func (mock *MetamorphStoreMock) GetDoubleSpendTxs(ctx context.Context, older time.Duration) ([]*store.Data, error) {
+	if mock.GetDoubleSpendTxsFunc == nil {
+		panic("MetamorphStoreMock.GetDoubleSpendTxsFunc: method is nil but MetamorphStore.GetDoubleSpendTxs was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Older time.Duration
+	}{
+		Ctx:   ctx,
+		Older: older,
+	}
+	mock.lockGetDoubleSpendTxs.Lock()
+	mock.calls.GetDoubleSpendTxs = append(mock.calls.GetDoubleSpendTxs, callInfo)
+	mock.lockGetDoubleSpendTxs.Unlock()
+	return mock.GetDoubleSpendTxsFunc(ctx, older)
+}
+
+// GetDoubleSpendTxsCalls gets all the calls that were made to GetDoubleSpendTxs.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.GetDoubleSpendTxsCalls())
+func (mock *MetamorphStoreMock) GetDoubleSpendTxsCalls() []struct {
+	Ctx   context.Context
+	Older time.Duration
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Older time.Duration
+	}
+	mock.lockGetDoubleSpendTxs.RLock()
+	calls = mock.calls.GetDoubleSpendTxs
+	mock.lockGetDoubleSpendTxs.RUnlock()
 	return calls
 }
 

@@ -2,8 +2,10 @@ package woc_client
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/bsv-blockchain/go-sdk/script"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -94,39 +96,66 @@ func Test_WithAuth(t *testing.T) {
 	}
 }
 
-func Test_GetUTXOs(t *testing.T) {
+func Test_GetUTXOsFromLocalhost(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
-	hash, err := chainhash.NewHashFromHex("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hashStr := "4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c"
+	hash, err := chainhash.NewHashFromHex(hashStr)
 	require.NoError(t, err)
+	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
+	wocScript, err := hex.DecodeString(lockingScriptStr)
+	require.NoError(t, err)
+	lockingScript := script.Script(wocScript)
 
 	tt := []struct {
-		name         string
-		responseOk   bool
-		responseBody any
-
+		name          string
+		address       string
+		responseOk    bool
+		responseBody  any
 		expectedError error
 		expected      sdkTx.UTXOs
 	}{
 		{
 			name:       "response OK",
+			address:    testnetAddr,
 			responseOk: true,
-			responseBody: []*wocUtxo{
-				{
-					Txid:     "4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c",
-					Vout:     1,
-					Height:   2,
-					Satoshis: 4,
+			responseBody: wocResponse{
+				Address: testnetAddr,
+				Script:  lockingScriptStr,
+				Result: []wocUtxo{
+					{
+						Txid:     hashStr,
+						Vout:     1,
+						Height:   2,
+						Satoshis: 4,
+						Status:   "confirmed",
+					},
+					{
+						Txid:     hashStr,
+						Vout:     2,
+						Height:   2,
+						Satoshis: 4,
+						Status:   "confirmed",
+					},
 				},
 			},
 
-			expected: sdkTx.UTXOs{{
-				TxID:     hash,
-				Vout:     1,
-				Satoshis: 4,
-			}},
+			expected: sdkTx.UTXOs{
+				{
+					TxID:          hash,
+					Vout:          1,
+					Satoshis:      4,
+					LockingScript: &lockingScript,
+				},
+				{
+					TxID:          hash,
+					Vout:          2,
+					Satoshis:      4,
+					LockingScript: &lockingScript,
+				},
+			},
 		},
 		{
 			name:       "response not OK",
@@ -163,7 +192,7 @@ func Test_GetUTXOs(t *testing.T) {
 			sut := New(false, WithURL(svr.URL))
 
 			// when
-			actual, err := sut.GetUTXOs(context.TODO(), nil, testnetAddr)
+			actual, err := sut.GetUTXOs(context.TODO(), tc.address)
 
 			// then
 			if tc.expectedError != nil {
@@ -172,7 +201,6 @@ func Test_GetUTXOs(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-
 			require.Equal(t, tc.expected, actual)
 		})
 	}

@@ -27,6 +27,7 @@ const (
 	BlockTxAPI_RegisterTransaction_FullMethodName         = "/blocktx_api.BlockTxAPI/RegisterTransaction"
 	BlockTxAPI_RegisterTransactions_FullMethodName        = "/blocktx_api.BlockTxAPI/RegisterTransactions"
 	BlockTxAPI_CurrentBlockHeight_FullMethodName          = "/blocktx_api.BlockTxAPI/CurrentBlockHeight"
+	BlockTxAPI_IsCompetingTransactionMined_FullMethodName = "/blocktx_api.BlockTxAPI/IsCompetingTransactionMined"
 )
 
 // BlockTxAPIClient is the client API for BlockTxAPI service.
@@ -47,6 +48,8 @@ type BlockTxAPIClient interface {
 	RegisterTransactions(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// CurrentBlockHeight returns current block height
 	CurrentBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentBlockHeightResponse, error)
+	// IsCompetingTransactionMined returns true if any of the transactions is mined
+	IsCompetingTransactionMined(ctx context.Context, in *CompetingTxs, opts ...grpc.CallOption) (*CompetingTxMined, error)
 }
 
 type blockTxAPIClient struct {
@@ -127,6 +130,16 @@ func (c *blockTxAPIClient) CurrentBlockHeight(ctx context.Context, in *emptypb.E
 	return out, nil
 }
 
+func (c *blockTxAPIClient) IsCompetingTransactionMined(ctx context.Context, in *CompetingTxs, opts ...grpc.CallOption) (*CompetingTxMined, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompetingTxMined)
+	err := c.cc.Invoke(ctx, BlockTxAPI_IsCompetingTransactionMined_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockTxAPIServer is the server API for BlockTxAPI service.
 // All implementations must embed UnimplementedBlockTxAPIServer
 // for forward compatibility.
@@ -145,6 +158,8 @@ type BlockTxAPIServer interface {
 	RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error)
 	// CurrentBlockHeight returns current block height
 	CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error)
+	// IsCompetingTransactionMined returns true if any of the transactions is mined
+	IsCompetingTransactionMined(context.Context, *CompetingTxs) (*CompetingTxMined, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
 }
 
@@ -175,6 +190,9 @@ func (UnimplementedBlockTxAPIServer) RegisterTransactions(context.Context, *Tran
 }
 func (UnimplementedBlockTxAPIServer) CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CurrentBlockHeight not implemented")
+}
+func (UnimplementedBlockTxAPIServer) IsCompetingTransactionMined(context.Context, *CompetingTxs) (*CompetingTxMined, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IsCompetingTransactionMined not implemented")
 }
 func (UnimplementedBlockTxAPIServer) mustEmbedUnimplementedBlockTxAPIServer() {}
 func (UnimplementedBlockTxAPIServer) testEmbeddedByValue()                    {}
@@ -323,6 +341,24 @@ func _BlockTxAPI_CurrentBlockHeight_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_IsCompetingTransactionMined_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompetingTxs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).IsCompetingTransactionMined(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_IsCompetingTransactionMined_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).IsCompetingTransactionMined(ctx, req.(*CompetingTxs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BlockTxAPI_ServiceDesc is the grpc.ServiceDesc for BlockTxAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -357,6 +393,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CurrentBlockHeight",
 			Handler:    _BlockTxAPI_CurrentBlockHeight_Handler,
+		},
+		{
+			MethodName: "IsCompetingTransactionMined",
+			Handler:    _BlockTxAPI_IsCompetingTransactionMined_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

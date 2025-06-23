@@ -592,7 +592,7 @@ func (m *ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields)
 			}
 			txsHex = remainingBytes
 
-			txIDs = append(txIDs, beef.GetLatestTx(beefTx).TxID().String())
+			txIDs = append(txIDs, beefTx.GetValidTxids()...)
 		} else {
 			transaction, bytesUsed, err := sdkTx.NewTransactionFromStream(txsHex)
 			if err != nil {
@@ -682,7 +682,8 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 			}
 
 			submittedTxs = append(submittedTxs, appendedMinedTxs(beefTx)...)
-			txIDs = append(txIDs, beef.GetLatestTx(beefTx).TxID().String())
+
+			txIDs = append(txIDs, beefTx.GetValidTxids()...)
 			continue
 		}
 

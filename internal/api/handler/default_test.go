@@ -21,10 +21,11 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
+
 	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -112,7 +113,8 @@ func TestNewDefault(t *testing.T) {
 				}, nil
 			},
 		}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -133,7 +135,8 @@ func TestGETPolicy(t *testing.T) {
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -181,7 +184,8 @@ func TestGETHealth(t *testing.T) {
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -221,7 +225,8 @@ func TestGETHealth(t *testing.T) {
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -378,7 +383,8 @@ func TestGETTransactionStatus(t *testing.T) {
 					}, nil
 				},
 			}
-			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			chainTrackerMock := &apimocks.ChainTrackerMock{}
+			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -765,7 +771,9 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			urlRestrictions := []string{"skiptest"}
 			tracer := attribute.KeyValue{Key: "testnet", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, scriptVerifierMock, GenesisForkBlockTest,
+
+			chainTrackerMock := &apimocks.ChainTrackerMock{}
+			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock,
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
@@ -834,7 +842,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -870,7 +880,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -911,7 +924,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -942,7 +956,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -1012,7 +1027,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -1076,7 +1092,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -1129,7 +1146,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				}, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -1198,7 +1216,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1293,7 +1312,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1375,8 +1395,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
 
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		// when
@@ -1663,7 +1684,9 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 				}, nil
 			},
 		}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		defaultHandler.StartUpdateCurrentBlockHeight()
 		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
 		require.NoError(t, err)

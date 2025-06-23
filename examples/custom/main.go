@@ -14,15 +14,17 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	middleware "github.com/oapi-codegen/echo-middleware"
 
+	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
+
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
+	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 // This example does not use the configuration files or env variables,
@@ -110,7 +112,9 @@ func main() {
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock)
+
+	chainTrackerMock := &apimocks.ChainTrackerMock{}
+	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock, chainTrackerMock)
 	if err != nil {
 		panic(err)
 	}

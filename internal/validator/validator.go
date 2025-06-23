@@ -5,8 +5,6 @@ import (
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/bitcoin-sv/arc/internal/beef"
 )
 
 type FeeValidation byte
@@ -31,5 +29,5 @@ type DefaultValidator interface {
 }
 
 type BeefValidator interface {
-	ValidateTransaction(ctx context.Context, b *beef.BEEF, feeValidation FeeValidation, scriptValidation ScriptValidation) (*sdkTx.Transaction, error)
+	ValidateTransaction(ctx context.Context, b *sdkTx.Beef, feeValidation FeeValidation, scriptValidation ScriptValidation) error
 }

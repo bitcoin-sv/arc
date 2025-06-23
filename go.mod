@@ -1,11 +1,11 @@
 module github.com/bitcoin-sv/arc
 
-go 1.24.1
+go 1.24.4
 
 require (
 	github.com/bitcoin-sv/bdk/module/gobdk v1.2.0-beta8
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
-	github.com/bsv-blockchain/go-sdk v1.1.22
+	github.com/bsv-blockchain/go-sdk v1.2.1
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/cenkalti/backoff/v4 v4.3.0
@@ -24,7 +24,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.6.5
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/labstack/echo-contrib v0.17.2
-	github.com/labstack/echo/v4 v4.13.3
+	github.com/labstack/echo/v4 v4.13.4
 	github.com/lib/pq v1.10.9
 	github.com/libsv/go-bc v0.1.29
 	github.com/libsv/go-p2p v0.3.3
@@ -48,8 +48,8 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
-	golang.org/x/net v0.38.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/net v0.40.0
+	golang.org/x/sync v0.15.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
@@ -177,13 +177,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
-	golang.org/x/time v0.10.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/api v0.220.0 // indirect
 	google.golang.org/genproto v0.0.0-20250204164813-702378808489 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250204164813-702378808489 // indirect

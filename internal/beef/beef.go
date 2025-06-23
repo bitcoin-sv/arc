@@ -2,14 +2,13 @@ package beef
 
 import (
 	"errors"
+	"fmt"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 )
 
 const (
 	beefVersionBytesCount = 4
-	//hashBytesCount        = 32
-	//maxTreeHeight         = 64
 )
 
 const (
@@ -17,17 +16,10 @@ const (
 	beefMarkerPart2 = 0xEF
 )
 
-//const (
-//	hasNoBump = 0x00
-//	hasBump   = 0x01
-//)
-
 var (
-	//ErrBEEFNoBytesProvided = errors.New("cannot decode BEEF - no bytes provided")
-	//ErrBEEFLackOfBUMPs     = errors.New("cannot decode BEEF - lack of BUMPs")
-	//ErrBEEFNotEnoughTx     = errors.New("invalid BEEF - not enough transactions provided to decode BEEF")
-	//ErrBEEFNoBUMPIndex     = errors.New("invalid BEEF - HasBUMP flag set, but no BUMP index")
 	ErrBEEFNoMarker = errors.New("invalid format of transaction, BEEF marker not found")
+	ErrBEEFPanic    = errors.New("panic while parsing beef")
+	ErrBEEFParse    = errors.New("failed to parse beef")
 )
 
 func CheckBeefFormat(txHex []byte) bool {
@@ -42,10 +34,16 @@ func CheckBeefFormat(txHex []byte) bool {
 	return true
 }
 
-func DecodeBEEF(beefHex []byte) (*sdkTx.Beef, []byte, error) {
+func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, remainingBytest []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Join(ErrBEEFPanic, fmt.Errorf("%v", r))
+		}
+	}()
+
 	beef, err := sdkTx.NewBeefFromBytes(beefHex)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Join(ErrBEEFParse, err)
 	}
 
 	remainingBytes, err := extractBytesWithoutVersionAndMarker(beefHex)

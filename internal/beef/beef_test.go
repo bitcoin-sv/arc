@@ -62,27 +62,27 @@ func TestDecodeBEEF(t *testing.T) {
 		{
 			name:          "DecodeBEEF - rawTx",
 			beef:          rawTx,
-			expectedError: ErrBEEFNoMarker,
+			expectedError: ErrBEEFParse,
 		},
 		{
-			name: "DecodeBEEF - empty BUMPs",
-			beef: emptyBumps,
-			//expectedError: ErrBEEFLackOfBUMPs,
+			name:          "DecodeBEEF - empty BUMPs",
+			beef:          emptyBumps,
+			expectedError: ErrBEEFPanic,
 		},
 		{
-			name: "DecodeBEEF - without  BUMPs",
-			beef: withoutBumps,
-			//expectedError: ErrBEEFLackOfBUMPs,
+			name:          "DecodeBEEF - without  BUMPs",
+			beef:          withoutBumps,
+			expectedError: ErrBEEFPanic,
 		},
 		{
-			name: "DecodeBEEF - without  input parent transactions",
-			beef: withoutParents,
-			//expectedError: ErrBEEFNotEnoughTx,
+			name:          "DecodeBEEF - without  input parent transactions",
+			beef:          withoutParents,
+			expectedError: ErrBEEFPanic,
 		},
 		{
-			name: "DecodeBEEF - with a bump marker bo no bump index",
-			beef: withBumpMarkerButNoIndex,
-			//expectedError: ErrBEEFNoBUMPIndex,
+			name:          "DecodeBEEF - with a bump marker bo no bump index",
+			beef:          withBumpMarkerButNoIndex,
+			expectedError: ErrBEEFParse,
 		},
 	}
 

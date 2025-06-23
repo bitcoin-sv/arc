@@ -116,10 +116,16 @@ func TestValidateScripts(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			actualError := validateScripts(beefTx, beefTx.Transactions["9bd88dab500b0fcd25de9ac046e80a7be1a13b4c65f0d78ff4d245c4dd67ebec"])
+			for _, tx := range beefTx.Transactions {
+				actualError := validateScripts(beefTx, tx)
+				if err != nil {
+					require.ErrorIs(t, actualError.Err, tc.expectedError)
+					return
+				}
 
-			// then
-			assert.ErrorIs(t, actualError, tc.expectedError)
+				require.Nil(t, actualError)
+
+			}
 		})
 	}
 }

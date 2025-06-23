@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	ErrBEEFInvalid = errors.New("invalid BEEF")
+	ErrBEEFInvalid            = errors.New("invalid BEEF")
+	ErrBEEFVerificationFailed = errors.New("BEEF verification failed")
 )
 
 type ChainTracker interface {
@@ -37,32 +38,33 @@ func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
 
 func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error {
 	if !beefTx.IsValid(false) {
-		return ErrBEEFInvalid
+		return validator.NewError(ErrBEEFInvalid, api.ErrStatusMalformed)
 	}
 
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 
 		// check if is mined
-		if btx.BumpIndex != 0 {
+		if btx.DataFormat != sdkTx.RawTx {
 			continue
 		}
 
 		tx := btx.Transaction
 
-		if err := validator.CommonValidateTransaction(v.policy, tx); err != nil {
+		err := validator.CommonValidateTransaction(v.policy, tx)
+		if err != nil {
 			return err
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			err := standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
+			err = standardCheckFees(beefTx, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
 			if err != nil {
 				return err
 			}
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			err := validateScripts(beefTx, btx)
+			err = validateScripts(beefTx, btx)
 			if err != nil {
 				return err
 			}
@@ -77,24 +79,23 @@ func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, f
 	}
 
 	// verify with chain tracker
-	ok, vErr := beefTx.Verify(v.chainTracker, false)
-	if vErr != nil {
-		return vErr
+	ok, err := beefTx.Verify(v.chainTracker, false)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
 	}
 
 	if !ok {
-		return ErrBEEFInvalid
+		return validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusValidatingMerkleRoots)
 	}
 
 	return nil
 }
 
-func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
+func standardCheckFees(beefTx *sdkTx.Beef, tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
 	expectedFees, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)
 	}
-
 	outputSatoshis := tx.TotalOutputSatoshis()
 	inputSatoshis, err := tx.TotalInputSatoshis()
 	if err != nil {
@@ -152,10 +153,11 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 
 func validateScripts(beef *sdkTx.Beef, beefTx *sdkTx.BeefTx) *validator.Error {
 	for i, input := range beefTx.Transaction.Inputs {
-		inputTx, ok := beef.Transactions[input.String()]
+		inputTxID := input.SourceTXID.String()
+		inputTx, ok := beef.Transactions[inputTxID]
 
 		if !ok {
-			continue
+			return validator.NewError(errors.New("invalid script"), api.ErrStatusUnlockingScripts)
 		}
 		err := checkScripts(beefTx.Transaction, inputTx.Transaction, i)
 		if err != nil {

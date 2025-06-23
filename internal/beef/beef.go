@@ -41,7 +41,7 @@ func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, remainingBytest []byte, err err
 		}
 	}()
 
-	beef, err := sdkTx.NewBeefFromBytes(beefHex)
+	beef, _, _, err := sdkTx.ParseBeef(beefHex)
 	if err != nil {
 		return nil, nil, errors.Join(ErrBEEFParse, err)
 	}

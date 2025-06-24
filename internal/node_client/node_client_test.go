@@ -72,7 +72,7 @@ func testmain(m *testing.M) int {
 }
 
 func setup() {
-	log.Printf("init tests")
+	log.Println("init tests")
 
 	var err error
 	bitcoind, err = bitcoin.New(host, hostPort, user, password, false)

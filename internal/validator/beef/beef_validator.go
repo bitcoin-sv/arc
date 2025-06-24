@@ -38,14 +38,13 @@ func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
 	}
 }
 
-func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error {
 func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, txID string, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
-	var err error
+	var vErr *validator.Error
 	var spanErr error
 	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
 	defer func() {
-		if err != nil {
-			spanErr = err
+		if vErr != nil {
+			spanErr = vErr.Err
 		}
 		tracing.EndTracing(span, spanErr)
 	}()
@@ -64,38 +63,38 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 
 		tx := btx.Transaction
 
-		err := validator.CommonValidateTransaction(v.policy, tx)
-		if err != nil {
-			return err
+		vErr = validator.CommonValidateTransaction(v.policy, tx)
+		if vErr != nil {
+			return vErr
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			err = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
-			if err != nil {
-				return err
+			vErr = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
+			if vErr != nil {
+				return vErr
 			}
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			err = validateScripts(beefTx, btx)
-			if err != nil {
-				return err
+			vErr = validateScripts(beefTx, btx)
+			if vErr != nil {
+				return vErr
 			}
 		}
 	}
 
 	if feeValidation == validator.CumulativeFeeValidation {
-		err := cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
-		if err != nil {
-			return err
+		vErr = cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
+		if vErr != nil {
+			return vErr
 		}
 	}
 
 	// verify with chain tracker
-	var ok bool
-	ok, err = beefTx.Verify(v.chainTracker, false)
+	ok, err := beefTx.Verify(v.chainTracker, false)
 	if err != nil {
-		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+		vErr = validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+		return vErr
 	}
 
 	if !ok {

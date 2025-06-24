@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"encoding/hex"
 	"log/slog"
 	"time"
 
@@ -115,6 +116,14 @@ func (s *Server) IsCompetingTransactionMined(ctx context.Context, req *blocktx_a
 	res := blocktx_api.CompetingTxMined{}
 	if err != nil {
 		return &res, err
+	}
+
+	s.logger.Info("shota blocktx checking mined 2")
+	for _, v := range txs {
+		s.logger.Info("shota blocktx 2", hex.EncodeToString(v.TxHash))
+	}
+	for _, v := range req.CompetingTxs {
+		s.logger.Info("shota blocktx 22", hex.EncodeToString(v), len(txs))
 	}
 
 	return &blocktx_api.CompetingTxMined{Mined: len(txs) != 0}, nil

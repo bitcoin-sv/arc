@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -251,6 +252,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartRoutine(p.checkUnconfirmedSeenInterval, RejectUnconfirmedRequested, "RejectUnconfirmedRequested")
 
 	p.StartProcessStatusUpdatesInStorage()
+	p.StartProcessDoubleSpendTxs()
 	p.StartProcessMinedCallbacks()
 	if statsEnabled {
 		err = p.StartCollectStats()
@@ -526,12 +528,14 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
+				p.logger.Info("shota Checking for double spend transactions")
 				doubleSpendTxs, err := p.store.GetDoubleSpendTxs(ctx, p.doubleSpendTxStatusOlderThan)
 				if err != nil {
 					p.logger.Error("failed to get double spend status transactions", slog.String("err", err.Error()))
 					continue
 				}
 
+				p.logger.Info("shota 1", strconv.Itoa(len(doubleSpendTxs)))
 				for _, doubleSpendTx := range doubleSpendTxs {
 					competingTxs, err := txBytesFromHex(doubleSpendTx.CompetingTxs)
 					if err != nil {
@@ -546,6 +550,7 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 					}
 
 					// if ANY of those competing txs gets mined we reject this one
+					p.logger.Info("shota 3", competingTxIsMined)
 					if competingTxIsMined {
 						_, err := p.store.UpdateDoubleSpend(ctx, []store.UpdateStatus{
 							{

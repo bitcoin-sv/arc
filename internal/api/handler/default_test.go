@@ -1161,6 +1161,100 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 	})
 
+	t.Run("2 valid tx - beef", func(t *testing.T) {
+		// given
+		txResults := []*metamorph.TransactionStatus{
+			{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+			{
+				TxID:        validTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+		}
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mtmMocks.TransactionHandlerMock{
+			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
+				return []*metamorph.Transaction{
+					{
+						TxID:        tx.TxID().String(),
+						Bytes:       validTxParentBytes,
+						BlockHeight: 100,
+					},
+				}, nil
+			},
+			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				var res []*metamorph.TransactionStatus
+				for _, t := range txs {
+					txID := t.TxID()
+					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+						res = append(res, status)
+					}
+				}
+
+				return res, nil
+			},
+
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
+			},
+
+			HealthFunc: func(_ context.Context) error {
+				return nil
+			},
+		}
+
+		blocktxClient := &btxMocks.ClientMock{}
+
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+			return nil
+		}}
+		scriptVerifierMock := &apimocks.ScriptVerifierMock{
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
+				return nil
+			},
+		}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+				return true, nil
+			},
+		}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		require.NoError(t, err)
+
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			// when
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse []api.TransactionResponse
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Len(t, bResponse, 2)
+			require.Equal(t, validBeefTxID, bResponse[0].Txid)
+			require.Equal(t, validBeefTxID, bResponse[1].Txid)
+		}
+	})
+
 	t.Run("multiple formats - success", func(t *testing.T) {
 		// given
 		txResults := []*metamorph.TransactionStatus{

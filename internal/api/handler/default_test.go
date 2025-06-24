@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -732,7 +733,11 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			tracer := attribute.KeyValue{Key: "testnet", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
 
-			chainTrackerMock := &apimocks.ChainTrackerMock{}
+			chainTrackerMock := &apimocks.ChainTrackerMock{
+				IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+					return true, nil
+				},
+			}
 			sut, err := NewDefault(testLogger, txHandler, blocktxClient, &policy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock,
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),

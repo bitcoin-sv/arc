@@ -684,13 +684,6 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
 			}
 
-			v := beefValidator.New(m.NodePolicy, m.chainTracker)
-			arcError := m.validateBEEFTransaction(ctx, v, beefTx, options)
-			if arcError != nil {
-				fails = append(fails, arcError)
-				continue
-			}
-
 			beefBytes, err := beefTx.Bytes()
 			if err != nil {
 				errStr := errors.Join(ErrBeefByteSlice, err).Error()
@@ -699,6 +692,13 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 
 			bytesUsed := len(beefBytes)
 			txsHex = txsHex[bytesUsed:]
+
+			v := beefValidator.New(m.NodePolicy, m.chainTracker)
+			arcError := m.validateBEEFTransaction(ctx, v, beefTx, options)
+			if arcError != nil {
+				fails = append(fails, arcError)
+				continue
+			}
 
 			submittedTxs = append(submittedTxs, appendedMinedTxs(beefTx)...)
 

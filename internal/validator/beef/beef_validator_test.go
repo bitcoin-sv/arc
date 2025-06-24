@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
@@ -114,15 +115,18 @@ func TestValidateScripts(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			for _, tx := range beefTx.Transactions {
-				actualError := validateScripts(beefTx, tx)
-				if err != nil {
-					require.ErrorIs(t, actualError.Err, tc.expectedError)
+			for _, btx := range beefTx.Transactions {
+				if btx.DataFormat != sdkTx.RawTx {
+					continue
+				}
+
+				actualError := validateScripts(beefTx, btx)
+				if tc.expectedError != nil {
+					require.Equal(t, actualError, tc.expectedError)
 					return
 				}
 
 				require.Nil(t, actualError)
-
 			}
 		})
 	}

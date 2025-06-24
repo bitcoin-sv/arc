@@ -19,7 +19,7 @@ import (
 
 var (
 	ErrBEEFInvalid            = errors.New("invalid BEEF")
-	ErrBEEFVerificationFailed = errors.New("BEEF verification failed")
+	ErrBEEFVerificationFailed = errors.New("BEEF validation failed")
 )
 
 type ChainTracker interface {
@@ -93,12 +93,12 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	// verify with chain tracker
 	ok, err := beefTx.Verify(v.chainTracker, false)
 	if err != nil {
-		vErr = validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
+		vErr = validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
 		return vErr
 	}
 
 	if !ok {
-		return validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusValidatingMerkleRoots)
+		return validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 
 	return nil

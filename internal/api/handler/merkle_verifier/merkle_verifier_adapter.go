@@ -2,25 +2,24 @@ package merkle_verifier
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/ccoveille/go-safecast"
 
-	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 )
 
+var (
+	ErrVerifyMerkleRoots = errors.New("failed to verify merkle roots")
+)
+
 type MerkleVerifier struct {
-	v blocktx.MerkleRootsVerifier
+	verifier blocktx.MerkleRootsVerifier
 }
 
 func New(v blocktx.MerkleRootsVerifier) MerkleVerifier {
-	return MerkleVerifier{v: v}
-}
-
-func (a MerkleVerifier) Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error) {
-	blocktxReq := mapToBlocktxMerkleVerRequest(request)
-	return a.v.VerifyMerkleRoots(ctx, blocktxReq)
+	return MerkleVerifier{verifier: v}
 }
 
 func (a MerkleVerifier) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
@@ -33,9 +32,9 @@ func (a MerkleVerifier) IsValidRootForHeight(root *chainhash.Hash, height uint32
 
 	blocktxReq := []blocktx.MerkleRootVerificationRequest{{MerkleRoot: root.String(), BlockHeight: heightUint64}}
 
-	unverifiedBlockHeights, err := a.v.VerifyMerkleRoots(ctx, blocktxReq)
+	unverifiedBlockHeights, err := a.verifier.VerifyMerkleRoots(ctx, blocktxReq)
 	if err != nil {
-		return false, err
+		return false, errors.Join(ErrVerifyMerkleRoots, err)
 	}
 
 	if len(unverifiedBlockHeights) == 0 {
@@ -43,17 +42,4 @@ func (a MerkleVerifier) IsValidRootForHeight(root *chainhash.Hash, height uint32
 	}
 
 	return false, nil
-}
-
-func mapToBlocktxMerkleVerRequest(mrReq []beef.MerkleRootVerificationRequest) []blocktx.MerkleRootVerificationRequest {
-	merkleRoots := make([]blocktx.MerkleRootVerificationRequest, 0, len(mrReq))
-
-	for _, mr := range mrReq {
-		merkleRoots = append(merkleRoots, blocktx.MerkleRootVerificationRequest{
-			BlockHeight: mr.BlockHeight,
-			MerkleRoot:  mr.MerkleRoot,
-		})
-	}
-
-	return merkleRoots
 }

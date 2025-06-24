@@ -1130,7 +1130,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+				return true, nil
+			},
+		}
 		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
@@ -1218,7 +1222,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+				return true, nil
+			},
+		}
 		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
@@ -1241,6 +1249,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
+			require.Len(t, bResponse, 2)
 			require.Equal(t, validBeefTxID, bResponse[0].Txid)
 			require.Equal(t, validTxID, bResponse[1].Txid)
 		}
@@ -1281,6 +1290,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
 				return txResults, nil
 			},
+			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				return txResults, nil
+			},
 		}
 
 		blocktxClient := &btxMocks.ClientMock{}
@@ -1292,7 +1304,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+				return true, nil
+			},
+		}
 
 		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
@@ -1313,6 +1329,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		var bResponse []api.TransactionResponse
 		_ = json.Unmarshal(b, &bResponse)
 
+		require.Len(t, bResponse, 2)
 		require.Equal(t, validBeefTxID, bResponse[0].Txid)
 		require.Equal(t, validTxID, bResponse[1].Txid)
 	})

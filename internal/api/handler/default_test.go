@@ -734,7 +734,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			require.NoError(t, err)
 
 			chainTrackerMock := &apimocks.ChainTrackerMock{
-				IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+				IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
 					return true, nil
 				},
 			}
@@ -1132,7 +1132,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
 				return true, nil
 			},
 		}
@@ -1224,7 +1224,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
 				return true, nil
 			},
 		}
@@ -1318,7 +1318,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
 				return true, nil
 			},
 		}
@@ -1385,7 +1385,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
 				return txResults, nil
 			},
-			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
 				return txResults, nil
 			},
 		}
@@ -1400,7 +1400,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
 				return true, nil
 			},
 		}

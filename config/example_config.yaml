@@ -53,8 +53,8 @@ metamorph:
       sslMode: disable
   maxRetries: 1000 # maximum number of times a transaction is re-announced
   statusUpdateInterval: 5s # interval of processing status updates
-  doubleSpendTxStatusOlderThanInterval: 10m # time interval after which double spend transactions are considered to be old checked
-  doubleSpendCheckInterval: 10s # interval of checking for double spends and marking if competing mined
+  doubleSpendTxStatusOlderThanInterval: 10m # time interval after which double spend transactions are considered to be old and checked
+  doubleSpendCheckInterval: 10s # interval of checking for double spends and marking as rejected if competing mined
   reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
   reAnnounceSeen:
     pendingSince: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted

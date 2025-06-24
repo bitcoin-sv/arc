@@ -1046,7 +1046,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid tx - beef", func(t *testing.T) {
 		// given
-		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
+		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\nfailed to parse beef\ncould not read varint type: EOF")
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {

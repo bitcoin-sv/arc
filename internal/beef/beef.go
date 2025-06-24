@@ -49,20 +49,12 @@ func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, err error) {
 	return beef, nil
 }
 
-func GetLatestTx(d *sdkTx.Beef) *sdkTx.Transaction {
+func GetUnminedTx(d *sdkTx.Beef) *sdkTx.Transaction {
 	for _, beefTx := range d.Transactions {
-		if beefTx.BumpIndex == 0 {
+		if beefTx.DataFormat == sdkTx.RawTx {
 			return beefTx.Transaction
 		}
 	}
 
 	return nil
-}
-
-func extractBytesWithoutVersionAndMarker(beefBytes []byte) ([]byte, error) {
-	if !CheckBeefFormat(beefBytes) {
-		return nil, ErrBEEFNoMarker
-	}
-
-	return beefBytes[beefVersionBytesCount:], nil
 }

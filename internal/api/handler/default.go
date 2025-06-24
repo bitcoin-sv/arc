@@ -755,7 +755,7 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValid
 
 	err = txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
 	if err != nil {
-		errTx := beef.GetLatestTx(beefTx)
+		errTx := beef.GetUnminedTx(beefTx)
 		statusCode, arcError := m.handleError(ctx, errTx, err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 

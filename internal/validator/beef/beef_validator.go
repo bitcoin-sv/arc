@@ -9,10 +9,12 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
+	"go.opentelemetry.io/otel/attribute"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (
@@ -37,6 +39,17 @@ func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
 }
 
 func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) error {
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, txID string, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
+	var err error
+	var spanErr error
+	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
+	defer func() {
+		if err != nil {
+			spanErr = err
+		}
+		tracing.EndTracing(span, spanErr)
+	}()
+
 	if !beefTx.IsValid(false) {
 		return validator.NewError(ErrBEEFInvalid, api.ErrStatusMalformed)
 	}
@@ -45,7 +58,7 @@ func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, f
 		// verify only unmined transactions
 
 		// check if is mined
-		if btx.DataFormat != sdkTx.RawTx {
+		if btx.Transaction.TxID().String() != txID {
 			continue
 		}
 
@@ -79,7 +92,8 @@ func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, f
 	}
 
 	// verify with chain tracker
-	ok, err := beefTx.Verify(v.chainTracker, false)
+	var ok bool
+	ok, err = beefTx.Verify(v.chainTracker, false)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusValidatingMerkleRoots)
 	}

@@ -586,7 +586,7 @@ func (m *ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields)
 	for len(txsHex) != 0 {
 		hexFormat := validator.GetHexFormat(txsHex)
 		if hexFormat == validator.BeefHex {
-			beefTx, err := beef.DecodeBEEF(txsHex)
+			beefTx, _, err := beef.DecodeBEEF(txsHex)
 			if err != nil {
 				errStr := errors.Join(ErrDecodingBeef, err).Error()
 				return nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -678,7 +678,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 		hexFormat := validator.GetHexFormat(txsHex)
 
 		if hexFormat == validator.BeefHex {
-			beefTx, err := beef.DecodeBEEF(txsHex)
+			beefTx, txID, err := beef.DecodeBEEF(txsHex)
 			if err != nil {
 				errStr := errors.Join(ErrDecodingBeef, err).Error()
 				return nil, nil, nil, api.NewErrorFields(api.ErrStatusMalformed, errStr)
@@ -694,7 +694,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 			txsHex = txsHex[bytesUsed:]
 
 			v := beefValidator.New(m.NodePolicy, m.chainTracker)
-			arcError := m.validateBEEFTransaction(ctx, v, beefTx, options)
+			arcError := m.validateBEEFTransaction(ctx, v, beefTx, options, txID)
 			if arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -736,7 +736,7 @@ func appendedMinedTxs(beefTx *sdkTx.Beef) []*sdkTx.Transaction {
 	return submittedTxs
 }
 
-func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, transaction *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -749,17 +749,17 @@ func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidat
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	err = txValidator.ValidateTransaction(ctx, transaction, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
+	err = txValidator.ValidateTransaction(ctx, tx, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
 	if err != nil {
-		statusCode, arcError := m.handleError(ctx, transaction, err)
-		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", transaction.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+		statusCode, arcError := m.handleError(ctx, tx.TxID().String(), err)
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", tx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 		return arcError
 	}
 
 	return nil
 }
 
-func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *sdkTx.Beef, options *metamorph.TransactionOptions) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *sdkTx.Beef, options *metamorph.TransactionOptions, txID string) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateBEEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -772,11 +772,10 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValid
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	err = txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
+	err = txValidator.ValidateTransaction(ctx, beefTx, txID, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
 	if err != nil {
-		errTx := beef.GetUnminedTx(beefTx)
-		statusCode, arcError := m.handleError(ctx, errTx, err)
-		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", errTx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
+		statusCode, arcError := m.handleError(ctx, txID, err)
+		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", txID), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 		return arcError
 	}
@@ -796,7 +795,7 @@ func (m *ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx
 	// to avoid false negatives first check if ctx is expired
 	select {
 	case <-ctx.Done():
-		_, arcError := m.handleError(ctx, nil, context.DeadlineExceeded)
+		_, arcError := m.handleError(ctx, "", context.DeadlineExceeded)
 		return nil, arcError
 	default:
 	}
@@ -807,7 +806,7 @@ func (m *ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx
 		if len(txs) == 1 {
 			tx = txs[0]
 		}
-		statusCode, arcError := m.handleError(ctx, tx, err)
+		statusCode, arcError := m.handleError(ctx, tx.TxID().String(), err)
 		m.logger.ErrorContext(ctx, "failed to submit transactions", slog.Int("txs", len(txs)), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 
 		return nil, arcError
@@ -852,7 +851,7 @@ func (m *ArcDefaultHandler) CurrentBlockHeight() int32 {
 	return atomic.LoadInt32(&m.currentBlockHeight)
 }
 
-func (m *ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Transaction, submitErr error) (api.StatusCode, *api.ErrorFields) {
+func (m *ArcDefaultHandler) handleError(_ context.Context, txID string, submitErr error) (api.StatusCode, *api.ErrorFields) {
 	if submitErr == nil {
 		return api.StatusOK, nil
 	}
@@ -868,8 +867,8 @@ func (m *ArcDefaultHandler) handleError(_ context.Context, transaction *sdkTx.Tr
 	// enrich the response with the error details
 	arcError := api.NewErrorFields(status, submitErr.Error())
 
-	if transaction != nil {
-		arcError.Txid = PtrTo(transaction.TxID().String())
+	if txID != "" {
+		arcError.Txid = PtrTo(txID)
 	}
 
 	return status, arcError

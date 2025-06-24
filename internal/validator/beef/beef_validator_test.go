@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +56,7 @@ func TestBeefValidator(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beefTx, err := beef.DecodeBEEF(beefHex)
+			beefTx, txID, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			ctMock := &mocks.ChainTrackerMock{
@@ -69,7 +68,7 @@ func TestBeefValidator(t *testing.T) {
 			sut := New(getPolicy(1), ctMock)
 
 			// when
-			err = sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
+			err = sut.ValidateTransaction(context.TODO(), beefTx, txID, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 			// then
 			if tc.expectedErr != nil {
@@ -111,12 +110,12 @@ func TestValidateScripts(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beefTx, err := beef.DecodeBEEF(beefHex)
+			beefTx, txID, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			// when
 			for _, btx := range beefTx.Transactions {
-				if btx.DataFormat != sdkTx.RawTx {
+				if btx.Transaction.TxID().String() != txID {
 					continue
 				}
 
@@ -186,7 +185,8 @@ func TestCumulativeCheckFees(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			bytes, _ := hex.DecodeString(tc.beefHex)
-			beefTx, _ := beef.DecodeBEEF(bytes)
+			beefTx, _, err := beef.DecodeBEEF(bytes)
+			require.NoError(t, err)
 
 			// when
 			actualError := cumulativeCheckFees(beefTx, tc.feeModel)

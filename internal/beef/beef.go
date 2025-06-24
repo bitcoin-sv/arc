@@ -17,9 +17,8 @@ const (
 )
 
 var (
-	ErrBEEFNoMarker = errors.New("invalid format of transaction, BEEF marker not found")
-	ErrBEEFPanic    = errors.New("panic while parsing beef")
-	ErrBEEFParse    = errors.New("failed to parse beef")
+	ErrBEEFPanic = errors.New("panic while parsing beef")
+	ErrBEEFParse = errors.New("failed to parse beef")
 )
 
 func CheckBeefFormat(txHex []byte) bool {
@@ -34,27 +33,17 @@ func CheckBeefFormat(txHex []byte) bool {
 	return true
 }
 
-func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, err error) {
+func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, txID string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Join(ErrBEEFPanic, fmt.Errorf("%v", r))
 		}
 	}()
 
-	beef, _, _, err := sdkTx.ParseBeef(beefHex)
+	beef, _, txHash, err := sdkTx.ParseBeef(beefHex)
 	if err != nil {
-		return nil, errors.Join(ErrBEEFParse, err)
+		return nil, "", errors.Join(ErrBEEFParse, err)
 	}
 
-	return beef, nil
-}
-
-func GetUnminedTx(d *sdkTx.Beef) *sdkTx.Transaction {
-	for _, beefTx := range d.Transactions {
-		if beefTx.DataFormat == sdkTx.RawTx {
-			return beefTx.Transaction
-		}
-	}
-
-	return nil
+	return beef, txHash.String(), nil
 }

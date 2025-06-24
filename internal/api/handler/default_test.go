@@ -1675,7 +1675,7 @@ func Test_handleError(t *testing.T) {
 			require.NoError(t, err)
 
 			ctx := context.Background()
-			status, arcErr := handler.handleError(ctx, tx, tc.submitError)
+			status, arcErr := handler.handleError(ctx, tx.TxID().String(), tc.submitError)
 
 			require.Equal(t, tc.expectedStatus, status)
 			require.Equal(t, tc.expectedArcErr, arcErr)

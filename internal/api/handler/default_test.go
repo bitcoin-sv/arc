@@ -793,6 +793,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 }
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
+	// Todo: refactor this test and make table based
 	t.Run("empty tx", func(t *testing.T) {
 		// when
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{

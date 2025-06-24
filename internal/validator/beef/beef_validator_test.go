@@ -122,7 +122,7 @@ func TestValidateScripts(t *testing.T) {
 
 				actualError := validateScripts(beefTx, btx)
 				if tc.expectedError != nil {
-					require.Equal(t, actualError, tc.expectedError)
+					require.Equal(t, tc.expectedError, actualError)
 					return
 				}
 
@@ -196,8 +196,8 @@ func TestCumulativeCheckFees(t *testing.T) {
 				require.Nil(t, actualError)
 			} else {
 				require.NotNil(t, actualError)
-				assert.Equal(t, tc.expectedError.Err.Error(), actualError.Err.Error())
-				assert.Equal(t, tc.expectedError.ArcErrorStatus, actualError.ArcErrorStatus)
+				assert.Equal(t, actualError.Err.Error(), tc.expectedError.Err.Error())
+				assert.Equal(t, actualError.ArcErrorStatus, tc.expectedError.ArcErrorStatus)
 			}
 		})
 	}

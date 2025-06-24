@@ -122,7 +122,7 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 	expectedFees := uint64(0)
 
 	for _, bTx := range beefTx.Transactions {
-		if bTx.BumpIndex == 0 {
+		if bTx.DataFormat != sdkTx.RawTx {
 			continue
 		}
 

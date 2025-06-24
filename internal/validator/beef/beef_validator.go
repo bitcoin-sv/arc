@@ -57,7 +57,7 @@ func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, f
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
-			err = standardCheckFees(beefTx, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
+			err = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func (v *Validator) ValidateTransaction(_ context.Context, beefTx *sdkTx.Beef, f
 	return nil
 }
 
-func standardCheckFees(beefTx *sdkTx.Beef, tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
+func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {
 	expectedFees, err := feeModel.ComputeFee(tx)
 	if err != nil {
 		return validator.NewError(err, api.ErrStatusFees)

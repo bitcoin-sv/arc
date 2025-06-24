@@ -11,7 +11,7 @@ import (
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 
-	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/bitcoin-sv/arc/internal/utils"
 )
 
 func PayTo(tx *sdkTx.Transaction, s *script.Script, satoshis uint64) error {
@@ -48,18 +48,18 @@ func SignAllInputs(tx *sdkTx.Transaction, privKey *primitives.PrivateKey) error 
 }
 
 func estimateSize(tx *sdkTx.Transaction) int {
-	size := 4                                           // version
-	size += p2p.VarInt(uint64(len(tx.Inputs))).Length() // number of inputs
+	size := 4                                             // version
+	size += utils.VarInt(uint64(len(tx.Inputs))).Length() // number of inputs
 
 	inputSize := len(tx.Inputs) * (40 + 1 + 107) // txid, output index, sequence number, script length
 	size += inputSize
 
-	size += p2p.VarInt(len(tx.Outputs)).Length() // number of outputs
+	size += utils.VarInt(len(tx.Outputs)).Length() // number of outputs
 	for _, out := range tx.Outputs {
 		size += 8 // satoshis
 		length := len(*out.LockingScript)
-		size += p2p.VarInt(length).Length() // script length
-		size += length                      // script
+		size += utils.VarInt(length).Length() // script length
+		size += length                        // script
 	}
 	size += 4  // lock time
 	size += 34 // change

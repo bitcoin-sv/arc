@@ -34,7 +34,7 @@ func CheckBeefFormat(txHex []byte) bool {
 	return true
 }
 
-func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, remainingBytes []byte, err error) {
+func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Join(ErrBEEFPanic, fmt.Errorf("%v", r))
@@ -43,15 +43,10 @@ func DecodeBEEF(beefHex []byte) (tx *sdkTx.Beef, remainingBytes []byte, err erro
 
 	beef, _, _, err := sdkTx.ParseBeef(beefHex)
 	if err != nil {
-		return nil, nil, errors.Join(ErrBEEFParse, err)
+		return nil, errors.Join(ErrBEEFParse, err)
 	}
 
-	remainingBytes, err = extractBytesWithoutVersionAndMarker(beefHex)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return beef, remainingBytes, nil
+	return beef, nil
 }
 
 func GetLatestTx(d *sdkTx.Beef) *sdkTx.Transaction {

@@ -94,7 +94,7 @@ func TestDecodeBEEF(t *testing.T) {
 			require.Nil(t, err)
 
 			// when
-			actualBeef, _, err := DecodeBEEF(beefHex)
+			actualBeef, err := DecodeBEEF(beefHex)
 
 			// then
 			if tc.expectedError != nil {

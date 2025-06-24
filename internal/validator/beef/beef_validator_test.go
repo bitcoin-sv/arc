@@ -57,7 +57,7 @@ func TestBeefValidator(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beefTx, _, err := beef.DecodeBEEF(beefHex)
+			beefTx, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			ctMock := &mocks.ChainTrackerMock{
@@ -111,7 +111,7 @@ func TestValidateScripts(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beefTx, _, err := beef.DecodeBEEF(beefHex)
+			beefTx, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			// when
@@ -186,7 +186,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			bytes, _ := hex.DecodeString(tc.beefHex)
-			beefTx, _, _ := beef.DecodeBEEF(bytes)
+			beefTx, _ := beef.DecodeBEEF(bytes)
 
 			// when
 			actualError := cumulativeCheckFees(beefTx, tc.feeModel)

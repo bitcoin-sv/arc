@@ -29,9 +29,6 @@ var _ blocktx.Client = &ClientMock{}
 //			RegisterTransactionsFunc: func(ctx context.Context, hashes [][]byte) error {
 //				panic("mock out the RegisterTransactions method")
 //			},
-//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-//				panic("mock out the VerifyMerkleRoots method")
-//			},
 //		}
 //
 //		// use mockedClient in code that requires blocktx.Client
@@ -47,9 +44,6 @@ type ClientMock struct {
 
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
 	RegisterTransactionsFunc func(ctx context.Context, hashes [][]byte) error
-
-	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
-	VerifyMerkleRootsFunc func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -72,18 +66,10 @@ type ClientMock struct {
 			// Hashes is the hashes argument value.
 			Hashes [][]byte
 		}
-		// VerifyMerkleRoots holds details about calls to the VerifyMerkleRoots method.
-		VerifyMerkleRoots []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// MerkleRootVerificationRequest is the merkleRootVerificationRequest argument value.
-			MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-		}
 	}
 	lockCurrentBlockHeight   sync.RWMutex
 	lockRegisterTransaction  sync.RWMutex
 	lockRegisterTransactions sync.RWMutex
-	lockVerifyMerkleRoots    sync.RWMutex
 }
 
 // CurrentBlockHeight calls CurrentBlockHeightFunc.
@@ -187,41 +173,5 @@ func (mock *ClientMock) RegisterTransactionsCalls() []struct {
 	mock.lockRegisterTransactions.RLock()
 	calls = mock.calls.RegisterTransactions
 	mock.lockRegisterTransactions.RUnlock()
-	return calls
-}
-
-// VerifyMerkleRoots calls VerifyMerkleRootsFunc.
-func (mock *ClientMock) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-	if mock.VerifyMerkleRootsFunc == nil {
-		panic("ClientMock.VerifyMerkleRootsFunc: method is nil but Client.VerifyMerkleRoots was just called")
-	}
-	callInfo := struct {
-		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-	}{
-		Ctx:                           ctx,
-		MerkleRootVerificationRequest: merkleRootVerificationRequest,
-	}
-	mock.lockVerifyMerkleRoots.Lock()
-	mock.calls.VerifyMerkleRoots = append(mock.calls.VerifyMerkleRoots, callInfo)
-	mock.lockVerifyMerkleRoots.Unlock()
-	return mock.VerifyMerkleRootsFunc(ctx, merkleRootVerificationRequest)
-}
-
-// VerifyMerkleRootsCalls gets all the calls that were made to VerifyMerkleRoots.
-// Check the length with:
-//
-//	len(mockedClient.VerifyMerkleRootsCalls())
-func (mock *ClientMock) VerifyMerkleRootsCalls() []struct {
-	Ctx                           context.Context
-	MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-} {
-	var calls []struct {
-		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
-	}
-	mock.lockVerifyMerkleRoots.RLock()
-	calls = mock.calls.VerifyMerkleRoots
-	mock.lockVerifyMerkleRoots.RUnlock()
 	return calls
 }

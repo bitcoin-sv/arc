@@ -25,7 +25,7 @@ func TestRPCClient(t *testing.T) {
 	address, _ := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	t.Run("invalidate block", func(t *testing.T) {
 		// given

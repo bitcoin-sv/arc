@@ -32,7 +32,7 @@ func TestBeef(t *testing.T) {
 		// build transaction tx1 paying from address 1 to address 2
 		address2, privateKey2 := node_client.GetNewWalletAddress(t, bitcoind)
 		utxos1 := node_client.GetUtxos(t, bitcoind, address1)
-		require.True(t, len(utxos1) > 0, "No UTXOs available for the address")
+		require.GreaterOrEqual(t, len(utxos1), 1, "No UTXOs available for the address")
 		tx1, err := node_client.CreateTx(privateKey1, address2, utxos1[0])
 		require.NoError(t, err)
 		rawTx1, err := tx1.EFHex()

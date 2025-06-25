@@ -28,7 +28,7 @@ func TestSubmitSingle(t *testing.T) {
 	node_client.SendToAddress(t, bitcoind, address, float64(10))
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 2)
 
 	tx1, err := node_client.CreateTx(privateKey, address, utxos[0])
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestSubmitMined(t *testing.T) {
 		// given
 		address, _ := node_client.FundNewWallet(t, bitcoind)
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-
+		require.GreaterOrEqual(t, len(utxos), 1)
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
@@ -182,7 +182,7 @@ func TestReturnMinedStatus(t *testing.T) {
 		// given
 		address, _ := node_client.FundNewWallet(t, bitcoind)
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-
+		require.GreaterOrEqual(t, len(utxos), 1)
 		rawTx, _ := bitcoind.GetRawTransaction(utxos[0].Txid)
 		tx, _ := sdkTx.NewTransactionFromHex(rawTx.Hex)
 		exRawTx := tx.String()
@@ -245,8 +245,7 @@ func TestSubmitQueued(t *testing.T) {
 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
+		require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 		tx, err := node_client.CreateTx(privateKey, address, utxos[0])
 		require.NoError(t, err)
 
@@ -388,8 +387,7 @@ func TestCallback(t *testing.T) {
 			node_client.Generate(t, bitcoind, 1)
 
 			utxos := node_client.GetUtxos(t, bitcoind, address)
-			require.True(t, len(utxos) >= tc.numberOfTxs, "Insufficient UTXOs available for the address")
-
+			require.GreaterOrEqual(t, len(utxos), tc.numberOfTxs, "Insufficient UTXOs available for the address")
 			txs := make([]*sdkTx.Transaction, 0, tc.numberOfTxs)
 			for i := range tc.numberOfTxs {
 				tx, err := node_client.CreateTx(privateKey, address, utxos[i])
@@ -561,7 +559,7 @@ func TestBatchCallback(t *testing.T) {
 			node_client.Generate(t, bitcoind, 1)
 
 			utxos := node_client.GetUtxos(t, bitcoind, address)
-			require.True(t, len(utxos) >= tc.numberOfTxs, "Insufficient UTXOs available for the address")
+			require.GreaterOrEqual(t, len(utxos), tc.numberOfTxs, "Insufficient UTXOs available for the address")
 
 			txs := make([]*sdkTx.Transaction, 0, tc.numberOfTxs)
 			for i := range tc.numberOfTxs {
@@ -681,7 +679,7 @@ func TestSkipValidation(t *testing.T) {
 			address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 			utxos := node_client.GetUtxos(t, bitcoind, address)
-			require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+			require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 			fee := uint64(0)
 
@@ -952,7 +950,7 @@ func TestScriptValidation(t *testing.T) {
 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+		require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 		fee := uint64(10)
 

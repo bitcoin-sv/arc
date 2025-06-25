@@ -437,7 +437,7 @@ func (m *ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, pa
 	return PostResponse{int(api.StatusOK), responses}
 }
 
-func (m ArcDefaultHandler) checkAllProcessed(txStatuses []*metamorph.TransactionStatus, transactionOptions *metamorph.TransactionOptions) bool {
+func (m *ArcDefaultHandler) checkAllProcessed(txStatuses []*metamorph.TransactionStatus, transactionOptions *metamorph.TransactionOptions) bool {
 	allProcessed := true
 	for _, tx := range txStatuses {
 		exists := false
@@ -700,7 +700,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 				continue
 			}
 
-			submittedTxs = append(submittedTxs, appendedMinedTxs(beefTx)...)
+			submittedTxs = append(submittedTxs, appendedUnminedTxs(beefTx)...)
 
 			txIDs = append(txIDs, beefTx.GetValidTxids()...)
 			continue
@@ -725,11 +725,11 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 	return txIDs, submittedTxs, fails, nil
 }
 
-func appendedMinedTxs(beefTx *sdkTx.Beef) []*sdkTx.Transaction {
+func appendedUnminedTxs(beefTx *sdkTx.Beef) []*sdkTx.Transaction {
 	var submittedTxs []*sdkTx.Transaction
 	for _, tx := range beefTx.Transactions {
 		// if not mined
-		if tx.BumpIndex == 0 {
+		if tx.DataFormat == sdkTx.RawTx {
 			submittedTxs = append(submittedTxs, tx.Transaction)
 		}
 	}

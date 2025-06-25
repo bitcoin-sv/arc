@@ -97,7 +97,7 @@ func WithDoubleSpendCheckInterval(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithdoubleSpendTxStatusOlderThanInterval(d time.Duration) func(*Processor) {
+func WithDoubleSpendTxStatusOlderThanInterval(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.doubleSpendTxStatusOlderThan = d
 	}

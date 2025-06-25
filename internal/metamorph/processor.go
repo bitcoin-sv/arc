@@ -540,7 +540,7 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 						continue
 					}
 
-					competingTxIsMined, err := p.blocktxClient.IsCompetingTransactionMined(ctx, competingTxs)
+					competingTxIsMined, err := p.blocktxClient.AnyTransactionsMined(ctx, competingTxs)
 					if err != nil {
 						p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
 						continue
@@ -558,9 +558,9 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 						})
 						if err != nil {
 							p.logger.Error("failed to update double spend status", slog.String("err", err.Error()), slog.String("hash", doubleSpendTx.Hash.String()))
-						} else {
-							p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()))
+							continue
 						}
+						p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()))
 					}
 				}
 			}

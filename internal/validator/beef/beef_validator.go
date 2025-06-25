@@ -37,7 +37,7 @@ func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
 	}
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (failedTx *sdkTx.Transaction, err error) {
 	var vErr *validator.Error
 	var spanErr error
 	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
@@ -59,20 +59,20 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 
 		vErr = validator.CommonValidateTransaction(v.policy, tx)
 		if vErr != nil {
-			return vErr
+			return tx, vErr
 		}
 
 		if feeValidation == validator.StandardFeeValidation {
 			vErr = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
 			if vErr != nil {
-				return vErr
+				return tx, vErr
 			}
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
 			vErr = validateScripts(beefTx, btx)
 			if vErr != nil {
-				return vErr
+				return tx, vErr
 			}
 		}
 	}
@@ -80,7 +80,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	if feeValidation == validator.CumulativeFeeValidation {
 		vErr = cumulativeCheckFees(beefTx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
 		if vErr != nil {
-			return vErr
+			return nil, vErr
 		}
 	}
 
@@ -88,14 +88,14 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	ok, err := beefTx.Verify(v.chainTracker, false)
 	if err != nil {
 		vErr = validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
-		return vErr
+		return nil, vErr
 	}
 
 	if !ok {
-		return validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
+		return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func standardCheckFees(tx *sdkTx.Transaction, feeModel sdkTx.FeeModel) *validator.Error {

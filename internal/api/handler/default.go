@@ -772,8 +772,11 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValid
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	err = txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
+	failedTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
 	if err != nil {
+		if failedTx != nil {
+			txID = failedTx.TxID().String()
+		}
 		statusCode, arcError := m.handleError(ctx, txID, err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", txID), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
 

@@ -556,7 +556,7 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 									Status:       metamorph_api.Status_REJECTED,
 									CompetingTxs: doubleSpendTx.CompetingTxs,
 									Timestamp:    p.now(),
-									Error:        fmt.Errorf("Double spend tx rejected, competing tx %s mined", hex.EncodeToString(competingTx.Hash)),
+									Error:        fmt.Errorf("double spend tx rejected, competing tx %s mined", hex.EncodeToString(competingTx.Hash)),
 								},
 							})
 							if err != nil {

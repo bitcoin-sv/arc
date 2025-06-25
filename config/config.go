@@ -196,12 +196,13 @@ type UnorphanRecentWrongOrphansConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 }
 type APIConfig struct {
-	Address             string            `mapstructure:"address"`
-	ListenAddr          string            `mapstructure:"listenAddr"`
-	WocAPIKey           string            `mapstructure:"wocApiKey"`
-	WocMainnet          bool              `mapstructure:"wocMainnet"`
-	DefaultPolicy       *bitcoin.Settings `mapstructure:"defaultPolicy"`
-	RequestExtendedLogs bool              `mapstructure:"requestExtendedLogs"`
+	StandardFormatSupported bool              `mapstructure:"standardFormatSupported"`
+	Address                 string            `mapstructure:"address"`
+	ListenAddr              string            `mapstructure:"listenAddr"`
+	WocAPIKey               string            `mapstructure:"wocApiKey"`
+	WocMainnet              bool              `mapstructure:"wocMainnet"`
+	DefaultPolicy           *bitcoin.Settings `mapstructure:"defaultPolicy"`
+	RequestExtendedLogs     bool              `mapstructure:"requestExtendedLogs"`
 }
 
 type K8sWatcherConfig struct {

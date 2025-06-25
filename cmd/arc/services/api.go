@@ -82,6 +82,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
 		apiHandler.WithRebroadcastExpiration(arcConfig.ReBroadcastExpiration),
+		apiHandler.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
 	}
 
 	if arcConfig.Prometheus.IsEnabled() {
@@ -94,7 +95,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
 	}
 
-	var defaultValidatorOpts []defaultValidator.Option
+	defaultValidatorOpts := []defaultValidator.Option{
+		defaultValidator.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
+	}
 	var beefValidatorOpts []beefValidator.Option
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)

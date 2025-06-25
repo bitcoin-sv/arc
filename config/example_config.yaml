@@ -143,6 +143,7 @@ blocktx:
         - "eth1"
 
 api:
+  standardFormatSupported: true # requires RPC connection to node to be able to validate
   address: localhost:9090 # address to start api server on
   listenAddr: localhost:8033 # address for grpc endpoint
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX" # api key for www.whatsonchain.com

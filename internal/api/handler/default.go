@@ -69,6 +69,7 @@ type ArcDefaultHandler struct {
 	stats                         *Stats
 	defaultValidator              DefaultValidator
 	beefValidator                 BeefValidator
+	standardFormatSupported       bool
 }
 
 type PostResponse struct {
@@ -85,6 +86,12 @@ func WithNow(nowFunc func() time.Time) func(*ArcDefaultHandler) {
 func WithStats(stats *Stats) func(*ArcDefaultHandler) {
 	return func(p *ArcDefaultHandler) {
 		p.stats = stats
+	}
+}
+
+func WithStandardFormatSupported(standardFormatSupported bool) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.standardFormatSupported = standardFormatSupported
 	}
 }
 
@@ -235,6 +242,7 @@ func (m *ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 				Bytes:    bytes,
 				Satoshis: satoshis,
 			},
+			StandardFormatSupported: PtrTo(m.standardFormatSupported),
 		},
 		Timestamp: m.now().UTC(),
 	})

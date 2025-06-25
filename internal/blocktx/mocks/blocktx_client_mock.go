@@ -20,7 +20,7 @@ var _ blocktx.Client = &ClientMock{}
 //
 //		// make and configure a mocked blocktx.Client
 //		mockedClient := &ClientMock{
-//			AnyTransactionsMinedFunc: func(ctx context.Context, hash [][]byte) (bool, error) {
+//			AnyTransactionsMinedFunc: func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 //				panic("mock out the AnyTransactionsMined method")
 //			},
 //			CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
@@ -43,7 +43,7 @@ var _ blocktx.Client = &ClientMock{}
 //	}
 type ClientMock struct {
 	// AnyTransactionsMinedFunc mocks the AnyTransactionsMined method.
-	AnyTransactionsMinedFunc func(ctx context.Context, hash [][]byte) (bool, error)
+	AnyTransactionsMinedFunc func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
 
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
@@ -101,7 +101,7 @@ type ClientMock struct {
 }
 
 // AnyTransactionsMined calls AnyTransactionsMinedFunc.
-func (mock *ClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte) (bool, error) {
+func (mock *ClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 	if mock.AnyTransactionsMinedFunc == nil {
 		panic("ClientMock.AnyTransactionsMinedFunc: method is nil but Client.AnyTransactionsMined was just called")
 	}

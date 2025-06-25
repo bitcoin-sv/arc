@@ -87,7 +87,7 @@ type MetamorphStore interface {
 	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
-	GetDoubleSpendTxs(ctx context.Context, older time.Duration) ([]*Data, error)
+	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*Data, error)
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*Data, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)

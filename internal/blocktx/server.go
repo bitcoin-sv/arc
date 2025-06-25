@@ -2,6 +2,7 @@ package blocktx
 
 import (
 	"context"
+	"encoding/hex"
 	"log/slog"
 	"time"
 
@@ -113,16 +114,31 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 
 func (s *Server) AnyTransactionsMined(ctx context.Context, req *blocktx_api.Transactions) (*blocktx_api.AnyTransactionsMinedResponse, error) {
 	minedTxs := make([][]byte, len(req.Transactions))
+	minedStatuses := make(map[string]bool, len(req.Transactions))
 	for i, v := range req.Transactions {
+		minedStatuses[string(hex.EncodeToString(v.Hash))] = false
 		minedTxs[i] = util.ReverseBytes(v.Hash)
 	}
-	txs, err := s.store.GetMinedTransactions(ctx, minedTxs)
+
+	// get mined txs and mark them as mined
 	res := blocktx_api.AnyTransactionsMinedResponse{}
+	txs, err := s.store.GetMinedTransactions(ctx, minedTxs)
 	if err != nil {
 		return &res, err
 	}
+	for _, tx := range txs {
+		minedStatuses[string(hex.EncodeToString(tx.TxHash))] = true
+	}
 
-	return &blocktx_api.AnyTransactionsMinedResponse{Mined: len(txs) != 0}, nil
+	for k, v := range minedStatuses {
+		hash, _ := hex.DecodeString(k)
+		res.Transactions = append(res.Transactions, &blocktx_api.IsMined{
+			Hash:  hash,
+			Mined: v,
+		})
+	}
+
+	return &res, nil
 }
 
 func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*blocktx_api.CurrentBlockHeightResponse, error) {

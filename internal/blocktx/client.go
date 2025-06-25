@@ -23,7 +23,7 @@ var (
 )
 
 type Client interface {
-	AnyTransactionsMined(ctx context.Context, hash [][]byte) (bool, error)
+	AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
@@ -71,17 +71,17 @@ func (btc *BtxClient) RegisterTransaction(ctx context.Context, hash []byte) erro
 	return nil
 }
 
-func (btc *BtxClient) AnyTransactionsMined(ctx context.Context, hash [][]byte) (bool, error) {
+func (btc *BtxClient) AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 	txs := &blocktx_api.Transactions{}
 	for _, v := range hash {
 		txs.Transactions = append(txs.Transactions, &blocktx_api.Transaction{Hash: v})
 	}
 	mined, err := btc.client.AnyTransactionsMined(ctx, txs)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return mined.Mined, nil
+	return mined.Transactions, nil
 }
 
 func (btc *BtxClient) RegisterTransactions(ctx context.Context, hashes [][]byte) error {

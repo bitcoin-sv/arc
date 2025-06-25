@@ -2,6 +2,7 @@ package metamorph
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -527,7 +528,7 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				doubleSpendTxs, err := p.store.GetDoubleSpendTxs(ctx, p.doubleSpendTxStatusOlderThan)
+				doubleSpendTxs, err := p.store.GetDoubleSpendTxs(ctx, p.now().Add(-p.doubleSpendTxStatusOlderThan))
 				if err != nil {
 					p.logger.Error("failed to get double spend status transactions", slog.String("err", err.Error()))
 					continue
@@ -540,27 +541,31 @@ func (p *Processor) StartProcessDoubleSpendTxs() {
 						continue
 					}
 
-					competingTxIsMined, err := p.blocktxClient.AnyTransactionsMined(ctx, competingTxs)
+					competingTxStatuses, err := p.blocktxClient.AnyTransactionsMined(ctx, competingTxs)
 					if err != nil {
 						p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
 						continue
 					}
 
 					// if ANY of those competing txs gets mined we reject this one
-					if competingTxIsMined {
-						_, err := p.store.UpdateStatus(ctx, []store.UpdateStatus{
-							{
-								Hash:         *doubleSpendTx.Hash,
-								Status:       metamorph_api.Status_REJECTED,
-								CompetingTxs: doubleSpendTx.CompetingTxs,
-								Timestamp:    p.now(),
-							},
-						})
-						if err != nil {
-							p.logger.Error("failed to update double spend status", slog.String("err", err.Error()), slog.String("hash", doubleSpendTx.Hash.String()))
+					for _, competingTx := range competingTxStatuses {
+						if competingTx.Mined {
+							_, err := p.store.UpdateStatus(ctx, []store.UpdateStatus{
+								{
+									Hash:         *doubleSpendTx.Hash,
+									Status:       metamorph_api.Status_REJECTED,
+									CompetingTxs: doubleSpendTx.CompetingTxs,
+									Timestamp:    p.now(),
+									Error:        errors.New(fmt.Sprintf("Double spend tx rejected, competing tx %s mined", hex.EncodeToString(competingTx.Hash))),
+								},
+							})
+							if err != nil {
+								p.logger.Error("failed to update double spend status", slog.String("err", err.Error()), slog.String("hash", doubleSpendTx.Hash.String()))
+								continue
+							}
+							p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()), slog.String("competing mined tx hash", hex.EncodeToString(competingTx.Hash)))
 							continue
 						}
-						p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()))
 					}
 				}
 			}

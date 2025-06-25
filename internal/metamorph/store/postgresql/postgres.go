@@ -312,7 +312,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*store.
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Duration) (data []*store.Data, err error) {
+func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (data []*store.Data, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetDoubleSpendTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -337,7 +337,7 @@ func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Duration)
 		,last_modified
 	 FROM metamorph.transactions WHERE status=$1 AND last_modified<$2;`
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, time.Now().Add(-older))
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, older)
 	if err != nil {
 		return nil, err
 	}

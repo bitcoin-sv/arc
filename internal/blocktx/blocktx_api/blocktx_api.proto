@@ -33,8 +33,13 @@ service BlockTxAPI {
   rpc AnyTransactionsMined(Transactions) returns (AnyTransactionsMinedResponse) {}
 }
 
+message IsMined {
+  bytes hash = 1;
+  bool mined = 2;
+}
+
 message AnyTransactionsMinedResponse {
-  bool mined = 1;
+  repeated IsMined transactions = 1;
 }
 
 // swagger:model HealthResponse

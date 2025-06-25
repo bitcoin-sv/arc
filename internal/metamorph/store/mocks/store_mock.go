@@ -34,7 +34,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetFunc: func(ctx context.Context, key []byte) (*store.Data, error) {
 //				panic("mock out the Get method")
 //			},
-//			GetDoubleSpendTxsFunc: func(ctx context.Context, older time.Duration) ([]*store.Data, error) {
+//			GetDoubleSpendTxsFunc: func(ctx context.Context, older time.Time) ([]*store.Data, error) {
 //				panic("mock out the GetDoubleSpendTxs method")
 //			},
 //			GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
@@ -117,7 +117,7 @@ type MetamorphStoreMock struct {
 	GetFunc func(ctx context.Context, key []byte) (*store.Data, error)
 
 	// GetDoubleSpendTxsFunc mocks the GetDoubleSpendTxs method.
-	GetDoubleSpendTxsFunc func(ctx context.Context, older time.Duration) ([]*store.Data, error)
+	GetDoubleSpendTxsFunc func(ctx context.Context, older time.Time) ([]*store.Data, error)
 
 	// GetManyFunc mocks the GetMany method.
 	GetManyFunc func(ctx context.Context, keys [][]byte) ([]*store.Data, error)
@@ -212,7 +212,7 @@ type MetamorphStoreMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Older is the older argument value.
-			Older time.Duration
+			Older time.Time
 		}
 		// GetMany holds details about calls to the GetMany method.
 		GetMany []struct {
@@ -551,13 +551,13 @@ func (mock *MetamorphStoreMock) GetCalls() []struct {
 }
 
 // GetDoubleSpendTxs calls GetDoubleSpendTxsFunc.
-func (mock *MetamorphStoreMock) GetDoubleSpendTxs(ctx context.Context, older time.Duration) ([]*store.Data, error) {
+func (mock *MetamorphStoreMock) GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*store.Data, error) {
 	if mock.GetDoubleSpendTxsFunc == nil {
 		panic("MetamorphStoreMock.GetDoubleSpendTxsFunc: method is nil but MetamorphStore.GetDoubleSpendTxs was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		Older time.Duration
+		Older time.Time
 	}{
 		Ctx:   ctx,
 		Older: older,
@@ -574,11 +574,11 @@ func (mock *MetamorphStoreMock) GetDoubleSpendTxs(ctx context.Context, older tim
 //	len(mockedMetamorphStore.GetDoubleSpendTxsCalls())
 func (mock *MetamorphStoreMock) GetDoubleSpendTxsCalls() []struct {
 	Ctx   context.Context
-	Older time.Duration
+	Older time.Time
 } {
 	var calls []struct {
 		Ctx   context.Context
-		Older time.Duration
+		Older time.Time
 	}
 	mock.lockGetDoubleSpendTxs.RLock()
 	calls = mock.calls.GetDoubleSpendTxs

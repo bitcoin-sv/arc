@@ -14,7 +14,6 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	transaction "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
@@ -75,7 +74,7 @@ func TestUTXOCreator(t *testing.T) {
 
 			mockUtxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: tt.getBalanceFunc,
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					return tt.getUTXOsResp, nil
 				},
 			}

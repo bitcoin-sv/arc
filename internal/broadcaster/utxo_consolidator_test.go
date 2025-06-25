@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
@@ -105,7 +104,7 @@ func TestStart(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			utxoClient := &mocks.UtxoClientMock{
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ *script.Script, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
 					return tc.getUTXOsResp, tc.getUTXOsWithRetriesErr
 				},
 			}

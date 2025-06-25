@@ -2,14 +2,11 @@ package broadcaster
 
 import (
 	"context"
-	"log/slog"
-	"time"
-
-	"github.com/bsv-blockchain/go-sdk/script"
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
-
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"log/slog"
+	"time"
 )
 
 const (
@@ -19,8 +16,8 @@ const (
 )
 
 type UtxoClient interface {
-	GetUTXOs(ctx context.Context, lockingScript *script.Script, address string) (sdkTx.UTXOs, error)
-	GetUTXOsWithRetries(ctx context.Context, lockingScript *script.Script, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
+	GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error)
+	GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
 	GetBalance(ctx context.Context, address string) (uint64, uint64, error)
 	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 	TopUp(ctx context.Context, address string) error

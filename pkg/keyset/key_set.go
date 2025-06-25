@@ -101,7 +101,7 @@ func (k *KeySet) GetUTXOs(mainnet bool) ([]*sdkTx.UTXO, error) {
 	// Get UTXOs from WhatsOnChain
 	woc := woc_client.New(mainnet)
 
-	return woc.GetUTXOs(context.Background(), k.Script, k.Address(mainnet))
+	return woc.GetUTXOs(context.Background(), k.Address(mainnet))
 }
 
 type WocBalance struct {

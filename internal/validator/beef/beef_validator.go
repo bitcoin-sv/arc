@@ -18,8 +18,7 @@ import (
 )
 
 var (
-	ErrBEEFInvalid            = errors.New("invalid BEEF")
-	ErrBEEFVerificationFailed = errors.New("BEEF validation failed")
+	ErrBEEFVerificationFailed = errors.New("BEEF verification failed")
 )
 
 type ChainTracker interface {
@@ -48,10 +47,6 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 		tracing.EndTracing(span, spanErr)
 	}()
-
-	if !beefTx.IsValid(false) {
-		return validator.NewError(ErrBEEFInvalid, api.ErrStatusMalformed)
-	}
 
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions

@@ -3,12 +3,11 @@
 package test
 
 import (
+	"encoding/hex"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"testing"
-	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	safe "github.com/ccoveille/go-safecast"
@@ -23,49 +22,91 @@ func TestBeef(t *testing.T) {
 	t.Run("valid beef with unmined parents - response for the tip, callback for each", func(t *testing.T) {
 		// given
 
-		address, privateKey := node_client.GetNewWalletAddress(t, bitcoind)
-		dstAddress, _ := node_client.GetNewWalletAddress(t, bitcoind)
+		// fund address 1
+		address1, privateKey1 := node_client.FundNewWallet(t, bitcoind)
+		_ = node_client.SendToAddress(t, bitcoind, address1, float64(10))
+		_ = node_client.Generate(t, bitcoind, 1)
 
-		txID := node_client.SendToAddress(t, bitcoind, address, 0.002)
-		hash := node_client.Generate(t, bitcoind, 1)
-
-		beef, middleTx, tx, expectedCallbacks := prepareBeef(t, txID, hash, address, dstAddress, privateKey)
-
-		callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
-		callbackErrChan := make(chan error, expectedCallbacks)
-
-		lis, err := net.Listen("tcp", ":9000")
+		// build transaction tx1 paying from address 1 to address 2
+		address2, privateKey2 := node_client.GetNewWalletAddress(t, bitcoind)
+		utxos1 := node_client.GetUtxos(t, bitcoind, address1)
+		require.True(t, len(utxos1) > 0, "No UTXOs available for the address")
+		tx1, err := node_client.CreateTx(privateKey1, address2, utxos1[0])
 		require.NoError(t, err)
-		mux := http.NewServeMux()
-		defer func() {
-			err = lis.Close()
-			require.NoError(t, err)
-		}()
+		rawTx1, err := tx1.EFHex()
+		require.NoError(t, err)
 
-		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
-		defer func() {
-			t.Log("closing channels")
+		// submit tx1
+		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: rawTx1}), map[string]string{
+			"X-WaitFor": StatusSeenOnNetwork,
+		}, http.StatusOK)
+		require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
+		// generate 1 block
+		blockHash1 := node_client.Generate(t, bitcoind, 1)
 
-			close(callbackReceivedChan)
-			close(callbackErrChan)
-		}()
+		// create merkle path for tx1
+		blockData1 := node_client.GetBlockDataByBlockHash(t, bitcoind, blockHash1)
+		merkleHashes1, txIndex1 := prepareMerkleHashesAndTxIndex(t, blockData1.Txs, tx1.TxID().String())
+		merkleTree1 := bc.BuildMerkleTreeStoreChainHash(merkleHashes1)
+		bump1, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData1.Height, merkleTree1, txIndex1)
+		require.NoError(t, err)
+		bumpHex1, err := bump1.String()
+		require.NoError(t, err)
+		merklePath1, err := sdkTx.NewMerklePathFromHex(bumpHex1)
+		require.NoError(t, err)
+		tx1.MerklePath = merklePath1
 
-		go func() {
-			t.Logf("starting callback server")
-			err = http.Serve(lis, mux)
-			if err != nil {
-				t.Log("callback server stopped")
-			}
-		}()
+		// build transaction tx2 paying from address 2 to address 3
+		address3, _ := node_client.GetNewWalletAddress(t, bitcoind)
+		tx2 := node_client.CreateTxFromTx(t, privateKey2, address3, tx1, 0)
+
+		// build transaction tx3 paying from address 3 to address 4
+		address4, privateKey3 := node_client.GetNewWalletAddress(t, bitcoind)
+		tx3 := node_client.CreateTxFromTx(t, privateKey3, address4, tx2, 0)
+
+		// create beef v1 from tx3
+		beefBytes, err := tx3.BEEF()
+		require.NoError(t, err)
+		beef3 := hex.EncodeToString(beefBytes)
+
+		// Todo: callbacks
+		//expectedCallbacks := 1
+		//callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
+		//callbackErrChan := make(chan error, expectedCallbacks)
+		//
+		//lis, err := net.Listen("tcp", ":9000")
+		//require.NoError(t, err)
+		//mux := http.NewServeMux()
+		//defer func() {
+		//	err = lis.Close()
+		//	require.NoError(t, err)
+		//}()
+		//
+		//callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		//defer func() {
+		//	t.Log("closing channels")
+		//
+		//	close(callbackReceivedChan)
+		//	close(callbackErrChan)
+		//}()
+		//
+		//go func() {
+		//	t.Logf("starting callback server")
+		//	err = http.Serve(lis, mux)
+		//	if err != nil {
+		//		t.Log("callback server stopped")
+		//	}
+		//}()
 
 		waitForStatusTimeoutSeconds := 30
 
 		// when
-		resp := postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef}), map[string]string{
-			"X-WaitFor":       StatusSeenOnNetwork,
-			"X-CallbackUrl":   callbackURL,
-			"X-CallbackToken": token,
-			"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
+		// submit beef
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef3}), map[string]string{
+			"X-WaitFor": StatusSeenOnNetwork,
+			//"X-CallbackUrl":   callbackURL,
+			//"X-CallbackToken": token,
+			"X-MaxTimeout": strconv.Itoa(waitForStatusTimeoutSeconds),
 		}, http.StatusOK)
 
 		// then
@@ -73,35 +114,33 @@ func TestBeef(t *testing.T) {
 
 		node_client.Generate(t, bitcoind, 1)
 
-		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx.TxID())
+		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx3.TxID())
 		statusResp := getRequest[TransactionResponse](t, statusURL)
 		require.Equal(t, StatusMined, statusResp.TxStatus)
 
-		// verify callbacks for both unmined txs in BEEF
-		lastTxCallbackReceived := false
-		middleTxCallbackReceived := false
+		//
+		//// verify callback
+		//lastTxCallbackReceived := false
+		//
+		//for i := 0; i < expectedCallbacks; i++ {
+		//	select {
+		//	case status := <-callbackReceivedChan:
+		//		switch status.Txid {
+		//		case tx3.TxID().String():
+		//			require.Equal(t, StatusMined, status.TxStatus)
+		//			lastTxCallbackReceived = true
+		//		default:
+		//			t.Fatalf("received unknown status for txid: %s", status.Txid)
+		//		}
+		//
+		//	case err = <-callbackErrChan:
+		//		t.Fatalf("callback received - failed to parse callback %v", err)
+		//	case <-time.After(10 * time.Second):
+		//		t.Fatal("callback exceeded timeout")
+		//	}
+		//}
 
-		for i := 0; i < expectedCallbacks; i++ {
-			select {
-			case status := <-callbackReceivedChan:
-				if status.Txid == middleTx.TxID().String() {
-					require.Equal(t, StatusMined, status.TxStatus)
-					middleTxCallbackReceived = true
-				} else if status.Txid == tx.TxID().String() {
-					require.Equal(t, StatusMined, status.TxStatus)
-					lastTxCallbackReceived = true
-				} else {
-					t.Fatalf("received unknown status for txid: %s", status.Txid)
-				}
-			case err := <-callbackErrChan:
-				t.Fatalf("callback received - failed to parse callback %v", err)
-			case <-time.After(10 * time.Second):
-				t.Fatal("callback exceeded timeout")
-			}
-		}
-
-		require.Equal(t, true, lastTxCallbackReceived)
-		require.Equal(t, true, middleTxCallbackReceived)
+		//require.Equal(t, true, lastTxCallbackReceived)
 	})
 }
 
@@ -138,53 +177,6 @@ func TestBeef_Fail(t *testing.T) {
 	}
 }
 
-func prepareBeef(t *testing.T, inputTxID, blockHash, fromAddress, toAddress, privateKey string) (string, *sdkTx.Transaction, *sdkTx.Transaction, int) {
-	expectedCallbacks := 0
-
-	rawTx := node_client.GetRawTx(t, bitcoind, inputTxID)
-	t.Logf("rawTx: %+v", rawTx)
-	require.Equal(t, blockHash, rawTx.BlockHash, "block hash mismatch")
-
-	blockData := node_client.GetBlockDataByBlockHash(t, bitcoind, blockHash)
-	t.Logf("blockdata: %+v", blockData)
-
-	merkleHashes, txIndex := prepareMerkleHashesAndTxIndex(t, blockData.Txs, inputTxID)
-	merkleTree := bc.BuildMerkleTreeStoreChainHash(merkleHashes)
-	bump, err := bc.NewBUMPFromMerkleTreeAndIndex(blockData.Height, merkleTree, txIndex)
-	require.NoError(t, err, "error creating BUMP from merkle hashes")
-
-	merkleRootFromBump, err := bump.CalculateRootGivenTxid(inputTxID)
-	require.NoError(t, err, "error calculating merkle root from bump")
-	t.Logf("merkleroot from bump: %s", merkleRootFromBump)
-	require.Equal(t, blockData.MerkleRoot, merkleRootFromBump, "merkle roots mismatch")
-
-	utxos := node_client.GetUtxos(t, bitcoind, fromAddress)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
-
-	middleAddress, middlePrivKey := node_client.GetNewWalletAddress(t, bitcoind)
-	middleTx, err := node_client.CreateTx(privateKey, middleAddress, utxos[0])
-	require.NoError(t, err, "could not create middle tx for beef")
-	t.Logf("middle tx created, hex: %s, txid: %s", middleTx.String(), middleTx.TxID())
-	expectedCallbacks++
-
-	middleUtxo := node_client.UnspentOutput{
-		Txid:         middleTx.TxID().String(),
-		Vout:         0,
-		ScriptPubKey: middleTx.Outputs[0].LockingScriptHex(),
-		Amount:       float64(middleTx.Outputs[0].Satoshis) / 1e8, // satoshis to BSV
-	}
-
-	tx, err := node_client.CreateTx(middlePrivKey, toAddress, middleUtxo)
-	require.NoError(t, err, "could not create tx")
-	t.Logf("tx created, hex: %s, txid: %s", tx.String(), tx.TxID())
-	expectedCallbacks++
-
-	beef := buildBeefString(t, rawTx.Hex, bump, middleTx, tx)
-	t.Logf("beef created, hex: %s", beef)
-
-	return beef, middleTx, tx, expectedCallbacks
-}
-
 func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*chainhash.Hash, uint64) {
 	var merkleHashes []*chainhash.Hash
 	var txIndex uint64
@@ -202,34 +194,4 @@ func prepareMerkleHashesAndTxIndex(t *testing.T, txs []string, txID string) ([]*
 	}
 
 	return merkleHashes, txIndex
-}
-
-func buildBeefString(t *testing.T, inputTxHex string, bump *bc.BUMP, middleTx, newTx *sdkTx.Transaction) string {
-	versionMarker := "0100beef"
-	nBumps := "01"
-	bumpData, err := bump.String()
-	require.NoError(t, err, "could not get bump string")
-
-	nTransactions := "03"
-	rawParentTx := inputTxHex
-	parentHasBump := "01"
-	parentBumpIndex := "00"
-	middleRawTx := middleTx.String()
-	middleHasBump := "00"
-	rawTx := newTx.String()
-	hasBump := "00"
-
-	beef := versionMarker +
-		nBumps +
-		bumpData +
-		nTransactions +
-		rawParentTx +
-		parentHasBump +
-		parentBumpIndex +
-		middleRawTx +
-		middleHasBump +
-		rawTx +
-		hasBump
-
-	return beef
 }

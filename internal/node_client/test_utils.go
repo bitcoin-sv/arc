@@ -1,6 +1,8 @@
 package node_client
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -97,7 +99,12 @@ func GetNewWalletAddress(t *testing.T, bitcoind *bitcoin.Bitcoind) (address, pri
 	require.NoError(t, err)
 	t.Logf("new private key: %s", privateKey)
 
-	accountName := "test-account"
+	// random suffix for account name
+	token := make([]byte, 5)
+	_, err = rand.Read(token)
+	require.NoError(t, err)
+
+	accountName := "test-account" + hex.EncodeToString(token)
 	err = bitcoind.SetAccount(address, accountName)
 	require.NoError(t, err)
 
@@ -274,10 +281,12 @@ func GetBlockDataByBlockHash(t *testing.T, bitcoind *bitcoin.Bitcoind, blockHash
 }
 
 func CreateTx(privateKey string, address string, utxo UnspentOutput, fee ...uint64) (*sdkTx.Transaction, error) {
+	// Todo: pass t *testing.T, don't return error
 	return CreateTxFrom(privateKey, address, []UnspentOutput{utxo}, fee...)
 }
 
 func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee ...uint64) (*sdkTx.Transaction, error) {
+	// Todo: pass t *testing.T, don't return error
 	tx := sdkTx.NewTransaction()
 
 	// Add an input using the UTXOs
@@ -342,4 +351,47 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 	}
 
 	return tx, nil
+}
+
+func CreateTxFromTx(t *testing.T, privateKey string, address string, inputTx *sdkTx.Transaction, vOut uint32, fee ...uint64) *sdkTx.Transaction {
+	t.Helper()
+
+	tx := sdkTx.NewTransaction()
+
+	// Sign the input
+	wif, err := bsvutil.DecodeWIF(privateKey)
+	require.NoError(t, err)
+
+	privateKeyDecoded := wif.PrivKey.Serialize()
+	pk, _ := ec.PrivateKeyFromBytes(privateKeyDecoded)
+
+	unlockingScriptTemplate, err := p2pkh.Unlock(pk, nil)
+	require.NoError(t, err)
+	tx.AddInputFromTx(inputTx, vOut, unlockingScriptTemplate)
+
+	// Add an output to the address you've previously created
+	recipientAddress := address
+
+	var feeValue uint64
+	if len(fee) > 0 {
+		feeValue = fee[0]
+	} else {
+		feeValue = 20 // Set your default fee value here
+	}
+
+	amount, err := tx.TotalInputSatoshis()
+	require.NoError(t, err)
+	amountToSend := amount - feeValue
+
+	err = tx.PayToAddress(recipientAddress, amountToSend)
+	require.NoError(t, err)
+
+	for _, input := range tx.Inputs {
+		input.UnlockingScriptTemplate = unlockingScriptTemplate
+	}
+
+	err = tx.Sign()
+	require.NoError(t, err)
+
+	return tx
 }

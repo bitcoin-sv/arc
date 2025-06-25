@@ -90,7 +90,13 @@ func createPayload[T any](t *testing.T, body T) io.Reader {
 func getRequest[T any](t *testing.T, url string) T {
 	getResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer getResp.Body.Close()
+
+	defer func() {
+		err = getResp.Body.Close()
+		if err != nil {
+			t.Log("failed to close body")
+		}
+	}()
 
 	var respBody T
 	require.NoError(t, json.NewDecoder(getResp.Body).Decode(&respBody))
@@ -113,7 +119,12 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 	httpResp, err := client.Do(req)
 	require.NoError(t, err)
 
-	defer httpResp.Body.Close()
+	defer func() {
+		err = httpResp.Body.Close()
+		if err != nil {
+			t.Log("failed to close body")
+		}
+	}()
 
 	if httpResp.StatusCode != expectedStatusCode {
 		bodyBytes, err := io.ReadAll(httpResp.Body)

@@ -5,9 +5,11 @@ package test
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
+	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	safe "github.com/ccoveille/go-safecast"
@@ -69,78 +71,93 @@ func TestBeef(t *testing.T) {
 		require.NoError(t, err)
 		beef3 := hex.EncodeToString(beefBytes)
 
-		// Todo: callbacks
-		//expectedCallbacks := 1
-		//callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
-		//callbackErrChan := make(chan error, expectedCallbacks)
-		//
-		//lis, err := net.Listen("tcp", ":9000")
-		//require.NoError(t, err)
-		//mux := http.NewServeMux()
-		//defer func() {
-		//	err = lis.Close()
-		//	require.NoError(t, err)
-		//}()
-		//
-		//callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
-		//defer func() {
-		//	t.Log("closing channels")
-		//
-		//	close(callbackReceivedChan)
-		//	close(callbackErrChan)
-		//}()
-		//
-		//go func() {
-		//	t.Logf("starting callback server")
-		//	err = http.Serve(lis, mux)
-		//	if err != nil {
-		//		t.Log("callback server stopped")
-		//	}
-		//}()
+		expectedCallbacks := 2
+		callbackReceivedChan := make(chan *TransactionResponse, expectedCallbacks) // do not block callback server responses
+		callbackErrChan := make(chan error, expectedCallbacks)
+
+		lis, err := net.Listen("tcp", ":9000")
+		require.NoError(t, err)
+		mux := http.NewServeMux()
+		defer func() {
+			err = lis.Close()
+			require.NoError(t, err)
+		}()
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		defer func() {
+			t.Log("closing channels")
+
+			close(callbackReceivedChan)
+			close(callbackErrChan)
+		}()
+
+		go func() {
+			t.Logf("starting callback server")
+			err = http.Serve(lis, mux)
+			if err != nil {
+				t.Log("callback server stopped")
+			}
+		}()
 
 		waitForStatusTimeoutSeconds := 30
 
 		// when
 		// submit beef
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef3}), map[string]string{
-			"X-WaitFor": StatusSeenOnNetwork,
-			//"X-CallbackUrl":   callbackURL,
-			//"X-CallbackToken": token,
-			"X-MaxTimeout": strconv.Itoa(waitForStatusTimeoutSeconds),
+			"X-WaitFor":       StatusSeenOnNetwork,
+			"X-CallbackUrl":   callbackURL,
+			"X-CallbackToken": token,
+			"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
 		}, http.StatusOK)
 
 		// then
 		require.Equal(t, StatusSeenOnNetwork, resp.TxStatus)
 
-		node_client.Generate(t, bitcoind, 1)
+		blockHash2 := node_client.Generate(t, bitcoind, 1)
+
+		time.Sleep(200 * time.Millisecond)
 
 		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx3.TxID())
 		statusResp := getRequest[TransactionResponse](t, statusURL)
 		require.Equal(t, StatusMined, statusResp.TxStatus)
+		require.NotNil(t, statusResp.BlockHash)
+		require.Equal(t, blockHash2, *statusResp.BlockHash)
 
-		//
-		//// verify callback
-		//lastTxCallbackReceived := false
-		//
-		//for i := 0; i < expectedCallbacks; i++ {
-		//	select {
-		//	case status := <-callbackReceivedChan:
-		//		switch status.Txid {
-		//		case tx3.TxID().String():
-		//			require.Equal(t, StatusMined, status.TxStatus)
-		//			lastTxCallbackReceived = true
-		//		default:
-		//			t.Fatalf("received unknown status for txid: %s", status.Txid)
-		//		}
-		//
-		//	case err = <-callbackErrChan:
-		//		t.Fatalf("callback received - failed to parse callback %v", err)
-		//	case <-time.After(10 * time.Second):
-		//		t.Fatal("callback exceeded timeout")
-		//	}
-		//}
+		statusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
+		statusResp = getRequest[TransactionResponse](t, statusURL)
+		require.Equal(t, StatusMined, statusResp.TxStatus)
+		require.NotNil(t, statusResp.BlockHash)
+		require.Equal(t, blockHash2, *statusResp.BlockHash)
 
-		//require.Equal(t, true, lastTxCallbackReceived)
+		// verify callback
+		callbackReceived := 0
+
+		for i := 0; i < expectedCallbacks; i++ {
+			select {
+			case status := <-callbackReceivedChan:
+				switch status.Txid {
+				case tx2.TxID().String():
+					require.Equal(t, StatusMined, status.TxStatus)
+					require.NotNil(t, statusResp.BlockHash)
+					require.Equal(t, blockHash2, *statusResp.BlockHash)
+					callbackReceived++
+				case tx3.TxID().String():
+					require.Equal(t, StatusMined, status.TxStatus)
+					require.NotNil(t, statusResp.BlockHash)
+					require.Equal(t, blockHash2, *statusResp.BlockHash)
+					callbackReceived++
+				default:
+					t.Fatalf("received unknown status for txid: %s", status.Txid)
+				}
+
+			case err = <-callbackErrChan:
+				t.Fatalf("callback received - failed to parse callback %v", err)
+			case <-time.After(10 * time.Second):
+				t.Fatal("callback exceeded timeout")
+			}
+		}
+
+		require.Equal(t, expectedCallbacks, callbackReceived)
 	})
 }
 

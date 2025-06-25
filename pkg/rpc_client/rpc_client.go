@@ -150,8 +150,9 @@ func (c *RPCClient) SendRawTransaction(ctx context.Context, txHex string) (strin
 }
 
 type VerboseRawTransaction struct {
-	TxID      string `json:"txid"`
-	BlockHash string `json:"blockhash,omitempty"`
+	TxID          string `json:"txid"`
+	BlockHash     string `json:"blockhash,omitempty"`
+	Confirmations int    `json:"confirmations,omitempty"`
 	// You can expand this if needed (e.g. confirmations, time, etc.)
 }
 

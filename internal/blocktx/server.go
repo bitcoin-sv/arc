@@ -2,10 +2,10 @@ package blocktx
 
 import (
 	"context"
-	"encoding/hex"
 	"log/slog"
 	"time"
 
+	"github.com/bsv-blockchain/go-sdk/util"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -112,18 +112,13 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 }
 
 func (s *Server) IsCompetingTransactionMined(ctx context.Context, req *blocktx_api.CompetingTxs) (*blocktx_api.CompetingTxMined, error) {
+	for i, v := range req.CompetingTxs {
+		req.CompetingTxs[i] = util.ReverseBytes(v)
+	}
 	txs, err := s.store.GetMinedTransactions(ctx, req.CompetingTxs)
 	res := blocktx_api.CompetingTxMined{}
 	if err != nil {
 		return &res, err
-	}
-
-	s.logger.Info("shota blocktx checking mined 2")
-	for _, v := range txs {
-		s.logger.Info("shota blocktx 2", hex.EncodeToString(v.TxHash))
-	}
-	for _, v := range req.CompetingTxs {
-		s.logger.Info("shota blocktx 22", hex.EncodeToString(v), len(txs))
 	}
 
 	return &blocktx_api.CompetingTxMined{Mined: len(txs) != 0}, nil

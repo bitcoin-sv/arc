@@ -93,7 +93,12 @@ func TestDoubleSpendRejected(t *testing.T) {
 
 		// give arc time to update the status of all competing transactions
 		time.Sleep(15 * time.Second)
-		t.Logf("shotaa %s %s", tx2StatusResp.TxStatus, minedTx)
+		// make sure tx1 is mined in the block
+		minedTx, err = client.GetRawTransactionVerbose(context.Background(), tx1ID)
+		require.NoError(t, err)
+		require.NotEqual(t, "", minedTx.BlockHash)
+		t.Logf("shotaa %s %s %d ", tx2StatusResp.TxStatus, minedTx.BlockHash, minedTx.Confirmations)
+
 		tx2StatusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())
 		tx2StatusResp = getRequest[TransactionResponse](t, tx2StatusURL)
 		require.Equal(t, StatusRejected, tx2StatusResp.TxStatus)

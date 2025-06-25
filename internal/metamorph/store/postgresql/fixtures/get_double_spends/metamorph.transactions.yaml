@@ -2,11 +2,13 @@
   locked_by: metamorph-1
   status: 100
   stored_at: 2023-10-01 14:00:00
+  last_submitted_at: 2023-10-01 14:00:00
   last_modified: 2023-10-01 14:00:00
   competing_txs: '4e6b3dd04f51ac6ce3d051f80d819bed366a4ff29143bb58c01154cb322d1321,30f409d6951483e4d65a586205f373c2f72431ade49abb6f143e82fc53ea6cb1'
 - hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   locked_by: metamorph-1
   status: 100
   stored_at: 2023-10-01 14:00:00
+  last_submitted_at: 2023-10-01 16:00:00
   last_modified: 2023-10-01 16:00:00
   competing_txs: '4e6b3dd04f51ac6ce3d051f80d819bed366a4ff29143bb58c01154cb322d1321,538808e847d0add40ed9622fff53954c79e1f52db7c47ea0b6cdc0df972f3dcd'

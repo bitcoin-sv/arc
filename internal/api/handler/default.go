@@ -410,21 +410,8 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 			transactionOptions.SkipTxValidation = true
 
 			// now check if we need to skip the processing of the transaction
-			allProcessed := true
-			for _, tx := range txStatuses {
-				exists := false
-				for _, cb := range tx.Callbacks {
-					if cb.CallbackUrl == transactionOptions.CallbackURL {
-						exists = true
-						break
-					}
-				}
-				if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
-					allProcessed = false
-					break
-				}
-			}
-			allTransactionsProcessed = allProcessed
+
+			allTransactionsProcessed = m.checkAllProcessed(txStatuses, transactionOptions)
 		}
 
 		// if nothing to update return
@@ -449,6 +436,24 @@ func (m ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, par
 	responses := mergeSuccessAndFailResults(successes, fails)
 
 	return PostResponse{int(api.StatusOK), responses}
+}
+
+func (m ArcDefaultHandler) checkAllProcessed(txStatuses []*metamorph.TransactionStatus, transactionOptions *metamorph.TransactionOptions) bool {
+	allProcessed := true
+	for _, tx := range txStatuses {
+		exists := false
+		for _, cb := range tx.Callbacks {
+			if cb.CallbackUrl == transactionOptions.CallbackURL {
+				exists = true
+				break
+			}
+		}
+		if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
+			allProcessed = false
+			break
+		}
+	}
+	return allProcessed
 }
 
 func mergeSuccessAndFailResults(successes []*api.TransactionResponse, fails []*api.ErrorFields) []any {

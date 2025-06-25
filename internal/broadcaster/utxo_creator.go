@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -279,44 +279,48 @@ func (b *UTXOCreator) createRightSizedUTXOs(lastUtxoSetLen int, satoshiMap map[s
 				return err
 			}
 
-			for _, res := range resp {
-				if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
-					b.logger.Error("splitting tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
-					for _, tx := range batch {
-						if tx.TxID().String() == res.Txid {
-							b.logger.Debug(tx.String())
-							break
-						}
-					}
-					continue
-				}
-
-				foundOutputs, found := satoshiMap[res.Txid]
-				if !found {
-					b.logger.Error("output not found", slog.String("hash", res.Txid))
-					continue
-				}
-
-				hash, err := chainhash.NewHashFromHex(res.Txid)
-				if err != nil {
-					b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
-					continue
-				}
-				for _, foundOutput := range foundOutputs {
-					newUtxo := &sdkTx.UTXO{
-						TxID:          hash,
-						Vout:          foundOutput.vout,
-						LockingScript: b.keySet.Script,
-						Satoshis:      foundOutput.satoshis,
-					}
-
-					utxoSet.PushBack(newUtxo)
-				}
-				delete(satoshiMap, res.Txid)
-			}
+			b.processBroadcastResponse(resp, satoshiMap, utxoSet, batch)
 			// do not performance test ARC when creating the utxos
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	return nil
+}
+
+func (b *UTXOCreator) processBroadcastResponse(resp []*metamorph_api.TransactionStatus, satoshiMap map[string][]splittingOutput, utxoSet *list.List, batch sdkTx.Transactions) {
+	for _, res := range resp {
+		if res.Status == metamorph_api.Status_REJECTED || res.Status == metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL {
+			b.logger.Error("splitting tx was not successful", slog.String("status", res.Status.String()), slog.String("hash", res.Txid), slog.String("reason", res.RejectReason))
+			for _, tx := range batch {
+				if tx.TxID().String() == res.Txid {
+					b.logger.Debug(tx.String())
+					break
+				}
+			}
+			continue
+		}
+
+		foundOutputs, found := satoshiMap[res.Txid]
+		if !found {
+			b.logger.Error("output not found", slog.String("hash", res.Txid))
+			continue
+		}
+
+		hash, err := chainhash.NewHashFromHex(res.Txid)
+		if err != nil {
+			b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+			continue
+		}
+		for _, foundOutput := range foundOutputs {
+			newUtxo := &sdkTx.UTXO{
+				TxID:          hash,
+				Vout:          foundOutput.vout,
+				LockingScript: b.keySet.Script,
+				Satoshis:      foundOutput.satoshis,
+			}
+
+			utxoSet.PushBack(newUtxo)
+		}
+		delete(satoshiMap, res.Txid)
+	}
 }

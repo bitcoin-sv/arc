@@ -37,7 +37,7 @@ func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
 	}
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, txID string, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error {
 	var vErr *validator.Error
 	var spanErr error
 	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
@@ -51,8 +51,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	for _, btx := range beefTx.Transactions {
 		// verify only unmined transactions
 
-		// check if is mined
-		if btx.Transaction.TxID().String() != txID {
+		if btx.DataFormat != sdkTx.RawTx {
 			continue
 		}
 

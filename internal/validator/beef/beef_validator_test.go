@@ -56,7 +56,7 @@ func TestBeefValidator(t *testing.T) {
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
 
-			beefTx, txID, err := beef.DecodeBEEF(beefHex)
+			beefTx, _, err := beef.DecodeBEEF(beefHex)
 			require.NoError(t, err)
 
 			ctMock := &mocks.ChainTrackerMock{
@@ -68,7 +68,7 @@ func TestBeefValidator(t *testing.T) {
 			sut := New(getPolicy(1), ctMock)
 
 			// when
-			err = sut.ValidateTransaction(context.TODO(), beefTx, txID, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+			err = sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
 
 			// then
 			if tc.expectedErr != nil {

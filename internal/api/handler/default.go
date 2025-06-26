@@ -67,8 +67,8 @@ type ArcDefaultHandler struct {
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
 	stats                         *Stats
-	defaultValidator              validator.DefaultValidator
-	beefValidator                 validator.BeefValidator
+	defaultValidator              DefaultValidator
+	beefValidator                 BeefValidator
 }
 
 type PostResponse struct {
@@ -121,13 +121,21 @@ func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
+type DefaultValidator interface {
+	ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) error
+}
+
+type BeefValidator interface {
+	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (failedTx *sdkTx.Transaction, err error)
+}
+
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler metamorph.TransactionHandler,
 	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
-	defaultValidator validator.DefaultValidator,
-	beefValidator validator.BeefValidator,
+	defaultValidator DefaultValidator,
+	beefValidator BeefValidator,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
 	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64

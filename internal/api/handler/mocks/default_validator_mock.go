@@ -10,22 +10,18 @@ import (
 	"sync"
 )
 
-// Ensure, that DefaultValidatorMock does implement validator.DefaultValidator.
-// If this is not the case, regenerate this file with moq.
-var _ validator.DefaultValidator = &DefaultValidatorMock{}
-
-// DefaultValidatorMock is a mock implementation of validator.DefaultValidator.
+// DefaultValidatorMock is a mock implementation of handler.DefaultValidator.
 //
 //	func TestSomethingThatUsesDefaultValidator(t *testing.T) {
 //
-//		// make and configure a mocked validator.DefaultValidator
+//		// make and configure a mocked handler.DefaultValidator
 //		mockedDefaultValidator := &DefaultValidatorMock{
 //			ValidateTransactionFunc: func(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) error {
 //				panic("mock out the ValidateTransaction method")
 //			},
 //		}
 //
-//		// use mockedDefaultValidator in code that requires validator.DefaultValidator
+//		// use mockedDefaultValidator in code that requires handler.DefaultValidator
 //		// and then make assertions.
 //
 //	}

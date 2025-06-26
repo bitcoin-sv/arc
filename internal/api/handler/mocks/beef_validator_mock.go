@@ -10,22 +10,18 @@ import (
 	"sync"
 )
 
-// Ensure, that BeefValidatorMock does implement validator.BeefValidator.
-// If this is not the case, regenerate this file with moq.
-var _ validator.BeefValidator = &BeefValidatorMock{}
-
-// BeefValidatorMock is a mock implementation of validator.BeefValidator.
+// BeefValidatorMock is a mock implementation of handler.BeefValidator.
 //
 //	func TestSomethingThatUsesBeefValidator(t *testing.T) {
 //
-//		// make and configure a mocked validator.BeefValidator
+//		// make and configure a mocked handler.BeefValidator
 //		mockedBeefValidator := &BeefValidatorMock{
 //			ValidateTransactionFunc: func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
 //				panic("mock out the ValidateTransaction method")
 //			},
 //		}
 //
-//		// use mockedBeefValidator in code that requires validator.BeefValidator
+//		// use mockedBeefValidator in code that requires handler.BeefValidator
 //		// and then make assertions.
 //
 //	}

@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -250,7 +249,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
 	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
 	p.StartRoutine(p.checkUnconfirmedSeenInterval, RejectUnconfirmedRequested, "RejectUnconfirmedRequested")
-	p.StartRoutine(p.doubleSpendTxStatusCheck, StartProcessDoubleSpendTxs, "RejectTxWithCompetingMinedTx")
+	p.StartRoutine(p.doubleSpendTxStatusCheck, ProcessDoubleSpendTxs, "RejectTxWithCompetingMinedTx")
 
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
@@ -512,50 +511,6 @@ func (p *Processor) StartProcessStatusUpdatesInStorage() {
 			}
 		}
 	}()
-}
-
-func StartProcessDoubleSpendTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
-	doubleSpendTxs, err := p.store.GetDoubleSpendTxs(ctx, p.now().Add(-p.doubleSpendTxStatusOlderThan))
-	if err != nil {
-		p.logger.Error("failed to get double spend status transactions", slog.String("err", err.Error()))
-		return []attribute.KeyValue{}
-	}
-
-	for _, doubleSpendTx := range doubleSpendTxs {
-		competingTxs, err := txBytesFromHex(doubleSpendTx.CompetingTxs)
-		if err != nil {
-			p.logger.Error("failed to convert competing txs from hex", slog.String("err", err.Error()))
-			continue
-		}
-
-		competingTxStatuses, err := p.blocktxClient.AnyTransactionsMined(ctx, competingTxs)
-		if err != nil {
-			p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
-			continue
-		}
-
-		// if ANY of those competing txs gets mined we reject this one
-		for _, competingTx := range competingTxStatuses {
-			if competingTx.Mined {
-				_, err := p.store.UpdateStatus(ctx, []store.UpdateStatus{
-					{
-						Hash:         *doubleSpendTx.Hash,
-						Status:       metamorph_api.Status_REJECTED,
-						CompetingTxs: doubleSpendTx.CompetingTxs,
-						Timestamp:    p.now(),
-						Error:        fmt.Errorf("double spend tx rejected, competing tx %s mined", hex.EncodeToString(competingTx.Hash)),
-					},
-				})
-				if err != nil {
-					p.logger.Error("failed to update double spend status", slog.String("err", err.Error()), slog.String("hash", doubleSpendTx.Hash.String()))
-					continue
-				}
-				p.logger.Info("Double spend tx rejected", slog.String("hash", doubleSpendTx.Hash.String()), slog.String("competing mined tx hash", hex.EncodeToString(competingTx.Hash)))
-				break
-			}
-		}
-	}
-	return []attribute.KeyValue{}
 }
 
 func (p *Processor) checkAndUpdate(ctx context.Context) error {

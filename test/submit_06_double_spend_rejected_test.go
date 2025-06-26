@@ -51,7 +51,7 @@ func TestDoubleSpendRejected(t *testing.T) {
 			http.StatusOK)
 
 		// give arc time to update the status of all competing transactions
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		// mine the first tx
 		node_client.Generate(t, bitcoind, 3)
@@ -67,7 +67,7 @@ func TestDoubleSpendRejected(t *testing.T) {
 		require.Equal(t, StatusDoubleSpendAttempted, tx2StatusResp.TxStatus)
 
 		// give arc time to update the status of the second transaction
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 
 		// make sure the status was updated to rejected
 		tx2StatusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())

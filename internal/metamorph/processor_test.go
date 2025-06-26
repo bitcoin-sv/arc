@@ -1342,7 +1342,7 @@ func TestProcessDoubleSpendTxs(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetDoubleSpendTxsFunc: func(ctx context.Context, older time.Time) ([]*store.Data, error) {
+				GetDoubleSpendTxsFunc: func(_ context.Context, _ time.Time) ([]*store.Data, error) {
 					return tc.doubleSpendTxs, nil
 				},
 				UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {

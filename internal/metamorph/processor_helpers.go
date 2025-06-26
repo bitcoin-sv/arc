@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -283,11 +282,11 @@ func txBytesFromHex(txs []string) ([][]byte, error) {
 
 	hashes := make([][]byte, 0, len(txs))
 	for _, tx := range txs {
-		hash, err := hex.DecodeString(tx)
+		hash, err := chainhash.NewHashFromStr(tx)
 		if err != nil {
 			return nil, err
 		}
-		hashes = append(hashes, hash)
+		hashes = append(hashes, hash[:])
 	}
 
 	return hashes, nil

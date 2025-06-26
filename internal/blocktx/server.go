@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/util"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -115,9 +114,8 @@ func (s *Server) RegisterTransactions(_ context.Context, req *blocktx_api.Transa
 func (s *Server) AnyTransactionsMined(ctx context.Context, req *blocktx_api.Transactions) (*blocktx_api.AnyTransactionsMinedResponse, error) {
 	minedTxs := make([][]byte, len(req.Transactions))
 	minedStatuses := make(map[string]bool, len(req.Transactions))
-	for i, v := range req.Transactions {
+	for _, v := range req.Transactions {
 		minedStatuses[string(hex.EncodeToString(v.Hash))] = false
-		minedTxs[i] = util.ReverseBytes(v.Hash)
 	}
 
 	// get mined txs and mark them as mined

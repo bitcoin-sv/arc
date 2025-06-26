@@ -94,7 +94,6 @@ func TestAnyTransactionsMined(t *testing.T) {
 			}})
 			require.NoError(t, err)
 			require.Equal(t, res.Transactions[0].Mined, tc.isMined)
-
 		})
 	}
 }

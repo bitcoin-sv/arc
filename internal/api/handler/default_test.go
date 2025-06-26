@@ -378,13 +378,14 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name                   string
-		contentType            string
-		txHexString            string
-		getTx                  []byte
-		submitTxResponse       *metamorph.TransactionStatus
-		submitTxErr            error
-		validateTransactionErr error
+		name                       string
+		contentType                string
+		txHexString                string
+		getTx                      []byte
+		submitTxResponse           *metamorph.TransactionStatus
+		submitTxErr                error
+		validateTransactionErr     error
+		validateBeefTransactionErr error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -549,17 +550,19 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedError:    ErrDecodingBeef,
 		},
 		{
-			name:        "invalid BEEF - text/plain - low fees",
-			contentType: contentTypes[0],
-			txHexString: invalidBeefLowFees,
+			name:                       "invalid BEEF - text/plain - low fees",
+			contentType:                contentTypes[0],
+			txHexString:                invalidBeefLowFees,
+			validateBeefTransactionErr: validator.NewError(defaultvalidator.ErrTxFeeTooLow, api.ErrStatusFees),
 
 			expectedStatus:   465,
 			expectedResponse: errBEEFLowFees,
 		},
 		{
-			name:        "invalid BEEF - text/plain - invalid scripts",
-			contentType: contentTypes[0],
-			txHexString: invalidBeefInvalidScripts,
+			name:                       "invalid BEEF - text/plain - invalid scripts",
+			contentType:                contentTypes[0],
+			txHexString:                invalidBeefInvalidScripts,
+			validateBeefTransactionErr: validator.NewError(errors.New("validation error"), api.ErrStatusUnlockingScripts),
 
 			expectedStatus:   461,
 			expectedResponse: errBEEFInvalidScripts,
@@ -695,7 +698,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			bv := &apiHandlerMocks.BeefValidatorMock{
 				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
-					return nil, nil
+					return nil, tc.validateBeefTransactionErr
 				},
 			}
 			sut, err := NewDefault(testLogger, txHandler, blocktxClient, &policy, dv, bv,

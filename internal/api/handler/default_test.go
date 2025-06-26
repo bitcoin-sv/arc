@@ -707,7 +707,9 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				WithCallbackURLRestrictions(urlRestrictions),
 				WithRebroadcastExpiration(23*time.Hour),
 				WithServerMaxTimeoutDefault(5*time.Second),
-				WithTracer(tracer))
+				WithTracer(tracer),
+				WithStandardFormatSupported(true),
+			)
 			require.NoError(t, err)
 
 			defer sut.Shutdown()

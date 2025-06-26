@@ -49,10 +49,11 @@ func TestValidator(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
-		name     string
-		txHex    string
-		satPerKb uint64
-		finder   validator.TxFinderI
+		name               string
+		txHex              string
+		satPerKb           uint64
+		finder             validator.TxFinderI
+		stdFormatSupported bool
 
 		expectedError error
 	}{
@@ -65,6 +66,24 @@ func TestValidator(t *testing.T) {
 			name:     "valid tx",
 			txHex:    "020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000",
 			satPerKb: 500,
+		},
+		{
+			name:     "std format valid tx - unsupported",
+			txHex:    "0100000001d859c75c939c61f09f6e7c4e7dda64b567ecbba296a7d314537e8f89f02af911000000006b483045022100eb020b507ffdae15e139338e4d4beacba0c30a264b8d1a837f60947178bd4ee0022008cf15d838bcec4f6a880c8fee35a3f2f27ab0ae467ed5f5f73645c8058d1886412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf00000000001da030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000",
+			satPerKb: 500,
+
+			expectedError: ErrNotExtended,
+		},
+		{
+			name:               "std format valid tx - supported",
+			txHex:              "0100000001d859c75c939c61f09f6e7c4e7dda64b567ecbba296a7d314537e8f89f02af911000000006b483045022100eb020b507ffdae15e139338e4d4beacba0c30a264b8d1a837f60947178bd4ee0022008cf15d838bcec4f6a880c8fee35a3f2f27ab0ae467ed5f5f73645c8058d1886412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf00000000001da030000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000",
+			satPerKb:           1,
+			stdFormatSupported: true,
+			finder: &mocks.TxFinderIMock{
+				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+					return []*sdkTx.Transaction{fixture.ParentTx2}
+				},
+			},
 		},
 		{
 			name:     "invalid tx",
@@ -104,7 +123,7 @@ func TestValidator(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
 			se := goscript.NewScriptEngine("main")
-			sut := New(policy, tc.finder, se, int32(632099))
+			sut := New(policy, tc.finder, se, int32(632099), WithStandardFormatSupported(tc.stdFormatSupported))
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 632099)

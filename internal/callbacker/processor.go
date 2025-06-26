@@ -191,7 +191,7 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 }
 
 // DispatchPersistedCallbacks loads and dispatches persisted callbacks with unmapped URLs in intervals
-func (p *Processor) DispatchPersistedCallbacks() { //nolint:revive //complexity is high due to the go func()
+func (p *Processor) DispatchPersistedCallbacks() {
 	const batchSize = 100
 	ctx := context.Background()
 

@@ -44,7 +44,7 @@ func (b *UTXOConsolidator) Wait() {
 	b.wg.Wait()
 }
 
-func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error { //nolint:revive //complexity is high due to the go func
+func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 	submitBatchesPerMinute := float64(txsRateTxsPerMinute) / float64(b.batchSize)
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond

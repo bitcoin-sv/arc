@@ -251,7 +251,7 @@ func (p *Processor) RegisterTransaction(txHash []byte) {
 	}
 }
 
-func (p *Processor) StartProcessRegisterTxs() { //nolint:revive //complexity is high due to the go func()
+func (p *Processor) StartProcessRegisterTxs() {
 	p.waitGroup.Add(1)
 	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
 

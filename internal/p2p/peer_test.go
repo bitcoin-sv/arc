@@ -97,10 +97,6 @@ func Test_Connect(t *testing.T) {
 	})
 }
 
-// TODO - don't know how to implement it yet
-// func Test_Restart(t *testing.T) {
-// }
-
 func Test_Shutdown(t *testing.T) {
 	t.Run("Shutdown", func(t *testing.T) {
 		// given
@@ -135,6 +131,46 @@ func Test_Shutdown(t *testing.T) {
 		// then
 		require.ErrorIs(t, io.ErrClosedPipe, writeToNodeErr)
 		require.ErrorIs(t, io.ErrClosedPipe, nodeWriteToMeErr)
+	})
+}
+
+func Test_Restart(t *testing.T) {
+	t.Run("Restart", func(t *testing.T) {
+		// given
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
+		sut, _, _ := connectedPeer(t, mhMq)
+
+		// when
+		sut.Restart()
+		// then
+		connected := sut.Connected()
+		require.False(t, connected)
+	})
+
+	t.Run("Restart - connection should be opened  ", func(t *testing.T) {
+		// given
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
+		sut, toPeerConn, fromPeerConn := connectedPeer(t, mhMq)
+
+		// when
+		sut.Restart()
+		connected := sut.Connected()
+		require.False(t, connected)
+
+		// try to sent data through connection
+		_, writeToNodeErr := toPeerConn.Write([]byte{})
+
+		// try to send message as a node
+		invMsg := wire.NewMsgInv()
+		nodeWriteToMeErr := wire.WriteMessage(fromPeerConn, invMsg, wire.ProtocolVersion, bitcoinNet)
+
+		// then
+		require.ErrorIs(t, io.ErrClosedPipe, writeToNodeErr)
+		require.ErrorIs(t, nodeWriteToMeErr, io.ErrClosedPipe)
+
+		//try to get the underlying node
+		node := sut.Network()
+		require.NotEmpty(t, node)
 	})
 }
 

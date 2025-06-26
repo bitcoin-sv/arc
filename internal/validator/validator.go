@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"errors"
+
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	internalApi "github.com/bitcoin-sv/arc/internal/api"
@@ -22,6 +24,11 @@ type ScriptValidation byte
 const (
 	NoneScriptValidation ScriptValidation = iota
 	StandardScriptValidation
+)
+
+var (
+	ErrVerifyScriptFailed = errors.New("script verification failed")
+	ErrExtendTx           = errors.New("failed to extend transaction")
 )
 
 type GenericValidator struct {
@@ -46,12 +53,12 @@ func (v *GenericValidator) StandardScriptValidation(scriptValidation ScriptValid
 
 		b, err := tx.EF()
 		if err != nil {
-			return NewError(err, api.ErrStatusMalformed)
+			return NewError(errors.Join(ErrExtendTx, err), api.ErrStatusMalformed)
 		}
 
 		err = v.scriptVerifier.VerifyScript(b, utxo, blockHeight, true)
 		if err != nil {
-			return NewError(err, api.ErrStatusUnlockingScripts)
+			return NewError(errors.Join(ErrVerifyScriptFailed, err), api.ErrStatusUnlockingScripts)
 		}
 	case NoneScriptValidation:
 		// No script validation

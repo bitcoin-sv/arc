@@ -24,7 +24,13 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/internal/node_client"
+	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
+	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	"github.com/bitcoin-sv/arc/pkg/rpc_client"
+	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
 // This example does not use the configuration files or env variables,
@@ -110,11 +116,35 @@ func main() {
 
 	se := goscript.NewScriptEngine(network)
 
+	pc := arcConfig.PeerRPC
+	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
+	if err != nil {
+		panic(err)
+	}
+
+	nodeClient, err := node_client.New(nc)
+	if err != nil {
+		panic(err)
+	}
+
+	wocClient := woc_client.New(arcConfig.API.WocMainnet)
+
+	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger)
+
+	cachedFinder := tx_finder.NewCached(finder)
+	dv := defaultValidator.New(
+		arcConfig.API.DefaultPolicy,
+		cachedFinder,
+		se,
+		genesisBlock,
+	)
+
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
 
 	chainTrackerMock := &apimocks.ChainTrackerMock{}
-	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, nil, se, genesisBlock, chainTrackerMock)
+	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock)
+	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)
 	}

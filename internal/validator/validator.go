@@ -4,7 +4,6 @@ import (
 	"context"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type FeeValidation byte
@@ -25,9 +24,9 @@ const (
 )
 
 type DefaultValidator interface {
-	ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation FeeValidation, scriptValidation ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error
+	ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation FeeValidation, scriptValidation ScriptValidation, blockHeight int32) error
 }
 
 type BeefValidator interface {
-	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation FeeValidation, scriptValidation ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (failedTx *sdkTx.Transaction, err error)
+	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation FeeValidation, scriptValidation ScriptValidation) (failedTx *sdkTx.Transaction, err error)
 }

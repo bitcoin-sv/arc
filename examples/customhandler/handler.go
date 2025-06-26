@@ -4,16 +4,16 @@ import (
 	"context"
 	"net/http"
 
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
-
 	"github.com/bitcoin-sv/arc/internal/api/handler"
-	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
+	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
@@ -41,13 +41,12 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	// add blocktx, header service or custom implementation of merkle roots verifier
 	merkleRootVerifier := &mocks.ClientMock{}
 
-	scriptVerifierMock := &apimocks.ScriptVerifierMock{
-		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-			return nil
+	dv := &apiHandlerMocks.DefaultValidatorMock{}
+	bv := &apiHandlerMocks.BeefValidatorMock{
+		ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+			return nil, nil
 		},
 	}
-
-	chainTrackerMock := &apimocks.ChainTrackerMock{}
 
 	// create default handler
 	defaultHandler, _ := handler.NewDefault(
@@ -55,10 +54,8 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		node,
 		merkleRootVerifier,
 		nil,
-		nil,
-		scriptVerifierMock,
-		handler.GenesisForkBlockTest,
-		chainTrackerMock,
+		dv,
+		bv,
 	)
 
 	defaultHandler.StartUpdateCurrentBlockHeight()

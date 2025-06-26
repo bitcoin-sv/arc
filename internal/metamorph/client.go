@@ -322,7 +322,6 @@ func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_ap
 
 // TransactionOptions options passed from header when creating transactions.
 type TransactionOptions struct {
-	ClientID                string               `json:"client_id"`
 	CallbackURL             string               `json:"callback_url,omitempty"`
 	CallbackToken           string               `json:"callback_token,omitempty"`
 	CallbackBatch           bool                 `json:"callback_batch,omitempty"`

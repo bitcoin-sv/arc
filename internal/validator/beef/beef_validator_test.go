@@ -78,7 +78,7 @@ func TestBeefValidator(t *testing.T) {
 			sut := New(getPolicy(1), ctMock)
 
 			// when
-			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation, false)
+			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)
 
 			// then
 			if tc.expectedErr != nil {

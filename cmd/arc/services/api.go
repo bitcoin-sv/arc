@@ -33,6 +33,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -191,15 +192,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("invalid network type: %s", arcConfig.Network)
 	}
 
-	dv := defaultValidator.New(
-		policy,
-		cachedFinder,
-		goscript.NewScriptEngine(network),
-		genesisBlock,
-		defaultValidatorOpts...,
-	)
-
-	bv := beefValidator.New(policy, chainTracker, beefValidatorOpts...)
+	gv := validator.NewGenericValidator(goscript.NewScriptEngine(network), genesisBlock)
+	dv := defaultValidator.New(policy, cachedFinder, *gv, defaultValidatorOpts...)
+	bv := beefValidator.New(policy, chainTracker, *gv, beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

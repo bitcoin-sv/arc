@@ -22,18 +22,16 @@ var (
 )
 
 type DefaultValidator struct {
+	validator.GenericValidator
 	policy            *bitcoin.Settings
 	txFinder          validator.TxFinderI
-	scriptVerifier    internalApi.ScriptVerifier
-	genesisForkBLock  int32
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, genericValidator validator.GenericValidator, opts ...Option) *DefaultValidator {
 	d := &DefaultValidator{
-		scriptVerifier:   sv,
-		genesisForkBLock: genesisForkBLock,
+		GenericValidator: genericValidator,
 		policy:           policy,
 		txFinder:         finder,
 	}
@@ -108,7 +106,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
-	vErr = v.performStandardScriptValidation(scriptValidation, tx, blockHeight)
+	vErr = v.StandardScriptValidation(scriptValidation, tx, blockHeight)
 	if vErr != nil {
 		return vErr
 	}
@@ -116,25 +114,6 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	return nil
 }
 
-func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *validator.Error { //nolint: revive //false error thrown
-	if scriptValidation == validator.StandardScriptValidation {
-		utxo := make([]int32, len(tx.Inputs))
-		for i := range tx.Inputs {
-			utxo[i] = v.genesisForkBLock
-		}
-
-		b, err := tx.EF()
-		if err != nil {
-			return validator.NewError(err, api.ErrStatusMalformed)
-		}
-
-		err = v.scriptVerifier.VerifyScript(b, utxo, blockHeight, true)
-		if err != nil {
-			return validator.NewError(err, api.ErrStatusUnlockingScripts)
-		}
-	}
-	return nil
-}
 func needsExtension(tx *sdkTx.Transaction, fv validator.FeeValidation, sv validator.ScriptValidation) bool {
 	// don't need if we don't validate fee AND scripts
 	if fv == validator.NoneFeeValidation && sv == validator.NoneScriptValidation {
@@ -249,19 +228,4 @@ func isFeePaidEnough(feeModel sdkTx.FeeModel, tx *sdkTx.Transaction) (bool, uint
 
 	actualFeePaid := totalInputSatoshis - totalOutputSatoshis
 	return actualFeePaid >= expFeesPaid, expFeesPaid, actualFeePaid, nil
-}
-
-func checkScripts(tx *sdkTx.Transaction) error {
-	for i, in := range tx.Inputs {
-		prevOutput := &sdkTx.TransactionOutput{
-			Satoshis:      *in.SourceTxSatoshis(),
-			LockingScript: in.SourceTxScript(),
-		}
-
-		if err := validator.CheckScript(tx, i, prevOutput); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

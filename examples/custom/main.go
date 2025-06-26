@@ -26,6 +26,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	"github.com/bitcoin-sv/arc/internal/validator"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -132,18 +133,18 @@ func main() {
 	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger)
 
 	cachedFinder := tx_finder.NewCached(finder)
+	gv := validator.NewGenericValidator(se, genesisBlock)
 	dv := defaultValidator.New(
 		arcConfig.API.DefaultPolicy,
 		cachedFinder,
-		se,
-		genesisBlock,
+		*gv,
 	)
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
 
 	chainTrackerMock := &apimocks.ChainTrackerMock{}
-	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock)
+	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, *gv)
 	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)

@@ -104,7 +104,8 @@ func TestValidator(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
 			se := goscript.NewScriptEngine("main")
-			sut := New(policy, tc.finder, se, int32(632099))
+			gv := validator.NewGenericValidator(se, int32(632099))
+			sut := New(policy, nil, *gv)
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 632099)
@@ -132,7 +133,8 @@ func TestValidator(t *testing.T) {
 			require.NoError(t, err, "Could not parse tx hex")
 			policy := getPolicy(5)
 			se := goscript.NewScriptEngine("regtest")
-			sut := New(policy, nil, se, int32(10000))
+			gv := validator.NewGenericValidator(se, int32(10000))
+			sut := New(policy, nil, *gv)
 
 			// when
 			actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 10000)
@@ -167,7 +169,8 @@ func TestValidator(t *testing.T) {
 
 		policy := getPolicy(5)
 		se := goscript.NewScriptEngine("regtest")
-		sut := New(policy, nil, se, int32(10000))
+		gv := validator.NewGenericValidator(se, int32(10000))
+		sut := New(policy, nil, *gv)
 
 		// when
 		actualError := sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 10000)
@@ -269,38 +272,13 @@ func TestStandardCheckFeesTxs(t *testing.T) {
 	})
 }
 
-func TestCheckScripts(t *testing.T) {
-	t.Run("valid op_return tx", func(t *testing.T) {
-		// given
-		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
-		require.NoError(t, err)
-
-		// when
-		actualError := checkScripts(tx)
-
-		// then
-		require.NoError(t, actualError)
-	})
-
-	t.Run("valid run tx", func(t *testing.T) {
-		// given
-		tx, err := sdkTx.NewTransactionFromHex(runTx)
-		require.NoError(t, err)
-
-		// when
-		actualError := checkScripts(tx)
-
-		// then
-		require.NoError(t, actualError)
-	})
-}
-
 func BenchmarkValidator(b *testing.B) {
 	// extended tx
 	tx, _ := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
 	policy := getPolicy(500)
 	se := goscript.NewScriptEngine("regtest")
-	sut := New(policy, nil, se, int32(10000))
+	gv := validator.NewGenericValidator(se, int32(10000))
+	sut := New(policy, nil, *gv)
 
 	for i := 0; i < b.N; i++ {
 		_ = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 10000)
@@ -313,8 +291,8 @@ func TestFeeCalculation(t *testing.T) {
 	require.NoError(t, err)
 	policy := getPolicy(50)
 	se := goscript.NewScriptEngine("regtest")
-	sut := New(policy, nil, se, int32(10000))
-
+	gv := validator.NewGenericValidator(se, int32(10000))
+	sut := New(policy, nil, *gv)
 	// when
 	err = sut.ValidateTransaction(context.TODO(), tx, validator.StandardFeeValidation, validator.StandardScriptValidation, 10000)
 

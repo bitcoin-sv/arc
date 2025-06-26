@@ -47,7 +47,7 @@ type BeefValidatorMock struct {
 }
 
 // ValidateTransaction calls ValidateTransactionFunc.
-func (mock *BeefValidatorMock) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
+func (mock *BeefValidatorMock) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (*sdkTx.Transaction, error) {
 	if mock.ValidateTransactionFunc == nil {
 		panic("BeefValidatorMock.ValidateTransactionFunc: method is nil but BeefValidator.ValidateTransaction was just called")
 	}

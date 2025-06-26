@@ -201,17 +201,3 @@ func pushDataCheck(tx *sdkTx.Transaction) error {
 
 	return nil
 }
-
-func CheckScript(tx *sdkTx.Transaction, inputIdx int, prevTxOutput *sdkTx.TransactionOutput) error {
-	err := interpreter.NewEngine().Execute(
-		interpreter.WithTx(tx, inputIdx, prevTxOutput),
-		interpreter.WithForkID(),
-		interpreter.WithAfterGenesis(),
-	)
-
-	if err != nil {
-		return errors.Join(ErrScriptExecutionFailed, err)
-	}
-
-	return nil
-}

@@ -65,7 +65,7 @@ coverage_short:
 
 .PHONY: install_lint
 install_lint:
-	go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
+	go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
 
 .PHONY: lint
 lint:

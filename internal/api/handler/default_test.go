@@ -17,14 +17,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
+
 	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
@@ -32,8 +35,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -105,14 +106,9 @@ func TestNewDefault(t *testing.T) {
 		},
 	}
 	t.Run("simple init", func(t *testing.T) {
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -126,14 +122,9 @@ func TestGETPolicy(t *testing.T) {
 			},
 		}
 		// given
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -174,14 +165,9 @@ func TestGETHealth(t *testing.T) {
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -214,14 +200,9 @@ func TestGETHealth(t *testing.T) {
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -371,14 +352,9 @@ func TestGETTransactionStatus(t *testing.T) {
 					return nil
 				},
 			}
-			btxClient := &btxMocks.ClientMock{
-				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 1,
-					}, nil
-				},
-			}
-			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			btxClient := &btxMocks.ClientMock{}
+			chainTrackerMock := &apimocks.ChainTrackerMock{}
+			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -725,16 +701,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			merkleRootsVerifier := &btxMocks.ClientMock{
-				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-					return nil, nil
-				},
-				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-					return &blocktx_api.CurrentBlockHeightResponse{
-						CurrentBlockHeight: 1,
-					}, nil
-				},
-			}
+			blocktxClient := &btxMocks.ClientMock{}
 
 			tx, err := sdkTx.NewTransactionFromHex("0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000")
 			require.NoError(t, err)
@@ -765,7 +732,13 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			urlRestrictions := []string{"skiptest"}
 			tracer := attribute.KeyValue{Key: "testnet", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
-			sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, &policy, finder, scriptVerifierMock, GenesisForkBlockTest,
+
+			chainTrackerMock := &apimocks.ChainTrackerMock{
+				IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+					return true, nil
+				},
+			}
+			sut, err := NewDefault(testLogger, txHandler, blocktxClient, &policy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock,
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
@@ -820,6 +793,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 }
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
+	// Todo: refactor this test and make table based
 	t.Run("empty tx", func(t *testing.T) {
 		// when
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
@@ -827,14 +801,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -863,14 +833,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -904,14 +871,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -935,14 +897,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -1005,14 +962,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		validTxBytes, _ := hex.DecodeString(validTx)
@@ -1069,14 +1021,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -1105,7 +1052,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid tx - beef", func(t *testing.T) {
 		// given
-		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\ninvalid BEEF - HasBUMP flag set, but no BUMP index")
+		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\nfailed to parse beef\ncould not read varint type: EOF")
 		// set the node/metamorph responses for the 3 test requests
 		txHandler := &mtmMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
@@ -1122,14 +1069,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		btxClient := &btxMocks.ClientMock{}
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -1182,23 +1124,19 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		merkleRootsVerifier := &btxMocks.ClientMock{
-			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-				return nil, nil
-			},
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
+		blocktxClient := &btxMocks.ClientMock{}
 
 		scriptVerifierMock := &apimocks.ScriptVerifierMock{
 			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
 				return nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+				return true, nil
+			},
+		}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1216,10 +1154,105 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 			b := rec.Body.Bytes()
 			var bResponse []api.TransactionResponse
-			_ = json.Unmarshal(b, &bResponse)
+			err = json.Unmarshal(b, &bResponse)
+			require.NoError(t, err)
 
 			// then
 			require.Equal(t, validBeefTxID, bResponse[0].Txid)
+		}
+	})
+
+	t.Run("2 valid tx - beef", func(t *testing.T) {
+		// given
+		txResults := []*metamorph.TransactionStatus{
+			{
+				TxID:        validBeefTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+			{
+				TxID:        validTxID,
+				BlockHash:   "",
+				BlockHeight: 0,
+				Status:      "OK",
+				Timestamp:   time.Now().Unix(),
+			},
+		}
+		// set the node/metamorph responses for the 3 test requests
+		txHandler := &mtmMocks.TransactionHandlerMock{
+			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
+				return []*metamorph.Transaction{
+					{
+						TxID:        tx.TxID().String(),
+						Bytes:       validTxParentBytes,
+						BlockHeight: 100,
+					},
+				}, nil
+			},
+			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				var res []*metamorph.TransactionStatus
+				for _, t := range txs {
+					txID := t.TxID()
+					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+						res = append(res, status)
+					}
+				}
+
+				return res, nil
+			},
+
+			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				return make([]*metamorph.TransactionStatus, 0), nil
+			},
+
+			HealthFunc: func(_ context.Context) error {
+				return nil
+			},
+		}
+
+		blocktxClient := &btxMocks.ClientMock{}
+
+		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
+			return nil
+		}}
+		scriptVerifierMock := &apimocks.ScriptVerifierMock{
+			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
+				return nil
+			},
+		}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+				return true, nil
+			},
+		}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		require.NoError(t, err)
+
+		inputTxs := map[string]io.Reader{
+			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
+			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+			echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
+		}
+
+		for contentType, inputTx := range inputTxs {
+			// when
+			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			b := rec.Body.Bytes()
+			var bResponse []api.TransactionResponse
+			_ = json.Unmarshal(b, &bResponse)
+
+			require.Len(t, bResponse, 2)
+			require.Equal(t, validBeefTxID, bResponse[0].Txid)
+			require.Equal(t, validBeefTxID, bResponse[1].Txid)
 		}
 	})
 
@@ -1274,16 +1307,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		merkleRootsVerifier := &btxMocks.ClientMock{
-			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-				return nil, nil
-			},
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
+		blocktxClient := &btxMocks.ClientMock{}
 
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
 			return nil
@@ -1293,7 +1317,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+				return true, nil
+			},
+		}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1315,6 +1344,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
+			require.Len(t, bResponse, 2)
 			require.Equal(t, validBeefTxID, bResponse[0].Txid)
 			require.Equal(t, validTxID, bResponse[1].Txid)
 		}
@@ -1355,18 +1385,12 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
 				return txResults, nil
 			},
+			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				return txResults, nil
+			},
 		}
 
-		merkleRootsVerifier := &btxMocks.ClientMock{
-			VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
-				return nil, nil
-			},
-			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
-				return &blocktx_api.CurrentBlockHeightResponse{
-					CurrentBlockHeight: 1,
-				}, nil
-			},
-		}
+		blocktxClient := &btxMocks.ClientMock{}
 		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
 			return nil
 		}}
@@ -1375,8 +1399,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				return nil
 			},
 		}
+		chainTrackerMock := &apimocks.ChainTrackerMock{
+			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+				return true, nil
+			},
+		}
 
-		sut, err := NewDefault(testLogger, txHandler, merkleRootsVerifier, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest)
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		require.NoError(t, err)
 
 		// when
@@ -1395,6 +1424,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		var bResponse []api.TransactionResponse
 		_ = json.Unmarshal(b, &bResponse)
 
+		require.Len(t, bResponse, 2)
 		require.Equal(t, validBeefTxID, bResponse[0].Txid)
 		require.Equal(t, validTxID, bResponse[1].Txid)
 	})
@@ -1645,7 +1675,7 @@ func Test_handleError(t *testing.T) {
 			require.NoError(t, err)
 
 			ctx := context.Background()
-			status, arcErr := handler.handleError(ctx, tx, tc.submitError)
+			status, arcErr := handler.handleError(ctx, tx.TxID().String(), tc.submitError)
 
 			require.Equal(t, tc.expectedStatus, status)
 			require.Equal(t, tc.expectedArcErr, arcErr)
@@ -1663,7 +1693,9 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 				}, nil
 			},
 		}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest)
+		chainTrackerMock := &apimocks.ChainTrackerMock{}
+
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
 		defaultHandler.StartUpdateCurrentBlockHeight()
 		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
 		require.NoError(t, err)

@@ -24,7 +24,7 @@ func TestBatchChainedTxs(t *testing.T) {
 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+		require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
 		require.NoError(t, err)

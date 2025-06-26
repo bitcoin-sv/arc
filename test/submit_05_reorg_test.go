@@ -19,7 +19,7 @@ func TestReorg(t *testing.T) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	lis, err := net.Listen("tcp", ":9000")
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestReorg(t *testing.T) {
 	// get new UTXO for tx2
 	txID := node_client.SendToAddress(t, bitcoind, address, float64(0.002))
 	utxos = node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	// make sure to pick the correct UTXO
 	var utxo node_client.UnspentOutput
@@ -136,7 +136,7 @@ func TestReorg(t *testing.T) {
 	// prepare txStale
 	txID = node_client.SendToAddress(t, bitcoind, address, float64(0.003))
 	utxos = node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	// make sure to pick the correct UTXO
 	for _, u := range utxos {

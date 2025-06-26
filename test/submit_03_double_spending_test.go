@@ -21,7 +21,7 @@ func TestDoubleSpend(t *testing.T) {
 		address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 		utxos := node_client.GetUtxos(t, bitcoind, address)
-		require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+		require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 		callbackURL, token, callbackReceivedChan, callbackErrChan, cleanup := CreateCallbackServer(t)
 		defer cleanup()
@@ -73,7 +73,6 @@ func TestDoubleSpend(t *testing.T) {
 			},
 			http.StatusOK)
 		require.Equal(t, StatusDoubleSpendAttempted, resp.TxStatus)
-		//require.ElementsMatch(t, []string{tx1.TxID().String(), tx2.TxID().String()}, *resp.CompetingTxs)
 
 		// give arc time to update the status of all competing transactions
 		time.Sleep(5 * time.Second)
@@ -84,7 +83,6 @@ func TestDoubleSpend(t *testing.T) {
 		// verify that the first tx was also set to DOUBLE_SPEND_ATTEMPTED
 		require.Equal(t, StatusDoubleSpendAttempted, statusResp.TxStatus)
 		require.ElementsMatch(t, []string{tx3.TxID().String(), tx2.TxID().String()}, *statusResp.CompetingTxs)
-		//require.Equal(t, []string{tx2.TxID().String()}, *statusResp.CompetingTxs)
 
 		// mine the first tx
 		node_client.Generate(t, bitcoind, 1)

@@ -8,6 +8,8 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+
+	"github.com/bitcoin-sv/arc/internal/utils"
 )
 
 func init() {
@@ -24,7 +26,7 @@ func init() {
 		bytesRead += 80 // the bitcoin header is always 80 bytes
 
 		var read int64
-		var txCount sdkTx.VarInt
+		var txCount utils.VarInt
 		read, err = txCount.ReadFrom(reader)
 		if err != nil {
 			return bytesRead, nil, nil, err

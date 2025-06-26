@@ -11,25 +11,24 @@ type StatusCode int
 const (
 	arcDocServerErrorsURL = "https://bitcoin-sv.github.io/arc/#/errors?id=_"
 
-	StatusOK                              StatusCode = 200
-	ErrStatusBadRequest                   StatusCode = 400
-	ErrStatusNotFound                     StatusCode = 404
-	ErrStatusGeneric                      StatusCode = 409
-	ErrStatusTxFormat                     StatusCode = 460
-	ErrStatusUnlockingScripts             StatusCode = 461
-	ErrStatusInputs                       StatusCode = 462
-	ErrStatusMalformed                    StatusCode = 463
-	ErrStatusOutputs                      StatusCode = 464
-	ErrStatusFees                         StatusCode = 465
-	ErrStatusConflict                     StatusCode = 466
-	ErrStatusMinedAncestorsNotFound       StatusCode = 467
-	ErrStatusCalculatingMerkleRoots       StatusCode = 468
-	ErrStatusValidatingMerkleRoots        StatusCode = 469
-	ErrStatusFrozenPolicy                 StatusCode = 471
-	ErrStatusFrozenConsensus              StatusCode = 472
-	ErrStatusCumulativeFees               StatusCode = 473
-	ErrStatusTxSize                       StatusCode = 474
-	ErrStatusMinedAncestorsNotFoundInBUMP StatusCode = 475
+	StatusOK                                 StatusCode = 200
+	ErrStatusBadRequest                      StatusCode = 400
+	ErrStatusNotFound                        StatusCode = 404
+	ErrStatusGeneric                         StatusCode = 409
+	ErrStatusTxFormat                        StatusCode = 460
+	ErrStatusUnlockingScripts                StatusCode = 461
+	ErrStatusInputs                          StatusCode = 462
+	ErrStatusMalformed                       StatusCode = 463
+	ErrStatusOutputs                         StatusCode = 464
+	ErrStatusFees                            StatusCode = 465
+	ErrStatusConflict                        StatusCode = 466
+	ErrStatusBeefValidationFailedBeefInvalid StatusCode = 468
+	ErrStatusBeefValidationMerkleRoots       StatusCode = 469
+	ErrStatusFrozenPolicy                    StatusCode = 471
+	ErrStatusFrozenConsensus                 StatusCode = 472
+	ErrStatusCumulativeFees                  StatusCode = 473
+	ErrStatusTxSize                          StatusCode = 474
+	ErrStatusMinedAncestorsNotFoundInBUMP    StatusCode = 475
 )
 
 func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
@@ -92,18 +91,14 @@ func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields { //nolint
 		errFields.Detail = "Transaction is valid, but there is a conflicting tx in the block template"
 		errFields.Title = "Conflicting tx found"
 		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusConflict))
-	case ErrStatusMinedAncestorsNotFound: // 467
-		errFields.Detail = "BEEF validation failed: couldn't find mined ancestor of the transaction in provided beef transactions"
-		errFields.Title = "Mined ancestors not found"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusMinedAncestorsNotFound))
-	case ErrStatusCalculatingMerkleRoots: // 468
-		errFields.Detail = "BEEF validation failed: couldn't calculate Merkle Roots from given BUMPs"
+	case ErrStatusBeefValidationFailedBeefInvalid: // 468
+		errFields.Detail = "BEEF validation failed: BEEF invalid"
 		errFields.Title = "Invalid BUMPs"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusCalculatingMerkleRoots))
-	case ErrStatusValidatingMerkleRoots: // 469
-		errFields.Detail = "BEEF validation failed: couldn't validate Merkle Roots"
+		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusBeefValidationFailedBeefInvalid))
+	case ErrStatusBeefValidationMerkleRoots: // 469
+		errFields.Detail = "BEEF validation failed: couldn't verify Merkle Roots"
 		errFields.Title = "Merkle Roots validation failed"
-		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusValidatingMerkleRoots))
+		errFields.Type = arcDocServerErrorsURL + strconv.Itoa(int(ErrStatusBeefValidationMerkleRoots))
 	case ErrStatusFrozenPolicy: // 471
 		errFields.Detail = "Input Frozen (blacklist manager policy blacklisted)"
 		errFields.Title = "Input Frozen"

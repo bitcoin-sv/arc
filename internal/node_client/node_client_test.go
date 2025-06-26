@@ -72,7 +72,7 @@ func testmain(m *testing.M) int {
 }
 
 func setup() {
-	log.Printf("init tests")
+	log.Println("init tests")
 
 	var err error
 	bitcoind, err = bitcoin.New(host, hostPort, user, password, false)
@@ -111,7 +111,7 @@ func TestNodeClient(t *testing.T) {
 	address, privateKey := node_client.FundNewWallet(t, bitcoind)
 
 	utxos := node_client.GetUtxos(t, bitcoind, address)
-	require.True(t, len(utxos) > 0, "No UTXOs available for the address")
+	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	t.Run("get raw transaction", func(t *testing.T) {
 		// given

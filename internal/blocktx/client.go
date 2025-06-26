@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
 // check if BtxClient implements all necessary interfaces
@@ -26,7 +27,6 @@ type Client interface {
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
-	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
 }
 
 type MerkleRootVerificationRequest struct {

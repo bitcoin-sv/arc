@@ -7,13 +7,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
+
 	"github.com/bitcoin-sv/arc/internal/api/handler"
 	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 // CustomHandler is our custom arc handler
@@ -45,6 +46,9 @@ func NewCustomHandler() (api.ServerInterface, error) {
 			return nil
 		},
 	}
+
+	chainTrackerMock := &apimocks.ChainTrackerMock{}
+
 	// create default handler
 	defaultHandler, _ := handler.NewDefault(
 		nil,
@@ -54,6 +58,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 		nil,
 		scriptVerifierMock,
 		handler.GenesisForkBlockTest,
+		chainTrackerMock,
 	)
 
 	defaultHandler.StartUpdateCurrentBlockHeight()

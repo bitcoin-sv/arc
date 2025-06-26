@@ -39,12 +39,12 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI, currentBlockHeigh
 }
 
 func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error { //nolint:funlen //mostly comments
-	var err *validator.Error
+	var vErr *validator.Error
 	var spanErr error
-	ctx, span := tracing.StartTracing(ctx, "ValidateTransaction", tracingEnabled, tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "DefaultValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
 	defer func() {
-		if err != nil {
-			spanErr = err.Err
+		if vErr != nil {
+			spanErr = vErr.Err
 		}
 		tracing.EndTracing(span, spanErr)
 	}()
@@ -59,17 +59,17 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	}
 
 	// The rest of the validation steps
-	err = validator.CommonValidateTransaction(v.policy, tx)
-	if err != nil {
-		return err
+	vErr = validator.CommonValidateTransaction(v.policy, tx)
+	if vErr != nil {
+		return vErr
 	}
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
 	switch feeValidation {
 	case validator.StandardFeeValidation:
-		if err = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); err != nil {
-			return err
+		if vErr = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); vErr != nil {
+			return vErr
 		}
 	case validator.CumulativeFeeValidation:
 		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)
@@ -77,7 +77,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
 			return validator.NewError(e, api.ErrStatusCumulativeFees)
 		}
-		vErr := checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...)
+		vErr = checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...)
 		if vErr != nil {
 			return vErr
 		}
@@ -85,15 +85,15 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
-	scriptValidationErr := v.performStandardScriptValidation(ctx, scriptValidation, tx)
-	if scriptValidationErr != nil {
-		return scriptValidationErr
+	vErr = v.performStandardScriptValidation(scriptValidation, tx)
+	if vErr != nil {
+		return vErr
 	}
 	//everything checks out
 	return nil
 }
 
-func (v *DefaultValidator) performStandardScriptValidation(ctx context.Context, scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction) error { //nolint: revive //false error thrown
+func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction) *validator.Error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
@@ -102,7 +102,7 @@ func (v *DefaultValidator) performStandardScriptValidation(ctx context.Context, 
 
 		b, err := tx.EF()
 		if err != nil {
-			return err
+			return validator.NewError(err, api.ErrStatusMalformed)
 		}
 
 		err = v.scriptVerifier.VerifyScript(b, utxo, v.currentBlockHeight, true)

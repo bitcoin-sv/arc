@@ -28,14 +28,11 @@ ErrStatusFees: Fees are insufficient.
 # 466
 ErrStatusConflict: Transaction is invalid because the network has already seen a tx which spends the same utxo.
 
-# 467
-ErrStatusMinedAncestorsNotFound: BEEF validation failed, couldn't find mined ancestor of the transaction in provided beef transactions.
-
 # 468
-ErrStatusCalculatingMerkleRoots: BEEF validation failed, couldn't calculate Merkle Roots from given BUMPs.
+ErrStatusBeefValidationFailed: BEEF validation failed, BEEF invalid.
 
 # 469
-ErrStatusValidatingMerkleRoots: BEEF validation failed, couldn't validate Merkle Roots.
+ErrStatusValidatingMerkleRoots: BEEF validation failed, couldn't verify Merkle Roots.
 
 # 471
 ErrStatusFrozenPolicy: Input Frozen (blacklist manager policy blacklisted). The transaction is attempting to spend frozen digital assets.

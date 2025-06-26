@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/labstack/echo/v4"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -14,7 +15,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 )
 
 func main() {
@@ -43,9 +43,10 @@ func main() {
 		},
 	}
 
+	chainTrackerMock := &apimocks.ChainTrackerMock{}
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	defaultHandler, err := apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest)
+	defaultHandler, err := apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest, chainTrackerMock)
 	if err != nil {
 		panic(err)
 	}

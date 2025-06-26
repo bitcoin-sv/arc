@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bsv-blockchain/go-sdk/script"
 	"github.com/bsv-blockchain/go-sdk/script/interpreter"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
 // maxBlockSize is set dynamically in a node, and should be gotten from the policy

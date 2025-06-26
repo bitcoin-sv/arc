@@ -33,10 +33,6 @@ type TxFinderI interface {
 	GetMempoolAncestors(ctx context.Context, ids []string) ([]string, error)
 }
 
-type MerkleVerifierI interface {
-	Verify(ctx context.Context, request []beef.MerkleRootVerificationRequest) ([]uint64, error)
-}
-
 func GetHexFormat(hex []byte) HexFormat {
 	if beef.CheckBeefFormat(hex) {
 		return BeefHex

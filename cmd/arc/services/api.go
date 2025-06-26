@@ -10,6 +10,7 @@ import (
 	"time"
 
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
+	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
+	"github.com/bitcoin-sv/arc/internal/api/handler/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
@@ -31,6 +33,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	"github.com/bitcoin-sv/arc/internal/validator/beef"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
@@ -161,20 +164,31 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
 	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
 
-	network := arcConfig.Network
-	genesisBlock := apiHandler.GenesisForkBlockRegtest
+	var network string
+	var genesisBlock int32
+	var chainTracker beef.ChainTracker
+
 	switch arcConfig.Network {
 	case "testnet":
 		network = "test"
+		chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)
 		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
+		chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)
 		genesisBlock = apiHandler.GenesisForkBlockMain
+	case "regtest":
+		network = "regtest"
+		chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))
+		genesisBlock = apiHandler.GenesisForkBlockRegtest
+	default:
+		stopFn()
+		return nil, fmt.Errorf("invalid network type: %s", arcConfig.Network)
 	}
 
 	se := goscript.NewScriptEngine(network)
 
-	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, se, genesisBlock, apiOpts...)
+	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, se, genesisBlock, chainTracker, apiOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

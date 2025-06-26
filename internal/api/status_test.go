@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/bitcoin-sv/arc/pkg/api"
 	"testing"
+
+	"github.com/bitcoin-sv/arc/pkg/api"
 
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +76,18 @@ func TestNewErrorFields(t *testing.T) {
 			expectedStatus: api.ErrStatusConflict,
 		},
 		{
+			name:   "ErrStatusBeefValidationFailedBeefInvalid",
+			status: api.ErrStatusBeefValidationFailedBeefInvalid,
+
+			expectedStatus: api.ErrStatusBeefValidationFailedBeefInvalid,
+		},
+		{
+			name:   "ErrStatusBeefValidationMerkleRoots",
+			status: api.ErrStatusBeefValidationMerkleRoots,
+
+			expectedStatus: api.ErrStatusBeefValidationMerkleRoots,
+		},
+		{
 			name:   "ErrStatusFrozenPolicy",
 			status: api.ErrStatusFrozenPolicy,
 
@@ -85,6 +98,24 @@ func TestNewErrorFields(t *testing.T) {
 			status: api.ErrStatusFrozenConsensus,
 
 			expectedStatus: api.ErrStatusFrozenConsensus,
+		},
+		{
+			name:   "ErrStatusCumulativeFees",
+			status: api.ErrStatusCumulativeFees,
+
+			expectedStatus: api.ErrStatusCumulativeFees,
+		},
+		{
+			name:   "ErrStatusTxSize",
+			status: api.ErrStatusTxSize,
+
+			expectedStatus: api.ErrStatusTxSize,
+		},
+		{
+			name:   "ErrStatusMinedAncestorsNotFoundInBUMP",
+			status: api.ErrStatusMinedAncestorsNotFoundInBUMP,
+
+			expectedStatus: api.ErrStatusMinedAncestorsNotFoundInBUMP,
 		},
 		{
 			name:   "non existent status",

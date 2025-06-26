@@ -5,13 +5,12 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/labstack/echo/v4"
 
 	"github.com/bitcoin-sv/arc/config"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
+	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	merklerootsverifier "github.com/bitcoin-sv/arc/internal/api/merkle_roots_verifier"
-	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -37,16 +36,13 @@ func main() {
 	merkleRootsVerifier := merklerootsverifier.NewAllowAllVerifier()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	scriptVerifierMock := &apimocks.ScriptVerifierMock{
-		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-			return nil
-		},
-	}
 
-	chainTrackerMock := &apimocks.ChainTrackerMock{}
+	dv := &apiHandlerMocks.DefaultValidatorMock{}
+	bv := &apiHandlerMocks.BeefValidatorMock{}
+
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
-	defaultHandler, err := apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, nil, scriptVerifierMock, apiHandler.GenesisForkBlockTest, chainTrackerMock)
+	defaultHandler, err := apiHandler.NewDefault(logger, txHandler, merkleRootsVerifier, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)
 	}

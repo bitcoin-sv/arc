@@ -34,7 +34,7 @@ func CheckSwagger(e *echo.Echo) *openapi3.T {
 
 func filterStatusesByTxIDs(txIDs []string, statuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
 	if len(txIDs) == 1 && len(statuses) == 1 { // optimization for a common scenario
-		if statuses[0].TxID == txIDs[0] {
+		if statuses[0] != nil && statuses[0].TxID == txIDs[0] {
 			return statuses
 		}
 

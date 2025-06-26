@@ -33,7 +33,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
-	"github.com/bitcoin-sv/arc/internal/validator/beef"
+	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
+	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
@@ -93,6 +94,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
 	}
 
+	var defaultValidatorOpts []defaultValidator.Option
+	var beefValidatorOpts []beefValidator.Option
 	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
 	var finderOpts []func(f *tx_finder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
@@ -119,6 +122,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
 		wocClientOpts = append(wocClientOpts, woc_client.WithTracer(attributes...))
+		defaultValidatorOpts = append(defaultValidatorOpts, defaultValidator.WithTracer(attributes...))
+		beefValidatorOpts = append(beefValidatorOpts, beefValidator.WithTracer(attributes...))
 	}
 
 	conn, err := grpc_utils.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
@@ -166,7 +171,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	var network string
 	var genesisBlock int32
-	var chainTracker beef.ChainTracker
+	var chainTracker beefValidator.ChainTracker
 
 	switch arcConfig.Network {
 	case "testnet":
@@ -186,9 +191,17 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("invalid network type: %s", arcConfig.Network)
 	}
 
-	se := goscript.NewScriptEngine(network)
+	dv := defaultValidator.New(
+		policy,
+		cachedFinder,
+		goscript.NewScriptEngine(network),
+		genesisBlock,
+		defaultValidatorOpts...,
+	)
 
-	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, cachedFinder, se, genesisBlock, chainTracker, apiOpts...)
+	bv := beefValidator.New(policy, chainTracker, beefValidatorOpts...)
+
+	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err

@@ -19,14 +19,11 @@ import (
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
 
-	apihelpers "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
-	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/internal/version"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -63,17 +60,15 @@ type ArcDefaultHandler struct {
 	ctx                     context.Context
 
 	logger                        *slog.Logger
-	scriptVerifier                apihelpers.ScriptVerifier
-	genesisForkBLock              int32
 	now                           func() time.Time
 	rejectedCallbackURLSubstrings []string
-	txFinder                      validator.TxFinderI
 	rebroadcastExpiration         time.Duration
 	defaultTimeout                time.Duration
-	chainTracker                  beefValidator.ChainTracker
 	tracingEnabled                bool
 	tracingAttributes             []attribute.KeyValue
 	stats                         *Stats
+	defaultValidator              DefaultValidator
+	beefValidator                 BeefValidator
 }
 
 type PostResponse struct {
@@ -126,15 +121,21 @@ func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 
 type Option func(f *ArcDefaultHandler)
 
+type DefaultValidator interface {
+	ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) error
+}
+
+type BeefValidator interface {
+	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (failedTx *sdkTx.Transaction, err error)
+}
+
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler metamorph.TransactionHandler,
 	btxClient blocktx.Client,
 	policy *bitcoin.Settings,
-	cachedFinder validator.TxFinderI,
-	scriptVerifier apihelpers.ScriptVerifier,
-	genesisForkBLock int32,
-	chainTracker beefValidator.ChainTracker,
+	defaultValidator DefaultValidator,
+	beefValidator BeefValidator,
 	opts ...Option,
 ) (*ArcDefaultHandler, error) {
 	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
@@ -161,17 +162,15 @@ func NewDefault(
 		NodePolicy:              policy,
 		logger:                  logger,
 		now:                     time.Now,
-		chainTracker:            chainTracker,
-		txFinder:                cachedFinder,
 		rebroadcastExpiration:   rebroadcastExpirationDefault,
 		defaultTimeout:          timeoutSecondsDefault * time.Second,
 		maxTxSizePolicy:         maxTxSizePolicy,
 		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:     maxscriptsizepolicy,
 		btxClient:               btxClient,
-		scriptVerifier:          scriptVerifier,
-		genesisForkBLock:        genesisForkBLock,
 		waitGroup:               &sync.WaitGroup{},
+		defaultValidator:        defaultValidator,
+		beefValidator:           beefValidator,
 	}
 
 	// apply options
@@ -296,16 +295,19 @@ func (m *ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTra
 
 	switch postResponse.response.(type) {
 	case []interface{}:
-		switch postResponse.response.([]interface{})[0].(type) {
-		case *api.TransactionResponse:
-			res, ok := postResponse.response.([]interface{})[0].(*api.TransactionResponse)
-			if ok {
-				return ctx.JSON(res.Status, res)
-			}
-		case *api.ErrorFields:
-			res, ok := postResponse.response.([]interface{})[0].(*api.ErrorFields)
-			if ok {
-				return ctx.JSON(res.Status, res)
+		response, ok := postResponse.response.([]interface{})
+		if ok && len(response) > 0 {
+			switch response[0].(type) {
+			case *api.TransactionResponse:
+				res, ok := postResponse.response.([]interface{})[0].(*api.TransactionResponse)
+				if ok {
+					return ctx.JSON(res.Status, res)
+				}
+			case *api.ErrorFields:
+				res, ok := postResponse.response.([]interface{})[0].(*api.ErrorFields)
+				if ok {
+					return ctx.JSON(res.Status, res)
+				}
 			}
 		}
 
@@ -693,8 +695,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 			bytesUsed := len(beefBytes)
 			txsHex = txsHex[bytesUsed:]
 
-			v := beefValidator.New(m.NodePolicy, m.chainTracker)
-			arcError := m.validateBEEFTransaction(ctx, v, beefTx, options, txID)
+			arcError := m.validateBEEFTransaction(ctx, beefTx, options, txID)
 			if arcError != nil {
 				fails = append(fails, arcError)
 				continue
@@ -713,8 +714,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 
 		txsHex = txsHex[bytesUsed:]
 
-		v := defaultValidator.New(m.NodePolicy, m.txFinder, atomic.LoadInt32(&m.currentBlockHeight), m.scriptVerifier, m.genesisForkBLock)
-		if arcError := m.validateEFTransaction(ctx, v, transaction, options); arcError != nil {
+		if arcError := m.validateEFTransaction(ctx, transaction, options); arcError != nil {
 			fails = append(fails, arcError)
 			continue
 		}
@@ -736,7 +736,7 @@ func appendedUnminedTxs(beefTx *sdkTx.Beef) []*sdkTx.Transaction {
 	return submittedTxs
 }
 
-func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidator validator.DefaultValidator, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -749,7 +749,7 @@ func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidat
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	err = txValidator.ValidateTransaction(ctx, tx, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
+	err = m.defaultValidator.ValidateTransaction(ctx, tx, feeOpts, scriptOpts, atomic.LoadInt32(&m.currentBlockHeight))
 	if err != nil {
 		statusCode, arcError := m.handleError(ctx, tx.TxID().String(), err)
 		m.logger.ErrorContext(ctx, "failed to validate transaction", slog.String("id", tx.TxID().String()), slog.Int("status", int(statusCode)), slog.String("err", err.Error()))
@@ -759,7 +759,7 @@ func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, txValidat
 	return nil
 }
 
-func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValidator validator.BeefValidator, beefTx *sdkTx.Beef, options *metamorph.TransactionOptions, txID string) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx *sdkTx.Beef, options *metamorph.TransactionOptions, txID string) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateBEEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -772,7 +772,7 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, txValid
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	failedTx, err := txValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts, m.tracingEnabled, m.tracingAttributes...)
+	failedTx, err := m.beefValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
 	if err != nil {
 		if failedTx != nil {
 			txID = failedTx.TxID().String()

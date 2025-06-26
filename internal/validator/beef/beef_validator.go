@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -26,21 +27,43 @@ type ChainTracker interface {
 }
 
 type Validator struct {
-	policy       *bitcoin.Settings
-	chainTracker ChainTracker
+	policy            *bitcoin.Settings
+	chainTracker      ChainTracker
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
+type Option func(d *Validator)
 
-func New(policy *bitcoin.Settings, chaintracker ChainTracker) *Validator {
-	return &Validator{
-		policy:       policy,
-		chainTracker: chaintracker,
+func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
+	return func(a *Validator) {
+		a.tracingEnabled = true
+		if len(attr) > 0 {
+			a.tracingAttributes = append(a.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			a.tracingAttributes = append(a.tracingAttributes, attribute.String("file", file))
+		}
 	}
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) (failedTx *sdkTx.Transaction, err error) {
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, opts ...Option) *Validator {
+	v := &Validator{
+		policy:       policy,
+		chainTracker: chainTracker,
+	}
+	// apply options
+	for _, opt := range opts {
+		opt(v)
+	}
+
+	return v
+}
+
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (failedTx *sdkTx.Transaction, err error) {
 	var vErr *validator.Error
 	var spanErr error
-	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
+	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", v.tracingEnabled, v.tracingAttributes...)
 	defer func() {
 		if vErr != nil {
 			spanErr = vErr.Err

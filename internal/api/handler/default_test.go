@@ -17,29 +17,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"go.opentelemetry.io/otel/attribute"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/bitcoin-sv/bdk/module/gobdk/script"
-
-	apimocks "github.com/bitcoin-sv/arc/internal/api/mocks"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
-	"github.com/bitcoin-sv/arc/internal/validator/mocks"
-
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
+	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
@@ -100,15 +93,12 @@ var (
 )
 
 func TestNewDefault(t *testing.T) {
-	scriptVerifierMock := &apimocks.ScriptVerifierMock{
-		VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-			return nil
-		},
-	}
 	t.Run("simple init", func(t *testing.T) {
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, dv, bv)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 	})
@@ -116,15 +106,11 @@ func TestNewDefault(t *testing.T) {
 
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		// given
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/policy", strings.NewReader(""))
@@ -160,14 +146,10 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -195,14 +177,11 @@ func TestGETHealth(t *testing.T) {
 				return errors.New("some connection error")
 			},
 		}
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
+
 		require.NoError(t, err)
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodPost, "/v1/health", strings.NewReader(""))
@@ -347,14 +326,10 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			scriptVerifierMock := &apimocks.ScriptVerifierMock{
-				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-					return nil
-				},
-			}
 			btxClient := &btxMocks.ClientMock{}
-			chainTrackerMock := &apimocks.ChainTrackerMock{}
-			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
+			bv := &apiHandlerMocks.BeefValidatorMock{}
+			dv := &apiHandlerMocks.DefaultValidatorMock{}
+			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, dv, bv, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
 			require.NoError(t, err)
 
 			err = defaultHandler.GETTransactionStatus(ctx, "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
@@ -403,12 +378,14 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	now := time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC)
 
 	tt := []struct {
-		name             string
-		contentType      string
-		txHexString      string
-		getTx            []byte
-		submitTxResponse *metamorph.TransactionStatus
-		submitTxErr      error
+		name                       string
+		contentType                string
+		txHexString                string
+		getTx                      []byte
+		submitTxResponse           *metamorph.TransactionStatus
+		submitTxErr                error
+		validateTransactionErr     error
+		validateBeefTransactionErr error
 
 		expectedStatus   api.StatusCode
 		expectedResponse any
@@ -487,6 +464,10 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 			getTx:       validTxParentBytes,
 			expectedFee: 1000,
+			submitTxResponse: &metamorph.TransactionStatus{
+				TxID: "",
+			},
+			validateTransactionErr: validator.NewError(defaultvalidator.ErrTxFeeTooLow, api.ErrStatusFees),
 
 			expectedStatus:   465,
 			expectedResponse: errFieldValidation,
@@ -569,17 +550,19 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			expectedError:    ErrDecodingBeef,
 		},
 		{
-			name:        "invalid BEEF - text/plain - low fees",
-			contentType: contentTypes[0],
-			txHexString: invalidBeefLowFees,
+			name:                       "invalid BEEF - text/plain - low fees",
+			contentType:                contentTypes[0],
+			txHexString:                invalidBeefLowFees,
+			validateBeefTransactionErr: validator.NewError(defaultvalidator.ErrTxFeeTooLow, api.ErrStatusFees),
 
 			expectedStatus:   465,
 			expectedResponse: errBEEFLowFees,
 		},
 		{
-			name:        "invalid BEEF - text/plain - invalid scripts",
-			contentType: contentTypes[0],
-			txHexString: invalidBeefInvalidScripts,
+			name:                       "invalid BEEF - text/plain - invalid scripts",
+			contentType:                contentTypes[0],
+			txHexString:                invalidBeefInvalidScripts,
+			validateBeefTransactionErr: validator.NewError(errors.New("validation error"), api.ErrStatusUnlockingScripts),
 
 			expectedStatus:   461,
 			expectedResponse: errBEEFInvalidScripts,
@@ -703,42 +686,22 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 
 			blocktxClient := &btxMocks.ClientMock{}
 
-			tx, err := sdkTx.NewTransactionFromHex("0100000001fbbe01d83cb1f53a63ef91c0fce5750cbd8075efef5acd2ff229506a45ab832c010000006a473044022064be2f304950a87782b44e772390836aa613f40312a0df4993e9c5123d0c492d02202009b084b66a3da939fb7dc5d356043986539cac4071372d0a6481d5b5e418ca412103fc12a81e5213e30c7facc15581ac1acbf26a8612a3590ffb48045084b097d52cffffffff02bf010000000000001976a914c2ca67db517c0c972b9a6eb1181880ed3a528e3188acc70a0000000000001976a914f1e6837cf17b485a1dcea9e943948fafbe5e9f6888ac00000000")
-			require.NoError(t, err)
-			txMap := map[string]*sdkTx.Transaction{
-				"8574e743bb64cf603dbd0e951e7287afd2a59593ff8837b3760e911f8fb38e35": tx,
-			}
-			finder := &mocks.TxFinderIMock{
-				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, ids []string) []*sdkTx.Transaction {
-					var rawTxs []*sdkTx.Transaction
-					for _, id := range ids {
-						rawTx, ok := txMap[id]
-						if !ok {
-							continue
-						}
-						rawTxs = append(rawTxs, rawTx)
-					}
-
-					return rawTxs
-				},
-			}
-
-			scriptVerifierMock := &apimocks.ScriptVerifierMock{
-				VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-					return nil
-				},
-			}
 			handlerStats, err := NewStats()
 			urlRestrictions := []string{"skiptest"}
 			tracer := attribute.KeyValue{Key: "testnet", Value: attribute.StringValue("test")}
 			require.NoError(t, err)
-
-			chainTrackerMock := &apimocks.ChainTrackerMock{
-				IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
-					return true, nil
+			dv := &apiHandlerMocks.DefaultValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
+					return tc.validateTransactionErr
 				},
 			}
-			sut, err := NewDefault(testLogger, txHandler, blocktxClient, &policy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock,
+
+			bv := &apiHandlerMocks.BeefValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+					return nil, tc.validateBeefTransactionErr
+				},
+			}
+			sut, err := NewDefault(testLogger, txHandler, blocktxClient, &policy, dv, bv,
 				WithNow(func() time.Time { return now }),
 				WithStats(handlerStats),
 				WithCallbackURLRestrictions(urlRestrictions),
@@ -796,15 +759,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	// Todo: refactor this test and make table based
 	t.Run("empty tx", func(t *testing.T) {
 		// when
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
 
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		for _, contentType := range contentTypes {
@@ -826,18 +785,14 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid parameters", func(t *testing.T) {
 		// given
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		inputTx := strings.NewReader(validExtendedTx)
 		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		btxClient := &btxMocks.ClientMock{}
 
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
+		bv := &apiHandlerMocks.BeefValidatorMock{}
 
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
@@ -866,14 +821,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid mime type", func(t *testing.T) {
 		// given
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		e := echo.New()
@@ -892,14 +843,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 	t.Run("invalid txs", func(t *testing.T) {
 		// given
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		expectedErrors := map[string]string{
@@ -954,20 +901,17 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
-			return nil
-		}}
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
+		btxClient := &btxMocks.ClientMock{}
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
+				return validator.NewError(errors.New("status format error"), api.ErrStatusTxFormat)
 			},
 		}
-		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
-		validTxBytes, _ := hex.DecodeString(validTx)
+		validTxBytes, _ = hex.DecodeString(validTx)
 		inputTxs := map[string]io.Reader{
 			echo.MIMETextPlain:       strings.NewReader(validTx + "\n"),
 			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}]"),
@@ -987,6 +931,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			var bErr []api.ErrorFields
 			_ = json.Unmarshal(b, &bErr)
 
+			require.GreaterOrEqual(t, len(bErr), 1)
 			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
 		}
 	})
@@ -1016,14 +961,14 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
+		btxClient := &btxMocks.ClientMock{}
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
 				return nil
 			},
 		}
-		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
@@ -1064,14 +1009,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 		}
 
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
 		btxClient := &btxMocks.ClientMock{}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
@@ -1126,17 +1067,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		blocktxClient := &btxMocks.ClientMock{}
 
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
+		bv := &apiHandlerMocks.BeefValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				return nil, nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
-				return true, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1215,20 +1152,14 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		blocktxClient := &btxMocks.ClientMock{}
 
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
-			return nil
-		}}
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
+		bv := &apiHandlerMocks.BeefValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				return nil, nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
-				return true, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1309,20 +1240,17 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 
 		blocktxClient := &btxMocks.ClientMock{}
 
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
-			return nil
-		}}
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
+		dv := &apiHandlerMocks.DefaultValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
 				return nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
-				return true, nil
+		bv := &apiHandlerMocks.BeefValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				return nil, nil
 			},
 		}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		inputTxs := map[string]io.Reader{
@@ -1391,21 +1319,15 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		}
 
 		blocktxClient := &btxMocks.ClientMock{}
-		finder := &mocks.TxFinderIMock{GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
-			return nil
-		}}
-		scriptVerifierMock := &apimocks.ScriptVerifierMock{
-			VerifyScriptFunc: func(_ []byte, _ []int32, _ int32, _ bool) script.ScriptError {
-				return nil
-			},
-		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{
-			IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
-				return true, nil
+
+		bv := &apiHandlerMocks.BeefValidatorMock{
+			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				return nil, nil
 			},
 		}
 
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, finder, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
+		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
 
 		// when
@@ -1684,8 +1606,9 @@ func Test_handleError(t *testing.T) {
 }
 
 func Test_CurrentBlockUpdate(t *testing.T) {
-	scriptVerifierMock := &apimocks.ScriptVerifierMock{}
 	t.Run("check block height updates", func(t *testing.T) {
+		bv := &apiHandlerMocks.BeefValidatorMock{}
+		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		btxClient := &btxMocks.ClientMock{
 			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 				return &blocktx_api.CurrentBlockHeightResponse{
@@ -1693,9 +1616,7 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 				}, nil
 			},
 		}
-		chainTrackerMock := &apimocks.ChainTrackerMock{}
-
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, nil, scriptVerifierMock, GenesisForkBlockTest, chainTrackerMock)
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, dv, bv)
 		defaultHandler.StartUpdateCurrentBlockHeight()
 		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
 		require.NoError(t, err)

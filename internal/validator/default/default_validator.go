@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
@@ -21,27 +22,49 @@ var (
 )
 
 type DefaultValidator struct {
-	policy             *bitcoin.Settings
-	txFinder           validator.TxFinderI
-	currentBlockHeight int32
-	scriptVerifier     internalApi.ScriptVerifier
-	genesisForkBLock   int32
+	policy            *bitcoin.Settings
+	txFinder          validator.TxFinderI
+	scriptVerifier    internalApi.ScriptVerifier
+	genesisForkBLock  int32
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, currentBlockHeight int32, sv internalApi.ScriptVerifier, genesisForkBLock int32) *DefaultValidator {
-	return &DefaultValidator{
-		scriptVerifier:     sv,
-		genesisForkBLock:   genesisForkBLock,
-		policy:             policy,
-		txFinder:           finder,
-		currentBlockHeight: currentBlockHeight,
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *DefaultValidator {
+	d := &DefaultValidator{
+		scriptVerifier:   sv,
+		genesisForkBLock: genesisForkBLock,
+		policy:           policy,
+		txFinder:         finder,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(d)
+	}
+
+	return d
+}
+
+func WithTracer(attr ...attribute.KeyValue) func(s *DefaultValidator) {
+	return func(a *DefaultValidator) {
+		a.tracingEnabled = true
+		if len(attr) > 0 {
+			a.tracingAttributes = append(a.tracingAttributes, attr...)
+		}
+		_, file, _, ok := runtime.Caller(1)
+		if ok {
+			a.tracingAttributes = append(a.tracingAttributes, attribute.String("file", file))
+		}
 	}
 }
 
-func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, tracingEnabled bool, tracingAttributes ...attribute.KeyValue) error { //nolint:funlen //mostly comments
+type Option func(d *DefaultValidator)
+
+func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Transaction, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) error { //nolint:funlen //mostly comments
 	var vErr *validator.Error
 	var spanErr error
-	ctx, span := tracing.StartTracing(ctx, "DefaultValidator_ValidateTransaction", tracingEnabled, tracingAttributes...)
+	ctx, span := tracing.StartTracing(ctx, "DefaultValidator_ValidateTransaction", v.tracingEnabled, v.tracingAttributes...)
 	defer func() {
 		if vErr != nil {
 			spanErr = vErr.Err
@@ -52,7 +75,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis
 	if needsExtension(tx, feeValidation, scriptValidation) {
-		err := extendTx(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)
+		err := extendTx(ctx, v.txFinder, tx, v.tracingEnabled, v.tracingAttributes...)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusTxFormat)
 		}
@@ -72,12 +95,12 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return vErr
 		}
 	case validator.CumulativeFeeValidation:
-		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, tracingEnabled, tracingAttributes...)
+		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, v.tracingEnabled, v.tracingAttributes...)
 		if err != nil {
 			e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))
 			return validator.NewError(e, api.ErrStatusCumulativeFees)
 		}
-		vErr = checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), tracingEnabled, tracingAttributes...)
+		vErr = checkCumulativeFees(ctx, txSet, tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee), v.tracingEnabled, v.tracingAttributes...)
 		if vErr != nil {
 			return vErr
 		}
@@ -85,7 +108,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
-	vErr = v.performStandardScriptValidation(scriptValidation, tx)
+	vErr = v.performStandardScriptValidation(scriptValidation, tx, blockHeight)
 	if vErr != nil {
 		return vErr
 	}
@@ -93,7 +116,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	return nil
 }
 
-func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction) *validator.Error { //nolint: revive //false error thrown
+func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *validator.Error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
@@ -105,7 +128,7 @@ func (v *DefaultValidator) performStandardScriptValidation(scriptValidation vali
 			return validator.NewError(err, api.ErrStatusMalformed)
 		}
 
-		err = v.scriptVerifier.VerifyScript(b, utxo, v.currentBlockHeight, true)
+		err = v.scriptVerifier.VerifyScript(b, utxo, blockHeight, true)
 		if err != nil {
 			return validator.NewError(err, api.ErrStatusUnlockingScripts)
 		}

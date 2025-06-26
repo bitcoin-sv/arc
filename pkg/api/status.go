@@ -39,7 +39,7 @@ func (e *ErrorFields) GetSpanAttributes() []attribute.KeyValue {
 	return attr
 }
 
-func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields { //nolint:revive //complexity is high due to number of cases
+func NewErrorFields(status StatusCode, extraInfo string) *ErrorFields {
 	emptyString := ""
 	errFields := ErrorFields{
 		Status:    int(status),

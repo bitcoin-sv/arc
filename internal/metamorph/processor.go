@@ -283,7 +283,7 @@ func (p *Processor) unlockRecords() error {
 	return nil
 }
 
-func (p *Processor) StartProcessMinedCallbacks() { //nolint:revive //complexity is high due to the go func()
+func (p *Processor) StartProcessMinedCallbacks() {
 	p.waitGroup.Add(1)
 	var txsBlocksBuffer []*blocktx_api.TransactionBlock
 	ticker := time.NewTicker(p.processMinedInterval)
@@ -425,7 +425,7 @@ func (p *Processor) StartProcessSubmitted() {
 	}()
 }
 
-func (p *Processor) StartSendStatusUpdate() { //nolint:revive //complexity is high due to the go func()
+func (p *Processor) StartSendStatusUpdate() {
 	p.waitGroup.Add(1)
 	go func() {
 		defer p.waitGroup.Done()

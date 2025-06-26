@@ -69,7 +69,7 @@ func run() error {
 	return nil
 }
 
-func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) { //nolint:revive //complexity is high due to the go func()
+func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
 	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache store: %v", err)

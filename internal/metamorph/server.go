@@ -542,7 +542,7 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 	return result, nil
 }
 
-func (s *Server) waitForTxStatus(ctx context.Context, returnedStatus *metamorph_api.TransactionStatus, responseChannel chan StatusAndError, txID string, waitForStatus metamorph_api.Status) *metamorph_api.TransactionStatus { //nolint:revive //complexity is high due to the for loop
+func (s *Server) waitForTxStatus(ctx context.Context, returnedStatus *metamorph_api.TransactionStatus, responseChannel chan StatusAndError, txID string, waitForStatus metamorph_api.Status) *metamorph_api.TransactionStatus {
 	ctx, span := tracing.StartTracing(ctx, "waitForTxStatus", s.tracingEnabled, s.tracingAttributes...)
 	var err error
 	defer func() {

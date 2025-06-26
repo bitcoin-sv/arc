@@ -67,7 +67,7 @@ func TestDoubleSpendRejected(t *testing.T) {
 		require.Equal(t, StatusDoubleSpendAttempted, tx2StatusResp.TxStatus)
 
 		// give arc time to update the status of the second transaction
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		// make sure the status was updated to rejected
 		tx2StatusURL = fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx2.TxID())

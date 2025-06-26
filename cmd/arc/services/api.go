@@ -192,7 +192,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("invalid network type: %s", arcConfig.Network)
 	}
 
-	gv := validator.NewGenericValidator(goscript.NewScriptEngine(network), genesisBlock)
+	gv := validator.NewCommonValidator(goscript.NewScriptEngine(network), genesisBlock)
 	dv := defaultValidator.New(policy, cachedFinder, *gv, defaultValidatorOpts...)
 	bv := beefValidator.New(policy, chainTracker, *gv, beefValidatorOpts...)
 

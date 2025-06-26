@@ -22,18 +22,18 @@ var (
 )
 
 type DefaultValidator struct {
-	validator.GenericValidator
+	validator.CommonValidator
 	policy            *bitcoin.Settings
 	txFinder          validator.TxFinderI
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, genericValidator validator.GenericValidator, opts ...Option) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, genericValidator validator.CommonValidator, opts ...Option) *DefaultValidator {
 	d := &DefaultValidator{
-		GenericValidator: genericValidator,
-		policy:           policy,
-		txFinder:         finder,
+		CommonValidator: genericValidator,
+		policy:          policy,
+		txFinder:        finder,
 	}
 
 	// apply options

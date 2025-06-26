@@ -76,7 +76,7 @@ func TestBeefValidator(t *testing.T) {
 				},
 			}
 			se := goscript.NewScriptEngine("regtest")
-			gv := validator.NewGenericValidator(se, int32(10000))
+			gv := validator.NewCommonValidator(se, int32(10000))
 			sut := New(getPolicy(1), ctMock, *gv)
 
 			// when

@@ -27,7 +27,7 @@ type ChainTracker interface {
 }
 
 type Validator struct {
-	validator.GenericValidator
+	validator.CommonValidator
 	policy            *bitcoin.Settings
 	chainTracker      ChainTracker
 	tracingEnabled    bool
@@ -48,11 +48,11 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTracker ChainTracker, genericValidator validator.GenericValidator, opts ...Option) *Validator {
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, genericValidator validator.CommonValidator, opts ...Option) *Validator {
 	v := &Validator{
-		GenericValidator: genericValidator,
-		policy:           policy,
-		chainTracker:     chainTracker,
+		CommonValidator: genericValidator,
+		policy:          policy,
+		chainTracker:    chainTracker,
 	}
 	// apply options
 	for _, opt := range opts {

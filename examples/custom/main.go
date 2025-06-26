@@ -133,7 +133,7 @@ func main() {
 	finder := tx_finder.New(metamorphClient, nodeClient, wocClient, logger)
 
 	cachedFinder := tx_finder.NewCached(finder)
-	gv := validator.NewGenericValidator(se, genesisBlock)
+	gv := validator.NewCommonValidator(se, genesisBlock)
 	dv := defaultValidator.New(
 		arcConfig.API.DefaultPolicy,
 		cachedFinder,

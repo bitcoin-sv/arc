@@ -42,7 +42,7 @@ func TestValidateBeefScripts(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			se := goscript.NewScriptEngine("regtest")
-			gv := NewGenericValidator(se, int32(10000))
+			gv := NewCommonValidator(se, int32(10000))
 			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)

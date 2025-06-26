@@ -9,6 +9,7 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ordishs/go-bitcoin"
 
+	internalApi "github.com/bitcoin-sv/arc/internal/api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
@@ -33,6 +34,46 @@ var (
 	ErrTxSizeLessThanMinSize = fmt.Errorf("transaction size in bytes is less than %d bytes", minTxSizeBytes)
 	ErrTxSizeGreaterThanMax  = fmt.Errorf("transaction size in bytes is greater than %d bytes", maxBlockSize)
 )
+
+var (
+	ErrVerifyScriptFailed = errors.New("script verification failed")
+	ErrExtendTx           = errors.New("failed to extend transaction")
+)
+
+type CommonValidator struct {
+	scriptVerifier   internalApi.ScriptVerifier
+	genesisForkBLock int32
+}
+
+func NewCommonValidator(scriptVerifier internalApi.ScriptVerifier, genesisForkBLock int32) *CommonValidator {
+	return &CommonValidator{
+		scriptVerifier:   scriptVerifier,
+		genesisForkBLock: genesisForkBLock,
+	}
+}
+
+func (v *CommonValidator) StandardScriptValidation(scriptValidation ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *Error { //nolint: revive //false error thrown
+	switch scriptValidation {
+	case StandardScriptValidation:
+		utxo := make([]int32, len(tx.Inputs))
+		for i := range tx.Inputs {
+			utxo[i] = v.genesisForkBLock
+		}
+
+		b, err := tx.EF()
+		if err != nil {
+			return NewError(errors.Join(ErrExtendTx, err), api.ErrStatusMalformed)
+		}
+
+		err = v.scriptVerifier.VerifyScript(b, utxo, blockHeight, true)
+		if err != nil {
+			return NewError(errors.Join(ErrVerifyScriptFailed, err), api.ErrStatusUnlockingScripts)
+		}
+	case NoneScriptValidation:
+		// No script validation
+	}
+	return nil
+}
 
 func CommonValidateTransaction(policy *bitcoin.Settings, tx *sdkTx.Transaction) *Error {
 	//

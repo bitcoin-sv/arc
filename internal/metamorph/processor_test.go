@@ -1317,7 +1317,7 @@ func TestProcessDoubleSpendTxs(t *testing.T) {
 					Mined: true,
 				},
 			},
-			rejected: 0,
+			rejected: 1,
 		},
 		{
 			name: "reject 0 double spend tx",

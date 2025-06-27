@@ -4,10 +4,11 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
-	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 var ErrUnableToCastWireMessage = errors.New("unable to cast wire.Message to blockchain.BlockMessage")
@@ -22,10 +23,10 @@ var _ p2p.MessageHandlerI = (*MsgHandler)(nil)
 type MsgHandler struct {
 	logger            *slog.Logger
 	blockRequestingCh chan<- BlockRequest
-	blockProcessingCh chan<- *bcnet.BlockMessage
+	blockProcessingCh chan<- *bcnet.BlockMessagePeer
 }
 
-func NewMsgHandler(l *slog.Logger, blockRequestCh chan<- BlockRequest, blockProcessCh chan<- *bcnet.BlockMessage) *MsgHandler {
+func NewMsgHandler(l *slog.Logger, blockRequestCh chan<- BlockRequest, blockProcessCh chan<- *bcnet.BlockMessagePeer) *MsgHandler {
 	return &MsgHandler{
 		logger: l.With(
 			slog.String("module", "peer-msg-handler"),
@@ -68,7 +69,15 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 			return
 		}
 
-		h.blockProcessingCh <- blockMsg
+		blockMsgPeer := &bcnet.BlockMessagePeer{
+			BlockMessage: *blockMsg,
+		}
+
+		if peer != nil {
+			blockMsgPeer.Peer = peer.String()
+		}
+
+		h.blockProcessingCh <- blockMsgPeer
 
 	default:
 		// ignore other messages

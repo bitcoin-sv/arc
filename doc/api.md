@@ -175,8 +175,7 @@ This endpoint returns the policy settings.
     "miningFee": {
       "satoshis": 1,
       "bytes": 1000
-    },
-    "standardFormatSupported": true
+    }
   }
 }
 ```
@@ -1211,8 +1210,7 @@ Chain info
     "miningFee": {
       "satoshis": 1,
       "bytes": 1000
-    },
-    "standardFormatSupported": true
+    }
   }
 }
 
@@ -1248,8 +1246,7 @@ and
   "miningFee": {
     "satoshis": 1,
     "bytes": 1000
-  },
-  "standardFormatSupported": true
+  }
 }
 
 ```
@@ -1262,7 +1259,6 @@ and
 |maxtxsigopscountspolicy|integer(uint64)|true|none|Maximum number of signature operations|
 |maxtxsizepolicy|integer(uint64)|true|none|Maximum transaction size [bytes]|
 |miningFee|[FeeAmount](#schemafeeamount)|true|none|Mining fee|
-|standardFormatSupported|boolean|false|none|Whether or not the standard format is supported|
 
 <h2 id="tocS_FeeAmount">FeeAmount</h2>
 <!-- backwards compatibility -->

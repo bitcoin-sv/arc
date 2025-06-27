@@ -499,11 +499,6 @@ components:
         miningFee:
           $ref: '#/components/schemas/FeeAmount'
           description: Mining fee
-        standardFormatSupported:
-          type: boolean
-          nullable: false
-          description: Whether or not the standard format is supported
-          example: true
       additionalProperties: false
 
     FeeAmount:

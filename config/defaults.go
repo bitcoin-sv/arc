@@ -128,12 +128,11 @@ func getBlocktxConfig() *BlocktxConfig {
 
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
-		StandardFormatSupported: true,
-		Address:                 "localhost:9090",
-		ListenAddr:              "localhost:8033",
-		WocAPIKey:               "mainnet_XXXXXXXXXXXXXXXXXXXX",
-		WocMainnet:              false,
-		RequestExtendedLogs:     false,
+		Address:             "localhost:9090",
+		ListenAddr:          "localhost:8033",
+		WocAPIKey:           "mainnet_XXXXXXXXXXXXXXXXXXXX",
+		WocMainnet:          false,
+		RequestExtendedLogs: false,
 		DefaultPolicy: &bitcoin.Settings{
 			ExcessiveBlockSize:              2000000000,
 			BlockMaxSize:                    512000000,

@@ -124,7 +124,6 @@ blocktx:
         address: "[ff05::3]:9979"
 
 api:
-  standardFormatSupported: true
   address: "[::]:9090"
   listenAddr: api:8033
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"

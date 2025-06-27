@@ -115,7 +115,6 @@ blocktx:
           p2p: 18333
 
 api:
-  standardFormatSupported: true
   address: 0.0.0.0:9090
   listenAddr: 0.0.0.0:8033
   wocApiKey: "mainnet_XXXXXXXXXXXXXXXXXXXX"

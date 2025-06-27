@@ -238,6 +238,7 @@ func ProcessDoubleSpendTxs(ctx context.Context, p *Processor) []attribute.KeyVal
 		competingTxStatuses, err := p.blocktxClient.AnyTransactionsMined(ctx, competingTxs)
 		if err != nil {
 			p.logger.Error("cannot get competing tx statuses from blocktx", slog.String("err", err.Error()))
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 

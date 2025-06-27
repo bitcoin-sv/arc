@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bsv-blockchain/go-sdk/util"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -251,7 +252,7 @@ func ProcessDoubleSpendTxs(ctx context.Context, p *Processor) []attribute.KeyVal
 						Status:       metamorph_api.Status_REJECTED,
 						CompetingTxs: doubleSpendTx.CompetingTxs,
 						Timestamp:    p.now(),
-						Error:        fmt.Errorf("double spend tx rejected, competing tx %s mined", hex.EncodeToString(competingTx.Hash)),
+						Error:        fmt.Errorf("double spend tx rejected, competing tx %s mined", hex.EncodeToString(util.ReverseBytes(competingTx.Hash))),
 					},
 				})
 				if err != nil {

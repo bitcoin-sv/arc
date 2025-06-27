@@ -16,7 +16,7 @@ import (
 //
 //		// make and configure a mocked handler.BeefValidator
 //		mockedBeefValidator := &BeefValidatorMock{
-//			ValidateTransactionFunc: func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error) {
+//			ValidateTransactionFunc: func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (*sdkTx.Transaction, error) {
 //				panic("mock out the ValidateTransaction method")
 //			},
 //		}
@@ -27,7 +27,7 @@ import (
 //	}
 type BeefValidatorMock struct {
 	// ValidateTransactionFunc mocks the ValidateTransaction method.
-	ValidateTransactionFunc func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (*sdkTx.Transaction, error)
+	ValidateTransactionFunc func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (*sdkTx.Transaction, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -41,6 +41,8 @@ type BeefValidatorMock struct {
 			FeeValidation validator.FeeValidation
 			// ScriptValidation is the scriptValidation argument value.
 			ScriptValidation validator.ScriptValidation
+			// BlockHeight is the blockHeight argument value.
+			BlockHeight int32
 		}
 	}
 	lockValidateTransaction sync.RWMutex
@@ -56,16 +58,18 @@ func (mock *BeefValidatorMock) ValidateTransaction(ctx context.Context, beefTx *
 		BeefTx           *sdkTx.Beef
 		FeeValidation    validator.FeeValidation
 		ScriptValidation validator.ScriptValidation
+		BlockHeight      int32
 	}{
 		Ctx:              ctx,
 		BeefTx:           beefTx,
 		FeeValidation:    feeValidation,
 		ScriptValidation: scriptValidation,
+		BlockHeight:      blockHeight,
 	}
 	mock.lockValidateTransaction.Lock()
 	mock.calls.ValidateTransaction = append(mock.calls.ValidateTransaction, callInfo)
 	mock.lockValidateTransaction.Unlock()
-	return mock.ValidateTransactionFunc(ctx, beefTx, feeValidation, scriptValidation)
+	return mock.ValidateTransactionFunc(ctx, beefTx, feeValidation, scriptValidation, blockHeight)
 }
 
 // ValidateTransactionCalls gets all the calls that were made to ValidateTransaction.
@@ -77,12 +81,14 @@ func (mock *BeefValidatorMock) ValidateTransactionCalls() []struct {
 	BeefTx           *sdkTx.Beef
 	FeeValidation    validator.FeeValidation
 	ScriptValidation validator.ScriptValidation
+	BlockHeight      int32
 } {
 	var calls []struct {
 		Ctx              context.Context
 		BeefTx           *sdkTx.Beef
 		FeeValidation    validator.FeeValidation
 		ScriptValidation validator.ScriptValidation
+		BlockHeight      int32
 	}
 	mock.lockValidateTransaction.RLock()
 	calls = mock.calls.ValidateTransaction

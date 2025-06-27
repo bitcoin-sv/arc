@@ -3,19 +3,20 @@ package blocktx_p2p
 import (
 	"log/slog"
 
+	"github.com/libsv/go-p2p/wire"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/p2p"
-	"github.com/libsv/go-p2p/wire"
 )
 
 var _ p2p.MessageHandlerI = (*HybridMsgHandler)(nil)
 
 type HybridMsgHandler struct {
 	logger            *slog.Logger
-	blockProcessingCh chan<- *bcnet.BlockMessage
+	blockProcessingCh chan<- *bcnet.BlockMessagePeer
 }
 
-func NewHybridMsgHandler(l *slog.Logger, blockProcessCh chan<- *bcnet.BlockMessage) *HybridMsgHandler {
+func NewHybridMsgHandler(l *slog.Logger, blockProcessCh chan<- *bcnet.BlockMessagePeer) *HybridMsgHandler {
 	return &HybridMsgHandler{
 		logger: l.With(
 			slog.String("module", "peer-msg-handler"),
@@ -26,7 +27,7 @@ func NewHybridMsgHandler(l *slog.Logger, blockProcessCh chan<- *bcnet.BlockMessa
 }
 
 // OnReceive handles incoming messages depending on command type
-func (h *HybridMsgHandler) OnReceive(msg wire.Message, _ p2p.PeerI) {
+func (h *HybridMsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 	cmd := msg.Command()
 
 	switch cmd {
@@ -36,8 +37,12 @@ func (h *HybridMsgHandler) OnReceive(msg wire.Message, _ p2p.PeerI) {
 			h.logger.Error("Block msg receive", slog.Any("err", ErrUnableToCastWireMessage))
 			return
 		}
+		blockMsgPeer := &bcnet.BlockMessagePeer{
+			BlockMessage: *blockMsg,
+			Peer:         peer.String(),
+		}
 
-		h.blockProcessingCh <- blockMsg
+		h.blockProcessingCh <- blockMsgPeer
 
 	default:
 		// ignore other messages

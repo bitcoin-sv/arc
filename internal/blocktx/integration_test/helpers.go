@@ -24,7 +24,7 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	blockProcessCh := make(chan *bcnet.BlockMessage, 10)
+	blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 
 	publishedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
 	registerTxChannel := make(chan []byte, 10)

@@ -28,3 +28,8 @@ func (bm *BlockMessage) Command() string {
 func (bm *BlockMessage) MaxPayloadLength(uint32) uint64 {
 	return wire.MaxExtMsgPayload
 }
+
+type BlockMessagePeer struct {
+	BlockMessage
+	Peer string
+}

@@ -57,7 +57,7 @@ const (
 type Processor struct {
 	hostname                    string
 	blockRequestCh              chan blocktx_p2p.BlockRequest
-	blockProcessCh              chan *bcnet.BlockMessage
+	blockProcessCh              chan *bcnet.BlockMessagePeer
 	store                       store.BlocktxStore
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
@@ -85,7 +85,7 @@ func NewProcessor(
 	logger *slog.Logger,
 	storeI store.BlocktxStore,
 	blockRequestCh chan blocktx_p2p.BlockRequest,
-	blockProcessCh chan *bcnet.BlockMessage,
+	blockProcessCh chan *bcnet.BlockMessagePeer,
 	opts ...func(*Processor),
 ) (*Processor, error) {
 	hostname, err := os.Hostname()
@@ -215,17 +215,17 @@ func (p *Processor) StartBlockProcessing() {
 
 				hash := blockMsg.Hash
 
-				p.logger.Info("received block", slog.String("hash", hash.String()))
+				p.logger.Info("received block", slog.String("hash", hash.String()), slog.String("peer", blockMsg.Peer))
 
 				err = p.processBlock(blockMsg)
 				if err != nil {
-					p.logger.Error("block processing failed", slog.String("hash", hash.String()), slog.String("err", err.Error()))
+					p.logger.Error("block processing failed", slog.String("hash", hash.String()), slog.String("err", err.Error()), slog.String("peer", blockMsg.Peer))
 					continue
 				}
 
 				storeErr := p.store.MarkBlockAsDone(p.ctx, hash, blockMsg.Size, uint64(len(blockMsg.TransactionHashes)))
 				if storeErr != nil {
-					p.logger.Error("unable to mark block as processed", slog.String("hash", hash.String()), slog.String("err", storeErr.Error()))
+					p.logger.Error("unable to mark block as processed", slog.String("hash", hash.String()), slog.String("err", storeErr.Error()), slog.String("peer", blockMsg.Peer))
 					continue
 				}
 
@@ -238,6 +238,7 @@ func (p *Processor) StartBlockProcessing() {
 					slog.Int("txs", nTxs),
 					slog.String("duration", timeElapsed.String()),
 					slog.Float64("txs/s", float64(nTxs)/timeElapsed.Seconds()),
+					slog.String("peer", blockMsg.Peer),
 				)
 			}
 		}
@@ -345,7 +346,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 	return nil
 }
 
-func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
+func (p *Processor) processBlock(blockMsg *bcnet.BlockMessagePeer) (err error) {
 	ctx := p.ctx
 
 	var block *blocktx_api.Block
@@ -412,7 +413,7 @@ func (p *Processor) processBlock(blockMsg *bcnet.BlockMessage) (err error) {
 	return nil
 }
 
-func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.BlockMessage) (incomingBlock *blocktx_api.Block, err error) {
+func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.BlockMessagePeer) (incomingBlock *blocktx_api.Block, err error) {
 	ctx, span := tracing.StartTracing(ctx, "verifyAndInsertBlock", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)

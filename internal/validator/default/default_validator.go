@@ -19,23 +19,26 @@ import (
 
 var (
 	ErrTxFeeTooLow = errors.New("transaction fee is too low")
+	ErrNotExtended = errors.New("transaction is not in extended format")
 )
 
 type DefaultValidator struct {
-	policy            *bitcoin.Settings
-	txFinder          validator.TxFinderI
-	scriptVerifier    internalApi.ScriptVerifier
-	genesisForkBLock  int32
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
+	policy                  *bitcoin.Settings
+	txFinder                validator.TxFinderI
+	scriptVerifier          internalApi.ScriptVerifier
+	genesisForkBLock        int32
+	tracingEnabled          bool
+	tracingAttributes       []attribute.KeyValue
+	standardFormatSupported bool
 }
 
 func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *DefaultValidator {
 	d := &DefaultValidator{
-		scriptVerifier:   sv,
-		genesisForkBLock: genesisForkBLock,
-		policy:           policy,
-		txFinder:         finder,
+		scriptVerifier:          sv,
+		genesisForkBLock:        genesisForkBLock,
+		policy:                  policy,
+		txFinder:                finder,
+		standardFormatSupported: true,
 	}
 
 	// apply options
@@ -44,6 +47,12 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.Sc
 	}
 
 	return d
+}
+
+func WithStandardFormatSupported(standardFormatSupported bool) func(*DefaultValidator) {
+	return func(d *DefaultValidator) {
+		d.standardFormatSupported = standardFormatSupported
+	}
 }
 
 func WithTracer(attr ...attribute.KeyValue) func(s *DefaultValidator) {
@@ -71,6 +80,10 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		}
 		tracing.EndTracing(span, spanErr)
 	}()
+
+	if !v.standardFormatSupported && !isExtended(tx) {
+		return validator.NewError(ErrNotExtended, api.ErrStatusTxFormat)
+	}
 
 	// 0) Check whether we have a complete transaction in extended format, with all input information
 	//    we cannot check the satoshi input, OP_RETURN is allowed 0 satoshis

@@ -71,7 +71,10 @@ func (h *MsgHandler) OnReceive(msg wire.Message, peer p2p.PeerI) {
 
 		blockMsgPeer := &bcnet.BlockMessagePeer{
 			BlockMessage: *blockMsg,
-			Peer:         peer.String(),
+		}
+
+		if peer != nil {
+			blockMsgPeer.Peer = peer.String()
 		}
 
 		h.blockProcessingCh <- blockMsgPeer

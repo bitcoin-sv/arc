@@ -90,7 +90,88 @@ var (
 		AcceptNonStdConsolidationInput:  false,
 	}
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	txResult   = &metamorph.TransactionStatus{
+		TxID:        validTxID,
+		BlockHash:   "",
+		BlockHeight: 0,
+		Status:      "OK",
+		Timestamp:   time.Now().Unix(),
+	}
+	beefTxResult = &metamorph.TransactionStatus{
+		TxID:        validBeefTxID,
+		BlockHash:   "",
+		BlockHeight: 0,
+		Status:      "OK",
+		Timestamp:   time.Now().Unix(),
+	}
+	txResults = []*metamorph.TransactionStatus{
+		{
+			TxID:        validBeefTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+		},
+		{
+			TxID:        validTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+		},
+	}
+	txCallbackResults = []*metamorph.TransactionStatus{
+		{
+			TxID:        validBeefTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+			Callbacks: []*metamorph_api.Callback{
+				{
+					CallbackUrl: "https://callback.example.com",
+				},
+			},
+			LastSubmitted: *timestamppb.New(time.Now()),
+		},
+		{
+			TxID:        validTxID,
+			BlockHash:   "",
+			BlockHeight: 0,
+			Status:      "OK",
+			Timestamp:   time.Now().Unix(),
+			Callbacks: []*metamorph_api.Callback{
+				{
+					CallbackUrl: "https://callback.example.com",
+				},
+			},
+			LastSubmitted: *timestamppb.New(time.Now()),
+		},
+	}
+
+	validExtendedTxBytes, _        = hex.DecodeString(validExtendedTx)
+	errBEEFDecode                  = *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\nfailed to parse beef\ncould not read varint type: EOF")
+	invalidBeefNoBUMPIndexBytes, _ = hex.DecodeString(invalidBeefNoBUMPIndex)
 )
+
+type PostTransactionsTest struct {
+	name              string
+	contentTypes      []string
+	options           api.POSTTransactionsParams
+	expectedStatus    api.StatusCode
+	expectedError     error
+	inputTxs          map[string]io.Reader
+	bErr              string
+	errorsLength      int
+	expectedErrors    map[string]string
+	txHandler         *mtmMocks.TransactionHandlerMock
+	dv                *apiHandlerMocks.DefaultValidatorMock
+	expectedErrorCode api.StatusCode
+	txIDs             []string
+	errBEEFDecode     api.ErrorFields
+	bv                *apiHandlerMocks.BeefValidatorMock
+	skipProcessing    bool
+}
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
@@ -756,281 +837,386 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 }
 
 func TestPOSTTransactions(t *testing.T) { //nolint:funlen
-	// Todo: refactor this test and make table based
-	t.Run("empty tx", func(t *testing.T) {
+	tt := []PostTransactionsTest{
+		{
+			name:           "empty tx",
+			contentTypes:   contentTypes,
+			expectedStatus: api.ErrStatusBadRequest,
+			options:        api.POSTTransactionsParams{},
+		},
+		{
+			name:           "invalid parameters",
+			expectedStatus: api.ErrStatusBadRequest,
+			options: api.POSTTransactionsParams{
+				XCallbackUrl:   PtrTo("callback.example.com"),
+				XCallbackToken: PtrTo("test-token"),
+				XWaitFor:       PtrTo(metamorph_api.Status_name[int32(metamorph_api.Status_ANNOUNCED_TO_NETWORK)]),
+			},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain: strings.NewReader(validExtendedTx),
+			},
+			bErr:          "invalid callback URL\nparse \"callback.example.com\": invalid URI for request",
+			expectedError: ErrInvalidCallbackURL,
+		},
+		{
+			name:           "invalid mime type",
+			expectedStatus: api.ErrStatusBadRequest,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMEApplicationXML: strings.NewReader(""),
+			},
+		},
+		{
+			name:           "invalid txs",
+			expectedStatus: api.ErrStatusBadRequest,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMEApplicationXML: strings.NewReader(""),
+			},
+			expectedErrors: map[string]string{
+				echo.MIMETextPlain:       "error parsing transactions from request: encoding/hex: invalid byte: U+0074 't'",
+				echo.MIMEApplicationJSON: "error parsing transactions from request: invalid character 'e' in literal true (expecting 'r')",
+				echo.MIMEOctetStream:     "",
+			},
+		},
+		{
+			name:              "valid tx - missing inputs",
+			expectedStatus:    api.StatusOK,
+			expectedErrorCode: api.ErrStatusTxFormat,
+			options:           api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validTx + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					var txStatuses []*metamorph.TransactionStatus
+					return txStatuses, nil
+				},
+
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+					return nil, metamorph.ErrTransactionNotFound
+				},
+
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+			},
+			dv: &apiHandlerMocks.DefaultValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
+					return validator.NewError(errors.New("status format error"), api.ErrStatusTxFormat)
+				},
+			},
+		},
+		{
+			name:           "valid tx",
+			txIDs:          []string{validTxID},
+			expectedStatus: api.StatusOK,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validExtendedTx + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validExtendedTx + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					txStatuses := []*metamorph.TransactionStatus{txResult}
+					return txStatuses, nil
+				},
+
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+			},
+			dv: &apiHandlerMocks.DefaultValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
+					return nil
+				},
+			},
+		},
+		{
+			name:           "invalid tx - beef",
+			expectedStatus: api.ErrStatusMalformed,
+			errBEEFDecode:  errBEEFDecode,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(invalidBeefNoBUMPIndex + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + invalidBeefNoBUMPIndex + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(invalidBeefNoBUMPIndexBytes),
+			},
+			expectedErrorCode: api.ErrStatusMalformed,
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+			},
+		},
+		{
+			name:           "valid tx - beef",
+			txIDs:          []string{validBeefTxID},
+			expectedStatus: api.StatusOK,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validBeef + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(validBeefBytes),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					txStatuses := []*metamorph.TransactionStatus{beefTxResult}
+					return txStatuses, nil
+				},
+
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+			},
+			bv: &apiHandlerMocks.BeefValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:           "2 valid tx - beef",
+			txIDs:          []string{validBeefTxID, validBeefTxID},
+			expectedStatus: api.StatusOK,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
+					return []*metamorph.Transaction{
+						{
+							TxID:        tx.TxID().String(),
+							Bytes:       validTxParentBytes,
+							BlockHeight: 100,
+						},
+					}, nil
+				},
+				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					var res []*metamorph.TransactionStatus
+					for _, t := range txs {
+						txID := t.TxID()
+						if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+							res = append(res, status)
+						}
+					}
+
+					return res, nil
+				},
+
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+			},
+			bv: &apiHandlerMocks.BeefValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:           "multiple formats - success",
+			txIDs:          []string{validBeefTxID, validBeefTxID},
+			expectedStatus: api.StatusOK,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
+					return []*metamorph.Transaction{
+						{
+							TxID:        tx.TxID().String(),
+							Bytes:       validTxParentBytes,
+							BlockHeight: 100,
+						},
+					}, nil
+				},
+				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					var res []*metamorph.TransactionStatus
+					for _, t := range txs {
+						txID := t.TxID()
+						if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+							res = append(res, status)
+						}
+					}
+
+					return res, nil
+				},
+
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return make([]*metamorph.TransactionStatus, 0), nil
+				},
+
+				HealthFunc: func(_ context.Context) error {
+					return nil
+				},
+			},
+			dv: &apiHandlerMocks.DefaultValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
+					return nil
+				},
+			},
+			bv: &apiHandlerMocks.BeefValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:           "skip processing transactions",
+			txIDs:          []string{validBeefTxID, validTxID},
+			expectedStatus: api.StatusOK,
+			options:        api.POSTTransactionsParams{},
+			inputTxs: map[string]io.Reader{
+				echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
+				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
+				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
+			},
+			txHandler: &mtmMocks.TransactionHandlerMock{
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+					return txCallbackResults, nil
+				},
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+					return txCallbackResults, nil
+				},
+			},
+
+			bv: &apiHandlerMocks.BeefValidatorMock{
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+					return nil, nil
+				},
+			},
+			skipProcessing: true,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			//given
+			btxClient := &btxMocks.ClientMock{}
+			sut, err := NewDefault(testLogger, tc.txHandler, btxClient, defaultPolicy, tc.dv, tc.bv)
+			require.NoError(t, err)
+			//when then
+			testPOSTTransactionsContentTypes(t, sut, tc)
+			testPOSTTransactionsInputTxs(t, sut, tc)
+			testPOSTTransactionsExpectedErrors(t, sut, tc)
+		})
+	}
+}
+
+func testPOSTTransactionsExpectedErrors(t *testing.T, sut *ArcDefaultHandler, tc PostTransactionsTest) {
+	for contentType, expectedError := range tc.expectedErrors {
 		// when
-		btxClient := &btxMocks.ClientMock{}
-
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		for _, contentType := range contentTypes {
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/v1/txs", strings.NewReader(""))
-			req.Header.Set(echo.HeaderContentType, contentType)
-			rec := httptest.NewRecorder()
-			ctx := e.NewContext(req, rec)
-
-			// when
-			actualError := sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, actualError)
-			// multiple txs post always returns 200, the error code is given per tx
-			assert.Equal(t, api.ErrStatusBadRequest, api.StatusCode(rec.Code))
-		}
-	})
-
-	t.Run("invalid parameters", func(t *testing.T) {
-		// given
-		inputTx := strings.NewReader(validExtendedTx)
-		rec, ctx := createEchoPostRequest(inputTx, echo.MIMETextPlain, "/v1/tx")
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		btxClient := &btxMocks.ClientMock{}
-
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodPost, "/v1/tx", strings.NewReader(""))
-		req.Header.Set(echo.HeaderContentType, echo.MIMETextPlain)
-
-		options := api.POSTTransactionsParams{
-			XCallbackUrl:   PtrTo("callback.example.com"),
-			XCallbackToken: PtrTo("test-token"),
-			XWaitFor:       PtrTo(metamorph_api.Status_name[int32(metamorph_api.Status_ANNOUNCED_TO_NETWORK)]),
-		}
-
-		// when
-		err = sut.POSTTransactions(ctx, options)
+		rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/txs")
+		err := sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
+		assert.Equal(t, int(tc.expectedStatus), rec.Code)
 
 		b := rec.Body.Bytes()
-		var bErr api.ErrorMalformed
-		_ = json.Unmarshal(b, &bErr)
-
-		assert.Equal(t, "invalid callback URL\nparse \"callback.example.com\": invalid URI for request", *bErr.ExtraInfo)
-		assert.ErrorContains(t, errors.New(*bErr.ExtraInfo), ErrInvalidCallbackURL.Error())
-	})
-
-	t.Run("invalid mime type", func(t *testing.T) {
-		// given
-		btxClient := &btxMocks.ClientMock{}
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
+		var bErr api.ErrorBadRequest
+		err = json.Unmarshal(b, &bErr)
 		require.NoError(t, err)
 
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, "/v1/txs", strings.NewReader(""))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationXML)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
+		errBadRequest := api.NewErrorFields(tc.expectedStatus, "")
 
-		// when
-		actualError := sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+		assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
+		assert.Equal(t, errBadRequest.Title, bErr.Title)
+		if expectedError != "" {
+			require.NotNil(t, bErr.ExtraInfo)
+			assert.Equal(t, expectedError, *bErr.ExtraInfo)
+		}
+	}
+}
+
+func testPOSTTransactionsInputTxs(t *testing.T, sut *ArcDefaultHandler, tc PostTransactionsTest) {
+	if tc.skipProcessing {
+		//when
+		callbackURL := "https://callback.example.com"
+		rec, ctx := createEchoPostRequest(strings.NewReader("[{\"rawTx\":\""+validBeef+"\"}, {\"rawTx\":\""+validTx+"\"}]"), echo.MIMEApplicationJSON, "/v1/txs")
+		err := sut.POSTTransactions(ctx, api.POSTTransactionsParams{
+			XCallbackUrl: &callbackURL,
+		})
 
 		// then
-		require.NoError(t, actualError)
-		assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
-	})
-
-	t.Run("invalid txs", func(t *testing.T) {
-		// given
-		btxClient := &btxMocks.ClientMock{}
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
 		require.NoError(t, err)
+		assert.Equal(t, int(tc.expectedStatus), rec.Code)
+		assert.Equal(t, len(tc.txHandler.SubmitTransactionsCalls()), 0)
 
-		expectedErrors := map[string]string{
-			echo.MIMETextPlain:       "error parsing transactions from request: encoding/hex: invalid byte: U+0074 't'",
-			echo.MIMEApplicationJSON: "error parsing transactions from request: invalid character 'e' in literal true (expecting 'r')",
-			echo.MIMEOctetStream:     "",
+		b := rec.Body.Bytes()
+		var bResponse []api.TransactionResponse
+		_ = json.Unmarshal(b, &bResponse)
+
+		require.Len(t, bResponse, len(tc.txIDs))
+		for i, br := range bResponse {
+			require.Equal(t, tc.txIDs[i], br.Txid)
 		}
+		return
+	}
 
-		for contentType, expectedError := range expectedErrors {
-			// when
-			rec, ctx := createEchoPostRequest(strings.NewReader("test"), contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
+	for contentType, inputTx := range tc.inputTxs {
+		// when
+		rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
+		err := sut.POSTTransactions(ctx, tc.options)
 
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, int(api.ErrStatusBadRequest), rec.Code)
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, tc.expectedStatus, api.StatusCode(rec.Code))
 
-			b := rec.Body.Bytes()
-			var bErr api.ErrorBadRequest
-			err = json.Unmarshal(b, &bErr)
-			require.NoError(t, err)
+		b := rec.Body.Bytes()
+		var bErr []api.ErrorFields
+		_ = json.Unmarshal(b, &bErr)
 
-			errBadRequest := api.NewErrorFields(api.ErrStatusBadRequest, "")
-
-			assert.Equal(t, float64(errBadRequest.Status), bErr.Status)
-			assert.Equal(t, errBadRequest.Title, bErr.Title)
-			if expectedError != "" {
-				require.NotNil(t, bErr.ExtraInfo)
-				assert.Equal(t, expectedError, *bErr.ExtraInfo)
+		if tc.errorsLength > 0 {
+			require.GreaterOrEqual(t, len(bErr), tc.errorsLength)
+			assert.Equal(t, tc.expectedError, bErr[0])
+		}
+		if tc.expectedErrorCode > 0 {
+			require.GreaterOrEqual(t, len(bErr), tc.errorsLength)
+			if tc.errorsLength > 0 {
+				assert.Equal(t, int(tc.expectedErrorCode), bErr[0].Status)
 			}
 		}
-	})
-
-	t.Run("valid tx - missing inputs", func(t *testing.T) {
-		// given
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				var txStatuses []*metamorph.TransactionStatus
-				return txStatuses, nil
-			},
-
-			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
-				return nil, metamorph.ErrTransactionNotFound
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
-
-		btxClient := &btxMocks.ClientMock{}
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
-				return validator.NewError(errors.New("status format error"), api.ErrStatusTxFormat)
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		validTxBytes, _ = hex.DecodeString(validTx)
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validTx + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, api.StatusOK, api.StatusCode(rec.Code))
-
-			b := rec.Body.Bytes()
-			var bErr []api.ErrorFields
-			_ = json.Unmarshal(b, &bErr)
-
-			require.GreaterOrEqual(t, len(bErr), 1)
-			assert.Equal(t, int(api.ErrStatusTxFormat), bErr[0].Status)
-		}
-	})
-
-	t.Run("valid tx", func(t *testing.T) {
-		// given
-		txResult := &metamorph.TransactionStatus{
-			TxID:        validTxID,
-			BlockHash:   "",
-			BlockHeight: 0,
-			Status:      "OK",
-			Timestamp:   time.Now().Unix(),
-		}
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				txStatuses := []*metamorph.TransactionStatus{txResult}
-				return txStatuses, nil
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
-
-		btxClient := &btxMocks.ClientMock{}
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
-				return nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		validExtendedTxBytes, _ := hex.DecodeString(validExtendedTx)
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validExtendedTx + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validExtendedTx + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, rec.Code)
-
-			b := rec.Body.Bytes()
+		if len(tc.txIDs) > 0 {
 			var bResponse []api.TransactionResponse
 			_ = json.Unmarshal(b, &bResponse)
 
-			require.Equal(t, validTxID, bResponse[0].Txid)
+			require.Len(t, bResponse, len(tc.txIDs))
+			for i, br := range bResponse {
+				require.Equal(t, tc.txIDs[i], br.Txid)
+			}
 		}
-	})
-
-	t.Run("invalid tx - beef", func(t *testing.T) {
-		// given
-		errBEEFDecode := *api.NewErrorFields(api.ErrStatusMalformed, "error while decoding BEEF\nfailed to parse beef\ncould not read varint type: EOF")
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-		}
-
-		btxClient := &btxMocks.ClientMock{}
-		bv := &apiHandlerMocks.BeefValidatorMock{}
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		invalidBeefNoBUMPIndexBytes, _ := hex.DecodeString(invalidBeefNoBUMPIndex)
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(invalidBeefNoBUMPIndex + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + invalidBeefNoBUMPIndex + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(invalidBeefNoBUMPIndexBytes),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, int(api.ErrStatusMalformed), rec.Code)
-
+		if tc.errBEEFDecode.Title != "" {
 			b := rec.Body.Bytes()
 			var bResponse api.ErrorFields
 			_ = json.Unmarshal(b, &bResponse)
@@ -1038,318 +1224,25 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			require.Equal(t, errBEEFDecode, bResponse)
 			require.ErrorContains(t, errors.New(*bResponse.ExtraInfo), ErrDecodingBeef.Error())
 		}
-	})
+	}
+}
 
-	t.Run("valid tx - beef", func(t *testing.T) {
-		// given
-		txResult := &metamorph.TransactionStatus{
-			TxID:        validBeefTxID,
-			BlockHash:   "",
-			BlockHeight: 0,
-			Status:      "OK",
-			Timestamp:   time.Now().Unix(),
-		}
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				txStatuses := []*metamorph.TransactionStatus{txResult}
-				return txStatuses, nil
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
-
-		blocktxClient := &btxMocks.ClientMock{}
-
-		bv := &apiHandlerMocks.BeefValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
-				return nil, nil
-			},
-		}
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(validBeefBytes),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, rec.Code)
-
-			b := rec.Body.Bytes()
-			var bResponse []api.TransactionResponse
-			err = json.Unmarshal(b, &bResponse)
-			require.NoError(t, err)
-
-			// then
-			require.Equal(t, validBeefTxID, bResponse[0].Txid)
-		}
-	})
-
-	t.Run("2 valid tx - beef", func(t *testing.T) {
-		// given
-		txResults := []*metamorph.TransactionStatus{
-			{
-				TxID:        validBeefTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-			},
-			{
-				TxID:        validTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-			},
-		}
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
-				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
-				return []*metamorph.Transaction{
-					{
-						TxID:        tx.TxID().String(),
-						Bytes:       validTxParentBytes,
-						BlockHeight: 100,
-					},
-				}, nil
-			},
-			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				var res []*metamorph.TransactionStatus
-				for _, t := range txs {
-					txID := t.TxID()
-					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
-						res = append(res, status)
-					}
-				}
-
-				return res, nil
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
-
-		blocktxClient := &btxMocks.ClientMock{}
-
-		bv := &apiHandlerMocks.BeefValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
-				return nil, nil
-			},
-		}
-
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validBeef + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, rec.Code)
-
-			b := rec.Body.Bytes()
-			var bResponse []api.TransactionResponse
-			_ = json.Unmarshal(b, &bResponse)
-
-			require.Len(t, bResponse, 2)
-			require.Equal(t, validBeefTxID, bResponse[0].Txid)
-			require.Equal(t, validBeefTxID, bResponse[1].Txid)
-		}
-	})
-
-	t.Run("multiple formats - success", func(t *testing.T) {
-		// given
-		txResults := []*metamorph.TransactionStatus{
-			{
-				TxID:        validBeefTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-			},
-			{
-				TxID:        validTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-			},
-		}
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
-				tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
-				return []*metamorph.Transaction{
-					{
-						TxID:        tx.TxID().String(),
-						Bytes:       validTxParentBytes,
-						BlockHeight: 100,
-					},
-				}, nil
-			},
-			SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				var res []*metamorph.TransactionStatus
-				for _, t := range txs {
-					txID := t.TxID()
-					if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
-						res = append(res, status)
-					}
-				}
-
-				return res, nil
-			},
-
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return make([]*metamorph.TransactionStatus, 0), nil
-			},
-
-			HealthFunc: func(_ context.Context) error {
-				return nil
-			},
-		}
-
-		blocktxClient := &btxMocks.ClientMock{}
-
-		dv := &apiHandlerMocks.DefaultValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Transaction, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) error {
-				return nil
-			},
-		}
-		bv := &apiHandlerMocks.BeefValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
-				return nil, nil
-			},
-		}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
-
-		inputTxs := map[string]io.Reader{
-			echo.MIMETextPlain:       strings.NewReader(validBeef + "\n" + validTx + "\n"),
-			echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validTx + "\"}]"),
-			echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validTxBytes...)),
-		}
-
-		for contentType, inputTx := range inputTxs {
-			// when
-			rec, ctx := createEchoPostRequest(inputTx, contentType, "/v1/txs")
-			err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{})
-
-			// then
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, rec.Code)
-
-			b := rec.Body.Bytes()
-			var bResponse []api.TransactionResponse
-			_ = json.Unmarshal(b, &bResponse)
-
-			require.Len(t, bResponse, 2)
-			require.Equal(t, validBeefTxID, bResponse[0].Txid)
-			require.Equal(t, validTxID, bResponse[1].Txid)
-		}
-	})
-
-	t.Run("skip processing transactions", func(t *testing.T) {
-		// given
-		txResults := []*metamorph.TransactionStatus{
-			{
-				TxID:        validBeefTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-				Callbacks: []*metamorph_api.Callback{
-					{
-						CallbackUrl: "https://callback.example.com",
-					},
-				},
-				LastSubmitted: *timestamppb.New(time.Now()),
-			},
-			{
-				TxID:        validTxID,
-				BlockHash:   "",
-				BlockHeight: 0,
-				Status:      "OK",
-				Timestamp:   time.Now().Unix(),
-				Callbacks: []*metamorph_api.Callback{
-					{
-						CallbackUrl: "https://callback.example.com",
-					},
-				},
-				LastSubmitted: *timestamppb.New(time.Now()),
-			},
-		}
-		// set the node/metamorph responses for the 3 test requests
-		txHandler := &mtmMocks.TransactionHandlerMock{
-			GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-				return txResults, nil
-			},
-			SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-				return txResults, nil
-			},
-		}
-
-		blocktxClient := &btxMocks.ClientMock{}
-
-		bv := &apiHandlerMocks.BeefValidatorMock{
-			ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
-				return nil, nil
-			},
-		}
-
-		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		sut, err := NewDefault(testLogger, txHandler, blocktxClient, defaultPolicy, dv, bv)
-		require.NoError(t, err)
+func testPOSTTransactionsContentTypes(t *testing.T, sut *ArcDefaultHandler, tc PostTransactionsTest) {
+	for _, contentType := range tc.contentTypes {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/v1/txs", strings.NewReader(""))
+		req.Header.Set(echo.HeaderContentType, contentType)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
 
 		// when
-		callbackURL := "https://callback.example.com"
-		rec, ctx := createEchoPostRequest(strings.NewReader("[{\"rawTx\":\""+validBeef+"\"}, {\"rawTx\":\""+validTx+"\"}]"), echo.MIMEApplicationJSON, "/v1/txs")
-		err = sut.POSTTransactions(ctx, api.POSTTransactionsParams{
-			XCallbackUrl: &callbackURL,
-		})
+		actualError := sut.POSTTransactions(ctx, tc.options)
 
 		// then
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, len(txHandler.SubmitTransactionsCalls()), 0)
-
-		b := rec.Body.Bytes()
-		var bResponse []api.TransactionResponse
-		_ = json.Unmarshal(b, &bResponse)
-
-		require.Len(t, bResponse, 2)
-		require.Equal(t, validBeefTxID, bResponse[0].Txid)
-		require.Equal(t, validTxID, bResponse[1].Txid)
-	})
+		require.NoError(t, actualError)
+		// multiple txs post always returns 200, the error code is given per tx
+		assert.Equal(t, tc.expectedStatus, api.StatusCode(rec.Code))
+	}
 }
 
 func createEchoPostRequest(inputTx io.Reader, contentType, target string) (*httptest.ResponseRecorder, echo.Context) {

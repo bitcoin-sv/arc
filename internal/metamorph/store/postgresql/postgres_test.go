@@ -518,6 +518,18 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 0)
 	})
 
+	t.Run("get double spends", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_double_spends")
+
+		timestamp := time.Date(2023, time.October, 1, 15, 0, 0, 0, time.UTC)
+
+		txs, err := postgresDB.GetDoubleSpendTxs(ctx, timestamp)
+		assert.NoError(t, err)
+		assert.Len(t, txs, 1)
+		assert.Equal(t, testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), txs[0].Hash)
+	})
+
 	t.Run("update mined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")

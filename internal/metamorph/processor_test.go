@@ -1294,6 +1294,90 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 	}
 }
 
+func TestProcessDoubleSpendTxs(t *testing.T) {
+	tt := []struct {
+		name           string
+		doubleSpendTxs []*store.Data
+		minedTxs       []*blocktx_api.IsMined
+		rejected       int
+	}{
+		{
+			name: "reject 1 double spend tx",
+			doubleSpendTxs: []*store.Data{
+				{
+					Hash: testdata.TX1Hash,
+					CompetingTxs: []string{
+						testdata.TX2Hash.String(),
+					},
+				},
+			},
+			minedTxs: []*blocktx_api.IsMined{
+				{
+					Hash:  testdata.TX2Hash.CloneBytes(),
+					Mined: true,
+				},
+			},
+			rejected: 1,
+		},
+		{
+			name: "reject 0 double spend tx",
+			doubleSpendTxs: []*store.Data{
+				{
+					Hash: testdata.TX1Hash,
+					CompetingTxs: []string{
+						testdata.TX3Hash.String(),
+					},
+				},
+			},
+			minedTxs: []*blocktx_api.IsMined{
+				{
+					Hash:  testdata.TX2Hash.CloneBytes(),
+					Mined: false,
+				},
+			},
+			rejected: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			metamorphStore := &storeMocks.MetamorphStoreMock{
+				GetDoubleSpendTxsFunc: func(_ context.Context, _ time.Time) ([]*store.Data, error) {
+					return tc.doubleSpendTxs, nil
+				},
+				UpdateStatusFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
+					return nil, nil
+				},
+			}
+			pm := &mocks.MediatorMock{}
+			blockTxClient := &btxMocks.ClientMock{
+				AnyTransactionsMinedFunc: func(_ context.Context, _ [][]byte) ([]*blocktx_api.IsMined, error) {
+					return tc.minedTxs, nil
+				},
+			}
+
+			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
+
+			cStore := &cacheMocks.StoreMock{}
+			sut, err := metamorph.NewProcessor(
+				metamorphStore,
+				cStore,
+				pm,
+				statusMessageChannel,
+				metamorph.WithRejectPendingSeenEnabled(true),
+				metamorph.WithBlocktxClient(blockTxClient),
+			)
+			require.NoError(t, err)
+
+			// when
+			metamorph.ProcessDoubleSpendTxs(context.TODO(), sut)
+
+			// then
+			assert.Equal(t, tc.rejected, len(metamorphStore.UpdateStatusCalls()))
+		})
+	}
+}
+
 func TestProcessorHealth(t *testing.T) {
 	tt := []struct {
 		name       string

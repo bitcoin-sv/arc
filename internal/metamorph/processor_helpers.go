@@ -2,6 +2,7 @@ package metamorph
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -273,4 +274,21 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(cont
 			}
 		}
 	}()
+}
+
+func txBytesFromHex(txs []string) ([][]byte, error) {
+	if len(txs) == 0 {
+		return nil, nil
+	}
+
+	hashes := make([][]byte, 0, len(txs))
+	for _, tx := range txs {
+		hash, err := hex.DecodeString(tx)
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+
+	return hashes, nil
 }

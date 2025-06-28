@@ -16,6 +16,7 @@ import (
 var (
 	ErrFailedToGetRawTransaction   = errors.New("failed to get raw transaction")
 	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors")
+	ErrFailedToSendRawTransaction  = errors.New("failed to send raw transaction")
 )
 
 type NodeClient struct {

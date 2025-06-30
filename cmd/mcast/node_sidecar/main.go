@@ -45,7 +45,7 @@ func main() {
 		log.Fatalf("Failed to run multicast emulator: %v", err)
 	}
 
-	os.Exit(0)
+	return
 }
 
 func run() error {
@@ -157,7 +157,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 
 	if *help {
 		fmt.Println("Usage: main [options]")
-		os.Exit(0)
+		return
 	}
 
 	return *configDir, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile

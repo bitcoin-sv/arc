@@ -17,7 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_core"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/test_api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const (
@@ -35,10 +35,10 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if testing.Short() {
-		os.Exit(0)
+		return
 	}
 
-	os.Exit(testmain(m))
+	testmain(m)
 }
 
 func testmain(m *testing.M) int {

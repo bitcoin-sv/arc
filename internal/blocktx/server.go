@@ -81,18 +81,15 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	s.logger.Info("clearing blocktx - block_processing table", slog.Int("retention days", int(clearData.GetRetentionDays())))
 	_, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_processing")
 	if err != nil {
 		return nil, err
 	}
 
-	s.logger.Info("clearing blocktx - blocks table", slog.Int("retention days", int(clearData.GetRetentionDays())))
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
 }
 
 func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	s.logger.Info("clearing blocktx - registered_transactions table", slog.Int("retention days", int(clearData.GetRetentionDays())))
 	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "registered_transactions")
 }
 

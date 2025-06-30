@@ -23,7 +23,7 @@ func (p *PostgreSQL) GetLongestBlockByHeight(ctx context.Context, height uint64)
 }
 
 func (p *PostgreSQL) GetChainTip(ctx context.Context) (*blocktx_api.Block, error) {
-	predicate := "WHERE height = (SELECT MAX(height) FROM blocktx.blocks blks WHERE blks.is_longest = true)"
+	predicate := "WHERE height = (SELECT MAX(height) FROM blocktx.blocks blks WHERE blks.is_longest = true AND processed_at IS NOT NULL)"
 
 	return p.queryBlockByPredicate(ctx, predicate)
 }

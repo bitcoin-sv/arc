@@ -4,14 +4,13 @@ import (
 	"database/sql"
 	"flag"
 	"log"
-	"os"
 	"testing"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 const migrationsPath = "file://../store/postgresql/migrations"
@@ -25,10 +24,10 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if testing.Short() {
-		os.Exit(0)
+		return
 	}
 
-	os.Exit(testmain(m))
+	testmain(m)
 }
 
 func testmain(m *testing.M) int {

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -14,7 +13,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 var (
@@ -30,10 +29,10 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if testing.Short() {
-		os.Exit(0)
+		return
 	}
 
-	os.Exit(testmain(m))
+	testmain(m)
 }
 
 func testmain(m *testing.M) int {

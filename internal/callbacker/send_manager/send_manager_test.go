@@ -40,11 +40,11 @@ func TestSendManagerStart(t *testing.T) {
 	}
 
 	callbackEntriesUnsorted := []callbacker.CallbackEntry{
-		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 12, 24, 59, 0, 0, time.UTC)}},
-		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 11, 24, 59, 0, 0, time.UTC)}},
-		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 31, 24, 59, 0, 0, time.UTC)}},
-		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 17, 24, 59, 0, 0, time.UTC)}},
-		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 13, 24, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 12, 23, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 11, 23, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 31, 23, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 17, 23, 59, 0, 0, time.UTC)}},
+		{Data: &callbacker.Callback{Timestamp: time.Date(2025, 1, 13, 23, 59, 0, 0, time.UTC)}},
 	}
 
 	callbackEntriesBatch3Expired10 := make([]callbacker.CallbackEntry, 10)

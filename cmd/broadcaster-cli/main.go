@@ -11,8 +11,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to run broadcaster-cli: %v", err)
 	}
-
-	return
 }
 
 func run() error {

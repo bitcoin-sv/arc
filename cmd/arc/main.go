@@ -24,8 +24,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to run ARC: %v", err)
 	}
-
-	return
 }
 
 func run() error {

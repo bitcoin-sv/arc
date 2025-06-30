@@ -44,8 +44,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to run multicast emulator: %v", err)
 	}
-
-	return
 }
 
 func run() error {

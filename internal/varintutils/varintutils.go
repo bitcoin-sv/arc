@@ -1,4 +1,4 @@
-package utils
+package varintutils
 
 import (
 	"encoding/binary"

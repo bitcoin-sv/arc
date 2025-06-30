@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"log"
+	"os"
 	"testing"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	testmain(m)
+	os.Exit(testmain(m))
 }
 
 func testmain(m *testing.M) int {

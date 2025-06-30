@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	"github.com/go-redis/redis/v8"
@@ -35,7 +34,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	os.Exit(testmain(m))
+	testmain(m)
 }
 
 func testmain(m *testing.M) int {

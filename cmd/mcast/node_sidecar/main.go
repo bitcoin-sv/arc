@@ -157,7 +157,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 
 	if *help {
 		fmt.Println("Usage: main [options]")
-		return
+		os.Exit(0)
 	}
 
 	return *configDir, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile

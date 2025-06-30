@@ -43,8 +43,10 @@ const (
 	loadLimit                                = int64(50)
 	minimumHealthyConnectionsDefault         = 2
 
-	statusUpdatesIntervalDefault  = 500 * time.Millisecond
-	statusUpdatesBatchSizeDefault = 1000
+	statusUpdatesIntervalDefault        = 500 * time.Millisecond
+	doubleSpendTxStatusCheckDefault     = 10 * time.Second
+	doubleSpendTxStatusOlderThanDefault = 10 * time.Minute
+	statusUpdatesBatchSizeDefault       = 1000
 
 	processTransactionsBatchSizeDefault = 200
 	processTransactionsIntervalDefault  = 1 * time.Second
@@ -93,6 +95,9 @@ type Processor struct {
 	storageStatusUpdateCh  chan store.UpdateStatus
 	statusUpdatesInterval  time.Duration
 	statusUpdatesBatchSize int
+
+	doubleSpendTxStatusCheck     time.Duration
+	doubleSpendTxStatusOlderThan time.Duration
 
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
@@ -172,6 +177,8 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		lockTransactionsInterval:          lockTransactionsIntervalDefault,
 		checkUnconfirmedSeenInterval:      checkUnconfirmedSeenIntervalDefault,
 		statusUpdatesInterval:             statusUpdatesIntervalDefault,
+		doubleSpendTxStatusCheck:          doubleSpendTxStatusCheckDefault,
+		doubleSpendTxStatusOlderThan:      doubleSpendTxStatusOlderThanDefault,
 		statusUpdatesBatchSize:            statusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:             make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
 		stats:                             newProcessorStats(),
@@ -242,6 +249,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
 	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
 	p.StartRoutine(p.checkUnconfirmedSeenInterval, RejectUnconfirmedRequested, "RejectUnconfirmedRequested")
+	p.StartRoutine(p.doubleSpendTxStatusCheck, ProcessDoubleSpendTxs, "ProcessDoubleSpendTxs")
 
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()

@@ -126,6 +126,8 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
 		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
 		metamorph.WithBlocktxClient(blockTxClient),
+		metamorph.WithDoubleSpendCheckInterval(mtmConfig.DoubleSpendCheckInterval),
+		metamorph.WithDoubleSpendTxStatusOlderThanInterval(mtmConfig.DoubleSpendTxStatusOlderThanInterval),
 	)
 
 	processor, err = metamorph.NewProcessor(

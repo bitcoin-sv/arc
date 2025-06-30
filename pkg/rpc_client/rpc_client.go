@@ -140,3 +140,26 @@ func (c *RPCClient) InvalidateBlock(ctx context.Context, blockHash string) error
 
 	return err
 }
+
+func (c *RPCClient) SendRawTransaction(ctx context.Context, txHex string) (string, error) {
+	res, err := sendJSONRPCCall[string](ctx, "sendrawtransaction", []interface{}{txHex}, c.host, c.port, c.user, c.password)
+	if err != nil {
+		return "", err
+	}
+	return *res, nil
+}
+
+type VerboseRawTransaction struct {
+	TxID          string `json:"txid"`
+	BlockHash     string `json:"blockhash,omitempty"`
+	Confirmations int    `json:"confirmations,omitempty"`
+	// You can expand this if needed (e.g. confirmations, time, etc.)
+}
+
+func (c *RPCClient) GetRawTransactionVerbose(ctx context.Context, txID string) (*VerboseRawTransaction, error) {
+	res, err := sendJSONRPCCall[VerboseRawTransaction](ctx, "getrawtransaction", []interface{}{txID, true}, c.host, c.port, c.user, c.password)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}

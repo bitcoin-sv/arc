@@ -29,6 +29,17 @@ service BlockTxAPI {
   // CurrentBlockHeight returns current block height
   rpc CurrentBlockHeight (google.protobuf.Empty) returns (CurrentBlockHeightResponse) {}
 
+  // AnyTransactionsMined returns true if any of the transactions is mined
+  rpc AnyTransactionsMined(Transactions) returns (AnyTransactionsMinedResponse) {}
+}
+
+message IsMined {
+  bytes hash = 1;
+  bool mined = 2;
+}
+
+message AnyTransactionsMinedResponse {
+  repeated IsMined transactions = 1;
 }
 
 // swagger:model HealthResponse

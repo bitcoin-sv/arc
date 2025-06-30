@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/p2p"
@@ -43,6 +44,56 @@ func TestListenAndServe(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			time.Sleep(10 * time.Millisecond)
+		})
+	}
+}
+
+func TestAnyTransactionsMined(t *testing.T) {
+	tt := []struct {
+		name     string
+		minedTxs []store.BlockTransaction
+		isMined  bool
+	}{
+		{
+			name: "empty transactions",
+			minedTxs: []store.BlockTransaction{
+				{
+					TxHash: []byte("tx2"),
+				},
+			},
+			isMined: false,
+		},
+		{
+			name: "found mined transaction",
+			minedTxs: []store.BlockTransaction{
+				{
+					TxHash: []byte("tx1"),
+				},
+			},
+			isMined: true,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			storeMock := &storeMocks.BlocktxStoreMock{
+				GetMinedTransactionsFunc: func(_ context.Context, _ [][]byte) ([]store.BlockTransaction, error) {
+					return tc.minedTxs, nil
+				},
+			}
+			pm := &p2p.PeerManager{}
+
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			res, err := sut.AnyTransactionsMined(context.Background(), &blocktx_api.Transactions{Transactions: []*blocktx_api.Transaction{
+				{Hash: []byte("tx1")},
+			}})
+			require.NoError(t, err)
+			require.Equal(t, tc.isMined, res.Transactions[0].Mined)
 		})
 	}
 }

@@ -20,6 +20,9 @@ var _ blocktx.Client = &ClientMock{}
 //
 //		// make and configure a mocked blocktx.Client
 //		mockedClient := &ClientMock{
+//			AnyTransactionsMinedFunc: func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
+//				panic("mock out the AnyTransactionsMined method")
+//			},
 //			CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 //				panic("mock out the CurrentBlockHeight method")
 //			},
@@ -36,6 +39,9 @@ var _ blocktx.Client = &ClientMock{}
 //
 //	}
 type ClientMock struct {
+	// AnyTransactionsMinedFunc mocks the AnyTransactionsMined method.
+	AnyTransactionsMinedFunc func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
+
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
 
@@ -47,6 +53,13 @@ type ClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// AnyTransactionsMined holds details about calls to the AnyTransactionsMined method.
+		AnyTransactionsMined []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Hash is the hash argument value.
+			Hash [][]byte
+		}
 		// CurrentBlockHeight holds details about calls to the CurrentBlockHeight method.
 		CurrentBlockHeight []struct {
 			// Ctx is the ctx argument value.
@@ -67,9 +80,46 @@ type ClientMock struct {
 			Hashes [][]byte
 		}
 	}
+	lockAnyTransactionsMined sync.RWMutex
 	lockCurrentBlockHeight   sync.RWMutex
 	lockRegisterTransaction  sync.RWMutex
 	lockRegisterTransactions sync.RWMutex
+}
+
+// AnyTransactionsMined calls AnyTransactionsMinedFunc.
+func (mock *ClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
+	if mock.AnyTransactionsMinedFunc == nil {
+		panic("ClientMock.AnyTransactionsMinedFunc: method is nil but Client.AnyTransactionsMined was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Hash [][]byte
+	}{
+		Ctx:  ctx,
+		Hash: hash,
+	}
+	mock.lockAnyTransactionsMined.Lock()
+	mock.calls.AnyTransactionsMined = append(mock.calls.AnyTransactionsMined, callInfo)
+	mock.lockAnyTransactionsMined.Unlock()
+	return mock.AnyTransactionsMinedFunc(ctx, hash)
+}
+
+// AnyTransactionsMinedCalls gets all the calls that were made to AnyTransactionsMined.
+// Check the length with:
+//
+//	len(mockedClient.AnyTransactionsMinedCalls())
+func (mock *ClientMock) AnyTransactionsMinedCalls() []struct {
+	Ctx  context.Context
+	Hash [][]byte
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Hash [][]byte
+	}
+	mock.lockAnyTransactionsMined.RLock()
+	calls = mock.calls.AnyTransactionsMined
+	mock.lockAnyTransactionsMined.RUnlock()
+	return calls
 }
 
 // CurrentBlockHeight calls CurrentBlockHeightFunc.

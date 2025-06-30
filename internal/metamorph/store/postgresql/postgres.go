@@ -312,6 +312,40 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*store.
 	return getStoreDataFromRows(rows)
 }
 
+func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (data []*store.Data, err error) {
+	ctx, span := tracing.StartTracing(ctx, "GetDoubleSpendTxs", p.tracingEnabled, p.tracingAttributes...)
+	defer func() {
+		tracing.EndTracing(span, err)
+	}()
+
+	const q = `
+	 SELECT
+	 	stored_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callbacks
+		,full_status_updates
+		,reject_reason
+		,competing_txs
+		,raw_tx
+		,locked_by
+		,merkle_path
+		,retries
+		,status_history
+		,last_modified
+	 FROM metamorph.transactions WHERE status=$1 AND last_modified<$2;`
+
+	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, older)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	return getStoreDataFromRows(rows)
+}
+
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
 	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 

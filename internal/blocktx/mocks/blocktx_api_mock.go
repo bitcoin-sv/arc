@@ -21,6 +21,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //
 //		// make and configure a mocked blocktx_api.BlockTxAPIClient
 //		mockedBlockTxAPIClient := &BlockTxAPIClientMock{
+//			AnyTransactionsMinedFunc: func(ctx context.Context, in *blocktx_api.Transactions, opts ...grpc.CallOption) (*blocktx_api.AnyTransactionsMinedResponse, error) {
+//				panic("mock out the AnyTransactionsMined method")
+//			},
 //			ClearBlocksFunc: func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocks method")
 //			},
@@ -49,6 +52,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //
 //	}
 type BlockTxAPIClientMock struct {
+	// AnyTransactionsMinedFunc mocks the AnyTransactionsMined method.
+	AnyTransactionsMinedFunc func(ctx context.Context, in *blocktx_api.Transactions, opts ...grpc.CallOption) (*blocktx_api.AnyTransactionsMinedResponse, error)
+
 	// ClearBlocksFunc mocks the ClearBlocks method.
 	ClearBlocksFunc func(ctx context.Context, in *blocktx_api.ClearData, opts ...grpc.CallOption) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -72,6 +78,15 @@ type BlockTxAPIClientMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// AnyTransactionsMined holds details about calls to the AnyTransactionsMined method.
+		AnyTransactionsMined []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *blocktx_api.Transactions
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// ClearBlocks holds details about calls to the ClearBlocks method.
 		ClearBlocks []struct {
 			// Ctx is the ctx argument value.
@@ -136,6 +151,7 @@ type BlockTxAPIClientMock struct {
 			Opts []grpc.CallOption
 		}
 	}
+	lockAnyTransactionsMined        sync.RWMutex
 	lockClearBlocks                 sync.RWMutex
 	lockClearRegisteredTransactions sync.RWMutex
 	lockCurrentBlockHeight          sync.RWMutex
@@ -143,6 +159,46 @@ type BlockTxAPIClientMock struct {
 	lockRegisterTransaction         sync.RWMutex
 	lockRegisterTransactions        sync.RWMutex
 	lockVerifyMerkleRoots           sync.RWMutex
+}
+
+// AnyTransactionsMined calls AnyTransactionsMinedFunc.
+func (mock *BlockTxAPIClientMock) AnyTransactionsMined(ctx context.Context, in *blocktx_api.Transactions, opts ...grpc.CallOption) (*blocktx_api.AnyTransactionsMinedResponse, error) {
+	if mock.AnyTransactionsMinedFunc == nil {
+		panic("BlockTxAPIClientMock.AnyTransactionsMinedFunc: method is nil but BlockTxAPIClient.AnyTransactionsMined was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *blocktx_api.Transactions
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockAnyTransactionsMined.Lock()
+	mock.calls.AnyTransactionsMined = append(mock.calls.AnyTransactionsMined, callInfo)
+	mock.lockAnyTransactionsMined.Unlock()
+	return mock.AnyTransactionsMinedFunc(ctx, in, opts...)
+}
+
+// AnyTransactionsMinedCalls gets all the calls that were made to AnyTransactionsMined.
+// Check the length with:
+//
+//	len(mockedBlockTxAPIClient.AnyTransactionsMinedCalls())
+func (mock *BlockTxAPIClientMock) AnyTransactionsMinedCalls() []struct {
+	Ctx  context.Context
+	In   *blocktx_api.Transactions
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *blocktx_api.Transactions
+		Opts []grpc.CallOption
+	}
+	mock.lockAnyTransactionsMined.RLock()
+	calls = mock.calls.AnyTransactionsMined
+	mock.lockAnyTransactionsMined.RUnlock()
+	return calls
 }
 
 // ClearBlocks calls ClearBlocksFunc.

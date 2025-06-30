@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"log"
-	"os"
 	"strconv"
 	"testing"
 
@@ -36,10 +35,10 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if testing.Short() {
-		os.Exit(0)
+		return
 	}
 
-	os.Exit(testmain(m))
+	testmain(m)
 }
 
 func testmain(m *testing.M) int {

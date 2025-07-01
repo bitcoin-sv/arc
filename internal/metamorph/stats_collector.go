@@ -193,7 +193,7 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
-				connectedPeers := int(p.bcMediator.CountConnectedPeers())
+				connectedPeers := int(p.bcMediator.CountConnectedPeers()) // #nosec G115
 
 				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
 				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))

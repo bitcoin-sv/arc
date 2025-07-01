@@ -108,7 +108,7 @@ func (p *StatsCollector) Start() error {
 				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
 
 				// Update connected and reconnecting peers
-				connectedPeers := int(p.pm.CountConnectedPeers())
+				connectedPeers := int(p.pm.CountConnectedPeers()) // #nosec G115
 				peers := p.pm.GetPeers()
 				p.ConnectedPeers.Set(float64(connectedPeers))
 				p.ReconnectingPeers.Set(float64(len(peers) - connectedPeers))

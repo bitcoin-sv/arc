@@ -43,7 +43,7 @@ func TestStatsCollector_Start(t *testing.T) {
 			}}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := NewStatsCollector(logger, blocktxStore, WithStatCollectionInterval(30*time.Millisecond))
+			sut := NewStatsCollector(logger, nil, blocktxStore, WithStatCollectionInterval(30*time.Millisecond))
 
 			// when
 			err := sut.Start()

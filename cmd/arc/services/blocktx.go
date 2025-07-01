@@ -119,7 +119,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	}
 
 	if arcConfig.Prometheus.IsEnabled() {
-		statsCollector = blocktx.NewStatsCollector(logger, blockStore)
+		statsCollector = blocktx.NewStatsCollector(logger, pm, blockStore)
 		err = statsCollector.Start()
 		if err != nil {
 			stopFn()

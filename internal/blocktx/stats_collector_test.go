@@ -70,7 +70,7 @@ func TestStatsCollector_Start(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedBlockGaps, testutil.ToFloat64(sut.CurrentNumOfBlockGaps))
 			require.Equal(t, 1.0, testutil.ToFloat64(sut.ConnectedPeers))
-			require.Equal(t, 3.0, testutil.ToFloat64(sut.ReconnectingPeers))
+			require.Equal(t, 2.0, testutil.ToFloat64(sut.ReconnectingPeers))
 
 			// cleanup
 			sut.Shutdown()

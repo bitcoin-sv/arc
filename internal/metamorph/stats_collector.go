@@ -97,11 +97,11 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Help: "Total number of monitored transactions with status MINED",
 		}),
 		connectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "blocktx_connected_peers",
+			Name: "metamorph_connected_peers",
 			Help: "Current number of connected peers",
 		}),
 		reconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "blocktx_reconnecting_peers",
+			Name: "metamorph_reconnecting_peers",
 			Help: "Current number of peers that are reconnecting",
 		}),
 		notSeenLimit:  notSeenLimitDefault,

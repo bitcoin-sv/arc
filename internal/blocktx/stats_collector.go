@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -100,12 +101,14 @@ func (p *StatsCollector) Start() error {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
+				fmt.Println("shota 3")
 				collectedStats, err := p.store.GetStats(p.ctx)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue
 				}
 
+				fmt.Println("shota 4")
 				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
 
 				// Update connected and reconnecting peers

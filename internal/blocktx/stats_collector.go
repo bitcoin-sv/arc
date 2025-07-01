@@ -29,9 +29,9 @@ func WithStatCollectionInterval(d time.Duration) func(*StatsCollector) {
 }
 
 type StatsCollector struct {
-	currentNumOfBlockGaps  prometheus.Gauge
-	connectedPeers         prometheus.Gauge
-	reconnectingPeers      prometheus.Gauge
+	CurrentNumOfBlockGaps  prometheus.Gauge
+	ConnectedPeers         prometheus.Gauge
+	ReconnectingPeers      prometheus.Gauge
 	statCollectionInterval time.Duration
 	waitGroup              *sync.WaitGroup
 	cancelAll              context.CancelFunc
@@ -43,15 +43,15 @@ type StatsCollector struct {
 
 func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
 	p := &StatsCollector{
-		currentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
+		CurrentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
 			Help: "Current number of block gaps",
 		}),
-		connectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+		ConnectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "blocktx_connected_peers",
 			Help: "Current number of connected peers",
 		}),
-		reconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+		ReconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "blocktx_reconnecting_peers",
 			Help: "Current number of peers that are reconnecting",
 		}),
@@ -75,9 +75,9 @@ func (p *StatsCollector) Start() error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
-		p.currentNumOfBlockGaps,
-		p.connectedPeers,
-		p.reconnectingPeers,
+		p.CurrentNumOfBlockGaps,
+		p.ConnectedPeers,
+		p.ReconnectingPeers,
 	)
 	if err != nil {
 		return errors.Join(ErrFailedToStartCollectingStats, err)
@@ -88,9 +88,9 @@ func (p *StatsCollector) Start() error {
 	go func() {
 		defer func() {
 			unregisterStats(
-				p.currentNumOfBlockGaps,
-				p.connectedPeers,
-				p.reconnectingPeers,
+				p.CurrentNumOfBlockGaps,
+				p.ConnectedPeers,
+				p.ReconnectingPeers,
 			)
 			p.waitGroup.Done()
 		}()
@@ -106,17 +106,17 @@ func (p *StatsCollector) Start() error {
 					continue
 				}
 
-				p.currentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
+				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
 
 				// Update connected and reconnecting peers
 				currentPeers := p.pm.CountConnectedPeers()
 				peers := p.pm.GetPeers()
-				p.connectedPeers.Set(float64(currentPeers))
+				p.ConnectedPeers.Set(float64(currentPeers))
 				connected, err := safecast.ToInt(currentPeers)
 				if err != nil {
 					p.logger.Error("failed to cast connected peers to int", slog.String("err", err.Error()))
 				}
-				p.reconnectingPeers.Set(float64(len(peers) - connected))
+				p.ReconnectingPeers.Set(float64(len(peers) - connected))
 			}
 		}
 	}()

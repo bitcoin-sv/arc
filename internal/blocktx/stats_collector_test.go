@@ -1,4 +1,4 @@
-package blocktx
+package blocktx_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -59,7 +60,7 @@ func TestStatsCollector_Start(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := NewStatsCollector(logger, pm, blocktxStore, WithStatCollectionInterval(30*time.Millisecond))
+			sut := blocktx.NewStatsCollector(logger, pm, blocktxStore, blocktx.WithStatCollectionInterval(30*time.Millisecond))
 
 			// when
 			err := sut.Start()
@@ -67,9 +68,9 @@ func TestStatsCollector_Start(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedBlockGaps, testutil.ToFloat64(sut.currentNumOfBlockGaps))
-			require.Equal(t, 1.0, testutil.ToFloat64(sut.connectedPeers))
-			require.Equal(t, 3.0, testutil.ToFloat64(sut.reconnectingPeers))
+			require.Equal(t, tc.expectedBlockGaps, testutil.ToFloat64(sut.CurrentNumOfBlockGaps))
+			require.Equal(t, 1.0, testutil.ToFloat64(sut.ConnectedPeers))
+			require.Equal(t, 3.0, testutil.ToFloat64(sut.ReconnectingPeers))
 
 			// cleanup
 			sut.Shutdown()

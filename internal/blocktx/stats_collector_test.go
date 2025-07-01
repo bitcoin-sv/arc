@@ -11,8 +11,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
+	blocktxmocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
+	"github.com/bitcoin-sv/arc/internal/p2p"
+	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 )
 
 func TestStatsCollector_Start(t *testing.T) {
@@ -42,8 +45,21 @@ func TestStatsCollector_Start(t *testing.T) {
 				return &store.Stats{CurrentNumOfBlockGaps: 5}, tc.getStatsErr
 			}}
 
+			pm := &blocktxmocks.PeerManagerMock{
+				CountConnectedPeersFunc: func() uint {
+					return 1
+				},
+				GetPeersFunc: func() []p2p.PeerI {
+					return []p2p.PeerI{
+						&p2p_mocks.PeerIMock{},
+						&p2p_mocks.PeerIMock{},
+						&p2p_mocks.PeerIMock{},
+					}
+				},
+			}
+
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := NewStatsCollector(logger, nil, blocktxStore, WithStatCollectionInterval(30*time.Millisecond))
+			sut := NewStatsCollector(logger, pm, blocktxStore, WithStatCollectionInterval(30*time.Millisecond))
 
 			// when
 			err := sut.Start()
@@ -52,6 +68,8 @@ func TestStatsCollector_Start(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedBlockGaps, testutil.ToFloat64(sut.currentNumOfBlockGaps))
+			require.Equal(t, 1.0, testutil.ToFloat64(sut.connectedPeers))
+			require.Equal(t, 3.0, testutil.ToFloat64(sut.reconnectingPeers))
 
 			// cleanup
 			sut.Shutdown()

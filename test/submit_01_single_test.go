@@ -208,7 +208,7 @@ func TestReturnMinedStatus(t *testing.T) {
 		}()
 
 		go func() {
-			t.Logf("starting callback server")
+			t.Log("starting callback server")
 			err = http.Serve(lis, mux)
 			if err != nil {
 				t.Log("callback server stopped")
@@ -372,7 +372,7 @@ func TestCallback(t *testing.T) {
 			}
 
 			go func() {
-				t.Logf("starting callback server")
+				t.Log("starting callback server")
 				err = http.Serve(lis, mux)
 				if err != nil {
 					t.Log("callback server stopped")
@@ -544,7 +544,7 @@ func TestBatchCallback(t *testing.T) {
 			}
 
 			go func() {
-				t.Logf("starting callback server")
+				t.Log("starting callback server")
 				err = http.Serve(lis, mux)
 				if err != nil {
 					t.Log("callback server stopped")

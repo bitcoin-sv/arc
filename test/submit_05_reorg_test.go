@@ -41,7 +41,7 @@ func TestReorg(t *testing.T) {
 	}()
 
 	go func() {
-		t.Logf("starting callback server")
+		t.Log("starting callback server")
 		err = http.Serve(lis, mux)
 		if err != nil {
 			t.Log("callback server stopped")

@@ -3,6 +3,7 @@ package blocktx_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -48,6 +49,7 @@ func TestStatsCollector_Start(t *testing.T) {
 
 			pm := &blocktxmocks.PeerManagerMock{
 				CountConnectedPeersFunc: func() uint {
+					fmt.Println("shota 1")
 					return 1
 				},
 				GetPeersFunc: func() []p2p.PeerI {

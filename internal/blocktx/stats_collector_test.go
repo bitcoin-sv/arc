@@ -26,17 +26,23 @@ func TestStatsCollector_Start(t *testing.T) {
 		getStatsErr error
 
 		expectedBlockGaps float64
+		connectedPeers    float64
+		reconnectingPeers float64
 	}{
 		{
 			name: "success",
 
 			expectedBlockGaps: 5.0,
+			connectedPeers:    1.0,
+			reconnectingPeers: 2.0,
 		},
 		{
 			name:        "success",
 			getStatsErr: errors.New("some error"),
 
 			expectedBlockGaps: 0.0,
+			connectedPeers:    0.0,
+			reconnectingPeers: 0.0,
 		},
 	}
 
@@ -73,8 +79,8 @@ func TestStatsCollector_Start(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedBlockGaps, testutil.ToFloat64(sut.CurrentNumOfBlockGaps))
-			require.Equal(t, 1.0, testutil.ToFloat64(sut.ConnectedPeers))
-			require.Equal(t, 2.0, testutil.ToFloat64(sut.ReconnectingPeers))
+			require.Equal(t, tc.connectedPeers, testutil.ToFloat64(sut.ConnectedPeers))
+			require.Equal(t, tc.reconnectingPeers, testutil.ToFloat64(sut.ReconnectingPeers))
 
 			// cleanup
 			sut.Shutdown()

@@ -7,7 +7,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -194,7 +193,7 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
-				connectedPeers := p.bcMediator.CountConnectedPeers()
+				connectedPeers := int(p.bcMediator.CountConnectedPeers())
 
 				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
 				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
@@ -211,13 +210,7 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
 				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))
 				p.stats.connectedPeers.Set(float64(connectedPeers))
-
-				connected, err := safecast.ToInt(connectedPeers)
-				if err != nil {
-					p.logger.Error("failed to cast connected peers to int", slog.String("err", err.Error()))
-				}
-
-				p.stats.reconnectingPeers.Set(float64(len(p.bcMediator.GetPeers()) - connected))
+				p.stats.reconnectingPeers.Set(float64(len(p.bcMediator.GetPeers()) - connectedPeers))
 			}
 		}
 	}()

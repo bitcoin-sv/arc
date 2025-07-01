@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -109,14 +108,10 @@ func (p *StatsCollector) Start() error {
 				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
 
 				// Update connected and reconnecting peers
-				currentPeers := p.pm.CountConnectedPeers()
+				connectedPeers := int(p.pm.CountConnectedPeers())
 				peers := p.pm.GetPeers()
-				p.ConnectedPeers.Set(float64(currentPeers))
-				connected, err := safecast.ToInt(currentPeers)
-				if err != nil {
-					p.logger.Error("failed to cast connected peers to int", slog.String("err", err.Error()))
-				}
-				p.ReconnectingPeers.Set(float64(len(peers) - connected))
+				p.ConnectedPeers.Set(float64(connectedPeers))
+				p.ReconnectingPeers.Set(float64(len(peers) - connectedPeers))
 			}
 		}
 	}()

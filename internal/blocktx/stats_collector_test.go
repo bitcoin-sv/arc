@@ -3,7 +3,6 @@ package blocktx_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -50,17 +49,14 @@ func TestStatsCollector_Start(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			blocktxStore := &mocks.BlocktxStoreMock{GetStatsFunc: func(_ context.Context) (*store.Stats, error) {
-				fmt.Println("shota 0")
 				return &store.Stats{CurrentNumOfBlockGaps: 5}, tc.getStatsErr
 			}}
 
 			pm := &blocktxmocks.PeerManagerMock{
 				CountConnectedPeersFunc: func() uint {
-					fmt.Println("shota 1")
 					return 1
 				},
 				GetPeersFunc: func() []p2p.PeerI {
-					fmt.Println("shota 2")
 					return []p2p.PeerI{
 						&p2p_mocks.PeerIMock{},
 						&p2p_mocks.PeerIMock{},

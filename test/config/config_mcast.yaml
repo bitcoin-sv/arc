@@ -50,14 +50,14 @@ metamorph:
       sslMode: disable
   maxRetries: 1000
   statusUpdateInterval: 50ms
-  doubleSpendTxStatusOlderThanInterval: 10m # time interval after which double spend transactions are considered to be old and checked
-  doubleSpendCheckInterval: 10s # interval of checking for double spends and marking as rejected if competing mined
+  doubleSpendTxStatusOlderThanInterval: 10m
+  doubleSpendCheckInterval: 10s
   reAnnounceUnseenInterval: 60s
   reAnnounceSeen:
-    pendingSince: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
-    lastConfirmedAgo: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+    pendingSince: 10m
+    lastConfirmedAgo: 10m
   rejectPendingSeen:
-    enabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
+    enabled: false
     lastRequestedAgo: 10m
   reRegisterSeen: 10m
   monitorPeers: true

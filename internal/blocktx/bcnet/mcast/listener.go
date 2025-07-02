@@ -49,12 +49,12 @@ type Listener struct {
 
 	logger    *slog.Logger
 	store     store.BlocktxStore
-	receiveCh chan<- *bcnet.BlockMessage
+	receiveCh chan<- *bcnet.BlockMessagePeer
 
 	blockGroup *multicast.Group[*bcnet.BlockMessage]
 }
 
-func NewMcastListener(l *slog.Logger, addr string, network wire.BitcoinNet, store store.BlocktxStore, receiveCh chan<- *bcnet.BlockMessage) *Listener {
+func NewMcastListener(l *slog.Logger, addr string, network wire.BitcoinNet, store store.BlocktxStore, receiveCh chan<- *bcnet.BlockMessagePeer) *Listener {
 	hostname, _ := os.Hostname()
 
 	listner := Listener{
@@ -103,8 +103,11 @@ func (l *Listener) OnReceiveFromMcast(msg wire.Message) {
 			l.logger.Error("failed to set block processing", slog.String("hash", hash.String()), slog.String("err", err.Error()))
 			return
 		}
+		blockMsgPeer := &bcnet.BlockMessagePeer{
+			BlockMessage: *blockMsg,
+		}
 
-		l.receiveCh <- blockMsg
+		l.receiveCh <- blockMsgPeer
 	}
 
 	// ignore other messages

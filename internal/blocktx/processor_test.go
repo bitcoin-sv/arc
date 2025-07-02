@@ -3,12 +3,13 @@ package blocktx_test
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/otel/attribute"
 	"log/slog"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -209,7 +210,7 @@ func TestHandleBlock(t *testing.T) {
 			}
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *bcnet.BlockMessage, 1)
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
@@ -454,7 +455,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 			// build peer manager and processor
 
 			logger := slog.Default()
-			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh)
@@ -805,7 +806,7 @@ func TestStartBlockRequesting(t *testing.T) {
 			logger := slog.Default()
 
 			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
-			blockProcessCh := make(chan *bcnet.BlockMessage, 10)
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 
 			peerHandler := blocktx_p2p.NewMsgHandler(logger, blockRequestCh, blockProcessCh)
 

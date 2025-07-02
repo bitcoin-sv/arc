@@ -171,10 +171,10 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 						if success {
 							break restartLoop
 						}
-						m.l.Error("Peer restart failed", slog.String("peer", peer.String()))
+						m.l.Warn("Peer restart failed", slog.String("peer", peer.String()))
 						time.Sleep(reconnectDelay)
 
-						m.l.Warn("Try restart peer again", slog.String("peer", peer.String()))
+						m.l.Warn("Try restart peer", slog.String("peer", peer.String()))
 					}
 				}
 			}

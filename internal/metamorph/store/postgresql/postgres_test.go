@@ -277,9 +277,9 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("set locked by", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_locked")
 
-		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 2)
+		err := postgresDB.SetLocked(ctx, time.Date(2023, 9, 15, 1, 0, 0, 0, time.UTC), 3)
 		require.NoError(t, err)
 
 		// locked by NONE
@@ -288,23 +288,29 @@ func TestPostgresDB(t *testing.T) {
 		// locked by NONE
 		expectedHash3 := testutils.RevChainhash(t, "319b5eb9d99084b72002640d1445f49b8c83539260a7e5b2cbb16c1d2954a743")
 
-		// check if previously unlocked tx has b
 		// locked by NONE
-		expectedHash4 := testutils.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
+		expectedHash4 := testutils.RevChainhash(t, "104d50aba0aa4b7568fcd03c510a8c8e2362c6136768f08a546cb9bb11cf947c")
+
+		// locked by NONE
+		expectedHash5 := testutils.RevChainhash(t, "78d66c8391ff5e4a65b494e39645facb420b744f77f3f3b83a3aa8573282176e")
 
 		// check if previously unlocked tx has been locked
 		dataReturned, err := postgresDB.Get(ctx, expectedHash2[:])
 		require.NoError(t, err)
-		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
+		assert.Equal(t, "metamorph-1", dataReturned.LockedBy)
 
 		dataReturned, err = postgresDB.Get(ctx, expectedHash3[:])
 		require.NoError(t, err)
-		require.Equal(t, "metamorph-1", dataReturned.LockedBy)
+		assert.Equal(t, "metamorph-1", dataReturned.LockedBy)
 
-		// this unlocked tx remains unlocked as the limit was 2
 		dataReturned, err = postgresDB.Get(ctx, expectedHash4[:])
 		require.NoError(t, err)
-		require.Equal(t, "NONE", dataReturned.LockedBy)
+		assert.Equal(t, "metamorph-1", dataReturned.LockedBy)
+
+		// this unlocked tx remains unlocked as the limit was 2
+		dataReturned, err = postgresDB.Get(ctx, expectedHash5[:])
+		require.NoError(t, err)
+		assert.Equal(t, "NONE", dataReturned.LockedBy)
 	})
 
 	t.Run("set unlocked by name", func(t *testing.T) {

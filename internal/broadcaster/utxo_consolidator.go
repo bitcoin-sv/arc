@@ -95,28 +95,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 				return
 			}
 
-			for i, batch := range consolidationTxsBatches {
-				time.Sleep(submitBatchInterval)
-
-				nrOutputs := 0
-				nrInputs := 0
-				for _, txBatch := range batch {
-					nrOutputs += len(txBatch.Outputs)
-					nrInputs += len(txBatch.Inputs)
-				}
-
-				b.logger.Info(fmt.Sprintf("broadcasting consolidation batch %d/%d", i+1, len(consolidationTxsBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
-
-				resp, err := b.client.BroadcastTransactions(b.ctx, batch, metamorph_api.Status_SEEN_ON_NETWORK, "", "", false, false)
-				if err != nil {
-					if errors.Is(err, context.Canceled) {
-						return
-					}
-					b.logger.Error("failed to broadcast consolidation txs", slog.String("err", err.Error()))
-					return
-				}
-				b.processBroadcastResponse(resp, batch, satoshiMap, utxoSet)
-			}
+			b.processConsolidationTxsBatchesBroadcastResponse(consolidationTxsBatches, satoshiMap, utxoSet, submitBatchInterval)
 		}
 	}()
 
@@ -241,5 +220,30 @@ func (b *UTXOConsolidator) processBroadcastResponse(resp []*metamorph_api.Transa
 		delete(satoshiMap, res.Txid)
 
 		utxoSet.PushBack(newUtxo)
+	}
+}
+
+func (b *UTXOConsolidator) processConsolidationTxsBatchesBroadcastResponse(consolidationTxsBatches []sdkTx.Transactions, satoshiMap map[string]uint64, utxoSet *list.List, submitBatchInterval time.Duration) {
+	for i, batch := range consolidationTxsBatches {
+		time.Sleep(submitBatchInterval)
+
+		nrOutputs := 0
+		nrInputs := 0
+		for _, txBatch := range batch {
+			nrOutputs += len(txBatch.Outputs)
+			nrInputs += len(txBatch.Inputs)
+		}
+
+		b.logger.Info(fmt.Sprintf("broadcasting consolidation batch %d/%d", i+1, len(consolidationTxsBatches)), slog.Int("size", len(batch)), slog.Int("inputs", nrInputs), slog.Int("outputs", nrOutputs))
+
+		resp, err := b.client.BroadcastTransactions(b.ctx, batch, metamorph_api.Status_SEEN_ON_NETWORK, "", "", false, false)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+			b.logger.Error("failed to broadcast consolidation txs", slog.String("err", err.Error()))
+			return
+		}
+		b.processBroadcastResponse(resp, batch, satoshiMap, utxoSet)
 	}
 }

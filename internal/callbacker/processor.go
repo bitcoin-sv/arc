@@ -77,7 +77,7 @@ func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mq
 
 func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 	p.logger.Debug("message received", "instance", p.hostName)
-
+	var errSetURLMapping error
 	request := &callbacker_api.SendRequest{}
 	err := proto.Unmarshal(msg.Data(), request)
 	if err != nil {
@@ -90,12 +90,7 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 
 	if request.CallbackRouting.Url == "" {
 		p.logger.Warn("Empty URL in callback", slog.String("hash", request.Txid), slog.String("timestamp", request.Timestamp.String()), slog.String("status", request.Status.String()))
-
-		errAck := msg.Ack()
-		if errAck != nil {
-			return errors.Join(ErrAckMessage, errAck)
-		}
-		return nil
+		return p.checkAckedMessage(msg, request)
 	}
 
 	// check if this processor the first URL of this request is mapped to this instance
@@ -104,25 +99,20 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 	p.mu.Unlock()
 	if !found {
 		p.logger.Debug("setting URL mapping", "instance", p.hostName, "url", request.CallbackRouting.Url)
-		err = p.store.SetURLMapping(context.Background(), store.URLMapping{
+		errSetURLMapping = p.store.SetURLMapping(context.Background(), store.URLMapping{
 			URL:      request.CallbackRouting.Url,
 			Instance: p.hostName,
 		})
 	}
 
-	if !found && errors.Is(err, store.ErrURLMappingDuplicateKey) {
-		p.logger.Debug("URL already mapped", slog.String("url", request.CallbackRouting.Url), slog.String("err", err.Error()))
+	if errors.Is(errSetURLMapping, store.ErrURLMappingDuplicateKey) {
+		p.logger.Debug("URL already mapped", slog.String("url", request.CallbackRouting.Url), slog.String("err", errSetURLMapping.Error()))
 
-		errAck := msg.Ack()
-		if errAck != nil {
-			return errors.Join(ErrAckMessage, errAck)
-		}
-
-		return nil
+		return p.checkAckedMessage(msg, request)
 	}
 
-	if !found && err != nil {
-		p.logger.Error("failed to set URL mapping", slog.String("err", err.Error()))
+	if errSetURLMapping != nil {
+		p.logger.Error("failed to set URL mapping", slog.String("err", errSetURLMapping.Error()))
 
 		nakErr := msg.Nak()
 		if nakErr != nil {
@@ -145,9 +135,13 @@ func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
 		p.logger.Debug("not dispatching callback", "instance", p.hostName, "url", request.CallbackRouting.Url)
 	}
 
-	err = msg.Ack()
-	if err != nil {
-		return errors.Join(ErrAckMessage, err)
+	return p.checkAckedMessage(msg, request)
+}
+
+func (p *Processor) checkAckedMessage(msg jetstream.Msg, request *callbacker_api.SendRequest) error {
+	errAck := msg.Ack()
+	if errAck != nil {
+		return errors.Join(ErrAckMessage, errAck)
 	}
 
 	p.logger.Debug("message acked", "instance", p.hostName, "url", request.CallbackRouting.Url)

@@ -544,7 +544,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 		);
 	;`
 
-	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_SEEN_ON_NETWORK, since)
+	_, err := p.db.ExecContext(ctx, q, p.hostname, limit, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, since)
 	if err != nil {
 		return err
 	}

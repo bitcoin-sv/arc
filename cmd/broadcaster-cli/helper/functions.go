@@ -16,8 +16,8 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-func CreateClient(auth *broadcaster.Auth, arcServer string) (broadcaster.ArcClient, error) {
-	return broadcaster.NewHTTPBroadcaster(arcServer, auth)
+func CreateClient(auth *broadcaster.Auth, arcServer string, logger *slog.Logger) (broadcaster.ArcClient, error) {
+	return broadcaster.NewHTTPBroadcaster(arcServer, auth, logger)
 }
 
 func GetKeySetsKeyFile(keyFile string) (fundingKeySet *keyset.KeySet, receivingKeySet *keyset.KeySet, err error) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -24,6 +25,7 @@ var (
 
 type APIBroadcaster struct {
 	arcClient api.ClientInterface
+	logger    *slog.Logger
 }
 
 type Auth struct {
@@ -39,13 +41,13 @@ type Response struct {
 	BlockHash   string `json:"blockHash"`
 }
 
-func NewHTTPBroadcaster(arcServer string, auth *Auth) (*APIBroadcaster, error) {
+func NewHTTPBroadcaster(arcServer string, auth *Auth, logger *slog.Logger) (*APIBroadcaster, error) {
 	arcClient, err := getArcClient(arcServer, auth)
 	if err != nil {
 		return nil, err
 	}
 
-	return &APIBroadcaster{arcClient: arcClient}, nil
+	return &APIBroadcaster{arcClient: arcClient, logger: logger}, nil
 }
 
 func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Transactions, waitForStatus metamorph_api.Status, callbackURL string, callbackToken string, fullStatusUpdates bool, skipFeeValidation bool) ([]*metamorph_api.TransactionStatus, error) {
@@ -119,7 +121,7 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 
 		// check whether we got an error and the transaction was actually not sent to the network
 		if tx.Status != 200 {
-			fmt.Printf("Error broadcasting tx: %#v\n", tx)
+			a.logger.Error("failed to broadcast transaction", slog.String("txid", tx.Txid), slog.String("extraInfo", tx.ExtraInfo))
 			// set version to 0 to indicate that the transaction was not sent to the network
 			txs[idx].Version = 0
 		}

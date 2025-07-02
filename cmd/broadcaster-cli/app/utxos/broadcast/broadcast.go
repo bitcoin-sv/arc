@@ -75,16 +75,14 @@ var Cmd = &cobra.Command{
 
 		sizeJitterMax := helper.GetInt64("sizeJitter")
 
-		client, err := helper.CreateClient(&broadcaster.Auth{
-			Authorization: authorization,
-		}, arcServer)
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
-
 		logLevel := helper.GetString("logLevel")
 		logFormat := helper.GetString("logFormat")
 		logger := helper.NewLogger(logLevel, logFormat)
+
+		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 

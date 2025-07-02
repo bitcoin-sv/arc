@@ -19,7 +19,7 @@ import (
 )
 
 func TestNewHTTPBroadcaster(t *testing.T) {
-	broadcaster, err := NewHTTPBroadcaster("arc:9090", nil)
+	broadcaster, err := NewHTTPBroadcaster("arc:9090", nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, broadcaster)
 }

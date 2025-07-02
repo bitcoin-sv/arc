@@ -61,9 +61,7 @@ var Cmd = &cobra.Command{
 
 		logger := helper.NewLogger(logLevel, logFormat)
 
-		client, err := helper.CreateClient(&broadcaster.Auth{
-			Authorization: authorization,
-		}, arcServer)
+		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}

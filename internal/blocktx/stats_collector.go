@@ -47,11 +47,11 @@ func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxS
 			Help: "Current number of block gaps",
 		}),
 		ConnectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "blocktx_connected_peers",
+			Name: "arc_blocktx_connected_peers",
 			Help: "Current number of connected peers",
 		}),
 		ReconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "blocktx_reconnecting_peers",
+			Name: "arc_blocktx_reconnecting_peers",
 			Help: "Current number of peers that are reconnecting",
 		}),
 		statCollectionInterval: statCollectionIntervalDefault,

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewDynamicTicker(t *testing.T) {
+func TestNewRampUpTicker(t *testing.T) {
 	tt := []struct {
 		name          string
 		startInterval time.Duration
@@ -45,7 +45,7 @@ func TestNewDynamicTicker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			ticker, actualErr := NewDynamicTicker(tc.startInterval, tc.endInterval, tc.steps)
+			ticker, actualErr := NewRampUpTicker(tc.startInterval, tc.endInterval, tc.steps)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)
 				return

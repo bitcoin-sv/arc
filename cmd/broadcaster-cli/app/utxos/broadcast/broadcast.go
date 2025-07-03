@@ -73,7 +73,7 @@ var Cmd = &cobra.Command{
 
 		opReturn := helper.GetString("opReturn")
 
-		dynamicTickerEnabled := helper.GetBool("dynamicTickerEnabled")
+		rampUpTickerEnabled := helper.GetBool("rampUpTickerEnabled")
 
 		sizeJitterMax := helper.GetInt64("sizeJitter")
 
@@ -112,8 +112,8 @@ var Cmd = &cobra.Command{
 		var submitBatchTicker broadcaster.Ticker
 		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
 
-		if dynamicTickerEnabled {
-			submitBatchTicker, err = broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+		if rampUpTickerEnabled {
+			submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
 			if err != nil {
 				return err
 			}
@@ -209,10 +209,10 @@ func init() {
 		return
 	}
 
-	Cmd.Flags().Bool("dynamicTickerEnabled", false, "If enabled, the dynamic ticker will ramp up the transaction rate slowly")
-	err = viper.BindPFlag("dynamicTickerEnabled", Cmd.Flags().Lookup("dynamicTickerEnabled"))
+	Cmd.Flags().Bool("rampUpTickerEnabled", false, "If enabled, the ramp up ticker will start broadcasting the transaction rate slowly until it reaches the final rate")
+	err = viper.BindPFlag("rampUpTickerEnabled", Cmd.Flags().Lookup("rampUpTickerEnabled"))
 	if err != nil {
-		logger.Error("failed to bind flag", slog.String("flag", "dynamicTickerEnabled"), slog.String("err", err.Error()))
+		logger.Error("failed to bind flag", slog.String("flag", "rampUpTickerEnabled"), slog.String("err", err.Error()))
 		return
 	}
 

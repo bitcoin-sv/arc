@@ -2,13 +2,14 @@ package woc_client
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/bsv-blockchain/go-sdk/script"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/bsv-blockchain/go-sdk/script"
+	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -96,18 +97,20 @@ func Test_WithAuth(t *testing.T) {
 	}
 }
 
-func Test_GetUTXOsFromLocalhost(t *testing.T) {
+func Test_GetUTXOs(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
+	addr, err := script.NewAddressFromString(testnetAddr)
+	require.NoError(t, err)
+
+	lockingScript, err := p2pkh.Lock(addr)
+	require.NoError(t, err)
+
 	hashStr := "4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c"
 	hash, err := chainhash.NewHashFromHex(hashStr)
 	require.NoError(t, err)
-	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
-	wocScript, err := hex.DecodeString(lockingScriptStr)
-	require.NoError(t, err)
-	lockingScript := script.Script(wocScript)
 
 	tt := []struct {
 		name          string
@@ -123,7 +126,7 @@ func Test_GetUTXOsFromLocalhost(t *testing.T) {
 			responseOk: true,
 			responseBody: wocResponse{
 				Address: testnetAddr,
-				Script:  lockingScriptStr,
+				Script:  lockingScript.String(),
 				Result: []wocUtxo{
 					{
 						Txid:     hashStr,
@@ -147,13 +150,13 @@ func Test_GetUTXOsFromLocalhost(t *testing.T) {
 					TxID:          hash,
 					Vout:          1,
 					Satoshis:      4,
-					LockingScript: &lockingScript,
+					LockingScript: lockingScript,
 				},
 				{
 					TxID:          hash,
 					Vout:          2,
 					Satoshis:      4,
-					LockingScript: &lockingScript,
+					LockingScript: lockingScript,
 				},
 			},
 		},

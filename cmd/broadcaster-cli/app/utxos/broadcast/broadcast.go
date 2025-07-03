@@ -73,6 +73,8 @@ var Cmd = &cobra.Command{
 
 		opReturn := helper.GetString("opReturn")
 
+		dynamicTickerEnabled := helper.GetBool("dynamicTickerEnabled")
+
 		sizeJitterMax := helper.GetInt64("sizeJitter")
 
 		logLevel := helper.GetString("logLevel")
@@ -107,9 +109,14 @@ var Cmd = &cobra.Command{
 		}
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-		submitBatchTicker, err := broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-		if err != nil {
-			return err
+		var submitBatchTicker broadcaster.Ticker
+		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
+
+		if dynamicTickerEnabled {
+			submitBatchTicker, err = broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+			if err != nil {
+				return err
+			}
 		}
 
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
@@ -130,8 +137,8 @@ var Cmd = &cobra.Command{
 
 		go func() {
 			// Start the broadcasting process
+			logger.Info("Starting rate broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize), slog.String("batch interval", submitBatchInterval.String()), slog.Int("parallel", rateBroadcaster.Len()))
 			err := rateBroadcaster.Start()
-			logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
 			doneChan <- err // Send the completion or error signal
 		}()
 
@@ -199,6 +206,13 @@ func init() {
 	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
 	if err != nil {
 		logger.Error("failed to bind flag", slog.String("flag", "opReturn"), slog.String("err", err.Error()))
+		return
+	}
+
+	Cmd.Flags().Bool("dynamicTickerEnabled", false, "If enabled, the dynamic ticker will ramp up the transaction rate slowly")
+	err = viper.BindPFlag("dynamicTickerEnabled", Cmd.Flags().Lookup("dynamicTickerEnabled"))
+	if err != nil {
+		logger.Error("failed to bind flag", slog.String("flag", "dynamicTickerEnabled"), slog.String("err", err.Error()))
 		return
 	}
 

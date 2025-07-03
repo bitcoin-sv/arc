@@ -177,10 +177,10 @@ func (t *ConstantTicker) GetTickerCh() (<-chan time.Time, error) {
 	return timeCh, nil
 }
 
-func NewConstantTicker(endInterval time.Duration) (*ConstantTicker, error) {
+func NewConstantTicker(endInterval time.Duration) *ConstantTicker {
 	ticker := ConstantTicker{
 		ticker: time.NewTicker(endInterval),
 	}
 
-	return &ticker, nil
+	return &ticker
 }

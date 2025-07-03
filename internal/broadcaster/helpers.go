@@ -5,12 +5,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/varintutils"
 	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
+
+	"github.com/bitcoin-sv/arc/internal/varintutils"
 )
 
 func PayTo(tx *sdkTx.Transaction, s *script.Script, satoshis uint64) error {
@@ -150,4 +151,36 @@ func (t *DynamicTicker) GetTickerCh() (<-chan time.Time, error) {
 	}()
 
 	return timeCh, nil
+}
+
+type ConstantTicker struct {
+	ticker *time.Ticker
+}
+
+func (t *ConstantTicker) Stop() {
+	t.ticker.Stop()
+}
+
+func (t *ConstantTicker) GetTickerCh() (<-chan time.Time, error) {
+	timeCh := make(chan time.Time)
+
+	if t.ticker == nil {
+		return nil, ErrTickerIsNil
+	}
+
+	go func() {
+		for tick := range t.ticker.C {
+			timeCh <- tick
+		}
+	}()
+
+	return timeCh, nil
+}
+
+func NewConstantTicker(endInterval time.Duration) (*ConstantTicker, error) {
+	ticker := ConstantTicker{
+		ticker: time.NewTicker(endInterval),
+	}
+
+	return &ticker, nil
 }

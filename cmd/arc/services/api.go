@@ -174,20 +174,43 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	var network string
 	var genesisBlock int32
-	var chainTracker beefValidator.ChainTracker
+	var chainTrackers []beefValidator.ChainTracker
+
+	bhsDefined := len(arcConfig.API.MerkleRootVerification.BlockHeaderServices) != 0
+
+	if bhsDefined {
+		var opts []merkle_verifier.Option
+		if arcConfig.API.MerkleRootVerification.Timeout > 0 {
+			opts = append(opts, merkle_verifier.WithTimeout(arcConfig.API.MerkleRootVerification.Timeout))
+		}
+		for _, bhs := range arcConfig.API.MerkleRootVerification.BlockHeaderServices {
+			if bhs.APIKey != "" {
+				opts = append(opts, merkle_verifier.WithAPIKey(bhs.APIKey))
+			}
+
+			ct := merkle_verifier.NewClient(bhs.URL, opts...)
+			chainTrackers = append(chainTrackers, ct)
+		}
+	}
 
 	switch arcConfig.Network {
 	case "testnet":
 		network = "test"
-		chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)
+		if !bhsDefined {
+			chainTrackers = []beefValidator.ChainTracker{chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)}
+		}
 		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
-		chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)
+		if !bhsDefined {
+			chainTrackers = []beefValidator.ChainTracker{chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)}
+		}
 		genesisBlock = apiHandler.GenesisForkBlockMain
 	case "regtest":
 		network = "regtest"
-		chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))
+		if !bhsDefined {
+			chainTrackers = []beefValidator.ChainTracker{merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))}
+		}
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
 		stopFn()
@@ -202,7 +225,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		defaultValidatorOpts...,
 	)
 
-	bv := beefValidator.New(policy, chainTracker, beefValidatorOpts...)
+	bv := beefValidator.New(policy, chainTrackers, beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

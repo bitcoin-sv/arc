@@ -75,7 +75,9 @@ func TestBeefValidator(t *testing.T) {
 				},
 			}
 
-			sut := New(getPolicy(1), ctMock)
+			cts := []ChainTracker{ctMock}
+
+			sut := New(getPolicy(1), cts)
 
 			// when
 			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validation.StandardFeeValidation, validation.StandardScriptValidation)

@@ -19,7 +19,10 @@ import (
 )
 
 var (
-	ErrBEEFVerificationFailed = errors.New("BEEF verification failed")
+	ErrBEEFVerificationFailed   = errors.New("BEEF verification failed")
+	ErrBEEFVerificationTimedOut = errors.New("BEEF verification timed out")
+	ErrRequestFailed            = errors.New("request failed")
+	ErrRequestTimedOut          = errors.New("request timed out")
 )
 
 type ChainTracker interface {
@@ -28,7 +31,7 @@ type ChainTracker interface {
 
 type Validator struct {
 	policy            *bitcoin.Settings
-	chainTracker      ChainTracker
+	chainTrackers     []ChainTracker
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -47,10 +50,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTracker ChainTracker, opts ...Option) *Validator {
+func New(policy *bitcoin.Settings, chainTrackers []ChainTracker, opts ...Option) *Validator {
 	v := &Validator{
-		policy:       policy,
-		chainTracker: chainTracker,
+		policy:        policy,
+		chainTrackers: chainTrackers,
 	}
 	// apply options
 	for _, opt := range opts {
@@ -107,14 +110,28 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 	}
 
+	var verificationSuccessful bool
 	// verify with chain tracker
-	ok, err := beefTx.Verify(v.chainTracker, false)
-	if err != nil {
-		vErr = validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
-		return nil, vErr
+	for _, ct := range v.chainTrackers {
+		verificationSuccessful, err = beefTx.Verify(ct, false)
+		if err == nil {
+			break
+		}
 	}
 
-	if !ok {
+	if err != nil {
+		if errors.Is(err, ErrRequestTimedOut) {
+			return nil, validator.NewError(ErrBEEFVerificationTimedOut, api.ErrStatusBeefValidationFailedBeefInvalid)
+		}
+
+		if errors.Is(err, ErrRequestTimedOut) {
+			return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
+		}
+
+		return nil, validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
+	}
+
+	if !verificationSuccessful {
 		return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 

@@ -62,7 +62,7 @@ func sendJSONRPCCall[T any](ctx context.Context, method string, params []interfa
 
 	var rpcResponse RPCResponse
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		_ = json.Unmarshal(data, &rpcResponse)
 		var msgOk bool
 		var msg string

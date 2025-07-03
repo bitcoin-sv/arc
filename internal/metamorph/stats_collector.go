@@ -35,6 +35,8 @@ type processorStats struct {
 	statusNotSeen              prometheus.Gauge
 	statusMinedTotal           prometheus.Gauge
 	statusSeenOnNetworkTotal   prometheus.Gauge
+	connectedPeers             prometheus.Gauge
+	reconnectingPeers          prometheus.Gauge
 }
 
 func WithLimits(notSeenLimit time.Duration, notFinalLimit time.Duration) func(*processorStats) {
@@ -94,6 +96,14 @@ func newProcessorStats(opts ...func(stats *processorStats)) *processorStats {
 			Name: "arc_status_mined_total_count",
 			Help: "Total number of monitored transactions with status MINED",
 		}),
+		connectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_metamorph_connected_peers",
+			Help: "Current number of connected peers",
+		}),
+		reconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_metamorph_reconnecting_peers",
+			Help: "Current number of peers that are reconnecting",
+		}),
 		notSeenLimit:  notSeenLimitDefault,
 		notFinalLimit: notFinalLimitDefault,
 	}
@@ -132,6 +142,8 @@ func (p *Processor) StartCollectStats() error {
 		p.stats.statusNotSeen,
 		p.stats.statusSeenOnNetworkTotal,
 		p.stats.statusMinedTotal,
+		p.stats.connectedPeers,
+		p.stats.reconnectingPeers,
 	)
 	if err != nil {
 		return err
@@ -161,6 +173,8 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusNotSeen,
 				p.stats.statusSeenOnNetworkTotal,
 				p.stats.statusMinedTotal,
+				p.stats.connectedPeers,
+				p.stats.reconnectingPeers,
 			)
 			p.waitGroup.Done()
 		}()
@@ -179,6 +193,8 @@ func (p *Processor) StartCollectStats() error {
 					continue
 				}
 
+				connectedPeers := int(p.bcMediator.CountConnectedPeers()) // #nosec G115
+
 				p.stats.statusStored.Set(float64(collectedStats.StatusStored))
 				p.stats.statusAnnouncedToNetwork.Set(float64(collectedStats.StatusAnnouncedToNetwork))
 				p.stats.statusRequestedByNetwork.Set(float64(collectedStats.StatusRequestedByNetwork))
@@ -193,6 +209,8 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.statusNotSeen.Set(float64(collectedStats.StatusNotSeen))
 				p.stats.statusSeenOnNetworkTotal.Set(float64(collectedStats.StatusSeenOnNetworkTotal))
 				p.stats.statusMinedTotal.Set(float64(collectedStats.StatusMinedTotal))
+				p.stats.connectedPeers.Set(float64(connectedPeers))
+				p.stats.reconnectingPeers.Set(float64(len(p.bcMediator.GetPeers()) - connectedPeers))
 			}
 		}
 	}()

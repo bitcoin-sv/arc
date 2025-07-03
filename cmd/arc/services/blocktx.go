@@ -118,19 +118,19 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
+	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, minConnections, blockProcessCh)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
+	}
+
 	if arcConfig.Prometheus.IsEnabled() {
-		statsCollector = blocktx.NewStatsCollector(logger, blockStore)
+		statsCollector = blocktx.NewStatsCollector(logger, pm, blockStore)
 		err = statsCollector.Start()
 		if err != nil {
 			stopFn()
 			return nil, fmt.Errorf("failed to start stats collector: %v", err)
 		}
-	}
-
-	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, minConnections, blockProcessCh)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
 	}
 
 	if btxConfig.FillGaps != nil && btxConfig.FillGaps.Enabled {

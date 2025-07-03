@@ -28,25 +28,37 @@ func WithStatCollectionInterval(d time.Duration) func(*StatsCollector) {
 }
 
 type StatsCollector struct {
-	currentNumOfBlockGaps  prometheus.Gauge
+	CurrentNumOfBlockGaps  prometheus.Gauge
+	ConnectedPeers         prometheus.Gauge
+	ReconnectingPeers      prometheus.Gauge
 	statCollectionInterval time.Duration
 	waitGroup              *sync.WaitGroup
 	cancelAll              context.CancelFunc
 	ctx                    context.Context
 	logger                 *slog.Logger
 	store                  store.BlocktxStore
+	pm                     PeerManager
 }
 
-func NewStatsCollector(logger *slog.Logger, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
+func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
 	p := &StatsCollector{
-		currentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
+		CurrentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
 			Help: "Current number of block gaps",
+		}),
+		ConnectedPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_blocktx_connected_peers",
+			Help: "Current number of connected peers",
+		}),
+		ReconnectingPeers: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_blocktx_reconnecting_peers",
+			Help: "Current number of peers that are reconnecting",
 		}),
 		statCollectionInterval: statCollectionIntervalDefault,
 		waitGroup:              &sync.WaitGroup{},
 		logger:                 logger,
 		store:                  store,
+		pm:                     pm,
 	}
 
 	for _, opt := range opts {
@@ -62,7 +74,9 @@ func (p *StatsCollector) Start() error {
 	ticker := time.NewTicker(p.statCollectionInterval)
 
 	err := registerStats(
-		p.currentNumOfBlockGaps,
+		p.CurrentNumOfBlockGaps,
+		p.ConnectedPeers,
+		p.ReconnectingPeers,
 	)
 	if err != nil {
 		return errors.Join(ErrFailedToStartCollectingStats, err)
@@ -73,7 +87,9 @@ func (p *StatsCollector) Start() error {
 	go func() {
 		defer func() {
 			unregisterStats(
-				p.currentNumOfBlockGaps,
+				p.CurrentNumOfBlockGaps,
+				p.ConnectedPeers,
+				p.ReconnectingPeers,
 			)
 			p.waitGroup.Done()
 		}()
@@ -89,7 +105,13 @@ func (p *StatsCollector) Start() error {
 					continue
 				}
 
-				p.currentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
+				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
+
+				// Update connected and reconnecting peers
+				connectedPeers := int(p.pm.CountConnectedPeers()) // #nosec G115
+				peers := p.pm.GetPeers()
+				p.ConnectedPeers.Set(float64(connectedPeers))
+				p.ReconnectingPeers.Set(float64(len(peers) - connectedPeers))
 			}
 		}
 	}()

@@ -17,6 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 
 type ProcessorI interface {
@@ -26,6 +27,7 @@ type ProcessorI interface {
 
 type PeerManager interface {
 	CountConnectedPeers() uint
+	GetPeers() []p2p.PeerI
 }
 
 // Server type carries the logger within it.

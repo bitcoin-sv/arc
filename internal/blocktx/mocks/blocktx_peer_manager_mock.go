@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"sync"
 )
 
@@ -21,6 +22,9 @@ var _ blocktx.PeerManager = &PeerManagerMock{}
 //			CountConnectedPeersFunc: func() uint {
 //				panic("mock out the CountConnectedPeers method")
 //			},
+//			GetPeersFunc: func() []p2p.PeerI {
+//				panic("mock out the GetPeers method")
+//			},
 //		}
 //
 //		// use mockedPeerManager in code that requires blocktx.PeerManager
@@ -31,13 +35,20 @@ type PeerManagerMock struct {
 	// CountConnectedPeersFunc mocks the CountConnectedPeers method.
 	CountConnectedPeersFunc func() uint
 
+	// GetPeersFunc mocks the GetPeers method.
+	GetPeersFunc func() []p2p.PeerI
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// CountConnectedPeers holds details about calls to the CountConnectedPeers method.
 		CountConnectedPeers []struct {
 		}
+		// GetPeers holds details about calls to the GetPeers method.
+		GetPeers []struct {
+		}
 	}
 	lockCountConnectedPeers sync.RWMutex
+	lockGetPeers            sync.RWMutex
 }
 
 // CountConnectedPeers calls CountConnectedPeersFunc.
@@ -64,5 +75,32 @@ func (mock *PeerManagerMock) CountConnectedPeersCalls() []struct {
 	mock.lockCountConnectedPeers.RLock()
 	calls = mock.calls.CountConnectedPeers
 	mock.lockCountConnectedPeers.RUnlock()
+	return calls
+}
+
+// GetPeers calls GetPeersFunc.
+func (mock *PeerManagerMock) GetPeers() []p2p.PeerI {
+	if mock.GetPeersFunc == nil {
+		panic("PeerManagerMock.GetPeersFunc: method is nil but PeerManager.GetPeers was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockGetPeers.Lock()
+	mock.calls.GetPeers = append(mock.calls.GetPeers, callInfo)
+	mock.lockGetPeers.Unlock()
+	return mock.GetPeersFunc()
+}
+
+// GetPeersCalls gets all the calls that were made to GetPeers.
+// Check the length with:
+//
+//	len(mockedPeerManager.GetPeersCalls())
+func (mock *PeerManagerMock) GetPeersCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockGetPeers.RLock()
+	calls = mock.calls.GetPeers
+	mock.lockGetPeers.RUnlock()
 	return calls
 }

@@ -47,9 +47,10 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	logger = logger.With(slog.String("service", "api"))
 	logger.Info("Starting")
 	var (
-		mqClient   mq.MessageQueueClient
-		echoServer *echo.Echo
-		err        error
+		mqClient             mq.MessageQueueClient
+		echoServer           *echo.Echo
+		err                  error
+		merkleVerifierClient *merkle_verifier.Client
 	)
 
 	echoServer = setAPIEcho(logger, arcConfig.API)
@@ -62,7 +63,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	shutdownFns := make([]func(), 0)
 	stopFn := func() {
 		logger.Info("Shutting down api")
-		disposeAPI(logger, echoServer, mqClient, shutdownFns)
+		disposeAPI(logger, echoServer, mqClient, merkleVerifierClient, shutdownFns)
 		logger.Info("Shutdown complete")
 	}
 
@@ -175,7 +176,6 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	var network string
 	var genesisBlock int32
 	var chainTracker beefValidator.ChainTracker
-
 	bhsDefined := len(arcConfig.API.MerkleRootVerification.BlockHeaderServices) != 0
 
 	if bhsDefined {
@@ -190,7 +190,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			chainTrackers = append(chainTrackers, ct)
 		}
 
-		chainTracker = merkle_verifier.NewClient(logger, chainTrackers, opts...)
+		merkleVerifierClient = merkle_verifier.NewClient(logger, chainTrackers, opts...)
+		chainTracker = merkleVerifierClient
 	}
 
 	switch arcConfig.Network {
@@ -330,12 +331,20 @@ func logRequestMiddleware(logger *slog.Logger, extendLog bool) echo.MiddlewareFu
 	return echomiddleware.RequestLoggerWithConfig(requestLogConfig(logger))
 }
 
-func disposeAPI(logger *slog.Logger, echoServer *echo.Echo, mqClient mq.MessageQueueClient, shutdownFns []func()) {
+func disposeAPI(logger *slog.Logger, echoServer *echo.Echo, mqClient mq.MessageQueueClient, merkleVerifierClient *merkle_verifier.Client, shutdownFns []func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := echoServer.Shutdown(ctx); err != nil {
-		logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
+	if echoServer != nil {
+		err := echoServer.Shutdown(ctx)
+		if err != nil {
+			logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
+		}
 	}
+
+	if merkleVerifierClient != nil {
+		merkleVerifierClient.Shutdown()
+	}
+
 	mqClient.Shutdown()
 
 	for _, fn := range shutdownFns {

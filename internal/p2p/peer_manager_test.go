@@ -16,18 +16,18 @@ const peerManagerNetwork = wire.TestNet
 
 func Test_PeerManagerAddPeer(t *testing.T) {
 	tt := []struct {
-		name        string
-		peerNetwork wire.BitcoinNet
-		expectedErr error
+		name          string
+		peerNetwork   wire.BitcoinNet
+		expectedError error
 	}{
 		{
 			name:        "Add peer with matching network",
 			peerNetwork: peerManagerNetwork,
 		},
 		{
-			name:        "Add peer with mismatched network",
-			peerNetwork: wire.MainNet,
-			expectedErr: p2p.ErrPeerNetworkMismatch,
+			name:          "Add peer with mismatched network",
+			peerNetwork:   wire.MainNet,
+			expectedError: p2p.ErrPeerNetworkMismatch,
 		},
 	}
 
@@ -44,7 +44,7 @@ func Test_PeerManagerAddPeer(t *testing.T) {
 			err := sut.AddPeer(peerMq)
 
 			// then
-			if tc.expectedErr == nil {
+			if tc.expectedError == nil {
 				require.NoError(t, err)
 				require.Len(t, sut.GetPeers(), 1)
 			} else {

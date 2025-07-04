@@ -31,10 +31,11 @@ type ChainTracker interface {
 
 type Validator struct {
 	policy            *bitcoin.Settings
-	chainTrackers     []ChainTracker
+	chainTracker      ChainTracker
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
+
 type Option func(d *Validator)
 
 func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
@@ -50,10 +51,10 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTrackers []ChainTracker, opts ...Option) *Validator {
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, opts ...Option) *Validator {
 	v := &Validator{
-		policy:        policy,
-		chainTrackers: chainTrackers,
+		policy:       policy,
+		chainTracker: chainTracker,
 	}
 	// apply options
 	for _, opt := range opts {
@@ -112,13 +113,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 
 	var verificationSuccessful bool
 	// verify with chain tracker
-	for _, ct := range v.chainTrackers {
-		verificationSuccessful, err = beefTx.Verify(ct, false)
-		if err == nil {
-			break
-		}
-	}
-
+	verificationSuccessful, err = beefTx.Verify(v.chainTracker, false)
 	if err != nil {
 		if errors.Is(err, ErrRequestTimedOut) {
 			return nil, validator.NewError(ErrBEEFVerificationTimedOut, api.ErrStatusBeefValidationFailedBeefInvalid)

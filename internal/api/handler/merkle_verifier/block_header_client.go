@@ -2,17 +2,27 @@ package merkle_verifier
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
+	"github.com/bitcoin-sv/arc/pkg/tracing"
+)
+
+const (
+	checkChainTrackersInterval = 30 * time.Second
+	statusTimeout              = 500 * time.Millisecond
 )
 
 type Option func(*Client)
@@ -23,17 +33,43 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-func WithAPIKey(apiKey string) Option {
-	return func(client *Client) {
-		client.apiKey = apiKey
+type ChainTracker struct {
+	availability bool
+	url          string
+	apiKey       string
+}
+
+func NewChainTracker(url string, apiKey string) *ChainTracker {
+	return &ChainTracker{
+		url:    url,
+		apiKey: apiKey,
 	}
 }
 
-func NewClient(url string, opts ...Option) *Client {
+type Client struct {
+	logger            *slog.Logger
+	timeout           time.Duration
+	tracingEnabled    bool
+	tracingAttributes []attribute.KeyValue
+	cancelAll         context.CancelFunc
+	ctx               context.Context
+	waitGroup         *sync.WaitGroup
+
+	mu            sync.RWMutex
+	chainTrackers []*ChainTracker
+}
+
+func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Option) *Client {
 	c := &Client{
-		url:     url,
 		timeout: 10 * time.Second,
+		logger:  logger,
 	}
+
+	c.chainTrackers = chainTrackers
+
+	ctx, cancelAll := context.WithCancel(context.Background())
+	c.cancelAll = cancelAll
+	c.ctx = ctx
 
 	for _, opt := range opts {
 		opt(c)
@@ -42,13 +78,99 @@ func NewClient(url string, opts ...Option) *Client {
 	return c
 }
 
-type Client struct {
-	url     string
-	apiKey  string
-	timeout time.Duration
+func (c *Client) Start() {
+	c.StartRoutine(checkChainTrackersInterval, CheckChainTrackers, "CheckChainTrackers")
 }
 
-func (c Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
+func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Client) []attribute.KeyValue, routineName string) {
+	ticker := time.NewTicker(tickerInterval)
+	c.waitGroup.Add(1)
+
+	go func() {
+		defer func() {
+			c.waitGroup.Done()
+			ticker.Stop()
+		}()
+
+		for {
+			select {
+			case <-c.ctx.Done():
+				return
+			case <-ticker.C:
+				ctx, span := tracing.StartTracing(c.ctx, routineName, c.tracingEnabled, c.tracingAttributes...)
+				attr := routine(ctx, c)
+				if span != nil && len(attr) > 0 {
+					span.SetAttributes(attr...)
+				}
+				tracing.EndTracing(span, nil)
+			}
+		}
+	}()
+}
+
+func CheckChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, ct := range c.chainTrackers {
+		isAvailable, _ := c.IsServiceAvailable(ct.url, ct.apiKey)
+
+		c.logger.Info("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable)
+
+		ct.availability = isAvailable
+	}
+
+	return []attribute.KeyValue{}
+}
+
+func (c *Client) IsServiceAvailable(url string, apiKey string) (bool, error) {
+	req, err := http.NewRequest("GET", url+"/status", nil)
+	if err != nil {
+		return false, fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: statusTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		var e net.Error
+		isNetError := errors.As(err, &e)
+		if isNetError && e.Timeout() {
+			// if timeout was reached try next chain tracker
+			return false, errors.Join(beef.ErrRequestTimedOut, err)
+		}
+
+		return false, fmt.Errorf("error sending request: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, errors.Join(beef.ErrRequestFailed, fmt.Errorf("status code: %d, status: %s", resp.StatusCode, resp.Status))
+	}
+
+	return true, nil
+}
+
+func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
+	var verificationSuccessful bool
+	var err error
+	for _, ct := range c.chainTrackers {
+		if !ct.availability {
+			continue
+		}
+
+		verificationSuccessful, err = c.merkleRootVerify(ct.url, ct.apiKey, root, height)
+		if err == nil {
+			break
+		}
+	}
+
+	return verificationSuccessful, err
+}
+
+func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Hash, height uint32) (bool, error) {
 	type requestBody struct {
 		MerkleRoot  string `json:"merkleRoot"`
 		BlockHeight uint32 `json:"blockHeight"`
@@ -60,13 +182,13 @@ func (c Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool,
 		return false, fmt.Errorf("error marshaling JSON: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/api/v1/chain/merkleroot/verify", bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequest("POST", url+"/api/v1/chain/merkleroot/verify", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return false, fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := &http.Client{Timeout: c.timeout}
 	resp, err := client.Do(req)

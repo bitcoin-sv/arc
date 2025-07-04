@@ -6,20 +6,24 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"testing"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/api/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewHTTPBroadcaster(t *testing.T) {
-	broadcaster, err := NewHTTPBroadcaster("arc:9090", nil)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	arcClientMock := &mocks.ClientInterfaceMock{}
+	broadcaster, err := NewHTTPBroadcaster(arcClientMock, logger)
 	require.NoError(t, err)
 	require.NotNil(t, broadcaster)
 }
@@ -92,10 +96,9 @@ func TestBroadcastTransactions(t *testing.T) {
 					return response, nil
 				},
 			}
-
-			sut := &APIBroadcaster{
-				arcClient: arcClientMock,
-			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			sut, err := NewHTTPBroadcaster(arcClientMock, logger)
+			require.NoError(t, err)
 
 			// random valid transaction
 			tx, err := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
@@ -177,9 +180,9 @@ func TestBroadcastTransaction(t *testing.T) {
 				},
 			}
 
-			sut := &APIBroadcaster{
-				arcClient: arcClientMock,
-			}
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			sut, err := NewHTTPBroadcaster(arcClientMock, logger)
+			require.NoError(t, err)
 
 			// random valid transaction
 			tx, err := sdkTx.NewTransactionFromHex("020000000000000000ef010f117b3f9ea4955d5c592c61838bea10096fc88ac1ad08561a9bcabd715a088200000000494830450221008fd0e0330470ac730b9f6b9baf1791b76859cbc327e2e241f3ebeb96561a719602201e73532eb1312a00833af276d636254b8aa3ecbb445324fb4c481f2a493821fb41feffffff00f2052a01000000232103b12bda06e5a3e439690bf3996f1d4b81289f4747068a5cbb12786df83ae14c18ac02a0860100000000001976a914b7b88045cc16f442a0c3dcb3dc31ecce8d156e7388ac605c042a010000001976a9147a904b8ae0c2f9d74448993029ad3c040ebdd69a88ac66000000")
@@ -223,7 +226,7 @@ func TestGetArcClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			actualArcClient, actualError := getArcClient(tc.url, nil)
+			actualArcClient, actualError := GetArcClient(tc.url, nil)
 
 			// then
 			assert.Equal(t, tc.expectedError, actualError)

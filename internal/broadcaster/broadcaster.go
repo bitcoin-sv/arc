@@ -2,11 +2,13 @@ package broadcaster
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"log/slog"
 	"time"
+
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
 const (

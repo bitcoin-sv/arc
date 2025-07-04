@@ -73,18 +73,18 @@ var Cmd = &cobra.Command{
 
 		opReturn := helper.GetString("opReturn")
 
-		sizeJitterMax := helper.GetInt64("sizeJitter")
+		rampUpTickerEnabled := helper.GetBool("rampUpTickerEnabled")
 
-		client, err := helper.CreateClient(&broadcaster.Auth{
-			Authorization: authorization,
-		}, arcServer)
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
+		sizeJitterMax := helper.GetInt64("sizeJitter")
 
 		logLevel := helper.GetString("logLevel")
 		logFormat := helper.GetString("logFormat")
 		logger := helper.NewLogger(logLevel, logFormat)
+
+		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 
@@ -109,9 +109,14 @@ var Cmd = &cobra.Command{
 		}
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-		submitBatchTicker, err := broadcaster.NewDynamicTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-		if err != nil {
-			return err
+		var submitBatchTicker broadcaster.Ticker
+		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
+
+		if rampUpTickerEnabled {
+			submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+			if err != nil {
+				return err
+			}
 		}
 
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
@@ -132,8 +137,8 @@ var Cmd = &cobra.Command{
 
 		go func() {
 			// Start the broadcasting process
+			logger.Info("Starting rate broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize), slog.String("batch interval", submitBatchInterval.String()), slog.Int("parallel", rateBroadcaster.Len()))
 			err := rateBroadcaster.Start()
-			logger.Info("Starting broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize))
 			doneChan <- err // Send the completion or error signal
 		}()
 
@@ -201,6 +206,13 @@ func init() {
 	err = viper.BindPFlag("opReturn", Cmd.Flags().Lookup("opReturn"))
 	if err != nil {
 		logger.Error("failed to bind flag", slog.String("flag", "opReturn"), slog.String("err", err.Error()))
+		return
+	}
+
+	Cmd.Flags().Bool("rampUpTickerEnabled", false, "If enabled, the ramp up ticker will start broadcasting the transaction rate slowly until it reaches the final rate")
+	err = viper.BindPFlag("rampUpTickerEnabled", Cmd.Flags().Lookup("rampUpTickerEnabled"))
+	if err != nil {
+		logger.Error("failed to bind flag", slog.String("flag", "rampUpTickerEnabled"), slog.String("err", err.Error()))
 		return
 	}
 

@@ -5,12 +5,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/varintutils"
 	primitives "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
+
+	"github.com/bitcoin-sv/arc/internal/varintutils"
 )
 
 func PayTo(tx *sdkTx.Transaction, s *script.Script, satoshis uint64) error {
@@ -81,7 +82,7 @@ func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, 
 	return feesRequiredRounded, nil
 }
 
-type DynamicTicker struct {
+type RampUpTicker struct {
 	ticker        *time.Ticker
 	startInterval time.Duration
 	endInterval   time.Duration
@@ -94,8 +95,8 @@ var (
 	ErrTickerIsNil                        = errors.New("ticker is nil")
 )
 
-// NewDynamicTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
-func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (*DynamicTicker, error) {
+// NewRampUpTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
+func NewRampUpTicker(startInterval time.Duration, endInterval time.Duration, steps int64) (*RampUpTicker, error) {
 	if steps < 1 {
 		return nil, ErrStepsZero
 	}
@@ -104,7 +105,7 @@ func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, st
 		return nil, ErrStartIntervalNotGreaterEndInterval
 	}
 
-	ticker := DynamicTicker{
+	ticker := RampUpTicker{
 		ticker:        time.NewTicker(startInterval),
 		startInterval: startInterval,
 		endInterval:   endInterval,
@@ -114,11 +115,11 @@ func NewDynamicTicker(startInterval time.Duration, endInterval time.Duration, st
 	return &ticker, nil
 }
 
-func (t *DynamicTicker) Stop() {
+func (t *RampUpTicker) Stop() {
 	t.ticker.Stop()
 }
 
-func (t *DynamicTicker) GetTickerCh() (<-chan time.Time, error) {
+func (t *RampUpTicker) GetTickerCh() (<-chan time.Time, error) {
 	timeCh := make(chan time.Time)
 	step := int64(0)
 	stepsReached := false
@@ -150,4 +151,36 @@ func (t *DynamicTicker) GetTickerCh() (<-chan time.Time, error) {
 	}()
 
 	return timeCh, nil
+}
+
+type ConstantTicker struct {
+	ticker *time.Ticker
+}
+
+func (t *ConstantTicker) Stop() {
+	t.ticker.Stop()
+}
+
+func (t *ConstantTicker) GetTickerCh() (<-chan time.Time, error) {
+	timeCh := make(chan time.Time)
+
+	if t.ticker == nil {
+		return nil, ErrTickerIsNil
+	}
+
+	go func() {
+		for tick := range t.ticker.C {
+			timeCh <- tick
+		}
+	}()
+
+	return timeCh, nil
+}
+
+func NewConstantTicker(endInterval time.Duration) *ConstantTicker {
+	ticker := ConstantTicker{
+		ticker: time.NewTicker(endInterval),
+	}
+
+	return &ticker
 }

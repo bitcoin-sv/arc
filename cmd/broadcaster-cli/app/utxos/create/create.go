@@ -46,18 +46,16 @@ var Cmd = &cobra.Command{
 
 		wocAPIKey := helper.GetString("wocAPIKey")
 
-		client, err := helper.CreateClient(&broadcaster.Auth{
-			Authorization: authorization,
-		}, arcServer)
-		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
-		}
-
 		names := helper.GetOrderedKeys(keySetsMap)
 
 		logLevel := helper.GetString("logLevel")
 		logFormat := helper.GetString("logFormat")
 		logger := helper.NewLogger(logLevel, logFormat)
+
+		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
+		if err != nil {
+			return fmt.Errorf("failed to create client: %v", err)
+		}
 
 		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
 		creators := make([]broadcaster.Creator, 0, len(keySetsMap)) // Use the Creator interface for flexibility

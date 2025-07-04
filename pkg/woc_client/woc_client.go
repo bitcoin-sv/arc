@@ -3,11 +3,9 @@ package woc_client
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +15,7 @@ import (
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 	"github.com/cenkalti/backoff/v4"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -186,11 +185,16 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, 
 	}
 
 	unspent := make(sdkTx.UTXOs, len(wocUnspent.Result))
-	wocScript, err := hex.DecodeString(wocUnspent.Script)
+	addr, err := script.NewAddressFromString(address)
 	if err != nil {
-		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
+		return nil, err
 	}
-	lockingScript := script.Script(wocScript)
+
+	p2pkhScript, err := p2pkh.Lock(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	for i, utxo := range wocUnspent.Result {
 		h, err := chainhash.NewHashFromHex(utxo.Txid)
 		if err != nil {
@@ -199,7 +203,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, 
 		unspent[i] = &sdkTx.UTXO{
 			TxID:          h,
 			Vout:          utxo.Vout,
-			LockingScript: &lockingScript,
+			LockingScript: p2pkhScript,
 			Satoshis:      utxo.Satoshis,
 		}
 	}

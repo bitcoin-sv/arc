@@ -72,6 +72,10 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 	return nil
 }
 
+func (mrb *MultiKeyRateBroadcaster) Len() int {
+	return len(mrb.rbs)
+}
+
 func (mrb *MultiKeyRateBroadcaster) Shutdown() {
 	for _, rb := range mrb.rbs {
 		rb.Shutdown()

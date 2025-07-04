@@ -1383,7 +1383,7 @@ func TestProcessorHealth(t *testing.T) {
 		name       string
 		peersAdded uint
 
-		expectedErr error
+		expectedError error
 	}{
 		{
 			name:       "3 healthy peers",
@@ -1393,7 +1393,7 @@ func TestProcessorHealth(t *testing.T) {
 			name:       "1 healthy peer",
 			peersAdded: 1,
 
-			expectedErr: metamorph.ErrUnhealthy,
+			expectedError: metamorph.ErrUnhealthy,
 		},
 	}
 
@@ -1440,7 +1440,7 @@ func TestProcessorHealth(t *testing.T) {
 			actualError := sut.Health()
 
 			// then
-			require.ErrorIs(t, actualError, tc.expectedErr)
+			require.ErrorIs(t, actualError, tc.expectedError)
 		})
 	}
 }

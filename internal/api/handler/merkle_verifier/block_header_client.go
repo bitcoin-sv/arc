@@ -48,16 +48,22 @@ func WithCheckChainTrackersInterval(d time.Duration) Option {
 }
 
 type ChainTracker struct {
+	url    string
+	apiKey string
+
+	mu          sync.Mutex
 	isAvailable bool
-	url         string
-	apiKey      string
 }
 
 func (ct *ChainTracker) IsAvailable() bool {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
 	return ct.isAvailable
 }
 
 func (ct *ChainTracker) SetAvailability(availability bool) {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
 	ct.isAvailable = availability
 }
 
@@ -78,9 +84,7 @@ type Client struct {
 	cancelAll                  context.CancelFunc
 	ctx                        context.Context
 	wg                         *sync.WaitGroup
-
-	mu            sync.RWMutex
-	chainTrackers []*ChainTracker
+	chainTrackers              []*ChainTracker
 }
 
 func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Option) *Client {
@@ -142,9 +146,7 @@ func checkChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
 			c.logger.Info("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable)
 		}
 
-		c.mu.Lock()
 		ct.SetAvailability(isAvailable)
-		c.mu.Unlock()
 	}
 
 	return []attribute.KeyValue{}

@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	checkChainTrackersInterval = 30 * time.Second
-	statusTimeout              = 500 * time.Millisecond
+	checkChainTrackersIntervalDefault = 30 * time.Second
+	statusTimeout                     = 500 * time.Millisecond
 )
 
 var (
@@ -35,6 +35,12 @@ type Option func(*Client)
 func WithTimeout(timeout time.Duration) Option {
 	return func(client *Client) {
 		client.timeout = timeout
+	}
+}
+
+func WithCheckChainTrackersInterval(d time.Duration) Option {
+	return func(client *Client) {
+		client.checkChainTrackersInterval = d
 	}
 }
 
@@ -61,13 +67,14 @@ func NewChainTracker(url string, apiKey string) *ChainTracker {
 }
 
 type Client struct {
-	logger            *slog.Logger
-	timeout           time.Duration
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
-	cancelAll         context.CancelFunc
-	ctx               context.Context
-	waitGroup         *sync.WaitGroup
+	logger                     *slog.Logger
+	checkChainTrackersInterval time.Duration
+	timeout                    time.Duration
+	tracingEnabled             bool
+	tracingAttributes          []attribute.KeyValue
+	cancelAll                  context.CancelFunc
+	ctx                        context.Context
+	wg                         *sync.WaitGroup
 
 	mu            sync.RWMutex
 	chainTrackers []*ChainTracker
@@ -75,8 +82,10 @@ type Client struct {
 
 func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Option) *Client {
 	c := &Client{
-		timeout: 10 * time.Second,
-		logger:  logger,
+		timeout:                    10 * time.Second,
+		logger:                     logger,
+		checkChainTrackersInterval: checkChainTrackersIntervalDefault,
+		wg:                         &sync.WaitGroup{},
 	}
 
 	c.chainTrackers = chainTrackers
@@ -89,18 +98,18 @@ func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Optio
 		opt(c)
 	}
 
-	c.StartRoutine(checkChainTrackersInterval, checkChainTrackers, "checkChainTrackers")
+	c.StartRoutine(c.checkChainTrackersInterval, checkChainTrackers, "checkChainTrackers")
 
 	return c
 }
 
 func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Client) []attribute.KeyValue, routineName string) {
 	ticker := time.NewTicker(tickerInterval)
-	c.waitGroup.Add(1)
+	c.wg.Add(1)
 
 	go func() {
 		defer func() {
-			c.waitGroup.Done()
+			c.wg.Done()
 			ticker.Stop()
 		}()
 
@@ -236,4 +245,10 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 	}
 
 	return response.ConfirmationState == "CONFIRMED", nil
+}
+
+func (c *Client) Shutdown() {
+	c.cancelAll()
+
+	c.wg.Wait()
 }

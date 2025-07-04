@@ -174,42 +174,42 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	var network string
 	var genesisBlock int32
-	var chainTrackers []beefValidator.ChainTracker
+	var chainTracker beefValidator.ChainTracker
 
 	bhsDefined := len(arcConfig.API.MerkleRootVerification.BlockHeaderServices) != 0
 
 	if bhsDefined {
 		var opts []merkle_verifier.Option
+
+		var chainTrackers []*merkle_verifier.ChainTracker
 		if arcConfig.API.MerkleRootVerification.Timeout > 0 {
 			opts = append(opts, merkle_verifier.WithTimeout(arcConfig.API.MerkleRootVerification.Timeout))
 		}
 		for _, bhs := range arcConfig.API.MerkleRootVerification.BlockHeaderServices {
-			if bhs.APIKey != "" {
-				opts = append(opts, merkle_verifier.WithAPIKey(bhs.APIKey))
-			}
-
-			ct := merkle_verifier.NewClient(bhs.URL, opts...)
+			ct := merkle_verifier.NewChainTracker(bhs.URL, bhs.APIKey)
 			chainTrackers = append(chainTrackers, ct)
 		}
+
+		chainTracker = merkle_verifier.NewClient(logger, chainTrackers, opts...)
 	}
 
 	switch arcConfig.Network {
 	case "testnet":
 		network = "test"
 		if !bhsDefined {
-			chainTrackers = []beefValidator.ChainTracker{chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)}
+			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
 		if !bhsDefined {
-			chainTrackers = []beefValidator.ChainTracker{chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)}
+			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockMain
 	case "regtest":
 		network = "regtest"
 		if !bhsDefined {
-			chainTrackers = []beefValidator.ChainTracker{merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))}
+			chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))
 		}
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
@@ -225,7 +225,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		defaultValidatorOpts...,
 	)
 
-	bv := beefValidator.New(policy, chainTrackers, beefValidatorOpts...)
+	bv := beefValidator.New(policy, chainTracker, beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

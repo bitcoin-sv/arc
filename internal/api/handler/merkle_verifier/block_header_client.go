@@ -183,16 +183,23 @@ func (c *Client) isServiceAvailable(url string, apiKey string) (bool, error) {
 
 func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
 	var verificationSuccessful bool
+	var anyChainTrackerAvailable bool
 	var err error
 	for _, ct := range c.chainTrackers {
 		if !ct.IsAvailable() {
 			continue
 		}
 
+		anyChainTrackerAvailable = true
+
 		verificationSuccessful, err = c.merkleRootVerify(ct.url, ct.apiKey, root, height)
 		if err == nil {
 			break
 		}
+	}
+
+	if !anyChainTrackerAvailable {
+		return verificationSuccessful, errors.Join(beef.ErrNoChainTrackersAvailable, err)
 	}
 
 	return verificationSuccessful, err

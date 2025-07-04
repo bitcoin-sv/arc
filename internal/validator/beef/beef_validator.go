@@ -21,8 +21,10 @@ import (
 var (
 	ErrBEEFVerificationFailed   = errors.New("BEEF verification failed")
 	ErrBEEFVerificationTimedOut = errors.New("BEEF verification timed out")
+
 	ErrRequestFailed            = errors.New("request failed")
 	ErrRequestTimedOut          = errors.New("request timed out")
+	ErrNoChainTrackersAvailable = errors.New("no chain trackers available")
 )
 
 type ChainTracker interface {

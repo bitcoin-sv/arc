@@ -116,11 +116,11 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	verificationSuccessful, err = beefTx.Verify(v.chainTracker, false)
 	if err != nil {
 		if errors.Is(err, ErrRequestTimedOut) {
-			return nil, validator.NewError(ErrBEEFVerificationTimedOut, api.ErrStatusBeefValidationFailedBeefInvalid)
+			return nil, validator.NewError(errors.Join(ErrBEEFVerificationTimedOut, err), api.ErrStatusBeefValidationFailedBeefInvalid)
 		}
 
-		if errors.Is(err, ErrRequestTimedOut) {
-			return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
+		if errors.Is(err, ErrRequestFailed) {
+			return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, err), api.ErrStatusBeefValidationFailedBeefInvalid)
 		}
 
 		return nil, validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)

@@ -25,6 +25,11 @@ const (
 	statusTimeout              = 500 * time.Millisecond
 )
 
+var (
+	ErrRequestFailed   = errors.New("request failed")
+	ErrRequestTimedOut = errors.New("request timed out")
+)
+
 type Option func(*Client)
 
 func WithTimeout(timeout time.Duration) Option {
@@ -39,10 +44,19 @@ type ChainTracker struct {
 	apiKey       string
 }
 
+func (ct *ChainTracker) IsAvailable() bool {
+	return ct.availability
+}
+
+func (ct *ChainTracker) SetAvailability(availability bool) {
+	ct.availability = availability
+}
+
 func NewChainTracker(url string, apiKey string) *ChainTracker {
 	return &ChainTracker{
-		url:    url,
-		apiKey: apiKey,
+		url:          url,
+		apiKey:       apiKey,
+		availability: true,
 	}
 }
 
@@ -75,11 +89,9 @@ func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Optio
 		opt(c)
 	}
 
-	return c
-}
+	c.StartRoutine(checkChainTrackersInterval, checkChainTrackers, "checkChainTrackers")
 
-func (c *Client) Start() {
-	c.StartRoutine(checkChainTrackersInterval, CheckChainTrackers, "CheckChainTrackers")
+	return c
 }
 
 func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Client) []attribute.KeyValue, routineName string) {
@@ -108,22 +120,25 @@ func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context
 	}()
 }
 
-func CheckChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+func checkChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
 	for _, ct := range c.chainTrackers {
-		isAvailable, _ := c.IsServiceAvailable(ct.url, ct.apiKey)
+		isAvailable, err := c.isServiceAvailable(ct.url, ct.apiKey)
 
-		c.logger.Info("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable)
+		if err != nil {
+			c.logger.Error("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable, "err", err)
+		} else {
+			c.logger.Info("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable)
+		}
 
-		ct.availability = isAvailable
+		c.mu.Lock()
+		ct.SetAvailability(isAvailable)
+		c.mu.Unlock()
 	}
 
 	return []attribute.KeyValue{}
 }
 
-func (c *Client) IsServiceAvailable(url string, apiKey string) (bool, error) {
+func (c *Client) isServiceAvailable(url string, apiKey string) (bool, error) {
 	req, err := http.NewRequest("GET", url+"/status", nil)
 	if err != nil {
 		return false, fmt.Errorf("error creating request: %v", err)
@@ -138,8 +153,7 @@ func (c *Client) IsServiceAvailable(url string, apiKey string) (bool, error) {
 		var e net.Error
 		isNetError := errors.As(err, &e)
 		if isNetError && e.Timeout() {
-			// if timeout was reached try next chain tracker
-			return false, errors.Join(beef.ErrRequestTimedOut, err)
+			return false, errors.Join(ErrRequestTimedOut, err)
 		}
 
 		return false, fmt.Errorf("error sending request: %v", err)
@@ -147,7 +161,7 @@ func (c *Client) IsServiceAvailable(url string, apiKey string) (bool, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, errors.Join(beef.ErrRequestFailed, fmt.Errorf("status code: %d, status: %s", resp.StatusCode, resp.Status))
+		return false, errors.Join(ErrRequestFailed, fmt.Errorf("status code: %d, status: %s", resp.StatusCode, resp.Status))
 	}
 
 	return true, nil
@@ -157,7 +171,7 @@ func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool
 	var verificationSuccessful bool
 	var err error
 	for _, ct := range c.chainTrackers {
-		if !ct.availability {
+		if !ct.IsAvailable() {
 			continue
 		}
 
@@ -196,7 +210,6 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 		var e net.Error
 		isNetError := errors.As(err, &e)
 		if isNetError && e.Timeout() {
-			// if timeout was reached try next chain tracker
 			return false, errors.Join(beef.ErrRequestTimedOut, err)
 		}
 

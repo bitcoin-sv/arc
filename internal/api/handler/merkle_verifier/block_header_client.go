@@ -18,6 +18,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+
+	bhsDomains "github.com/bitcoin-sv/block-headers-service/domains"
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 var (
 	ErrRequestFailed   = errors.New("request failed")
 	ErrRequestTimedOut = errors.New("request timed out")
+	ErrParseResponse   = errors.New("failed to parse response")
 )
 
 type Option func(*Client)
@@ -45,24 +48,24 @@ func WithCheckChainTrackersInterval(d time.Duration) Option {
 }
 
 type ChainTracker struct {
-	availability bool
-	url          string
-	apiKey       string
+	isAvailable bool
+	url         string
+	apiKey      string
 }
 
 func (ct *ChainTracker) IsAvailable() bool {
-	return ct.availability
+	return ct.isAvailable
 }
 
 func (ct *ChainTracker) SetAvailability(availability bool) {
-	ct.availability = availability
+	ct.isAvailable = availability
 }
 
 func NewChainTracker(url string, apiKey string) *ChainTracker {
 	return &ChainTracker{
-		url:          url,
-		apiKey:       apiKey,
-		availability: true,
+		url:         url,
+		apiKey:      apiKey,
+		isAvailable: true,
 	}
 }
 
@@ -193,6 +196,10 @@ func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool
 	return verificationSuccessful, err
 }
 
+type IsValidRootForHeightResponse struct {
+	ConfirmationState bhsDomains.MerkleRootConfirmationState `json:"confirmationState"`
+}
+
 func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Hash, height uint32) (bool, error) {
 	type requestBody struct {
 		MerkleRoot  string `json:"merkleRoot"`
@@ -232,19 +239,16 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("error reading response body: %v", err)
+		return false, errors.Join(ErrParseResponse, fmt.Errorf("error reading response body: %v", err))
 	}
 
-	var response struct {
-		ConfirmationState string `json:"confirmationState"`
-	}
-
+	var response IsValidRootForHeightResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return false, fmt.Errorf("error unmarshaling JSON: %v", err)
+		return false, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %v", err))
 	}
 
-	return response.ConfirmationState == "CONFIRMED", nil
+	return response.ConfirmationState == bhsDomains.Confirmed, nil
 }
 
 func (c *Client) Shutdown() {

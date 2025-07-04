@@ -141,9 +141,9 @@ func checkChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
 		isAvailable, err := c.isServiceAvailable(ct.url, ct.apiKey)
 
 		if err != nil {
-			c.logger.Error("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable, "err", err)
+			c.logger.Warn("Block header service unavailable", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable), slog.String("err", err.Error()))
 		} else {
-			c.logger.Info("=== checkChainTrackers", "url", ct.url, "isAvailable", isAvailable)
+			c.logger.Debug("Block header service available", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable))
 		}
 
 		ct.SetAvailability(isAvailable)

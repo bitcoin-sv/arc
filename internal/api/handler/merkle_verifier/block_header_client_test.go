@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,10 +78,11 @@ func TestClient_checkChainTrackers(t *testing.T) {
 
 func TestClient_IsValidRootForHeight(t *testing.T) {
 	tt := []struct {
-		name         string
-		httpStatus   int
-		timeout      bool
-		responseBody any
+		name          string
+		httpStatus    int
+		timeout       bool
+		responseBody  any
+		isUnavailable bool
 
 		expectedError error
 		expectedOk    bool
@@ -138,6 +140,14 @@ func TestClient_IsValidRootForHeight(t *testing.T) {
 			expectedOk:    false,
 			expectedError: ErrParseResponse,
 		},
+		{
+			name:          "all unavailable",
+			httpStatus:    http.StatusOK,
+			isUnavailable: true,
+
+			expectedOk:    false,
+			expectedError: beef.ErrNoChainTrackersAvailable,
+		},
 	}
 
 	for _, tc := range tt {
@@ -145,6 +155,15 @@ func TestClient_IsValidRootForHeight(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.String(), "status") {
+					if tc.isUnavailable {
+						w.WriteHeader(http.StatusServiceUnavailable)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+
 				require.Equal(t, "Bearer abc", r.Header.Get("Authorization"))
 				if tc.timeout {
 					time.Sleep(300 * time.Millisecond)
@@ -163,14 +182,16 @@ func TestClient_IsValidRootForHeight(t *testing.T) {
 
 			chainTrackers := []*ChainTracker{ct}
 
-			sut := NewClient(logger, chainTrackers, WithCheckChainTrackersInterval(5*time.Minute), WithTimeout(100*time.Millisecond))
+			sut := NewClient(logger, chainTrackers, WithCheckChainTrackersInterval(100*time.Millisecond), WithTimeout(100*time.Millisecond))
 			defer sut.Shutdown()
 
 			root, err := chainhash.NewHashFromHex("7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257")
 			require.NoError(t, err)
 
+			time.Sleep(200 * time.Millisecond)
+
 			ok, err := sut.IsValidRootForHeight(root, 800000)
-			require.Equal(t, true, ct.IsAvailable())
+			require.Equal(t, !tc.isUnavailable, ct.IsAvailable())
 			require.Equal(t, tc.expectedOk, ok)
 
 			if tc.expectedError != nil {

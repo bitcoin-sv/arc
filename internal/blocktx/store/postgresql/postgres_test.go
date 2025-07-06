@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -222,6 +223,26 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, hashAtTip[:], actualBlock.Hash)
 		require.Equal(t, expectedTipHeight, actualBlock.Height)
+	})
+
+	t.Run("get num of blocks since", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB, "fixtures/num_of_blocks_since")
+
+		// Define the time string and layout
+		timeStr := "2023-12-15 14:00:00"
+		layout := "2006-01-02 15:04:05"
+
+		since, err := time.Parse(layout, timeStr)
+		if err != nil {
+			fmt.Println("Error parsing time:", err)
+			return
+		}
+
+		blocks, err := postgresDB.BlocksSince(context.Background(), since)
+		require.NoError(t, err)
+		// since the time there are two blocks but with is_longest just 1
+		require.Equal(t, 1, len(blocks))
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {

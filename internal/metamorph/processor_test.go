@@ -1240,23 +1240,38 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 		getAndDeleteUnconfirmedErr error
 
 		expectedGetUnconfirmedCalls int
+		minedBlocksSince            uint64
 	}{
 		{
 			name: "success",
 
 			expectedGetUnconfirmedCalls: 4,
+			minedBlocksSince:            10,
+		},
+		{
+			name: "skip rejecting for no blocks mined since",
+
+			expectedGetUnconfirmedCalls: 0,
+			minedBlocksSince:            1,
 		},
 		{
 			name:                       "error - failed to get and delete unconfirmed requested",
 			getAndDeleteUnconfirmedErr: errors.New("failed to get and delete unconfirmed requested"),
 
 			expectedGetUnconfirmedCalls: 1,
+			minedBlocksSince:            10,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			iteration := 0
+
+			blocktxClient := &btxMocks.ClientMock{
+				NumOfBlocksSinceFunc: func(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+					return &blocktx_api.NumOfBlocksSinceResponse{NumOfBlocks: tc.minedBlocksSince}, nil
+				},
+			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
@@ -1282,6 +1297,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				pm,
 				statusMessageChannel,
 				metamorph.WithRejectPendingSeenEnabled(true),
+				metamorph.WithBlocktxClient(blocktxClient),
 			)
 			require.NoError(t, err)
 

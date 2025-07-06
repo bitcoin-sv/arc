@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"sync"
+	"time"
 )
 
 // Ensure, that ClientMock does implement blocktx.Client.
@@ -25,6 +26,9 @@ var _ blocktx.Client = &ClientMock{}
 //			},
 //			CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 //				panic("mock out the CurrentBlockHeight method")
+//			},
+//			NumOfBlocksSinceFunc: func(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+//				panic("mock out the NumOfBlocksSince method")
 //			},
 //			RegisterTransactionFunc: func(ctx context.Context, hash []byte) error {
 //				panic("mock out the RegisterTransaction method")
@@ -44,6 +48,9 @@ type ClientMock struct {
 
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
+
+	// NumOfBlocksSinceFunc mocks the NumOfBlocksSince method.
+	NumOfBlocksSinceFunc func(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, hash []byte) error
@@ -65,6 +72,13 @@ type ClientMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// NumOfBlocksSince holds details about calls to the NumOfBlocksSince method.
+		NumOfBlocksSince []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -82,6 +96,7 @@ type ClientMock struct {
 	}
 	lockAnyTransactionsMined sync.RWMutex
 	lockCurrentBlockHeight   sync.RWMutex
+	lockNumOfBlocksSince     sync.RWMutex
 	lockRegisterTransaction  sync.RWMutex
 	lockRegisterTransactions sync.RWMutex
 }
@@ -151,6 +166,42 @@ func (mock *ClientMock) CurrentBlockHeightCalls() []struct {
 	mock.lockCurrentBlockHeight.RLock()
 	calls = mock.calls.CurrentBlockHeight
 	mock.lockCurrentBlockHeight.RUnlock()
+	return calls
+}
+
+// NumOfBlocksSince calls NumOfBlocksSinceFunc.
+func (mock *ClientMock) NumOfBlocksSince(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+	if mock.NumOfBlocksSinceFunc == nil {
+		panic("ClientMock.NumOfBlocksSinceFunc: method is nil but Client.NumOfBlocksSince was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Since time.Time
+	}{
+		Ctx:   ctx,
+		Since: since,
+	}
+	mock.lockNumOfBlocksSince.Lock()
+	mock.calls.NumOfBlocksSince = append(mock.calls.NumOfBlocksSince, callInfo)
+	mock.lockNumOfBlocksSince.Unlock()
+	return mock.NumOfBlocksSinceFunc(ctx, since)
+}
+
+// NumOfBlocksSinceCalls gets all the calls that were made to NumOfBlocksSince.
+// Check the length with:
+//
+//	len(mockedClient.NumOfBlocksSinceCalls())
+func (mock *ClientMock) NumOfBlocksSinceCalls() []struct {
+	Ctx   context.Context
+	Since time.Time
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Since time.Time
+	}
+	mock.lockNumOfBlocksSince.RLock()
+	calls = mock.calls.NumOfBlocksSince
+	mock.lockNumOfBlocksSince.RUnlock()
 	return calls
 }
 

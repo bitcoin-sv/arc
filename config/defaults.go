@@ -69,6 +69,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		RejectPendingSeen: &RejectPendingSeenConfig{
 			Enabled:          false,
 			LastRequestedAgo: 5 * time.Minute,
+			BlocksSince:      3,
 		},
 		MaxRetries:                           1000,
 		StatusUpdateInterval:                 5 * time.Second,

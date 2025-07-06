@@ -12,6 +12,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -95,9 +96,21 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var offset int64
 	var totalRejected int
 	var txHashes []*chainhash.Hash
+	var blocksSinceLastRequestedAlgo *blocktx_api.NumOfBlocksSinceResponse
 	var err error
 
 	for {
+		blocksSinceLastRequestedAlgo, err = p.blocktxClient.NumOfBlocksSince(ctx, p.now().Add(-p.rejectPendingSeenLastRequestedAgo))
+		if err != nil {
+			p.logger.Error("Failed to get blocks since last requested", slog.String("err", err.Error()))
+			break
+		}
+
+		// if enough number of blocks are not mined since the time then skip rejecting
+		if int(blocksSinceLastRequestedAlgo.GetNumOfBlocks()) < p.rejectPendingBlocksSince {
+			break
+		}
+
 		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))

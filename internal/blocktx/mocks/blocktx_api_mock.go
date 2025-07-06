@@ -36,6 +36,9 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
+//			NumOfBlocksSinceFunc: func(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+//				panic("mock out the NumOfBlocksSince method")
+//			},
 //			RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -66,6 +69,9 @@ type BlockTxAPIClientMock struct {
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
+
+	// NumOfBlocksSinceFunc mocks the NumOfBlocksSince method.
+	NumOfBlocksSinceFunc func(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -123,6 +129,15 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
+		// NumOfBlocksSince holds details about calls to the NumOfBlocksSince method.
+		NumOfBlocksSince []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// In is the in argument value.
+			In *blocktx_api.NumOfBlocksSinceTime
+			// Opts is the opts argument value.
+			Opts []grpc.CallOption
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -156,6 +171,7 @@ type BlockTxAPIClientMock struct {
 	lockClearRegisteredTransactions sync.RWMutex
 	lockCurrentBlockHeight          sync.RWMutex
 	lockHealth                      sync.RWMutex
+	lockNumOfBlocksSince            sync.RWMutex
 	lockRegisterTransaction         sync.RWMutex
 	lockRegisterTransactions        sync.RWMutex
 	lockVerifyMerkleRoots           sync.RWMutex
@@ -358,6 +374,46 @@ func (mock *BlockTxAPIClientMock) HealthCalls() []struct {
 	mock.lockHealth.RLock()
 	calls = mock.calls.Health
 	mock.lockHealth.RUnlock()
+	return calls
+}
+
+// NumOfBlocksSince calls NumOfBlocksSinceFunc.
+func (mock *BlockTxAPIClientMock) NumOfBlocksSince(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+	if mock.NumOfBlocksSinceFunc == nil {
+		panic("BlockTxAPIClientMock.NumOfBlocksSinceFunc: method is nil but BlockTxAPIClient.NumOfBlocksSince was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		In   *blocktx_api.NumOfBlocksSinceTime
+		Opts []grpc.CallOption
+	}{
+		Ctx:  ctx,
+		In:   in,
+		Opts: opts,
+	}
+	mock.lockNumOfBlocksSince.Lock()
+	mock.calls.NumOfBlocksSince = append(mock.calls.NumOfBlocksSince, callInfo)
+	mock.lockNumOfBlocksSince.Unlock()
+	return mock.NumOfBlocksSinceFunc(ctx, in, opts...)
+}
+
+// NumOfBlocksSinceCalls gets all the calls that were made to NumOfBlocksSince.
+// Check the length with:
+//
+//	len(mockedBlockTxAPIClient.NumOfBlocksSinceCalls())
+func (mock *BlockTxAPIClientMock) NumOfBlocksSinceCalls() []struct {
+	Ctx  context.Context
+	In   *blocktx_api.NumOfBlocksSinceTime
+	Opts []grpc.CallOption
+} {
+	var calls []struct {
+		Ctx  context.Context
+		In   *blocktx_api.NumOfBlocksSinceTime
+		Opts []grpc.CallOption
+	}
+	mock.lockNumOfBlocksSince.RLock()
+	calls = mock.calls.NumOfBlocksSince
+	mock.lockNumOfBlocksSince.RUnlock()
 	return calls
 }
 

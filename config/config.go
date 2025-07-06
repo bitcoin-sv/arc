@@ -107,6 +107,7 @@ type MetamorphConfig struct {
 type RejectPendingSeenConfig struct {
 	Enabled          bool          `mapstructure:"enabled"`
 	LastRequestedAgo time.Duration `mapstructure:"lastRequestedAgo"`
+	BlocksSince      int           `mapstructure:"blocksSince"`
 }
 
 type ReAnnounceSeenConfig struct {

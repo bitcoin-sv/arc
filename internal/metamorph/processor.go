@@ -40,6 +40,7 @@ const (
 	logLevelDefault                          = slog.LevelInfo
 	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
 	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
+	rejectPendingSeenBlocksSinceDefault      = 3
 	loadLimit                                = int64(50)
 	minimumHealthyConnectionsDefault         = 2
 
@@ -108,6 +109,7 @@ type Processor struct {
 
 	rejectPendingSeenEnabled          bool
 	rejectPendingSeenLastRequestedAgo time.Duration
+	rejectPendingBlocksSince          int
 
 	checkUnconfirmedSeenInterval time.Duration
 
@@ -173,6 +175,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		reAnnounceUnseenInterval:          rebroadcastUnseenIntervalDefault,
 		reAnnounceSeenPendingSince:        reAnnounceSeenPendingSinceDefault,
 		rejectPendingSeenLastRequestedAgo: rejectPendingSeenLastRequestedAgoDefault,
+		rejectPendingBlocksSince:          rejectPendingSeenBlocksSinceDefault,
 		reRegisterSeenInterval:            reRegisterSeenIntervalDefault,
 		lockTransactionsInterval:          lockTransactionsIntervalDefault,
 		checkUnconfirmedSeenInterval:      checkUnconfirmedSeenIntervalDefault,

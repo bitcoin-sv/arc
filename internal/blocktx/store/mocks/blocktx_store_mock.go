@@ -22,6 +22,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
+//			BlocksSinceFunc: func(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error) {
+//				panic("mock out the BlocksSince method")
+//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -98,6 +101,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
+	// BlocksSinceFunc mocks the BlocksSince method.
+	BlocksSinceFunc func(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error)
+
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -169,6 +175,13 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// BlocksSince holds details about calls to the BlocksSince method.
+		BlocksSince []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Since is the since argument value.
+			Since time.Time
+		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -335,6 +348,7 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
+	lockBlocksSince                       sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
 	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
@@ -358,6 +372,42 @@ type BlocktxStoreMock struct {
 	lockUpdateBlocksStatuses              sync.RWMutex
 	lockUpsertBlock                       sync.RWMutex
 	lockVerifyMerkleRoots                 sync.RWMutex
+}
+
+// BlocksSince calls BlocksSinceFunc.
+func (mock *BlocktxStoreMock) BlocksSince(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error) {
+	if mock.BlocksSinceFunc == nil {
+		panic("BlocktxStoreMock.BlocksSinceFunc: method is nil but BlocktxStore.BlocksSince was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Since time.Time
+	}{
+		Ctx:   ctx,
+		Since: since,
+	}
+	mock.lockBlocksSince.Lock()
+	mock.calls.BlocksSince = append(mock.calls.BlocksSince, callInfo)
+	mock.lockBlocksSince.Unlock()
+	return mock.BlocksSinceFunc(ctx, since)
+}
+
+// BlocksSinceCalls gets all the calls that were made to BlocksSince.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.BlocksSinceCalls())
+func (mock *BlocktxStoreMock) BlocksSinceCalls() []struct {
+	Ctx   context.Context
+	Since time.Time
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Since time.Time
+	}
+	mock.lockBlocksSince.RLock()
+	calls = mock.calls.BlocksSince
+	mock.lockBlocksSince.RUnlock()
+	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.

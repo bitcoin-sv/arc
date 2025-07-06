@@ -129,6 +129,94 @@ func (x *IsMined) GetMined() bool {
 	return false
 }
 
+type NumOfBlocksSinceTime struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NumOfBlocksSinceTime) Reset() {
+	*x = NumOfBlocksSinceTime{}
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NumOfBlocksSinceTime) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NumOfBlocksSinceTime) ProtoMessage() {}
+
+func (x *NumOfBlocksSinceTime) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NumOfBlocksSinceTime.ProtoReflect.Descriptor instead.
+func (*NumOfBlocksSinceTime) Descriptor() ([]byte, []int) {
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *NumOfBlocksSinceTime) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+type NumOfBlocksSinceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NumOfBlocks   uint64                 `protobuf:"varint,1,opt,name=numOfBlocks,proto3" json:"numOfBlocks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NumOfBlocksSinceResponse) Reset() {
+	*x = NumOfBlocksSinceResponse{}
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NumOfBlocksSinceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NumOfBlocksSinceResponse) ProtoMessage() {}
+
+func (x *NumOfBlocksSinceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NumOfBlocksSinceResponse.ProtoReflect.Descriptor instead.
+func (*NumOfBlocksSinceResponse) Descriptor() ([]byte, []int) {
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NumOfBlocksSinceResponse) GetNumOfBlocks() uint64 {
+	if x != nil {
+		return x.NumOfBlocks
+	}
+	return 0
+}
+
 type AnyTransactionsMinedResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Transactions  []*IsMined             `protobuf:"bytes,1,rep,name=transactions,proto3" json:"transactions,omitempty"`
@@ -138,7 +226,7 @@ type AnyTransactionsMinedResponse struct {
 
 func (x *AnyTransactionsMinedResponse) Reset() {
 	*x = AnyTransactionsMinedResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +238,7 @@ func (x *AnyTransactionsMinedResponse) String() string {
 func (*AnyTransactionsMinedResponse) ProtoMessage() {}
 
 func (x *AnyTransactionsMinedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +251,7 @@ func (x *AnyTransactionsMinedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnyTransactionsMinedResponse.ProtoReflect.Descriptor instead.
 func (*AnyTransactionsMinedResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{1}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AnyTransactionsMinedResponse) GetTransactions() []*IsMined {
@@ -186,7 +274,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -198,7 +286,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -211,7 +299,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{2}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HealthResponse) GetOk() bool {
@@ -258,7 +346,7 @@ type Block struct {
 
 func (x *Block) Reset() {
 	*x = Block{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[3]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +358,7 @@ func (x *Block) String() string {
 func (*Block) ProtoMessage() {}
 
 func (x *Block) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[3]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +371,7 @@ func (x *Block) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Block.ProtoReflect.Descriptor instead.
 func (*Block) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{3}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Block) GetHash() []byte {
@@ -345,7 +433,7 @@ type Transactions struct {
 
 func (x *Transactions) Reset() {
 	*x = Transactions{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[4]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +445,7 @@ func (x *Transactions) String() string {
 func (*Transactions) ProtoMessage() {}
 
 func (x *Transactions) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[4]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +458,7 @@ func (x *Transactions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transactions.ProtoReflect.Descriptor instead.
 func (*Transactions) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{4}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Transactions) GetTransactions() []*Transaction {
@@ -393,7 +481,7 @@ type TransactionBlock struct {
 
 func (x *TransactionBlock) Reset() {
 	*x = TransactionBlock{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[5]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -405,7 +493,7 @@ func (x *TransactionBlock) String() string {
 func (*TransactionBlock) ProtoMessage() {}
 
 func (x *TransactionBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[5]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -418,7 +506,7 @@ func (x *TransactionBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionBlock.ProtoReflect.Descriptor instead.
 func (*TransactionBlock) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{5}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TransactionBlock) GetBlockHash() []byte {
@@ -465,7 +553,7 @@ type TransactionBlocks struct {
 
 func (x *TransactionBlocks) Reset() {
 	*x = TransactionBlocks{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[6]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -477,7 +565,7 @@ func (x *TransactionBlocks) String() string {
 func (*TransactionBlocks) ProtoMessage() {}
 
 func (x *TransactionBlocks) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[6]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -490,7 +578,7 @@ func (x *TransactionBlocks) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransactionBlocks.ProtoReflect.Descriptor instead.
 func (*TransactionBlocks) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{6}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TransactionBlocks) GetTransactionBlocks() []*TransactionBlock {
@@ -510,7 +598,7 @@ type Transaction struct {
 
 func (x *Transaction) Reset() {
 	*x = Transaction{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[7]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +610,7 @@ func (x *Transaction) String() string {
 func (*Transaction) ProtoMessage() {}
 
 func (x *Transaction) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[7]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +623,7 @@ func (x *Transaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transaction.ProtoReflect.Descriptor instead.
 func (*Transaction) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{7}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Transaction) GetHash() []byte {
@@ -555,7 +643,7 @@ type ClearData struct {
 
 func (x *ClearData) Reset() {
 	*x = ClearData{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +655,7 @@ func (x *ClearData) String() string {
 func (*ClearData) ProtoMessage() {}
 
 func (x *ClearData) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[8]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +668,7 @@ func (x *ClearData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearData.ProtoReflect.Descriptor instead.
 func (*ClearData) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{8}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ClearData) GetRetentionDays() int32 {
@@ -600,7 +688,7 @@ type RowsAffectedResponse struct {
 
 func (x *RowsAffectedResponse) Reset() {
 	*x = RowsAffectedResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +700,7 @@ func (x *RowsAffectedResponse) String() string {
 func (*RowsAffectedResponse) ProtoMessage() {}
 
 func (x *RowsAffectedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[9]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +713,7 @@ func (x *RowsAffectedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RowsAffectedResponse.ProtoReflect.Descriptor instead.
 func (*RowsAffectedResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{9}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RowsAffectedResponse) GetRows() int64 {
@@ -645,7 +733,7 @@ type CurrentBlockHeightResponse struct {
 
 func (x *CurrentBlockHeightResponse) Reset() {
 	*x = CurrentBlockHeightResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +745,7 @@ func (x *CurrentBlockHeightResponse) String() string {
 func (*CurrentBlockHeightResponse) ProtoMessage() {}
 
 func (x *CurrentBlockHeightResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[10]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +758,7 @@ func (x *CurrentBlockHeightResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrentBlockHeightResponse.ProtoReflect.Descriptor instead.
 func (*CurrentBlockHeightResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{10}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CurrentBlockHeightResponse) GetCurrentBlockHeight() uint64 {
@@ -689,7 +777,7 @@ type DelUnfinishedBlockProcessingRequest struct {
 
 func (x *DelUnfinishedBlockProcessingRequest) Reset() {
 	*x = DelUnfinishedBlockProcessingRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +789,7 @@ func (x *DelUnfinishedBlockProcessingRequest) String() string {
 func (*DelUnfinishedBlockProcessingRequest) ProtoMessage() {}
 
 func (x *DelUnfinishedBlockProcessingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[11]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +802,7 @@ func (x *DelUnfinishedBlockProcessingRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use DelUnfinishedBlockProcessingRequest.ProtoReflect.Descriptor instead.
 func (*DelUnfinishedBlockProcessingRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{11}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DelUnfinishedBlockProcessingRequest) GetProcessedBy() string {
@@ -734,7 +822,7 @@ type MerkleRootVerificationRequest struct {
 
 func (x *MerkleRootVerificationRequest) Reset() {
 	*x = MerkleRootVerificationRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +834,7 @@ func (x *MerkleRootVerificationRequest) String() string {
 func (*MerkleRootVerificationRequest) ProtoMessage() {}
 
 func (x *MerkleRootVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[12]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -759,7 +847,7 @@ func (x *MerkleRootVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootVerificationRequest.ProtoReflect.Descriptor instead.
 func (*MerkleRootVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{12}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MerkleRootVerificationRequest) GetMerkleRoot() string {
@@ -785,7 +873,7 @@ type MerkleRootsVerificationRequest struct {
 
 func (x *MerkleRootsVerificationRequest) Reset() {
 	*x = MerkleRootsVerificationRequest{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[13]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -797,7 +885,7 @@ func (x *MerkleRootsVerificationRequest) String() string {
 func (*MerkleRootsVerificationRequest) ProtoMessage() {}
 
 func (x *MerkleRootsVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[13]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -810,7 +898,7 @@ func (x *MerkleRootsVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootsVerificationRequest.ProtoReflect.Descriptor instead.
 func (*MerkleRootsVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{13}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MerkleRootsVerificationRequest) GetMerkleRoots() []*MerkleRootVerificationRequest {
@@ -829,7 +917,7 @@ type MerkleRootVerificationResponse struct {
 
 func (x *MerkleRootVerificationResponse) Reset() {
 	*x = MerkleRootVerificationResponse{}
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[14]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +929,7 @@ func (x *MerkleRootVerificationResponse) String() string {
 func (*MerkleRootVerificationResponse) ProtoMessage() {}
 
 func (x *MerkleRootVerificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[14]
+	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +942,7 @@ func (x *MerkleRootVerificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MerkleRootVerificationResponse.ProtoReflect.Descriptor instead.
 func (*MerkleRootVerificationResponse) Descriptor() ([]byte, []int) {
-	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{14}
+	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MerkleRootVerificationResponse) GetUnverifiedBlockHeights() []uint64 {
@@ -871,7 +959,11 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	".internal/blocktx/blocktx_api/blocktx_api.proto\x12\vblocktx_api\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"3\n" +
 	"\aIsMined\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x14\n" +
-	"\x05mined\x18\x02 \x01(\bR\x05mined\"X\n" +
+	"\x05mined\x18\x02 \x01(\bR\x05mined\"H\n" +
+	"\x14NumOfBlocksSinceTime\x120\n" +
+	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"<\n" +
+	"\x18NumOfBlocksSinceResponse\x12 \n" +
+	"\vnumOfBlocks\x18\x01 \x01(\x04R\vnumOfBlocks\"X\n" +
 	"\x1cAnyTransactionsMinedResponse\x128\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x14.blocktx_api.IsMinedR\ftransactions\"\x88\x01\n" +
 	"\x0eHealthResponse\x12\x0e\n" +
@@ -924,7 +1016,7 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\aLONGEST\x10\n" +
 	"\x12\t\n" +
 	"\x05STALE\x10\x14\x12\f\n" +
-	"\bORPHANED\x10\x1e2\xb7\x05\n" +
+	"\bORPHANED\x10\x1e2\x97\x06\n" +
 	"\n" +
 	"BlockTxAPI\x12?\n" +
 	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1b.blocktx_api.HealthResponse\"\x00\x12J\n" +
@@ -934,6 +1026,7 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\x13RegisterTransaction\x12\x18.blocktx_api.Transaction\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x14RegisterTransactions\x12\x19.blocktx_api.Transactions\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
 	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00\x12^\n" +
+	"\x10NumOfBlocksSince\x12!.blocktx_api.NumOfBlocksSinceTime\x1a%.blocktx_api.NumOfBlocksSinceResponse\"\x00\x12^\n" +
 	"\x14AnyTransactionsMined\x12\x19.blocktx_api.Transactions\x1a).blocktx_api.AnyTransactionsMinedResponse\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
 
 var (
@@ -949,56 +1042,61 @@ func file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP() []byte {
 }
 
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_goTypes = []any{
 	(Status)(0),                                 // 0: blocktx_api.Status
 	(*IsMined)(nil),                             // 1: blocktx_api.IsMined
-	(*AnyTransactionsMinedResponse)(nil),        // 2: blocktx_api.AnyTransactionsMinedResponse
-	(*HealthResponse)(nil),                      // 3: blocktx_api.HealthResponse
-	(*Block)(nil),                               // 4: blocktx_api.Block
-	(*Transactions)(nil),                        // 5: blocktx_api.Transactions
-	(*TransactionBlock)(nil),                    // 6: blocktx_api.TransactionBlock
-	(*TransactionBlocks)(nil),                   // 7: blocktx_api.TransactionBlocks
-	(*Transaction)(nil),                         // 8: blocktx_api.Transaction
-	(*ClearData)(nil),                           // 9: blocktx_api.ClearData
-	(*RowsAffectedResponse)(nil),                // 10: blocktx_api.RowsAffectedResponse
-	(*CurrentBlockHeightResponse)(nil),          // 11: blocktx_api.CurrentBlockHeightResponse
-	(*DelUnfinishedBlockProcessingRequest)(nil), // 12: blocktx_api.DelUnfinishedBlockProcessingRequest
-	(*MerkleRootVerificationRequest)(nil),       // 13: blocktx_api.MerkleRootVerificationRequest
-	(*MerkleRootsVerificationRequest)(nil),      // 14: blocktx_api.MerkleRootsVerificationRequest
-	(*MerkleRootVerificationResponse)(nil),      // 15: blocktx_api.MerkleRootVerificationResponse
-	(*timestamppb.Timestamp)(nil),               // 16: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                       // 17: google.protobuf.Empty
+	(*NumOfBlocksSinceTime)(nil),                // 2: blocktx_api.NumOfBlocksSinceTime
+	(*NumOfBlocksSinceResponse)(nil),            // 3: blocktx_api.NumOfBlocksSinceResponse
+	(*AnyTransactionsMinedResponse)(nil),        // 4: blocktx_api.AnyTransactionsMinedResponse
+	(*HealthResponse)(nil),                      // 5: blocktx_api.HealthResponse
+	(*Block)(nil),                               // 6: blocktx_api.Block
+	(*Transactions)(nil),                        // 7: blocktx_api.Transactions
+	(*TransactionBlock)(nil),                    // 8: blocktx_api.TransactionBlock
+	(*TransactionBlocks)(nil),                   // 9: blocktx_api.TransactionBlocks
+	(*Transaction)(nil),                         // 10: blocktx_api.Transaction
+	(*ClearData)(nil),                           // 11: blocktx_api.ClearData
+	(*RowsAffectedResponse)(nil),                // 12: blocktx_api.RowsAffectedResponse
+	(*CurrentBlockHeightResponse)(nil),          // 13: blocktx_api.CurrentBlockHeightResponse
+	(*DelUnfinishedBlockProcessingRequest)(nil), // 14: blocktx_api.DelUnfinishedBlockProcessingRequest
+	(*MerkleRootVerificationRequest)(nil),       // 15: blocktx_api.MerkleRootVerificationRequest
+	(*MerkleRootsVerificationRequest)(nil),      // 16: blocktx_api.MerkleRootsVerificationRequest
+	(*MerkleRootVerificationResponse)(nil),      // 17: blocktx_api.MerkleRootVerificationResponse
+	(*timestamppb.Timestamp)(nil),               // 18: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                       // 19: google.protobuf.Empty
 }
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_depIdxs = []int32{
-	1,  // 0: blocktx_api.AnyTransactionsMinedResponse.transactions:type_name -> blocktx_api.IsMined
-	16, // 1: blocktx_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 2: blocktx_api.Block.status:type_name -> blocktx_api.Status
-	8,  // 3: blocktx_api.Transactions.transactions:type_name -> blocktx_api.Transaction
-	0,  // 4: blocktx_api.TransactionBlock.block_status:type_name -> blocktx_api.Status
-	6,  // 5: blocktx_api.TransactionBlocks.transaction_blocks:type_name -> blocktx_api.TransactionBlock
-	13, // 6: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
-	17, // 7: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
-	9,  // 8: blocktx_api.BlockTxAPI.ClearBlocks:input_type -> blocktx_api.ClearData
-	9,  // 9: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:input_type -> blocktx_api.ClearData
-	14, // 10: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
-	8,  // 11: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
-	5,  // 12: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
-	17, // 13: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
-	5,  // 14: blocktx_api.BlockTxAPI.AnyTransactionsMined:input_type -> blocktx_api.Transactions
-	3,  // 15: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
-	10, // 16: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
-	10, // 17: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
-	15, // 18: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
-	17, // 19: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
-	17, // 20: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
-	11, // 21: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
-	2,  // 22: blocktx_api.BlockTxAPI.AnyTransactionsMined:output_type -> blocktx_api.AnyTransactionsMinedResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	18, // 0: blocktx_api.NumOfBlocksSinceTime.since:type_name -> google.protobuf.Timestamp
+	1,  // 1: blocktx_api.AnyTransactionsMinedResponse.transactions:type_name -> blocktx_api.IsMined
+	18, // 2: blocktx_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 3: blocktx_api.Block.status:type_name -> blocktx_api.Status
+	10, // 4: blocktx_api.Transactions.transactions:type_name -> blocktx_api.Transaction
+	0,  // 5: blocktx_api.TransactionBlock.block_status:type_name -> blocktx_api.Status
+	8,  // 6: blocktx_api.TransactionBlocks.transaction_blocks:type_name -> blocktx_api.TransactionBlock
+	15, // 7: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
+	19, // 8: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
+	11, // 9: blocktx_api.BlockTxAPI.ClearBlocks:input_type -> blocktx_api.ClearData
+	11, // 10: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:input_type -> blocktx_api.ClearData
+	16, // 11: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
+	10, // 12: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
+	7,  // 13: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
+	19, // 14: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
+	2,  // 15: blocktx_api.BlockTxAPI.NumOfBlocksSince:input_type -> blocktx_api.NumOfBlocksSinceTime
+	7,  // 16: blocktx_api.BlockTxAPI.AnyTransactionsMined:input_type -> blocktx_api.Transactions
+	5,  // 17: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
+	12, // 18: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
+	12, // 19: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
+	17, // 20: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
+	19, // 21: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
+	19, // 22: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
+	13, // 23: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
+	3,  // 24: blocktx_api.BlockTxAPI.NumOfBlocksSince:output_type -> blocktx_api.NumOfBlocksSinceResponse
+	4,  // 25: blocktx_api.BlockTxAPI.AnyTransactionsMined:output_type -> blocktx_api.AnyTransactionsMinedResponse
+	17, // [17:26] is the sub-list for method output_type
+	8,  // [8:17] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_internal_blocktx_blocktx_api_blocktx_api_proto_init() }
@@ -1012,7 +1110,7 @@ func file_internal_blocktx_blocktx_api_blocktx_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc), len(file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -27,6 +27,7 @@ const (
 	BlockTxAPI_RegisterTransaction_FullMethodName         = "/blocktx_api.BlockTxAPI/RegisterTransaction"
 	BlockTxAPI_RegisterTransactions_FullMethodName        = "/blocktx_api.BlockTxAPI/RegisterTransactions"
 	BlockTxAPI_CurrentBlockHeight_FullMethodName          = "/blocktx_api.BlockTxAPI/CurrentBlockHeight"
+	BlockTxAPI_NumOfBlocksSince_FullMethodName            = "/blocktx_api.BlockTxAPI/NumOfBlocksSince"
 	BlockTxAPI_AnyTransactionsMined_FullMethodName        = "/blocktx_api.BlockTxAPI/AnyTransactionsMined"
 )
 
@@ -48,6 +49,8 @@ type BlockTxAPIClient interface {
 	RegisterTransactions(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// CurrentBlockHeight returns current block height
 	CurrentBlockHeight(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CurrentBlockHeightResponse, error)
+	// NumOfBlocksSince returns number of mined blocks since specific time
+	NumOfBlocksSince(ctx context.Context, in *NumOfBlocksSinceTime, opts ...grpc.CallOption) (*NumOfBlocksSinceResponse, error)
 	// AnyTransactionsMined returns true if any of the transactions is mined
 	AnyTransactionsMined(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*AnyTransactionsMinedResponse, error)
 }
@@ -130,6 +133,16 @@ func (c *blockTxAPIClient) CurrentBlockHeight(ctx context.Context, in *emptypb.E
 	return out, nil
 }
 
+func (c *blockTxAPIClient) NumOfBlocksSince(ctx context.Context, in *NumOfBlocksSinceTime, opts ...grpc.CallOption) (*NumOfBlocksSinceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NumOfBlocksSinceResponse)
+	err := c.cc.Invoke(ctx, BlockTxAPI_NumOfBlocksSince_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *blockTxAPIClient) AnyTransactionsMined(ctx context.Context, in *Transactions, opts ...grpc.CallOption) (*AnyTransactionsMinedResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AnyTransactionsMinedResponse)
@@ -158,6 +171,8 @@ type BlockTxAPIServer interface {
 	RegisterTransactions(context.Context, *Transactions) (*emptypb.Empty, error)
 	// CurrentBlockHeight returns current block height
 	CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error)
+	// NumOfBlocksSince returns number of mined blocks since specific time
+	NumOfBlocksSince(context.Context, *NumOfBlocksSinceTime) (*NumOfBlocksSinceResponse, error)
 	// AnyTransactionsMined returns true if any of the transactions is mined
 	AnyTransactionsMined(context.Context, *Transactions) (*AnyTransactionsMinedResponse, error)
 	mustEmbedUnimplementedBlockTxAPIServer()
@@ -190,6 +205,9 @@ func (UnimplementedBlockTxAPIServer) RegisterTransactions(context.Context, *Tran
 }
 func (UnimplementedBlockTxAPIServer) CurrentBlockHeight(context.Context, *emptypb.Empty) (*CurrentBlockHeightResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CurrentBlockHeight not implemented")
+}
+func (UnimplementedBlockTxAPIServer) NumOfBlocksSince(context.Context, *NumOfBlocksSinceTime) (*NumOfBlocksSinceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NumOfBlocksSince not implemented")
 }
 func (UnimplementedBlockTxAPIServer) AnyTransactionsMined(context.Context, *Transactions) (*AnyTransactionsMinedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AnyTransactionsMined not implemented")
@@ -341,6 +359,24 @@ func _BlockTxAPI_CurrentBlockHeight_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BlockTxAPI_NumOfBlocksSince_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NumOfBlocksSinceTime)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockTxAPIServer).NumOfBlocksSince(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BlockTxAPI_NumOfBlocksSince_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockTxAPIServer).NumOfBlocksSince(ctx, req.(*NumOfBlocksSinceTime))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BlockTxAPI_AnyTransactionsMined_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Transactions)
 	if err := dec(in); err != nil {
@@ -393,6 +429,10 @@ var BlockTxAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CurrentBlockHeight",
 			Handler:    _BlockTxAPI_CurrentBlockHeight_Handler,
+		},
+		{
+			MethodName: "NumOfBlocksSince",
+			Handler:    _BlockTxAPI_NumOfBlocksSince_Handler,
 		},
 		{
 			MethodName: "AnyTransactionsMined",

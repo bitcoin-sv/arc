@@ -147,3 +147,12 @@ func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*block
 	height, err := s.processor.CurrentBlockHeight()
 	return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: height}, err
 }
+
+func (s *Server) NumOfBlocksSince(ctx context.Context, req *blocktx_api.NumOfBlocksSinceTime) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+	numOfBlocks, err := s.store.BlocksSince(ctx, req.Since.AsTime())
+	if err != nil {
+		return nil, err
+	}
+
+	return &blocktx_api.NumOfBlocksSinceResponse{NumOfBlocks: uint64(len(numOfBlocks))}, nil
+}

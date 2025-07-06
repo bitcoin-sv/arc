@@ -22,6 +22,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //		// make and configure a mocked store.MetamorphStore
 //		mockedMetamorphStore := &MetamorphStoreMock{
+//			BlocksSinceFunc: func(ctx context.Context, requestedAgo time.Duration) (int, error) {
+//				panic("mock out the BlocksSince method")
+//			},
 //			ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearData method")
 //			},
@@ -104,6 +107,9 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //
 //	}
 type MetamorphStoreMock struct {
+	// BlocksSinceFunc mocks the BlocksSince method.
+	BlocksSinceFunc func(ctx context.Context, requestedAgo time.Duration) (int, error)
+
 	// ClearDataFunc mocks the ClearData method.
 	ClearDataFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
@@ -181,6 +187,13 @@ type MetamorphStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// BlocksSince holds details about calls to the BlocksSince method.
+		BlocksSince []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// RequestedAgo is the requestedAgo argument value.
+			RequestedAgo time.Duration
+		}
 		// ClearData holds details about calls to the ClearData method.
 		ClearData []struct {
 			// Ctx is the ctx argument value.
@@ -383,6 +396,7 @@ type MetamorphStoreMock struct {
 			Updates []store.UpdateStatus
 		}
 	}
+	lockBlocksSince             sync.RWMutex
 	lockClearData               sync.RWMutex
 	lockClose                   sync.RWMutex
 	lockDel                     sync.RWMutex
@@ -408,6 +422,42 @@ type MetamorphStoreMock struct {
 	lockUpdateMined             sync.RWMutex
 	lockUpdateStatus            sync.RWMutex
 	lockUpdateStatusHistory     sync.RWMutex
+}
+
+// BlocksSince calls BlocksSinceFunc.
+func (mock *MetamorphStoreMock) BlocksSince(ctx context.Context, requestedAgo time.Duration) (int, error) {
+	if mock.BlocksSinceFunc == nil {
+		panic("MetamorphStoreMock.BlocksSinceFunc: method is nil but MetamorphStore.BlocksSince was just called")
+	}
+	callInfo := struct {
+		Ctx          context.Context
+		RequestedAgo time.Duration
+	}{
+		Ctx:          ctx,
+		RequestedAgo: requestedAgo,
+	}
+	mock.lockBlocksSince.Lock()
+	mock.calls.BlocksSince = append(mock.calls.BlocksSince, callInfo)
+	mock.lockBlocksSince.Unlock()
+	return mock.BlocksSinceFunc(ctx, requestedAgo)
+}
+
+// BlocksSinceCalls gets all the calls that were made to BlocksSince.
+// Check the length with:
+//
+//	len(mockedMetamorphStore.BlocksSinceCalls())
+func (mock *MetamorphStoreMock) BlocksSinceCalls() []struct {
+	Ctx          context.Context
+	RequestedAgo time.Duration
+} {
+	var calls []struct {
+		Ctx          context.Context
+		RequestedAgo time.Duration
+	}
+	mock.lockBlocksSince.RLock()
+	calls = mock.calls.BlocksSince
+	mock.lockBlocksSince.RUnlock()
+	return calls
 }
 
 // ClearData calls ClearDataFunc.

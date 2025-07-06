@@ -62,6 +62,7 @@ metamorph:
   rejectPendingSeen:
     enabled: false # if enabled, transactions which are pending in seen on network status for too long, are rejected
     lastRequestedAgo: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+    blocksSince: 3 # number of blocks since which transactions with SEEN_ON_NETWORK should be considered rejected
   reRegisterSeen: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:

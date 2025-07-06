@@ -1268,7 +1268,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			iteration := 0
 
 			blocktxClient := &btxMocks.ClientMock{
-				NumOfBlocksSinceFunc: func(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
+				NumOfBlocksSinceFunc: func(_ context.Context, _ time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
 					return &blocktx_api.NumOfBlocksSinceResponse{NumOfBlocks: tc.minedBlocksSince}, nil
 				},
 			}

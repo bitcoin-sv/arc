@@ -40,7 +40,7 @@ const (
 	logLevelDefault                          = slog.LevelInfo
 	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
 	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
-	rejectPendingSeenBlocksSinceDefault      = 3
+	rejectPendingSeenBlocksSinceDefault      = uint64(3)
 	loadLimit                                = int64(50)
 	minimumHealthyConnectionsDefault         = 2
 
@@ -109,7 +109,7 @@ type Processor struct {
 
 	rejectPendingSeenEnabled          bool
 	rejectPendingSeenLastRequestedAgo time.Duration
-	rejectPendingBlocksSince          int
+	rejectPendingBlocksSince          uint64
 
 	checkUnconfirmedSeenInterval time.Duration
 

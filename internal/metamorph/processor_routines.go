@@ -107,10 +107,10 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		}
 
 		// if enough number of blocks are not mined since the time then skip rejecting
-		if int(blocksSinceLastRequestedAlgo.GetNumOfBlocks()) < p.rejectPendingBlocksSince {
-			p.logger.Info("Skipping rejecting unconfirmed txs", slog.Int("numOfBlocks", int(blocksSinceLastRequestedAlgo.GetNumOfBlocks())), slog.Int("required", p.rejectPendingBlocksSince)) // #nosec G115
+		if blocksSinceLastRequestedAlgo.GetNumOfBlocks() < p.rejectPendingBlocksSince {
+			p.logger.Info("Skipping rejecting unconfirmed txs", slog.Int("numOfBlocks", int(blocksSinceLastRequestedAlgo.GetNumOfBlocks())), slog.Uint64("required", p.rejectPendingBlocksSince))
 			break
-		} // #nosec G115
+		}
 
 		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {

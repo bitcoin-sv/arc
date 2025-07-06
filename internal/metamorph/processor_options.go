@@ -49,7 +49,7 @@ func WithRejectPendingSeenLastRequestedAgo(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithRejectPendingBlocksSince(blocks int) func(*Processor) {
+func WithRejectPendingBlocksSince(blocks uint64) func(*Processor) {
 	return func(p *Processor) {
 		p.rejectPendingBlocksSince = blocks
 	}

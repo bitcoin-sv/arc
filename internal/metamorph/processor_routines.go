@@ -107,7 +107,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		}
 
 		// if enough number of blocks are not mined since the time then skip rejecting
-		if int(blocksSinceLastRequestedAlgo.GetNumOfBlocks()) < p.rejectPendingBlocksSince {
+		if int(blocksSinceLastRequestedAlgo.GetNumOfBlocks()) < p.rejectPendingBlocksSince { // #nosec G115
 			break
 		}
 

@@ -124,7 +124,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		if len(txs) == 0 {
 			break
 		}
-		p.logger.Info("shota 3", len(txs))
+		p.logger.Info("shota 3", slog.Int("count", len(txs)))
 		for _, tx := range txs {
 			if tx.RequestedAt.After(blocksSinceLastRequested.GetBlocks()[p.rejectPendingBlocksSince-1].ProcessedAt.AsTime()) {
 				p.logger.Debug("Skipping tx, requested too recently", slog.String("hash", tx.Hash.String()), slog.Time("requested_at", tx.RequestedAt))

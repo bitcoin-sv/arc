@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -1405,11 +1406,12 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
+			fmt.Println("Shota starting ...")
 			metamorph.RejectUnconfirmedRequested(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetUnconfirmedCalls, len(metamorphStore.GetUnconfirmedRequestedCalls()))
-
+			fmt.Println("Shota ending ...")
 			for i := 0; i < tc.expectedRejections; i++ {
 				select {
 				case z := <-statusMessageChannel:
@@ -1419,6 +1421,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					t.Fatal("callback exceeded timeout")
 				}
 			}
+			fmt.Println("Shota end 2 ...")
 		})
 	}
 }

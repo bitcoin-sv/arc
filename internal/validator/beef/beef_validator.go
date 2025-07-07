@@ -113,6 +113,11 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 	}
 
+	isValid := beefTx.IsValid(false)
+	if !isValid {
+		return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, errors.New(beefTx.ToLogString())), api.ErrStatusBeefValidationFailedBeefInvalid)
+	}
+
 	var verificationSuccessful bool
 	// verify with chain tracker
 	verificationSuccessful, err = beefTx.Verify(v.chainTracker, false)

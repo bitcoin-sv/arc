@@ -257,6 +257,16 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 		return false, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %v", err))
 	}
 
+	if response.ConfirmationState != bhsDomains.Confirmed {
+		c.logger.Warn("unconfirmed",
+			slog.String("url", url),
+			slog.String("root", root.String()),
+			slog.Uint64("height", uint64(height)),
+			slog.String("payload", string(jsonPayload)),
+			slog.String("response", string(body)),
+		)
+	}
+
 	return response.ConfirmationState == bhsDomains.Confirmed, nil
 }
 

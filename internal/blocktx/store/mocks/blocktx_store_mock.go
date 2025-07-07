@@ -22,9 +22,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			BlocksSinceFunc: func(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error) {
-//				panic("mock out the BlocksSince method")
-//			},
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
@@ -70,6 +67,9 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			InsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error {
 //				panic("mock out the InsertBlockTransactions method")
 //			},
+//			LatestBlocksFunc: func(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error) {
+//				panic("mock out the LatestBlocks method")
+//			},
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
 //			},
@@ -101,9 +101,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
-	// BlocksSinceFunc mocks the BlocksSince method.
-	BlocksSinceFunc func(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error)
-
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
 
@@ -149,6 +146,9 @@ type BlocktxStoreMock struct {
 	// InsertBlockTransactionsFunc mocks the InsertBlockTransactions method.
 	InsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error
 
+	// LatestBlocksFunc mocks the LatestBlocks method.
+	LatestBlocksFunc func(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error)
+
 	// MarkBlockAsDoneFunc mocks the MarkBlockAsDone method.
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 
@@ -175,13 +175,6 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// BlocksSince holds details about calls to the BlocksSince method.
-		BlocksSince []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Since is the since argument value.
-			Since time.Time
-		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -283,6 +276,13 @@ type BlocktxStoreMock struct {
 			// TxsWithMerklePaths is the txsWithMerklePaths argument value.
 			TxsWithMerklePaths []store.TxHashWithMerkleTreeIndex
 		}
+		// LatestBlocks holds details about calls to the LatestBlocks method.
+		LatestBlocks []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// NumOfBlocks is the numOfBlocks argument value.
+			NumOfBlocks uint64
+		}
 		// MarkBlockAsDone holds details about calls to the MarkBlockAsDone method.
 		MarkBlockAsDone []struct {
 			// Ctx is the ctx argument value.
@@ -348,7 +348,6 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
-	lockBlocksSince                       sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
 	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
@@ -364,6 +363,7 @@ type BlocktxStoreMock struct {
 	lockGetStaleChainBackFromHash         sync.RWMutex
 	lockGetStats                          sync.RWMutex
 	lockInsertBlockTransactions           sync.RWMutex
+	lockLatestBlocks                      sync.RWMutex
 	lockMarkBlockAsDone                   sync.RWMutex
 	lockPing                              sync.RWMutex
 	lockRegisterTransactions              sync.RWMutex
@@ -372,42 +372,6 @@ type BlocktxStoreMock struct {
 	lockUpdateBlocksStatuses              sync.RWMutex
 	lockUpsertBlock                       sync.RWMutex
 	lockVerifyMerkleRoots                 sync.RWMutex
-}
-
-// BlocksSince calls BlocksSinceFunc.
-func (mock *BlocktxStoreMock) BlocksSince(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error) {
-	if mock.BlocksSinceFunc == nil {
-		panic("BlocktxStoreMock.BlocksSinceFunc: method is nil but BlocktxStore.BlocksSince was just called")
-	}
-	callInfo := struct {
-		Ctx   context.Context
-		Since time.Time
-	}{
-		Ctx:   ctx,
-		Since: since,
-	}
-	mock.lockBlocksSince.Lock()
-	mock.calls.BlocksSince = append(mock.calls.BlocksSince, callInfo)
-	mock.lockBlocksSince.Unlock()
-	return mock.BlocksSinceFunc(ctx, since)
-}
-
-// BlocksSinceCalls gets all the calls that were made to BlocksSince.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.BlocksSinceCalls())
-func (mock *BlocktxStoreMock) BlocksSinceCalls() []struct {
-	Ctx   context.Context
-	Since time.Time
-} {
-	var calls []struct {
-		Ctx   context.Context
-		Since time.Time
-	}
-	mock.lockBlocksSince.RLock()
-	calls = mock.calls.BlocksSince
-	mock.lockBlocksSince.RUnlock()
-	return calls
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
@@ -938,6 +902,42 @@ func (mock *BlocktxStoreMock) InsertBlockTransactionsCalls() []struct {
 	mock.lockInsertBlockTransactions.RLock()
 	calls = mock.calls.InsertBlockTransactions
 	mock.lockInsertBlockTransactions.RUnlock()
+	return calls
+}
+
+// LatestBlocks calls LatestBlocksFunc.
+func (mock *BlocktxStoreMock) LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error) {
+	if mock.LatestBlocksFunc == nil {
+		panic("BlocktxStoreMock.LatestBlocksFunc: method is nil but BlocktxStore.LatestBlocks was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		NumOfBlocks uint64
+	}{
+		Ctx:         ctx,
+		NumOfBlocks: numOfBlocks,
+	}
+	mock.lockLatestBlocks.Lock()
+	mock.calls.LatestBlocks = append(mock.calls.LatestBlocks, callInfo)
+	mock.lockLatestBlocks.Unlock()
+	return mock.LatestBlocksFunc(ctx, numOfBlocks)
+}
+
+// LatestBlocksCalls gets all the calls that were made to LatestBlocks.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.LatestBlocksCalls())
+func (mock *BlocktxStoreMock) LatestBlocksCalls() []struct {
+	Ctx         context.Context
+	NumOfBlocks uint64
+} {
+	var calls []struct {
+		Ctx         context.Context
+		NumOfBlocks uint64
+	}
+	mock.lockLatestBlocks.RLock()
+	calls = mock.calls.LatestBlocks
+	mock.lockLatestBlocks.RUnlock()
 	return calls
 }
 

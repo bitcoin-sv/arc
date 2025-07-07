@@ -129,27 +129,27 @@ func (x *IsMined) GetMined() bool {
 	return false
 }
 
-type NumOfBlocksSinceTime struct {
+type NumOfLatestBlocks struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	Blocks        uint64                 `protobuf:"varint,1,opt,name=blocks,proto3" json:"blocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *NumOfBlocksSinceTime) Reset() {
-	*x = NumOfBlocksSinceTime{}
+func (x *NumOfLatestBlocks) Reset() {
+	*x = NumOfLatestBlocks{}
 	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NumOfBlocksSinceTime) String() string {
+func (x *NumOfLatestBlocks) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NumOfBlocksSinceTime) ProtoMessage() {}
+func (*NumOfLatestBlocks) ProtoMessage() {}
 
-func (x *NumOfBlocksSinceTime) ProtoReflect() protoreflect.Message {
+func (x *NumOfLatestBlocks) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -161,39 +161,39 @@ func (x *NumOfBlocksSinceTime) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NumOfBlocksSinceTime.ProtoReflect.Descriptor instead.
-func (*NumOfBlocksSinceTime) Descriptor() ([]byte, []int) {
+// Deprecated: Use NumOfLatestBlocks.ProtoReflect.Descriptor instead.
+func (*NumOfLatestBlocks) Descriptor() ([]byte, []int) {
 	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *NumOfBlocksSinceTime) GetSince() *timestamppb.Timestamp {
+func (x *NumOfLatestBlocks) GetBlocks() uint64 {
 	if x != nil {
-		return x.Since
+		return x.Blocks
 	}
-	return nil
+	return 0
 }
 
-type NumOfBlocksSinceResponse struct {
+type LatestBlocksResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	NumOfBlocks   uint64                 `protobuf:"varint,1,opt,name=numOfBlocks,proto3" json:"numOfBlocks,omitempty"`
+	Blocks        []*Block               `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *NumOfBlocksSinceResponse) Reset() {
-	*x = NumOfBlocksSinceResponse{}
+func (x *LatestBlocksResponse) Reset() {
+	*x = LatestBlocksResponse{}
 	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NumOfBlocksSinceResponse) String() string {
+func (x *LatestBlocksResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NumOfBlocksSinceResponse) ProtoMessage() {}
+func (*LatestBlocksResponse) ProtoMessage() {}
 
-func (x *NumOfBlocksSinceResponse) ProtoReflect() protoreflect.Message {
+func (x *LatestBlocksResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -205,16 +205,16 @@ func (x *NumOfBlocksSinceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NumOfBlocksSinceResponse.ProtoReflect.Descriptor instead.
-func (*NumOfBlocksSinceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LatestBlocksResponse.ProtoReflect.Descriptor instead.
+func (*LatestBlocksResponse) Descriptor() ([]byte, []int) {
 	return file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *NumOfBlocksSinceResponse) GetNumOfBlocks() uint64 {
+func (x *LatestBlocksResponse) GetBlocks() []*Block {
 	if x != nil {
-		return x.NumOfBlocks
+		return x.Blocks
 	}
-	return 0
+	return nil
 }
 
 type AnyTransactionsMinedResponse struct {
@@ -340,6 +340,7 @@ type Block struct {
 	Processed     bool                   `protobuf:"varint,5,opt,name=processed,proto3" json:"processed,omitempty"`
 	Status        Status                 `protobuf:"varint,6,opt,name=status,proto3,enum=blocktx_api.Status" json:"status,omitempty"`
 	Chainwork     string                 `protobuf:"bytes,7,opt,name=chainwork,proto3" json:"chainwork,omitempty"`
+	ProcessedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=processed_at,json=processedAt,proto3" json:"processed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -421,6 +422,13 @@ func (x *Block) GetChainwork() string {
 		return x.Chainwork
 	}
 	return ""
+}
+
+func (x *Block) GetProcessedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ProcessedAt
+	}
+	return nil
 }
 
 // swagger:model Transactions
@@ -959,18 +967,18 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	".internal/blocktx/blocktx_api/blocktx_api.proto\x12\vblocktx_api\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"3\n" +
 	"\aIsMined\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12\x14\n" +
-	"\x05mined\x18\x02 \x01(\bR\x05mined\"H\n" +
-	"\x14NumOfBlocksSinceTime\x120\n" +
-	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"<\n" +
-	"\x18NumOfBlocksSinceResponse\x12 \n" +
-	"\vnumOfBlocks\x18\x01 \x01(\x04R\vnumOfBlocks\"X\n" +
+	"\x05mined\x18\x02 \x01(\bR\x05mined\"+\n" +
+	"\x11NumOfLatestBlocks\x12\x16\n" +
+	"\x06blocks\x18\x01 \x01(\x04R\x06blocks\"B\n" +
+	"\x14LatestBlocksResponse\x12*\n" +
+	"\x06blocks\x18\x01 \x03(\v2\x12.blocktx_api.BlockR\x06blocks\"X\n" +
 	"\x1cAnyTransactionsMinedResponse\x128\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x14.blocktx_api.IsMinedR\ftransactions\"\x88\x01\n" +
 	"\x0eHealthResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
 	"\adetails\x18\x02 \x01(\tR\adetails\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x12\n" +
-	"\x04nats\x18\x04 \x01(\tR\x04nats\"\xe2\x01\n" +
+	"\x04nats\x18\x04 \x01(\tR\x04nats\"\xa1\x02\n" +
 	"\x05Block\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\fR\x04hash\x12#\n" +
 	"\rprevious_hash\x18\x02 \x01(\fR\fpreviousHash\x12\x1f\n" +
@@ -979,7 +987,8 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\x06height\x18\x04 \x01(\x04R\x06height\x12\x1c\n" +
 	"\tprocessed\x18\x05 \x01(\bR\tprocessed\x12+\n" +
 	"\x06status\x18\x06 \x01(\x0e2\x13.blocktx_api.StatusR\x06status\x12\x1c\n" +
-	"\tchainwork\x18\a \x01(\tR\tchainwork\"L\n" +
+	"\tchainwork\x18\a \x01(\tR\tchainwork\x12=\n" +
+	"\fprocessed_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vprocessedAt\"L\n" +
 	"\fTransactions\x12<\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x18.blocktx_api.TransactionR\ftransactions\"\xd7\x01\n" +
 	"\x10TransactionBlock\x12\x1d\n" +
@@ -1016,7 +1025,7 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\aLONGEST\x10\n" +
 	"\x12\t\n" +
 	"\x05STALE\x10\x14\x12\f\n" +
-	"\bORPHANED\x10\x1e2\x97\x06\n" +
+	"\bORPHANED\x10\x1e2\x8c\x06\n" +
 	"\n" +
 	"BlockTxAPI\x12?\n" +
 	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1b.blocktx_api.HealthResponse\"\x00\x12J\n" +
@@ -1025,8 +1034,8 @@ const file_internal_blocktx_blocktx_api_blocktx_api_proto_rawDesc = "" +
 	"\x11VerifyMerkleRoots\x12+.blocktx_api.MerkleRootsVerificationRequest\x1a+.blocktx_api.MerkleRootVerificationResponse\"\x00\x12I\n" +
 	"\x13RegisterTransaction\x12\x18.blocktx_api.Transaction\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x14RegisterTransactions\x12\x19.blocktx_api.Transactions\x1a\x16.google.protobuf.Empty\"\x00\x12W\n" +
-	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00\x12^\n" +
-	"\x10NumOfBlocksSince\x12!.blocktx_api.NumOfBlocksSinceTime\x1a%.blocktx_api.NumOfBlocksSinceResponse\"\x00\x12^\n" +
+	"\x12CurrentBlockHeight\x12\x16.google.protobuf.Empty\x1a'.blocktx_api.CurrentBlockHeightResponse\"\x00\x12S\n" +
+	"\fLatestBlocks\x12\x1e.blocktx_api.NumOfLatestBlocks\x1a!.blocktx_api.LatestBlocksResponse\"\x00\x12^\n" +
 	"\x14AnyTransactionsMined\x12\x19.blocktx_api.Transactions\x1a).blocktx_api.AnyTransactionsMinedResponse\"\x00B\x0fZ\r.;blocktx_apib\x06proto3"
 
 var (
@@ -1046,8 +1055,8 @@ var file_internal_blocktx_blocktx_api_blocktx_api_proto_msgTypes = make([]protoi
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_goTypes = []any{
 	(Status)(0),                                 // 0: blocktx_api.Status
 	(*IsMined)(nil),                             // 1: blocktx_api.IsMined
-	(*NumOfBlocksSinceTime)(nil),                // 2: blocktx_api.NumOfBlocksSinceTime
-	(*NumOfBlocksSinceResponse)(nil),            // 3: blocktx_api.NumOfBlocksSinceResponse
+	(*NumOfLatestBlocks)(nil),                   // 2: blocktx_api.NumOfLatestBlocks
+	(*LatestBlocksResponse)(nil),                // 3: blocktx_api.LatestBlocksResponse
 	(*AnyTransactionsMinedResponse)(nil),        // 4: blocktx_api.AnyTransactionsMinedResponse
 	(*HealthResponse)(nil),                      // 5: blocktx_api.HealthResponse
 	(*Block)(nil),                               // 6: blocktx_api.Block
@@ -1066,37 +1075,38 @@ var file_internal_blocktx_blocktx_api_blocktx_api_proto_goTypes = []any{
 	(*emptypb.Empty)(nil),                       // 19: google.protobuf.Empty
 }
 var file_internal_blocktx_blocktx_api_blocktx_api_proto_depIdxs = []int32{
-	18, // 0: blocktx_api.NumOfBlocksSinceTime.since:type_name -> google.protobuf.Timestamp
+	6,  // 0: blocktx_api.LatestBlocksResponse.blocks:type_name -> blocktx_api.Block
 	1,  // 1: blocktx_api.AnyTransactionsMinedResponse.transactions:type_name -> blocktx_api.IsMined
 	18, // 2: blocktx_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 3: blocktx_api.Block.status:type_name -> blocktx_api.Status
-	10, // 4: blocktx_api.Transactions.transactions:type_name -> blocktx_api.Transaction
-	0,  // 5: blocktx_api.TransactionBlock.block_status:type_name -> blocktx_api.Status
-	8,  // 6: blocktx_api.TransactionBlocks.transaction_blocks:type_name -> blocktx_api.TransactionBlock
-	15, // 7: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
-	19, // 8: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
-	11, // 9: blocktx_api.BlockTxAPI.ClearBlocks:input_type -> blocktx_api.ClearData
-	11, // 10: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:input_type -> blocktx_api.ClearData
-	16, // 11: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
-	10, // 12: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
-	7,  // 13: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
-	19, // 14: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
-	2,  // 15: blocktx_api.BlockTxAPI.NumOfBlocksSince:input_type -> blocktx_api.NumOfBlocksSinceTime
-	7,  // 16: blocktx_api.BlockTxAPI.AnyTransactionsMined:input_type -> blocktx_api.Transactions
-	5,  // 17: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
-	12, // 18: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
-	12, // 19: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
-	17, // 20: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
-	19, // 21: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
-	19, // 22: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
-	13, // 23: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
-	3,  // 24: blocktx_api.BlockTxAPI.NumOfBlocksSince:output_type -> blocktx_api.NumOfBlocksSinceResponse
-	4,  // 25: blocktx_api.BlockTxAPI.AnyTransactionsMined:output_type -> blocktx_api.AnyTransactionsMinedResponse
-	17, // [17:26] is the sub-list for method output_type
-	8,  // [8:17] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 4: blocktx_api.Block.processed_at:type_name -> google.protobuf.Timestamp
+	10, // 5: blocktx_api.Transactions.transactions:type_name -> blocktx_api.Transaction
+	0,  // 6: blocktx_api.TransactionBlock.block_status:type_name -> blocktx_api.Status
+	8,  // 7: blocktx_api.TransactionBlocks.transaction_blocks:type_name -> blocktx_api.TransactionBlock
+	15, // 8: blocktx_api.MerkleRootsVerificationRequest.merkle_roots:type_name -> blocktx_api.MerkleRootVerificationRequest
+	19, // 9: blocktx_api.BlockTxAPI.Health:input_type -> google.protobuf.Empty
+	11, // 10: blocktx_api.BlockTxAPI.ClearBlocks:input_type -> blocktx_api.ClearData
+	11, // 11: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:input_type -> blocktx_api.ClearData
+	16, // 12: blocktx_api.BlockTxAPI.VerifyMerkleRoots:input_type -> blocktx_api.MerkleRootsVerificationRequest
+	10, // 13: blocktx_api.BlockTxAPI.RegisterTransaction:input_type -> blocktx_api.Transaction
+	7,  // 14: blocktx_api.BlockTxAPI.RegisterTransactions:input_type -> blocktx_api.Transactions
+	19, // 15: blocktx_api.BlockTxAPI.CurrentBlockHeight:input_type -> google.protobuf.Empty
+	2,  // 16: blocktx_api.BlockTxAPI.LatestBlocks:input_type -> blocktx_api.NumOfLatestBlocks
+	7,  // 17: blocktx_api.BlockTxAPI.AnyTransactionsMined:input_type -> blocktx_api.Transactions
+	5,  // 18: blocktx_api.BlockTxAPI.Health:output_type -> blocktx_api.HealthResponse
+	12, // 19: blocktx_api.BlockTxAPI.ClearBlocks:output_type -> blocktx_api.RowsAffectedResponse
+	12, // 20: blocktx_api.BlockTxAPI.ClearRegisteredTransactions:output_type -> blocktx_api.RowsAffectedResponse
+	17, // 21: blocktx_api.BlockTxAPI.VerifyMerkleRoots:output_type -> blocktx_api.MerkleRootVerificationResponse
+	19, // 22: blocktx_api.BlockTxAPI.RegisterTransaction:output_type -> google.protobuf.Empty
+	19, // 23: blocktx_api.BlockTxAPI.RegisterTransactions:output_type -> google.protobuf.Empty
+	13, // 24: blocktx_api.BlockTxAPI.CurrentBlockHeight:output_type -> blocktx_api.CurrentBlockHeightResponse
+	3,  // 25: blocktx_api.BlockTxAPI.LatestBlocks:output_type -> blocktx_api.LatestBlocksResponse
+	4,  // 26: blocktx_api.BlockTxAPI.AnyTransactionsMined:output_type -> blocktx_api.AnyTransactionsMinedResponse
+	18, // [18:27] is the sub-list for method output_type
+	9,  // [9:18] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_internal_blocktx_blocktx_api_blocktx_api_proto_init() }

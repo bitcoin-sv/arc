@@ -36,8 +36,8 @@ var _ blocktx_api.BlockTxAPIClient = &BlockTxAPIClientMock{}
 //			HealthFunc: func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error) {
 //				panic("mock out the Health method")
 //			},
-//			NumOfBlocksSinceFunc: func(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error) {
-//				panic("mock out the NumOfBlocksSince method")
+//			LatestBlocksFunc: func(ctx context.Context, in *blocktx_api.NumOfLatestBlocks, opts ...grpc.CallOption) (*blocktx_api.LatestBlocksResponse, error) {
+//				panic("mock out the LatestBlocks method")
 //			},
 //			RegisterTransactionFunc: func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 //				panic("mock out the RegisterTransaction method")
@@ -70,8 +70,8 @@ type BlockTxAPIClientMock struct {
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*blocktx_api.HealthResponse, error)
 
-	// NumOfBlocksSinceFunc mocks the NumOfBlocksSince method.
-	NumOfBlocksSinceFunc func(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error)
+	// LatestBlocksFunc mocks the LatestBlocks method.
+	LatestBlocksFunc func(ctx context.Context, in *blocktx_api.NumOfLatestBlocks, opts ...grpc.CallOption) (*blocktx_api.LatestBlocksResponse, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, in *blocktx_api.Transaction, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -129,12 +129,12 @@ type BlockTxAPIClientMock struct {
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
-		// NumOfBlocksSince holds details about calls to the NumOfBlocksSince method.
-		NumOfBlocksSince []struct {
+		// LatestBlocks holds details about calls to the LatestBlocks method.
+		LatestBlocks []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// In is the in argument value.
-			In *blocktx_api.NumOfBlocksSinceTime
+			In *blocktx_api.NumOfLatestBlocks
 			// Opts is the opts argument value.
 			Opts []grpc.CallOption
 		}
@@ -171,7 +171,7 @@ type BlockTxAPIClientMock struct {
 	lockClearRegisteredTransactions sync.RWMutex
 	lockCurrentBlockHeight          sync.RWMutex
 	lockHealth                      sync.RWMutex
-	lockNumOfBlocksSince            sync.RWMutex
+	lockLatestBlocks                sync.RWMutex
 	lockRegisterTransaction         sync.RWMutex
 	lockRegisterTransactions        sync.RWMutex
 	lockVerifyMerkleRoots           sync.RWMutex
@@ -377,43 +377,43 @@ func (mock *BlockTxAPIClientMock) HealthCalls() []struct {
 	return calls
 }
 
-// NumOfBlocksSince calls NumOfBlocksSinceFunc.
-func (mock *BlockTxAPIClientMock) NumOfBlocksSince(ctx context.Context, in *blocktx_api.NumOfBlocksSinceTime, opts ...grpc.CallOption) (*blocktx_api.NumOfBlocksSinceResponse, error) {
-	if mock.NumOfBlocksSinceFunc == nil {
-		panic("BlockTxAPIClientMock.NumOfBlocksSinceFunc: method is nil but BlockTxAPIClient.NumOfBlocksSince was just called")
+// LatestBlocks calls LatestBlocksFunc.
+func (mock *BlockTxAPIClientMock) LatestBlocks(ctx context.Context, in *blocktx_api.NumOfLatestBlocks, opts ...grpc.CallOption) (*blocktx_api.LatestBlocksResponse, error) {
+	if mock.LatestBlocksFunc == nil {
+		panic("BlockTxAPIClientMock.LatestBlocksFunc: method is nil but BlockTxAPIClient.LatestBlocks was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
-		In   *blocktx_api.NumOfBlocksSinceTime
+		In   *blocktx_api.NumOfLatestBlocks
 		Opts []grpc.CallOption
 	}{
 		Ctx:  ctx,
 		In:   in,
 		Opts: opts,
 	}
-	mock.lockNumOfBlocksSince.Lock()
-	mock.calls.NumOfBlocksSince = append(mock.calls.NumOfBlocksSince, callInfo)
-	mock.lockNumOfBlocksSince.Unlock()
-	return mock.NumOfBlocksSinceFunc(ctx, in, opts...)
+	mock.lockLatestBlocks.Lock()
+	mock.calls.LatestBlocks = append(mock.calls.LatestBlocks, callInfo)
+	mock.lockLatestBlocks.Unlock()
+	return mock.LatestBlocksFunc(ctx, in, opts...)
 }
 
-// NumOfBlocksSinceCalls gets all the calls that were made to NumOfBlocksSince.
+// LatestBlocksCalls gets all the calls that were made to LatestBlocks.
 // Check the length with:
 //
-//	len(mockedBlockTxAPIClient.NumOfBlocksSinceCalls())
-func (mock *BlockTxAPIClientMock) NumOfBlocksSinceCalls() []struct {
+//	len(mockedBlockTxAPIClient.LatestBlocksCalls())
+func (mock *BlockTxAPIClientMock) LatestBlocksCalls() []struct {
 	Ctx  context.Context
-	In   *blocktx_api.NumOfBlocksSinceTime
+	In   *blocktx_api.NumOfLatestBlocks
 	Opts []grpc.CallOption
 } {
 	var calls []struct {
 		Ctx  context.Context
-		In   *blocktx_api.NumOfBlocksSinceTime
+		In   *blocktx_api.NumOfLatestBlocks
 		Opts []grpc.CallOption
 	}
-	mock.lockNumOfBlocksSince.RLock()
-	calls = mock.calls.NumOfBlocksSince
-	mock.lockNumOfBlocksSince.RUnlock()
+	mock.lockLatestBlocks.RLock()
+	calls = mock.calls.LatestBlocks
+	mock.lockLatestBlocks.RUnlock()
 	return calls
 }
 

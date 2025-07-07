@@ -3,10 +3,8 @@ package blocktx
 import (
 	"context"
 	"errors"
-	"time"
 
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
@@ -30,7 +28,7 @@ type Client interface {
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
-	NumOfBlocksSince(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error)
+	LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error)
 }
 
 type MerkleRootVerificationRequest struct {
@@ -105,6 +103,6 @@ func (btc *BtxClient) CurrentBlockHeight(ctx context.Context) (*blocktx_api.Curr
 	return btc.client.CurrentBlockHeight(ctx, &emptypb.Empty{})
 }
 
-func (btc *BtxClient) NumOfBlocksSince(ctx context.Context, since time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
-	return btc.client.NumOfBlocksSince(ctx, &blocktx_api.NumOfBlocksSinceTime{Since: timestamppb.New(since)})
+func (btc *BtxClient) LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+	return btc.client.LatestBlocks(ctx, &blocktx_api.NumOfLatestBlocks{Blocks: blocks})
 }

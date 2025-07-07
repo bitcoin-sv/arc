@@ -51,7 +51,7 @@ type BlocktxStore interface {
 	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
 	GetStats(ctx context.Context) (*Stats, error)
-	BlocksSince(ctx context.Context, since time.Time) ([]*blocktx_api.Block, error)
+	LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error)

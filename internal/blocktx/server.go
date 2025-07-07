@@ -148,11 +148,11 @@ func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*block
 	return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: height}, err
 }
 
-func (s *Server) NumOfBlocksSince(ctx context.Context, req *blocktx_api.NumOfBlocksSinceTime) (*blocktx_api.NumOfBlocksSinceResponse, error) {
-	numOfBlocks, err := s.store.BlocksSince(ctx, req.Since.AsTime())
+func (s *Server) LatestBlocks(ctx context.Context, req *blocktx_api.NumOfLatestBlocks) (*blocktx_api.LatestBlocksResponse, error) {
+	blocks, err := s.store.LatestBlocks(ctx, req.Blocks)
 	if err != nil {
 		return nil, err
 	}
 
-	return &blocktx_api.NumOfBlocksSinceResponse{NumOfBlocks: uint64(len(numOfBlocks))}, nil
+	return &blocktx_api.LatestBlocksResponse{Blocks: blocks}, nil
 }

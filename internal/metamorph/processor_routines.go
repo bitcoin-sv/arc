@@ -95,43 +95,41 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
-	var txHashes []*chainhash.Hash
-	var blocksSinceLastRequested *blocktx_api.NumOfBlocksSinceResponse
+	var txs []*store.TxRequestTimes
+	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
 
 	for {
-		blocksSinceLastRequested, err = p.blocktxClient.NumOfBlocksSince(ctx, p.now().Add(-p.rejectPendingSeenLastRequestedAgo))
+		blocksSinceLastRequested, err = p.blocktxClient.LatestBlocks(ctx, p.rejectPendingBlocksSince)
 		if err != nil {
 			p.logger.Error("Failed to get blocks since last requested", slog.String("err", err.Error()))
 			break
 		}
 
-		// if enough number of blocks are not mined since the time then skip rejecting
-		if blocksSinceLastRequested.GetNumOfBlocks() < p.rejectPendingBlocksSince {
-			p.logger.Info("Skipping rejecting unconfirmed txs", slog.Uint64("numOfBlocks", blocksSinceLastRequested.GetNumOfBlocks()), slog.Uint64("required", p.rejectPendingBlocksSince))
-			break
-		}
-
-		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
+		txs, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
 		}
 
 		offset += loadLimit
-		totalRejected += len(txHashes)
+		totalRejected += len(txs)
 
-		if len(txHashes) == 0 {
+		if len(txs) == 0 {
 			break
 		}
 
-		for _, txHash := range txHashes {
-			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", txHash.String()))
+		for _, tx := range txs {
+			if tx.RequestedAt.After(blocksSinceLastRequested.GetBlocks()[0].ProcessedAt.AsTime()) {
+				p.logger.Debug("Skipping tx, requested too recently", slog.String("hash", tx.Hash.String()), slog.Time("requested_at", tx.RequestedAt))
+				continue
+			}
 
+			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()))
 			if p.rejectPendingSeenEnabled {
 				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
-					Hash:   txHash,
+					Hash:   tx.Hash,
 					Status: metamorph_api.Status_REJECTED,
 					Err:    ErrRejectUnconfirmed,
 				}

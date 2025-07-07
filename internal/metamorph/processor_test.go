@@ -1268,13 +1268,13 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			iteration := 0
 
 			blocktxClient := &btxMocks.ClientMock{
-				NumOfBlocksSinceFunc: func(_ context.Context, _ time.Time) (*blocktx_api.NumOfBlocksSinceResponse, error) {
-					return &blocktx_api.NumOfBlocksSinceResponse{NumOfBlocks: tc.minedBlocksSince}, nil
+				LatestBlocksFunc: func(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+					return nil, nil
 				},
 			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
+				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*store.TxRequestTimes, error) {
 					if iteration >= 3 {
 						return nil, nil
 					}
@@ -1283,7 +1283,20 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					if tc.getAndDeleteUnconfirmedErr != nil {
 						return nil, tc.getAndDeleteUnconfirmedErr
 					}
-					return []*chainhash.Hash{testdata.TX1Hash, testdata.TX1Hash, testdata.TX1Hash}, nil
+					return []*store.TxRequestTimes{
+						{
+							Hash:        testdata.TX1Hash,
+							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+						},
+						{
+							Hash:        testdata.TX1Hash,
+							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+						},
+						{
+							Hash:        testdata.TX1Hash,
+							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+						},
+					}, nil
 				},
 			}
 			pm := &mocks.MediatorMock{}

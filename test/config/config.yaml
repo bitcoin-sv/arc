@@ -55,7 +55,6 @@ metamorph:
   reAnnounceSeen:
     pendingSince: 10m
     lastConfirmedAgo: 10m
-    blocksSince: 3
   rejectPendingSeen:
     enabled: false
     lastRequestedAgo: 10m

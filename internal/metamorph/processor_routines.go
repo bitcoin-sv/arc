@@ -96,19 +96,19 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var offset int64
 	var totalRejected int
 	var txHashes []*chainhash.Hash
-	var blocksSinceLastRequestedAlgo *blocktx_api.NumOfBlocksSinceResponse
+	var blocksSinceLastRequested *blocktx_api.NumOfBlocksSinceResponse
 	var err error
 
 	for {
-		blocksSinceLastRequestedAlgo, err = p.blocktxClient.NumOfBlocksSince(ctx, p.now().Add(-p.rejectPendingSeenLastRequestedAgo))
+		blocksSinceLastRequested, err = p.blocktxClient.NumOfBlocksSince(ctx, p.now().Add(-p.rejectPendingSeenLastRequestedAgo))
 		if err != nil {
 			p.logger.Error("Failed to get blocks since last requested", slog.String("err", err.Error()))
 			break
 		}
 
 		// if enough number of blocks are not mined since the time then skip rejecting
-		if blocksSinceLastRequestedAlgo.GetNumOfBlocks() < p.rejectPendingBlocksSince {
-			p.logger.Info("Skipping rejecting unconfirmed txs", slog.Uint64("numOfBlocks", blocksSinceLastRequestedAlgo.GetNumOfBlocks()), slog.Uint64("required", p.rejectPendingBlocksSince))
+		if blocksSinceLastRequested.GetNumOfBlocks() < p.rejectPendingBlocksSince {
+			p.logger.Info("Skipping rejecting unconfirmed txs", slog.Uint64("numOfBlocks", blocksSinceLastRequested.GetNumOfBlocks()), slog.Uint64("required", p.rejectPendingBlocksSince))
 			break
 		}
 

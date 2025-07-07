@@ -232,6 +232,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		// 2 because one doesn't have is_longest set to true
 		require.Equal(t, 2, len(blocks))
+		require.Equal(t, 822014, blocks[0].Height)
 	})
 
 	t.Run("get block gaps", func(t *testing.T) {

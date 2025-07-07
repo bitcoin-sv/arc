@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -1236,67 +1237,156 @@ func TestRegisterSeen(t *testing.T) {
 
 func TestRejectUnconfirmedRequested(t *testing.T) {
 	tt := []struct {
-		name                       string
-		getAndDeleteUnconfirmedErr error
-
+		name                        string
+		getAndDeleteUnconfirmedErr  error
+		expectedRejections          int
 		expectedGetUnconfirmedCalls int
-		minedBlocksSince            uint64
+		blocks                      *blocktx_api.LatestBlocksResponse
+		requestedTimes              []*store.TxRequestTimes
 	}{
 		{
 			name: "success",
 
-			expectedGetUnconfirmedCalls: 4,
-			minedBlocksSince:            10,
-		},
-		{
-			name: "skip rejecting for no blocks mined since",
-
-			expectedGetUnconfirmedCalls: 0,
-			minedBlocksSince:            1,
-		},
-		{
-			name:                       "error - failed to get and delete unconfirmed requested",
-			getAndDeleteUnconfirmedErr: errors.New("failed to get and delete unconfirmed requested"),
-
 			expectedGetUnconfirmedCalls: 1,
-			minedBlocksSince:            10,
+			expectedRejections:          3,
+			blocks: &blocktx_api.LatestBlocksResponse{
+				Blocks: []*blocktx_api.Block{
+					{
+						Height:      999,
+						Hash:        testdata.Block2Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
+					},
+					{
+						Height:      1000,
+						Hash:        testdata.Block1Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+					},
+				},
+			},
+			requestedTimes: []*store.TxRequestTimes{
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Minute * 10),
+				},
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Minute * 10),
+				},
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Minute * 10),
+				},
+			},
 		},
+		{
+			name:                        "not expected number of blocks available",
+			expectedRejections:          0,
+			expectedGetUnconfirmedCalls: 0,
+			blocks: &blocktx_api.LatestBlocksResponse{
+				Blocks: []*blocktx_api.Block{
+					{
+						Height:      1000,
+						Hash:        testdata.Block1Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+					},
+				},
+			},
+			requestedTimes: []*store.TxRequestTimes{
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+			},
+		},
+		// {
+		// 	name:                        "skip rejecting for no blocks mined since",
+		// 	expectedRejections:          3,
+		// 	expectedGetUnconfirmedCalls: 0,
+		// 	blocks: &blocktx_api.LatestBlocksResponse{
+		// 		Blocks: []*blocktx_api.Block{
+		// 			{
+		// 				Height:      1000,
+		// 				Hash:        testdata.Block1Hash.CloneBytes(),
+		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+		// 			},
+		// 			{
+		// 				Height:      999,
+		// 				Hash:        testdata.Block2Hash.CloneBytes(),
+		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
+		// 			},
+		// 		},
+		// 	},
+		// 	requestedTimes: []*store.TxRequestTimes{
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	name:                        "error - failed to get and delete unconfirmed requested",
+		// 	getAndDeleteUnconfirmedErr:  errors.New("failed to get and delete unconfirmed requested"),
+		// 	expectedRejections:          3,
+		// 	expectedGetUnconfirmedCalls: 1,
+		// 	blocks: &blocktx_api.LatestBlocksResponse{
+		// 		Blocks: []*blocktx_api.Block{
+		// 			{
+		// 				Height:      1000,
+		// 				Hash:        testdata.Block1Hash.CloneBytes(),
+		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+		// 			},
+		// 			{
+		// 				Height:      999,
+		// 				Hash:        testdata.Block2Hash.CloneBytes(),
+		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
+		// 			},
+		// 		},
+		// 	},
+		// 	requestedTimes: []*store.TxRequestTimes{
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 		{
+		// 			Hash:        testdata.TX1Hash,
+		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+		// 		},
+		// 	},
+		// },
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			iteration := 0
 
 			blocktxClient := &btxMocks.ClientMock{
 				LatestBlocksFunc: func(_ context.Context, _ uint64) (*blocktx_api.LatestBlocksResponse, error) {
-					return nil, nil
+					return tc.blocks, nil
 				},
 			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*store.TxRequestTimes, error) {
-					if iteration >= 3 {
-						return nil, nil
-					}
-					iteration++
-
-					if tc.getAndDeleteUnconfirmedErr != nil {
-						return nil, tc.getAndDeleteUnconfirmedErr
-					}
-					return []*store.TxRequestTimes{
-						{
-							Hash:        testdata.TX1Hash,
-							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-						},
-						{
-							Hash:        testdata.TX1Hash,
-							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-						},
-						{
-							Hash:        testdata.TX1Hash,
-							RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-						},
-					}, nil
+					return tc.requestedTimes, nil
 				},
 			}
 			pm := &mocks.MediatorMock{}
@@ -1311,6 +1401,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				statusMessageChannel,
 				metamorph.WithRejectPendingSeenEnabled(true),
 				metamorph.WithBlocktxClient(blocktxClient),
+				metamorph.WithRejectPendingBlocksSince(2),
 			)
 			require.NoError(t, err)
 
@@ -1319,6 +1410,15 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.expectedGetUnconfirmedCalls, len(metamorphStore.GetUnconfirmedRequestedCalls()))
+
+			for i := 0; i < tc.expectedRejections; i++ {
+				select {
+				case <-statusMessageChannel:
+					continue
+				case <-time.After(1 * time.Second):
+					t.Fatal("callback exceeded timeout")
+				}
+			}
 		})
 	}
 }

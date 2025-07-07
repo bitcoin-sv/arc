@@ -106,6 +106,11 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 
+		if uint64(len(blocksSinceLastRequested.Blocks)) != p.rejectPendingBlocksSince {
+			p.logger.Warn("Unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			break
+		}
+
 		txs, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))

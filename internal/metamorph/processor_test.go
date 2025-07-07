@@ -1269,11 +1269,11 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					RequestedAt: time.Now().Add(-time.Minute * 9),
 				},
 				{
-					Hash:        testdata.TX1Hash,
+					Hash:        testdata.TX2Hash,
 					RequestedAt: time.Now().Add(-time.Minute * 19),
 				},
 				{
-					Hash:        testdata.TX1Hash,
+					Hash:        testdata.TX3Hash,
 					RequestedAt: time.Now().Add(-time.Minute * 29),
 				},
 			},
@@ -1297,11 +1297,11 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
 				},
 				{
-					Hash:        testdata.TX1Hash,
+					Hash:        testdata.TX2Hash,
 					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
 				},
 				{
-					Hash:        testdata.TX1Hash,
+					Hash:        testdata.TX3Hash,
 					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
 				},
 			},

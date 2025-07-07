@@ -404,6 +404,8 @@ func (m *ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, pa
 		return PostResponse{e.Status, e}
 	}
 
+	m.logger.Info("=== beef tx ids", "tx IDs", len(txIDs))
+
 	if !transactionOptions.ForceValidation {
 		// check if we already have the transactions in db (so no need to validate)
 		txStatuses, err := m.getTransactionStatuses(reqCtx, txIDs)
@@ -611,7 +613,10 @@ func (m *ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields)
 			bytesUsed := len(beefBytes)
 			txsHex = txsHex[bytesUsed:]
 
-			txIDs = append(txIDs, beefTx.GetValidTxids()...)
+			for _, btx := range beefTx.Transactions {
+				txIDs = append(txIDs, btx.Transaction.TxID().String())
+			}
+
 			continue
 		}
 
@@ -709,9 +714,14 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 				continue
 			}
 
-			submittedTxs = append(submittedTxs, appendedUnminedTxs(beefTx)...)
+			for _, tx := range beefTx.Transactions {
+				// in case there is just 1 transaction append it, otherwise append only unmined
+				if tx.DataFormat == sdkTx.RawTx || (tx.DataFormat == sdkTx.RawTxAndBumpIndex && len(beefTx.Transactions) == 1) {
+					submittedTxs = append(submittedTxs, tx.Transaction)
+					txIDs = append(txIDs, tx.Transaction.TxID().String())
+				}
+			}
 
-			txIDs = append(txIDs, beefTx.GetValidTxids()...)
 			continue
 		}
 
@@ -731,17 +741,6 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 		txIDs = append(txIDs, transaction.TxID().String())
 	}
 	return txIDs, submittedTxs, fails, nil
-}
-
-func appendedUnminedTxs(beefTx *sdkTx.Beef) []*sdkTx.Transaction {
-	var submittedTxs []*sdkTx.Transaction
-	for _, tx := range beefTx.Transactions {
-		// if not mined
-		if tx.DataFormat == sdkTx.RawTx {
-			submittedTxs = append(submittedTxs, tx.Transaction)
-		}
-	}
-	return submittedTxs
 }
 
 func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {

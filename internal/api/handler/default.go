@@ -613,8 +613,11 @@ func (m *ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields)
 			bytesUsed := len(beefBytes)
 			txsHex = txsHex[bytesUsed:]
 
-			for _, btx := range beefTx.Transactions {
-				txIDs = append(txIDs, btx.Transaction.TxID().String())
+			for _, tx := range beefTx.Transactions {
+				// in case there is just 1 transaction append it, otherwise append only unmined
+				if tx.DataFormat == sdkTx.RawTx || (tx.DataFormat == sdkTx.RawTxAndBumpIndex && len(beefTx.Transactions) == 1) {
+					txIDs = append(txIDs, tx.Transaction.TxID().String())
+				}
 			}
 
 			continue

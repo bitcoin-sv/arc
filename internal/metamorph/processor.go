@@ -446,6 +446,7 @@ func (p *Processor) StartSendStatusUpdate() {
 				return
 
 			case msg := <-p.statusMessageCh:
+				p.logger.Info("shota 6")
 				if msg.ReceivedRawTx {
 					err := p.store.MarkConfirmedRequested(p.ctx, msg.Hash)
 					if err != nil {

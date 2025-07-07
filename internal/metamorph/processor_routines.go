@@ -140,6 +140,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 					Status: metamorph_api.Status_REJECTED,
 					Err:    ErrRejectUnconfirmed,
 				}
+				p.logger.Info("shota 5")
 			}
 		}
 

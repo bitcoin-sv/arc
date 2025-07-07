@@ -1377,7 +1377,6 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			blocktxClient := &btxMocks.ClientMock{
 				LatestBlocksFunc: func(_ context.Context, _ uint64) (*blocktx_api.LatestBlocksResponse, error) {
 					return tc.blocks, nil

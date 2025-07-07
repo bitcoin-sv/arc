@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
@@ -113,6 +114,8 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 	}
 
+	slog.Default().Info("=== BEEF transaction validated successfully")
+
 	isValid := beefTx.IsValid(false)
 	if !isValid {
 		return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, errors.New(beefTx.ToLogString())), api.ErrStatusBeefValidationFailedBeefInvalid)
@@ -123,17 +126,21 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	verificationSuccessful, err = beefTx.Verify(v.chainTracker, false)
 	if err != nil {
 		if errors.Is(err, ErrRequestTimedOut) {
+			slog.Default().Error("=== BEEF verification error => time out", slog.String("err", err.Error()))
 			return nil, validator.NewError(errors.Join(ErrBEEFVerificationTimedOut, err), api.ErrStatusBeefValidationMerkleRoots)
 		}
 
 		if errors.Is(err, ErrRequestFailed) {
+			slog.Default().Error("=== BEEF verification error => request failed", slog.String("err", err.Error()))
 			return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, err), api.ErrStatusBeefValidationMerkleRoots)
 		}
 
+		slog.Default().Error("=== BEEF verification error", slog.String("err", err.Error()))
 		return nil, validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
 	}
 
 	if !verificationSuccessful {
+		slog.Default().Error("=== BEEF verification failed")
 		return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 

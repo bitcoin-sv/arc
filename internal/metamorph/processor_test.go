@@ -1306,73 +1306,26 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name:                        "skip rejecting for no blocks mined since",
-		// 	expectedRejections:          3,
-		// 	expectedGetUnconfirmedCalls: 0,
-		// 	blocks: &blocktx_api.LatestBlocksResponse{
-		// 		Blocks: []*blocktx_api.Block{
-		// 			{
-		// 				Height:      1000,
-		// 				Hash:        testdata.Block1Hash.CloneBytes(),
-		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
-		// 			},
-		// 			{
-		// 				Height:      999,
-		// 				Hash:        testdata.Block2Hash.CloneBytes(),
-		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
-		// 			},
-		// 		},
-		// 	},
-		// 	requestedTimes: []*store.TxRequestTimes{
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:                        "error - failed to get and delete unconfirmed requested",
-		// 	getAndDeleteUnconfirmedErr:  errors.New("failed to get and delete unconfirmed requested"),
-		// 	expectedRejections:          3,
-		// 	expectedGetUnconfirmedCalls: 1,
-		// 	blocks: &blocktx_api.LatestBlocksResponse{
-		// 		Blocks: []*blocktx_api.Block{
-		// 			{
-		// 	Height:      1000,
-		// 	Hash:        testdata.Block1Hash.CloneBytes(),
-		// 	ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
-		// },
-		// {
-		// 	Height:      999,
-		// 	Hash:        testdata.Block2Hash.CloneBytes(),
-		// 	ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
-		// },
-		// 		},
-		// 	},
-		// 	requestedTimes: []*store.TxRequestTimes{
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 	},
-		// },
+		{
+			name:                        "skip rejecting for no old txs",
+			expectedRejections:          0,
+			expectedGetUnconfirmedCalls: 1,
+			blocks: &blocktx_api.LatestBlocksResponse{
+				Blocks: []*blocktx_api.Block{
+					{
+						Height:      1000,
+						Hash:        testdata.Block1Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+					},
+					{
+						Height:      999,
+						Hash:        testdata.Block2Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
+					},
+				},
+			},
+			requestedTimes: []*store.TxRequestTimes{},
+		},
 	}
 
 	for _, tc := range tt {

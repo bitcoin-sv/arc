@@ -105,12 +105,10 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			p.logger.Error("Failed to get blocks since last requested", slog.String("err", err.Error()))
 			break
 		}
-		p.logger.Info("shota 1")
 		if uint64(len(blocksSinceLastRequested.Blocks)) != p.rejectPendingBlocksSince {
 			p.logger.Warn("Unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
 			break
 		}
-		p.logger.Info("shota 2")
 
 		txs, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
 		if err != nil {
@@ -124,7 +122,6 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		if len(txs) == 0 {
 			break
 		}
-		p.logger.Info("shota 3", slog.Int("count", len(txs)))
 		for _, tx := range txs {
 			if tx.RequestedAt.After(blocksSinceLastRequested.GetBlocks()[p.rejectPendingBlocksSince-1].ProcessedAt.AsTime()) {
 				p.logger.Debug("Skipping tx, requested too recently", slog.String("hash", tx.Hash.String()), slog.Time("requested_at", tx.RequestedAt))
@@ -133,14 +130,12 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 
 			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()))
 			if p.rejectPendingSeenEnabled {
-				p.logger.Info("shota 4")
 				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
 					Hash:   tx.Hash,
 					Status: metamorph_api.Status_REJECTED,
 					Err:    ErrRejectUnconfirmed,
 				}
-				p.logger.Info("shota 5")
 			}
 		}
 

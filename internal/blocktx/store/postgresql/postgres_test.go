@@ -230,7 +230,6 @@ func TestPostgresDB(t *testing.T) {
 
 		blocks, err := postgresDB.LatestBlocks(context.Background(), 3)
 		require.NoError(t, err)
-		// 2 because one doesn't have is_longest set to true
 		require.Equal(t, 3, len(blocks))
 		require.Equal(t, uint64(822015), blocks[0].Height)
 	})

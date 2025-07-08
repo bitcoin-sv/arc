@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -1279,34 +1278,34 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name:                        "not expected number of blocks available",
-		// 	expectedRejections:          0,
-		// 	expectedGetUnconfirmedCalls: 0,
-		// 	blocks: &blocktx_api.LatestBlocksResponse{
-		// 		Blocks: []*blocktx_api.Block{
-		// 			{
-		// 				Height:      1000,
-		// 				Hash:        testdata.Block1Hash.CloneBytes(),
-		// 				ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
-		// 			},
-		// 		},
-		// 	},
-		// 	requestedTimes: []*store.TxRequestTimes{
-		// 		{
-		// 			Hash:        testdata.TX1Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX2Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 		{
-		// 			Hash:        testdata.TX3Hash,
-		// 			RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-		// 		},
-		// 	},
-		// },
+		{
+			name:                        "not expected number of blocks available",
+			expectedRejections:          0,
+			expectedGetUnconfirmedCalls: 0,
+			blocks: &blocktx_api.LatestBlocksResponse{
+				Blocks: []*blocktx_api.Block{
+					{
+						Height:      1000,
+						Hash:        testdata.Block1Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+					},
+				},
+			},
+			requestedTimes: []*store.TxRequestTimes{
+				{
+					Hash:        testdata.TX1Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+				{
+					Hash:        testdata.TX2Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+				{
+					Hash:        testdata.TX3Hash,
+					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
+				},
+			},
+		},
 		// {
 		// 	name:                        "skip rejecting for no blocks mined since",
 		// 	expectedRejections:          3,
@@ -1411,12 +1410,10 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			fmt.Println("Shota starting ...")
 			metamorph.RejectUnconfirmedRequested(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetUnconfirmedCalls, len(metamorphStore.GetUnconfirmedRequestedCalls()))
-			fmt.Println("Shota ending ...")
 			for i := 0; i < tc.expectedRejections; i++ {
 				select {
 				case z := <-statusMessageChannel:
@@ -1426,7 +1423,6 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					t.Fatal("callback exceeded timeout")
 				}
 			}
-			fmt.Println("Shota end 2 ...")
 		})
 	}
 }

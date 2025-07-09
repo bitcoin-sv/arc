@@ -1247,8 +1247,8 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 		{
 			name: "success - only last tx is behind 2 blocks to be rejected",
 
-			expectedGetUnconfirmedCalls: 3,
-			expectedRejections:          1,
+			expectedGetUnconfirmedCalls: 1,
+			expectedRejections:          3,
 			blocks: &blocktx_api.LatestBlocksResponse{
 				Blocks: []*blocktx_api.Block{
 					{

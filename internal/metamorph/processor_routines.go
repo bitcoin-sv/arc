@@ -95,7 +95,7 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
-	var txs []*store.TxRequestTimes
+	var txs []*chainhash.Hash
 	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
 
@@ -129,11 +129,11 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 		for _, tx := range txs {
-			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()))
+			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.String()))
 			if p.rejectPendingSeenEnabled {
 				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
-					Hash:   tx.Hash,
+					Hash:   tx,
 					Status: metamorph_api.Status_REJECTED,
 					Err:    ErrRejectUnconfirmed,
 				}

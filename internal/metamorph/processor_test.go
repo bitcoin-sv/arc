@@ -1247,7 +1247,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 		{
 			name: "success - only last tx is behind 2 blocks to be rejected",
 
-			expectedGetUnconfirmedCalls: 1,
+			expectedGetUnconfirmedCalls: 3,
 			expectedRejections:          1,
 			blocks: &blocktx_api.LatestBlocksResponse{
 				Blocks: []*blocktx_api.Block{
@@ -1263,19 +1263,13 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*store.TxRequestTimes{
-				{
-					Hash:        testdata.TX1Hash,
-					RequestedAt: time.Now().Add(-time.Minute * 9),
-				},
-				{
-					Hash:        testdata.TX2Hash,
-					RequestedAt: time.Now().Add(-time.Minute * 19),
-				},
-				{
-					Hash:        testdata.TX3Hash,
-					RequestedAt: time.Now().Add(-time.Minute * 29),
-				},
+			requestedTimes: []*chainhash.Hash{
+
+				testdata.TX1Hash,
+
+				testdata.TX2Hash,
+
+				testdata.TX3Hash,
 			},
 		},
 		{
@@ -1291,19 +1285,10 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*store.TxRequestTimes{
-				{
-					Hash:        testdata.TX1Hash,
-					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-				},
-				{
-					Hash:        testdata.TX2Hash,
-					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-				},
-				{
-					Hash:        testdata.TX3Hash,
-					RequestedAt: time.Now().Add(-time.Hour * 24 * 1000),
-				},
+			requestedTimes: []*chainhash.Hash{
+				testdata.TX1Hash,
+				testdata.TX2Hash,
+				testdata.TX3Hash,
 			},
 		},
 		{
@@ -1324,7 +1309,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*store.TxRequestTimes{},
+			requestedTimes: []*chainhash.Hash{},
 		},
 	}
 

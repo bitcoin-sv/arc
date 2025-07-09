@@ -1478,9 +1478,9 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 }
 
 // GetUnconfirmedRequested transactions which have been requested more than `requestedAgo` time ago either never been confirmed or where last confirmation was longer ago than last request
-func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedAgo time.Duration, limit int64, offset int64) ([]*store.TxRequestTimes, error) {
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
-	SELECT hash, requested_at FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
+	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
 	                                            AND (confirmed_at IS NULL OR confirmed_at < requested_at)
 	                                            AND status = $2
 	LIMIT $3 OFFSET $4
@@ -1493,7 +1493,7 @@ func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedA
 	}
 	defer rows.Close()
 
-	hashes := make([]*store.TxRequestTimes, 0)
+	hashes := make([]*chainhash.Hash, 0)
 
 	for rows.Next() {
 		var hashBytes []byte
@@ -1508,7 +1508,7 @@ func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedA
 			return nil, err
 		}
 
-		hashes = append(hashes, &store.TxRequestTimes{Hash: newHash, RequestedAt: requestedAt})
+		hashes = append(hashes, newHash)
 	}
 
 	if err = rows.Err(); err != nil {

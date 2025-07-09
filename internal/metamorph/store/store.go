@@ -70,11 +70,6 @@ type Stats struct {
 	StatusMinedTotal           int64
 }
 
-type TxRequestTimes struct {
-	Hash        *chainhash.Hash
-	RequestedAt time.Time
-}
-
 type MetamorphStore interface {
 	Get(ctx context.Context, key []byte) (*Data, error)
 	GetMany(ctx context.Context, keys [][]byte) ([]*Data, error)
@@ -102,7 +97,7 @@ type MetamorphStore interface {
 	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)
 
 	SetRequested(ctx context.Context, hashes []*chainhash.Hash) error
-	GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*TxRequestTimes, error)
+	GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
 	MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error
 }
 

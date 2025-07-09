@@ -70,8 +70,11 @@ func TestBeefValidator(t *testing.T) {
 			require.NoError(t, err)
 
 			ctMock := &mocks.ChainTrackerMock{
-				IsValidRootForHeightFunc: func(_ *chainhash.Hash, _ uint32) (bool, error) {
+				IsValidRootForHeightFunc: func(_ context.Context, _ *chainhash.Hash, _ uint32) (bool, error) {
 					return true, nil
+				},
+				CurrentHeightFunc: func(_ context.Context) (uint32, error) {
+					return 1, nil
 				},
 			}
 

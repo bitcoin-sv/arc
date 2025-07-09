@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"sync"
@@ -19,7 +20,10 @@ var _ beef.ChainTracker = &ChainTrackerMock{}
 //
 //		// make and configure a mocked beef.ChainTracker
 //		mockedChainTracker := &ChainTrackerMock{
-//			IsValidRootForHeightFunc: func(root *chainhash.Hash, height uint32) (bool, error) {
+//			CurrentHeightFunc: func(ctx context.Context) (uint32, error) {
+//				panic("mock out the CurrentHeight method")
+//			},
+//			IsValidRootForHeightFunc: func(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error) {
 //				panic("mock out the IsValidRootForHeight method")
 //			},
 //		}
@@ -29,38 +33,83 @@ var _ beef.ChainTracker = &ChainTrackerMock{}
 //
 //	}
 type ChainTrackerMock struct {
+	// CurrentHeightFunc mocks the CurrentHeight method.
+	CurrentHeightFunc func(ctx context.Context) (uint32, error)
+
 	// IsValidRootForHeightFunc mocks the IsValidRootForHeight method.
-	IsValidRootForHeightFunc func(root *chainhash.Hash, height uint32) (bool, error)
+	IsValidRootForHeightFunc func(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// CurrentHeight holds details about calls to the CurrentHeight method.
+		CurrentHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// IsValidRootForHeight holds details about calls to the IsValidRootForHeight method.
 		IsValidRootForHeight []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// Root is the root argument value.
 			Root *chainhash.Hash
 			// Height is the height argument value.
 			Height uint32
 		}
 	}
+	lockCurrentHeight        sync.RWMutex
 	lockIsValidRootForHeight sync.RWMutex
 }
 
+// CurrentHeight calls CurrentHeightFunc.
+func (mock *ChainTrackerMock) CurrentHeight(ctx context.Context) (uint32, error) {
+	if mock.CurrentHeightFunc == nil {
+		panic("ChainTrackerMock.CurrentHeightFunc: method is nil but ChainTracker.CurrentHeight was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockCurrentHeight.Lock()
+	mock.calls.CurrentHeight = append(mock.calls.CurrentHeight, callInfo)
+	mock.lockCurrentHeight.Unlock()
+	return mock.CurrentHeightFunc(ctx)
+}
+
+// CurrentHeightCalls gets all the calls that were made to CurrentHeight.
+// Check the length with:
+//
+//	len(mockedChainTracker.CurrentHeightCalls())
+func (mock *ChainTrackerMock) CurrentHeightCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockCurrentHeight.RLock()
+	calls = mock.calls.CurrentHeight
+	mock.lockCurrentHeight.RUnlock()
+	return calls
+}
+
 // IsValidRootForHeight calls IsValidRootForHeightFunc.
-func (mock *ChainTrackerMock) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
+func (mock *ChainTrackerMock) IsValidRootForHeight(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error) {
 	if mock.IsValidRootForHeightFunc == nil {
 		panic("ChainTrackerMock.IsValidRootForHeightFunc: method is nil but ChainTracker.IsValidRootForHeight was just called")
 	}
 	callInfo := struct {
+		Ctx    context.Context
 		Root   *chainhash.Hash
 		Height uint32
 	}{
+		Ctx:    ctx,
 		Root:   root,
 		Height: height,
 	}
 	mock.lockIsValidRootForHeight.Lock()
 	mock.calls.IsValidRootForHeight = append(mock.calls.IsValidRootForHeight, callInfo)
 	mock.lockIsValidRootForHeight.Unlock()
-	return mock.IsValidRootForHeightFunc(root, height)
+	return mock.IsValidRootForHeightFunc(ctx, root, height)
 }
 
 // IsValidRootForHeightCalls gets all the calls that were made to IsValidRootForHeight.
@@ -68,10 +117,12 @@ func (mock *ChainTrackerMock) IsValidRootForHeight(root *chainhash.Hash, height 
 //
 //	len(mockedChainTracker.IsValidRootForHeightCalls())
 func (mock *ChainTrackerMock) IsValidRootForHeightCalls() []struct {
+	Ctx    context.Context
 	Root   *chainhash.Hash
 	Height uint32
 } {
 	var calls []struct {
+		Ctx    context.Context
 		Root   *chainhash.Hash
 		Height uint32
 	}

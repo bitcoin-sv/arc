@@ -30,6 +30,7 @@ func (a MerkleVerifier) IsValidRootForHeight(ctx context.Context, root *chainhas
 	}
 
 	blocktxReq := []blocktx.MerkleRootVerificationRequest{{MerkleRoot: root.String(), BlockHeight: heightUint64}}
+
 	unverifiedBlockHeights, err := a.verifier.VerifyMerkleRoots(ctx, blocktxReq)
 	if err != nil {
 		return false, errors.Join(ErrVerifyMerkleRoots, err)

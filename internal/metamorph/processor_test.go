@@ -1242,7 +1242,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 		expectedRejections          int
 		expectedGetUnconfirmedCalls int
 		blocks                      *blocktx_api.LatestBlocksResponse
-		requestedTimes              []*store.TxRequestTimes
+		requestedTimes              []*chainhash.Hash
 	}{
 		{
 			name: "success - only last tx is behind 2 blocks to be rejected",
@@ -1327,7 +1327,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*store.TxRequestTimes, error) {
+				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
 					return tc.requestedTimes, nil
 				},
 			}

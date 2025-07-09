@@ -129,11 +129,6 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 		for _, tx := range txs {
-			if tx.RequestedAt.After(blocksSinceLastRequested.GetBlocks()[p.rejectPendingBlocksSince-1].ProcessedAt.AsTime()) {
-				p.logger.Debug("Skipping tx, requested too recently", slog.String("hash", tx.Hash.String()), slog.Time("requested_at", tx.RequestedAt))
-				continue
-			}
-
 			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()))
 			if p.rejectPendingSeenEnabled {
 				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{

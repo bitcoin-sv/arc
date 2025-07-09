@@ -224,6 +224,16 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedTipHeight, actualBlock.Height)
 	})
 
+	t.Run("get num of blocks since", func(t *testing.T) {
+		// given
+		prepareDb(t, postgresDB, "fixtures/latest_blocks")
+
+		blocks, err := postgresDB.LatestBlocks(context.Background(), 3)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(blocks))
+		require.Equal(t, uint64(822015), blocks[0].Height)
+	})
+
 	t.Run("get block gaps", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")

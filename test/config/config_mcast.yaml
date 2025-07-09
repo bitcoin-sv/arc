@@ -59,6 +59,7 @@ metamorph:
   rejectPendingSeen:
     enabled: false
     lastRequestedAgo: 10m
+    blocksSince: 3
   reRegisterSeen: 10m
   monitorPeers: true
   health:

@@ -116,6 +116,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		metamorph.WithReRegisterSeen(mtmConfig.ReRegisterSeen),
 		metamorph.WithRejectPendingSeenEnabled(mtmConfig.RejectPendingSeen.Enabled),
 		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmConfig.RejectPendingSeen.LastRequestedAgo),
+		metamorph.WithRejectPendingBlocksSince(mtmConfig.RejectPendingSeen.BlocksSince),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),

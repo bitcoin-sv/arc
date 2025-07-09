@@ -29,6 +29,9 @@ service BlockTxAPI {
   // CurrentBlockHeight returns current block height
   rpc CurrentBlockHeight (google.protobuf.Empty) returns (CurrentBlockHeightResponse) {}
 
+  // LatestBlocks returns specific number of latest blocks from longest chain
+  rpc LatestBlocks (NumOfLatestBlocks) returns (LatestBlocksResponse) {}
+
   // AnyTransactionsMined returns true if any of the transactions is mined
   rpc AnyTransactionsMined(Transactions) returns (AnyTransactionsMinedResponse) {}
 }
@@ -36,6 +39,14 @@ service BlockTxAPI {
 message IsMined {
   bytes hash = 1;
   bool mined = 2;
+}
+
+message NumOfLatestBlocks {
+  uint64 blocks = 1;
+}
+
+message LatestBlocksResponse {
+  repeated Block blocks = 1;
 }
 
 message AnyTransactionsMinedResponse {
@@ -68,6 +79,7 @@ message Block {
   bool processed = 5;
   Status status = 6;
   string chainwork = 7;
+  google.protobuf.Timestamp processed_at = 8;
 }
 
 // swagger:model Transactions

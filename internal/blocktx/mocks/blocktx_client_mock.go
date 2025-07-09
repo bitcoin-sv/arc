@@ -26,6 +26,9 @@ var _ blocktx.Client = &ClientMock{}
 //			CurrentBlockHeightFunc: func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 //				panic("mock out the CurrentBlockHeight method")
 //			},
+//			LatestBlocksFunc: func(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+//				panic("mock out the LatestBlocks method")
+//			},
 //			RegisterTransactionFunc: func(ctx context.Context, hash []byte) error {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -44,6 +47,9 @@ type ClientMock struct {
 
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
+
+	// LatestBlocksFunc mocks the LatestBlocks method.
+	LatestBlocksFunc func(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error)
 
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(ctx context.Context, hash []byte) error
@@ -65,6 +71,13 @@ type ClientMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// LatestBlocks holds details about calls to the LatestBlocks method.
+		LatestBlocks []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Blocks is the blocks argument value.
+			Blocks uint64
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// Ctx is the ctx argument value.
@@ -82,6 +95,7 @@ type ClientMock struct {
 	}
 	lockAnyTransactionsMined sync.RWMutex
 	lockCurrentBlockHeight   sync.RWMutex
+	lockLatestBlocks         sync.RWMutex
 	lockRegisterTransaction  sync.RWMutex
 	lockRegisterTransactions sync.RWMutex
 }
@@ -151,6 +165,42 @@ func (mock *ClientMock) CurrentBlockHeightCalls() []struct {
 	mock.lockCurrentBlockHeight.RLock()
 	calls = mock.calls.CurrentBlockHeight
 	mock.lockCurrentBlockHeight.RUnlock()
+	return calls
+}
+
+// LatestBlocks calls LatestBlocksFunc.
+func (mock *ClientMock) LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+	if mock.LatestBlocksFunc == nil {
+		panic("ClientMock.LatestBlocksFunc: method is nil but Client.LatestBlocks was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Blocks uint64
+	}{
+		Ctx:    ctx,
+		Blocks: blocks,
+	}
+	mock.lockLatestBlocks.Lock()
+	mock.calls.LatestBlocks = append(mock.calls.LatestBlocks, callInfo)
+	mock.lockLatestBlocks.Unlock()
+	return mock.LatestBlocksFunc(ctx, blocks)
+}
+
+// LatestBlocksCalls gets all the calls that were made to LatestBlocks.
+// Check the length with:
+//
+//	len(mockedClient.LatestBlocksCalls())
+func (mock *ClientMock) LatestBlocksCalls() []struct {
+	Ctx    context.Context
+	Blocks uint64
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Blocks uint64
+	}
+	mock.lockLatestBlocks.RLock()
+	calls = mock.calls.LatestBlocks
+	mock.lockLatestBlocks.RUnlock()
 	return calls
 }
 

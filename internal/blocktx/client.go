@@ -28,6 +28,7 @@ type Client interface {
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
 	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
+	LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error)
 }
 
 type MerkleRootVerificationRequest struct {
@@ -100,4 +101,8 @@ func (btc *BtxClient) RegisterTransactions(ctx context.Context, hashes [][]byte)
 
 func (btc *BtxClient) CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 	return btc.client.CurrentBlockHeight(ctx, &emptypb.Empty{})
+}
+
+func (btc *BtxClient) LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+	return btc.client.LatestBlocks(ctx, &blocktx_api.NumOfLatestBlocks{Blocks: blocks})
 }

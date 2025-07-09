@@ -12,6 +12,7 @@ import (
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -94,34 +95,46 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
-	var txHashes []*chainhash.Hash
+	var txs []*chainhash.Hash
+	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
 
 	for {
-		txHashes, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
+		blocksSinceLastRequested, err = p.blocktxClient.LatestBlocks(ctx, p.rejectPendingBlocksSince)
+		if err != nil {
+			p.logger.Error("Failed to get blocks since last requested", slog.String("err", err.Error()))
+			break
+		}
+		if uint64(len(blocksSinceLastRequested.Blocks)) != p.rejectPendingBlocksSince {
+			p.logger.Warn("Unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			break
+		}
+
+		blocks := blocksSinceLastRequested.GetBlocks()
+		sinceLastProcessed := p.now().Sub(blocks[len(blocks)-1].ProcessedAt.AsTime())
+
+		// reject all txs which have been requested at least `rejectPendingSeenLastRequestedAgo` or the time since `rejectPendingBlocksSince` have been processed ago
+		requestedAgo := max(sinceLastProcessed, p.rejectPendingSeenLastRequestedAgo)
+
+		txs, err = p.store.GetUnconfirmedRequested(ctx, requestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
 		}
 
 		offset += loadLimit
-		totalRejected += len(txHashes)
 
-		if len(txHashes) == 0 {
-			break
-		}
-
-		for _, txHash := range txHashes {
-			p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", txHash.String()))
-
-			if p.rejectPendingSeenEnabled {
+		if p.rejectPendingSeenEnabled && len(txs) != 0 {
+			for _, tx := range txs {
+				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.String()))
 				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
 					Start:  time.Now(),
-					Hash:   txHash,
+					Hash:   tx,
 					Status: metamorph_api.Status_REJECTED,
 					Err:    ErrRejectUnconfirmed,
 				}
 			}
+			totalRejected += len(txs)
 		}
 
 		time.Sleep(100 * time.Millisecond)

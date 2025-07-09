@@ -1,0 +1,60 @@
+- inserted_at: 2023-12-15 14:00:00
+  id: 0
+  hash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
+  prevhash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000001
+  merkleroot: 0x7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483
+  height: 822012
+  processed_at: 2023-12-15 13:00:00
+  size: 86840000
+  tx_count: 23477
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:00:00
+  id: 1
+  hash: 0x0000000000000000025854b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  prevhash: 0xb71ab063c5f96cad71cdc59dcc94182a20a69cbd7eed2d070000000000000000
+  merkleroot: 0x7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483
+  height: 822013
+  processed_at: 2023-12-15 13:00:00
+  size: 86840000
+  tx_count: 23477
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:00:00
+  id: 2
+  hash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  prevhash: 0x0000000000000000025854b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7f4019eb006f5333cce752df387fa8443035c22291eb771ee5b16a02b81c8483
+  height: 822014
+  processed_at: 2023-12-15 13:00:00
+  size: 86840000
+  tx_count: 23477
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 16:30:00
+  id: 3
+  hash: 0x000000000000000003b15d668b54c4b91ae81a86298ee209d9f39fd7a769bcde
+  prevhash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822015
+  processed_at: 2023-12-15 15:00:00
+  size: 20160000
+  tx_count: 6523
+  status: 10 # LONGEST
+  chainwork: '123456'
+  is_longest: true
+- inserted_at: 2023-12-15 14:30:00
+  id: 4
+  hash: 0x00000000000000000659df0d3cf98ebe46931b67117502168418f9dce4e1b4c9
+  prevhash: 0x0000000000000000025855b62f4c2e3732dad363a6f2ead94e4657ef96877067
+  merkleroot: 0x7382df1b717287ab87e5e3e25759697c4c45eea428f701cdd0c77ad3fc707257
+  height: 822016
+  processed_at: 2023-12-15 17:00:00
+  size: 20160000
+  tx_count: 6523
+  status: 20 # STALE - competing block
+  chainwork: '123456'
+  is_longest: false

@@ -49,6 +49,12 @@ func WithRejectPendingSeenLastRequestedAgo(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithRejectPendingBlocksSince(blocks uint64) func(*Processor) {
+	return func(p *Processor) {
+		p.rejectPendingBlocksSince = blocks
+	}
+}
+
 func WithReBroadcastExpiration(d time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.rebroadcastExpiration = d

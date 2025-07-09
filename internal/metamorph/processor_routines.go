@@ -110,7 +110,13 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 
-		txs, err = p.store.GetUnconfirmedRequested(ctx, p.rejectPendingSeenLastRequestedAgo, loadLimit, offset)
+		blocks := blocksSinceLastRequested.GetBlocks()
+		sinceLastProcessed := p.now().Sub(blocks[len(blocks)-1].ProcessedAt.AsTime())
+
+		// reject all txs which have been requested at least `rejectPendingSeenLastRequestedAgo` or the time since `rejectPendingBlocksSince` have been processed ago
+		requestedAgo := max(sinceLastProcessed, p.rejectPendingSeenLastRequestedAgo)
+
+		txs, err = p.store.GetUnconfirmedRequested(ctx, requestedAgo, loadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break

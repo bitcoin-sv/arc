@@ -1497,8 +1497,7 @@ func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedA
 
 	for rows.Next() {
 		var hashBytes []byte
-		var requestedAt time.Time
-		err = rows.Scan(&hashBytes, &requestedAt)
+		err = rows.Scan(&hashBytes)
 		if err != nil {
 			return nil, err
 		}

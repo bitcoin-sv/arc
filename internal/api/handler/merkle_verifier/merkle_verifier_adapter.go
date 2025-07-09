@@ -49,5 +49,5 @@ func (a MerkleVerifier) CurrentHeight(ctx context.Context) (uint32, error) {
 		return 0, err
 	}
 
-	return uint32(height.CurrentBlockHeight), nil
+	return uint32(height.CurrentBlockHeight), nil // #nosec G115
 }

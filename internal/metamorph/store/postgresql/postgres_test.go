@@ -1130,8 +1130,8 @@ func TestPostgresDB(t *testing.T) {
 		chainHash2 := testutils.RevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
 		expectedRows := []*chainhash.Hash{chainHash1, chainHash2}
 
-		require.Equal(t, expectedRows[0], rows[0].Hash)
-		require.Equal(t, expectedRows[1], rows[1].Hash)
+		require.Equal(t, expectedRows[0], rows[0])
+		require.Equal(t, expectedRows[1], rows[1])
 
 		postgresDB.now = func() time.Time { return now }
 	})

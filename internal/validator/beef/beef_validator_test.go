@@ -82,7 +82,7 @@ func TestBeefValidator(t *testing.T) {
 
 			// then
 			if tc.expectedErr != nil {
-				require.Equal(t, err, tc.expectedErr)
+				require.Equal(t, tc.expectedErr, err)
 
 				if tc.expectErrTx {
 					assert.NotNil(t, actualTx)

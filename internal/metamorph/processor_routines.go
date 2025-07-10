@@ -124,14 +124,17 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 
 		offset += loadLimit
 
-		if p.rejectPendingSeenEnabled && len(txs) != 0 {
+		p.logger.Debug("Unconfirmed requested txs", slog.Int("count", len(txs)), slog.Duration("requestedAgo", requestedAgo), slog.Bool("enabled", p.rejectPendingSeenEnabled))
+		if len(txs) != 0 {
 			for _, tx := range txs {
 				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.String()))
-				p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-					Start:  time.Now(),
-					Hash:   tx,
-					Status: metamorph_api.Status_REJECTED,
-					Err:    ErrRejectUnconfirmed,
+				if p.rejectPendingSeenEnabled {
+					p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
+						Start:  time.Now(),
+						Hash:   tx,
+						Status: metamorph_api.Status_REJECTED,
+						Err:    ErrRejectUnconfirmed,
+					}
 				}
 			}
 			totalRejected += len(txs)

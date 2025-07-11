@@ -5,11 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/api/handler/merkle_verifier/mocks"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 )
 
 func TestMerkleVerifier_IsValidRootForHeight(t *testing.T) {
@@ -42,18 +44,23 @@ func TestMerkleVerifier_IsValidRootForHeight(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			blocktxClient := &btxMocks.ClientMock{
+				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+					return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: 10}, nil
+				},
+			}
 			rootsVerifier := &mocks.MerkleRootsVerifierMock{
 				VerifyMerkleRootsFunc: func(_ context.Context, _ []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 					return tc.unverifiedBlockHeights, tc.verifyErr
 				},
 			}
 
-			sut := New(rootsVerifier)
+			sut := New(rootsVerifier, blocktxClient)
 
 			root, err := chainhash.NewHashFromHex("c0603858c68bc1445eb8cefce71c556d511b1b9a82a3de138dd3470dd1422676")
 			require.NoError(t, err)
 
-			actualOk, err := sut.IsValidRootForHeight(root, 5)
+			actualOk, err := sut.IsValidRootForHeight(context.Background(), root, 5)
 
 			require.Equal(t, tc.expectedOk, actualOk)
 			if tc.expectedError != nil {

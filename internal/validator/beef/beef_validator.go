@@ -23,7 +23,8 @@ var (
 )
 
 type ChainTracker interface {
-	IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error)
+	IsValidRootForHeight(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error)
+	CurrentHeight(ctx context.Context) (uint32, error)
 }
 
 type Validator struct {
@@ -108,7 +109,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 	}
 
 	// verify with chain tracker
-	ok, err := beefTx.Verify(v.chainTracker, false)
+	ok, err := beefTx.Verify(ctx, v.chainTracker, false)
 	if err != nil {
 		vErr = validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
 		return nil, vErr

@@ -16,15 +16,14 @@ var (
 
 type MerkleVerifier struct {
 	verifier blocktx.MerkleRootsVerifier
+	blocktx  blocktx.Client
 }
 
-func New(v blocktx.MerkleRootsVerifier) MerkleVerifier {
-	return MerkleVerifier{verifier: v}
+func New(v blocktx.MerkleRootsVerifier, blocktx blocktx.Client) MerkleVerifier {
+	return MerkleVerifier{verifier: v, blocktx: blocktx}
 }
 
-func (a MerkleVerifier) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
-	ctx := context.Background()
-
+func (a MerkleVerifier) IsValidRootForHeight(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error) {
 	heightUint64, err := safecast.ToUint64(height)
 	if err != nil {
 		return false, err
@@ -42,4 +41,13 @@ func (a MerkleVerifier) IsValidRootForHeight(root *chainhash.Hash, height uint32
 	}
 
 	return false, nil
+}
+
+func (a MerkleVerifier) CurrentHeight(ctx context.Context) (uint32, error) {
+	height, err := a.blocktx.CurrentBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(height.CurrentBlockHeight), nil // #nosec G115
 }

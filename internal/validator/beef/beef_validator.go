@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
@@ -19,7 +20,12 @@ import (
 )
 
 var (
-	ErrBEEFVerificationFailed = errors.New("BEEF verification failed")
+	ErrBEEFVerificationFailed   = errors.New("BEEF verification failed")
+	ErrBEEFVerificationTimedOut = errors.New("BEEF verification timed out")
+
+	ErrRequestFailed            = errors.New("request failed")
+	ErrRequestTimedOut          = errors.New("request timed out")
+	ErrNoChainTrackersAvailable = errors.New("no chain trackers available")
 )
 
 type ChainTracker interface {
@@ -32,6 +38,7 @@ type Validator struct {
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
+
 type Option func(d *Validator)
 
 func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
@@ -107,14 +114,33 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 	}
 
-	// verify with chain tracker
-	ok, err := beefTx.Verify(v.chainTracker, false)
-	if err != nil {
-		vErr = validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
-		return nil, vErr
+	slog.Default().Info("=== BEEF transaction validated successfully")
+
+	isValid := beefTx.IsValid(false)
+	if !isValid {
+		return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, errors.New(beefTx.ToLogString())), api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 
-	if !ok {
+	var verificationSuccessful bool
+	// verify with chain tracker
+	verificationSuccessful, err = beefTx.Verify(v.chainTracker, false)
+	if err != nil {
+		if errors.Is(err, ErrRequestTimedOut) {
+			slog.Default().Error("=== BEEF verification error => time out", slog.String("err", err.Error()))
+			return nil, validator.NewError(errors.Join(ErrBEEFVerificationTimedOut, err), api.ErrStatusBeefValidationMerkleRoots)
+		}
+
+		if errors.Is(err, ErrRequestFailed) {
+			slog.Default().Error("=== BEEF verification error => request failed", slog.String("err", err.Error()))
+			return nil, validator.NewError(errors.Join(ErrBEEFVerificationFailed, err), api.ErrStatusBeefValidationMerkleRoots)
+		}
+
+		slog.Default().Error("=== BEEF verification error", slog.String("err", err.Error()))
+		return nil, validator.NewError(err, api.ErrStatusBeefValidationMerkleRoots)
+	}
+
+	if !verificationSuccessful {
+		slog.Default().Error("=== BEEF verification failed")
 		return nil, validator.NewError(ErrBEEFVerificationFailed, api.ErrStatusBeefValidationFailedBeefInvalid)
 	}
 

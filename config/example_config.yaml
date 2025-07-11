@@ -146,6 +146,11 @@ blocktx:
         - "eth1"
 
 api:
+  merkleRootVerification: # settings related to Merkle root verification
+    timeout: 5s # timeout when calling block header service
+    blockHeaderServices: # block header services to call during Merkle root verification of BEEF format. If none given WoC will be used as block header service by default
+      - url: https://bhs-1.com # url of block header service
+        apiKey: XXX # api key to be used with block header service for authentication
   standardFormatSupported: true # requires RPC connection to node to be able to validate
   address: localhost:9090 # address to start api server on
   listenAddr: localhost:8033 # address for grpc endpoint

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker/headers_client"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
@@ -210,29 +209,46 @@ func (c *Client) IsValidRootForHeight(ctx context.Context, root *chainhash.Hash,
 	return verificationSuccessful, err
 }
 
-func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (headers_client.State, error) {
+type State struct {
+	Height uint32 `json:"height"`
+}
+
+func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (uint32, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 	client := &http.Client{}
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/chain/tip/longest", url), nil)
 	if err != nil {
-		return headers_client.State{}, err
+		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	res, err := client.Do(req)
-	if err != nil {
-		return headers_client.State{}, err
-	}
-	defer res.Body.Close()
 
-	var headerState headers_client.State
-	err = json.NewDecoder(res.Body).Decode(&headerState)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	resp, err := client.Do(req)
 	if err != nil {
-		return headers_client.State{}, err
+		var e net.Error
+		isNetError := errors.As(err, &e)
+		if isNetError && e.Timeout() {
+			return 0, errors.Join(ErrRequestTimedOut, err)
+		}
+
+		return 0, fmt.Errorf("error sending request: %v", err)
 	}
-	return headerState, nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, errors.Join(beef.ErrRequestFailed, fmt.Errorf("status code: %d, status: %s", resp.StatusCode, resp.Status))
+	}
+
+	var response State
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return 0, err
+	}
+	return response.Height, nil
 }
 
 func (c *Client) CurrentHeight(ctx context.Context) (uint32, error) {
-	var tip headers_client.State
+	var tip uint32
 	var anyChainTrackerAvailable bool
 	var err error
 	for _, ct := range c.chainTrackers {
@@ -255,7 +271,7 @@ func (c *Client) CurrentHeight(ctx context.Context) (uint32, error) {
 		return 0, errors.Join(beef.ErrNoChainTrackersAvailable, err)
 	}
 
-	return tip.Height, nil
+	return tip, nil
 }
 
 type IsValidRootForHeightResponse struct {

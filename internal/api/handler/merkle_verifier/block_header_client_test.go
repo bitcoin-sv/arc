@@ -203,3 +203,83 @@ func TestClient_IsValidRootForHeight(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_CurrentHeight(t *testing.T) {
+	tt := []struct {
+		name          string
+		httpStatus    int
+		timeout       bool
+		responseBody  any
+		isUnavailable bool
+
+		expectedError  error
+		expectedHeight uint32
+	}{
+		{
+			name:       "root is valid",
+			httpStatus: http.StatusOK,
+			responseBody: State{
+				Height: 10000,
+			},
+
+			expectedHeight: 10000,
+		},
+		{
+			name:       "http status unavailable",
+			httpStatus: http.StatusServiceUnavailable,
+
+			expectedError:  beef.ErrRequestFailed,
+			expectedHeight: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.String(), "status") {
+					if tc.isUnavailable {
+						w.WriteHeader(http.StatusServiceUnavailable)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+
+				require.Equal(t, "Bearer abc", r.Header.Get("Authorization"))
+				if tc.timeout {
+					time.Sleep(300 * time.Millisecond)
+					t.Log("timeout")
+				}
+				w.WriteHeader(tc.httpStatus)
+
+				jsonResp, err := json.Marshal(tc.responseBody)
+				require.NoError(t, err)
+				_, err = w.Write(jsonResp)
+				require.NoError(t, err)
+			}))
+			defer server.Close()
+
+			ct := NewChainTracker(server.URL, "abc")
+
+			chainTrackers := []*ChainTracker{ct}
+
+			sut := NewClient(logger, chainTrackers, WithCheckChainTrackersInterval(100*time.Millisecond), WithTimeout(100*time.Millisecond))
+			defer sut.Shutdown()
+
+			time.Sleep(200 * time.Millisecond)
+
+			height, err := sut.CurrentHeight(context.TODO())
+			require.Equal(t, !tc.isUnavailable, ct.IsAvailable())
+			require.Equal(t, tc.expectedHeight, height)
+
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}

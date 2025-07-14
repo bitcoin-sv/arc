@@ -190,7 +190,7 @@ func TestClient_IsValidRootForHeight(t *testing.T) {
 
 			time.Sleep(200 * time.Millisecond)
 
-			ok, err := sut.IsValidRootForHeight(root, 800000)
+			ok, err := sut.IsValidRootForHeight(context.TODO(), root, 800000)
 			require.Equal(t, !tc.isUnavailable, ct.IsAvailable())
 			require.Equal(t, tc.expectedOk, ok)
 

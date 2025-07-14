@@ -210,7 +210,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	case "regtest":
 		network = "regtest"
 		if !bhsDefined {
-			chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient))
+			chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient), blockTxClient)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:

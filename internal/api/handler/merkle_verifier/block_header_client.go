@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker/headers_client"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
@@ -136,9 +137,9 @@ func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context
 	}()
 }
 
-func checkChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
+func checkChainTrackers(ctx context.Context, c *Client) []attribute.KeyValue {
 	for _, ct := range c.chainTrackers {
-		isAvailable, err := c.isServiceAvailable(ct.url, ct.apiKey)
+		isAvailable, err := c.isServiceAvailable(ctx, ct.url, ct.apiKey)
 
 		if err != nil {
 			c.logger.Warn("Block header service unavailable", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable), slog.String("err", err.Error()))
@@ -152,8 +153,11 @@ func checkChainTrackers(_ context.Context, c *Client) []attribute.KeyValue {
 	return []attribute.KeyValue{}
 }
 
-func (c *Client) isServiceAvailable(url string, apiKey string) (bool, error) {
-	req, err := http.NewRequest("GET", url+"/status", nil)
+func (c *Client) isServiceAvailable(ctx context.Context, url string, apiKey string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url+"/status", nil)
 	if err != nil {
 		return false, fmt.Errorf("error creating request: %v", err)
 	}
@@ -161,7 +165,7 @@ func (c *Client) isServiceAvailable(url string, apiKey string) (bool, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: statusTimeout}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		var e net.Error
@@ -181,7 +185,7 @@ func (c *Client) isServiceAvailable(url string, apiKey string) (bool, error) {
 	return true, nil
 }
 
-func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool, error) {
+func (c *Client) IsValidRootForHeight(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error) {
 	var verificationSuccessful bool
 	var anyChainTrackerAvailable bool
 	var err error
@@ -192,7 +196,7 @@ func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool
 
 		anyChainTrackerAvailable = true
 
-		verificationSuccessful, err = c.merkleRootVerify(ct.url, ct.apiKey, root, height)
+		verificationSuccessful, err = c.merkleRootVerify(ctx, ct.url, ct.apiKey, root, height)
 		if err == nil {
 			break
 		}
@@ -205,11 +209,58 @@ func (c *Client) IsValidRootForHeight(root *chainhash.Hash, height uint32) (bool
 	return verificationSuccessful, err
 }
 
+func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (headers_client.State, error) {
+	client := &http.Client{}
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/chain/tip/longest", url), nil)
+	if err != nil {
+		return headers_client.State{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	res, err := client.Do(req)
+	if err != nil {
+		return headers_client.State{}, err
+	}
+	defer res.Body.Close()
+
+	var headerState headers_client.State
+	err = json.NewDecoder(res.Body).Decode(&headerState)
+	if err != nil {
+		return headers_client.State{}, err
+	}
+	return headerState, nil
+}
+
+func (c *Client) CurrentHeight(ctx context.Context) (uint32, error) {
+	var tip headers_client.State
+	var anyChainTrackerAvailable bool
+	var err error
+	for _, ct := range c.chainTrackers {
+		if !ct.IsAvailable() {
+			continue
+		}
+
+		anyChainTrackerAvailable = true
+		tip, err = c.getChainTip(ctx, ct.url, ct.apiKey)
+		if err == nil {
+			break
+		}
+	}
+
+	if !anyChainTrackerAvailable {
+		return 0, errors.Join(beef.ErrNoChainTrackersAvailable, err)
+	}
+
+	return tip.Height, nil
+}
+
 type IsValidRootForHeightResponse struct {
 	ConfirmationState bhsDomains.MerkleRootConfirmationState `json:"confirmationState"`
 }
 
-func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Hash, height uint32) (bool, error) {
+func (c *Client) merkleRootVerify(ctx context.Context, url string, apiKey string, root *chainhash.Hash, height uint32) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
 	type requestBody struct {
 		MerkleRoot  string `json:"merkleRoot"`
 		BlockHeight uint32 `json:"blockHeight"`
@@ -221,7 +272,7 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 		return false, fmt.Errorf("error marshaling JSON: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", url+"/api/v1/chain/merkleroot/verify", bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequestWithContext(ctx, "POST", url+"/api/v1/chain/merkleroot/verify", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return false, fmt.Errorf("error creating request: %v", err)
 	}
@@ -229,7 +280,7 @@ func (c *Client) merkleRootVerify(url string, apiKey string, root *chainhash.Has
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: c.timeout}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		var e net.Error

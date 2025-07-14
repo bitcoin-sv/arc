@@ -32,6 +32,7 @@ var (
 	ErrRequestFailed   = errors.New("request failed")
 	ErrRequestTimedOut = errors.New("request timed out")
 	ErrParseResponse   = errors.New("failed to parse response")
+	ErrGetChainTip     = errors.New("failed to get chain tip")
 )
 
 type Option func(*Client)
@@ -244,6 +245,10 @@ func (c *Client) CurrentHeight(ctx context.Context) (uint32, error) {
 		if err == nil {
 			break
 		}
+	}
+
+	if err != nil {
+		return 0, errors.Join(ErrGetChainTip, err)
 	}
 
 	if !anyChainTrackerAvailable {

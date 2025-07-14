@@ -231,6 +231,33 @@ func TestClient_CurrentHeight(t *testing.T) {
 			expectedError:  beef.ErrRequestFailed,
 			expectedHeight: 0,
 		},
+		{
+			name:       "time out",
+			httpStatus: http.StatusOK,
+			responseBody: State{
+				Height: 10000,
+			},
+			timeout: true,
+
+			expectedHeight: 0,
+			expectedError:  ErrRequestTimedOut,
+		},
+		{
+			name:         "failed to parse response",
+			httpStatus:   http.StatusOK,
+			responseBody: []string{},
+
+			expectedHeight: 0,
+			expectedError:  ErrParseResponse,
+		},
+		{
+			name:          "all unavailable",
+			httpStatus:    http.StatusOK,
+			isUnavailable: true,
+
+			expectedHeight: 0,
+			expectedError:  beef.ErrNoChainTrackersAvailable,
+		},
 	}
 
 	for _, tc := range tt {

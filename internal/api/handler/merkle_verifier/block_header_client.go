@@ -242,7 +242,7 @@ func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (ui
 	var response State
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		return 0, err
+		return 0, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %v", err))
 	}
 	return response.Height, nil
 }

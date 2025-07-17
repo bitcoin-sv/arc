@@ -199,13 +199,14 @@ type UnorphanRecentWrongOrphansConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 }
 type APIConfig struct {
-	StandardFormatSupported bool              `mapstructure:"standardFormatSupported"`
-	Address                 string            `mapstructure:"address"`
-	ListenAddr              string            `mapstructure:"listenAddr"`
-	WocAPIKey               string            `mapstructure:"wocApiKey"`
-	WocMainnet              bool              `mapstructure:"wocMainnet"`
-	DefaultPolicy           *bitcoin.Settings `mapstructure:"defaultPolicy"`
-	RequestExtendedLogs     bool              `mapstructure:"requestExtendedLogs"`
+	StandardFormatSupported bool                   `mapstructure:"standardFormatSupported"`
+	Address                 string                 `mapstructure:"address"`
+	ListenAddr              string                 `mapstructure:"listenAddr"`
+	WocAPIKey               string                 `mapstructure:"wocApiKey"`
+	WocMainnet              bool                   `mapstructure:"wocMainnet"`
+	DefaultPolicy           *bitcoin.Settings      `mapstructure:"defaultPolicy"`
+	RequestExtendedLogs     bool                   `mapstructure:"requestExtendedLogs"`
+	MerkleRootVerification  MerkleRootVerification `mapstructure:"merkleRootVerification"`
 }
 
 type K8sWatcherConfig struct {
@@ -221,4 +222,14 @@ type CallbackerConfig struct {
 	PruneInterval     time.Duration `mapstructure:"pruneInterval"`
 	Expiration        time.Duration `mapstructure:"expiration"`
 	Db                *DbConfig     `mapstructure:"db"`
+}
+
+type MerkleRootVerification struct {
+	Timeout             time.Duration        `mapstructure:"timeout"`
+	BlockHeaderServices []BlockHeaderService `mapstructure:"blockHeaderServices"`
+}
+
+type BlockHeaderService struct {
+	URL    string `mapstructure:"url"`
+	APIKey string `mapstructure:"apiKey"`
 }

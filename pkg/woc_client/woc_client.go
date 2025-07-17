@@ -375,7 +375,7 @@ func (w *WocClient) doRequest(req *http.Request) (*http.Response, error) {
 		return nil, errors.Join(ErrWOCRequestFailed, err)
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.Join(ErrWOCResponseNotOK, fmt.Errorf("status: %s", resp.Status))
 	}
 

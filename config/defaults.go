@@ -131,6 +131,9 @@ func getBlocktxConfig() *BlocktxConfig {
 
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
+		MerkleRootVerification: MerkleRootVerification{
+			BlockHeaderServices: []BlockHeaderService{},
+		},
 		StandardFormatSupported: true,
 		Address:                 "localhost:9090",
 		ListenAddr:              "localhost:8033",

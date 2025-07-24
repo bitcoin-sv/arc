@@ -102,6 +102,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 
 	// 10) Reject if the sum of input values is less than sum of output values
 	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
+	//revive:disable:enforce-switch-style
 	switch feeValidation {
 	case validator.StandardFeeValidation:
 		if vErr = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); vErr != nil {
@@ -120,6 +121,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
 	}
+	//revive:enable:enforce-switch-style
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	vErr = v.performStandardScriptValidation(scriptValidation, tx, blockHeight)
 	if vErr != nil {

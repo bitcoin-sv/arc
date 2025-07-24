@@ -105,6 +105,7 @@ func main() {
 
 	network := arcConfig.Network
 	genesisBlock := apiHandler.GenesisForkBlockRegtest
+	//revive:disable:enforce-switch-style
 	switch arcConfig.Network {
 	case "testnet":
 		network = "test"
@@ -113,6 +114,7 @@ func main() {
 		network = "main"
 		genesisBlock = apiHandler.GenesisForkBlockMain
 	}
+	//revive:enable:enforce-switch-style
 
 	se := goscript.NewScriptEngine(network)
 

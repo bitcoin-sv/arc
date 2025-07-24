@@ -1170,6 +1170,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 			var prevBlockHash []byte
 
 			if tc.prevBlockExists {
+				//revive:disable:enforce-switch-style
 				switch tc.prevBlockStatus {
 				case blocktx_api.Status_LONGEST:
 					prevBlockHash = blockHashLongest[:]
@@ -1178,6 +1179,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 				case blocktx_api.Status_ORPHANED:
 					prevBlockHash = blockHashOrphaned[:]
 				}
+				//revive:enable:enforce-switch-style
 			} else {
 				prevBlockHash = randomPrevBlockHash[:]
 			}

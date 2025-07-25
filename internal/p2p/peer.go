@@ -158,6 +158,8 @@ func (p *Peer) String() string {
 func (p *Peer) connect() bool {
 	p.logger.Info("Connecting")
 
+	p.healthMonitor()
+
 	ctx := context.Background()
 
 	ctxDial, cancelDialFn := context.WithTimeout(ctx, p.connectionTimeout)
@@ -186,7 +188,6 @@ func (p *Peer) connect() bool {
 	}
 
 	p.keepAlive()
-	p.healthMonitor()
 
 	p.connected.Store(true)
 	p.logger.Info("Ready")

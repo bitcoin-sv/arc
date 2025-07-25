@@ -235,6 +235,9 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 			NetworkFunc: func() wire.BitcoinNet {
 				return peerManagerNetwork
 			},
+			StringFunc: func() string {
+				return "unhealthy-peer"
+			},
 		}
 
 		connected := unhealthyPeer.Connected()

@@ -112,6 +112,7 @@ func main() {
 	case "mainnet":
 		network = "main"
 		genesisBlock = apiHandler.GenesisForkBlockMain
+	default:
 	}
 
 	se := goscript.NewScriptEngine(network)

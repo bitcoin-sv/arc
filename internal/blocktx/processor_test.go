@@ -874,6 +874,7 @@ func TestStart(t *testing.T) {
 						registerTxFunc = subscribeFunc
 					case mq.RegisterTxsTopic:
 						registerTxsFunc = subscribeFunc
+					default:
 					}
 					return nil
 				},

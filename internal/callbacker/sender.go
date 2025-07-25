@@ -289,6 +289,7 @@ func (p *CallbackSender) updateSuccessStats(txStatus string) {
 			p.stats.callbackMinedCount.Inc()
 		case callbacker_api.Status_REJECTED:
 			p.stats.callbackRejectedCount.Inc()
+		default:
 		}
 	}
 }

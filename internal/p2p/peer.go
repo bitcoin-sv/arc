@@ -159,11 +159,6 @@ func (p *Peer) connect() bool {
 	p.logger.Info("Connecting")
 
 	ctx := context.Background()
-	execCtx, cancelFn := context.WithCancel(ctx)
-	p.execCtx = execCtx
-	p.cancelExecCtx = cancelFn
-
-	defer p.healthMonitor()
 
 	ctxDial, cancelDialFn := context.WithTimeout(ctx, p.connectionTimeout)
 	defer cancelDialFn()
@@ -171,8 +166,13 @@ func (p *Peer) connect() bool {
 	lc, err := p.dialer.DialContext(ctxDial, "tcp", p.address)
 	if err != nil {
 		p.logger.Error("Failed to dial node", slog.String("err", err.Error()))
+		p.unhealthyDisconnect()
 		return false
 	}
+
+	execCtx, cancelFn := context.WithCancel(ctx)
+	p.execCtx = execCtx
+	p.cancelExecCtx = cancelFn
 
 	if ok := p.handshake(lc); !ok {
 		_ = lc.Close()
@@ -186,6 +186,7 @@ func (p *Peer) connect() bool {
 		p.sendMessages(i)
 	}
 
+	p.healthMonitor()
 	p.keepAlive()
 
 	p.connected.Store(true)

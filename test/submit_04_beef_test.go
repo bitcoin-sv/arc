@@ -92,7 +92,7 @@ func TestBeef(t *testing.T) {
 		}()
 
 		go func() {
-			t.Log("starting callback server")
+			t.Logf("starting callback server")
 			err = http.Serve(lis, mux)
 			if err != nil {
 				t.Log("callback server stopped")

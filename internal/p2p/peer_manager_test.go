@@ -256,6 +256,11 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 			p2p.WithPingInterval(300*time.Millisecond, 70*time.Millisecond),
 		)
 
+		connected := unhealthyPeer.Connect()
+		require.Equal(t, false, connected, "Unhealthy peer should not connect")
+		connected = healthyPeer.Connect()
+		require.Equal(t, true, connected, "Healthy peer should connect")
+
 		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers())
 		err := pm.AddPeer(unhealthyPeer)
 		require.NoError(t, err)

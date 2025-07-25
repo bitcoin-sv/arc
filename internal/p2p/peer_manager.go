@@ -11,7 +11,10 @@ import (
 	"github.com/libsv/go-p2p/wire"
 )
 
-var ErrPeerNetworkMismatch = errors.New("peer network mismatch")
+var (
+	ErrPeerNetworkMismatch         = errors.New("peer network mismatch")
+	defaultPeerHealthCheckInterval = time.Minute
+)
 
 const reconnectDelay = time.Minute
 
@@ -27,14 +30,16 @@ type PeerManager struct {
 	peers []PeerI
 
 	restartUnhealthyPeers bool
+	peerCheckInterval     time.Duration
 }
 
 func NewPeerManager(logger *slog.Logger, network wire.BitcoinNet, options ...PeerManagerOptions) *PeerManager {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	m := &PeerManager{
-		execCtx:       ctx,
-		cancelExecCtx: cancelFn,
+		execCtx:           ctx,
+		cancelExecCtx:     cancelFn,
+		peerCheckInterval: defaultPeerHealthCheckInterval,
 
 		network: network,
 		l:       logger,

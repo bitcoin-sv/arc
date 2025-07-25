@@ -8,6 +8,7 @@ type PeerI interface {
 	Restart() (ok bool)
 	Shutdown()
 	Connected() bool
+	Connect() bool
 	IsUnhealthyCh() <-chan struct{}
 	WriteMsg(msg wire.Message)
 	Network() wire.BitcoinNet

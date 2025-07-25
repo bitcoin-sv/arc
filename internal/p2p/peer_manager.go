@@ -14,6 +14,7 @@ import (
 var (
 	ErrPeerNetworkMismatch         = errors.New("peer network mismatch")
 	defaultPeerHealthCheckInterval = time.Minute
+	defaultReconnectDelay          = time.Minute
 )
 
 const reconnectDelay = time.Minute
@@ -31,6 +32,7 @@ type PeerManager struct {
 
 	restartUnhealthyPeers bool
 	peerCheckInterval     time.Duration
+	reconnectDelay        time.Duration
 }
 
 func NewPeerManager(logger *slog.Logger, network wire.BitcoinNet, options ...PeerManagerOptions) *PeerManager {
@@ -40,6 +42,7 @@ func NewPeerManager(logger *slog.Logger, network wire.BitcoinNet, options ...Pee
 		execCtx:           ctx,
 		cancelExecCtx:     cancelFn,
 		peerCheckInterval: defaultPeerHealthCheckInterval,
+		reconnectDelay:    defaultReconnectDelay,
 
 		network: network,
 		l:       logger,
@@ -185,7 +188,7 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 							break restartLoop
 						}
 						m.l.Warn("Peer restart failed", slog.String("peer", peer.String()))
-						time.Sleep(reconnectDelay)
+						time.Sleep(m.reconnectDelay)
 
 						m.l.Warn("Try restart peer", slog.String("peer", peer.String()))
 					}

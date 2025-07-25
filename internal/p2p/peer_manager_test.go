@@ -223,7 +223,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 
 		unhealthyPeer := &mocks.PeerIMock{
 			ConnectedFunc: func() bool {
-				if restarts == 0 {
+				if restarts <= 2 {
 					restarts++
 					return false
 				}
@@ -237,13 +237,18 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 		connected := unhealthyPeer.Connected()
 		require.Equal(t, false, connected, "Unhealthy peer should not connect")
 
-		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers(), p2p.SetPeerCheckInterval(50*time.Millisecond))
+		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers(), p2p.SetPeerCheckInterval(50*time.Millisecond), p2p.SetReconnectDelay(50*time.Millisecond))
 		err := pm.AddPeer(unhealthyPeer)
 		require.NoError(t, err)
 		require.Len(t, pm.GetPeers(), 2)
 
-		time.Sleep(70 * time.Millisecond) // wait for the unhealthy peer to be restarted
-		require.Equal(t, true, unhealthyPeer.Connected())
+		// give some time for the peer manager to monitor the unhealthy peer
+		time.Sleep(70 * time.Millisecond)
+		require.Equal(t, false, unhealthyPeer.Connected())
 		require.Equal(t, 1, len(unhealthyPeer.RestartCalls()), "Unhealthy peer should be restarted once")
+
+		// let reconnecting delay pass
+		time.Sleep(50 * time.Millisecond)
+		require.Equal(t, true, unhealthyPeer.Connected())
 	})
 }

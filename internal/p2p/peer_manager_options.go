@@ -24,3 +24,9 @@ func SetPeerCheckInterval(interval time.Duration) PeerManagerOptions {
 		p.peerCheckInterval = interval
 	}
 }
+
+func SetReconnectDelay(delay time.Duration) PeerManagerOptions {
+	return func(p *PeerManager) {
+		p.reconnectDelay = delay
+	}
+}

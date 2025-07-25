@@ -253,6 +253,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 					return toPeerConn, nil
 				},
 			}),
+			p2p.WithPingInterval(300*time.Millisecond, 70*time.Millisecond),
 		)
 
 		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers())

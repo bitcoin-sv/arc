@@ -1,10 +1,14 @@
 package p2p_test
 
 import (
+	"context"
+	"errors"
 	"log/slog"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/cbeuw/connutil"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 
@@ -194,7 +198,6 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 		unhealthyCh := make(chan struct{}, 1)
 
 		peer := &mocks.PeerIMock{
-			ConnectFunc:       func() bool { return true },
 			NetworkFunc:       func() wire.BitcoinNet { return peerManagerNetwork },
 			RestartFunc:       func() bool { return true },
 			StringFunc:        func() string { return "peer1" },
@@ -206,12 +209,58 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 		err := sut.AddPeer(peer)
 		require.NoError(t, err)
 
-		peer.Connect()
+		// when
+		// peer signals it's unhealthy
+		unhealthyCh <- struct{}{}
 
 		// give some time for the restart process to be triggered
 		time.Sleep(100 * time.Millisecond)
 
 		// then
 		require.Equal(t, 1, len(peer.RestartCalls()))
+	})
+}
+
+func Test_PeerManagerUnhealthyPeers(t *testing.T) {
+	t.Run("Recover unhealthy peers", func(t *testing.T) {
+		toPeerConn, _ := connutil.AsyncPipe()
+		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
+		restarts := 0
+
+		unhealthyPeer := p2p.NewPeer(
+			slog.Default(),
+			mhMq,
+			peerAddr,
+			bitcoinNet,
+			p2p.WithDialer(&mocks.DialerMock{
+				DialContextFunc: func(_ context.Context, _ string, _ string) (net.Conn, error) {
+					if restarts == 0 {
+						restarts++
+						return nil, errors.New("dial failed")
+					}
+					return toPeerConn, nil
+				},
+			}),
+		)
+
+		healthyPeer := p2p.NewPeer(
+			slog.Default(),
+			mhMq,
+			peerAddr,
+			bitcoinNet,
+			p2p.WithDialer(&mocks.DialerMock{
+				DialContextFunc: func(_ context.Context, _ string, _ string) (net.Conn, error) {
+					return toPeerConn, nil
+				},
+			}),
+		)
+
+		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers())
+		pm.AddPeer(unhealthyPeer)
+		pm.AddPeer(healthyPeer)
+		require.Len(t, pm.GetPeers(), 2)
+
+		time.Sleep(100 * time.Millisecond) // wait for the unhealthy peer to be restarted
+		require.Equal(t, true, unhealthyPeer.Connected())
 	})
 }

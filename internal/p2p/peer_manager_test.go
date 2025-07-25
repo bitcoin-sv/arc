@@ -194,6 +194,7 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 		unhealthyCh := make(chan struct{}, 1)
 
 		peer := &mocks.PeerIMock{
+			ConnectFunc:       func() bool { return true },
 			NetworkFunc:       func() wire.BitcoinNet { return peerManagerNetwork },
 			RestartFunc:       func() bool { return true },
 			StringFunc:        func() string { return "peer1" },
@@ -205,9 +206,7 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 		err := sut.AddPeer(peer)
 		require.NoError(t, err)
 
-		// when
-		// peer signals it's unhealthy
-		unhealthyCh <- struct{}{}
+		peer.Connect()
 
 		// give some time for the restart process to be triggered
 		time.Sleep(100 * time.Millisecond)

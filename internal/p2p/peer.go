@@ -166,7 +166,6 @@ func (p *Peer) connect() bool {
 	lc, err := p.dialer.DialContext(ctxDial, "tcp", p.address)
 	if err != nil {
 		p.logger.Error("Failed to dial node", slog.String("err", err.Error()))
-		// notify peer manager about the failure
 		return false
 	}
 
@@ -176,7 +175,6 @@ func (p *Peer) connect() bool {
 
 	if ok := p.handshake(lc); !ok {
 		_ = lc.Close()
-		// notify peer manager about the failure
 		return false
 	}
 

@@ -7,7 +7,6 @@ import (
 type PeerI interface {
 	Restart() (ok bool)
 	Shutdown()
-	Connect() bool
 	Connected() bool
 	IsUnhealthyCh() <-chan struct{}
 	WriteMsg(msg wire.Message)

@@ -167,7 +167,6 @@ func (p *Peer) connect() bool {
 	if err != nil {
 		p.logger.Error("Failed to dial node", slog.String("err", err.Error()))
 		// notify peer manager about the failure
-		p.unhealthyDisconnect()
 		return false
 	}
 
@@ -178,7 +177,6 @@ func (p *Peer) connect() bool {
 	if ok := p.handshake(lc); !ok {
 		_ = lc.Close()
 		// notify peer manager about the failure
-		p.unhealthyDisconnect()
 		return false
 	}
 

@@ -158,6 +158,14 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 			case <-m.execCtx.Done():
 				return
 
+			// potentially we may miss IsUnhealthyCh so let's check the peer is connected periodically
+			case <-time.After(time.Minute):
+				if p.Connected() {
+					continue
+				}
+				m.l.Warn("Peer disconnected - restarting", slog.String("peer", peer.String()))
+				p.Restart()
+
 			case <-p.IsUnhealthyCh():
 				m.l.Warn("Peer unhealthy - restarting", slog.String("peer", peer.String()))
 

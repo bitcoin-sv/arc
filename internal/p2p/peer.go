@@ -163,7 +163,7 @@ func (p *Peer) connect() bool {
 	p.execCtx = execCtx
 	p.cancelExecCtx = cancelFn
 
-	p.healthMonitor()
+	defer p.healthMonitor()
 
 	ctxDial, cancelDialFn := context.WithTimeout(ctx, p.connectionTimeout)
 	defer cancelDialFn()

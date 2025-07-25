@@ -17,8 +17,6 @@ var (
 	defaultReconnectDelay          = time.Minute
 )
 
-const reconnectDelay = time.Minute
-
 type PeerManager struct {
 	execWg        sync.WaitGroup
 	execCtx       context.Context

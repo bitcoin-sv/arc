@@ -244,6 +244,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 			},
 		}
 
+		// initially it's not connected (will be connected after 2 more tries)
 		connected := unhealthyPeer.Connected()
 		require.Equal(t, false, connected, "Unhealthy peer should not connect")
 
@@ -254,10 +255,11 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 
 		// give some time for the peer manager to monitor the unhealthy peer
 		time.Sleep(70 * time.Millisecond)
+		// peer being restarted by manager, still disconnected
 		require.Equal(t, false, unhealthyPeer.Connected())
 		require.Equal(t, 1, len(unhealthyPeer.RestartCalls()), "Unhealthy peer should be restarted once")
 
-		// let reconnecting delay pass
+		// let restart delay pass
 		time.Sleep(50 * time.Millisecond)
 		require.Equal(t, true, unhealthyPeer.Connected())
 	})

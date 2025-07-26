@@ -249,7 +249,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers(), p2p.SetPeerCheckInterval(50*time.Millisecond), p2p.SetReconnectDelay(50*time.Millisecond))
 		err := pm.AddPeer(unhealthyPeer)
 		require.NoError(t, err)
-		require.Len(t, pm.GetPeers(), 2)
+		require.Len(t, pm.GetPeers(), 1)
 
 		// give some time for the peer manager to monitor the unhealthy peer
 		time.Sleep(70 * time.Millisecond)

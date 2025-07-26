@@ -165,7 +165,7 @@ func (m *PeerManager) startMonitorPeerHealth(peer PeerI) {
 				return
 
 			// potentially we may miss IsUnhealthyCh so let's check the peer is connected periodically
-			case <-time.After(time.Minute):
+			case <-time.After(m.peerCheckInterval):
 				if p.Connected() {
 					continue
 				}

@@ -238,6 +238,9 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 			StringFunc: func() string {
 				return "unhealthy-peer"
 			},
+			IsUnhealthyChFunc: func() <-chan struct{} {
+				return make(chan struct{})
+			},
 		}
 
 		connected := unhealthyPeer.Connected()

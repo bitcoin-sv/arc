@@ -2,6 +2,7 @@ package p2p_test
 
 import (
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -219,12 +220,12 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 
 func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 	t.Run("Recover unhealthy peers", func(t *testing.T) {
-		restarts := 0
+		restarts := int32(0)
 
 		unhealthyPeer := &mocks.PeerIMock{
 			ConnectedFunc: func() bool {
-				if restarts <= 2 {
-					restarts++
+				if atomic.LoadInt32(&restarts) <= 2 {
+					atomic.AddInt32(&restarts, 1)
 					return false
 				}
 				return true

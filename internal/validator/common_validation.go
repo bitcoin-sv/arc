@@ -106,6 +106,7 @@ func checkOutputs(tx *sdkTx.Transaction) *Error {
 			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d satoshis is invalid", index)), api.ErrStatusOutputs)
 		case isData && output.Satoshis != 0:
 			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d has non 0 value op return", index)), api.ErrStatusOutputs)
+		default:
 		}
 		total += output.Satoshis
 	}

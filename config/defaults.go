@@ -13,7 +13,7 @@ func getDefaultArcConfig() *ArcConfig {
 		ProfilerAddr:          "", // optional
 		Prometheus:            getDefaultPrometheusConfig(),
 		GrpcMessageSize:       100000000,
-		Network:               "regtest",
+		Network:               "testnet",
 		ReBroadcastExpiration: 24 * time.Hour,
 		MessageQueue:          getDefaultMessageQueueConfig(),
 		Tracing:               getDefaultTracingConfig(),
@@ -86,7 +86,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		},
 		BlockchainNetwork: &BlockchainNetwork[*MetamorphGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",
@@ -116,7 +116,7 @@ func getBlocktxConfig() *BlocktxConfig {
 		IncomingIsLongest:             false,
 		BlockchainNetwork: &BlockchainNetwork[*BlocktxGroups]{
 			Mode:    "classic",
-			Network: "regtest",
+			Network: "testnet",
 			Peers: []*PeerConfig{
 				{
 					Host: "localhost",

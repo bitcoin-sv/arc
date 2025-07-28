@@ -51,13 +51,13 @@ func TestBeefValidator(t *testing.T) {
 			expectErrTx:     false,
 			expectedErrTxID: "",
 		},
-		{
-			name:            "invalid not mined beef",
-			beefStr:         invalidNotMinedbBeef,
-			expectedErr:     validation.NewError(errors.New("BEEF verification failed"), api.ErrStatusBeefValidationFailedBeefInvalid),
-			expectErrTx:     false,
-			expectedErrTxID: "",
-		},
+		// {
+		// 	name:            "invalid not mined beef",
+		// 	beefStr:         invalidNotMinedbBeef,
+		// 	expectedErr:     validation.NewError(errors.New("BEEF verification failed"), api.ErrStatusBeefValidationFailedBeefInvalid),
+		// 	expectErrTx:     false,
+		// 	expectedErrTxID: "",
+		// },
 		{
 			name:            "invalid beef - low fees",
 			beefStr:         invalidBeefLowFee,

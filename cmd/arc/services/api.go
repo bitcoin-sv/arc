@@ -226,7 +226,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		defaultValidatorOpts...,
 	)
 
-	bv := beefValidator.New(policy, chainTracker, beefValidatorOpts...)
+	bv := beefValidator.New(policy, chainTracker, goscript.NewScriptEngine(network), genesisBlock, beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

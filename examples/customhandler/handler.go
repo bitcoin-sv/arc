@@ -43,7 +43,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 
 	dv := &apiHandlerMocks.DefaultValidatorMock{}
 	bv := &apiHandlerMocks.BeefValidatorMock{
-		ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+		ValidateTransactionFunc: func(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (*sdkTx.Transaction, error) {
 			return nil, nil
 		},
 	}

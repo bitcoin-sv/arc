@@ -143,7 +143,7 @@ func main() {
 	var handler api.ServerInterface
 
 	chainTrackerMock := &apimocks.ChainTrackerMock{}
-	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock)
+	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, se, genesisBlock)
 	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)

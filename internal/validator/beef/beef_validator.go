@@ -104,7 +104,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			vErr = validateScripts(beefTx, btx, v.scriptVerifier, blockHeight, v.genesisForkBLock)
+			vErr = validateScripts(btx, v.scriptVerifier, blockHeight, v.genesisForkBLock)
 			if vErr != nil {
 				return tx, vErr
 			}
@@ -200,7 +200,7 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 	return nil
 }
 
-func validateScripts(beef *sdkTx.Beef, beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, genesisForkBLock int32) *validator.Error {
+func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, genesisForkBLock int32) *validator.Error {
 	tx := beefTx.Transaction
 	utxo := make([]int32, len(tx.Inputs))
 	for i := range tx.Inputs {

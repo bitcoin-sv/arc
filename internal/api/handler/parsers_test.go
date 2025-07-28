@@ -67,6 +67,7 @@ func TestParseTransactionFromRequest(t *testing.T) {
 					body, _ := hex.DecodeString(tc.tx)
 					r, _ = http.NewRequest("GET", "", bytes.NewBuffer(body))
 					r.Header.Set(echo.HeaderContentType, ct)
+				default:
 				}
 
 				requests = append(requests, r)
@@ -132,6 +133,7 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 				body, _ := hex.DecodeString(tc.tx)
 				r, _ = http.NewRequest("GET", "", bytes.NewBuffer(body))
 				r.Header.Set(echo.HeaderContentType, ct)
+			default:
 			}
 
 			requests = append(requests, r)

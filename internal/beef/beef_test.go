@@ -98,7 +98,6 @@ func TestDecodeBEEF(t *testing.T) {
 
 			// then
 			if tc.expectedError != nil {
-				if ex.expectedError
 				require.ErrorIs(t, err, tc.expectedError)
 				assert.Nil(t, actualBeef)
 				return

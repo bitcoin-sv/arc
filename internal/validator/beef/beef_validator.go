@@ -198,8 +198,7 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 
 func validateScripts(beef *sdkTx.Beef, beefTx *sdkTx.BeefTx) *validator.Error {
 	for i, input := range beefTx.Transaction.Inputs {
-		inputTxID := input.SourceTXID.String()
-		inputTx, ok := beef.Transactions[inputTxID]
+		inputTx, ok := beef.Transactions[*input.SourceTXID]
 
 		if !ok {
 			return validator.NewError(errors.New("invalid script"), api.ErrStatusUnlockingScripts)

@@ -19,9 +19,6 @@ var _ p2p.PeerI = &PeerIMock{}
 //
 //		// make and configure a mocked p2p.PeerI
 //		mockedPeerI := &PeerIMock{
-//			ConnectFunc: func() bool {
-//				panic("mock out the Connect method")
-//			},
 //			ConnectedFunc: func() bool {
 //				panic("mock out the Connected method")
 //			},
@@ -50,9 +47,6 @@ var _ p2p.PeerI = &PeerIMock{}
 //
 //	}
 type PeerIMock struct {
-	// ConnectFunc mocks the Connect method.
-	ConnectFunc func() bool
-
 	// ConnectedFunc mocks the Connected method.
 	ConnectedFunc func() bool
 
@@ -76,9 +70,6 @@ type PeerIMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// Connect holds details about calls to the Connect method.
-		Connect []struct {
-		}
 		// Connected holds details about calls to the Connected method.
 		Connected []struct {
 		}
@@ -103,7 +94,6 @@ type PeerIMock struct {
 			Msg wire.Message
 		}
 	}
-	lockConnect       sync.RWMutex
 	lockConnected     sync.RWMutex
 	lockIsUnhealthyCh sync.RWMutex
 	lockNetwork       sync.RWMutex
@@ -111,33 +101,6 @@ type PeerIMock struct {
 	lockShutdown      sync.RWMutex
 	lockString        sync.RWMutex
 	lockWriteMsg      sync.RWMutex
-}
-
-// Connect calls ConnectFunc.
-func (mock *PeerIMock) Connect() bool {
-	if mock.ConnectFunc == nil {
-		panic("PeerIMock.ConnectFunc: method is nil but PeerI.Connect was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockConnect.Lock()
-	mock.calls.Connect = append(mock.calls.Connect, callInfo)
-	mock.lockConnect.Unlock()
-	return mock.ConnectFunc()
-}
-
-// ConnectCalls gets all the calls that were made to Connect.
-// Check the length with:
-//
-//	len(mockedPeerI.ConnectCalls())
-func (mock *PeerIMock) ConnectCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockConnect.RLock()
-	calls = mock.calls.Connect
-	mock.lockConnect.RUnlock()
-	return calls
 }
 
 // Connected calls ConnectedFunc.

@@ -220,17 +220,13 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 
 func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 	t.Run("Recover unhealthy peers", func(t *testing.T) {
-		restarts := int32(0)
-
+		restarted := uint32(0)
 		unhealthyPeer := &mocks.PeerIMock{
 			ConnectedFunc: func() bool {
-				if atomic.LoadInt32(&restarts) <= 2 {
-					atomic.AddInt32(&restarts, 1)
-					return false
-				}
-				return true
+				return atomic.LoadUint32(&restarted) != 0
 			},
 			RestartFunc: func() bool {
+				atomic.StoreUint32(&restarted, 1)
 				return true
 			},
 			NetworkFunc: func() wire.BitcoinNet {
@@ -248,7 +244,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 		connected := unhealthyPeer.Connected()
 		require.Equal(t, false, connected, "Unhealthy peer should not connect")
 
-		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers(), p2p.SetPeerCheckInterval(50*time.Millisecond), p2p.SetReconnectDelay(50*time.Millisecond))
+		pm := p2p.NewPeerManager(slog.Default(), peerManagerNetwork, p2p.WithRestartUnhealthyPeers(), p2p.SetPeerCheckInterval(50*time.Millisecond))
 		err := pm.AddPeer(unhealthyPeer)
 		require.NoError(t, err)
 		require.Len(t, pm.GetPeers(), 1)
@@ -256,11 +252,7 @@ func Test_PeerManagerUnhealthyPeers(t *testing.T) {
 		// give some time for the peer manager to monitor the unhealthy peer
 		time.Sleep(70 * time.Millisecond)
 		// peer being restarted by manager, still disconnected
-		require.Equal(t, false, unhealthyPeer.Connected())
-		require.Equal(t, 1, len(unhealthyPeer.RestartCalls()), "Unhealthy peer should be restarted once")
-
-		// let restart delay pass
-		time.Sleep(50 * time.Millisecond)
 		require.Equal(t, true, unhealthyPeer.Connected())
+		require.Equal(t, 1, len(unhealthyPeer.RestartCalls()), "Unhealthy peer should be restarted once")
 	})
 }

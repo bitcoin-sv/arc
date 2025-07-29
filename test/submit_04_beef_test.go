@@ -99,6 +99,7 @@ func TestBeef(t *testing.T) {
 			}
 		}()
 
+		fmt.Println("shota test starting ...")
 		waitForStatusTimeoutSeconds := 30
 
 		// when

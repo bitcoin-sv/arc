@@ -416,6 +416,7 @@ func (m *ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, pa
 			}
 		} else if len(txStatuses) == len(txIDs) {
 			// if found all the transactions found, skip the validation
+			fmt.Println("shota setting true")
 			transactionOptions.SkipTxValidation = true
 
 			// check if processing of the transaction can be skipped
@@ -773,9 +774,10 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx 
 	}()
 
 	if options.SkipTxValidation {
+		fmt.Println("shota skipping validating")
 		return nil
 	}
-
+	fmt.Println("shota validating")
 	feeOpts, scriptOpts := toValidationOpts(options)
 
 	failedTx, err := m.beefValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)

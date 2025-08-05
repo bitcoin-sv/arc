@@ -9,7 +9,9 @@ import (
 var ErrFailedToRegisterStats = errors.New("failed to register stats collector")
 
 type Stats struct {
-	apiTxSubmissions prometheus.Counter
+	apiTxSubmissions               prometheus.Counter
+	AvailableBlockHeaderServices   prometheus.Gauge
+	UnavailableBlockHeaderServices prometheus.Gauge
 }
 
 func NewStats() (*Stats, error) {
@@ -18,9 +20,21 @@ func NewStats() (*Stats, error) {
 			Name: "api_submit_txs",
 			Help: "Nr of txs submitted",
 		}),
+		AvailableBlockHeaderServices: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_api_available_block_header_services",
+			Help: "Current number of available block header services",
+		}),
+		UnavailableBlockHeaderServices: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "arc_api_unavailable_block_header_services",
+			Help: "Current number of unavailable block header services",
+		}),
 	}
 
-	err := prometheus.Register(p.apiTxSubmissions)
+	err := registerStats(
+		p.apiTxSubmissions,
+		p.AvailableBlockHeaderServices,
+		p.UnavailableBlockHeaderServices,
+	)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToRegisterStats, err)
 	}
@@ -33,5 +47,26 @@ func (s *Stats) Add(inc int) {
 }
 
 func (s *Stats) UnregisterStats() {
-	_ = prometheus.Unregister(s.apiTxSubmissions)
+	unregisterStats(
+		s.apiTxSubmissions,
+		s.AvailableBlockHeaderServices,
+		s.UnavailableBlockHeaderServices,
+	)
+}
+
+func registerStats(cs ...prometheus.Collector) error {
+	for _, c := range cs {
+		err := prometheus.Register(c)
+		if err != nil {
+			return errors.Join(ErrFailedToRegisterStats, err)
+		}
+	}
+
+	return nil
+}
+
+func unregisterStats(cs ...prometheus.Collector) {
+	for _, c := range cs {
+		_ = prometheus.Unregister(c)
+	}
 }

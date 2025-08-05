@@ -1177,6 +1177,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 					prevBlockHash = blockHashStale[:]
 				case blocktx_api.Status_ORPHANED:
 					prevBlockHash = blockHashOrphaned[:]
+				default:
 				}
 			} else {
 				prevBlockHash = randomPrevBlockHash[:]

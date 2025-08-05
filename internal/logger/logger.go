@@ -37,6 +37,7 @@ func GetSlogLevel(logLevel string) (slog.Level, error) {
 		return LevelDebug, nil
 	case "TRACE":
 		return LevelTrace, nil // simulate trace level
+	default:
 	}
 
 	return 0, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))
@@ -65,6 +66,7 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 			Level:       slogLevel,
 			ReplaceAttr: replaceAttr,
 		})}), nil
+	default:
 	}
 
 	return nil, errors.Join(ErrLoggerInvalidLogFormat, fmt.Errorf("log format: %s", logFormat))

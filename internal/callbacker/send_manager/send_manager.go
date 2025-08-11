@@ -49,6 +49,11 @@ type SendManager struct {
 
 	mu            sync.Mutex
 	callbackQueue []*callbacker.CallbackEntry
+
+	queueTicker         *time.Ticker
+	sortQueueTicker     *time.Ticker
+	backfillQueueTicker *time.Ticker
+	batchSendTicker     *time.Ticker
 }
 
 const (
@@ -165,10 +170,10 @@ func (m *SendManager) CallbacksQueued() int {
 }
 
 func (m *SendManager) Start() {
-	queueTicker := time.NewTicker(m.queueProcessInterval)
-	sortQueueTicker := time.NewTicker(m.sortByTimestampInterval)
-	backfillQueueTicker := time.NewTicker(m.fillUpQueueInterval)
-	batchSendTicker := time.NewTicker(m.batchSendInterval)
+	m.queueTicker = time.NewTicker(m.queueProcessInterval)
+	m.sortQueueTicker = time.NewTicker(m.sortByTimestampInterval)
+	m.backfillQueueTicker = time.NewTicker(m.fillUpQueueInterval)
+	m.batchSendTicker = time.NewTicker(m.batchSendInterval)
 
 	m.entriesWg.Add(1)
 	var callbackBatch []*callbacker.CallbackEntry
@@ -180,7 +185,7 @@ func (m *SendManager) Start() {
 		lastIterationWasBatch := false
 
 		for {
-			isDone := m.sendCallbacks(queueTicker, sortQueueTicker, backfillQueueTicker, batchSendTicker, &callbackBatch, &lastIterationWasBatch)
+			isDone := m.sendCallbacks(m.queueTicker, m.sortQueueTicker, m.backfillQueueTicker, m.batchSendTicker, &callbackBatch, &lastIterationWasBatch)
 			if isDone {
 				return
 			}
@@ -294,6 +299,10 @@ func (m *SendManager) GracefulStop() {
 	}
 
 	m.entriesWg.Wait()
+	m.queueTicker.Stop()
+	m.sortQueueTicker.Stop()
+	m.backfillQueueTicker.Stop()
+	m.batchSendTicker.Stop()
 }
 
 func (m *SendManager) storeRemainingCallbacks(callbackBatch []*callbacker.CallbackEntry) {

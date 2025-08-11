@@ -101,12 +101,14 @@ func checkOutputs(tx *sdkTx.Transaction) *Error {
 	total := uint64(0)
 	for index, output := range tx.Outputs {
 		isData := output.LockingScript.IsData()
+		//revive:disable:enforce-switch-style
 		switch {
 		case !isData && (output.Satoshis > maxSatoshis || output.Satoshis < DustLimit):
 			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d satoshis is invalid", index)), api.ErrStatusOutputs)
 		case isData && output.Satoshis != 0:
 			return NewError(errors.Join(ErrTxOutputInvalid, fmt.Errorf("output %d has non 0 value op return", index)), api.ErrStatusOutputs)
 		}
+		//revive:enable:enforce-switch-style
 		total += output.Satoshis
 	}
 

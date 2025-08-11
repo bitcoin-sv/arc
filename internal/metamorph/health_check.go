@@ -20,7 +20,7 @@ type HealthWatchServer interface {
 
 func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
 	s.logger.Debug("checking health", slog.String("service", req.Service))
-
+	//revive:disable:enforce-switch-style
 	switch req.Service {
 	case readiness:
 		err := s.store.Ping(ctx)
@@ -43,6 +43,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 			Status: grpc_health_v1.HealthCheckResponse_SERVING,
 		}, nil
 	}
+	//revive:enable:enforce-switch-style
 
 	return &grpc_health_v1.HealthCheckResponse{
 		Status: grpc_health_v1.HealthCheckResponse_SERVING,
@@ -52,6 +53,7 @@ func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckReque
 func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
 	s.logger.Info("watching health", slog.String("service", req.Service))
 	ctx := context.Background()
+	//revive:disable:enforce-switch-style
 	switch req.Service {
 	case readiness:
 		err := s.store.Ping(ctx)
@@ -75,6 +77,7 @@ func (s *Server) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_healt
 			Status: grpc_health_v1.HealthCheckResponse_SERVING,
 		})
 	}
+	//revive:enable:enforce-switch-style
 
 	return server.Send(&grpc_health_v1.HealthCheckResponse{
 		Status: grpc_health_v1.HealthCheckResponse_SERVING,

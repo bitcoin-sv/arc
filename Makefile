@@ -47,11 +47,11 @@ run_e2e_mcast_tests:
 
 .PHONY: test
 test:
-	CGO_ENABLED=1 go test -ldflags="-w -s" -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
+	CGO_ENABLED=1 GOEXPERIMENT=synctest go test -ldflags="-w -s" -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
 
 .PHONY: test_short
 test_short:
-	go test -coverprofile=./cov_short.out -covermode=atomic -race -short -count=1 ./... -coverpkg ./...
+	GOEXPERIMENT=synctest go test -coverprofile=./cov_short.out -covermode=atomic -race -short -count=1 ./... -coverpkg ./...
 
 .PHONY: coverage
 coverage:
@@ -69,12 +69,12 @@ install_lint:
 
 .PHONY: lint
 lint:
-	golangci-lint run -v ./...
+	GOEXPERIMENT=synctest golangci-lint run -v ./...
 	staticcheck ./...
 
 .PHONY: lint_fix
 lint_fix:
-	golangci-lint run -v ./... --fix
+	GOEXPERIMENT=synctest golangci-lint run -v ./... --fix
 
 .PHONY: gen_go
 gen_go:

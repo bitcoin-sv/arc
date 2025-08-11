@@ -278,6 +278,7 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 func (p *CallbackSender) updateSuccessStats(txStatus string) {
 	status, ok := callbacker_api.Status_value[txStatus]
 	if ok {
+		//revive:disable:enforce-switch-style
 		switch callbacker_api.Status(status) {
 		case callbacker_api.Status_SEEN_ON_NETWORK:
 			p.stats.callbackSeenOnNetworkCount.Inc()
@@ -290,6 +291,7 @@ func (p *CallbackSender) updateSuccessStats(txStatus string) {
 		case callbacker_api.Status_REJECTED:
 			p.stats.callbackRejectedCount.Inc()
 		}
+		//revive:enable:enforce-switch-style
 	}
 }
 

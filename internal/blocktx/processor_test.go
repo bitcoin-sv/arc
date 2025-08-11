@@ -869,12 +869,14 @@ func TestStart(t *testing.T) {
 					if ok {
 						return err
 					}
+					//revive:disable:enforce-switch-style
 					switch topic {
 					case mq.RegisterTxTopic:
 						registerTxFunc = subscribeFunc
 					case mq.RegisterTxsTopic:
 						registerTxsFunc = subscribeFunc
 					}
+					//revive:enable:enforce-switch-style
 					return nil
 				},
 			}

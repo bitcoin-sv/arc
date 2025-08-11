@@ -35,15 +35,15 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 
-RUN go build \
+RUN GOEXPERIMENT=synctest go build \
      -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" \
      -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
-RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
+RUN GOEXPERIMENT=synctest go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Build e2e test binary
-RUN go test --tags=e2e ./test -c -o /e2e_test.test
+RUN GOEXPERIMENT=synctest go test --tags=e2e ./test -c -o /e2e_test.test
 
 # Deploy the application binary into a lean image
 FROM debian:sid-slim

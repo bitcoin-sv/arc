@@ -26,6 +26,7 @@ const (
 )
 
 func GetSlogLevel(logLevel string) (slog.Level, error) {
+	//revive:disable:enforce-switch-style
 	switch logLevel {
 	case "INFO":
 		return LevelInfo, nil
@@ -38,6 +39,7 @@ func GetSlogLevel(logLevel string) (slog.Level, error) {
 	case "TRACE":
 		return LevelTrace, nil // simulate trace level
 	}
+	//revive:enable:enforce-switch-style
 
 	return 0, errors.Join(ErrLoggerInvalidLogLevel, fmt.Errorf("log level: %s", logLevel))
 }
@@ -48,6 +50,7 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 		return nil, err
 	}
 
+	//revive:disable:enforce-switch-style
 	switch logFormat {
 	case "json":
 		return slog.New(&ArcContextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -66,6 +69,7 @@ func NewLogger(logLevel, logFormat string) (*slog.Logger, error) {
 			ReplaceAttr: replaceAttr,
 		})}), nil
 	}
+	//revive:enable:enforce-switch-style
 
 	return nil, errors.Join(ErrLoggerInvalidLogFormat, fmt.Errorf("log format: %s", logFormat))
 }

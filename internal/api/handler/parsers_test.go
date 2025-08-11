@@ -53,7 +53,7 @@ func TestParseTransactionFromRequest(t *testing.T) {
 		} else {
 			for _, ct := range contentTypes {
 				var r *http.Request
-
+				//revive:disable:enforce-switch-style
 				switch ct {
 				case echo.MIMETextPlain:
 					r, _ = http.NewRequest("GET", "", bytes.NewBuffer([]byte(tc.tx)))
@@ -68,6 +68,7 @@ func TestParseTransactionFromRequest(t *testing.T) {
 					r, _ = http.NewRequest("GET", "", bytes.NewBuffer(body))
 					r.Header.Set(echo.HeaderContentType, ct)
 				}
+				//revive:enable:enforce-switch-style
 
 				requests = append(requests, r)
 			}
@@ -117,7 +118,7 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 
 		for _, ct := range contentTypes {
 			var r *http.Request
-
+			//revive:disable:enforce-switch-style
 			switch ct {
 			case echo.MIMETextPlain:
 				r, _ = http.NewRequest("GET", "", bytes.NewBuffer([]byte(tc.tx+"\n")))
@@ -133,6 +134,7 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 				r, _ = http.NewRequest("GET", "", bytes.NewBuffer(body))
 				r.Header.Set(echo.HeaderContentType, ct)
 			}
+			//revive:enable:enforce-switch-style
 
 			requests = append(requests, r)
 		}

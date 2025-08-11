@@ -2,6 +2,7 @@ package beef
 
 import (
 	"encoding/hex"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,17 +68,17 @@ func TestDecodeBEEF(t *testing.T) {
 		{
 			name:          "DecodeBEEF - empty BUMPs",
 			beef:          emptyBumps,
-			expectedError: ErrBEEFPanic,
+			expectedError: errors.New("failed to parse beef\nmissing previous transaction for 0c165cfc63963848fcbb00f6da64e078b99cfb88c46293313728c8fd0265e38a"),
 		},
 		{
 			name:          "DecodeBEEF - without  BUMPs",
 			beef:          withoutBumps,
-			expectedError: ErrBEEFPanic,
+			expectedError: errors.New("failed to parse beef\nmissing previous transaction for 0c165cfc63963848fcbb00f6da64e078b99cfb88c46293313728c8fd0265e38a"),
 		},
 		{
 			name:          "DecodeBEEF - without  input parent transactions",
 			beef:          withoutParents,
-			expectedError: ErrBEEFPanic,
+			expectedError: errors.New("failed to parse beef\nmissing previous transaction for 9ef98f965e97026b93571169a59ee2238f8b3edfab83f1c693bc787e006815d3"),
 		},
 		{
 			name:          "DecodeBEEF - with a bump marker bo no bump index",
@@ -98,7 +99,7 @@ func TestDecodeBEEF(t *testing.T) {
 
 			// then
 			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
+				require.ErrorContains(t, err, tc.expectedError.Error())
 				assert.Nil(t, actualBeef)
 				return
 			}

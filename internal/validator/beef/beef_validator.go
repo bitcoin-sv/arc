@@ -35,6 +35,8 @@ type ChainTracker interface {
 type Validator struct {
 	policy            *bitcoin.Settings
 	chainTracker      ChainTracker
+	scriptVerifier    internalApi.ScriptVerifier
+	genesisForkBLock  int32
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -54,10 +56,12 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTracker ChainTracker, opts ...Option) *Validator {
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *Validator {
 	v := &Validator{
-		policy:       policy,
-		chainTracker: chainTracker,
+		policy:           policy,
+		chainTracker:     chainTracker,
+		scriptVerifier:   sv,
+		genesisForkBLock: genesisForkBLock,
 	}
 	// apply options
 	for _, opt := range opts {
@@ -67,7 +71,7 @@ func New(policy *bitcoin.Settings, chainTracker ChainTracker, opts ...Option) *V
 	return v
 }
 
-func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (failedTx *sdkTx.Transaction, err error) {
+func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (failedTx *sdkTx.Transaction, err error) {
 	var vErr *validator.Error
 	var spanErr error
 	_, span := tracing.StartTracing(ctx, "BEEFValidator_ValidateTransaction", v.tracingEnabled, v.tracingAttributes...)
@@ -100,7 +104,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			vErr = validateScripts(beefTx, btx)
+			vErr = validateScripts(btx, v.scriptVerifier, blockHeight, v.genesisForkBLock)
 			if vErr != nil {
 				return tx, vErr
 			}
@@ -196,26 +200,21 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 	return nil
 }
 
-func validateScripts(beef *sdkTx.Beef, beefTx *sdkTx.BeefTx) *validator.Error {
-	for i, input := range beefTx.Transaction.Inputs {
-		inputTxID := input.SourceTXID.String()
-		inputTx, ok := beef.Transactions[inputTxID]
-
-		if !ok {
-			return validator.NewError(errors.New("invalid script"), api.ErrStatusUnlockingScripts)
-		}
-		err := checkScripts(beefTx.Transaction, inputTx.Transaction, i)
-		if err != nil {
-			return validator.NewError(errors.New("invalid script"), api.ErrStatusUnlockingScripts)
-		}
+func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, genesisForkBLock int32) *validator.Error {
+	tx := beefTx.Transaction
+	utxo := make([]int32, len(tx.Inputs))
+	for i := range tx.Inputs {
+		utxo[i] = genesisForkBLock
 	}
 
+	b, err := tx.EF()
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusMalformed)
+	}
+
+	err = sv.VerifyScript(b, utxo, blockHeight, true)
+	if err != nil {
+		return validator.NewError(err, api.ErrStatusUnlockingScripts)
+	}
 	return nil
-}
-
-func checkScripts(tx *sdkTx.Transaction, prevTx *sdkTx.Transaction, inputIdx int) error {
-	input := tx.InputIdx(inputIdx)
-	prevOutput := prevTx.OutputIdx(int(input.SourceTxOutIndex))
-
-	return validator.CheckScript(tx, inputIdx, prevOutput)
 }

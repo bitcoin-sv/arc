@@ -67,17 +67,17 @@ func TestDecodeBEEF(t *testing.T) {
 		{
 			name:          "DecodeBEEF - empty BUMPs",
 			beef:          emptyBumps,
-			expectedError: ErrBEEFPanic,
+			expectedError: ErrBEEFParse,
 		},
 		{
 			name:          "DecodeBEEF - without  BUMPs",
 			beef:          withoutBumps,
-			expectedError: ErrBEEFPanic,
+			expectedError: ErrBEEFParse,
 		},
 		{
 			name:          "DecodeBEEF - without  input parent transactions",
 			beef:          withoutParents,
-			expectedError: ErrBEEFPanic,
+			expectedError: ErrBEEFParse,
 		},
 		{
 			name:          "DecodeBEEF - with a bump marker bo no bump index",

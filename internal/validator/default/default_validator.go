@@ -119,6 +119,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		}
 	case validator.NoneFeeValidation:
 		// Do not handle the default case on purpose; we shouldn't assume that other types of validation should be omitted
+	default:
 	}
 	// 12) The unlocking scripts for each input must validate against the corresponding output locking scripts
 	vErr = v.performStandardScriptValidation(scriptValidation, tx, blockHeight)

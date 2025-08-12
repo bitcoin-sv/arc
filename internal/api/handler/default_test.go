@@ -806,7 +806,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			}
 
 			bv := &apiHandlerMocks.BeefValidatorMock{
-				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) (*sdkTx.Transaction, error) {
 					return nil, tc.validateBeefTransactionErr
 				},
 			}
@@ -1018,7 +1018,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				},
 			},
 			bv: &apiHandlerMocks.BeefValidatorMock{
-				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) (*sdkTx.Transaction, error) {
 					return nil, nil
 				},
 			},
@@ -1065,7 +1065,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				},
 			},
 			bv: &apiHandlerMocks.BeefValidatorMock{
-				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) (*sdkTx.Transaction, error) {
 					return nil, nil
 				},
 			},
@@ -1117,7 +1117,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				},
 			},
 			bv: &apiHandlerMocks.BeefValidatorMock{
-				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) (*sdkTx.Transaction, error) {
 					return nil, nil
 				},
 			},
@@ -1142,7 +1142,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 			},
 
 			bv: &apiHandlerMocks.BeefValidatorMock{
-				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation) (*sdkTx.Transaction, error) {
+				ValidateTransactionFunc: func(_ context.Context, _ *sdkTx.Beef, _ validator.FeeValidation, _ validator.ScriptValidation, _ int32) (*sdkTx.Transaction, error) {
 					return nil, nil
 				},
 			},

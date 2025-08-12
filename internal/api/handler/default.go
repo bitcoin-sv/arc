@@ -133,7 +133,7 @@ type DefaultValidator interface {
 }
 
 type BeefValidator interface {
-	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation) (failedTx *sdkTx.Transaction, err error)
+	ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef, feeValidation validator.FeeValidation, scriptValidation validator.ScriptValidation, blockHeight int32) (failedTx *sdkTx.Transaction, err error)
 }
 
 func NewDefault(
@@ -778,7 +778,7 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx 
 
 	feeOpts, scriptOpts := toValidationOpts(options)
 
-	failedTx, err := m.beefValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts)
+	failedTx, err := m.beefValidator.ValidateTransaction(ctx, beefTx, feeOpts, scriptOpts, atomic.LoadInt32(&m.currentBlockHeight))
 	if err != nil {
 		if failedTx != nil {
 			txID = failedTx.TxID().String()

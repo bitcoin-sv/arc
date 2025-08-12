@@ -36,16 +36,16 @@ jobs:
         run: go vet ./...
 
       - name: Install code generation tools
-        run: make install_gen
+        run: task install_gen
 
       - name: Check go format
         run: gofmt -s -w . && git diff --exit-code
 
       - name: Check go generate
-        run: make gen_go && git diff --exit-code
+        run: task gen_go && git diff --exit-code
 
       - name: Check generate api
-        run: make api && git diff --exit-code
+        run: task api && git diff --exit-code
 
       - name: Check config
-        run: make compare_config
+        run: task compare_config

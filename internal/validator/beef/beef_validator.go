@@ -96,7 +96,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 			return tx, vErr
 		}
 
-		if feeValidation == validator.StandardFeeValidation {
+		if feeValidation == validator.StandardFeeValidation || feeValidation == validator.CumulativeFeeValidation {
 			vErr = standardCheckFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee))
 			if vErr != nil {
 				return tx, vErr

@@ -26,6 +26,9 @@ jobs:
         with:
           go-version-file: "./go.mod"
 
+      - name: Install Task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
+
       - name: Verify dependencies
         run: go mod verify
 

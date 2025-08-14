@@ -332,11 +332,6 @@ func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady c
 			url,
 			network,
 			opts...)
-		ok := p.Connect()
-		if !ok {
-			l.Warn("Failed to connect to peer", slog.String("url", url))
-			continue
-		}
 
 		err = manager.AddPeer(p)
 		if err != nil {
@@ -346,6 +341,11 @@ func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady c
 
 		// collect peers just for shutdown
 		peers = append(peers, p)
+
+		if !p.Connect() {
+			l.Warn("Failed to connect to peer", slog.String("url", url))
+			continue
+		}
 
 		connectedPeers++
 		// notify if we have enough connections and can continue startup

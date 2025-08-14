@@ -386,9 +386,12 @@ func (p *Peer) disconnect() {
 
 	p.cancelExecCtx()
 	p.execWg.Wait()
-	_ = p.lConn.Close()
 
-	p.lConn = nil
+	if p.lConn != nil {
+		_ = p.lConn.Close()
+		p.lConn = nil
+	}
+
 	p.execCtx = nil
 	p.cancelExecCtx = nil
 

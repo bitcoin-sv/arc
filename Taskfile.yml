@@ -9,79 +9,97 @@ env:
 
 tasks:
   default:
+    desc: Run dependencies, linting, build, and tests
     cmds: [task:deps, task:lint, task:build, task:test]
 
   deps:
+    desc: Download Go module dependencies
     cmds: [go mod download]
 
   build:
+    desc: Build the Go project
     cmds: [go build ./...]
 
   build_release:
+    desc: Build release binary for Linux AMD64 with version info
     cmds:
       - mkdir -p build
       - |
         CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-X {{.REPOSITORY}}/internal/version.Commit={{.APP_COMMIT}} -X {{.REPOSITORY}}/internal/version.Version={{.APP_VERSION}}" -o build/arc_linux_amd64 ./cmd/arc/main.go
 
   build_docker:
+    desc: Build Docker image for ARC
     cmds:
       - docker build . -t test-arc --build-arg="APP_COMMIT={{.APP_COMMIT}}" --build-arg="APP_VERSION={{.APP_VERSION}}"
 
   run:
+    desc: Run ARC services in Docker using development environment
     cmds:
       - task:build_docker
       - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api
 
   run_e2e_tests:
+    desc: Run end-to-end tests with multiple instances of services
     cmds:
       - task:build_docker
       - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --exit-code-from tests
       - docker compose down
 
   run_e2e_tests_with_tracing:
+    desc: Run E2E tests with tracing enabled and Jaeger
     cmds:
       - task:build_docker
       - ARC_TRACING_ENABLED=TRUE docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests jaeger --scale blocktx=2 --scale metamorph=2 --no-attach jaeger
 
   run_e2e_mcast_tests:
+    desc: Run multicast E2E tests using alternative docker-compose file
     cmds:
       - task:build_docker
       - docker compose -f docker-compose-mcast.yaml --env-file ./.env.dev up mcast_sidecar blocktx metamorph api tests --scale blocktx=6 --exit-code-from tests
       - docker compose -f docker-compose-mcast.yaml down
 
   test:
+    desc: Run full test suite with coverage and race detection
     cmds:
       - CGO_ENABLED=1 go test -ldflags="-w -s" -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
 
   test_short:
+    desc: Run short test suite with coverage and race detection
     cmds:
       - go test -coverprofile=./cov_short.out -covermode=atomic -race -short -count=1 ./... -coverpkg ./...
 
   coverage:
+    desc: Generate HTML coverage report from full tests
     cmds:
       - go tool cover -html=cov.out -o coverage_report.html
       - goverreport -coverprofile cov.out -packages -sort block
 
   coverage_short:
+    desc: Generate HTML coverage report from short tests
     cmds:
       - go tool cover -html=cov_short.out -o coverage_report_short.html
       - goverreport -coverprofile cov_short.out -packages -sort block
 
   install_lint:
+    desc: Install linting tools (staticcheck)
     cmds: [go install honnef.co/go/tools/cmd/staticcheck@2025.1.1]
 
   lint:
+    desc: Run linters (golangci-lint and staticcheck)
     cmds:
       - golangci-lint run -v ./...
       - staticcheck ./...
 
   lint_fix:
+    desc: Automatically fix lint issues with golangci-lint
     cmds: [golangci-lint run -v ./... --fix]
 
   gen_go:
+    desc: Generate Go code in code base
     cmds: [go generate ./...]
 
   gen:
+    desc: Generate protobuf code for all APIs
     cmds:
       - |
         protoc \
@@ -120,26 +138,31 @@ tasks:
         pkg/message_queue/nats/client/test_api/test_api.proto
 
   clean_gen:
+    desc: Remove generated protobuf Go files
     cmds:
       - rm -f ./internal/metamorph/metamorph_api/*.pb.go
       - rm -f ./internal/blocktx/blocktx_api/*.pb.go
       - rm -f ./internal/callbacker/callbacker_api/*.pb.go
 
   install_coverage:
+    desc: Install coverage reporting tools
     cmds:
       - go install github.com/mcubik/goverreport@latest
       - go install github.com/jstemmer/go-junit-report/v2@latest
 
   clean:
+    desc: Remove build artifacts
     cmds: [rm -rf build/]
 
   install:
+    desc: Install pre-commit hooks
     cmds:
       - brew install pre-commit
       - pre-commit install
       - pre-commit install --hook-type commit-msg
 
   install_gen:
+    desc: Install protobuf and code generation tools
     cmds:
       - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
       - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
@@ -147,16 +170,20 @@ tasks:
       - go install github.com/matryer/moq@v0.5.3
 
   docs:
+    desc: Generate project documentation
     cmds: [sh scripts/generate_docs.sh]
 
   gh-pages:
+    desc: Publish documentation to GitHub Pages
     cmds:
       - git push --force origin `git subtree split --prefix doc master`:gh-pages
 
   api:
+    desc: Generate Go API code from OpenAPI spec
     cmds: [oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yaml > pkg/api/arc.go]
 
   compare_config:
+    desc: Compare current configuration with dumped config
     cmds:
       - rm -f ./config/dumped_config.yaml
       - go run ./cmd/arc/main.go -dump_config "./config/dumped_config.yaml"

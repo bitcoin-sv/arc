@@ -99,10 +99,18 @@ func TestBeef(t *testing.T) {
 			}
 		}()
 
+		fmt.Println("shota test starting ...")
 		waitForStatusTimeoutSeconds := 30
 
 		// when
 		// submit beef
+		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef3}), map[string]string{
+			"X-WaitFor":       StatusSeenOnNetwork,
+			"X-CallbackUrl":   callbackURL,
+			"X-CallbackToken": token,
+			"X-MaxTimeout":    strconv.Itoa(waitForStatusTimeoutSeconds),
+		}, http.StatusOK)
+
 		resp = postRequest[TransactionResponse](t, arcEndpointV1Tx, createPayload(t, TransactionRequest{RawTx: beef3}), map[string]string{
 			"X-WaitFor":       StatusSeenOnNetwork,
 			"X-CallbackUrl":   callbackURL,
@@ -117,6 +125,7 @@ func TestBeef(t *testing.T) {
 
 		time.Sleep(200 * time.Millisecond)
 
+		require.Equal(t, tx3.TxID(), tx2.TxID())
 		statusURL := fmt.Sprintf("%s/%s", arcEndpointV1Tx, tx3.TxID())
 		statusResp := getRequest[TransactionResponse](t, statusURL)
 		require.Equal(t, StatusMined, statusResp.TxStatus)

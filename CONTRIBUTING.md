@@ -78,7 +78,7 @@ Example of a commit:
 
 3. **Navigate to the Directory**: `cd PROJECT`
 
-4. **Install Dependencies**: Always run `go mod download` or `make deps` after pulling to ensure tooling is up to date.
+4. **Install Dependencies**: Always run `go mod download` or `task deps` after pulling to ensure tooling is up to date.
 
 ## Pull Request Process
 
@@ -88,7 +88,7 @@ Example of a commit:
 
 3. **Run Tests**: Ensure all tests pass.
 
-4. **Documentation**: All code must be fully annotated with comments. Update the documentation by running `make docs` before creating a pull request.
+4. **Documentation**: All code must be fully annotated with comments. Update the documentation by running `task docs` before creating a pull request.
 
 5. **Push to Your Fork**: `git push origin your-new-branch`.
 
@@ -100,7 +100,7 @@ Example of a commit:
 
 ## Coding Conventions
 
-- **Code Style**: We use `Effective Go` guideline for our coding style. Run `make lint` to ensure your code adheres to this style.
+- **Code Style**: We use `Effective Go` guideline for our coding style. Run `task lint` to ensure your code adheres to this style.
 
 - **Testing**: Always include tests for new code or changes. We aim for industry-standard levels of test coverage.
 
@@ -108,7 +108,7 @@ Example of a commit:
 
 ## Documentation and Testing
 
-- **Documentation**: Update the documentation whenever you add or modify the code. Run `make docs` to generate the latest docs.
+- **Documentation**: Update the documentation whenever you add or modify the code. Run `task docs` to generate the latest docs.
 
 - **Testing**: Write comprehensive tests, ensuring edge cases are covered. All PRs should maintain or improve the current test coverage.
 

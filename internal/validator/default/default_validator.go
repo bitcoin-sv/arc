@@ -108,6 +108,9 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 			return vErr
 		}
 	case validator.CumulativeFeeValidation:
+		if vErr = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); vErr != nil {
+			return vErr
+		}
 		txSet, err := getUnminedAncestors(ctx, v.txFinder, tx, v.tracingEnabled, v.tracingAttributes...)
 		if err != nil {
 			e := fmt.Errorf("getting all unmined ancestors for CFV failed. reason: %w. found: %d", err, len(txSet))

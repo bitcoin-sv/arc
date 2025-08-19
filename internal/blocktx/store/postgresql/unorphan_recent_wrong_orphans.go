@@ -2,6 +2,7 @@ package postgresql
 
 import (
 	"context"
+
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
@@ -27,7 +28,7 @@ func (p *PostgreSQL) UnorphanRecentWrongOrphans(ctx context.Context) (unorphaned
 		is_longest = true
 		WHERE hash IN
 		( WITH RECURSIVE recent_orphans AS (SELECT *
-	
+
 																  FROM (SELECT hash
 																			 , status
 																			 , prevhash
@@ -45,7 +46,7 @@ func (p *PostgreSQL) UnorphanRecentWrongOrphans(ctx context.Context) (unorphaned
 																		   JOIN blocktx.blocks as child ON child.prevhash = parent.hash
 																  WHERE child.processed_at IS NOT NULL
 																	AND child.status = $2
-																    AND (SELECT COUNT(*) /* does not have a sibling that is LONGEST */ 
+																    AND (SELECT COUNT(*) /* does not have a sibling that is LONGEST */
 																         FROM blocktx.blocks c
 																         WHERE c.prevhash = parent.hash
 																         AND c.processed_at IS NOT NULL

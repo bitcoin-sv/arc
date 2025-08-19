@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/logger"
 	"log/slog"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 )
 
 var allowedTopics = []string{

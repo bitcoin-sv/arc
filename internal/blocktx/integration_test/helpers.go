@@ -16,7 +16,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan []byte, chan *blocktx_api.TransactionBlocks) {

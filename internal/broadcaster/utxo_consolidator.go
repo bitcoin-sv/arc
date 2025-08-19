@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"

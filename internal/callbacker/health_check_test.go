@@ -2,18 +2,18 @@ package callbacker_test
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/mq"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/nats-io/nats.go"
 	"log/slog"
 	"testing"
 
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	"github.com/bitcoin-sv/arc/internal/mq"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
 
 func TestCheck(t *testing.T) {

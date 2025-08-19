@@ -3,9 +3,6 @@ package metamorph_test
 import (
 	"context"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/go-zeromq/zmq4"
-	"github.com/stretchr/testify/require"
 	"log"
 	"log/slog"
 	"net"
@@ -13,6 +10,11 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/go-zeromq/zmq4"
+	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration) {

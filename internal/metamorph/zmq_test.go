@@ -3,17 +3,19 @@ package metamorph_test
 import (
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"log/slog"
-	"net/url"
-	"testing"
-	"time"
 )
 
 var zmqEndpoint = "tcp://127.0.0.1:5555"

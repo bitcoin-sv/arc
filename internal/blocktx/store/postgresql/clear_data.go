@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	_ "github.com/lib/pq" // nolint: revive // required for postgres driver
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {

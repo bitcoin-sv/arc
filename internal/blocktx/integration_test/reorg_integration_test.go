@@ -32,16 +32,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
-	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
-
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func TestReorg(t *testing.T) {

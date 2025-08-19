@@ -272,7 +272,7 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode >= http.StatusMultipleChoices {
 		responseBody, err := io.ReadAll(response.Body)
 		if err == nil {
 			p.logger.Warn("Callback response not successful",

@@ -202,11 +202,10 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 	retrySleep := p.retrySleepDuration
 	var err error
 	var statusCode int
-	var responseText string
 	retry = true
 	for range p.retries {
 		nrOfRetries++
-		statusCode, responseText, err = p.sendCallback(url, token, jsonPayload)
+		statusCode, _, err = p.sendCallback(url, token, jsonPayload)
 		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 			success = true
 			retry = false
@@ -218,7 +217,6 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 				p.logger.Error("Failed to create HTTP request",
 					slog.String("url", url),
 					slog.String("token", token),
-					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 				return false, true, nrOfRetries
 			}
@@ -227,7 +225,6 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 				p.logger.Warn("Host does not exist",
 					slog.String("url", url),
 					slog.String("token", token),
-					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 				return false, false, nrOfRetries
 			}
@@ -236,7 +233,6 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 				p.logger.Error("Failed to send callback",
 					slog.String("url", url),
 					slog.String("token", token),
-					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 
 				time.Sleep(retrySleep)
@@ -247,7 +243,6 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 		p.logger.Info("Callback response not successful",
 			slog.String("url", url),
 			slog.String("token", token),
-			slog.String("resp", responseText),
 			slog.Int("status", statusCode))
 
 		time.Sleep(retrySleep)
@@ -282,9 +277,7 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 		return response.StatusCode, responseText, nil
 	}
 
-	responseText = string(responseBody)
-
-	return response.StatusCode, responseText, nil
+	return response.StatusCode, string(responseBody), nil
 }
 
 func (p *CallbackSender) updateSuccessStats(txStatus string) {

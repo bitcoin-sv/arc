@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -123,7 +124,10 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 		return false, false
 	}
 	var retries int
-	success, retry, retries = p.sendCallbackWithRetries(url, token, payload)
+
+	logger := p.logger.With(slog.String("hash", dto.TxID), slog.String("status", dto.TxStatus))
+
+	success, retry, retries = p.sendCallbackWithRetries(url, token, payload, logger)
 
 	if success {
 		p.logger.Info("Callback sent",
@@ -169,7 +173,10 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 		return false, false
 	}
 	var retries int
-	success, retry, retries = p.sendCallbackWithRetries(url, token, payload)
+
+	logger := p.logger.With(slog.Int("batch size", len(dtos)))
+
+	success, retry, retries = p.sendCallbackWithRetries(url, token, payload, logger)
 	p.stats.callbackBatchCount.Inc()
 	if success {
 		for _, dto := range dtos {
@@ -180,6 +187,7 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 				slog.String("status", dto.TxStatus),
 				slog.String("timestamp", dto.Timestamp.String()),
 				slog.Int("retries", retries),
+				slog.Int("batch size", len(dtos)),
 			)
 
 			p.updateSuccessStats(dto.TxStatus)
@@ -197,15 +205,15 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 	return success, retry
 }
 
-func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte) (success bool, retry bool, nrOfRetries int) {
+func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload []byte, logger *slog.Logger) (success bool, retry bool, nrOfRetries int) {
 	retrySleep := p.retrySleepDuration
 	var err error
 	var statusCode int
-
+	var responseText string
 	retry = true
 	for range p.retries {
 		nrOfRetries++
-		statusCode, err = p.sendCallback(url, token, jsonPayload)
+		statusCode, responseText, err = p.sendCallback(url, token, jsonPayload)
 		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 			success = true
 			retry = false
@@ -214,25 +222,28 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 
 		if err != nil {
 			if errors.Is(err, ErrCreateHTTPRequestFailed) {
-				p.logger.Error("Failed to create HTTP request",
+				logger.Error("Failed to create HTTP request",
 					slog.String("url", url),
 					slog.String("token", token),
+					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 				return false, true, nrOfRetries
 			}
 
 			if errors.Is(err, ErrHostNonExistent) {
-				p.logger.Warn("Host does not exist",
+				logger.Warn("Host does not exist",
 					slog.String("url", url),
 					slog.String("token", token),
+					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 				return false, false, nrOfRetries
 			}
 
 			if errors.Is(err, ErrHTTPSendFailed) {
-				p.logger.Error("Failed to send callback",
+				logger.Error("Failed to send callback",
 					slog.String("url", url),
 					slog.String("token", token),
+					slog.String("resp", responseText),
 					slog.String("err", err.Error()))
 
 				time.Sleep(retrySleep)
@@ -240,9 +251,10 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 			}
 		}
 
-		p.logger.Info("Callback response not successful",
+		logger.Info("Callback response not successful",
 			slog.String("url", url),
 			slog.String("token", token),
+			slog.String("resp", responseText),
 			slog.Int("status", statusCode))
 
 		time.Sleep(retrySleep)
@@ -257,22 +269,29 @@ var (
 	ErrHTTPSendFailed          = errors.New("failed to send http request")
 )
 
-func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, err error) {
+func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, responseText string, err error) {
 	request, err := httpRequest(url, token, payload)
 	if err != nil {
-		return 0, errors.Join(ErrCreateHTTPRequestFailed, err)
+		return 0, responseText, errors.Join(ErrCreateHTTPRequestFailed, err)
 	}
 
 	response, err := p.httpClient.Do(request)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such host") {
-			return 0, errors.Join(ErrHostNonExistent, err)
+			return 0, responseText, errors.Join(ErrHostNonExistent, err)
 		}
-		return 0, errors.Join(ErrHTTPSendFailed, err)
+		return 0, responseText, errors.Join(ErrHTTPSendFailed, err)
 	}
 	defer response.Body.Close()
 
-	return response.StatusCode, nil
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return response.StatusCode, responseText, nil
+	}
+
+	responseText = string(responseBody)
+
+	return response.StatusCode, responseText, nil
 }
 
 func (p *CallbackSender) updateSuccessStats(txStatus string) {

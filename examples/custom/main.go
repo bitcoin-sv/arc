@@ -45,8 +45,7 @@ func main() {
 	// Add CORS headers to the server - all request origins are allowed
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
 		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
-	}))
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete}}))
 
 	// ------------------------------------------------------------------------
 	// This is the custom section, which does not use the appConfig

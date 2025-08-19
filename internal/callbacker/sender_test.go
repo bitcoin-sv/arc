@@ -53,8 +53,6 @@ func TestCallbackSender_Send(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
-			client := &http.Client{Timeout: 500 * time.Second}
-
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.responseStatus)
@@ -64,7 +62,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			defer server.Close()
 
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond))
+			sut, err := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond), callbacker.WithTimeout(500*time.Second))
 			require.NoError(t, err)
 
 			defer sut.GracefulStop()
@@ -87,7 +85,7 @@ func TestCallbackSender_Send(t *testing.T) {
 func TestCallbackSender_GracefulStop(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(http.DefaultClient, logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
+	sut, err := callbacker.NewSender(logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// When: Call GracefulStop twice to ensure it handles double stop gracefully
@@ -102,7 +100,7 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 func TestCallbackSender_Health(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(http.DefaultClient, logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
+	sut, err := callbacker.NewSender(logger, callbacker.WithRetries(1), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 	require.NoError(t, err)
 
 	// When: Test Health on active sender
@@ -170,9 +168,8 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := &http.Client{Timeout: 2 * time.Second}
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond))
+			sut, err := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(20*time.Millisecond), callbacker.WithTimeout(2*time.Second))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -187,9 +184,8 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 }
 func TestCallbackSender_Send_WithRetries(t *testing.T) {
 	// Given
-	client := &http.Client{}
 	logger := slog.Default()
-	sut, _ := callbacker.NewSender(client, logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
+	sut, _ := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithInitRetrySleepDuration(50*time.Millisecond))
 
 	retryCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -133,7 +133,7 @@ func TestDoubleSpend(t *testing.T) {
 			case status := <-callbackReceivedChan:
 				receivedCallbacks = append(receivedCallbacks, callbackData{txID: status.Txid, status: status.TxStatus})
 			case err = <-callbackErrChan:
-				t.Fatalf("callback error: %v", err)
+				t.Fatalf("callback error: %w", err)
 			case <-callbackTimeout:
 				break callbackLoop
 			}

@@ -63,7 +63,7 @@ var Cmd = &cobra.Command{
 
 		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
 		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
+			return fmt.Errorf("failed to create client: %w", err)
 		}
 
 		ks := make([]*keyset.KeySet, len(keySetsMap))
@@ -74,19 +74,19 @@ var Cmd = &cobra.Command{
 		}
 		fromKs, ok := allKeysMap[from]
 		if !ok {
-			return fmt.Errorf("from not found in keySetsMap: %v", from)
+			return fmt.Errorf("from not found in keySetsMap: %w", from)
 		}
 
 		splitter, err := broadcaster.NewUTXOSplitter(logger, client, fromKs, ks, broadcaster.WithIsTestnet(isTestnet),
 			broadcaster.WithFees(miningFeeSat),
 		)
 		if err != nil {
-			return fmt.Errorf("failed to create broadcaster: %v", err)
+			return fmt.Errorf("failed to create broadcaster: %w", err)
 		}
 
 		err = splitter.SplitUtxo(txid, satoshis, vout, dryrun)
 		if err != nil {
-			return fmt.Errorf("failed to create utxos: %v", err)
+			return fmt.Errorf("failed to create utxos: %w", err)
 		}
 
 		return nil

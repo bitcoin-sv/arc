@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Printf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %w", err)
 		return 1
 	}
 
@@ -60,13 +60,13 @@ func testmain(m *testing.M) int {
 
 	natsConnClient, err = nats_connection.New(natsURL, logger)
 	if err != nil {
-		log.Printf("failed to create nats connection: %v", err)
+		log.Printf("failed to create nats connection: %w", err)
 		return 1
 	}
 
 	natsConn, err = nats_connection.New(natsURL, logger)
 	if err != nil {
-		log.Printf("failed to create nats connection: %v", err)
+		log.Printf("failed to create nats connection: %w", err)
 		return 1
 	}
 
@@ -75,7 +75,7 @@ func testmain(m *testing.M) int {
 
 		err = pool.Purge(resource)
 		if err != nil {
-			log.Fatalf("failed to purge pool: %v", err)
+			log.Fatalf("failed to purge pool: %w", err)
 		}
 	}()
 

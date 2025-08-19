@@ -164,14 +164,14 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
 			err = respondToCallback(w, false)
 			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
+				t.Fatalf("Failed to respond to callback: %w", err)
 			}
 			return
 		}
 
 		status, err := readPayload[T](t, req)
 		if err != nil {
-			errChan <- fmt.Errorf("read callback payload failed: %v", err)
+			errChan <- fmt.Errorf("read callback payload failed: %w", err)
 			return
 		}
 
@@ -181,7 +181,7 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 			t.Log("callback received, responding success")
 			err = respondToCallback(w, true)
 			if err != nil {
-				t.Fatalf("Failed to respond to callback: %v", err)
+				t.Fatalf("Failed to respond to callback: %w", err)
 			}
 
 			receivedChan <- status
@@ -309,7 +309,7 @@ func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) fu
 
 		err := respondToCallback(w, respondWithSuccess)
 		if err != nil {
-			t.Fatalf("Failed to respond to callback: %v", err)
+			t.Fatalf("Failed to respond to callback: %w", err)
 		}
 
 		rc <- status

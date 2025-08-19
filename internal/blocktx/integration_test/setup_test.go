@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Fatalf("failed to create pool: %v", err)
+		log.Fatalf("failed to create pool: %w", err)
 		return 1
 	}
 
@@ -46,7 +46,7 @@ func testmain(m *testing.M) int {
 	defer func() {
 		err = pool.Purge(resource)
 		if err != nil {
-			log.Fatalf("failed to purge pool: %v", err)
+			log.Fatalf("failed to purge pool: %w", err)
 		}
 	}()
 
@@ -54,7 +54,7 @@ func testmain(m *testing.M) int {
 
 	dbConn, err = sql.Open("postgres", dbInfo)
 	if err != nil {
-		log.Fatalf("failed to create db connection: %v", err)
+		log.Fatalf("failed to create db connection: %w", err)
 		return 1
 	}
 

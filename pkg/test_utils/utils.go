@@ -22,21 +22,21 @@ import (
 func MigrateUp(table, path, dbInfo string) error {
 	dbConn, err := sql.Open("postgres", dbInfo)
 	if err != nil {
-		return fmt.Errorf("failed to create db connection: %v", err)
+		return fmt.Errorf("failed to create db connection: %w", err)
 	}
 	defer func() {
 		_ = dbConn.Close()
 	}()
 
 	if err = Retry(dbConn.Ping); err != nil {
-		return fmt.Errorf("failed to connect to docker: %s", err)
+		return fmt.Errorf("failed to connect to docker: %w", err)
 	}
 
 	driver, err := migratepostgres.WithInstance(dbConn, &migratepostgres.Config{
 		MigrationsTable: table,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create driver: %v", err)
+		return fmt.Errorf("failed to create driver: %w", err)
 	}
 
 	migrations, err := migrate.NewWithDatabaseInstance(
@@ -44,12 +44,12 @@ func MigrateUp(table, path, dbInfo string) error {
 		"postgres",
 		driver)
 	if err != nil {
-		return fmt.Errorf("failed to initialize migrate instance: %v", err)
+		return fmt.Errorf("failed to initialize migrate instance: %w", err)
 	}
 
 	err = migrations.Up()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to initialize migrate instance: %v", err)
+		return fmt.Errorf("failed to initialize migrate instance: %w", err)
 	}
 
 	return nil
@@ -79,12 +79,12 @@ func LoadFixtures(t testing.TB, db *sql.DB, path string) {
 		testfixtures.Directory(path), // The directory containing the YAML files
 	)
 	if err != nil {
-		t.Fatalf("failed to create fixtures: %v", err)
+		t.Fatalf("failed to create fixtures: %w", err)
 	}
 
 	err = fixtures.Load()
 	if err != nil {
-		t.Fatalf("failed to load fixtures: %v", err)
+		t.Fatalf("failed to load fixtures: %w", err)
 	}
 }
 

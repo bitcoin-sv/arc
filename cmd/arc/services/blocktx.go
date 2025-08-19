@@ -81,7 +81,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 
 	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, arcConfig.Tracing)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
+		return nil, fmt.Errorf("failed to create blocktx store: %w", err)
 	}
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
@@ -115,13 +115,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	err = processor.Start()
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to start prometheus: %v", err)
+		return nil, fmt.Errorf("failed to start prometheus: %w", err)
 	}
 
 	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, minConnections, blockProcessCh)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
+		return nil, fmt.Errorf("failed to establish connection with network: %w", err)
 	}
 
 	if arcConfig.Prometheus.IsEnabled() {
@@ -129,7 +129,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		err = statsCollector.Start()
 		if err != nil {
 			stopFn()
-			return nil, fmt.Errorf("failed to start stats collector: %v", err)
+			return nil, fmt.Errorf("failed to start stats collector: %w", err)
 		}
 	}
 
@@ -153,13 +153,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch, mqClient)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+		return nil, fmt.Errorf("create GRPCServer failed: %w", err)
 	}
 
 	err = server.ListenAndServe(btxConfig.ListenAddr)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
+		return nil, fmt.Errorf("serve GRPCServer failed: %w", err)
 	}
 
 	return stopFn, nil
@@ -187,7 +187,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 
 		s, err = postgresql.New(dbInfo, postgres.MaxIdleConns, postgres.MaxOpenConns, postgresOpts...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+			return nil, fmt.Errorf("failed to open postgres DB: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)

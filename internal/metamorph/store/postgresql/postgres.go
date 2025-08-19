@@ -24,7 +24,7 @@ import (
 
 const (
 	postgresDriverName = "postgres"
-	failedRollback     = "failed to rollback: %v"
+	failedRollback     = "failed to rollback: %w"
 )
 
 type PostgreSQL struct {
@@ -51,7 +51,7 @@ func WithTracing(attr []attribute.KeyValue) func(*PostgreSQL) {
 func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts ...func(postgreSQL *PostgreSQL)) (*PostgreSQL, error) {
 	db, err := sql.Open(postgresDriverName, dbInfo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres DB: %+v", err)
+		return nil, fmt.Errorf("failed to open postgres DB: %w", err)
 	}
 
 	db.SetMaxIdleConns(idleConns)

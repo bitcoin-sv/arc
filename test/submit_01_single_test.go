@@ -164,7 +164,7 @@ func TestSubmitMined(t *testing.T) {
 			require.Equal(t, StatusMined, status.TxStatus)
 			require.Equal(t, merklePathStr, *status.MerklePath)
 		case err := <-callbackErrChan:
-			t.Fatalf("callback error: %v", err)
+			t.Fatalf("callback error: %w", err)
 		case <-callbackTimeout:
 			t.Fatal("callback exceeded timeout")
 		}
@@ -231,7 +231,7 @@ func TestReturnMinedStatus(t *testing.T) {
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
 		case err := <-callbackErrChan:
-			t.Fatalf("callback error: %v", err)
+			t.Fatalf("callback error: %w", err)
 		case <-callbackTimeout:
 			t.Fatal("callback exceeded timeout")
 		}
@@ -449,7 +449,7 @@ func TestCallback(t *testing.T) {
 						require.Equal(t, StatusMined, callback.TxStatus)
 
 					case err = <-srv.errChan:
-						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %w", i, j, err))
 						t.Fail()
 					case <-callbackTimeout:
 						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))
@@ -623,7 +623,7 @@ func TestBatchCallback(t *testing.T) {
 						}
 
 					case err = <-srv.errChan:
-						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %w", i, j, err))
 						t.Fail()
 					case <-callbackTimeout:
 						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))

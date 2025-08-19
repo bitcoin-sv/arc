@@ -24,16 +24,16 @@ const (
 func RunAndMigratePostgresql(pool *dockertest.Pool, port, migrationTable, migrationsPath string) (*dockertest.Resource, string, error) {
 	resource, dbInfo, err := RunPostgresql(pool, port)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed run postgresql: %v", err)
+		return nil, "", fmt.Errorf("failed run postgresql: %w", err)
 	}
 
 	err = MigrateUp(migrationTable, migrationsPath, dbInfo)
 	if err != nil {
 		pErr := pool.Purge(resource)
 		if pErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to purge pool: %v", pErr))
+			err = errors.Join(err, fmt.Errorf("failed to purge pool: %w", pErr))
 		}
-		return nil, "", fmt.Errorf("failed to run migration: %v", err)
+		return nil, "", fmt.Errorf("failed to run migration: %w", err)
 	}
 
 	return resource, dbInfo, nil
@@ -68,7 +68,7 @@ func RunPostgresql(pool *dockertest.Pool, port string) (*dockertest.Resource, st
 		}
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	hostPort := resource.GetPort("5432/tcp")
@@ -97,7 +97,7 @@ func RunNats(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 		}
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	hostPort := resource.GetPort("4222/tcp")
@@ -109,7 +109,7 @@ func RunNats(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 func RunNode(pool *dockertest.Pool, port, name string, cmds ...string) (*dockertest.Resource, string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get current directory: %v", err)
+		return nil, "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	opts := dockertest.RunOptions{
@@ -141,7 +141,7 @@ func RunNode(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 		}
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	hostPort := resource.GetPort("18332/tcp")
@@ -165,7 +165,7 @@ func RunNode(pool *dockertest.Pool, port, name string, cmds ...string) (*dockert
 		return nil
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	return resource, hostPort, nil
@@ -193,7 +193,7 @@ func RunRedis(pool *dockertest.Pool, port, name string, cmds ...string) (*docker
 		}
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	hostPort := resource.GetPort("6379/tcp")
@@ -211,7 +211,7 @@ func RunRedis(pool *dockertest.Pool, port, name string, cmds ...string) (*docker
 		return err
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create resource: %v", err)
+		return nil, "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	return resource, hostPort, nil

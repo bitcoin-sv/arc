@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 
 	info, err := bitcoind.GetInfo()
 	if err != nil {
-		log.Printf("failed to get info: %v", err)
+		log.Printf("failed to get info: %w", err)
 		return
 	}
 

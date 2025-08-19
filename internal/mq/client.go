@@ -52,7 +52,7 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts [
 
 	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %v", mqCfg.URL, err)
+		return nil, fmt.Errorf("failed to establish connection to message queue at URL %s: %w", mqCfg.URL, err)
 	}
 	if !mqCfg.Streaming.Enabled {
 		return nil, errors.New("currently only message queue with streaming supported")
@@ -64,7 +64,7 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts [
 	var mqClient *nats_jetstream.Client
 	mqClient, err = nats_jetstream.New(conn, logger, jsOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create nats client: %v", err)
+		return nil, fmt.Errorf("failed to create nats client: %w", err)
 	}
 
 	return mqClient, nil

@@ -93,7 +93,7 @@ func sendJSONRPCCall[T any](ctx context.Context, method string, params []interfa
 
 	err = json.Unmarshal(rpcResponse.Result, &responseResult)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarhsal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarhsal response: %w", err)
 	}
 
 	return &responseResult, nil

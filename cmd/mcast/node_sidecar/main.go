@@ -42,7 +42,7 @@ import (
 func main() {
 	err := run()
 	if err != nil {
-		log.Fatalf("Failed to run multicast emulator: %v", err)
+		log.Fatalf("Failed to run multicast emulator: %w", err)
 	}
 }
 
@@ -55,12 +55,12 @@ func run() error {
 
 	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create logger: %v", err)
+		return fmt.Errorf("failed to create logger: %w", err)
 	}
 
 	stopFn, err := startMcastSideCar(logger, arcConfig)
 	if err != nil {
-		return fmt.Errorf("failed to start Multicast-P2P bridge: %v", err)
+		return fmt.Errorf("failed to start Multicast-P2P bridge: %w", err)
 	}
 
 	// wait for termination signal

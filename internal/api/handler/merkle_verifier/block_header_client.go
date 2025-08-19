@@ -159,7 +159,7 @@ func (c *Client) isServiceAvailable(ctx context.Context, url string, apiKey stri
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url+"/status", nil)
 	if err != nil {
-		return false, fmt.Errorf("error creating request: %v", err)
+		return false, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -174,7 +174,7 @@ func (c *Client) isServiceAvailable(ctx context.Context, url string, apiKey stri
 			return false, errors.Join(ErrRequestTimedOut, err)
 		}
 
-		return false, fmt.Errorf("error sending request: %v", err)
+		return false, fmt.Errorf("error sending request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -231,7 +231,7 @@ func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (ui
 			return 0, errors.Join(ErrRequestTimedOut, err)
 		}
 
-		return 0, fmt.Errorf("error sending request: %v", err)
+		return 0, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -242,7 +242,7 @@ func (c *Client) getChainTip(ctx context.Context, url string, apiKey string) (ui
 	var response State
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
-		return 0, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %v", err))
+		return 0, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %w", err))
 	}
 	return response.Height, nil
 }
@@ -290,12 +290,12 @@ func (c *Client) merkleRootVerify(ctx context.Context, url string, apiKey string
 	payload := []requestBody{{MerkleRoot: root.String(), BlockHeight: height}}
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return false, fmt.Errorf("error marshaling JSON: %v", err)
+		return false, fmt.Errorf("error marshaling JSON: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url+"/api/v1/chain/merkleroot/verify", bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		return false, fmt.Errorf("error creating request: %v", err)
+		return false, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -310,7 +310,7 @@ func (c *Client) merkleRootVerify(ctx context.Context, url string, apiKey string
 			return false, errors.Join(beef.ErrRequestTimedOut, err)
 		}
 
-		return false, fmt.Errorf("error sending request: %v", err)
+		return false, fmt.Errorf("error sending request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -320,13 +320,13 @@ func (c *Client) merkleRootVerify(ctx context.Context, url string, apiKey string
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, errors.Join(ErrParseResponse, fmt.Errorf("error reading response body: %v", err))
+		return false, errors.Join(ErrParseResponse, fmt.Errorf("error reading response body: %w", err))
 	}
 
 	var response IsValidRootForHeightResponse
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return false, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %v", err))
+		return false, errors.Join(ErrParseResponse, fmt.Errorf("error unmarshaling JSON: %w", err))
 	}
 
 	if response.ConfirmationState != bhsDomains.Confirmed {

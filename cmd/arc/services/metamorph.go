@@ -68,7 +68,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, arcConfig.Tracing)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
+		return nil, fmt.Errorf("failed to create metamorph store: %w", err)
 	}
 
 	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, arcConfig, mtmConfig.Health.MinimumHealthyConnections, bcMediatorOpts)
@@ -97,14 +97,14 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
+		return nil, fmt.Errorf("failed to create callbacker client: %w", err)
 	}
 
 	callbackSender := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
 	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
+		return nil, fmt.Errorf("failed to connect to blocktx server: %w", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
@@ -145,7 +145,7 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	err = processor.Start(arcConfig.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
+		return nil, fmt.Errorf("failed to start metamorph processor: %w", err)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
@@ -158,12 +158,12 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 	server, err = metamorph.NewServer(logger, metamorphStore, processor, mqClient, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+		return nil, fmt.Errorf("create GRPCServer failed: %w", err)
 	}
 	err = server.ListenAndServe(mtmConfig.ListenAddr)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
+		return nil, fmt.Errorf("serve GRPC server failed: %w", err)
 	}
 	err = startZMQs(logger, arcConfig.Metamorph.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
 	if err != nil {
@@ -218,7 +218,7 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageCh, zmqHandler, logger)
 		if err != nil {
 			stopFn()
-			return fmt.Errorf("failed to create ZMQ: %v", err)
+			return fmt.Errorf("failed to create ZMQ: %w", err)
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
@@ -226,7 +226,7 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 		*shutdownFns = append(*shutdownFns, cleanup)
 		if err != nil {
 			stopFn()
-			return fmt.Errorf("failed to start ZMQ: %v", err)
+			return fmt.Errorf("failed to start ZMQ: %w", err)
 		}
 	}
 	return nil
@@ -265,7 +265,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 
 		s, err = postgresql.New(dbInfo, hostname, postgres.MaxIdleConns, postgres.MaxOpenConns, opts...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+			return nil, fmt.Errorf("failed to open postgres DB: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)

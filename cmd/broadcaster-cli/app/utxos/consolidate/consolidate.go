@@ -40,7 +40,7 @@ var Cmd = &cobra.Command{
 
 		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
 		if err != nil {
-			return fmt.Errorf("failed to create client: %v", err)
+			return fmt.Errorf("failed to create client: %w", err)
 		}
 
 		names := helper.GetOrderedKeys(keySetsMap)

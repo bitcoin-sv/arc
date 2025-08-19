@@ -168,7 +168,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*k
 			}
 			fundingKeySet, _, err := GetKeySetsXpriv(key)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get selected key set %s: %v", selectedKey, err)
+				return nil, fmt.Errorf("failed to get selected key set %s: %w", selectedKey, err)
 			}
 			keySets[selectedKey] = fundingKeySet
 		}
@@ -178,7 +178,7 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*k
 	for name, key := range keys {
 		fundingKeySet, _, err := GetKeySetsXpriv(key)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
+			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %w", name, key, err)
 		}
 		keySets[name] = fundingKeySet
 	}
@@ -206,12 +206,12 @@ func GetSelectedKeys() ([]string, error) {
 func GetSelectedKeySets() (map[string]*keyset.KeySet, error) {
 	selectedKeys, err := GetSelectedKeys()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get selected keys: %v", err)
+		return nil, fmt.Errorf("failed to get selected keys: %w", err)
 	}
 
 	keys, err := GetPrivateKeys()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get private keys: %v", err)
+		return nil, fmt.Errorf("failed to get private keys: %w", err)
 	}
 
 	if len(keys) == 0 {
@@ -224,7 +224,7 @@ func GetSelectedKeySets() (map[string]*keyset.KeySet, error) {
 func GetAllKeySets() (map[string]*keyset.KeySet, error) {
 	keys, err := GetPrivateKeys()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get private keys: %v", err)
+		return nil, fmt.Errorf("failed to get private keys: %w", err)
 	}
 
 	if len(keys) == 0 {
@@ -235,7 +235,7 @@ func GetAllKeySets() (map[string]*keyset.KeySet, error) {
 	for name, key := range keys {
 		fundingKeySet, _, err := GetKeySetsXpriv(key)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %v", name, key, err)
+			return nil, fmt.Errorf("failed to get key set with name %s and value %s: %w", name, key, err)
 		}
 		keySets[name] = fundingKeySet
 	}

@@ -313,7 +313,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 
 	rowsAffected, err := p.store.RegisterTransactions(p.ctx, txHashes)
 	if err != nil {
-		return fmt.Errorf("failed to register transactions: %v", err)
+		return fmt.Errorf("failed to register transactions: %w", err)
 	}
 
 	if rowsAffected > 0 {
@@ -322,7 +322,7 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 
 	minedTxs, err := p.store.GetMinedTransactions(p.ctx, txHashes)
 	if err != nil {
-		return fmt.Errorf("failed to get mined txs: %v", err)
+		return fmt.Errorf("failed to get mined txs: %w", err)
 	}
 
 	if len(minedTxs) == 0 {
@@ -333,12 +333,12 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 
 	minedTxsIncludingMP, err := p.calculateMerklePaths(p.ctx, minedTxs)
 	if err != nil {
-		return fmt.Errorf("failed to calculate Merkle paths: %v", err)
+		return fmt.Errorf("failed to calculate Merkle paths: %w", err)
 	}
 
 	err = p.publishMinedTxs(p.ctx, minedTxsIncludingMP)
 	if err != nil {
-		return fmt.Errorf("failed to publish mined transactions: %v", err)
+		return fmt.Errorf("failed to publish mined transactions: %w", err)
 	}
 
 	p.logger.Info("published mined txs", slog.Int("hashes", len(minedTxsIncludingMP)))

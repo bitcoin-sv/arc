@@ -34,35 +34,35 @@ func init() {
 	RootCmd.PersistentFlags().Bool("testnet", false, "Use testnet")
 	err = viper.BindPFlag("testnet", RootCmd.PersistentFlags().Lookup("testnet"))
 	if err != nil {
-		logger.Printf("failed to bind flag testnet: %v", err)
+		logger.Printf("failed to bind flag testnet: %w", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().StringSlice("keys", []string{}, "List of selected private keys")
 	err = viper.BindPFlag("keys", RootCmd.PersistentFlags().Lookup("keys"))
 	if err != nil {
-		logger.Printf("failed to bind flag keys: %v", err)
+		logger.Printf("failed to bind flag keys: %w", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().String("wocAPIKey", "", "Optional WhatsOnChain API key for allowing for higher request rates")
 	err = viper.BindPFlag("wocAPIKey", RootCmd.PersistentFlags().Lookup("wocAPIKey"))
 	if err != nil {
-		logger.Printf("failed to bind flag wocAPIKey: %v", err)
+		logger.Printf("failed to bind flag wocAPIKey: %w", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().String("logLevel", "INFO", "mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR")
 	err = viper.BindPFlag("logLevel", RootCmd.PersistentFlags().Lookup("logLevel"))
 	if err != nil {
-		logger.Printf("failed to bind flag logLevel: %v", err)
+		logger.Printf("failed to bind flag logLevel: %w", err)
 		os.Exit(1)
 	}
 
 	RootCmd.PersistentFlags().String("logFormat", "text", "format of logging. Value can be one of text | json | tint")
 	err = viper.BindPFlag("logFormat", RootCmd.PersistentFlags().Lookup("logFormat"))
 	if err != nil {
-		logger.Printf("failed to bind flag logFormat: %v", err)
+		logger.Printf("failed to bind flag logFormat: %w", err)
 		os.Exit(1)
 	}
 
@@ -85,7 +85,7 @@ func init() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		logger.Printf("failed to read config file: %v", err)
+		logger.Printf("failed to read config file: %w", err)
 		os.Exit(1)
 	}
 

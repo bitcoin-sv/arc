@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Printf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %w", err)
 		return 1
 	}
 
@@ -50,13 +50,13 @@ func testmain(m *testing.M) int {
 	defer func() {
 		err = pool.Purge(resource)
 		if err != nil {
-			log.Fatalf("failed to purge pool: %v", err)
+			log.Fatalf("failed to purge pool: %w", err)
 		}
 	}()
 
 	hostPort, err = strconv.Atoi(resourcePort)
 	if err != nil {
-		log.Fatalf("failed to convert port to int: %v", err)
+		log.Fatalf("failed to convert port to int: %w", err)
 	}
 
 	return m.Run()

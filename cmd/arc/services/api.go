@@ -133,7 +133,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	conn, err := grpc_utils.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
+		return nil, fmt.Errorf("failed to connect to metamorph server: %w", err)
 	}
 
 	mtmClient := metamorph.NewClient(
@@ -144,7 +144,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
+		return nil, fmt.Errorf("failed to connect to blocktx server: %w", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
@@ -161,13 +161,13 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to create node client: %v", err)
+		return nil, fmt.Errorf("failed to create node client: %w", err)
 	}
 
 	nodeClient, err := node_client.New(nc, nodeClientOpts...)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to create node client: %v", err)
+		return nil, fmt.Errorf("failed to create node client: %w", err)
 	}
 
 	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
@@ -246,12 +246,12 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	server, err := apiHandler.NewServer(logger, defaultAPIHandler, serverCfg)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+		return nil, fmt.Errorf("create GRPCServer failed: %w", err)
 	}
 	err = server.ListenAndServe(arcConfig.API.ListenAddr)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
+		return nil, fmt.Errorf("serve GRPC server failed: %w", err)
 	}
 
 	// Register the ARC API
@@ -426,18 +426,18 @@ func extendRequestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerCon
 func getPolicyFromNode(peerRPCConfig *config.PeerRPCConfig) (*bitcoin.Settings, error) {
 	rpcURL, err := url.Parse(fmt.Sprintf("rpc://%s:%s@%s:%d", peerRPCConfig.User, peerRPCConfig.Password, peerRPCConfig.Host, peerRPCConfig.Port))
 	if err != nil {
-		return nil, errors.Errorf("failed to parse rpc URL: %v", err)
+		return nil, errors.Errorf("failed to parse rpc URL: %w", err)
 	}
 
 	// connect to bitcoin node and get the settings
 	b, err := bitcoin.NewFromURL(rpcURL, false)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to peer: %v", err)
+		return nil, fmt.Errorf("error connecting to peer: %w", err)
 	}
 
 	settings, err := b.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("error getting settings from peer: %v", err)
+		return nil, fmt.Errorf("error getting settings from peer: %w", err)
 	}
 
 	return &settings, nil

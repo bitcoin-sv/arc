@@ -162,11 +162,11 @@ func main() {
 
 	server, err := apiHandler.NewServer(logger, defaultHandler, serverCfg)
 	if err != nil {
-		panic(fmt.Errorf("create GRPCServer failed: %v", err))
+		panic(fmt.Errorf("create GRPCServer failed: %w", err))
 	}
 	err = server.ListenAndServe(arcConfig.API.ListenAddr)
 	if err != nil {
-		panic(fmt.Errorf("serve GRPC server failed: %v", err))
+		panic(fmt.Errorf("serve GRPC server failed: %w", err))
 	}
 
 	// Register the ARC API

@@ -9,7 +9,7 @@ import (
 func main() {
 	err := run()
 	if err != nil {
-		log.Fatalf("failed to run broadcaster-cli: %v", err)
+		log.Fatalf("failed to run broadcaster-cli: %w", err)
 	}
 }
 

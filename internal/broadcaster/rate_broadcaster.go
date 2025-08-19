@@ -190,7 +190,7 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 	if b.opReturn != "" {
 		err = tx.AddOpReturnOutput([]byte(b.opReturn))
 		if err != nil {
-			return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+			return nil, fmt.Errorf("failed to add OP_RETURN output: %w", err)
 		}
 	}
 
@@ -237,7 +237,7 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 	// Add additional inputs to the transaction
 	randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
 	if err != nil {
-		return fmt.Errorf("failed to generate random number: %v", err)
+		return fmt.Errorf("failed to generate random number: %w", err)
 	}
 	numOfInputs := randInt.Int64()
 
@@ -259,14 +259,14 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 
 	randJitter, err := cRand.Int(cRand.Reader, big.NewInt(b.sizeJitterMax))
 	if err != nil {
-		return fmt.Errorf("failed to generate random number: %v", err)
+		return fmt.Errorf("failed to generate random number: %w", err)
 	}
 	dataSize := randJitter.Int64()
 
 	randomBytes := make([]byte, dataSize)
 	_, err = cRand.Read(randomBytes)
 	if err != nil {
-		return fmt.Errorf("failed to fill OP_RETURN with random bytes: %v", err)
+		return fmt.Errorf("failed to fill OP_RETURN with random bytes: %w", err)
 	}
 
 	testHeader := []byte(" sizeJitter random bytes - ")
@@ -276,7 +276,7 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 
 	err = (*tx).AddOpReturnOutput(append(testHeader, randomBytes...))
 	if err != nil {
-		return fmt.Errorf("failed to add OP_RETURN output: %v", err)
+		return fmt.Errorf("failed to add OP_RETURN output: %w", err)
 	}
 	return nil
 }

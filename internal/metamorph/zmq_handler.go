@@ -68,7 +68,7 @@ func (zmqHandler *ZMQHandler) start(ctx context.Context) {
 
 		for topic := range zmqHandler.subscriptions {
 			if err := zmqHandler.socket.SetOption(zmq4.OptionSubscribe, topic); err != nil {
-				zmqHandler.err = fmt.Errorf("%+v", err)
+				zmqHandler.err = fmt.Errorf("%w", err)
 				return
 			}
 			zmqHandler.logger.Info("ZMQ: Subscribed", slog.String("topic", topic))

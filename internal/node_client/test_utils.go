@@ -187,19 +187,19 @@ func CreateTxChain(privateKey string, utxo0 UnspentOutput, length int) ([]*sdkTx
 
 		utxo, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
 		if err != nil {
-			return nil, fmt.Errorf("failed creating UTXO: %v", err)
+			return nil, fmt.Errorf("failed creating UTXO: %w", err)
 		}
 
 		err = tx.AddInputsFromUTXOs(utxo)
 		if err != nil {
-			return nil, fmt.Errorf("failed adding input: %v", err)
+			return nil, fmt.Errorf("failed adding input: %w", err)
 		}
 
 		amountToSend := utxoSatoshis - feeSat
 
 		err = tx.PayToAddress(utxoAddress, amountToSend)
 		if err != nil {
-			return nil, fmt.Errorf("failed to pay to address: %v", err)
+			return nil, fmt.Errorf("failed to pay to address: %w", err)
 		}
 
 		// Sign the input
@@ -298,11 +298,11 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 
 		u, err := sdkTx.NewUTXO(utxoTxID, utxoVout, utxoScript, utxoSatoshis)
 		if err != nil {
-			return nil, fmt.Errorf("failed creating UTXO: %v", err)
+			return nil, fmt.Errorf("failed creating UTXO: %w", err)
 		}
 		err = tx.AddInputsFromUTXOs(u)
 		if err != nil {
-			return nil, fmt.Errorf("failed adding input: %v", err)
+			return nil, fmt.Errorf("failed adding input: %w", err)
 		}
 	}
 	// Add an output to the address you've previously created
@@ -323,13 +323,13 @@ func CreateTxFrom(privateKey string, address string, utxos []UnspentOutput, fee 
 
 	err = tx.PayToAddress(recipientAddress, amountToSend)
 	if err != nil {
-		return nil, fmt.Errorf("failed to pay to address: %v", err)
+		return nil, fmt.Errorf("failed to pay to address: %w", err)
 	}
 
 	// Sign the input
 	wif, err := bsvutil.DecodeWIF(privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode WIF: %v", err)
+		return nil, fmt.Errorf("failed to decode WIF: %w", err)
 	}
 
 	// Extract raw private key bytes directly from the WIF structure

@@ -63,13 +63,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	callbackerStore, err = newStore(arcConfig.Callbacker.Db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
+		return nil, fmt.Errorf("failed to create callbacker store: %w", err)
 	}
 
 	sender, err = callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to create callback sender: %v", err)
+		return nil, fmt.Errorf("failed to create callback sender: %w", err)
 	}
 
 	runNewManager := func(url string) callbacker.SendManagerI {
@@ -88,7 +88,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	hostname, err := os.Hostname()
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
+		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 
 	mqOpts := getCbkMqOpts(hostname)
@@ -124,13 +124,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	server, err = callbacker.NewServer(logger, dispatcher, callbackerStore, mqClient, serverCfg)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
+		return nil, fmt.Errorf("create GRPCServer failed: %w", err)
 	}
 
 	err = server.ListenAndServe(arcConfig.Callbacker.ListenAddr)
 	if err != nil {
 		stopFn()
-		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
+		return nil, fmt.Errorf("serve GRPC server failed: %w", err)
 	}
 
 	logger.Info("Ready to work")
@@ -159,7 +159,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 		)
 		s, err = postgresql.New(dbInfo, cfg.MaxIdleConns, cfg.MaxOpenConns)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open postgres DB: %v", err)
+			return nil, fmt.Errorf("failed to open postgres DB: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("db mode %s is invalid", dbConfig.Mode)

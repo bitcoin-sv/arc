@@ -153,7 +153,7 @@ func (p *Processor) Start() error {
 
 	err := p.mqClient.ConsumeMsg(mq.CallbackTopic, p.handleCallbackMessage)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
+		return fmt.Errorf("failed to subscribe on %s topic: %w", mq.CallbackTopic, err)
 	}
 	return nil
 }

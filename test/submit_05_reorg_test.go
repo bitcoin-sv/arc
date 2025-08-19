@@ -77,7 +77,7 @@ func TestReorg(t *testing.T) {
 		require.Equal(t, invHash, *status.BlockHash)
 		require.Equal(t, merklePathTx1, *status.MerklePath)
 	case err := <-callbackErrChan:
-		t.Fatalf("callback error: %v", err)
+		t.Fatalf("callback error: %w", err)
 	case <-time.After(1 * time.Second):
 		t.Fatal("callback exceeded timeout")
 	}
@@ -121,7 +121,7 @@ func TestReorg(t *testing.T) {
 		require.Equal(t, StatusMined, status.TxStatus)
 		require.Equal(t, tx2BlockHash, *status.BlockHash)
 	case err := <-callbackErrChan:
-		t.Fatalf("callback error: %v", err)
+		t.Fatalf("callback error: %w", err)
 	case <-time.After(1 * time.Second):
 		t.Fatal("callback exceeded timeout")
 	}
@@ -204,7 +204,7 @@ func TestReorg(t *testing.T) {
 				t.Fatal("Unexpected tx id")
 			}
 		case err := <-callbackErrChan:
-			t.Fatalf("callback error: %v", err)
+			t.Fatalf("callback error: %w", err)
 		case <-time.After(1 * time.Second):
 			t.Fatal("callback exceeded timeout")
 		}

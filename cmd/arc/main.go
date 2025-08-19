@@ -22,7 +22,7 @@ import (
 func main() {
 	err := run()
 	if err != nil {
-		log.Fatalf("failed to run ARC: %v", err)
+		log.Fatalf("failed to run ARC: %w", err)
 	}
 
 	os.Exit(0)
@@ -42,12 +42,12 @@ func run() error {
 
 	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
 	if err != nil {
-		return fmt.Errorf("failed to create logger: %v", err)
+		return fmt.Errorf("failed to create logger: %w", err)
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		return fmt.Errorf("failed to get host name: %v", err)
+		return fmt.Errorf("failed to get host name: %w", err)
 	}
 
 	logger = logger.With(slog.String("host", hostname))
@@ -72,7 +72,7 @@ func run() error {
 func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
 	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cache store: %v", err)
+		return nil, fmt.Errorf("failed to create cache store: %w", err)
 	}
 	logger.Info("Starting ARC", slog.String("version", version.Version), slog.String("commit", version.Commit))
 	shutdownFns := make([]func(), 0)
@@ -111,7 +111,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 		logger.Info("Starting BlockTx")
 		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start blocktx: %v", err)
+			return nil, fmt.Errorf("failed to start blocktx: %w", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
@@ -120,7 +120,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 		logger.Info("Starting Metamorph")
 		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start metamorph: %v", err)
+			return nil, fmt.Errorf("failed to start metamorph: %w", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
@@ -129,7 +129,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 		logger.Info("Starting API")
 		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start api: %v", err)
+			return nil, fmt.Errorf("failed to start api: %w", err)
 		}
 
 		shutdownFns = append(shutdownFns, func() { shutdown() })
@@ -139,7 +139,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 		logger.Info("Starting K8s-Watcher")
 		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start k8s-watcher: %v", err)
+			return nil, fmt.Errorf("failed to start k8s-watcher: %w", err)
 		}
 		shutdownFns = append(shutdownFns, func() { shutdown() })
 	}
@@ -147,7 +147,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	if startCallbacker {
 		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start callbacker: %v", err)
+			return nil, fmt.Errorf("failed to start callbacker: %w", err)
 		}
 		shutdownFns = append(shutdownFns, shutdown)
 	}

@@ -53,7 +53,7 @@ func Enable(logger *slog.Logger, serviceName string, dialAddr string, sample int
 
 	tp, exporter, err := NewTraceProvider(ctx, serviceName, sample, otlptracegrpc.WithEndpointURL(dialAddr), otlptracegrpc.WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace provider: %v", err)
+		return nil, fmt.Errorf("failed to create trace provider: %w", err)
 	}
 
 	cleanup := func() {

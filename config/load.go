@@ -35,7 +35,7 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 
 	err = viper.Unmarshal(arcConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	if arcConfig.Tracing != nil {

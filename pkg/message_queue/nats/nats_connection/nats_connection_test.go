@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 func testmain(m *testing.M) int {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Printf("failed to create pool: %v", err)
+		log.Printf("failed to create pool: %w", err)
 		return 1
 	}
 

@@ -205,7 +205,7 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 	retry = true
 	for range p.retries {
 		nrOfRetries++
-		statusCode, _, err = p.sendCallback(url, token, jsonPayload)
+		statusCode, err = p.sendCallback(url, token, jsonPayload)
 		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 			success = true
 			retry = false
@@ -257,27 +257,34 @@ var (
 	ErrHTTPSendFailed          = errors.New("failed to send http request")
 )
 
-func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, responseText string, err error) {
+func (p *CallbackSender) sendCallback(url, token string, payload []byte) (statusCode int, err error) {
 	request, err := httpRequest(url, token, payload)
 	if err != nil {
-		return 0, responseText, errors.Join(ErrCreateHTTPRequestFailed, err)
+		return 0, errors.Join(ErrCreateHTTPRequestFailed, err)
 	}
 
 	response, err := p.httpClient.Do(request)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such host") {
-			return 0, responseText, errors.Join(ErrHostNonExistent, err)
+			return 0, errors.Join(ErrHostNonExistent, err)
 		}
-		return 0, responseText, errors.Join(ErrHTTPSendFailed, err)
+		return 0, errors.Join(ErrHTTPSendFailed, err)
 	}
 	defer response.Body.Close()
 
-	responseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		return response.StatusCode, responseText, nil
+	if response.StatusCode != http.StatusOK {
+		responseBody, err := io.ReadAll(response.Body)
+		if err == nil {
+			p.logger.Warn("Callback response not successful",
+				slog.String("url", url),
+				slog.String("token", token),
+				slog.Int("status", statusCode),
+				slog.String("body", string(responseBody)),
+			)
+		}
 	}
 
-	return response.StatusCode, string(responseBody), nil
+	return response.StatusCode, nil
 }
 
 func (p *CallbackSender) updateSuccessStats(txStatus string) {

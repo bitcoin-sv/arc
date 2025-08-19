@@ -275,10 +275,10 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 	if response.StatusCode >= http.StatusMultipleChoices {
 		responseBody, err := io.ReadAll(response.Body)
 		if err == nil {
-			p.logger.Warn("Callback response not successful",
+			p.logger.Warn("Callback response code not OK",
 				slog.String("url", url),
 				slog.String("token", token),
-				slog.Int("status", statusCode),
+				slog.Int("status", response.StatusCode),
 				slog.String("body", string(responseBody)),
 			)
 		}

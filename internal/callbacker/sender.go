@@ -245,9 +245,10 @@ func (p *CallbackSender) sendCallbackWithRetries(url, token string, jsonPayload 
 			}
 		}
 
-		p.logger.Info("Callback response not successful",
+		p.logger.Warn("Callback response not successful",
 			slog.String("url", url),
 			slog.String("token", token),
+			slog.String("resp", responseText),
 			slog.Int("status", statusCode))
 
 		time.Sleep(retrySleep)
@@ -282,12 +283,6 @@ func (p *CallbackSender) sendCallback(url, token string, payload []byte) (status
 
 		if err == nil {
 			responseText = string(responseBody)
-			//p.logger.Warn("Callback response code not OK",
-			//	slog.String("url", url),
-			//	slog.String("token", token),
-			//	slog.Int("status", response.StatusCode),
-			//	slog.String("body", responseText),
-			//)
 		}
 	}
 

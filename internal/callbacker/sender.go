@@ -289,12 +289,9 @@ func sendCallback(url, token string, payload []byte, timeout time.Duration) (sta
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode >= http.StatusMultipleChoices {
-		responseBody, err := io.ReadAll(response.Body)
-
-		if err == nil {
-			responseText = string(responseBody)
-		}
+	responseBody, err := io.ReadAll(response.Body)
+	if err == nil {
+		responseText = string(responseBody)
 	}
 
 	return response.StatusCode, responseText, nil

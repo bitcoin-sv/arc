@@ -66,7 +66,7 @@ ARC consists of 4 core microservices: [API](#API), [Metamorph](#Metamorph), [Cal
 
 All the microservices are designed to be horizontally scalable, and can be deployed on a single machine or on multiple machines. Each one has been programmed with a store interface. The default store is postgres, but any database that implements the store interface can be used.
 
-![Building block diagram](./building_block_diagram.drawio.svg)
+![Building block diagram](./building_block_diagram.drawio.png)
 
 ## Transaction lifecycle
 

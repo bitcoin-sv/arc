@@ -16,6 +16,7 @@ import (
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/validator/beef"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 
@@ -45,6 +46,12 @@ func WithTimeout(timeout time.Duration) Option {
 func WithCheckChainTrackersInterval(d time.Duration) Option {
 	return func(client *Client) {
 		client.checkChainTrackersInterval = d
+	}
+}
+
+func WithStats(stats *handler.Stats) func(*Client) {
+	return func(client *Client) {
+		client.stats = stats
 	}
 }
 
@@ -86,6 +93,7 @@ type Client struct {
 	ctx                        context.Context
 	wg                         *sync.WaitGroup
 	chainTrackers              []*ChainTracker
+	stats                      *handler.Stats
 }
 
 func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Option) *Client {
@@ -138,18 +146,24 @@ func (c *Client) StartRoutine(tickerInterval time.Duration, routine func(context
 }
 
 func checkChainTrackers(ctx context.Context, c *Client) []attribute.KeyValue {
+	availableChaintrackers := 0
 	for _, ct := range c.chainTrackers {
 		isAvailable, err := c.isServiceAvailable(ctx, ct.url, ct.apiKey)
 
 		if err != nil {
 			c.logger.Warn("Block header service unavailable", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable), slog.String("err", err.Error()))
 		} else {
+			availableChaintrackers++
 			c.logger.Debug("Block header service available", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable))
 		}
 
 		ct.SetAvailability(isAvailable)
 	}
 
+	if c.stats != nil {
+		c.stats.AvailableBlockHeaderServices.Set(float64(availableChaintrackers))
+		c.stats.UnavailableBlockHeaderServices.Set(float64(len(c.chainTrackers) - availableChaintrackers))
+	}
 	return []attribute.KeyValue{}
 }
 

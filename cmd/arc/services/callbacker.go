@@ -25,7 +25,6 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
@@ -66,7 +65,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
 
-	sender, err = callbacker.NewSender(&http.Client{Timeout: 5 * time.Second}, logger)
+	sender, err = callbacker.NewSender(logger, callbacker.WithTimeout(5*time.Second))
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)

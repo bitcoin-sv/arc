@@ -92,7 +92,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			stopFn()
 			return nil, err
 		}
-
+		logger.Info("handlerstats is not nil", slog.Bool("isNil", handlerStats == nil))
 		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
 	}
 

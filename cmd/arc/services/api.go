@@ -86,6 +86,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		apiHandler.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
 	}
 
+	var merkleVerifierOpts []merkle_verifier.Option
 	if arcConfig.Prometheus.IsEnabled() {
 		handlerStats, err := apiHandler.NewStats()
 		if err != nil {
@@ -94,6 +95,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		}
 		logger.Info("handlerstats is not nil", slog.Bool("isNil", handlerStats == nil))
 		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
+		merkleVerifierOpts = append(merkleVerifierOpts, merkle_verifier.WithStats(handlerStats))
 	}
 
 	defaultValidatorOpts := []defaultValidator.Option{
@@ -179,18 +181,16 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	bhsDefined := len(arcConfig.API.MerkleRootVerification.BlockHeaderServices) != 0
 
 	if bhsDefined {
-		var opts []merkle_verifier.Option
-
 		var chainTrackers []*merkle_verifier.ChainTracker
 		if arcConfig.API.MerkleRootVerification.Timeout > 0 {
-			opts = append(opts, merkle_verifier.WithTimeout(arcConfig.API.MerkleRootVerification.Timeout))
+			merkleVerifierOpts = append(merkleVerifierOpts, merkle_verifier.WithTimeout(arcConfig.API.MerkleRootVerification.Timeout))
 		}
 		for _, bhs := range arcConfig.API.MerkleRootVerification.BlockHeaderServices {
 			ct := merkle_verifier.NewChainTracker(bhs.URL, bhs.APIKey)
 			chainTrackers = append(chainTrackers, ct)
 		}
 
-		merkleVerifierClient = merkle_verifier.NewClient(logger, chainTrackers, opts...)
+		merkleVerifierClient = merkle_verifier.NewClient(logger, chainTrackers, merkleVerifierOpts...)
 		chainTracker = merkleVerifierClient
 	}
 

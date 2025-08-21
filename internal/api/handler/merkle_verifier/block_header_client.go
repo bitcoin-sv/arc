@@ -153,13 +153,19 @@ func checkChainTrackers(ctx context.Context, c *Client) []attribute.KeyValue {
 		if err != nil {
 			c.logger.Warn("Block header service unavailable", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable), slog.String("err", err.Error()))
 		} else {
-			availableChaintrackers++
 			c.logger.Debug("Block header service available", slog.String("url", ct.url), slog.Bool("isAvailable", isAvailable))
+		}
+
+		if isAvailable {
+			availableChaintrackers++
 		}
 
 		ct.SetAvailability(isAvailable)
 	}
 
+	c.logger.Info("Checked block header services",
+		slog.Int("availableChaintrackers", availableChaintrackers),
+		slog.Int("totalChaintrackers", len(c.chainTrackers)))
 	if c.stats != nil {
 		c.stats.AvailableBlockHeaderServices.Set(float64(availableChaintrackers))
 		c.stats.UnavailableBlockHeaderServices.Set(float64(len(c.chainTrackers) - availableChaintrackers))

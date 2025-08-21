@@ -163,10 +163,10 @@ func checkChainTrackers(ctx context.Context, c *Client) []attribute.KeyValue {
 		ct.SetAvailability(isAvailable)
 	}
 
-	c.logger.Info("Checked block header services",
-		slog.Int("availableChaintrackers", availableChaintrackers),
-		slog.Int("totalChaintrackers", len(c.chainTrackers)))
 	if c.stats != nil {
+		c.logger.Info("not nil Checked block header services",
+			slog.Int("availableChaintrackers", availableChaintrackers),
+			slog.Int("totalChaintrackers", len(c.chainTrackers)))
 		c.stats.AvailableBlockHeaderServices.Set(float64(availableChaintrackers))
 		c.stats.UnavailableBlockHeaderServices.Set(float64(len(c.chainTrackers) - availableChaintrackers))
 	}

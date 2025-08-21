@@ -92,7 +92,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 			stopFn()
 			return nil, err
 		}
-		logger.Info("prometheus started")
+
 		apiOpts = append(apiOpts, apiHandler.WithStats(handlerStats))
 	}
 

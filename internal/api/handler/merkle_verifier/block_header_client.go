@@ -113,6 +113,8 @@ func NewClient(logger *slog.Logger, chainTrackers []*ChainTracker, opts ...Optio
 	for _, opt := range opts {
 		opt(c)
 	}
+	// check if stats is nil, if so, create a new stats instance
+	c.logger.Info("shota stats", slog.String("stats", fmt.Sprintf("%+v", c.stats)), slog.Bool("statsNil", c.stats == nil))
 
 	c.StartRoutine(c.checkChainTrackersInterval, checkChainTrackers, "checkChainTrackers")
 

@@ -143,7 +143,7 @@ func (p *PostgreSQL) GetAndMarkSent(ctx context.Context, url string, limit int, 
 	const q = `UPDATE callbacker.callbacks SET sent_at = $5
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
-				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3
+				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL
 				ORDER BY timestamp ASC
 				LIMIT $4
 				FOR UPDATE

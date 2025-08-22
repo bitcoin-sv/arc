@@ -14,23 +14,18 @@ var (
 )
 
 type CallbackData struct {
-	ID    int64
-	URL   string
-	Token string
-
-	Timestamp time.Time
-
+	ID           int64
+	URL          string
+	Token        string
+	Timestamp    time.Time
 	CompetingTxs []string
-
-	TxID       string
-	TxStatus   string
-	ExtraInfo  *string
-	MerklePath *string
-
-	BlockHash   *string
-	BlockHeight *uint64
-
-	AllowBatch bool
+	TxID         string
+	TxStatus     string
+	ExtraInfo    *string
+	MerklePath   *string
+	BlockHash    *string
+	BlockHeight  *uint64
+	AllowBatch   bool
 }
 
 type ProcessorStore interface {

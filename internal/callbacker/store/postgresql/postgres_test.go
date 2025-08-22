@@ -76,80 +76,53 @@ func TestPostgresDBt(t *testing.T) {
 	t.Run("set many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_many")
+
+		cbData1 := &store.CallbackData{
+			URL:       "https://test-callback-1/",
+			Token:     "token",
+			TxID:      testdata.TX2,
+			TxStatus:  "SEEN_ON_NETWORK",
+			Timestamp: now,
+		}
+		cbData2 := &store.CallbackData{
+			URL:         "https://test-callback-1/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+
+		cbData3 := &store.CallbackData{
+			URL:          "https://test-callback-2/",
+			Token:        "token",
+			TxID:         testdata.TX3,
+			TxStatus:     "MINED",
+			Timestamp:    now,
+			BlockHash:    &testdata.Block2,
+			BlockHeight:  ptrTo(uint64(4524236)),
+			CompetingTxs: []string{testdata.TX2},
+		}
+
+		cbData4 := &store.CallbackData{
+			URL:         "https://arc-callback-1/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block1,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
 
 		data := []*store.CallbackData{
-			{
-				URL:       "https://test-callback-1/",
-				Token:     "token",
-				TxID:      testdata.TX2,
-				TxStatus:  "SEEN_ON_NETWORK",
-				Timestamp: now,
-			},
-			{
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   ptrTo(testdata.Block1),
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				// duplicate
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				// duplicate
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				URL:         "https://test-callback-2/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX3,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
+			cbData1,
+			cbData2,
+			cbData2, // duplicate
+			cbData3,
+			cbData3, // duplicate
+			cbData4,
 		}
 
 		// when
@@ -158,16 +131,20 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.NoError(t, err)
 
-		// read all from db
 		dbCallbacks := readAllCallbacks(t, postgresDB.db)
+		require.NoError(t, err)
+
+		expected := []*store.CallbackData{
+			cbData1,
+			cbData2,
+			cbData3,
+			cbData4,
+		}
+
 		for _, c := range dbCallbacks {
 			found := false
-			for i, ur := range data {
-				if ur == nil {
-					continue
-				}
-
-				if CallbackRecordEqual(ur, c) {
+			for i, ur := range expected {
+				if reflect.DeepEqual(ur, c) {
 					// remove if found
 					data[i] = nil
 					found = true
@@ -364,10 +341,6 @@ func TestPostgresDBt(t *testing.T) {
 func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.callbacks")
 	testutils.PruneTables(t, db, "callbacker.url_mapping")
-}
-
-func CallbackRecordEqual(a, b *store.CallbackData) bool {
-	return reflect.DeepEqual(*a, *b)
 }
 
 func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {

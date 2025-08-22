@@ -51,12 +51,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		healthServer    *grpc_utils.GrpcServer
 		mqClient        mq.MessageQueueClient
 		processor       *callbacker.Processor
+		processorWorker *callbacker.ProcessorWorker
 		err             error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
+		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, processorWorker, mqClient)
 		logger.Info("Shutdown callbacker complete")
 	}
 
@@ -99,20 +100,37 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
+	//processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
+	//if err != nil {
+	//	stopFn()
+	//	return nil, err
+	//}
+
+	//processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
+	//processor.StartSetUnmappedURLs()
+	//processor.StartSyncURLMapping()
+
+	processorWorker, err = callbacker.NewProcessorWorker(sender, callbackerStore, mqClient, logger)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
 
-	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
-	processor.StartSetUnmappedURLs()
-
-	err = processor.Start()
+	err = processorWorker.Start()
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
+
+	processorWorker.StartStoreCallbackRequests()
+	processorWorker.StartSendCallbacks()
+	processorWorker.StartSendBatchCallbacks()
+
+	//err = processor.Start()
+	//if err != nil {
+	//	stopFn()
+	//	return nil, err
+	//}
 
 	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
@@ -142,7 +160,7 @@ func getCbkMqOpts(hostname string) []nats_jetstream.Option {
 	consName := fmt.Sprintf("%s-%s-cons", hostname, mq.CallbackTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.InterestPolicy, false),
+		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.WorkQueuePolicy, false),
 		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, false, jetstream.AckExplicitPolicy),
 	}
 	return mqOpts
@@ -170,7 +188,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient mq.MessageQueueClient) {
+	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, processorWorker *callbacker.ProcessorWorker, mqClient mq.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. dispatcher - ensure all already accepted callbacks are processed
@@ -186,6 +204,9 @@ func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	}
 	if processor != nil {
 		processor.GracefulStop()
+	}
+	if processorWorker != nil {
+		processorWorker.GracefulStop()
 	}
 	if sender != nil {
 		sender.GracefulStop()

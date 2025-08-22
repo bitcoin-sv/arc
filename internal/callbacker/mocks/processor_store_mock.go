@@ -26,11 +26,23 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			DeleteURLMappingFunc: func(ctx context.Context, instance string) (int64, error) {
 //				panic("mock out the DeleteURLMapping method")
 //			},
+//			GetManyFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+//				panic("mock out the GetMany method")
+//			},
 //			GetURLMappingsFunc: func(ctx context.Context) (map[string]string, error) {
 //				panic("mock out the GetURLMappings method")
 //			},
 //			GetUnmappedURLFunc: func(ctx context.Context) (string, error) {
 //				panic("mock out the GetUnmappedURL method")
+//			},
+//			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+//				panic("mock out the SetMany method")
+//			},
+//			SetNotPendingFunc: func(ctx context.Context, ids []int64) error {
+//				panic("mock out the SetNotPending method")
+//			},
+//			SetSentFunc: func(ctx context.Context, ids []int64) error {
+//				panic("mock out the SetSent method")
 //			},
 //			SetURLMappingFunc: func(ctx context.Context, m store.URLMapping) error {
 //				panic("mock out the SetURLMapping method")
@@ -48,11 +60,23 @@ type ProcessorStoreMock struct {
 	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
 	DeleteURLMappingFunc func(ctx context.Context, instance string) (int64, error)
 
+	// GetManyFunc mocks the GetMany method.
+	GetManyFunc func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error)
+
 	// GetURLMappingsFunc mocks the GetURLMappings method.
 	GetURLMappingsFunc func(ctx context.Context) (map[string]string, error)
 
 	// GetUnmappedURLFunc mocks the GetUnmappedURL method.
 	GetUnmappedURLFunc func(ctx context.Context) (string, error)
+
+	// SetManyFunc mocks the SetMany method.
+	SetManyFunc func(ctx context.Context, data []*store.CallbackData) error
+
+	// SetNotPendingFunc mocks the SetNotPending method.
+	SetNotPendingFunc func(ctx context.Context, ids []int64) error
+
+	// SetSentFunc mocks the SetSent method.
+	SetSentFunc func(ctx context.Context, ids []int64) error
 
 	// SetURLMappingFunc mocks the SetURLMapping method.
 	SetURLMappingFunc func(ctx context.Context, m store.URLMapping) error
@@ -73,6 +97,17 @@ type ProcessorStoreMock struct {
 			// Instance is the instance argument value.
 			Instance string
 		}
+		// GetMany holds details about calls to the GetMany method.
+		GetMany []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Limit is the limit argument value.
+			Limit int
+			// Expiration is the expiration argument value.
+			Expiration time.Duration
+			// Batch is the batch argument value.
+			Batch bool
+		}
 		// GetURLMappings holds details about calls to the GetURLMappings method.
 		GetURLMappings []struct {
 			// Ctx is the ctx argument value.
@@ -82,6 +117,27 @@ type ProcessorStoreMock struct {
 		GetUnmappedURL []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// SetMany holds details about calls to the SetMany method.
+		SetMany []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Data is the data argument value.
+			Data []*store.CallbackData
+		}
+		// SetNotPending holds details about calls to the SetNotPending method.
+		SetNotPending []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ids is the ids argument value.
+			Ids []int64
+		}
+		// SetSent holds details about calls to the SetSent method.
+		SetSent []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ids is the ids argument value.
+			Ids []int64
 		}
 		// SetURLMapping holds details about calls to the SetURLMapping method.
 		SetURLMapping []struct {
@@ -93,8 +149,12 @@ type ProcessorStoreMock struct {
 	}
 	lockDeleteOlderThan  sync.RWMutex
 	lockDeleteURLMapping sync.RWMutex
+	lockGetMany          sync.RWMutex
 	lockGetURLMappings   sync.RWMutex
 	lockGetUnmappedURL   sync.RWMutex
+	lockSetMany          sync.RWMutex
+	lockSetNotPending    sync.RWMutex
+	lockSetSent          sync.RWMutex
 	lockSetURLMapping    sync.RWMutex
 }
 
@@ -170,6 +230,50 @@ func (mock *ProcessorStoreMock) DeleteURLMappingCalls() []struct {
 	return calls
 }
 
+// GetMany calls GetManyFunc.
+func (mock *ProcessorStoreMock) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+	if mock.GetManyFunc == nil {
+		panic("ProcessorStoreMock.GetManyFunc: method is nil but ProcessorStore.GetMany was just called")
+	}
+	callInfo := struct {
+		Ctx        context.Context
+		Limit      int
+		Expiration time.Duration
+		Batch      bool
+	}{
+		Ctx:        ctx,
+		Limit:      limit,
+		Expiration: expiration,
+		Batch:      batch,
+	}
+	mock.lockGetMany.Lock()
+	mock.calls.GetMany = append(mock.calls.GetMany, callInfo)
+	mock.lockGetMany.Unlock()
+	return mock.GetManyFunc(ctx, limit, expiration, batch)
+}
+
+// GetManyCalls gets all the calls that were made to GetMany.
+// Check the length with:
+//
+//	len(mockedProcessorStore.GetManyCalls())
+func (mock *ProcessorStoreMock) GetManyCalls() []struct {
+	Ctx        context.Context
+	Limit      int
+	Expiration time.Duration
+	Batch      bool
+} {
+	var calls []struct {
+		Ctx        context.Context
+		Limit      int
+		Expiration time.Duration
+		Batch      bool
+	}
+	mock.lockGetMany.RLock()
+	calls = mock.calls.GetMany
+	mock.lockGetMany.RUnlock()
+	return calls
+}
+
 // GetURLMappings calls GetURLMappingsFunc.
 func (mock *ProcessorStoreMock) GetURLMappings(ctx context.Context) (map[string]string, error) {
 	if mock.GetURLMappingsFunc == nil {
@@ -231,6 +335,114 @@ func (mock *ProcessorStoreMock) GetUnmappedURLCalls() []struct {
 	mock.lockGetUnmappedURL.RLock()
 	calls = mock.calls.GetUnmappedURL
 	mock.lockGetUnmappedURL.RUnlock()
+	return calls
+}
+
+// SetMany calls SetManyFunc.
+func (mock *ProcessorStoreMock) SetMany(ctx context.Context, data []*store.CallbackData) error {
+	if mock.SetManyFunc == nil {
+		panic("ProcessorStoreMock.SetManyFunc: method is nil but ProcessorStore.SetMany was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Data []*store.CallbackData
+	}{
+		Ctx:  ctx,
+		Data: data,
+	}
+	mock.lockSetMany.Lock()
+	mock.calls.SetMany = append(mock.calls.SetMany, callInfo)
+	mock.lockSetMany.Unlock()
+	return mock.SetManyFunc(ctx, data)
+}
+
+// SetManyCalls gets all the calls that were made to SetMany.
+// Check the length with:
+//
+//	len(mockedProcessorStore.SetManyCalls())
+func (mock *ProcessorStoreMock) SetManyCalls() []struct {
+	Ctx  context.Context
+	Data []*store.CallbackData
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Data []*store.CallbackData
+	}
+	mock.lockSetMany.RLock()
+	calls = mock.calls.SetMany
+	mock.lockSetMany.RUnlock()
+	return calls
+}
+
+// SetNotPending calls SetNotPendingFunc.
+func (mock *ProcessorStoreMock) SetNotPending(ctx context.Context, ids []int64) error {
+	if mock.SetNotPendingFunc == nil {
+		panic("ProcessorStoreMock.SetNotPendingFunc: method is nil but ProcessorStore.SetNotPending was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Ids []int64
+	}{
+		Ctx: ctx,
+		Ids: ids,
+	}
+	mock.lockSetNotPending.Lock()
+	mock.calls.SetNotPending = append(mock.calls.SetNotPending, callInfo)
+	mock.lockSetNotPending.Unlock()
+	return mock.SetNotPendingFunc(ctx, ids)
+}
+
+// SetNotPendingCalls gets all the calls that were made to SetNotPending.
+// Check the length with:
+//
+//	len(mockedProcessorStore.SetNotPendingCalls())
+func (mock *ProcessorStoreMock) SetNotPendingCalls() []struct {
+	Ctx context.Context
+	Ids []int64
+} {
+	var calls []struct {
+		Ctx context.Context
+		Ids []int64
+	}
+	mock.lockSetNotPending.RLock()
+	calls = mock.calls.SetNotPending
+	mock.lockSetNotPending.RUnlock()
+	return calls
+}
+
+// SetSent calls SetSentFunc.
+func (mock *ProcessorStoreMock) SetSent(ctx context.Context, ids []int64) error {
+	if mock.SetSentFunc == nil {
+		panic("ProcessorStoreMock.SetSentFunc: method is nil but ProcessorStore.SetSent was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Ids []int64
+	}{
+		Ctx: ctx,
+		Ids: ids,
+	}
+	mock.lockSetSent.Lock()
+	mock.calls.SetSent = append(mock.calls.SetSent, callInfo)
+	mock.lockSetSent.Unlock()
+	return mock.SetSentFunc(ctx, ids)
+}
+
+// SetSentCalls gets all the calls that were made to SetSent.
+// Check the length with:
+//
+//	len(mockedProcessorStore.SetSentCalls())
+func (mock *ProcessorStoreMock) SetSentCalls() []struct {
+	Ctx context.Context
+	Ids []int64
+} {
+	var calls []struct {
+		Ctx context.Context
+		Ids []int64
+	}
+	mock.lockSetSent.RLock()
+	calls = mock.calls.SetSent
+	mock.lockSetSent.RUnlock()
 	return calls
 }
 

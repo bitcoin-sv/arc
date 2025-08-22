@@ -140,6 +140,52 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	return err
 }
 
+func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+	const q = `
+				UPDATE callbacker.callbacks c SET pending = $4
+				WHERE id IN (
+				    SELECT id FROM callbacker.callbacks
+					WHERE timestamp > $1 AND allow_batch = $2 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending > $5)
+					AND NOT EXISTS (
+					SELECT 1 FROM callbacker.callbacks c1
+					WHERE c1.url=c.url AND c1.pending = TRUE
+					)
+					ORDER BY timestamp ASC
+					LIMIT $3
+					FOR UPDATE
+				)
+				RETURNING
+				c.id
+			    ,c.url
+				,c.token
+				,c.tx_id
+				,c.tx_status
+				,c.extra_info
+				,c.merkle_path
+				,c.block_hash
+				,c.block_height
+				,c.competing_txs
+				,c.timestamp
+				,c.allow_batch
+				;
+			`
+
+	lockTime := 120 * time.Second
+	expirationDate := p.now().Add(-1 * expiration)
+	rows, err := p.db.QueryContext(ctx, q, expirationDate, batch, limit, p.now(), p.now().Add(-1*lockTime))
+	if err != nil {
+		return nil, err
+	}
+
+	var records []*store.CallbackData
+	records, err = scanCallbacks(rows, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
 // GetAndMarkSent returns and marks sent a number of callbacks limited by `limit` ordered by timestamp in ascending order
 func (p *PostgreSQL) GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
 	const q = `UPDATE callbacker.callbacks SET sent_at = $5
@@ -208,6 +254,28 @@ func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) erro
 	// Error 23505 is: "duplicate key violates unique constraint"
 	if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
 		return store.ErrURLMappingDuplicateKey
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
+	const q = `UPDATE callbacker.callbacks SET sent_at = $1, pending = NULL WHERE id = ANY($2::INTEGER[])`
+
+	_, err := p.db.ExecContext(ctx, q, time.Now(), ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) SetNotPending(ctx context.Context, ids []int64) error {
+	const q = `UPDATE callbacker.callbacks SET pending = NULL WHERE id = ANY($1::INTEGER[])`
+
+	_, err := p.db.ExecContext(ctx, q, pq.Array(ids))
+	if err != nil {
+		return err
 	}
 
 	return nil

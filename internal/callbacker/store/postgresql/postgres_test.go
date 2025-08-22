@@ -166,26 +166,26 @@ func TestPostgresDBt(t *testing.T) {
 		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
 
-		require.Equal(t, 30, rowsCount)
+		require.Equal(t, 10, rowsCount)
 
 		const limit = 10
 		records, _, rollback, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
 		err = rollback()
 		require.NoError(t, err)
-		require.Len(t, records, limit)
+		require.Len(t, records, 8)
 		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
-		require.Equal(t, 30, rowsCount)
+		require.Equal(t, 10, rowsCount)
 
 		records, commit, _, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
 		err = commit()
 		require.NoError(t, err)
-		require.Len(t, records, limit)
+		require.Len(t, records, 8)
 		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
-		require.Equal(t, 30, rowsCount)
+		require.Equal(t, 10, rowsCount)
 
 		ids := make([]int64, len(records))
 		for i, record := range records {

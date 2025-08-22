@@ -214,7 +214,7 @@ func TestPostgresDBt(t *testing.T) {
 		var rowsBefore int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsBefore)
 		require.NoError(t, err)
-		require.Equal(t, 56, rowsBefore)
+		require.Equal(t, 30, rowsBefore)
 
 		err := postgresDB.DeleteOlderThan(ctx, now)
 		require.NoError(t, err)

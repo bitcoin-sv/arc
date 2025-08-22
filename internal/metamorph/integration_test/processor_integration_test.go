@@ -16,7 +16,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func TestProcessor(t *testing.T) {

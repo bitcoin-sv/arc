@@ -2,8 +2,9 @@ package transaction_handler
 
 import (
 	"context"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"testing"
+
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/stretchr/testify/require"
 )

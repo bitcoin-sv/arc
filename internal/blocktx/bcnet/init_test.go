@@ -2,12 +2,13 @@ package bcnet
 
 import (
 	"bytes"
+	"testing"
+
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 const (

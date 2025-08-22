@@ -4,9 +4,10 @@ package woc_client
 
 import (
 	"context"
+	"testing"
+
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_GetBalanceFromWoC(t *testing.T) {

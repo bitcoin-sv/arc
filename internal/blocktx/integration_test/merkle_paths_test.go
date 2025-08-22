@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/pkg/test_utils"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
 func TestMerklePaths(t *testing.T) {

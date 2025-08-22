@@ -156,8 +156,6 @@ func TestSubmitMined(t *testing.T) {
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(15 * time.Second)
-
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
@@ -165,7 +163,7 @@ func TestSubmitMined(t *testing.T) {
 			require.Equal(t, merklePathStr, *status.MerklePath)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
-		case <-callbackTimeout:
+		case <-time.After(callbackDeadline):
 			t.Fatal("callback exceeded timeout")
 		}
 
@@ -224,15 +222,13 @@ func TestReturnMinedStatus(t *testing.T) {
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(15 * time.Second)
-
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
-		case <-callbackTimeout:
+		case <-time.After(callbackDeadline):
 			t.Fatal("callback exceeded timeout")
 		}
 

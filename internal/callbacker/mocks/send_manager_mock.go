@@ -24,9 +24,6 @@ var _ callbacker.SendManagerI = &SendManagerIMock{}
 //			GracefulStopFunc: func()  {
 //				panic("mock out the GracefulStop method")
 //			},
-//			StartFunc: func()  {
-//				panic("mock out the Start method")
-//			},
 //		}
 //
 //		// use mockedSendManagerI in code that requires callbacker.SendManagerI
@@ -40,9 +37,6 @@ type SendManagerIMock struct {
 	// GracefulStopFunc mocks the GracefulStop method.
 	GracefulStopFunc func()
 
-	// StartFunc mocks the Start method.
-	StartFunc func()
-
 	// calls tracks calls to the methods.
 	calls struct {
 		// Enqueue holds details about calls to the Enqueue method.
@@ -53,13 +47,9 @@ type SendManagerIMock struct {
 		// GracefulStop holds details about calls to the GracefulStop method.
 		GracefulStop []struct {
 		}
-		// Start holds details about calls to the Start method.
-		Start []struct {
-		}
 	}
 	lockEnqueue      sync.RWMutex
 	lockGracefulStop sync.RWMutex
-	lockStart        sync.RWMutex
 }
 
 // Enqueue calls EnqueueFunc.
@@ -118,32 +108,5 @@ func (mock *SendManagerIMock) GracefulStopCalls() []struct {
 	mock.lockGracefulStop.RLock()
 	calls = mock.calls.GracefulStop
 	mock.lockGracefulStop.RUnlock()
-	return calls
-}
-
-// Start calls StartFunc.
-func (mock *SendManagerIMock) Start() {
-	if mock.StartFunc == nil {
-		panic("SendManagerIMock.StartFunc: method is nil but SendManagerI.Start was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockStart.Lock()
-	mock.calls.Start = append(mock.calls.Start, callInfo)
-	mock.lockStart.Unlock()
-	mock.StartFunc()
-}
-
-// StartCalls gets all the calls that were made to Start.
-// Check the length with:
-//
-//	len(mockedSendManagerI.StartCalls())
-func (mock *SendManagerIMock) StartCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockStart.RLock()
-	calls = mock.calls.Start
-	mock.lockStart.RUnlock()
 	return calls
 }

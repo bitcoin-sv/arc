@@ -138,9 +138,9 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 	return err
 }
 
-// GetAndDeleteTx returns and deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
-func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
-	const q = `DELETE FROM callbacker.callbacks
+// GetAndMarkSent returns and marks sent a number of callbacks limited by `limit` ordered by timestamp in ascending order
+func (p *PostgreSQL) GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
+	const q = `UPDATE callbacker.callbacks SET sent_at = $5
 			WHERE id IN (
 				SELECT id FROM callbacker.callbacks
 				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3
@@ -149,7 +149,8 @@ func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, 
 				FOR UPDATE
 			)
 			RETURNING
-				url
+				id
+			    ,url
 				,token
 				,tx_id
 				,tx_status
@@ -168,7 +169,7 @@ func (p *PostgreSQL) GetAndDeleteTx(ctx context.Context, url string, limit int, 
 		return nil, nil, nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, q, url, expirationDate, batch, limit)
+	rows, err := tx.QueryContext(ctx, q, url, expirationDate, batch, limit, p.now())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -300,9 +301,11 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			bh      sql.NullString
 			bHeight sql.NullInt64
 			ctxs    sql.NullString
+			id      sql.NullInt64
 		)
 
 		err := rows.Scan(
+			&id,
 			&r.URL,
 			&r.Token,
 			&r.TxID,
@@ -322,6 +325,9 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 
 		r.Timestamp = ts.UTC()
 
+		if id.Valid {
+			r.ID = id.Int64
+		}
 		if ei.Valid {
 			r.ExtraInfo = ptrTo(ei.String)
 		}

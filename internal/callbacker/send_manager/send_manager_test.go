@@ -177,7 +177,7 @@ func TestSendManagerStart(t *testing.T) {
 				return tc.rollbackErr
 			}
 			storeMock := &mocks.SendManagerStoreMock{
-				GetAndDeleteTxFunc: func(_ context.Context, _ string, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, func() error, func() error, error) {
+				GetAndMarkSentFunc: func(_ context.Context, _ string, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, func() error, func() error, error) {
 					if tc.getAndDeleteErr != nil {
 						stopCh <- struct{}{}
 					}

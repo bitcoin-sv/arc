@@ -21,8 +21,8 @@ var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 //
 //		// make and configure a mocked send_manager.SendManagerStore
 //		mockedSendManagerStore := &SendManagerStoreMock{
-//			GetAndDeleteTxFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
-//				panic("mock out the GetAndDeleteTx method")
+//			GetAndMarkSentFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
+//				panic("mock out the GetAndMarkSent method")
 //			},
 //			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
 //				panic("mock out the SetMany method")
@@ -34,16 +34,16 @@ var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 //
 //	}
 type SendManagerStoreMock struct {
-	// GetAndDeleteTxFunc mocks the GetAndDeleteTx method.
-	GetAndDeleteTxFunc func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error)
+	// GetAndMarkSentFunc mocks the GetAndMarkSent method.
+	GetAndMarkSentFunc func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error)
 
 	// SetManyFunc mocks the SetMany method.
 	SetManyFunc func(ctx context.Context, data []*store.CallbackData) error
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// GetAndDeleteTx holds details about calls to the GetAndDeleteTx method.
-		GetAndDeleteTx []struct {
+		// GetAndMarkSent holds details about calls to the GetAndMarkSent method.
+		GetAndMarkSent []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// URL is the url argument value.
@@ -63,14 +63,14 @@ type SendManagerStoreMock struct {
 			Data []*store.CallbackData
 		}
 	}
-	lockGetAndDeleteTx sync.RWMutex
+	lockGetAndMarkSent sync.RWMutex
 	lockSetMany        sync.RWMutex
 }
 
-// GetAndDeleteTx calls GetAndDeleteTxFunc.
-func (mock *SendManagerStoreMock) GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
-	if mock.GetAndDeleteTxFunc == nil {
-		panic("SendManagerStoreMock.GetAndDeleteTxFunc: method is nil but SendManagerStore.GetAndDeleteTx was just called")
+// GetAndMarkSent calls GetAndMarkSentFunc.
+func (mock *SendManagerStoreMock) GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
+	if mock.GetAndMarkSentFunc == nil {
+		panic("SendManagerStoreMock.GetAndMarkSentFunc: method is nil but SendManagerStore.GetAndMarkSent was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
@@ -85,17 +85,17 @@ func (mock *SendManagerStoreMock) GetAndDeleteTx(ctx context.Context, url string
 		Expiration: expiration,
 		Batch:      batch,
 	}
-	mock.lockGetAndDeleteTx.Lock()
-	mock.calls.GetAndDeleteTx = append(mock.calls.GetAndDeleteTx, callInfo)
-	mock.lockGetAndDeleteTx.Unlock()
-	return mock.GetAndDeleteTxFunc(ctx, url, limit, expiration, batch)
+	mock.lockGetAndMarkSent.Lock()
+	mock.calls.GetAndMarkSent = append(mock.calls.GetAndMarkSent, callInfo)
+	mock.lockGetAndMarkSent.Unlock()
+	return mock.GetAndMarkSentFunc(ctx, url, limit, expiration, batch)
 }
 
-// GetAndDeleteTxCalls gets all the calls that were made to GetAndDeleteTx.
+// GetAndMarkSentCalls gets all the calls that were made to GetAndMarkSent.
 // Check the length with:
 //
-//	len(mockedSendManagerStore.GetAndDeleteTxCalls())
-func (mock *SendManagerStoreMock) GetAndDeleteTxCalls() []struct {
+//	len(mockedSendManagerStore.GetAndMarkSentCalls())
+func (mock *SendManagerStoreMock) GetAndMarkSentCalls() []struct {
 	Ctx        context.Context
 	URL        string
 	Limit      int
@@ -109,9 +109,9 @@ func (mock *SendManagerStoreMock) GetAndDeleteTxCalls() []struct {
 		Expiration time.Duration
 		Batch      bool
 	}
-	mock.lockGetAndDeleteTx.RLock()
-	calls = mock.calls.GetAndDeleteTx
-	mock.lockGetAndDeleteTx.RUnlock()
+	mock.lockGetAndMarkSent.RLock()
+	calls = mock.calls.GetAndMarkSent
+	mock.lockGetAndMarkSent.RUnlock()
 	return calls
 }
 

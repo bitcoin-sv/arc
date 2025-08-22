@@ -12,7 +12,7 @@ import (
 
 type SendManagerStore interface {
 	SetMany(ctx context.Context, data []*store.CallbackData) error
-	GetAndDeleteTx(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error)
+	GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error)
 }
 
 type Sender interface {
@@ -50,8 +50,6 @@ const (
 	batchSendIntervalDefault      = 5 * time.Second
 	storeCallbacksIntervalDefault = 5 * time.Second
 	storeCallbackBatchSizeDefault = 20
-	fillUpQueueIntervalDefault     = 5 * time.Second
-	sortByTimestampIntervalDefault = 10 * time.Second
 )
 
 func WithSingleSendInterval(d time.Duration) func(*SendManager) {
@@ -185,7 +183,7 @@ func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
 func (m *SendManager) batchSend() {
 	committed := false
 
-	callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, m.batchSize, m.expiration, true)
+	callbacks, commit, rollback, err := m.store.GetAndMarkSent(m.ctx, m.url, m.batchSize, m.expiration, true)
 	defer func() {
 		if !committed {
 			rollbackErr := rollback()
@@ -226,7 +224,7 @@ func (m *SendManager) batchSend() {
 func (m *SendManager) singleSend() {
 	committed := false
 
-	callbacks, commit, rollback, err := m.store.GetAndDeleteTx(m.ctx, m.url, 1, m.expiration, false)
+	callbacks, commit, rollback, err := m.store.GetAndMarkSent(m.ctx, m.url, 1, m.expiration, false)
 	defer func() {
 		if !committed {
 			rollbackErr := rollback()

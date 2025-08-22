@@ -12,6 +12,8 @@ import (
 
 	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
@@ -177,10 +179,10 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("get and delete", func(t *testing.T) {
+	t.Run("get and mark sent", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_mark_sent")
 		qCount := "SELECT count(*) FROM callbacker.callbacks WHERE url=$1"
 		ctx := context.Background()
 		var rowsCount int
@@ -190,7 +192,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.Equal(t, 30, rowsCount)
 
 		const limit = 10
-		records, _, rollback, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
+		records, _, rollback, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
 		err = rollback()
 		require.NoError(t, err)
@@ -199,23 +201,31 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 30, rowsCount)
 
-		records, commit, _, err := postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
+		records, commit, _, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
 		require.NoError(t, err)
 		err = commit()
 		require.NoError(t, err)
 		require.Len(t, records, limit)
 		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
-		require.Equal(t, 20, rowsCount)
+		require.Equal(t, 30, rowsCount)
 
-		records, commit, _, err = postgresDB.GetAndDeleteTx(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, true)
+		ids := make([]int64, len(records))
+		for i, record := range records {
+			ids[i] = record.ID
+		}
+
+		db, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
-		err = commit()
+
+		var sentAtDates []time.Time
+		const q = `SELECT sent_at FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[]) `
+		err = db.Select(&sentAtDates, q, pq.Array(ids))
 		require.NoError(t, err)
-		require.Len(t, records, 1)
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
-		require.NoError(t, err)
-		require.Equal(t, 19, rowsCount)
+
+		for _, sentAtDate := range sentAtDates {
+			require.Equal(t, now.UTC(), sentAtDate.UTC())
+		}
 	})
 
 	t.Run("delete older than", func(t *testing.T) {

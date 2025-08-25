@@ -230,6 +230,28 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
+	t.Run("set not pending", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_not_pending")
+		ctx := context.Background()
+
+		err = postgresDB.SetSent(ctx, []int64{1, 2, 3})
+		require.NoError(t, err)
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array([]int64{1, 2, 3}),
+		)
+		require.NoError(t, err)
+
+		for r.Next() {
+			var pending sql.NullTime
+			err = r.Scan(&pending)
+			require.NoError(t, err)
+			require.False(t, pending.Valid)
+		}
+	})
+
 	t.Run("get many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
@@ -255,10 +277,11 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		for r.Next() {
-			var pending time.Time
+			var pending sql.NullTime
 			err = r.Scan(&pending)
 			require.NoError(t, err)
-			require.Equal(t, now.UTC(), pending.UTC())
+			require.True(t, pending.Valid)
+			require.Equal(t, now.UTC(), pending.Time.UTC())
 		}
 	})
 

@@ -304,7 +304,7 @@ func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) fu
 		responseVisitMap[txID] = callbackCounter
 		mu.Unlock()
 
-		// Let ARC send the same callback few times
+		// Let ARC send the same callback a few times
 		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
 
 		err := respondToCallback(w, respondWithSuccess)

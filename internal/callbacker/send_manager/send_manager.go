@@ -177,7 +177,7 @@ func toStoreDto(url string, entry callbacker.CallbackEntry) *store.CallbackData 
 }
 
 func (m *SendManager) Enqueue(entry callbacker.CallbackEntry) {
-	m.logger.Info("=== Enqueued callback entry", slog.String("url", m.url), slog.String("token", entry.Token), slog.String("txid", entry.Data.TxID), slog.String("status", entry.Data.TxStatus))
+	m.logger.Info("=== Enqueued callback entry", slog.String("token", entry.Token), slog.String("txid", entry.Data.TxID), slog.String("status", entry.Data.TxStatus))
 
 	m.storeChan <- entry
 }

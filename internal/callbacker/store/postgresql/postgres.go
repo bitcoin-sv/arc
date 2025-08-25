@@ -143,15 +143,14 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
 	const q = `
 				UPDATE callbacker.callbacks c SET pending = $1
-				WHERE id IN (
-				    SELECT id FROM callbacker.callbacks
-					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending > $4)
+				WHERE c.id IN (
+				    SELECT id FROM callbacker.callbacks c
+					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND c.pending IS NULL
 					AND NOT EXISTS (
 					SELECT 1 FROM callbacker.callbacks c1
-					WHERE c1.url=c.url AND (c1.pending IS NOT NULL OR c.pending > $4)
+					WHERE c1.url=c.url AND c1.pending IS NOT NULL -- skip those with URL for which there are already pending callbacks
 					)
-					ORDER BY timestamp ASC
-					LIMIT $5
+					LIMIT $4
 					FOR UPDATE
 				)
 				RETURNING
@@ -170,9 +169,9 @@ func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Dur
 				;
 			`
 
-	lockTime := 120 * time.Second
+	//lockTime := 120 * time.Second
 	expirationDate := p.now().Add(-1 * expiration)
-	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, p.now().Add(-1*lockTime), limit)
+	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -205,6 +205,38 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
+	t.Run("get many", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_many")
+		ctx := context.Background()
+
+		const limit = 20
+		records, err := postgresDB.GetMany(ctx, limit, 1*time.Hour, false)
+		require.NoError(t, err)
+		require.Len(t, records, 6)
+
+		ids := make([]int64, len(records))
+		for i, record := range records {
+			require.Equal(t, "https://arc-callback-2/callback", record.URL)
+			ids[i] = record.ID
+		}
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array(ids),
+		)
+		defer r.Close()
+		require.NoError(t, err)
+
+		for r.Next() {
+			var pending time.Time
+			err = r.Scan(&pending)
+			require.NoError(t, err)
+			require.Equal(t, now.UTC(), pending.UTC())
+		}
+	})
+
 	t.Run("delete older than", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)

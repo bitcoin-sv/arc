@@ -189,6 +189,8 @@ func (p *ProcessorWorker) sendCallback(url string, cbs []*store.CallbackData) {
 		if err != nil {
 			p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
 		}
+
+		time.Sleep(p.singleSendInterval)
 	}
 }
 

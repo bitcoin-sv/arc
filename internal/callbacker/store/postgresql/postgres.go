@@ -261,7 +261,7 @@ func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) erro
 func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
 	const q = `UPDATE callbacker.callbacks SET sent_at = $1, pending = NULL WHERE id = ANY($2::INTEGER[])`
 
-	_, err := p.db.ExecContext(ctx, q, time.Now(), ids)
+	_, err := p.db.ExecContext(ctx, q, p.now(), pq.Array(ids))
 	if err != nil {
 		return err
 	}

@@ -205,6 +205,31 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
+	t.Run("set sent", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_sent")
+		ctx := context.Background()
+
+		err = postgresDB.SetSent(ctx, []int64{1, 2, 3})
+		require.NoError(t, err)
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT sent_at, pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array([]int64{1, 2, 3}),
+		)
+		require.NoError(t, err)
+
+		for r.Next() {
+			var sentAt sql.NullTime
+			var pending sql.NullTime
+			err = r.Scan(&sentAt, &pending)
+			require.NoError(t, err)
+			require.True(t, sentAt.Valid)
+			require.Equal(t, now.UTC(), sentAt.Time.UTC())
+			require.False(t, pending.Valid)
+		}
+	})
+
 	t.Run("get many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)

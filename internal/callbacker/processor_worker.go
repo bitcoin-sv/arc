@@ -276,9 +276,9 @@ func (p *ProcessorWorker) StartStoreCallbackRequests() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)))
 
 				if len(toStore) > 0 {
+					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)))
 					err := p.store.SetMany(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))

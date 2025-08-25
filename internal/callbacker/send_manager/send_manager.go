@@ -11,7 +11,7 @@ import (
 )
 
 type SendManagerStore interface {
-	SetMany(ctx context.Context, data []*store.CallbackData) error
+	SetMany(ctx context.Context, data []*store.CallbackData) (int64, error)
 	GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error)
 }
 
@@ -132,7 +132,7 @@ func (m *SendManager) StartStoreCallbacks() {
 				return
 			case <-storeTicker.C:
 				if len(toStore) > 0 {
-					err := m.store.SetMany(m.ctx, toStore)
+					_, err := m.store.SetMany(m.ctx, toStore)
 					if err != nil {
 						m.logger.Error(failedToStoreCallbacksErrMsg, slog.String("err", err.Error()))
 						continue
@@ -144,7 +144,7 @@ func (m *SendManager) StartStoreCallbacks() {
 				toStore = append(toStore, toStoreDto(m.url, entry))
 
 				if len(toStore) >= m.storeCallbackBatchSize {
-					err := m.store.SetMany(m.ctx, toStore)
+					_, err := m.store.SetMany(m.ctx, toStore)
 					if err != nil {
 						m.logger.Error(failedToStoreCallbacksErrMsg, slog.String("err", err.Error()))
 						continue

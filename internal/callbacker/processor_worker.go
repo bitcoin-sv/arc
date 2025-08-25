@@ -280,11 +280,12 @@ func (p *ProcessorWorker) StartStoreCallbackRequests() {
 
 				if len(toStore) > 0 {
 					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)))
-					err := p.store.SetMany(p.ctx, toStore)
+					rowsAffected, err := p.store.SetMany(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
 					}
+					p.logger.Info("=== Stored callbacks", slog.Int64("count", rowsAffected))
 
 					toStore = toStore[:0]
 				}
@@ -294,11 +295,12 @@ func (p *ProcessorWorker) StartStoreCallbackRequests() {
 
 				if len(toStore) >= p.storeCallbackBatchSize {
 					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
-					err := p.store.SetMany(p.ctx, toStore)
+					rowsAffected, err := p.store.SetMany(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
 					}
+					p.logger.Info("=== Stored callbacks", slog.Int64("count", rowsAffected))
 
 					toStore = toStore[:0]
 				}

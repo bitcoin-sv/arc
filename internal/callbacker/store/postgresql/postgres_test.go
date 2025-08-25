@@ -103,7 +103,6 @@ func TestPostgresDBt(t *testing.T) {
 			BlockHash:   ptrTo(testdata.Block1),
 			BlockHeight: ptrTo(uint64(4524235)),
 		}
-
 		cbData3 := &store.CallbackData{
 			URL:          "https://test-callback-2/",
 			Token:        "token",
@@ -114,9 +113,8 @@ func TestPostgresDBt(t *testing.T) {
 			BlockHeight:  ptrTo(uint64(4524236)),
 			CompetingTxs: []string{testdata.TX2},
 		}
-
 		cbData4 := &store.CallbackData{
-			URL:         "https://arc-callback-1/callback",
+			URL:         "https://arc-callback-2/callback",
 			Token:       "token",
 			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
 			TxStatus:    "MINED",
@@ -136,10 +134,11 @@ func TestPostgresDBt(t *testing.T) {
 		}
 
 		// when
-		err = postgresDB.SetMany(context.Background(), data)
-
+		rows, err := postgresDB.SetMany(context.Background(), data)
 		// then
 		require.NoError(t, err)
+
+		require.Equal(t, rows, int64(5))
 
 		dbCallbacks := readAllCallbacks(t, postgresDB.db)
 		require.NoError(t, err)
@@ -284,8 +283,8 @@ func TestPostgresDBt(t *testing.T) {
 			`SELECT pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
 			pq.Array(ids),
 		)
-		defer r.Close()
 		require.NoError(t, err)
+		defer r.Close()
 
 		for r.Next() {
 			var pending sql.NullTime

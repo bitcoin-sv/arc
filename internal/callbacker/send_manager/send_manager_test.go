@@ -243,9 +243,9 @@ func TestSendManagerStarStore(t *testing.T) {
 
 			stopCh := make(chan struct{}, 5)
 			storeMock := &mocks.SendManagerStoreMock{
-				SetManyFunc: func(_ context.Context, _ []*store.CallbackData) error {
+				SetManyFunc: func(_ context.Context, data []*store.CallbackData) (int64, error) {
 					stopCh <- struct{}{}
-					return tc.setManyErr
+					return int64(len(data)), tc.setManyErr
 				},
 			}
 

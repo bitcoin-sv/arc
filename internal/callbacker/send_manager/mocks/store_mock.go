@@ -24,7 +24,7 @@ var _ send_manager.SendManagerStore = &SendManagerStoreMock{}
 //			GetAndMarkSentFunc: func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error) {
 //				panic("mock out the GetAndMarkSent method")
 //			},
-//			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+//			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
 //				panic("mock out the SetMany method")
 //			},
 //		}
@@ -38,7 +38,7 @@ type SendManagerStoreMock struct {
 	GetAndMarkSentFunc func(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, func() error, func() error, error)
 
 	// SetManyFunc mocks the SetMany method.
-	SetManyFunc func(ctx context.Context, data []*store.CallbackData) error
+	SetManyFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -116,7 +116,7 @@ func (mock *SendManagerStoreMock) GetAndMarkSentCalls() []struct {
 }
 
 // SetMany calls SetManyFunc.
-func (mock *SendManagerStoreMock) SetMany(ctx context.Context, data []*store.CallbackData) error {
+func (mock *SendManagerStoreMock) SetMany(ctx context.Context, data []*store.CallbackData) (int64, error) {
 	if mock.SetManyFunc == nil {
 		panic("SendManagerStoreMock.SetManyFunc: method is nil but SendManagerStore.SetMany was just called")
 	}

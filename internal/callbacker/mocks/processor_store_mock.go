@@ -35,7 +35,7 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			GetUnmappedURLFunc: func(ctx context.Context) (string, error) {
 //				panic("mock out the GetUnmappedURL method")
 //			},
-//			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) error {
+//			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
 //				panic("mock out the SetMany method")
 //			},
 //			SetNotPendingFunc: func(ctx context.Context, ids []int64) error {
@@ -70,7 +70,7 @@ type ProcessorStoreMock struct {
 	GetUnmappedURLFunc func(ctx context.Context) (string, error)
 
 	// SetManyFunc mocks the SetMany method.
-	SetManyFunc func(ctx context.Context, data []*store.CallbackData) error
+	SetManyFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
 
 	// SetNotPendingFunc mocks the SetNotPending method.
 	SetNotPendingFunc func(ctx context.Context, ids []int64) error
@@ -339,7 +339,7 @@ func (mock *ProcessorStoreMock) GetUnmappedURLCalls() []struct {
 }
 
 // SetMany calls SetManyFunc.
-func (mock *ProcessorStoreMock) SetMany(ctx context.Context, data []*store.CallbackData) error {
+func (mock *ProcessorStoreMock) SetMany(ctx context.Context, data []*store.CallbackData) (int64, error) {
 	if mock.SetManyFunc == nil {
 		panic("ProcessorStoreMock.SetManyFunc: method is nil but ProcessorStore.SetMany was just called")
 	}

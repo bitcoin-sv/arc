@@ -58,7 +58,7 @@ func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) error {
+func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) (int64, error) {
 	urls := make([]string, len(data))
 	tokens := make([]string, len(data))
 	timestamps := make([]time.Time, len(data))
@@ -85,7 +85,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		if d.BlockHeight != nil {
 			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
 			if err != nil {
-				return fmt.Errorf("failed to convert block height to int64: %w", err)
+				return 0, fmt.Errorf("failed to convert block height to int64: %w", err)
 			}
 			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
@@ -123,7 +123,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					ON CONFLICT DO NOTHING
 					`
 
-	_, err := p.db.ExecContext(ctx, query,
+	result, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),
 		pq.Array(tokens),
 		pq.Array(txids),
@@ -136,8 +136,16 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(competingTxs),
 		pq.Array(allowBatches),
 	)
+	if err != nil {
+		return 0, err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, err
 }
 
 func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {

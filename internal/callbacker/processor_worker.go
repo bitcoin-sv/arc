@@ -110,6 +110,7 @@ func (p *ProcessorWorker) Start() error {
 			slog.String("url", serialized.CallbackRouting.Url),
 			slog.String("token", serialized.CallbackRouting.Token),
 			slog.String("hash", serialized.Txid),
+			slog.String("status", serialized.Status.String()),
 		)
 
 		p.sendRequestCh <- serialized

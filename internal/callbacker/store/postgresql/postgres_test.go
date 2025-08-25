@@ -94,6 +94,15 @@ func TestPostgresDBt(t *testing.T) {
 			BlockHash:   ptrTo(testdata.Block1),
 			BlockHeight: ptrTo(uint64(4524235)),
 		}
+		cbData5 := &store.CallbackData{
+			URL:         "https://test-callback-2/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
 
 		cbData3 := &store.CallbackData{
 			URL:          "https://test-callback-2/",
@@ -123,6 +132,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData3,
 			cbData3, // duplicate
 			cbData4,
+			cbData5,
 		}
 
 		// when
@@ -139,6 +149,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData2,
 			cbData3,
 			cbData4,
+			cbData5,
 		}
 
 		for _, c := range dbCallbacks {
@@ -152,7 +163,7 @@ func TestPostgresDBt(t *testing.T) {
 				}
 			}
 
-			require.True(t, found)
+			require.Truef(t, found, "callback not found - hash: %s, status: %s, url: %s", c.TxID, c.TxStatus, c.URL)
 		}
 	})
 

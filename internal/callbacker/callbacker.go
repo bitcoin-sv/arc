@@ -11,7 +11,6 @@ type SenderI interface {
 
 type SendManagerI interface {
 	Enqueue(entry CallbackEntry)
-	Start()
 	GracefulStop()
 }
 

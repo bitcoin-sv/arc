@@ -12,6 +12,8 @@ import (
 
 	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
@@ -67,87 +69,60 @@ func TestPostgresDBt(t *testing.T) {
 
 	now := time.Date(2024, 9, 1, 12, 25, 0, 0, time.UTC)
 
-	postgresDB, err := New(dbInfo, 10, 10)
+	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time { return now }))
 	require.NoError(t, err)
 	defer postgresDB.Close()
 
 	t.Run("set many", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_many")
+
+		cbData1 := &store.CallbackData{
+			URL:       "https://test-callback-1/",
+			Token:     "token",
+			TxID:      testdata.TX2,
+			TxStatus:  "SEEN_ON_NETWORK",
+			Timestamp: now,
+		}
+		cbData2 := &store.CallbackData{
+			URL:         "https://test-callback-1/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+
+		cbData3 := &store.CallbackData{
+			URL:          "https://test-callback-2/",
+			Token:        "token",
+			TxID:         testdata.TX3,
+			TxStatus:     "MINED",
+			Timestamp:    now,
+			BlockHash:    &testdata.Block2,
+			BlockHeight:  ptrTo(uint64(4524236)),
+			CompetingTxs: []string{testdata.TX2},
+		}
+
+		cbData4 := &store.CallbackData{
+			URL:         "https://arc-callback-1/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block1,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
 
 		data := []*store.CallbackData{
-			{
-				URL:       "https://test-callback-1/",
-				Token:     "token",
-				TxID:      testdata.TX2,
-				TxStatus:  "SEEN_ON_NETWORK",
-				Timestamp: now,
-			},
-			{
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   ptrTo(testdata.Block1),
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				// duplicate
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				// duplicate
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				URL:         "https://test-callback-2/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX3,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
+			cbData1,
+			cbData2,
+			cbData2, // duplicate
+			cbData3,
+			cbData3, // duplicate
+			cbData4,
 		}
 
 		// when
@@ -156,16 +131,20 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.NoError(t, err)
 
-		// read all from db
-		dbCallbacks := ReadAllCallbacks(t, postgresDB.db)
+		dbCallbacks := readAllCallbacks(t, postgresDB.db)
+		require.NoError(t, err)
+
+		expected := []*store.CallbackData{
+			cbData1,
+			cbData2,
+			cbData3,
+			cbData4,
+		}
+
 		for _, c := range dbCallbacks {
 			found := false
-			for i, ur := range data {
-				if ur == nil {
-					continue
-				}
-
-				if CallbackRecordEqual(ur, c) {
+			for i, ur := range expected {
+				if reflect.DeepEqual(ur, c) {
 					// remove if found
 					data[i] = nil
 					found = true
@@ -177,32 +156,53 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("get and delete", func(t *testing.T) {
+	t.Run("get and mark sent", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
-
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_mark_sent")
+		qCount := "SELECT count(*) FROM callbacker.callbacks WHERE url=$1"
 		ctx := context.Background()
-		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsBefore)
+		var rowsCount int
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
 		require.NoError(t, err)
 
-		require.Equal(t, 28, rowsBefore)
+		require.Equal(t, 10, rowsCount)
 
-		const popLimit = 10
-		records, err := postgresDB.GetAndDelete(ctx, "https://arc-callback-2/callback", popLimit)
+		const limit = 10
+		records, _, rollback, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
+		require.NoError(t, err)
+		err = rollback()
+		require.NoError(t, err)
+		require.Len(t, records, 8)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
+		require.NoError(t, err)
+		require.Equal(t, 10, rowsCount)
+
+		records, commit, _, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
+		require.NoError(t, err)
+		err = commit()
+		require.NoError(t, err)
+		require.Len(t, records, 8)
+		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
+		require.NoError(t, err)
+		require.Equal(t, 10, rowsCount)
+
+		ids := make([]int64, len(records))
+		for i, record := range records {
+			ids[i] = record.ID
+		}
+
+		db, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
 
-		require.Len(t, records, popLimit)
-
-		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsAfter)
+		var sentAtDates []time.Time
+		const q = `SELECT sent_at FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[]) `
+		err = db.Select(&sentAtDates, q, pq.Array(ids))
 		require.NoError(t, err)
-		require.Equal(t, 18, rowsAfter)
+
+		for _, sentAtDate := range sentAtDates {
+			require.Equal(t, now.UTC(), sentAtDate.UTC())
+		}
 	})
 
 	t.Run("delete older than", func(t *testing.T) {
@@ -214,7 +214,7 @@ func TestPostgresDBt(t *testing.T) {
 		var rowsBefore int
 		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsBefore)
 		require.NoError(t, err)
-		require.Equal(t, 56, rowsBefore)
+		require.Equal(t, 30, rowsBefore)
 
 		err := postgresDB.DeleteOlderThan(ctx, now)
 		require.NoError(t, err)
@@ -343,11 +343,7 @@ func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.url_mapping")
 }
 
-func CallbackRecordEqual(a, b *store.CallbackData) bool {
-	return reflect.DeepEqual(*a, *b)
-}
-
-func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
+func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	t.Helper()
 
 	r, err := db.Query(
@@ -363,10 +359,8 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,competing_txs
 		FROM callbacker.callbacks`,
 	)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer r.Close()
 
 	var callbacks []*store.CallbackData

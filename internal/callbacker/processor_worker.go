@@ -151,7 +151,7 @@ func (p *ProcessorWorker) StartSendCallbacks() {
 			case <-ticker.C:
 				callbackRecords, err := p.store.GetMany(p.ctx, p.batchSize, p.expiration, false)
 				if err != nil {
-					p.logger.Error("Failed to set many", slog.String("err", err.Error()))
+					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 					continue
 				}
 
@@ -204,7 +204,7 @@ func (p *ProcessorWorker) StartSendBatchCallbacks() {
 			case <-ticker.C:
 				callbackRecords, err := p.store.GetMany(p.ctx, p.batchSize, p.expiration, true)
 				if err != nil {
-					p.logger.Error("Failed to set many", slog.String("err", err.Error()))
+					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 					continue
 				}
 

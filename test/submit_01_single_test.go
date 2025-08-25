@@ -431,7 +431,7 @@ func TestCallback(t *testing.T) {
 					case callback := <-srv.responseChan:
 						require.NotNil(t, callback)
 
-						t.Logf("callback received - server: %d, iteration: %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
+						t.Logf("callback received - server: %s, iteration: %d, txid: %s result: %s", srv.url, j, callback.Txid, callback.TxStatus)
 
 						visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
 						require.True(t, expectedTx)

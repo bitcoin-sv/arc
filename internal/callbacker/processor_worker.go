@@ -20,7 +20,7 @@ type Sender interface {
 }
 
 const (
-	batchSizeDefault              = 50
+	batchSizeDefault              = 500
 	singleSendDefault             = 5 * time.Second
 	expirationDefault             = 24 * time.Hour
 	batchSendIntervalDefault      = 5 * time.Second
@@ -195,7 +195,7 @@ func (p *ProcessorWorker) sendCallback(url string, cbs []*store.CallbackData) {
 }
 
 func (p *ProcessorWorker) StartSendBatchCallbacks() {
-	ticker := time.NewTicker(p.sendCallbacksInterval)
+	ticker := time.NewTicker(p.batchSendInterval)
 
 	p.waitGroup.Add(1)
 	go func() {

@@ -84,7 +84,15 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	processorWorker, err = callbacker.NewProcessorWorker(sender, callbackerStore, mqClient, logger)
+	processorWorker, err = callbacker.NewProcessorWorker(
+		sender,
+		callbackerStore,
+		mqClient,
+		logger,
+		callbacker.WithExpiration(arcConfig.Callbacker.Expiration),
+		callbacker.WithSingleSendInterval(arcConfig.Callbacker.Pause),
+		callbacker.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
+	)
 	if err != nil {
 		stopFn()
 		return nil, err

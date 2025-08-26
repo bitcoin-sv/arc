@@ -130,6 +130,15 @@ func TestPostgresDBt(t *testing.T) {
 			BlockHash:   &testdata.Block1,
 			BlockHeight: ptrTo(uint64(4524235)),
 		}
+		cbData7 := &store.CallbackData{ // differing block hash
+			URL:         "https://arc-callback-1/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block2,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
 
 		data := []*store.CallbackData{
 			cbData1,
@@ -139,6 +148,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData3, // duplicate
 			cbData4,
 			cbData5,
+			cbData7,
 		}
 
 		// when
@@ -146,7 +156,7 @@ func TestPostgresDBt(t *testing.T) {
 		// then
 		require.NoError(t, err)
 
-		require.Equal(t, rows, int64(5))
+		require.Equal(t, rows, int64(6))
 
 		dbCallbacks := readAllCallbacks(t, postgresDB.db)
 		require.NoError(t, err)
@@ -158,6 +168,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData4,
 			cbData5,
 			cbData6,
+			cbData7,
 		}
 
 		for _, c := range dbCallbacks {

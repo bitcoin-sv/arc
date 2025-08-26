@@ -58,7 +58,7 @@ func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) (int64, error) {
+func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) (int64, error) { // Todo: rename Insert
 	urls := make([]string, len(data))
 	tokens := make([]string, len(data))
 	timestamps := make([]time.Time, len(data))
@@ -148,7 +148,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) (i
 	return rowsAffected, err
 }
 
-func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) { // todo: rename GetPending
 	const q = `
 				UPDATE callbacker.callbacks c SET pending = $1
 				WHERE c.id IN (
@@ -193,7 +193,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Dur
 	return records, nil
 }
 
-func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {
+func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error { // Todo: Rename Clear
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE timestamp <= $1`
 
@@ -212,7 +212,7 @@ func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
 	return nil
 }
 
-func (p *PostgreSQL) SetNotPending(ctx context.Context, ids []int64) error {
+func (p *PostgreSQL) SetNotPending(ctx context.Context, ids []int64) error { // Todo: Rename UnsetPending
 	const q = `UPDATE callbacker.callbacks SET pending = NULL WHERE id = ANY($1::INTEGER[])`
 
 	_, err := p.db.ExecContext(ctx, q, pq.Array(ids))
@@ -223,7 +223,7 @@ func (p *PostgreSQL) SetNotPending(ctx context.Context, ids []int64) error {
 	return nil
 }
 
-func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
+func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) { // Todo: rm
 	const q = `DELETE FROM callbacker.url_mapping
 			WHERE NOT instance = ANY($1::TEXT[])`
 

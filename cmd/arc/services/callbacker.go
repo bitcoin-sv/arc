@@ -45,17 +45,16 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	var (
 		callbackerStore *postgresql.PostgreSQL
 		sender          *callbacker.CallbackSender
-		dispatcher      *callbacker.CallbackDispatcher
 		server          *callbacker.Server
 		healthServer    *grpc_utils.GrpcServer
 		mqClient        mq.MessageQueueClient
-		processorWorker *callbacker.ProcessorWorker
+		processor       *callbacker.Processor
 		err             error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processorWorker, mqClient)
+		disposeCallbacker(logger, server, sender, callbackerStore, healthServer, processor, mqClient)
 		logger.Info("Shutdown callbacker complete")
 	}
 
@@ -84,7 +83,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	processorWorker, err = callbacker.NewProcessorWorker(
+	processor, err = callbacker.NewProcessor(
 		sender,
 		callbackerStore,
 		mqClient,
@@ -98,15 +97,16 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	err = processorWorker.Start()
+	err = processor.Start()
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
 
-	processorWorker.StartStoreCallbackRequests()
-	processorWorker.StartSendCallbacks()
-	processorWorker.StartSendBatchCallbacks()
+	processor.StartStoreCallbackRequests()
+	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
+	processor.StartSendCallbacks()
+	processor.StartSendBatchCallbacks()
 
 	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
@@ -115,7 +115,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		Name:               "blocktx",
 	}
 
-	server, err = callbacker.NewServer(logger, dispatcher, callbackerStore, mqClient, serverCfg)
+	server, err = callbacker.NewServer(logger, callbackerStore, mqClient, serverCfg)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -163,23 +163,20 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 }
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
-	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processorWorker *callbacker.ProcessorWorker, mqClient mq.MessageQueueClient) {
+	sender *callbacker.CallbackSender,
+	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient mq.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
-	// 2. dispatcher - ensure all already accepted callbacks are processed
-	// 3. processor - remove all URL mappings
-	// 4. sender - finally, stop the sender as there are no callbacks left to send
+	// 2. processor - remove all URL mappings
+	// 3. sender - stop the sender as there are no callbacks left to send
+	// 4. mqClient - finally, stop the mq client as there are no callbacks left to send
 	// 5. store
 
 	if server != nil {
 		server.GracefulStop()
 	}
-	if dispatcher != nil {
-		dispatcher.GracefulStop()
-	}
-	if processorWorker != nil {
-		processorWorker.GracefulStop()
+	if processor != nil {
+		processor.GracefulStop()
 	}
 	if sender != nil {
 		sender.GracefulStop()

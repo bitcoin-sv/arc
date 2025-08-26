@@ -30,7 +30,7 @@ const (
 	sendCallbacksInterval         = 5 * time.Second
 )
 
-type ProcessorWorker struct {
+type Processor struct {
 	mqClient               mq.MessageQueueClient
 	sender                 Sender
 	store                  store.ProcessorStore
@@ -48,32 +48,32 @@ type ProcessorWorker struct {
 	ctx                    context.Context
 }
 
-func WithSingleSendInterval(d time.Duration) func(*ProcessorWorker) {
-	return func(m *ProcessorWorker) {
+func WithSingleSendInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
 		m.singleSendInterval = d
 	}
 }
 
-func WithBatchSendInterval(d time.Duration) func(*ProcessorWorker) {
-	return func(m *ProcessorWorker) {
+func WithBatchSendInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
 		m.batchSendInterval = d
 	}
 }
 
-func WithBatchSize(size int) func(*ProcessorWorker) {
-	return func(m *ProcessorWorker) {
+func WithBatchSize(size int) func(*Processor) {
+	return func(m *Processor) {
 		m.batchSize = size
 	}
 }
 
-func WithExpiration(d time.Duration) func(*ProcessorWorker) {
-	return func(m *ProcessorWorker) {
+func WithExpiration(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
 		m.expiration = d
 	}
 }
 
-func NewProcessorWorker(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*ProcessorWorker)) (*ProcessorWorker, error) {
-	p := &ProcessorWorker{
+func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
+	p := &Processor{
 		mqClient:               mqClient,
 		sender:                 sender,
 		store:                  processorStore,
@@ -99,7 +99,7 @@ func NewProcessorWorker(sender SenderI, processorStore store.ProcessorStore, mqC
 	return p, nil
 }
 
-func (p *ProcessorWorker) Start() error {
+func (p *Processor) Start() error {
 	err := p.mqClient.QueueSubscribe(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)
@@ -124,9 +124,9 @@ func (p *ProcessorWorker) Start() error {
 	return nil
 }
 
-func toStoreDto(url string, request *callbacker_api.SendRequest) *store.CallbackData {
+func toStoreDto(request *callbacker_api.SendRequest) *store.CallbackData {
 	return &store.CallbackData{
-		URL:          url,
+		URL:          request.CallbackRouting.Url,
 		Token:        request.CallbackRouting.Token,
 		Timestamp:    request.Timestamp.AsTime(),
 		CompetingTxs: request.CompetingTxs,
@@ -140,7 +140,13 @@ func toStoreDto(url string, request *callbacker_api.SendRequest) *store.Callback
 	}
 }
 
-func (p *ProcessorWorker) StartSendCallbacks() {
+type CallbackEntry struct {
+	Token      string
+	Data       *Callback
+	AllowBatch bool
+}
+
+func (p *Processor) StartSendCallbacks() {
 	ticker := time.NewTicker(p.sendCallbacksInterval)
 
 	p.waitGroup.Add(1)
@@ -181,7 +187,7 @@ func (p *ProcessorWorker) StartSendCallbacks() {
 	}()
 }
 
-func (p *ProcessorWorker) sendCallback(url string, cbs []*store.CallbackData) {
+func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
 	cbIDs := make([]int64, len(cbs))
 	for i, cb := range cbs {
 		cbIDs[i] = cb.ID
@@ -206,7 +212,7 @@ func (p *ProcessorWorker) sendCallback(url string, cbs []*store.CallbackData) {
 	}
 }
 
-func (p *ProcessorWorker) StartSendBatchCallbacks() {
+func (p *Processor) StartSendBatchCallbacks() {
 	ticker := time.NewTicker(p.batchSendInterval)
 
 	p.waitGroup.Add(1)
@@ -247,7 +253,7 @@ func (p *ProcessorWorker) StartSendBatchCallbacks() {
 	}()
 }
 
-func (p *ProcessorWorker) sendBatchCallback(url string, cbs []*store.CallbackData) {
+func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	batch := make([]*Callback, len(cbs))
 	cbIDs := make([]int64, len(cbs))
 	for i, cb := range cbs {
@@ -290,7 +296,7 @@ func toCallback(callbackData *store.CallbackData) *Callback {
 	}
 }
 
-func (p *ProcessorWorker) StartStoreCallbackRequests() {
+func (p *Processor) StartStoreCallbackRequests() {
 	ticker := time.NewTicker(p.storeCallbacksInterval)
 
 	p.waitGroup.Add(1)
@@ -316,7 +322,7 @@ func (p *ProcessorWorker) StartStoreCallbackRequests() {
 				}
 			case entry := <-p.sendRequestCh:
 
-				toStore = append(toStore, toStoreDto(entry.CallbackRouting.Url, entry))
+				toStore = append(toStore, toStoreDto(entry))
 
 				if len(toStore) >= p.storeCallbackBatchSize {
 					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
@@ -334,7 +340,33 @@ func (p *ProcessorWorker) StartStoreCallbackRequests() {
 	}()
 }
 
-func (p *ProcessorWorker) GracefulStop() {
+func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
+	ctx := context.Background()
+	ticker := time.NewTicker(interval)
+
+	p.waitGroup.Add(1)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				n := time.Now()
+				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
+				olderThan := midnight.Add(-1 * olderThanDuration)
+
+				err := p.store.DeleteOlderThan(ctx, olderThan)
+				if err != nil {
+					p.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
+				}
+
+			case <-p.ctx.Done():
+				p.waitGroup.Done()
+				return
+			}
+		}
+	}()
+}
+
+func (p *Processor) GracefulStop() {
 	p.cancelAll()
 
 	p.waitGroup.Wait()

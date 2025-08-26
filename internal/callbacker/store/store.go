@@ -32,7 +32,3 @@ type ProcessorStore interface {
 	SetSent(ctx context.Context, ids []int64) error
 	SetNotPending(ctx context.Context, ids []int64) error
 }
-
-type CallbackStore interface {
-	DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error)
-}

@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	cbcMocks "github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
@@ -26,26 +25,23 @@ func TestStartWatcher(t *testing.T) {
 		podNames       []string
 		getPodNamesErr error
 
-		expectedMetamorphUpdateInstancesCalls  int
-		expectedCallbackerUpdateInstancesCalls int
-		expectedGetRunningPodsCalls            int
+		expectedMetamorphUpdateInstancesCalls int
+		expectedGetRunningPodsCalls           int
 	}{
 		{
 			name:     "success",
 			podNames: []string{"metamorph-pod-1", "metamorph-pod-2"},
 
-			expectedMetamorphUpdateInstancesCalls:  5,
-			expectedCallbackerUpdateInstancesCalls: 5,
-			expectedGetRunningPodsCalls:            10,
+			expectedMetamorphUpdateInstancesCalls: 5,
+			expectedGetRunningPodsCalls:           10,
 		},
 		{
 			name:           "error - get pod names",
 			podNames:       []string{""},
 			getPodNamesErr: errors.New("failed to get pod names"),
 
-			expectedMetamorphUpdateInstancesCalls:  0,
-			expectedCallbackerUpdateInstancesCalls: 0,
-			expectedGetRunningPodsCalls:            10,
+			expectedMetamorphUpdateInstancesCalls: 0,
+			expectedGetRunningPodsCalls:           10,
 		},
 	}
 
@@ -61,11 +57,7 @@ func TestStartWatcher(t *testing.T) {
 					return &emptypb.Empty{}, nil
 				},
 			}
-			callbackerClient := &cbcMocks.CallbackerAPIClientMock{
-				UpdateInstancesFunc: func(_ context.Context, _ *callbacker_api.UpdateInstancesRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
-					return &emptypb.Empty{}, nil
-				},
-			}
+			callbackerClient := &cbcMocks.CallbackerAPIClientMock{}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
@@ -77,7 +69,6 @@ func TestStartWatcher(t *testing.T) {
 			watcher.Shutdown()
 
 			require.Equal(t, tc.expectedMetamorphUpdateInstancesCalls, len(metamorphMock.UpdateInstancesCalls()))
-			require.Equal(t, tc.expectedCallbackerUpdateInstancesCalls, len(callbackerClient.UpdateInstancesCalls()))
 			require.Equal(t, tc.expectedGetRunningPodsCalls, len(k8sClientMock.GetRunningPodNamesSliceCalls()))
 		})
 	}

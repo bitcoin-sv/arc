@@ -67,7 +67,7 @@ func TestSendGRPCCallback(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			apiClient := &mocks.CallbackerAPIClientMock{
-				SendCallbackFunc: func(_ context.Context, _ *callbacker_api.SendCallbackRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+				SendCallbackFunc: func(_ context.Context, _ *callbacker_api.SendRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
 					return nil, nil
 				},
 			}

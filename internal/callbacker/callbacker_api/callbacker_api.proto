@@ -9,8 +9,7 @@ import "google/protobuf/empty.proto";
 
 service CallbackerAPI {
   rpc Health (google.protobuf.Empty) returns (HealthResponse) {}
-  rpc SendCallback (SendCallbackRequest) returns (google.protobuf.Empty) {}
-  rpc UpdateInstances(UpdateInstancesRequest) returns (google.protobuf.Empty) {}
+  rpc SendCallback (SendRequest) returns (google.protobuf.Empty) {}
 }
 
 // Note: Values of the statuses have a difference between them in case
@@ -50,23 +49,6 @@ message SendRequest {
   string block_hash = 7;
   uint64 block_height = 8;
   google.protobuf.Timestamp timestamp = 9;
-}
-
-// swagger:model SendCallbackRequest
-message SendCallbackRequest {
-  repeated CallbackRouting callback_routings = 1;
-  string txid = 2;
-  Status status = 3;
-  string merkle_path = 4;
-  string extra_info = 5;
-  repeated string competing_txs = 6;
-  string block_hash = 7;
-  uint64 block_height = 8;
-}
-
-// swagger:model UpdateInstancesRequest
-message UpdateInstancesRequest {
-  repeated string instances = 1;
 }
 
 // swagger:model CallbackRouting

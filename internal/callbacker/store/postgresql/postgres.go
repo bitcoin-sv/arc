@@ -193,77 +193,12 @@ func (p *PostgreSQL) GetMany(ctx context.Context, limit int, expiration time.Dur
 	return records, nil
 }
 
-// GetAndMarkSent returns and marks sent a number of callbacks limited by `limit` ordered by timestamp in ascending order
-func (p *PostgreSQL) GetAndMarkSent(ctx context.Context, url string, limit int, expiration time.Duration, batch bool) (data []*store.CallbackData, commitFunc func() error, rollbackFunc func() error, err error) {
-	const q = `UPDATE callbacker.callbacks SET sent_at = $5
-			WHERE id IN (
-				SELECT id FROM callbacker.callbacks
-				WHERE url = $1 AND timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL
-				ORDER BY timestamp ASC
-				LIMIT $4
-				FOR UPDATE
-			)
-			RETURNING
-				id
-			    ,url
-				,token
-				,tx_id
-				,tx_status
-				,extra_info
-				,merkle_path
-				,block_hash
-				,block_height
-				,competing_txs
-				,timestamp
-				,allow_batch`
-
-	expirationDate := p.now().Add(-1 * expiration)
-
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	rows, err := tx.QueryContext(ctx, q, url, expirationDate, batch, limit, p.now())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer rows.Close()
-
-	var records []*store.CallbackData
-	records, err = scanCallbacks(rows, limit)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return records, tx.Commit, tx.Rollback, nil
-}
-
 func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {
 	const q = `DELETE FROM callbacker.callbacks
 			WHERE timestamp <= $1`
 
 	_, err := p.db.ExecContext(ctx, q, t)
 	return err
-}
-
-func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) error {
-	const q = `INSERT INTO callbacker.url_mapping (
-		 url
-		,instance
-	) VALUES (
-		 $1
-		,$2
-	)`
-
-	var pqErr *pq.Error
-	_, err := p.db.ExecContext(ctx, q, m.URL, m.Instance)
-	// Error 23505 is: "duplicate key violates unique constraint"
-	if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
-		return store.ErrURLMappingDuplicateKey
-	}
-
-	return nil
 }
 
 func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
@@ -288,39 +223,6 @@ func (p *PostgreSQL) SetNotPending(ctx context.Context, ids []int64) error {
 	return nil
 }
 
-// GetUnmappedURL Returns unmapped URLs for which there exists a pending callback in the callbacks table
-func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error) {
-	const q = `SELECT c.url FROM callbacker.callbacks c LEFT JOIN callbacker.url_mapping um ON um.url = c.url WHERE um.url IS NULL LIMIT 1;`
-
-	err = p.db.QueryRowContext(ctx, q).Scan(&url)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", store.ErrNoUnmappedURLsFound
-		}
-
-		return "", err
-	}
-
-	return url, nil
-}
-
-func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error) {
-	const q = `DELETE FROM callbacker.url_mapping
-			WHERE instance=$1`
-
-	rows, err := p.db.ExecContext(ctx, q, instance)
-	if err != nil {
-		return 0, errors.Join(store.ErrURLMappingDeleteFailed, err)
-	}
-
-	rowsAffected, err = rows.RowsAffected()
-	if err != nil {
-		return 0, nil
-	}
-
-	return rowsAffected, nil
-}
-
 func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
 	const q = `DELETE FROM callbacker.url_mapping
 			WHERE NOT instance = ANY($1::TEXT[])`
@@ -337,32 +239,6 @@ func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []strin
 	}
 
 	return rowsAffected, nil
-}
-
-func (p *PostgreSQL) GetURLMappings(ctx context.Context) (map[string]string, error) {
-	const q = `SELECT url, instance FROM callbacker.url_mapping`
-
-	rows, err := p.db.QueryContext(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	urlMappings := map[string]string{}
-
-	for rows.Next() {
-		var url string
-		var instance string
-
-		err = rows.Scan(&url, &instance)
-		if err != nil {
-			return nil, err
-		}
-
-		urlMappings[url] = instance
-	}
-
-	return urlMappings, nil
 }
 
 func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, error) {

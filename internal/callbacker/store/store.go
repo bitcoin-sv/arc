@@ -7,10 +7,7 @@ import (
 )
 
 var (
-	ErrURLMappingDuplicateKey  = errors.New("URL mapping duplicate key")
-	ErrURLMappingDeleteFailed  = errors.New("failed to delete URL mapping entry")
 	ErrURLMappingsDeleteFailed = errors.New("failed to delete URL mapping entries")
-	ErrNoUnmappedURLsFound     = errors.New("no unmapped URLs found")
 )
 
 type CallbackData struct {
@@ -29,10 +26,6 @@ type CallbackData struct {
 }
 
 type ProcessorStore interface {
-	SetURLMapping(ctx context.Context, m URLMapping) error
-	GetURLMappings(ctx context.Context) (urlInstanceMappings map[string]string, err error)
-	DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error)
-	GetUnmappedURL(ctx context.Context) (url string, err error)
 	DeleteOlderThan(ctx context.Context, t time.Time) error
 	SetMany(ctx context.Context, data []*CallbackData) (int64, error)
 	GetMany(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*CallbackData, error)
@@ -42,9 +35,4 @@ type ProcessorStore interface {
 
 type CallbackStore interface {
 	DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error)
-}
-
-type URLMapping struct {
-	URL      string
-	Instance string
 }

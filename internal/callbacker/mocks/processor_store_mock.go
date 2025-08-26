@@ -23,17 +23,8 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			DeleteOlderThanFunc: func(ctx context.Context, t time.Time) error {
 //				panic("mock out the DeleteOlderThan method")
 //			},
-//			DeleteURLMappingFunc: func(ctx context.Context, instance string) (int64, error) {
-//				panic("mock out the DeleteURLMapping method")
-//			},
 //			GetManyFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
 //				panic("mock out the GetMany method")
-//			},
-//			GetURLMappingsFunc: func(ctx context.Context) (map[string]string, error) {
-//				panic("mock out the GetURLMappings method")
-//			},
-//			GetUnmappedURLFunc: func(ctx context.Context) (string, error) {
-//				panic("mock out the GetUnmappedURL method")
 //			},
 //			SetManyFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
 //				panic("mock out the SetMany method")
@@ -43,9 +34,6 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			},
 //			SetSentFunc: func(ctx context.Context, ids []int64) error {
 //				panic("mock out the SetSent method")
-//			},
-//			SetURLMappingFunc: func(ctx context.Context, m store.URLMapping) error {
-//				panic("mock out the SetURLMapping method")
 //			},
 //		}
 //
@@ -57,17 +45,8 @@ type ProcessorStoreMock struct {
 	// DeleteOlderThanFunc mocks the DeleteOlderThan method.
 	DeleteOlderThanFunc func(ctx context.Context, t time.Time) error
 
-	// DeleteURLMappingFunc mocks the DeleteURLMapping method.
-	DeleteURLMappingFunc func(ctx context.Context, instance string) (int64, error)
-
 	// GetManyFunc mocks the GetMany method.
 	GetManyFunc func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error)
-
-	// GetURLMappingsFunc mocks the GetURLMappings method.
-	GetURLMappingsFunc func(ctx context.Context) (map[string]string, error)
-
-	// GetUnmappedURLFunc mocks the GetUnmappedURL method.
-	GetUnmappedURLFunc func(ctx context.Context) (string, error)
 
 	// SetManyFunc mocks the SetMany method.
 	SetManyFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
@@ -78,9 +57,6 @@ type ProcessorStoreMock struct {
 	// SetSentFunc mocks the SetSent method.
 	SetSentFunc func(ctx context.Context, ids []int64) error
 
-	// SetURLMappingFunc mocks the SetURLMapping method.
-	SetURLMappingFunc func(ctx context.Context, m store.URLMapping) error
-
 	// calls tracks calls to the methods.
 	calls struct {
 		// DeleteOlderThan holds details about calls to the DeleteOlderThan method.
@@ -89,13 +65,6 @@ type ProcessorStoreMock struct {
 			Ctx context.Context
 			// T is the t argument value.
 			T time.Time
-		}
-		// DeleteURLMapping holds details about calls to the DeleteURLMapping method.
-		DeleteURLMapping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Instance is the instance argument value.
-			Instance string
 		}
 		// GetMany holds details about calls to the GetMany method.
 		GetMany []struct {
@@ -107,16 +76,6 @@ type ProcessorStoreMock struct {
 			Expiration time.Duration
 			// Batch is the batch argument value.
 			Batch bool
-		}
-		// GetURLMappings holds details about calls to the GetURLMappings method.
-		GetURLMappings []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-		}
-		// GetUnmappedURL holds details about calls to the GetUnmappedURL method.
-		GetUnmappedURL []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 		}
 		// SetMany holds details about calls to the SetMany method.
 		SetMany []struct {
@@ -139,23 +98,12 @@ type ProcessorStoreMock struct {
 			// Ids is the ids argument value.
 			Ids []int64
 		}
-		// SetURLMapping holds details about calls to the SetURLMapping method.
-		SetURLMapping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// M is the m argument value.
-			M store.URLMapping
-		}
 	}
-	lockDeleteOlderThan  sync.RWMutex
-	lockDeleteURLMapping sync.RWMutex
-	lockGetMany          sync.RWMutex
-	lockGetURLMappings   sync.RWMutex
-	lockGetUnmappedURL   sync.RWMutex
-	lockSetMany          sync.RWMutex
-	lockSetNotPending    sync.RWMutex
-	lockSetSent          sync.RWMutex
-	lockSetURLMapping    sync.RWMutex
+	lockDeleteOlderThan sync.RWMutex
+	lockGetMany         sync.RWMutex
+	lockSetMany         sync.RWMutex
+	lockSetNotPending   sync.RWMutex
+	lockSetSent         sync.RWMutex
 }
 
 // DeleteOlderThan calls DeleteOlderThanFunc.
@@ -191,42 +139,6 @@ func (mock *ProcessorStoreMock) DeleteOlderThanCalls() []struct {
 	mock.lockDeleteOlderThan.RLock()
 	calls = mock.calls.DeleteOlderThan
 	mock.lockDeleteOlderThan.RUnlock()
-	return calls
-}
-
-// DeleteURLMapping calls DeleteURLMappingFunc.
-func (mock *ProcessorStoreMock) DeleteURLMapping(ctx context.Context, instance string) (int64, error) {
-	if mock.DeleteURLMappingFunc == nil {
-		panic("ProcessorStoreMock.DeleteURLMappingFunc: method is nil but ProcessorStore.DeleteURLMapping was just called")
-	}
-	callInfo := struct {
-		Ctx      context.Context
-		Instance string
-	}{
-		Ctx:      ctx,
-		Instance: instance,
-	}
-	mock.lockDeleteURLMapping.Lock()
-	mock.calls.DeleteURLMapping = append(mock.calls.DeleteURLMapping, callInfo)
-	mock.lockDeleteURLMapping.Unlock()
-	return mock.DeleteURLMappingFunc(ctx, instance)
-}
-
-// DeleteURLMappingCalls gets all the calls that were made to DeleteURLMapping.
-// Check the length with:
-//
-//	len(mockedProcessorStore.DeleteURLMappingCalls())
-func (mock *ProcessorStoreMock) DeleteURLMappingCalls() []struct {
-	Ctx      context.Context
-	Instance string
-} {
-	var calls []struct {
-		Ctx      context.Context
-		Instance string
-	}
-	mock.lockDeleteURLMapping.RLock()
-	calls = mock.calls.DeleteURLMapping
-	mock.lockDeleteURLMapping.RUnlock()
 	return calls
 }
 
@@ -271,70 +183,6 @@ func (mock *ProcessorStoreMock) GetManyCalls() []struct {
 	mock.lockGetMany.RLock()
 	calls = mock.calls.GetMany
 	mock.lockGetMany.RUnlock()
-	return calls
-}
-
-// GetURLMappings calls GetURLMappingsFunc.
-func (mock *ProcessorStoreMock) GetURLMappings(ctx context.Context) (map[string]string, error) {
-	if mock.GetURLMappingsFunc == nil {
-		panic("ProcessorStoreMock.GetURLMappingsFunc: method is nil but ProcessorStore.GetURLMappings was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockGetURLMappings.Lock()
-	mock.calls.GetURLMappings = append(mock.calls.GetURLMappings, callInfo)
-	mock.lockGetURLMappings.Unlock()
-	return mock.GetURLMappingsFunc(ctx)
-}
-
-// GetURLMappingsCalls gets all the calls that were made to GetURLMappings.
-// Check the length with:
-//
-//	len(mockedProcessorStore.GetURLMappingsCalls())
-func (mock *ProcessorStoreMock) GetURLMappingsCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockGetURLMappings.RLock()
-	calls = mock.calls.GetURLMappings
-	mock.lockGetURLMappings.RUnlock()
-	return calls
-}
-
-// GetUnmappedURL calls GetUnmappedURLFunc.
-func (mock *ProcessorStoreMock) GetUnmappedURL(ctx context.Context) (string, error) {
-	if mock.GetUnmappedURLFunc == nil {
-		panic("ProcessorStoreMock.GetUnmappedURLFunc: method is nil but ProcessorStore.GetUnmappedURL was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockGetUnmappedURL.Lock()
-	mock.calls.GetUnmappedURL = append(mock.calls.GetUnmappedURL, callInfo)
-	mock.lockGetUnmappedURL.Unlock()
-	return mock.GetUnmappedURLFunc(ctx)
-}
-
-// GetUnmappedURLCalls gets all the calls that were made to GetUnmappedURL.
-// Check the length with:
-//
-//	len(mockedProcessorStore.GetUnmappedURLCalls())
-func (mock *ProcessorStoreMock) GetUnmappedURLCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockGetUnmappedURL.RLock()
-	calls = mock.calls.GetUnmappedURL
-	mock.lockGetUnmappedURL.RUnlock()
 	return calls
 }
 
@@ -443,41 +291,5 @@ func (mock *ProcessorStoreMock) SetSentCalls() []struct {
 	mock.lockSetSent.RLock()
 	calls = mock.calls.SetSent
 	mock.lockSetSent.RUnlock()
-	return calls
-}
-
-// SetURLMapping calls SetURLMappingFunc.
-func (mock *ProcessorStoreMock) SetURLMapping(ctx context.Context, m store.URLMapping) error {
-	if mock.SetURLMappingFunc == nil {
-		panic("ProcessorStoreMock.SetURLMappingFunc: method is nil but ProcessorStore.SetURLMapping was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		M   store.URLMapping
-	}{
-		Ctx: ctx,
-		M:   m,
-	}
-	mock.lockSetURLMapping.Lock()
-	mock.calls.SetURLMapping = append(mock.calls.SetURLMapping, callInfo)
-	mock.lockSetURLMapping.Unlock()
-	return mock.SetURLMappingFunc(ctx, m)
-}
-
-// SetURLMappingCalls gets all the calls that were made to SetURLMapping.
-// Check the length with:
-//
-//	len(mockedProcessorStore.SetURLMappingCalls())
-func (mock *ProcessorStoreMock) SetURLMappingCalls() []struct {
-	Ctx context.Context
-	M   store.URLMapping
-} {
-	var calls []struct {
-		Ctx context.Context
-		M   store.URLMapping
-	}
-	mock.lockSetURLMapping.RLock()
-	calls = mock.calls.SetURLMapping
-	mock.lockSetURLMapping.RUnlock()
 	return calls
 }

@@ -17,6 +17,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
+type Dispatcher interface {
+	Dispatch(url string, dto *CallbackEntry)
+}
+
 type Server struct {
 	callbacker_api.UnimplementedCallbackerAPIServer
 	grpc_utils.GrpcServer

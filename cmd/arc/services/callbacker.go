@@ -32,7 +32,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
@@ -50,14 +49,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		server          *callbacker.Server
 		healthServer    *grpc_utils.GrpcServer
 		mqClient        mq.MessageQueueClient
-		processor       *callbacker.Processor
 		processorWorker *callbacker.ProcessorWorker
 		err             error
 	)
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, processorWorker, mqClient)
+		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processorWorker, mqClient)
 		logger.Info("Shutdown callbacker complete")
 	}
 
@@ -72,20 +70,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	runNewManager := func(url string) callbacker.SendManagerI {
-		manager := send_manager.New(url, sender, callbackerStore, logger,
-			send_manager.WithSingleSendInterval(arcConfig.Callbacker.Pause),
-			send_manager.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
-			send_manager.WithExpiration(arcConfig.Callbacker.Expiration),
-		)
-		manager.Start()
-		manager.StartStoreCallbacks()
-
-		return manager
-	}
-
-	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
-
 	hostname, err := os.Hostname()
 	if err != nil {
 		stopFn()
@@ -99,16 +83,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	if err != nil {
 		return nil, err
 	}
-
-	//processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
-	//if err != nil {
-	//	stopFn()
-	//	return nil, err
-	//}
-
-	//processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
-	//processor.StartSetUnmappedURLs()
-	//processor.StartSyncURLMapping()
 
 	processorWorker, err = callbacker.NewProcessorWorker(sender, callbackerStore, mqClient, logger)
 	if err != nil {
@@ -125,12 +99,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	processorWorker.StartStoreCallbackRequests()
 	processorWorker.StartSendCallbacks()
 	processorWorker.StartSendBatchCallbacks()
-
-	//err = processor.Start()
-	//if err != nil {
-	//	stopFn()
-	//	return nil, err
-	//}
 
 	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
@@ -188,7 +156,7 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, processorWorker *callbacker.ProcessorWorker, mqClient mq.MessageQueueClient) {
+	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processorWorker *callbacker.ProcessorWorker, mqClient mq.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
 	// 2. dispatcher - ensure all already accepted callbacks are processed
@@ -201,9 +169,6 @@ func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
 	}
 	if dispatcher != nil {
 		dispatcher.GracefulStop()
-	}
-	if processor != nil {
-		processor.GracefulStop()
 	}
 	if processorWorker != nil {
 		processorWorker.GracefulStop()

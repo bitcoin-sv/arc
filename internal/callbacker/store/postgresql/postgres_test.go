@@ -12,7 +12,6 @@ import (
 
 	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
@@ -166,55 +165,6 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("get and mark sent", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_mark_sent")
-		qCount := "SELECT count(*) FROM callbacker.callbacks WHERE url=$1"
-		ctx := context.Background()
-		var rowsCount int
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
-		require.NoError(t, err)
-
-		require.Equal(t, 10, rowsCount)
-
-		const limit = 10
-		records, _, rollback, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
-		require.NoError(t, err)
-		err = rollback()
-		require.NoError(t, err)
-		require.Len(t, records, 8)
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
-		require.NoError(t, err)
-		require.Equal(t, 10, rowsCount)
-
-		records, commit, _, err := postgresDB.GetAndMarkSent(ctx, "https://arc-callback-2/callback", limit, 100*time.Hour, false)
-		require.NoError(t, err)
-		err = commit()
-		require.NoError(t, err)
-		require.Len(t, records, 8)
-		err = postgresDB.db.QueryRowContext(ctx, qCount, "https://arc-callback-2/callback").Scan(&rowsCount)
-		require.NoError(t, err)
-		require.Equal(t, 10, rowsCount)
-
-		ids := make([]int64, len(records))
-		for i, record := range records {
-			ids[i] = record.ID
-		}
-
-		db, err := sqlx.Open("postgres", dbInfo)
-		require.NoError(t, err)
-
-		var sentAtDates []time.Time
-		const q = `SELECT sent_at FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[]) `
-		err = db.Select(&sentAtDates, q, pq.Array(ids))
-		require.NoError(t, err)
-
-		for _, sentAtDate := range sentAtDates {
-			require.Equal(t, now.UTC(), sentAtDate.UTC())
-		}
-	})
-
 	t.Run("set sent", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_sent")
@@ -315,116 +265,6 @@ func TestPostgresDBt(t *testing.T) {
 
 		// then
 		require.Equal(t, 3, rowsAfter)
-	})
-
-	t.Run("set URL mapping", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		// when
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host1",
-		})
-
-		// then
-		require.NoError(t, err)
-
-		// when
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host2",
-		})
-
-		// then
-		require.ErrorIs(t, err, store.ErrURLMappingDuplicateKey)
-	})
-
-	t.Run("delete URL mapping", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host1",
-		})
-		require.NoError(t, err)
-
-		// when
-		rowsAffected, err := postgresDB.DeleteURLMapping(ctx, "host1")
-		require.NoError(t, err)
-		require.Equal(t, int64(1), rowsAffected)
-
-		// then
-		mappings, err := postgresDB.GetURLMappings(ctx)
-		require.NoError(t, err)
-
-		require.Len(t, mappings, 0)
-	})
-
-	t.Run("delete URL mappings except", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_url_mappings_except")
-		ctx := context.Background()
-
-		// when
-		rowsAffected, err := postgresDB.DeleteURLMappingsExcept(ctx, []string{"host3", "host5"})
-		require.NoError(t, err)
-		require.Equal(t, int64(5), rowsAffected)
-
-		// then
-		mappings, err := postgresDB.GetURLMappings(ctx)
-		require.NoError(t, err)
-		expectedMappings := map[string]string{
-			"https://abc3.com/callback": "host3",
-			"https://abc4.com/callback": "host3",
-			"https://abc8.com/callback": "host5",
-		}
-
-		require.Equal(t, expectedMappings, mappings)
-	})
-
-	t.Run("get URL mappings", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/1",
-			Instance: "host1",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/2",
-			Instance: "host2",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/3",
-			Instance: "host3",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/4",
-			Instance: "host4",
-		})
-		require.NoError(t, err)
-
-		// when
-		actual, err := postgresDB.GetURLMappings(ctx)
-
-		// then
-		require.NoError(t, err)
-		expected := map[string]string{
-			"https://callback-receiver.com/1": "host1",
-			"https://callback-receiver.com/2": "host2",
-			"https://callback-receiver.com/3": "host3",
-			"https://callback-receiver.com/4": "host4",
-		}
-		require.True(t, reflect.DeepEqual(expected, actual))
 	})
 }
 

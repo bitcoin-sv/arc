@@ -78,7 +78,7 @@ func TestReorg(t *testing.T) {
 	case err := <-callbackErrChan:
 		t.Fatalf("callback error: %v", err)
 	case <-time.After(callbackDeadline):
-		t.Fatal("callback exceeded timeout")
+		t.Fatalf("callback exceeded timeout - tx id: %s", tx1.TxID().String())
 	}
 
 	// get new UTXO for tx2

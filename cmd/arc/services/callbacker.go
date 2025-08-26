@@ -91,6 +91,8 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		callbacker.WithExpiration(arcConfig.Callbacker.Expiration),
 		callbacker.WithSingleSendInterval(arcConfig.Callbacker.Pause),
 		callbacker.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
+		callbacker.WithClearInterval(arcConfig.Callbacker.PruneInterval),
+		callbacker.WithClearRetentionPeriod(arcConfig.Callbacker.PruneOlderThan),
 	)
 	if err != nil {
 		stopFn()
@@ -104,7 +106,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	}
 
 	processor.StartStoreCallbackRequests()
-	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
+	processor.StartCallbackStoreCleanup()
 	processor.StartSendCallbacks()
 	processor.StartSendBatchCallbacks()
 

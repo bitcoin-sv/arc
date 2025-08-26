@@ -47,7 +47,7 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 			require.NoError(t, err)
 			defer processor.GracefulStop()
 
-			processor.StartCallbackStoreCleanup(20*time.Millisecond, 50*time.Second)
+			processor.StartCallbackStoreCleanup()
 
 			time.Sleep(90 * time.Millisecond)
 

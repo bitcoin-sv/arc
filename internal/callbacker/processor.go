@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
@@ -43,9 +44,12 @@ type Processor struct {
 	batchSize              int
 	singleSendInterval     time.Duration
 	batchSendInterval      time.Duration
-	waitGroup              *sync.WaitGroup
-	cancelAll              context.CancelFunc
-	ctx                    context.Context
+	clearInterval          time.Duration
+	clearRetentionPeriod   time.Duration
+
+	wg        *sync.WaitGroup
+	cancelAll context.CancelFunc
+	ctx       context.Context
 }
 
 func WithSingleSendInterval(d time.Duration) func(*Processor) {
@@ -72,6 +76,18 @@ func WithExpiration(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithClearInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.clearInterval = d
+	}
+}
+
+func WithClearRetentionPeriod(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.clearRetentionPeriod = d
+	}
+}
+
 func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
 		mqClient:               mqClient,
@@ -86,7 +102,7 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 		batchSize:              batchSizeDefault,
 		singleSendInterval:     singleSendDefault,
 		batchSendInterval:      batchSendIntervalDefault,
-		waitGroup:              &sync.WaitGroup{},
+		wg:                     &sync.WaitGroup{},
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -146,12 +162,33 @@ type CallbackEntry struct {
 	AllowBatch bool
 }
 
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue) {
+	ticker := time.NewTicker(tickerInterval)
+	p.wg.Add(1)
+
+	go func() {
+		defer func() {
+			p.wg.Done()
+			ticker.Stop()
+		}()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				routine(p.ctx, p)
+			}
+		}
+	}()
+}
+
 func (p *Processor) StartSendCallbacks() {
 	ticker := time.NewTicker(p.sendCallbacksInterval)
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -215,9 +252,9 @@ func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
 func (p *Processor) StartSendBatchCallbacks() {
 	ticker := time.NewTicker(p.batchSendInterval)
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -299,10 +336,10 @@ func toCallback(callbackData *store.CallbackData) *Callback {
 func (p *Processor) StartStoreCallbackRequests() {
 	ticker := time.NewTicker(p.storeCallbacksInterval)
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
 		var toStore []*store.CallbackData
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -340,18 +377,18 @@ func (p *Processor) StartStoreCallbackRequests() {
 	}()
 }
 
-func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
+func (p *Processor) StartCallbackStoreCleanup() {
 	ctx := context.Background()
-	ticker := time.NewTicker(interval)
+	ticker := time.NewTicker(p.clearInterval)
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				n := time.Now()
 				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
-				olderThan := midnight.Add(-1 * olderThanDuration)
+				olderThan := midnight.Add(-1 * p.clearRetentionPeriod)
 
 				err := p.store.Clear(ctx, olderThan)
 				if err != nil {
@@ -359,7 +396,7 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 				}
 
 			case <-p.ctx.Done():
-				p.waitGroup.Done()
+				p.wg.Done()
 				return
 			}
 		}
@@ -369,5 +406,5 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 func (p *Processor) GracefulStop() {
 	p.cancelAll()
 
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }

@@ -13,6 +13,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
@@ -64,7 +66,13 @@ func TestSendCallback(t *testing.T) {
 	t.Run("dispatches callback for each routing", func(t *testing.T) {
 		// Given
 
-		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
+		callbackerStore := &mocks.ProcessorStoreMock{
+			InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {
+				return 3, nil
+			},
+		}
+
+		server, err := callbacker.NewServer(slog.Default(), callbackerStore, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 
 		request := &callbacker_api.SendRequest{

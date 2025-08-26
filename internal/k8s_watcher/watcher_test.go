@@ -33,7 +33,7 @@ func TestStartWatcher(t *testing.T) {
 			podNames: []string{"metamorph-pod-1", "metamorph-pod-2"},
 
 			expectedMetamorphUpdateInstancesCalls: 5,
-			expectedGetRunningPodsCalls:           10,
+			expectedGetRunningPodsCalls:           5,
 		},
 		{
 			name:           "error - get pod names",
@@ -41,7 +41,7 @@ func TestStartWatcher(t *testing.T) {
 			getPodNamesErr: errors.New("failed to get pod names"),
 
 			expectedMetamorphUpdateInstancesCalls: 0,
-			expectedGetRunningPodsCalls:           10,
+			expectedGetRunningPodsCalls:           5,
 		},
 	}
 

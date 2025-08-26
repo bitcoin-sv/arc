@@ -107,7 +107,7 @@ func (p *Processor) Start() error {
 			return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
 		}
 
-		p.logger.Info("=== enqueued callback request",
+		p.logger.Debug("Enqueued callback request",
 			slog.String("url", serialized.CallbackRouting.Url),
 			slog.String("token", serialized.CallbackRouting.Token),
 			slog.String("hash", serialized.Txid),
@@ -310,13 +310,13 @@ func (p *Processor) StartStoreCallbackRequests() {
 			case <-ticker.C:
 
 				if len(toStore) > 0 {
-					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)))
+					p.logger.Debug("Storing callbacks", slog.Int("count", len(toStore)))
 					rowsAffected, err := p.store.Insert(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
 					}
-					p.logger.Info("=== Stored callbacks", slog.Int64("count", rowsAffected))
+					p.logger.Debug("Stored callbacks", slog.Int64("count", rowsAffected))
 
 					toStore = toStore[:0]
 				}
@@ -325,13 +325,13 @@ func (p *Processor) StartStoreCallbackRequests() {
 				toStore = append(toStore, toStoreDto(entry))
 
 				if len(toStore) >= p.storeCallbackBatchSize {
-					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
+					p.logger.Debug("Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
 					rowsAffected, err := p.store.Insert(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
 					}
-					p.logger.Info("=== Stored callbacks", slog.Int64("count", rowsAffected))
+					p.logger.Debug("Stored callbacks", slog.Int64("count", rowsAffected))
 
 					toStore = toStore[:0]
 				}

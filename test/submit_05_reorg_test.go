@@ -203,7 +203,7 @@ func TestReorg(t *testing.T) {
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
 		case <-time.After(callbackDeadline):
-			t.Fatal("callback exceeded timeout")
+			t.Fatalf("callback exceeded timeout - tx1 id: %s, tx2 id: %s", tx1.TxID().String(), tx2.TxID().String())
 		}
 	}
 }

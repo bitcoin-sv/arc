@@ -93,15 +93,6 @@ func TestPostgresDBt(t *testing.T) {
 			BlockHash:   ptrTo(testdata.Block1),
 			BlockHeight: ptrTo(uint64(4524235)),
 		}
-		cbData5 := &store.CallbackData{
-			URL:         "https://test-callback-2/",
-			Token:       "token",
-			TxID:        testdata.TX2,
-			TxStatus:    "MINED",
-			Timestamp:   now,
-			BlockHash:   ptrTo(testdata.Block1),
-			BlockHeight: ptrTo(uint64(4524235)),
-		}
 		cbData3 := &store.CallbackData{
 			URL:          "https://test-callback-2/",
 			Token:        "token",
@@ -114,6 +105,24 @@ func TestPostgresDBt(t *testing.T) {
 		}
 		cbData4 := &store.CallbackData{
 			URL:         "https://arc-callback-2/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block1,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData5 := &store.CallbackData{
+			URL:         "https://test-callback-2/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData6 := &store.CallbackData{ // pre-existing in DB
+			URL:         "https://arc-callback-1/callback",
 			Token:       "token",
 			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
 			TxStatus:    "MINED",
@@ -148,6 +157,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData3,
 			cbData4,
 			cbData5,
+			cbData6,
 		}
 
 		for _, c := range dbCallbacks {

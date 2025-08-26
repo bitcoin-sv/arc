@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"flag"
 	"log"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -72,10 +71,10 @@ func TestPostgresDBt(t *testing.T) {
 	require.NoError(t, err)
 	defer postgresDB.Close()
 
-	t.Run("set many", func(t *testing.T) {
+	t.Run("insert", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_many")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/insert")
 
 		cbData1 := &store.CallbackData{
 			URL:       "https://test-callback-1/",
@@ -152,7 +151,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 
 		// when
-		rows, err := postgresDB.SetMany(context.Background(), data)
+		rows, err := postgresDB.Insert(context.Background(), data)
 		// then
 		require.NoError(t, err)
 
@@ -171,19 +170,7 @@ func TestPostgresDBt(t *testing.T) {
 			cbData7,
 		}
 
-		for _, c := range dbCallbacks {
-			found := false
-			for i, ur := range expected {
-				if reflect.DeepEqual(ur, c) {
-					// remove if found
-					data[i] = nil
-					found = true
-					break
-				}
-			}
-
-			require.Truef(t, found, "callback not found - hash: %s, status: %s, url: %s", c.TxID, c.TxStatus, c.URL)
-		}
+		require.ElementsMatch(t, expected, dbCallbacks)
 	})
 
 	t.Run("set sent", func(t *testing.T) {
@@ -211,12 +198,12 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("set not pending", func(t *testing.T) {
+	t.Run("unset pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_not_pending")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/unset_pending")
 		ctx := context.Background()
 
-		err = postgresDB.SetSent(ctx, []int64{1, 2, 3})
+		err = postgresDB.UnsetPending(ctx, []int64{1, 2, 3})
 		require.NoError(t, err)
 
 		r, err := postgresDB.db.QueryContext(ctx,
@@ -233,14 +220,14 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("get many", func(t *testing.T) {
+	t.Run("get unsent", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_many")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unsent")
 		ctx := context.Background()
 
 		const limit = 20
-		records, err := postgresDB.GetMany(ctx, limit, 1*time.Hour, false)
+		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false)
 		require.NoError(t, err)
 		require.Len(t, records, 6)
 
@@ -266,10 +253,10 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("delete older than", func(t *testing.T) {
+	t.Run("clear", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_older_than")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/clear")
 		ctx := context.Background()
 
 		var rowsBefore int
@@ -277,7 +264,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 30, rowsBefore)
 
-		err := postgresDB.DeleteOlderThan(ctx, now)
+		err := postgresDB.Clear(ctx, now)
 		require.NoError(t, err)
 
 		var rowsAfter int

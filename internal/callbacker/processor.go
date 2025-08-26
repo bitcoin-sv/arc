@@ -157,7 +157,7 @@ func (p *Processor) StartSendCallbacks() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				callbackRecords, err := p.store.GetMany(p.ctx, p.batchSize, p.expiration, false)
+				callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
 				if err != nil {
 					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 					continue
@@ -196,7 +196,7 @@ func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
 		cbEntry := toEntry(cb)
 		success, retry := p.sender.Send(url, cbEntry.Token, cbEntry.Data)
 		if retry || !success {
-			err := p.store.SetNotPending(p.ctx, cbIDs)
+			err := p.store.UnsetPending(p.ctx, cbIDs)
 			if err != nil {
 				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
 			}
@@ -223,7 +223,7 @@ func (p *Processor) StartSendBatchCallbacks() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				callbackRecords, err := p.store.GetMany(p.ctx, p.batchSize, p.expiration, true)
+				callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
 				if err != nil {
 					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 					continue
@@ -262,7 +262,7 @@ func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	}
 	success, retry := p.sender.SendBatch(url, cbs[0].Token, batch)
 	if retry || !success {
-		err := p.store.SetNotPending(p.ctx, cbIDs)
+		err := p.store.UnsetPending(p.ctx, cbIDs)
 		if err != nil {
 			p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
 			return
@@ -311,7 +311,7 @@ func (p *Processor) StartStoreCallbackRequests() {
 
 				if len(toStore) > 0 {
 					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)))
-					rowsAffected, err := p.store.SetMany(p.ctx, toStore)
+					rowsAffected, err := p.store.Insert(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
@@ -326,7 +326,7 @@ func (p *Processor) StartStoreCallbackRequests() {
 
 				if len(toStore) >= p.storeCallbackBatchSize {
 					p.logger.Info("=== Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
-					rowsAffected, err := p.store.SetMany(p.ctx, toStore)
+					rowsAffected, err := p.store.Insert(p.ctx, toStore)
 					if err != nil {
 						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
@@ -353,7 +353,7 @@ func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.D
 				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
 				olderThan := midnight.Add(-1 * olderThanDuration)
 
-				err := p.store.DeleteOlderThan(ctx, olderThan)
+				err := p.store.Clear(ctx, olderThan)
 				if err != nil {
 					p.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
 				}

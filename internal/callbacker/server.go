@@ -60,7 +60,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*callbacker_api.He
 
 func (s *Server) SendCallback(ctx context.Context, request *callbacker_api.SendRequest) (*emptypb.Empty, error) {
 	callback := toStoreDto(request)
-	_, err := s.store.SetMany(ctx, []*store.CallbackData{callback})
+	_, err := s.store.Insert(ctx, []*store.CallbackData{callback})
 	if err != nil {
 		return nil, err
 	}

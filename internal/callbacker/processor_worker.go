@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
@@ -156,13 +157,24 @@ func (p *ProcessorWorker) StartSendCallbacks() {
 					continue
 				}
 
-				urlMap := map[string][]*store.CallbackData{}
+				urlCallbacksMap := map[string][]*store.CallbackData{}
 				for _, callbackRecord := range callbackRecords {
-					urlMap[callbackRecord.URL] = append(urlMap[callbackRecord.URL], callbackRecord)
+					urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
 				}
 
-				for k, v := range urlMap {
-					go p.sendCallback(k, v)
+				g, _ := errgroup.WithContext(p.ctx)
+				g.SetLimit(10)
+
+				for url, callbacks := range urlCallbacksMap {
+					g.Go(func() error {
+						p.sendCallback(url, callbacks)
+						return nil
+					})
+				}
+
+				err = g.Wait()
+				if err != nil {
+					p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
 				}
 			}
 		}
@@ -211,13 +223,24 @@ func (p *ProcessorWorker) StartSendBatchCallbacks() {
 					continue
 				}
 
-				urlMap := map[string][]*store.CallbackData{}
+				urlCallbacksMap := map[string][]*store.CallbackData{}
 				for _, callbackRecord := range callbackRecords {
-					urlMap[callbackRecord.URL] = append(urlMap[callbackRecord.URL], callbackRecord)
+					urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
 				}
 
-				for k, v := range urlMap {
-					go p.sendBatchCallback(k, v)
+				g, _ := errgroup.WithContext(p.ctx)
+				g.SetLimit(10)
+
+				for url, callbacks := range urlCallbacksMap {
+					g.Go(func() error {
+						p.sendBatchCallback(url, callbacks)
+						return nil
+					})
+				}
+
+				err = g.Wait()
+				if err != nil {
+					p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
 				}
 			}
 		}

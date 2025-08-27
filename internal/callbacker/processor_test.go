@@ -29,7 +29,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
-				InsertFunc: func(_ context.Context, data []*store.CallbackData) (int64, error) {
+				InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {
 					return 4, nil
 				},
 			}
@@ -53,7 +53,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			require.NoError(t, err)
 
 			mqClient := &mqMocks.MessageQueueClientMock{
-				QueueSubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
+				QueueSubscribeFunc: func(_ string, msgFunc func([]byte) error) error {
 					err := msgFunc(data)
 					require.NoError(t, err)
 					return nil

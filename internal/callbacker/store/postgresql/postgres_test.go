@@ -182,7 +182,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		r, err := postgresDB.db.QueryContext(ctx,
-			`SELECT sent_at, pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			`SELECT sent_at, pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
 			pq.Array([]int64{1, 2, 3}),
 		)
 		require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		r, err := postgresDB.db.QueryContext(ctx,
-			`SELECT pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			`SELECT pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
 			pq.Array([]int64{1, 2, 3}),
 		)
 		require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 
 		r, err := postgresDB.db.QueryContext(ctx,
-			`SELECT pending FROM callbacker.callbacks WHERE id = ANY($1::INTEGER[])`,
+			`SELECT pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
 			pq.Array(ids),
 		)
 		require.NoError(t, err)
@@ -260,7 +260,7 @@ func TestPostgresDBt(t *testing.T) {
 		ctx := context.Background()
 
 		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsBefore)
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.transaction_callbacks").Scan(&rowsBefore)
 		require.NoError(t, err)
 		require.Equal(t, 30, rowsBefore)
 
@@ -268,7 +268,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsAfter)
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.transaction_callbacks").Scan(&rowsAfter)
 		require.NoError(t, err)
 
 		// then
@@ -278,6 +278,7 @@ func TestPostgresDBt(t *testing.T) {
 
 func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.callbacks")
+	testutils.PruneTables(t, db, "callbacker.transaction_callbacks")
 	testutils.PruneTables(t, db, "callbacker.url_mapping")
 }
 
@@ -295,7 +296,7 @@ func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,block_height
 			,timestamp
 			,competing_txs
-		FROM callbacker.callbacks`,
+		FROM callbacker.transaction_callbacks`,
 	)
 	require.NoError(t, err)
 

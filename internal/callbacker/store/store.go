@@ -2,12 +2,7 @@ package store
 
 import (
 	"context"
-	"errors"
 	"time"
-)
-
-var (
-	ErrURLMappingsDeleteFailed = errors.New("failed to delete URL mapping entries")
 )
 
 type CallbackData struct {

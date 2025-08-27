@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
@@ -88,6 +86,27 @@ func WithClearRetentionPeriod(d time.Duration) func(*Processor) {
 	}
 }
 
+func toEntry(callbackData *store.CallbackData) CallbackEntry {
+	return CallbackEntry{
+		Token:      callbackData.Token,
+		Data:       toCallback(callbackData),
+		AllowBatch: callbackData.AllowBatch,
+	}
+}
+
+func toCallback(callbackData *store.CallbackData) *Callback {
+	return &Callback{
+		Timestamp:    callbackData.Timestamp,
+		CompetingTxs: callbackData.CompetingTxs,
+		TxID:         callbackData.TxID,
+		TxStatus:     callbackData.TxStatus,
+		ExtraInfo:    callbackData.ExtraInfo,
+		MerklePath:   callbackData.MerklePath,
+		BlockHash:    callbackData.BlockHash,
+		BlockHeight:  callbackData.BlockHeight,
+	}
+}
+
 func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
 		mqClient:               mqClient,
@@ -115,7 +134,7 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 	return p, nil
 }
 
-func (p *Processor) Start() error {
+func (p *Processor) Subscribe() error {
 	err := p.mqClient.QueueSubscribe(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)
@@ -137,6 +156,20 @@ func (p *Processor) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
 	}
+
+	return nil
+}
+
+func (p *Processor) Start() error {
+	err := p.Subscribe()
+	if err != nil {
+		return err
+	}
+	p.StartRoutine(p.clearInterval, CallbackStoreCleanup)
+	p.StartRoutine(p.sendCallbacksInterval, sendCallbacks)
+	p.StartRoutine(p.batchSendInterval, SendBatchCallbacks)
+	p.StartStoreCallbackRequests()
+
 	return nil
 }
 
@@ -162,7 +195,7 @@ type CallbackEntry struct {
 	AllowBatch bool
 }
 
-func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue) {
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Processor)) {
 	ticker := time.NewTicker(tickerInterval)
 	p.wg.Add(1)
 
@@ -177,48 +210,7 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(cont
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				routine(p.ctx, p)
-			}
-		}
-	}()
-}
-
-func (p *Processor) StartSendCallbacks() {
-	ticker := time.NewTicker(p.sendCallbacksInterval)
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
-				if err != nil {
-					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
-					continue
-				}
-
-				urlCallbacksMap := map[string][]*store.CallbackData{}
-				for _, callbackRecord := range callbackRecords {
-					urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
-				}
-
-				g, _ := errgroup.WithContext(p.ctx)
-				g.SetLimit(10)
-
-				for url, callbacks := range urlCallbacksMap {
-					g.Go(func() error {
-						p.sendCallback(url, callbacks)
-						return nil
-					})
-				}
-
-				err = g.Wait()
-				if err != nil {
-					p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
-				}
+				routine(p)
 			}
 		}
 	}()
@@ -249,47 +241,6 @@ func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
 	}
 }
 
-func (p *Processor) StartSendBatchCallbacks() {
-	ticker := time.NewTicker(p.batchSendInterval)
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
-				if err != nil {
-					p.logger.Error("Failed to get many", slog.String("err", err.Error()))
-					continue
-				}
-
-				urlCallbacksMap := map[string][]*store.CallbackData{}
-				for _, callbackRecord := range callbackRecords {
-					urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
-				}
-
-				g, _ := errgroup.WithContext(p.ctx)
-				g.SetLimit(10)
-
-				for url, callbacks := range urlCallbacksMap {
-					g.Go(func() error {
-						p.sendBatchCallback(url, callbacks)
-						return nil
-					})
-				}
-
-				err = g.Wait()
-				if err != nil {
-					p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
-				}
-			}
-		}
-	}()
-}
-
 func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	batch := make([]*Callback, len(cbs))
 	cbIDs := make([]int64, len(cbs))
@@ -312,34 +263,16 @@ func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	}
 }
 
-func toEntry(callbackData *store.CallbackData) CallbackEntry {
-	return CallbackEntry{
-		Token:      callbackData.Token,
-		Data:       toCallback(callbackData),
-		AllowBatch: callbackData.AllowBatch,
-	}
-}
-
-func toCallback(callbackData *store.CallbackData) *Callback {
-	return &Callback{
-		Timestamp:    callbackData.Timestamp,
-		CompetingTxs: callbackData.CompetingTxs,
-		TxID:         callbackData.TxID,
-		TxStatus:     callbackData.TxStatus,
-		ExtraInfo:    callbackData.ExtraInfo,
-		MerklePath:   callbackData.MerklePath,
-		BlockHash:    callbackData.BlockHash,
-		BlockHeight:  callbackData.BlockHeight,
-	}
-}
-
 func (p *Processor) StartStoreCallbackRequests() {
 	ticker := time.NewTicker(p.storeCallbacksInterval)
 
 	p.wg.Add(1)
 	go func() {
 		var toStore []*store.CallbackData
-		defer p.wg.Done()
+		defer func() {
+			p.wg.Done()
+			ticker.Stop()
+		}()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -358,7 +291,6 @@ func (p *Processor) StartStoreCallbackRequests() {
 					toStore = toStore[:0]
 				}
 			case entry := <-p.sendRequestCh:
-
 				toStore = append(toStore, toStoreDto(entry))
 
 				if len(toStore) >= p.storeCallbackBatchSize {
@@ -372,32 +304,6 @@ func (p *Processor) StartStoreCallbackRequests() {
 
 					toStore = toStore[:0]
 				}
-			}
-		}
-	}()
-}
-
-func (p *Processor) StartCallbackStoreCleanup() {
-	ctx := context.Background()
-	ticker := time.NewTicker(p.clearInterval)
-
-	p.wg.Add(1)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				n := time.Now()
-				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
-				olderThan := midnight.Add(-1 * p.clearRetentionPeriod)
-
-				err := p.store.Clear(ctx, olderThan)
-				if err != nil {
-					p.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
-				}
-
-			case <-p.ctx.Done():
-				p.wg.Done()
-				return
 			}
 		}
 	}()

@@ -105,11 +105,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	processor.StartStoreCallbackRequests()
-	processor.StartCallbackStoreCleanup()
-	processor.StartSendCallbacks()
-	processor.StartSendBatchCallbacks()
-
 	serverCfg := grpc_utils.ServerConfig{
 		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
 		MaxMsgSize:         arcConfig.GrpcMessageSize,

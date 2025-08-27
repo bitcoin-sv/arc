@@ -68,7 +68,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			require.NoError(t, err)
 
 			mqClient := &mqMocks.MessageQueueClientMock{
-				QueueSubscribeFunc: func(_ string, msgFunc func([]byte) error) error {
+				ConsumeFunc: func(_ string, msgFunc func([]byte) error) error {
 					for range 5 {
 						err := msgFunc(data)
 						require.NoError(t, err)

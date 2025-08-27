@@ -91,7 +91,7 @@ func TestSendCallbacks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
-				GetUnsentFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
 						{
 							ID:         1,
@@ -120,16 +120,16 @@ func TestSendCallbacks(t *testing.T) {
 					}
 					return callbackData, nil
 				},
-				SetSentFunc: func(ctx context.Context, ids []int64) error {
+				SetSentFunc: func(_ context.Context, _ []int64) error {
 					return nil
 				},
-				UnsetPendingFunc: func(ctx context.Context, ids []int64) error {
+				UnsetPendingFunc: func(_ context.Context, _ []int64) error {
 					return nil
 				},
 			}
 
 			sender := &mocks.SenderIMock{
-				SendFunc: func(url string, token string, callback *callbacker.Callback) (bool, bool) {
+				SendFunc: func(_ string, _ string, _ *callbacker.Callback) (bool, bool) {
 					return tc.sendSuccess, tc.sendRetry
 				},
 			}
@@ -184,7 +184,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
-				GetUnsentFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
 						{
 							ID:         1,
@@ -213,16 +213,16 @@ func TestSendBatchCallbacks(t *testing.T) {
 					}
 					return callbackData, nil
 				},
-				SetSentFunc: func(ctx context.Context, ids []int64) error {
+				SetSentFunc: func(_ context.Context, _ []int64) error {
 					return nil
 				},
-				UnsetPendingFunc: func(ctx context.Context, ids []int64) error {
+				UnsetPendingFunc: func(_ context.Context, _ []int64) error {
 					return nil
 				},
 			}
 
 			sender := &mocks.SenderIMock{
-				SendBatchFunc: func(url string, token string, callbacks []*callbacker.Callback) (bool, bool) {
+				SendBatchFunc: func(_ string, _ string, _ []*callbacker.Callback) (bool, bool) {
 					return tc.sendSuccess, tc.sendRetry
 				},
 			}

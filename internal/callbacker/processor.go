@@ -86,6 +86,18 @@ func WithClearRetentionPeriod(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithStoreCallbackBatchSize(d int) func(*Processor) {
+	return func(m *Processor) {
+		m.storeCallbackBatchSize = d
+	}
+}
+
+func WithStoreCallbacksInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.storeCallbacksInterval = d
+	}
+}
+
 func toEntry(callbackData *store.CallbackData) CallbackEntry {
 	return CallbackEntry{
 		Token:      callbackData.Token,
@@ -166,7 +178,7 @@ func (p *Processor) Start() error {
 		return err
 	}
 	p.StartRoutine(p.clearInterval, CallbackStoreCleanup)
-	p.StartRoutine(p.sendCallbacksInterval, sendCallbacks)
+	p.StartRoutine(p.sendCallbacksInterval, SendCallbacks)
 	p.StartRoutine(p.batchSendInterval, SendBatchCallbacks)
 	p.StartStoreCallbackRequests()
 
@@ -216,53 +228,6 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Pro
 	}()
 }
 
-func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
-	cbIDs := make([]int64, len(cbs))
-	for i, cb := range cbs {
-		cbIDs[i] = cb.ID
-	}
-	for _, cb := range cbs {
-		cbEntry := toEntry(cb)
-		success, retry := p.sender.Send(url, cbEntry.Token, cbEntry.Data)
-		if retry || !success {
-			err := p.store.UnsetPending(p.ctx, cbIDs)
-			if err != nil {
-				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
-			}
-			break
-		}
-
-		err := p.store.SetSent(p.ctx, []int64{cb.ID})
-		if err != nil {
-			p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
-		}
-
-		time.Sleep(p.singleSendInterval)
-	}
-}
-
-func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
-	batch := make([]*Callback, len(cbs))
-	cbIDs := make([]int64, len(cbs))
-	for i, cb := range cbs {
-		batch[i] = toCallback(cb)
-		cbIDs[i] = cb.ID
-	}
-	success, retry := p.sender.SendBatch(url, cbs[0].Token, batch)
-	if retry || !success {
-		err := p.store.UnsetPending(p.ctx, cbIDs)
-		if err != nil {
-			p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
-			return
-		}
-	}
-
-	err := p.store.SetSent(p.ctx, cbIDs)
-	if err != nil {
-		p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
-	}
-}
-
 func (p *Processor) StartStoreCallbackRequests() {
 	ticker := time.NewTicker(p.storeCallbacksInterval)
 
@@ -278,7 +243,6 @@ func (p *Processor) StartStoreCallbackRequests() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-
 				if len(toStore) > 0 {
 					p.logger.Debug("Storing callbacks", slog.Int("count", len(toStore)))
 					rowsAffected, err := p.store.Insert(p.ctx, toStore)

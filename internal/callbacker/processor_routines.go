@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-const maxParallelRequests = 10
+const maxParallelRoutines = 10
 
 func CallbackStoreCleanup(p *Processor) {
 	n := time.Now()
@@ -22,7 +22,7 @@ func CallbackStoreCleanup(p *Processor) {
 	}
 }
 
-func sendCallbacks(p *Processor) {
+func SendCallbacks(p *Processor) {
 	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
@@ -36,9 +36,12 @@ func sendCallbacks(p *Processor) {
 
 	g, _ := errgroup.WithContext(p.ctx)
 
-	g.SetLimit(maxParallelRequests)
+	g.SetLimit(maxParallelRoutines)
 
 	for url, callbacks := range urlCallbacksMap {
+		if len(callbacks) == 0 {
+			continue
+		}
 		g.Go(func() error {
 			p.sendCallback(url, callbacks)
 			return nil
@@ -48,6 +51,31 @@ func sendCallbacks(p *Processor) {
 	err = g.Wait()
 	if err != nil {
 		p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
+	}
+}
+
+func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
+	cbIDs := make([]int64, len(cbs))
+	for i, cb := range cbs {
+		cbIDs[i] = cb.ID
+	}
+	for _, cb := range cbs {
+		cbEntry := toEntry(cb)
+		success, retry := p.sender.Send(url, cbEntry.Token, cbEntry.Data)
+		if retry || !success {
+			err := p.store.UnsetPending(p.ctx, cbIDs)
+			if err != nil {
+				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+			}
+			break
+		}
+
+		err := p.store.SetSent(p.ctx, []int64{cb.ID})
+		if err != nil {
+			p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
+		}
+
+		time.Sleep(p.singleSendInterval)
 	}
 }
 
@@ -64,9 +92,13 @@ func SendBatchCallbacks(p *Processor) {
 	}
 
 	g, _ := errgroup.WithContext(p.ctx)
-	g.SetLimit(maxParallelRequests)
+	g.SetLimit(maxParallelRoutines)
 
 	for url, callbacks := range urlCallbacksMap {
+		if len(callbacks) == 0 {
+			continue
+		}
+
 		g.Go(func() error {
 			p.sendBatchCallback(url, callbacks)
 			return nil
@@ -76,5 +108,27 @@ func SendBatchCallbacks(p *Processor) {
 	err = g.Wait()
 	if err != nil {
 		p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
+	}
+}
+
+func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
+	batch := make([]*Callback, len(cbs))
+	cbIDs := make([]int64, len(cbs))
+	for i, cb := range cbs {
+		batch[i] = toCallback(cb)
+		cbIDs[i] = cb.ID
+	}
+	success, retry := p.sender.SendBatch(url, cbs[0].Token, batch)
+	if retry || !success {
+		err := p.store.UnsetPending(p.ctx, cbIDs)
+		if err != nil {
+			p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+		}
+		return
+	}
+
+	err := p.store.SetSent(p.ctx, cbIDs)
+	if err != nil {
+		p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
 	}
 }

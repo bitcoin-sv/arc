@@ -19,10 +19,25 @@ import (
 
 func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 	tt := []struct {
-		name string
+		name                   string
+		storeCallbackBatchSize int
+		storeCallbacksInterval time.Duration
+
+		expectedInsertCalls int
 	}{
 		{
-			name: "success",
+			name:                   "insert batch",
+			storeCallbackBatchSize: 4,
+			storeCallbacksInterval: 20 * time.Second,
+
+			expectedInsertCalls: 1,
+		},
+		{
+			name:                   "insert in interval",
+			storeCallbackBatchSize: 50,
+			storeCallbacksInterval: 20 * time.Millisecond,
+
+			expectedInsertCalls: 1,
 		},
 	}
 
@@ -54,14 +69,22 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 
 			mqClient := &mqMocks.MessageQueueClientMock{
 				QueueSubscribeFunc: func(_ string, msgFunc func([]byte) error) error {
-					err := msgFunc(data)
-					require.NoError(t, err)
+					for range 5 {
+						err := msgFunc(data)
+						require.NoError(t, err)
+					}
 					return nil
 				},
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			processor, err := callbacker.NewProcessor(nil, cbStore, mqClient, logger)
+			processor, err := callbacker.NewProcessor(nil,
+				cbStore,
+				mqClient,
+				logger,
+				callbacker.WithStoreCallbackBatchSize(tc.storeCallbackBatchSize),
+				callbacker.WithStoreCallbacksInterval(tc.storeCallbacksInterval),
+			)
 			require.NoError(t, err)
 			defer processor.GracefulStop()
 
@@ -71,6 +94,8 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			processor.StartStoreCallbackRequests()
 
 			time.Sleep(500 * time.Millisecond)
+
+			require.Equal(t, tc.expectedInsertCalls, len(cbStore.InsertCalls()))
 		})
 	}
 }

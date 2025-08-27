@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
@@ -129,11 +128,11 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			for _, tx := range txs {
 				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.String()))
 				if p.rejectPendingSeenEnabled {
-					p.statusMessageCh <- &metamorph_p2p.TxStatusMessage{
-						Start:  time.Now(),
-						Hash:   tx,
-						Status: metamorph_api.Status_REJECTED,
-						Err:    ErrRejectUnconfirmed,
+					p.storageStatusUpdateCh <- store.UpdateStatus{
+						Hash:      *tx,
+						Status:    metamorph_api.Status_REJECTED,
+						Error:     ErrRejectUnconfirmed,
+						Timestamp: p.now(),
 					}
 				}
 			}

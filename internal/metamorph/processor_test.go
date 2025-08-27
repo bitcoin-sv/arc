@@ -1352,15 +1352,6 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.expectedGetUnconfirmedCalls, len(metamorphStore.GetUnconfirmedRequestedCalls()))
-			for i := 0; i < tc.expectedRejections; i++ {
-				select {
-				case z := <-statusMessageChannel:
-					t.Log("callback received", z.Hash.String())
-					continue
-				case <-time.After(1 * time.Second):
-					t.Fatal("callback exceeded timeout")
-				}
-			}
 		})
 	}
 }

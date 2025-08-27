@@ -147,7 +147,7 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 }
 
 func (p *Processor) Subscribe() error {
-	err := p.mqClient.QueueSubscribe(mq.CallbackTopic, func(msg []byte) error {
+	err := p.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {

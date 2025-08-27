@@ -25,7 +25,6 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -69,13 +68,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
-	}
-
-	mqOpts := getCbkMqOpts(hostname)
+	mqOpts := getCbkMqOpts()
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
@@ -128,13 +121,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	return stopFn, nil
 }
 
-func getCbkMqOpts(hostname string) []nats_jetstream.Option {
-	streamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
-	consName := fmt.Sprintf("%s-%s-cons", hostname, mq.CallbackTopic)
+func getCbkMqOpts() []nats_jetstream.Option {
+	callbackStreamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
+	callbackConsName := fmt.Sprintf("%s-cons", mq.CallbackTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.WorkQueuePolicy, false),
-		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, false, jetstream.AckExplicitPolicy),
+		nats_jetstream.WithStream(mq.CallbackTopic, callbackStreamName, jetstream.WorkQueuePolicy, false),
+		nats_jetstream.WithConsumer(mq.CallbackTopic, callbackStreamName, callbackConsName, true, jetstream.AckExplicitPolicy),
 	}
 	return mqOpts
 }

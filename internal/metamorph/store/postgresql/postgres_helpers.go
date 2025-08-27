@@ -3,9 +3,10 @@ package postgresql
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"strings"
 	"time"
+
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
 type competingTxsData struct {

@@ -3,10 +3,11 @@ package cmd
 import (
 	"context"
 	"errors"
-	"github.com/bitcoin-sv/arc/internal/cache"
+
+	"github.com/go-redis/redis/v8"
 
 	"github.com/bitcoin-sv/arc/config"
-	"github.com/go-redis/redis/v8"
+	"github.com/bitcoin-sv/arc/internal/cache"
 )
 
 var ErrCacheUnknownType = errors.New("unknown cache type")

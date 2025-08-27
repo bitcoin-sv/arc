@@ -2,7 +2,6 @@ package blocktx_test
 
 import (
 	"context"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"log/slog"
 	"os"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )
 

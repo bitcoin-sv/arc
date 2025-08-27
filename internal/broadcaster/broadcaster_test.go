@@ -3,15 +3,13 @@ package broadcaster_test
 import (
 	"context"
 	"encoding/hex"
-	"github.com/bsv-blockchain/go-sdk/script"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/api"
-
 	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/stretchr/testify/require"
@@ -19,6 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
+	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 

@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"flag"
 	"log"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ccoveille/go-safecast"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
@@ -67,287 +67,222 @@ func TestPostgresDBt(t *testing.T) {
 
 	now := time.Date(2024, 9, 1, 12, 25, 0, 0, time.UTC)
 
-	postgresDB, err := New(dbInfo, 10, 10)
+	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time { return now }))
 	require.NoError(t, err)
 	defer postgresDB.Close()
 
-	t.Run("set many", func(t *testing.T) {
+	t.Run("insert", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/insert")
+
+		cbData1 := &store.CallbackData{
+			URL:       "https://test-callback-1/",
+			Token:     "token",
+			TxID:      testdata.TX2,
+			TxStatus:  "SEEN_ON_NETWORK",
+			Timestamp: now,
+		}
+		cbData2 := &store.CallbackData{
+			URL:         "https://test-callback-1/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData3 := &store.CallbackData{
+			URL:          "https://test-callback-2/",
+			Token:        "token",
+			TxID:         testdata.TX3,
+			TxStatus:     "MINED",
+			Timestamp:    now,
+			BlockHash:    &testdata.Block2,
+			BlockHeight:  ptrTo(uint64(4524236)),
+			CompetingTxs: []string{testdata.TX2},
+		}
+		cbData4 := &store.CallbackData{
+			URL:         "https://arc-callback-2/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block1,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData5 := &store.CallbackData{
+			URL:         "https://test-callback-2/",
+			Token:       "token",
+			TxID:        testdata.TX2,
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   ptrTo(testdata.Block1),
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData6 := &store.CallbackData{ // pre-existing in DB
+			URL:         "https://arc-callback-1/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block1,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
+		cbData7 := &store.CallbackData{ // differing block hash
+			URL:         "https://arc-callback-1/callback",
+			Token:       "token",
+			TxID:        "96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28",
+			TxStatus:    "MINED",
+			Timestamp:   now,
+			BlockHash:   &testdata.Block2,
+			BlockHeight: ptrTo(uint64(4524235)),
+		}
 
 		data := []*store.CallbackData{
-			{
-				URL:       "https://test-callback-1/",
-				Token:     "token",
-				TxID:      testdata.TX2,
-				TxStatus:  "SEEN_ON_NETWORK",
-				Timestamp: now,
-			},
-			{
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   ptrTo(testdata.Block1),
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				// duplicate
-				URL:         "https://test-callback-1/",
-				Token:       "token",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				// duplicate
-				URL:          "https://test-callback-2/",
-				Token:        "token",
-				TxID:         testdata.TX3,
-				TxStatus:     "MINED",
-				Timestamp:    now,
-				BlockHash:    &testdata.Block2,
-				BlockHeight:  ptrTo(uint64(4524236)),
-				CompetingTxs: []string{testdata.TX2},
-			},
-			{
-				URL:         "https://test-callback-2/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX2,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
-
-			{
-				URL:         "https://test-callback-3/",
-				TxID:        testdata.TX3,
-				TxStatus:    "MINED",
-				Timestamp:   now,
-				BlockHash:   &testdata.Block1,
-				BlockHeight: ptrTo(uint64(4524235)),
-			},
+			cbData1,
+			cbData2,
+			cbData2, // duplicate
+			cbData3,
+			cbData3, // duplicate
+			cbData4,
+			cbData5,
+			cbData7,
 		}
 
 		// when
-		err = postgresDB.SetMany(context.Background(), data)
-
+		rows, err := postgresDB.Insert(context.Background(), data)
 		// then
 		require.NoError(t, err)
 
-		// read all from db
-		dbCallbacks := ReadAllCallbacks(t, postgresDB.db)
-		for _, c := range dbCallbacks {
-			found := false
-			for i, ur := range data {
-				if ur == nil {
-					continue
-				}
+		require.Equal(t, rows, int64(6))
 
-				if CallbackRecordEqual(ur, c) {
-					// remove if found
-					data[i] = nil
-					found = true
-					break
-				}
-			}
+		dbCallbacks := readAllCallbacks(t, postgresDB.db)
+		require.NoError(t, err)
 
-			require.True(t, found)
+		expected := []*store.CallbackData{
+			cbData1,
+			cbData2,
+			cbData3,
+			cbData4,
+			cbData5,
+			cbData6,
+			cbData7,
+		}
+
+		require.ElementsMatch(t, expected, dbCallbacks)
+	})
+
+	t.Run("set sent", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_sent")
+		ctx := context.Background()
+
+		err = postgresDB.SetSent(ctx, []int64{1, 2, 3})
+		require.NoError(t, err)
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT sent_at, pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array([]int64{1, 2, 3}),
+		)
+		require.NoError(t, err)
+
+		for r.Next() {
+			var sentAt sql.NullTime
+			var pending sql.NullTime
+			err = r.Scan(&sentAt, &pending)
+			require.NoError(t, err)
+			require.True(t, sentAt.Valid)
+			require.Equal(t, now.UTC(), sentAt.Time.UTC())
+			require.False(t, pending.Valid)
 		}
 	})
 
-	t.Run("get and delete", func(t *testing.T) {
-		// given
+	t.Run("unset pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_and_delete")
-
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/unset_pending")
 		ctx := context.Background()
-		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsBefore)
+
+		err = postgresDB.UnsetPending(ctx, []int64{1, 2, 3})
 		require.NoError(t, err)
 
-		require.Equal(t, 28, rowsBefore)
-
-		const popLimit = 10
-		records, err := postgresDB.GetAndDelete(ctx, "https://arc-callback-2/callback", popLimit)
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array([]int64{1, 2, 3}),
+		)
 		require.NoError(t, err)
 
-		require.Len(t, records, popLimit)
-
-		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx,
-			"SELECT count(*) FROM callbacker.callbacks WHERE url=$1",
-			"https://arc-callback-2/callback").Scan(&rowsAfter)
-		require.NoError(t, err)
-		require.Equal(t, 18, rowsAfter)
+		for r.Next() {
+			var pending sql.NullTime
+			err = r.Scan(&pending)
+			require.NoError(t, err)
+			require.False(t, pending.Valid)
+		}
 	})
 
-	t.Run("delete older than", func(t *testing.T) {
+	t.Run("get unsent", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_older_than")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unsent")
+		ctx := context.Background()
+
+		const limit = 20
+		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false)
+		require.NoError(t, err)
+		require.Len(t, records, 6)
+
+		ids := make([]int64, len(records))
+		for i, record := range records {
+			require.Equal(t, "https://arc-callback-2/callback", record.URL)
+			ids[i] = record.ID
+		}
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array(ids),
+		)
+		require.NoError(t, err)
+		defer r.Close()
+
+		for r.Next() {
+			var pending sql.NullTime
+			err = r.Scan(&pending)
+			require.NoError(t, err)
+			require.True(t, pending.Valid)
+			require.Equal(t, now.UTC(), pending.Time.UTC())
+		}
+	})
+
+	t.Run("clear", func(t *testing.T) {
+		// given
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/clear")
 		ctx := context.Background()
 
 		var rowsBefore int
-		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsBefore)
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.transaction_callbacks").Scan(&rowsBefore)
 		require.NoError(t, err)
-		require.Equal(t, 56, rowsBefore)
+		require.Equal(t, 30, rowsBefore)
 
-		err := postgresDB.DeleteOlderThan(ctx, now)
+		err := postgresDB.Clear(ctx, now)
 		require.NoError(t, err)
 
 		var rowsAfter int
-		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.callbacks").Scan(&rowsAfter)
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT COUNT(1) FROM callbacker.transaction_callbacks").Scan(&rowsAfter)
 		require.NoError(t, err)
 
 		// then
 		require.Equal(t, 3, rowsAfter)
 	})
-
-	t.Run("set URL mapping", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		// when
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host1",
-		})
-
-		// then
-		require.NoError(t, err)
-
-		// when
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host2",
-		})
-
-		// then
-		require.ErrorIs(t, err, store.ErrURLMappingDuplicateKey)
-	})
-
-	t.Run("delete URL mapping", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/",
-			Instance: "host1",
-		})
-		require.NoError(t, err)
-
-		// when
-		rowsAffected, err := postgresDB.DeleteURLMapping(ctx, "host1")
-		require.NoError(t, err)
-		require.Equal(t, int64(1), rowsAffected)
-
-		// then
-		mappings, err := postgresDB.GetURLMappings(ctx)
-		require.NoError(t, err)
-
-		require.Len(t, mappings, 0)
-	})
-
-	t.Run("delete URL mappings except", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/delete_url_mappings_except")
-		ctx := context.Background()
-
-		// when
-		rowsAffected, err := postgresDB.DeleteURLMappingsExcept(ctx, []string{"host3", "host5"})
-		require.NoError(t, err)
-		require.Equal(t, int64(5), rowsAffected)
-
-		// then
-		mappings, err := postgresDB.GetURLMappings(ctx)
-		require.NoError(t, err)
-		expectedMappings := map[string]string{
-			"https://abc3.com/callback": "host3",
-			"https://abc4.com/callback": "host3",
-			"https://abc8.com/callback": "host5",
-		}
-
-		require.Equal(t, expectedMappings, mappings)
-	})
-
-	t.Run("get URL mappings", func(t *testing.T) {
-		// given
-		defer pruneTables(t, postgresDB.db)
-
-		ctx := context.Background()
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/1",
-			Instance: "host1",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/2",
-			Instance: "host2",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/3",
-			Instance: "host3",
-		})
-		require.NoError(t, err)
-		err = postgresDB.SetURLMapping(ctx, store.URLMapping{
-			URL:      "https://callback-receiver.com/4",
-			Instance: "host4",
-		})
-		require.NoError(t, err)
-
-		// when
-		actual, err := postgresDB.GetURLMappings(ctx)
-
-		// then
-		require.NoError(t, err)
-		expected := map[string]string{
-			"https://callback-receiver.com/1": "host1",
-			"https://callback-receiver.com/2": "host2",
-			"https://callback-receiver.com/3": "host3",
-			"https://callback-receiver.com/4": "host4",
-		}
-		require.True(t, reflect.DeepEqual(expected, actual))
-	})
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
 	testutils.PruneTables(t, db, "callbacker.callbacks")
+	testutils.PruneTables(t, db, "callbacker.transaction_callbacks")
 	testutils.PruneTables(t, db, "callbacker.url_mapping")
 }
 
-func CallbackRecordEqual(a, b *store.CallbackData) bool {
-	return reflect.DeepEqual(*a, *b)
-}
-
-func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
+func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	t.Helper()
 
 	r, err := db.Query(
@@ -361,12 +296,10 @@ func ReadAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 			,block_height
 			,timestamp
 			,competing_txs
-		FROM callbacker.callbacks`,
+		FROM callbacker.transaction_callbacks`,
 	)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer r.Close()
 
 	var callbacks []*store.CallbackData

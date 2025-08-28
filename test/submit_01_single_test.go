@@ -156,8 +156,6 @@ func TestSubmitMined(t *testing.T) {
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(15 * time.Second)
-
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
@@ -165,7 +163,7 @@ func TestSubmitMined(t *testing.T) {
 			require.Equal(t, merklePathStr, *status.MerklePath)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
-		case <-callbackTimeout:
+		case <-time.After(callbackDeadline):
 			t.Fatal("callback exceeded timeout")
 		}
 
@@ -224,15 +222,13 @@ func TestReturnMinedStatus(t *testing.T) {
 			}, http.StatusOK)
 
 		// wait for callback
-		callbackTimeout := time.After(15 * time.Second)
-
 		select {
 		case status := <-callbackReceivedChan:
 			require.Equal(t, rawTx.TxID, status.Txid)
 			require.Equal(t, StatusMined, status.TxStatus)
 		case err := <-callbackErrChan:
 			t.Fatalf("callback error: %v", err)
-		case <-callbackTimeout:
+		case <-time.After(callbackDeadline):
 			t.Fatal("callback exceeded timeout")
 		}
 
@@ -435,7 +431,7 @@ func TestCallback(t *testing.T) {
 					case callback := <-srv.responseChan:
 						require.NotNil(t, callback)
 
-						t.Logf("callback received - server: %d, iteration: %d, txid: %s result: %s", i, j, callback.Txid, callback.TxStatus)
+						t.Logf("callback received - server: %s, iteration: %d, txid: %s result: %s", srv.url, j, callback.Txid, callback.TxStatus)
 
 						visitNumber, expectedTx := expectedTxsCallbacks[callback.Txid]
 						require.True(t, expectedTx)
@@ -591,12 +587,12 @@ func TestBatchCallback(t *testing.T) {
 			var errs []error
 
 			// verify callbacks were received correctly
-			for i, srv := range callbackServers {
+			for _, srv := range callbackServers {
 				t.Logf("listen callbacks on server %s", srv.url)
 
 				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
 				for _, tx := range txs {
-					t.Logf("expected callback - server: %d, tx ID: %s", i, tx.TxID().String())
+					t.Logf("expected callback - server: %s, tx ID: %s", srv.url, tx.TxID().String())
 					expectedTxsCallbacks[tx.TxID().String()] = 0
 				}
 
@@ -610,7 +606,7 @@ func TestBatchCallback(t *testing.T) {
 						require.Greater(t, batch.Count, 0)
 						require.NotNil(t, batch.Callbacks)
 
-						t.Logf("callback server: %d, callback: %d, count: %d result[0]: %s", i, j, batch.Count, batch.Callbacks[0].TxStatus)
+						t.Logf("callback server: %s, callback: %d, count: %d result[0]: %s", srv.url, j, batch.Count, batch.Callbacks[0].TxStatus)
 
 						for _, callback := range batch.Callbacks {
 							visitNumber, txWasExpected := expectedTxsCallbacks[callback.Txid]
@@ -623,10 +619,10 @@ func TestBatchCallback(t *testing.T) {
 						}
 
 					case err = <-srv.errChan:
-						errs = append(errs, fmt.Errorf("callback received with error - server: %d, callback: %d, err: %v", i, j, err))
+						errs = append(errs, fmt.Errorf("callback received with error - server: %s, callback: %d, err: %v", srv.url, j, err))
 						t.Fail()
 					case <-callbackTimeout:
-						errs = append(errs, fmt.Errorf("callback not received - server: %d callback: %d - timeout", i, j))
+						errs = append(errs, fmt.Errorf("callback not received - server: %s callback: %d - timeout", srv.url, j))
 						t.Fail()
 					}
 				}

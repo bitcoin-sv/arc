@@ -69,15 +69,6 @@ func (c *Watcher) Start() error {
 		return nil
 	})
 
-	c.updateRunningPods(callbackerService, c.updateInterval, func(ctx context.Context, podNames []string) error {
-		_, err := c.callbackerClient.UpdateInstances(ctx, &callbacker_api.UpdateInstancesRequest{Instances: podNames})
-		if err != nil {
-			return err
-		}
-		c.logger.Debug("Updated instances", slog.String("service", metamorphService), slog.String("pod-names", strings.Join(podNames, ",")))
-		return nil
-	})
-
 	return nil
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 )
@@ -23,7 +24,7 @@ func TestNewServer(t *testing.T) {
 		// Given
 
 		// When
-		server, err := callbacker.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
+		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
 
 		// Then
 		require.NoError(t, err)
@@ -43,7 +44,7 @@ func TestHealth(t *testing.T) {
 		}
 
 		// Given
-		sut, err := callbacker.NewServer(slog.Default(), nil, nil, mqClient, grpc_utils.ServerConfig{})
+		sut, err := callbacker.NewServer(slog.Default(), nil, mqClient, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
 
@@ -64,32 +65,25 @@ func TestHealth(t *testing.T) {
 func TestSendCallback(t *testing.T) {
 	t.Run("dispatches callback for each routing", func(t *testing.T) {
 		// Given
-		mockDispatcher := &mocks.DispatcherMock{DispatchFunc: func(url string, dto *callbacker.CallbackEntry) {
-			switch url {
-			case "https://example.com/callback1":
-				require.Equal(t, dto.Token, "token1")
-			case "https://example.com/callback2":
-				require.Equal(t, dto.Token, "token2")
-			default:
-				t.Fatalf("unexpected callback URL: %s", url)
-			}
-		}}
 
-		server, err := callbacker.NewServer(slog.Default(), mockDispatcher, nil, nil, grpc_utils.ServerConfig{})
+		callbackerStore := &mocks.ProcessorStoreMock{
+			InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {
+				return 3, nil
+			},
+		}
+
+		server, err := callbacker.NewServer(slog.Default(), callbackerStore, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 
-		request := &callbacker_api.SendCallbackRequest{
-			Txid:   "1234",
-			Status: callbacker_api.Status_SEEN_ON_NETWORK,
-			CallbackRoutings: []*callbacker_api.CallbackRouting{
-				{Url: "https://example.com/callback1", Token: "token1", AllowBatch: false},
-				{Url: "https://example.com/callback2", Token: "token2", AllowBatch: false},
-			},
-			BlockHash:    "abcd1234",
-			BlockHeight:  100,
-			MerklePath:   "path/to/merkle",
-			ExtraInfo:    "extra info",
-			CompetingTxs: []string{"tx1", "tx2"},
+		request := &callbacker_api.SendRequest{
+			Txid:            "1234",
+			Status:          callbacker_api.Status_SEEN_ON_NETWORK,
+			CallbackRouting: &callbacker_api.CallbackRouting{Url: "https://example.com/callback1", Token: "token1", AllowBatch: false},
+			BlockHash:       "abcd1234",
+			BlockHeight:     100,
+			MerklePath:      "path/to/merkle",
+			ExtraInfo:       "extra info",
+			CompetingTxs:    []string{"tx1", "tx2"},
 		}
 
 		// When
@@ -99,6 +93,5 @@ func TestSendCallback(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, &emptypb.Empty{}, resp)
 		time.Sleep(100 * time.Millisecond)
-		require.Equal(t, 2, len(mockDispatcher.DispatchCalls()), "Expected two dispatch calls")
 	})
 }

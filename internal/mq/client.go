@@ -24,15 +24,25 @@ const (
 )
 
 type MessageQueueClient interface {
-	Publish(ctx context.Context, topic string, data []byte) error
+	// PublishCore publishes a message as byte array to the specified topic
 	PublishCore(topic string, data []byte) (err error)
-	PublishAsync(topic string, hash []byte) (err error)
-	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
+	// PublishMarshalCore publishes a message as proto message to the specified topic
 	PublishMarshalCore(topic string, m proto.Message) (err error)
+
+	// Publish publishes a message as byte array to a topic persisted in a stream
+	Publish(ctx context.Context, topic string, data []byte) error
+	// PublishAsync publishes a message as byte array to the specified topic persisted in a stream not blocking while waiting for an acknowledgement
+	PublishAsync(topic string, hash []byte) (err error)
+	// PublishMarshal publishes a message as proto message to a topic persisted in a stream
+	PublishMarshal(ctx context.Context, topic string, m proto.Message) error
+	// PublishMarshalAsync publishes a message as proto message to the specified topic persisted in a stream not blocking while waiting for an acknowledgement
 	PublishMarshalAsync(topic string, m proto.Message) error
 
+	// Consume subscribes to a topic to consume a stream and calls the specified function for each message as byte array
 	Consume(topic string, msgFunc func([]byte) error) error
+	// ConsumeMsg subscribes to a topic to consume a stream and calls the specified function for each message as jetstream.Msg
 	ConsumeMsg(topic string, msgFunc func(msg jetstream.Msg) error) error
+	// QueueSubscribe subscribes to a topic and calls the specified function for each message as byte array
 	QueueSubscribe(topic string, msgFunc func([]byte) error) error
 
 	Status() string

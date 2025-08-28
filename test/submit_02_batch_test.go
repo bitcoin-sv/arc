@@ -42,6 +42,9 @@ func TestBatchChainedTxs(t *testing.T) {
 		t.Logf("submitting batch of %d chained txs", len(txs))
 		resp := postRequest[TransactionResponseBatch](t, arcEndpointV1Txs, createPayload(t, request), nil, http.StatusOK)
 		hasFailed := false
+
+		time.Sleep(3 * time.Second)
+
 		for i, txResponse := range resp {
 			if !assert.Equal(t, StatusSeenOnNetwork, txResponse.TxStatus, fmt.Sprintf("index: %d", i)) {
 				hasFailed = true

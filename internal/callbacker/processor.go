@@ -2,13 +2,11 @@ package callbacker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
@@ -16,53 +14,126 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
-type Dispatcher interface {
-	Dispatch(url string, dto *CallbackEntry)
+type Sender interface {
+	Send(url, token string, callback *Callback) (success, retry bool)
+	SendBatch(url, token string, callbacks []*Callback) (success, retry bool)
 }
 
 const (
-	syncInterval                     = 5 * time.Second
-	dispatchPersistedIntervalDefault = 20 * time.Second
-)
-
-var (
-	ErrUnmarshal  = errors.New("failed to unmarshal message")
-	ErrNakMessage = errors.New("failed to nak message")
-	ErrAckMessage = errors.New("failed to ack message")
-	ErrSetMapping = errors.New("failed to set mapping")
+	batchSizeDefault              = 500
+	singleSendDefault             = 5 * time.Second
+	expirationDefault             = 24 * time.Hour
+	batchSendIntervalDefault      = 5 * time.Second
+	storeCallbacksIntervalDefault = 5 * time.Second
+	storeCallbackBatchSizeDefault = 500
+	sendCallbacksInterval         = 5 * time.Second
 )
 
 type Processor struct {
-	mqClient                  mq.MessageQueueClient
-	dispatcher                Dispatcher
-	store                     store.ProcessorStore
-	logger                    *slog.Logger
-	dispatchPersistedInterval time.Duration
-	hostName                  string
-	waitGroup                 *sync.WaitGroup
-	cancelAll                 context.CancelFunc
-	ctx                       context.Context
+	mqClient               mq.MessageQueueClient
+	sender                 Sender
+	store                  store.ProcessorStore
+	logger                 *slog.Logger
+	sendRequestCh          chan *callbacker_api.SendRequest
+	storeCallbackBatchSize int
+	storeCallbacksInterval time.Duration
+	sendCallbacksInterval  time.Duration
+	expiration             time.Duration
+	batchSize              int
+	singleSendInterval     time.Duration
+	batchSendInterval      time.Duration
+	clearInterval          time.Duration
+	clearRetentionPeriod   time.Duration
 
-	mu         sync.RWMutex
-	urlMapping map[string]string
+	wg        *sync.WaitGroup
+	cancelAll context.CancelFunc
+	ctx       context.Context
 }
 
-func WithDispatchPersistedInterval(interval time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.dispatchPersistedInterval = interval
+func WithSingleSendInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.singleSendInterval = d
 	}
 }
 
-func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, hostName string, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
+func WithBatchSendInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.batchSendInterval = d
+	}
+}
+
+func WithBatchSize(size int) func(*Processor) {
+	return func(m *Processor) {
+		m.batchSize = size
+	}
+}
+
+func WithExpiration(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.expiration = d
+	}
+}
+
+func WithClearInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.clearInterval = d
+	}
+}
+
+func WithClearRetentionPeriod(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.clearRetentionPeriod = d
+	}
+}
+
+func WithStoreCallbackBatchSize(d int) func(*Processor) {
+	return func(m *Processor) {
+		m.storeCallbackBatchSize = d
+	}
+}
+
+func WithStoreCallbacksInterval(d time.Duration) func(*Processor) {
+	return func(m *Processor) {
+		m.storeCallbacksInterval = d
+	}
+}
+
+func toEntry(callbackData *store.CallbackData) CallbackEntry {
+	return CallbackEntry{
+		Token:      callbackData.Token,
+		Data:       toCallback(callbackData),
+		AllowBatch: callbackData.AllowBatch,
+	}
+}
+
+func toCallback(callbackData *store.CallbackData) *Callback {
+	return &Callback{
+		Timestamp:    callbackData.Timestamp,
+		CompetingTxs: callbackData.CompetingTxs,
+		TxID:         callbackData.TxID,
+		TxStatus:     callbackData.TxStatus,
+		ExtraInfo:    callbackData.ExtraInfo,
+		MerklePath:   callbackData.MerklePath,
+		BlockHash:    callbackData.BlockHash,
+		BlockHeight:  callbackData.BlockHeight,
+	}
+}
+
+func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
-		hostName:                  hostName,
-		urlMapping:                make(map[string]string),
-		dispatcher:                dispatcher,
-		waitGroup:                 &sync.WaitGroup{},
-		store:                     processorStore,
-		logger:                    logger,
-		mqClient:                  mqClient,
-		dispatchPersistedInterval: dispatchPersistedIntervalDefault,
+		mqClient:               mqClient,
+		sender:                 sender,
+		store:                  processorStore,
+		logger:                 logger,
+		sendRequestCh:          make(chan *callbacker_api.SendRequest, 500),
+		storeCallbackBatchSize: storeCallbackBatchSizeDefault,
+		storeCallbacksInterval: storeCallbacksIntervalDefault,
+		sendCallbacksInterval:  sendCallbacksInterval,
+		expiration:             expirationDefault,
+		batchSize:              batchSizeDefault,
+		singleSendInterval:     singleSendDefault,
+		batchSendInterval:      batchSendIntervalDefault,
+		wg:                     &sync.WaitGroup{},
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -75,127 +146,75 @@ func NewProcessor(dispatcher Dispatcher, processorStore store.ProcessorStore, mq
 	return p, nil
 }
 
-func (p *Processor) handleCallbackMessage(msg jetstream.Msg) error {
-	p.logger.Debug("message received", "instance", p.hostName)
-	var errSetURLMapping error
-	request := &callbacker_api.SendRequest{}
-	err := proto.Unmarshal(msg.Data(), request)
+func (p *Processor) Subscribe() error {
+	err := p.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
+		serialized := &callbacker_api.SendRequest{}
+		err := proto.Unmarshal(msg, serialized)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
+		}
+
+		p.logger.Debug("Enqueued callback request",
+			slog.String("url", serialized.CallbackRouting.Url),
+			slog.String("token", serialized.CallbackRouting.Token),
+			slog.String("hash", serialized.Txid),
+			slog.String("status", serialized.Status.String()),
+		)
+
+		p.sendRequestCh <- serialized
+
+		return nil
+	})
 	if err != nil {
-		nakErr := msg.Ack() // Ack instead of nak. The same message will always fail to be unmarshalled
-		if nakErr != nil {
-			return errors.Join(errors.Join(ErrUnmarshal, err), errors.Join(ErrNakMessage, nakErr))
-		}
-		return errors.Join(ErrUnmarshal, err)
+		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
 	}
 
-	if request.CallbackRouting.Url == "" {
-		p.logger.Warn("Empty URL in callback", slog.String("hash", request.Txid), slog.String("timestamp", request.Timestamp.String()), slog.String("status", request.Status.String()))
-		return p.checkAckedMessage(msg, request)
-	}
-
-	// check if this processor the first URL of this request is mapped to this instance
-	p.mu.Lock()
-	instance, found := p.urlMapping[request.CallbackRouting.Url]
-	p.mu.Unlock()
-	if !found {
-		p.logger.Debug("setting URL mapping", "instance", p.hostName, "url", request.CallbackRouting.Url)
-		errSetURLMapping = p.store.SetURLMapping(context.Background(), store.URLMapping{
-			URL:      request.CallbackRouting.Url,
-			Instance: p.hostName,
-		})
-	}
-
-	if errors.Is(errSetURLMapping, store.ErrURLMappingDuplicateKey) {
-		p.logger.Debug("URL already mapped", slog.String("url", request.CallbackRouting.Url), slog.String("err", errSetURLMapping.Error()))
-
-		return p.checkAckedMessage(msg, request)
-	}
-
-	if errSetURLMapping != nil {
-		p.logger.Error("failed to set URL mapping", slog.String("err", errSetURLMapping.Error()))
-
-		nakErr := msg.Nak()
-		if nakErr != nil {
-			return errors.Join(errors.Join(ErrSetMapping, err), errors.Join(ErrNakMessage, nakErr))
-		}
-		return errors.Join(ErrSetMapping, err)
-	}
-
-	p.mu.Lock()
-	p.urlMapping[request.CallbackRouting.Url] = p.hostName
-	p.mu.Unlock()
-
-	if !found || instance == p.hostName {
-		p.logger.Debug("dispatching callback", "instance", p.hostName, "url", request.CallbackRouting.Url)
-		dto := sendRequestToDto(request)
-		if request.CallbackRouting.Url != "" {
-			p.dispatcher.Dispatch(request.CallbackRouting.Url, &CallbackEntry{Token: request.CallbackRouting.Token, Data: dto, AllowBatch: request.CallbackRouting.AllowBatch})
-		}
-	} else {
-		p.logger.Debug("not dispatching callback", "instance", p.hostName, "url", request.CallbackRouting.Url)
-	}
-
-	return p.checkAckedMessage(msg, request)
-}
-
-func (p *Processor) checkAckedMessage(msg jetstream.Msg, request *callbacker_api.SendRequest) error {
-	errAck := msg.Ack()
-	if errAck != nil {
-		return errors.Join(ErrAckMessage, errAck)
-	}
-
-	p.logger.Debug("message acked", "instance", p.hostName, "url", request.CallbackRouting.Url)
 	return nil
 }
 
 func (p *Processor) Start() error {
-	p.startSyncURLMapping()
-
-	err := p.mqClient.ConsumeMsg(mq.CallbackTopic, p.handleCallbackMessage)
+	err := p.Subscribe()
 	if err != nil {
-		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
+		return err
 	}
+	p.StartRoutine(p.clearInterval, CallbackStoreCleanup)
+	p.StartRoutine(p.sendCallbacksInterval, SendCallbacks)
+	p.StartRoutine(p.batchSendInterval, SendBatchCallbacks)
+	p.StartStoreCallbackRequests()
+
 	return nil
 }
 
-func (p *Processor) StartCallbackStoreCleanup(interval, olderThanDuration time.Duration) {
-	ctx := context.Background()
-	ticker := time.NewTicker(interval)
-
-	p.waitGroup.Add(1)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				n := time.Now()
-				midnight := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
-				olderThan := midnight.Add(-1 * olderThanDuration)
-
-				err := p.store.DeleteOlderThan(ctx, olderThan)
-				if err != nil {
-					p.logger.Error("Failed to delete old callbacks in delay", slog.String("err", err.Error()))
-				}
-
-			case <-p.ctx.Done():
-				p.waitGroup.Done()
-				return
-			}
-		}
-	}()
+func toStoreDto(request *callbacker_api.SendRequest) *store.CallbackData {
+	return &store.CallbackData{
+		URL:          request.CallbackRouting.Url,
+		Token:        request.CallbackRouting.Token,
+		Timestamp:    request.Timestamp.AsTime(),
+		CompetingTxs: request.CompetingTxs,
+		TxID:         request.Txid,
+		TxStatus:     request.Status.String(),
+		ExtraInfo:    ptrTo(request.ExtraInfo),
+		MerklePath:   ptrTo(request.MerklePath),
+		BlockHash:    ptrTo(request.BlockHash),
+		BlockHeight:  ptrTo(request.BlockHeight),
+		AllowBatch:   request.CallbackRouting.AllowBatch,
+	}
 }
 
-// DispatchPersistedCallbacks loads and dispatches persisted callbacks with unmapped URLs in intervals
-func (p *Processor) DispatchPersistedCallbacks() {
-	const batchSize = 100
-	ctx := context.Background()
+type CallbackEntry struct {
+	Token      string
+	Data       *Callback
+	AllowBatch bool
+}
 
-	ticker := time.NewTicker(p.dispatchPersistedInterval)
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Processor)) {
+	ticker := time.NewTicker(tickerInterval)
+	p.wg.Add(1)
 
-	p.waitGroup.Add(1)
 	go func() {
 		defer func() {
+			p.wg.Done()
 			ticker.Stop()
-			p.waitGroup.Done()
 		}()
 
 		for {
@@ -203,109 +222,59 @@ func (p *Processor) DispatchPersistedCallbacks() {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				url, err := p.store.GetUnmappedURL(ctx)
-				if err != nil {
-					if !errors.Is(err, store.ErrNoUnmappedURLsFound) {
-						p.logger.Error("Failed to fetch unmapped url", slog.String("err", err.Error()))
-					}
-					continue
-				}
+				routine(p)
+			}
+		}
+	}()
+}
 
-				err = p.store.SetURLMapping(ctx, store.URLMapping{
-					URL:      url,
-					Instance: p.hostName,
-				})
+func (p *Processor) StartStoreCallbackRequests() {
+	ticker := time.NewTicker(p.storeCallbacksInterval)
 
-				if err != nil {
-					if errors.Is(err, store.ErrURLMappingDuplicateKey) {
-						p.logger.Debug("URL already mapped", slog.String("url", url), slog.String("err", err.Error()))
+	p.wg.Add(1)
+	go func() {
+		var toStore []*store.CallbackData
+		defer func() {
+			p.wg.Done()
+			ticker.Stop()
+		}()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				if len(toStore) > 0 {
+					p.logger.Debug("Storing callbacks", slog.Int("count", len(toStore)))
+					rowsAffected, err := p.store.Insert(p.ctx, toStore)
+					if err != nil {
+						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
 						continue
 					}
+					p.logger.Debug("Stored callbacks", slog.Int64("count", rowsAffected))
 
-					p.logger.Error("Failed to set URL mapping", slog.String("err", err.Error()))
-					continue
+					toStore = toStore[:0]
 				}
+			case entry := <-p.sendRequestCh:
+				toStore = append(toStore, toStoreDto(entry))
 
-				callbacks, err := p.store.GetAndDelete(ctx, url, batchSize)
-				if err != nil {
-					p.logger.Error("Failed to load callbacks", slog.String("err", err.Error()))
-					continue
-				}
-
-				if len(callbacks) == 0 {
-					continue
-				}
-				p.logger.Info("Dispatching callbacks with unmapped URL", slog.String("url", url), slog.Int("callbacks", len(callbacks)))
-
-				for _, c := range callbacks {
-					callbackEntry := &CallbackEntry{
-						Token:      c.Token,
-						Data:       toCallback(c),
-						AllowBatch: c.AllowBatch,
+				if len(toStore) >= p.storeCallbackBatchSize {
+					p.logger.Debug("Storing callbacks", slog.Int("count", len(toStore)), slog.Int("batch", p.storeCallbackBatchSize))
+					rowsAffected, err := p.store.Insert(p.ctx, toStore)
+					if err != nil {
+						p.logger.Error("Failed to set many", slog.String("err", err.Error()))
+						continue
 					}
+					p.logger.Debug("Stored callbacks", slog.Int64("count", rowsAffected))
 
-					p.dispatcher.Dispatch(c.URL, callbackEntry)
+					toStore = toStore[:0]
 				}
 			}
 		}
 	}()
-}
-
-func (p *Processor) startSyncURLMapping() {
-	p.waitGroup.Add(1)
-	go func() {
-		timer := time.NewTicker(syncInterval)
-		defer func() {
-			timer.Stop()
-			p.waitGroup.Done()
-		}()
-		for {
-			mappings, err := p.store.GetURLMappings(p.ctx)
-			if err != nil {
-				p.logger.Error("failed to get URL mappings", slog.String("err", err.Error()))
-				continue
-			}
-
-			p.logger.Debug("mapping updated", "mappings", mappings)
-
-			p.mu.Lock()
-			p.urlMapping = mappings
-			p.mu.Unlock()
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-timer.C:
-			}
-		}
-	}()
-}
-
-func toCallback(dto *store.CallbackData) *Callback {
-	d := &Callback{
-		Timestamp: dto.Timestamp,
-
-		CompetingTxs: dto.CompetingTxs,
-		TxID:         dto.TxID,
-		TxStatus:     dto.TxStatus,
-		ExtraInfo:    dto.ExtraInfo,
-		MerklePath:   dto.MerklePath,
-
-		BlockHash:   dto.BlockHash,
-		BlockHeight: dto.BlockHeight,
-	}
-
-	return d
 }
 
 func (p *Processor) GracefulStop() {
-	rowsAffected, err := p.store.DeleteURLMapping(p.ctx, p.hostName)
-	if err != nil {
-		p.logger.Error("Failed to delete URL mapping", slog.String("err", err.Error()))
-	} else {
-		p.logger.Info("Deleted URL mapping", slog.String("hostname", p.hostName), slog.Int64("rows", rowsAffected))
-	}
-
 	p.cancelAll()
 
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }

@@ -20,9 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CallbackerAPI_Health_FullMethodName          = "/callbacker_api.CallbackerAPI/Health"
-	CallbackerAPI_SendCallback_FullMethodName    = "/callbacker_api.CallbackerAPI/SendCallback"
-	CallbackerAPI_UpdateInstances_FullMethodName = "/callbacker_api.CallbackerAPI/UpdateInstances"
+	CallbackerAPI_Health_FullMethodName       = "/callbacker_api.CallbackerAPI/Health"
+	CallbackerAPI_SendCallback_FullMethodName = "/callbacker_api.CallbackerAPI/SendCallback"
 )
 
 // CallbackerAPIClient is the client API for CallbackerAPI service.
@@ -30,8 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CallbackerAPIClient interface {
 	Health(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HealthResponse, error)
-	SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SendCallback(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type callbackerAPIClient struct {
@@ -52,20 +50,10 @@ func (c *callbackerAPIClient) Health(ctx context.Context, in *emptypb.Empty, opt
 	return out, nil
 }
 
-func (c *callbackerAPIClient) SendCallback(ctx context.Context, in *SendCallbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *callbackerAPIClient) SendCallback(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, CallbackerAPI_SendCallback_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateInstancesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, CallbackerAPI_UpdateInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +65,7 @@ func (c *callbackerAPIClient) UpdateInstances(ctx context.Context, in *UpdateIns
 // for forward compatibility.
 type CallbackerAPIServer interface {
 	Health(context.Context, *emptypb.Empty) (*HealthResponse, error)
-	SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error)
-	UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error)
+	SendCallback(context.Context, *SendRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCallbackerAPIServer()
 }
 
@@ -92,11 +79,8 @@ type UnimplementedCallbackerAPIServer struct{}
 func (UnimplementedCallbackerAPIServer) Health(context.Context, *emptypb.Empty) (*HealthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
-func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendCallbackRequest) (*emptypb.Empty, error) {
+func (UnimplementedCallbackerAPIServer) SendCallback(context.Context, *SendRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCallback not implemented")
-}
-func (UnimplementedCallbackerAPIServer) UpdateInstances(context.Context, *UpdateInstancesRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateInstances not implemented")
 }
 func (UnimplementedCallbackerAPIServer) mustEmbedUnimplementedCallbackerAPIServer() {}
 func (UnimplementedCallbackerAPIServer) testEmbeddedByValue()                       {}
@@ -138,7 +122,7 @@ func _CallbackerAPI_Health_Handler(srv interface{}, ctx context.Context, dec fun
 }
 
 func _CallbackerAPI_SendCallback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendCallbackRequest)
+	in := new(SendRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -150,25 +134,7 @@ func _CallbackerAPI_SendCallback_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: CallbackerAPI_SendCallback_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CallbackerAPIServer).SendCallback(ctx, req.(*SendCallbackRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _CallbackerAPI_UpdateInstances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateInstancesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CallbackerAPIServer).UpdateInstances(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: CallbackerAPI_UpdateInstances_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CallbackerAPIServer).UpdateInstances(ctx, req.(*UpdateInstancesRequest))
+		return srv.(CallbackerAPIServer).SendCallback(ctx, req.(*SendRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -187,10 +153,6 @@ var CallbackerAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendCallback",
 			Handler:    _CallbackerAPI_SendCallback_Handler,
-		},
-		{
-			MethodName: "UpdateInstances",
-			Handler:    _CallbackerAPI_UpdateInstances_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

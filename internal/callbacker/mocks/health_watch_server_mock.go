@@ -5,15 +5,10 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"sync"
 )
-
-// Ensure, that HealthWatchServerMock does implement callbacker.HealthWatchServer.
-// If this is not the case, regenerate this file with moq.
-var _ callbacker.HealthWatchServer = &HealthWatchServerMock{}
 
 // HealthWatchServerMock is a mock implementation of callbacker.HealthWatchServer.
 //

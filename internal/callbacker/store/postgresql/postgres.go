@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,11 +22,18 @@ var (
 	ErrFailedToOpenDB = errors.New("failed to open postgres DB")
 )
 
-type PostgreSQL struct {
-	db *sql.DB
+func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
+	return func(m *PostgreSQL) {
+		m.now = nowFunc
+	}
 }
 
-func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
+type PostgreSQL struct {
+	db  *sql.DB
+	now func() time.Time
+}
+
+func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL *PostgreSQL)) (*PostgreSQL, error) {
 	db, err := sql.Open(postgresDriverName, dbInfo)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToOpenDB, err)
@@ -34,18 +42,23 @@ func New(dbInfo string, idleConns int, maxOpenConns int) (*PostgreSQL, error) {
 	db.SetMaxIdleConns(idleConns)
 	db.SetMaxOpenConns(maxOpenConns)
 
-	return &PostgreSQL{db: db}, nil
+	p := &PostgreSQL{
+		db:  db,
+		now: time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p, nil
 }
 
 func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) Set(ctx context.Context, dto *store.CallbackData) error {
-	return p.SetMany(ctx, []*store.CallbackData{dto})
-}
-
-func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) error {
+func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (int64, error) { // Todo: rename Insert
 	urls := make([]string, len(data))
 	tokens := make([]string, len(data))
 	timestamps := make([]time.Time, len(data))
@@ -72,7 +85,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		if d.BlockHeight != nil {
 			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
 			if err != nil {
-				return err
+				return 0, fmt.Errorf("failed to convert block height to int64: %w", err)
 			}
 			blockHeights[i] = sql.NullInt64{Int64: blockHeight, Valid: true}
 		}
@@ -82,7 +95,7 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		}
 	}
 
-	const query = `INSERT INTO callbacker.callbacks (
+	const query = `INSERT INTO callbacker.transaction_callbacks (
 				url
 				,token
 				,tx_id
@@ -106,9 +119,11 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 					,UNNEST($8::BIGINT[])
 					,UNNEST($9::TIMESTAMPTZ[])
 					,UNNEST($10::TEXT[])
-					,UNNEST($11::BOOLEAN[])`
+					,UNNEST($11::BOOLEAN[])
+					ON CONFLICT DO NOTHING
+					`
 
-	_, err := p.db.ExecContext(ctx, query,
+	result, err := p.db.ExecContext(ctx, query,
 		pq.Array(urls),
 		pq.Array(tokens),
 		pq.Array(txids),
@@ -121,38 +136,54 @@ func (p *PostgreSQL) SetMany(ctx context.Context, data []*store.CallbackData) er
 		pq.Array(competingTxs),
 		pq.Array(allowBatches),
 	)
+	if err != nil {
+		return 0, err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, err
 }
 
-// GetAndDelete returns deletes a number of callbacks limited by `limit` ordered by timestamp in ascending order
-func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([]*store.CallbackData, error) {
-	const q = `DELETE FROM callbacker.callbacks
-			WHERE id IN (
-				SELECT id FROM callbacker.callbacks
-				WHERE url = $1
-				ORDER BY timestamp ASC
-				LIMIT $2
-				FOR UPDATE
-			)
-			RETURNING
-				url
-				,token
-				,tx_id
-				,tx_status
-				,extra_info
-				,merkle_path
-				,block_hash
-				,block_height
-				,competing_txs
-				,timestamp
-				,allow_batch`
+func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+	const q = `
+				UPDATE callbacker.transaction_callbacks c SET pending = $1
+				WHERE c.id IN (
+				    SELECT id FROM callbacker.transaction_callbacks c
+					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5)
+					AND NOT EXISTS (
+					SELECT 1 FROM callbacker.transaction_callbacks c1
+					WHERE c1.url=c.url AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with URL for which there are already pending callbacks
+					)
+					ORDER BY c.timestamp ASC
+					LIMIT $4
+					FOR UPDATE
+				)
+				RETURNING
+				c.id
+			    ,c.url
+				,c.token
+				,c.tx_id
+				,c.tx_status
+				,c.extra_info
+				,c.merkle_path
+				,c.block_hash
+				,c.block_height
+				,c.competing_txs
+				,c.timestamp
+				,c.allow_batch
+				;
+			`
 
-	rows, err := p.db.QueryContext(ctx, q, url, limit)
+	const lockTime = 3 * time.Minute
+	expirationDate := p.now().Add(-1 * expiration)
+	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit, p.now().Add(-1*lockTime))
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	var records []*store.CallbackData
 	records, err = scanCallbacks(rows, limit)
@@ -163,108 +194,34 @@ func (p *PostgreSQL) GetAndDelete(ctx context.Context, url string, limit int) ([
 	return records, nil
 }
 
-func (p *PostgreSQL) DeleteOlderThan(ctx context.Context, t time.Time) error {
-	const q = `DELETE FROM callbacker.callbacks
+func (p *PostgreSQL) Clear(ctx context.Context, t time.Time) error {
+	const q = `DELETE FROM callbacker.transaction_callbacks
 			WHERE timestamp <= $1`
 
 	_, err := p.db.ExecContext(ctx, q, t)
 	return err
 }
 
-func (p *PostgreSQL) SetURLMapping(ctx context.Context, m store.URLMapping) error {
-	const q = `INSERT INTO callbacker.url_mapping (
-		 url
-		,instance
-	) VALUES (
-		 $1
-		,$2
-	)`
+func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
+	const q = `UPDATE callbacker.transaction_callbacks SET sent_at = $1, pending = NULL WHERE id = ANY($2::INTEGER[])`
 
-	var pqErr *pq.Error
-	_, err := p.db.ExecContext(ctx, q, m.URL, m.Instance)
-	// Error 23505 is: "duplicate key violates unique constraint"
-	if errors.As(err, &pqErr) && pqErr.Code == pq.ErrorCode("23505") {
-		return store.ErrURLMappingDuplicateKey
+	_, err := p.db.ExecContext(ctx, q, p.now(), pq.Array(ids))
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// GetUnmappedURL Returns unmapped URLs for which there exists a pending callback in the callbacks table
-func (p *PostgreSQL) GetUnmappedURL(ctx context.Context) (url string, err error) {
-	const q = `SELECT c.url FROM callbacker.callbacks c LEFT JOIN callbacker.url_mapping um ON um.url = c.url WHERE um.url IS NULL LIMIT 1;`
+func (p *PostgreSQL) UnsetPending(ctx context.Context, ids []int64) error {
+	const q = `UPDATE callbacker.transaction_callbacks SET pending = NULL WHERE id = ANY($1::INTEGER[])`
 
-	err = p.db.QueryRowContext(ctx, q).Scan(&url)
+	_, err := p.db.ExecContext(ctx, q, pq.Array(ids))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", store.ErrNoUnmappedURLsFound
-		}
-
-		return "", err
+		return err
 	}
 
-	return url, nil
-}
-
-func (p *PostgreSQL) DeleteURLMapping(ctx context.Context, instance string) (rowsAffected int64, err error) {
-	const q = `DELETE FROM callbacker.url_mapping
-			WHERE instance=$1`
-
-	rows, err := p.db.ExecContext(ctx, q, instance)
-	if err != nil {
-		return 0, errors.Join(store.ErrURLMappingDeleteFailed, err)
-	}
-
-	rowsAffected, err = rows.RowsAffected()
-	if err != nil {
-		return 0, nil
-	}
-
-	return rowsAffected, nil
-}
-
-func (p *PostgreSQL) DeleteURLMappingsExcept(ctx context.Context, except []string) (rowsAffected int64, err error) {
-	const q = `DELETE FROM callbacker.url_mapping
-			WHERE NOT instance = ANY($1::TEXT[])`
-
-	param := "{" + strings.Join(except, ",") + "}"
-	rows, err := p.db.ExecContext(ctx, q, param)
-	if err != nil {
-		return 0, errors.Join(store.ErrURLMappingsDeleteFailed, err)
-	}
-
-	rowsAffected, err = rows.RowsAffected()
-	if err != nil {
-		return 0, nil
-	}
-
-	return rowsAffected, nil
-}
-
-func (p *PostgreSQL) GetURLMappings(ctx context.Context) (map[string]string, error) {
-	const q = `SELECT url, instance FROM callbacker.url_mapping`
-
-	rows, err := p.db.QueryContext(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	urlMappings := map[string]string{}
-
-	for rows.Next() {
-		var url string
-		var instance string
-
-		err = rows.Scan(&url, &instance)
-		if err != nil {
-			return nil, err
-		}
-
-		urlMappings[url] = instance
-	}
-
-	return urlMappings, nil
+	return nil
 }
 
 func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, error) {
@@ -280,9 +237,11 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			bh      sql.NullString
 			bHeight sql.NullInt64
 			ctxs    sql.NullString
+			id      sql.NullInt64
 		)
 
 		err := rows.Scan(
+			&id,
 			&r.URL,
 			&r.Token,
 			&r.TxID,
@@ -302,6 +261,9 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 
 		r.Timestamp = ts.UTC()
 
+		if id.Valid {
+			r.ID = id.Int64
+		}
 		if ei.Valid {
 			r.ExtraInfo = ptrTo(ei.String)
 		}

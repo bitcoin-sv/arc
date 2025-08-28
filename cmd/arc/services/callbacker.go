@@ -25,14 +25,12 @@ Graceful Shutdown: on service termination, all components are stopped gracefully
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/send_manager"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store/postgresql"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
@@ -46,7 +44,6 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	var (
 		callbackerStore *postgresql.PostgreSQL
 		sender          *callbacker.CallbackSender
-		dispatcher      *callbacker.CallbackDispatcher
 		server          *callbacker.Server
 		healthServer    *grpc_utils.GrpcServer
 		mqClient        mq.MessageQueueClient
@@ -56,7 +53,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		disposeCallbacker(logger, server, dispatcher, sender, callbackerStore, healthServer, processor, mqClient)
+		disposeCallbacker(logger, server, sender, callbackerStore, healthServer, processor, mqClient)
 		logger.Info("Shutdown callbacker complete")
 	}
 
@@ -71,26 +68,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	runNewManager := func(url string) callbacker.SendManagerI {
-		manager := send_manager.New(url, sender, callbackerStore, logger,
-			send_manager.WithQueueProcessInterval(arcConfig.Callbacker.Pause),
-			send_manager.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
-			send_manager.WithExpiration(arcConfig.Callbacker.Expiration),
-		)
-		manager.Start()
-
-		return manager
-	}
-
-	dispatcher = callbacker.NewCallbackDispatcher(sender, runNewManager)
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to get hostname: %v", err)
-	}
-
-	mqOpts := getCbkMqOpts(hostname)
+	mqOpts := getCbkMqOpts()
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
@@ -98,14 +76,21 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, err
 	}
 
-	processor, err = callbacker.NewProcessor(dispatcher, callbackerStore, mqClient, hostname, logger)
+	processor, err = callbacker.NewProcessor(
+		sender,
+		callbackerStore,
+		mqClient,
+		logger,
+		callbacker.WithExpiration(arcConfig.Callbacker.Expiration),
+		callbacker.WithSingleSendInterval(arcConfig.Callbacker.Pause),
+		callbacker.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
+		callbacker.WithClearInterval(arcConfig.Callbacker.PruneInterval),
+		callbacker.WithClearRetentionPeriod(arcConfig.Callbacker.PruneOlderThan),
+	)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
-
-	processor.StartCallbackStoreCleanup(arcConfig.Callbacker.PruneInterval, arcConfig.Callbacker.PruneOlderThan)
-	processor.DispatchPersistedCallbacks()
 
 	err = processor.Start()
 	if err != nil {
@@ -120,7 +105,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		Name:               "blocktx",
 	}
 
-	server, err = callbacker.NewServer(logger, dispatcher, callbackerStore, mqClient, serverCfg)
+	server, err = callbacker.NewServer(logger, callbackerStore, mqClient, serverCfg)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
@@ -136,13 +121,13 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	return stopFn, nil
 }
 
-func getCbkMqOpts(hostname string) []nats_jetstream.Option {
-	streamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
-	consName := fmt.Sprintf("%s-%s-cons", hostname, mq.CallbackTopic)
+func getCbkMqOpts() []nats_jetstream.Option {
+	callbackStreamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
+	callbackConsName := fmt.Sprintf("%s-cons", mq.CallbackTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.CallbackTopic, streamName, jetstream.InterestPolicy, false),
-		nats_jetstream.WithConsumer(mq.CallbackTopic, streamName, consName, false, jetstream.AckExplicitPolicy),
+		nats_jetstream.WithStream(mq.CallbackTopic, callbackStreamName, jetstream.WorkQueuePolicy, false),
+		nats_jetstream.WithConsumer(mq.CallbackTopic, callbackStreamName, callbackConsName, true, jetstream.AckExplicitPolicy),
 	}
 	return mqOpts
 }
@@ -168,20 +153,17 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 }
 
 func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
-	dispatcher *callbacker.CallbackDispatcher, sender *callbacker.CallbackSender,
+	sender *callbacker.CallbackSender,
 	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient mq.MessageQueueClient) {
 	// dispose the dependencies in the correct order:
 	// 1. server - ensure no new callbacks will be received
-	// 2. dispatcher - ensure all already accepted callbacks are processed
-	// 3. processor - remove all URL mappings
-	// 4. sender - finally, stop the sender as there are no callbacks left to send
+	// 2. processor - remove all URL mappings
+	// 3. sender - stop the sender as there are no callbacks left to send
+	// 4. mqClient - finally, stop the mq client as there are no callbacks left to send
 	// 5. store
 
 	if server != nil {
 		server.GracefulStop()
-	}
-	if dispatcher != nil {
-		dispatcher.GracefulStop()
 	}
 	if processor != nil {
 		processor.GracefulStop()

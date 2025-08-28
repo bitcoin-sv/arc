@@ -8,10 +8,6 @@ import (
 	"sync"
 )
 
-// Ensure, that SenderIMock does implement callbacker.SenderI.
-// If this is not the case, regenerate this file with moq.
-var _ callbacker.SenderI = &SenderIMock{}
-
 // SenderIMock is a mock implementation of callbacker.SenderI.
 //
 //	func TestSomethingThatUsesSenderI(t *testing.T) {

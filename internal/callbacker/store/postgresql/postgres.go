@@ -153,10 +153,10 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 				UPDATE callbacker.transaction_callbacks c SET pending = $1
 				WHERE c.id IN (
 				    SELECT id FROM callbacker.transaction_callbacks c
-					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND c.pending IS NULL
+					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5)
 					AND NOT EXISTS (
 					SELECT 1 FROM callbacker.transaction_callbacks c1
-					WHERE c1.url=c.url AND c1.pending IS NOT NULL -- skip those with URL for which there are already pending callbacks
+					WHERE c1.url=c.url AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with URL for which there are already pending callbacks
 					)
 					ORDER BY c.timestamp ASC
 					LIMIT $4
@@ -178,9 +178,9 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 				;
 			`
 
-	//lockTime := 120 * time.Second
+	const lockTime = 3 * time.Minute
 	expirationDate := p.now().Add(-1 * expiration)
-	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit)
+	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit, p.now().Add(-1*lockTime))
 	if err != nil {
 		return nil, err
 	}

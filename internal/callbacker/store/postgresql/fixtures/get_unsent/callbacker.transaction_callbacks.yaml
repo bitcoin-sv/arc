@@ -11,7 +11,7 @@
   timestamp: 2024-09-01 12:01:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  pending: 2024-09-01 12:02:00
+  pending: 2024-09-01 12:24:00
 
 - url: https://arc-callback-1/callback
   token: token
@@ -93,9 +93,10 @@
   token: token
   tx_id: 6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:02
+  timestamp: 2024-09-01 12:00:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
+  pending: 2024-09-01 12:02:02
 
 - url: https://arc-callback-1/callback
   token: token

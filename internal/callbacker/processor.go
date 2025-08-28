@@ -25,7 +25,7 @@ const (
 	expirationDefault             = 24 * time.Hour
 	batchSendIntervalDefault      = 5 * time.Second
 	storeCallbacksIntervalDefault = 5 * time.Second
-	storeCallbackBatchSizeDefault = 20
+	storeCallbackBatchSizeDefault = 500
 	sendCallbacksInterval         = 5 * time.Second
 )
 

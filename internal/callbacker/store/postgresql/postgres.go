@@ -158,6 +158,7 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 					SELECT 1 FROM callbacker.transaction_callbacks c1
 					WHERE c1.url=c.url AND c1.pending IS NOT NULL -- skip those with URL for which there are already pending callbacks
 					)
+					ORDER BY c.timestamp ASC
 					LIMIT $4
 					FOR UPDATE
 				)

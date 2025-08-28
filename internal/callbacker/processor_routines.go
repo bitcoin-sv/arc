@@ -23,9 +23,20 @@ func CallbackStoreCleanup(p *Processor) {
 }
 
 func SendCallbacks(p *Processor) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
+	Send(p, false, p.sendCallback)
+}
+
+func SendBatchCallbacks(p *Processor) {
+	Send(p, true, p.sendBatchCallback)
+}
+
+func Send(p *Processor, batch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, batch)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
+		return
+	}
+	if len(callbackRecords) == 0 {
 		return
 	}
 
@@ -35,15 +46,15 @@ func SendCallbacks(p *Processor) {
 	}
 
 	g, _ := errgroup.WithContext(p.ctx)
-
 	g.SetLimit(maxParallelRoutines)
 
 	for url, callbacks := range urlCallbacksMap {
 		if len(callbacks) == 0 {
 			continue
 		}
+
 		g.Go(func() error {
-			p.sendCallback(url, callbacks)
+			sendFunc(url, callbacks)
 			return nil
 		})
 	}
@@ -76,38 +87,6 @@ func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
 		}
 
 		time.Sleep(p.singleSendInterval)
-	}
-}
-
-func SendBatchCallbacks(p *Processor) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
-	if err != nil {
-		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
-		return
-	}
-
-	urlCallbacksMap := map[string][]*store.CallbackData{}
-	for _, callbackRecord := range callbackRecords {
-		urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
-	}
-
-	g, _ := errgroup.WithContext(p.ctx)
-	g.SetLimit(maxParallelRoutines)
-
-	for url, callbacks := range urlCallbacksMap {
-		if len(callbacks) == 0 {
-			continue
-		}
-
-		g.Go(func() error {
-			p.sendBatchCallback(url, callbacks)
-			return nil
-		})
-	}
-
-	err = g.Wait()
-	if err != nil {
-		p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
 	}
 }
 

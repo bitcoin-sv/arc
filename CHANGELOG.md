@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.3.54](#1354---2025-07-09)
 - [1.3.20](#1320---2025-02-06)
 - [1.3.13](#1313---2024-12-04)
 - [1.3.12](#1312---2024-12-05)
@@ -21,6 +22,12 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.3.54] - 2025-07-09
+
+### Added
+
+- Transactions which have status SEEN_ON_NETWORK are marked as REJECTED by ARC if these transactions cannot be found in any connected peer's mempool and if a configured number of blocks have passed since the transaction was seen on the network. This should ensure that transactions are not stuck in SEEN_ON_NETWORK status forever. As a consequence, transactions submitted which have been mined earlier than the oldest block data available in `blocktx` will be marked as REJECTED as well.
 
 ## [1.3.20] - 2025-02-06
 

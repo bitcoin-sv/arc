@@ -10,6 +10,7 @@ import (
 
 	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
@@ -58,7 +59,7 @@ func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (int64, error) { // Todo: rename Insert
+func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (int64, error) {
 	urls := make([]string, len(data))
 	tokens := make([]string, len(data))
 	timestamps := make([]time.Time, len(data))
@@ -70,6 +71,7 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 	blockHeights := make([]sql.NullInt64, len(data))
 	competingTxs := make([]*string, len(data))
 	allowBatches := make([]bool, len(data))
+	hashes := make([][]byte, len(data))
 
 	for i, d := range data {
 		urls[i] = d.URL
@@ -93,6 +95,12 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 		if len(d.CompetingTxs) > 0 {
 			competingTxs[i] = ptrTo(strings.Join(d.CompetingTxs, ","))
 		}
+		hash, err := chainhash.NewHashFromStr(d.TxID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to convert txid to hash: %w", err)
+		}
+
+		hashes[i] = hash[:]
 	}
 
 	const query = `INSERT INTO callbacker.transaction_callbacks (
@@ -107,6 +115,7 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 				,timestamp
 				,competing_txs
 				,allow_batch
+				,hash
 				)
 				SELECT
 					UNNEST($1::TEXT[])
@@ -120,6 +129,7 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 					,UNNEST($9::TIMESTAMPTZ[])
 					,UNNEST($10::TEXT[])
 					,UNNEST($11::BOOLEAN[])
+					,UNNEST($12::BYTEA[])
 					ON CONFLICT DO NOTHING
 					`
 
@@ -135,6 +145,7 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 		pq.Array(timestamps),
 		pq.Array(competingTxs),
 		pq.Array(allowBatches),
+		pq.Array(hashes),
 	)
 	if err != nil {
 		return 0, err

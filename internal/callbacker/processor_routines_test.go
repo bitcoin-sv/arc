@@ -138,7 +138,7 @@ func TestSendCallbacks(t *testing.T) {
 			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger)
 			require.NoError(t, err)
 			defer processor.GracefulStop()
-			callbacker.SendCallbacks(processor)
+			callbacker.LoadAndSendSingleCallbacks(processor)
 
 			require.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
 			require.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
@@ -231,7 +231,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger)
 			require.NoError(t, err)
 			defer processor.GracefulStop()
-			callbacker.SendBatchCallbacks(processor)
+			callbacker.LoadAndSendBatchCallbacks(processor)
 
 			require.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
 			require.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))

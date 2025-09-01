@@ -22,15 +22,15 @@ func CallbackStoreCleanup(p *Processor) {
 	}
 }
 
-func SendCallbacks(p *Processor) {
-	Send(p, false, p.sendCallback)
+func LoadAndSendSingleCallbacks(p *Processor) {
+	LoadAndSendCallbacks(p, false, p.sendSingleCallbacks)
 }
 
-func SendBatchCallbacks(p *Processor) {
-	Send(p, true, p.sendBatchCallback)
+func LoadAndSendBatchCallbacks(p *Processor) {
+	LoadAndSendCallbacks(p, true, p.sendBatchCallback)
 }
 
-func Send(p *Processor, batch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
+func LoadAndSendCallbacks(p *Processor, batch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
 	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, batch)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
@@ -65,7 +65,7 @@ func Send(p *Processor, batch bool, sendFunc func(url string, cbs []*store.Callb
 	}
 }
 
-func (p *Processor) sendCallback(url string, cbs []*store.CallbackData) {
+func (p *Processor) sendSingleCallbacks(url string, cbs []*store.CallbackData) {
 	cbIDs := make([]int64, len(cbs))
 	for i, cb := range cbs {
 		cbIDs[i] = cb.ID

@@ -167,7 +167,7 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5)
 					AND NOT EXISTS (
 					SELECT 1 FROM callbacker.transaction_callbacks c1
-					WHERE c1.url=c.url AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with URL for which there are already pending callbacks
+					WHERE c1.hash=c.hash AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with hash for which there are already pending callbacks
 					)
 					ORDER BY c.timestamp ASC
 					LIMIT $4

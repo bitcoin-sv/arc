@@ -40,18 +40,21 @@ func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, 
 		return
 	}
 
-	urlCallbacksMap := map[string][]*store.CallbackData{}
+	hashCallbacksMap := map[string][]*store.CallbackData{}
 	for _, callbackRecord := range callbackRecords {
-		urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
+		hashCallbacksMap[callbackRecord.TxID] = append(hashCallbacksMap[callbackRecord.TxID], callbackRecord)
 	}
 
 	g, _ := errgroup.WithContext(p.ctx)
 	g.SetLimit(maxParallelRoutines)
 
-	for url, callbacks := range urlCallbacksMap {
+	for _, callbacks := range hashCallbacksMap {
 		if len(callbacks) == 0 {
 			continue
 		}
+
+
+		url := callbacks[0].URL
 
 		g.Go(func() error {
 			sendFunc(url, callbacks)

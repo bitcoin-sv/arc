@@ -270,152 +270,6 @@ func (x *SendRequest) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
-// swagger:model SendCallbackRequest
-type SendCallbackRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	CallbackRoutings []*CallbackRouting     `protobuf:"bytes,1,rep,name=callback_routings,json=callbackRoutings,proto3" json:"callback_routings,omitempty"`
-	Txid             string                 `protobuf:"bytes,2,opt,name=txid,proto3" json:"txid,omitempty"`
-	Status           Status                 `protobuf:"varint,3,opt,name=status,proto3,enum=callbacker_api.Status" json:"status,omitempty"`
-	MerklePath       string                 `protobuf:"bytes,4,opt,name=merkle_path,json=merklePath,proto3" json:"merkle_path,omitempty"`
-	ExtraInfo        string                 `protobuf:"bytes,5,opt,name=extra_info,json=extraInfo,proto3" json:"extra_info,omitempty"`
-	CompetingTxs     []string               `protobuf:"bytes,6,rep,name=competing_txs,json=competingTxs,proto3" json:"competing_txs,omitempty"`
-	BlockHash        string                 `protobuf:"bytes,7,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
-	BlockHeight      uint64                 `protobuf:"varint,8,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *SendCallbackRequest) Reset() {
-	*x = SendCallbackRequest{}
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SendCallbackRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SendCallbackRequest) ProtoMessage() {}
-
-func (x *SendCallbackRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SendCallbackRequest.ProtoReflect.Descriptor instead.
-func (*SendCallbackRequest) Descriptor() ([]byte, []int) {
-	return file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SendCallbackRequest) GetCallbackRoutings() []*CallbackRouting {
-	if x != nil {
-		return x.CallbackRoutings
-	}
-	return nil
-}
-
-func (x *SendCallbackRequest) GetTxid() string {
-	if x != nil {
-		return x.Txid
-	}
-	return ""
-}
-
-func (x *SendCallbackRequest) GetStatus() Status {
-	if x != nil {
-		return x.Status
-	}
-	return Status_UNKNOWN
-}
-
-func (x *SendCallbackRequest) GetMerklePath() string {
-	if x != nil {
-		return x.MerklePath
-	}
-	return ""
-}
-
-func (x *SendCallbackRequest) GetExtraInfo() string {
-	if x != nil {
-		return x.ExtraInfo
-	}
-	return ""
-}
-
-func (x *SendCallbackRequest) GetCompetingTxs() []string {
-	if x != nil {
-		return x.CompetingTxs
-	}
-	return nil
-}
-
-func (x *SendCallbackRequest) GetBlockHash() string {
-	if x != nil {
-		return x.BlockHash
-	}
-	return ""
-}
-
-func (x *SendCallbackRequest) GetBlockHeight() uint64 {
-	if x != nil {
-		return x.BlockHeight
-	}
-	return 0
-}
-
-// swagger:model UpdateInstancesRequest
-type UpdateInstancesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Instances     []string               `protobuf:"bytes,1,rep,name=instances,proto3" json:"instances,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateInstancesRequest) Reset() {
-	*x = UpdateInstancesRequest{}
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateInstancesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateInstancesRequest) ProtoMessage() {}
-
-func (x *UpdateInstancesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateInstancesRequest.ProtoReflect.Descriptor instead.
-func (*UpdateInstancesRequest) Descriptor() ([]byte, []int) {
-	return file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *UpdateInstancesRequest) GetInstances() []string {
-	if x != nil {
-		return x.Instances
-	}
-	return nil
-}
-
 // swagger:model CallbackRouting
 type CallbackRouting struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -428,7 +282,7 @@ type CallbackRouting struct {
 
 func (x *CallbackRouting) Reset() {
 	*x = CallbackRouting{}
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[4]
+	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -440,7 +294,7 @@ func (x *CallbackRouting) String() string {
 func (*CallbackRouting) ProtoMessage() {}
 
 func (x *CallbackRouting) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[4]
+	mi := &file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -453,7 +307,7 @@ func (x *CallbackRouting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallbackRouting.ProtoReflect.Descriptor instead.
 func (*CallbackRouting) Descriptor() ([]byte, []int) {
-	return file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescGZIP(), []int{4}
+	return file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CallbackRouting) GetUrl() string {
@@ -497,21 +351,7 @@ const file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDesc = "" 
 	"\n" +
 	"block_hash\x18\a \x01(\tR\tblockHash\x12!\n" +
 	"\fblock_height\x18\b \x01(\x04R\vblockHeight\x128\n" +
-	"\ttimestamp\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xce\x02\n" +
-	"\x13SendCallbackRequest\x12L\n" +
-	"\x11callback_routings\x18\x01 \x03(\v2\x1f.callbacker_api.CallbackRoutingR\x10callbackRoutings\x12\x12\n" +
-	"\x04txid\x18\x02 \x01(\tR\x04txid\x12.\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x16.callbacker_api.StatusR\x06status\x12\x1f\n" +
-	"\vmerkle_path\x18\x04 \x01(\tR\n" +
-	"merklePath\x12\x1d\n" +
-	"\n" +
-	"extra_info\x18\x05 \x01(\tR\textraInfo\x12#\n" +
-	"\rcompeting_txs\x18\x06 \x03(\tR\fcompetingTxs\x12\x1d\n" +
-	"\n" +
-	"block_hash\x18\a \x01(\tR\tblockHash\x12!\n" +
-	"\fblock_height\x18\b \x01(\x04R\vblockHeight\"6\n" +
-	"\x16UpdateInstancesRequest\x12\x1c\n" +
-	"\tinstances\x18\x01 \x03(\tR\tinstances\"Z\n" +
+	"\ttimestamp\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"Z\n" +
 	"\x0fCallbackRouting\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12\x1f\n" +
@@ -534,11 +374,10 @@ const file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDesc = "" 
 	"\x16DOUBLE_SPEND_ATTEMPTED\x10d\x12\f\n" +
 	"\bREJECTED\x10n\x12\x18\n" +
 	"\x14MINED_IN_STALE_BLOCK\x10s\x12\t\n" +
-	"\x05MINED\x10x2\xf7\x01\n" +
+	"\x05MINED\x10x2\x9a\x01\n" +
 	"\rCallbackerAPI\x12B\n" +
-	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1e.callbacker_api.HealthResponse\"\x00\x12M\n" +
-	"\fSendCallback\x12#.callbacker_api.SendCallbackRequest\x1a\x16.google.protobuf.Empty\"\x00\x12S\n" +
-	"\x0fUpdateInstances\x12&.callbacker_api.UpdateInstancesRequest\x1a\x16.google.protobuf.Empty\"\x00B\x12Z\x10.;callbacker_apib\x06proto3"
+	"\x06Health\x12\x16.google.protobuf.Empty\x1a\x1e.callbacker_api.HealthResponse\"\x00\x12E\n" +
+	"\fSendCallback\x12\x1b.callbacker_api.SendRequest\x1a\x16.google.protobuf.Empty\"\x00B\x12Z\x10.;callbacker_apib\x06proto3"
 
 var (
 	file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescOnce sync.Once
@@ -553,35 +392,29 @@ func file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDescGZIP() 
 }
 
 var file_internal_callbacker_callbacker_api_callbacker_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_internal_callbacker_callbacker_api_callbacker_api_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_internal_callbacker_callbacker_api_callbacker_api_proto_goTypes = []any{
-	(Status)(0),                    // 0: callbacker_api.Status
-	(*HealthResponse)(nil),         // 1: callbacker_api.HealthResponse
-	(*SendRequest)(nil),            // 2: callbacker_api.SendRequest
-	(*SendCallbackRequest)(nil),    // 3: callbacker_api.SendCallbackRequest
-	(*UpdateInstancesRequest)(nil), // 4: callbacker_api.UpdateInstancesRequest
-	(*CallbackRouting)(nil),        // 5: callbacker_api.CallbackRouting
-	(*timestamppb.Timestamp)(nil),  // 6: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),          // 7: google.protobuf.Empty
+	(Status)(0),                   // 0: callbacker_api.Status
+	(*HealthResponse)(nil),        // 1: callbacker_api.HealthResponse
+	(*SendRequest)(nil),           // 2: callbacker_api.SendRequest
+	(*CallbackRouting)(nil),       // 3: callbacker_api.CallbackRouting
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),         // 5: google.protobuf.Empty
 }
 var file_internal_callbacker_callbacker_api_callbacker_api_proto_depIdxs = []int32{
-	6, // 0: callbacker_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
-	5, // 1: callbacker_api.SendRequest.callback_routing:type_name -> callbacker_api.CallbackRouting
+	4, // 0: callbacker_api.HealthResponse.timestamp:type_name -> google.protobuf.Timestamp
+	3, // 1: callbacker_api.SendRequest.callback_routing:type_name -> callbacker_api.CallbackRouting
 	0, // 2: callbacker_api.SendRequest.status:type_name -> callbacker_api.Status
-	6, // 3: callbacker_api.SendRequest.timestamp:type_name -> google.protobuf.Timestamp
-	5, // 4: callbacker_api.SendCallbackRequest.callback_routings:type_name -> callbacker_api.CallbackRouting
-	0, // 5: callbacker_api.SendCallbackRequest.status:type_name -> callbacker_api.Status
-	7, // 6: callbacker_api.CallbackerAPI.Health:input_type -> google.protobuf.Empty
-	3, // 7: callbacker_api.CallbackerAPI.SendCallback:input_type -> callbacker_api.SendCallbackRequest
-	4, // 8: callbacker_api.CallbackerAPI.UpdateInstances:input_type -> callbacker_api.UpdateInstancesRequest
-	1, // 9: callbacker_api.CallbackerAPI.Health:output_type -> callbacker_api.HealthResponse
-	7, // 10: callbacker_api.CallbackerAPI.SendCallback:output_type -> google.protobuf.Empty
-	7, // 11: callbacker_api.CallbackerAPI.UpdateInstances:output_type -> google.protobuf.Empty
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4, // 3: callbacker_api.SendRequest.timestamp:type_name -> google.protobuf.Timestamp
+	5, // 4: callbacker_api.CallbackerAPI.Health:input_type -> google.protobuf.Empty
+	2, // 5: callbacker_api.CallbackerAPI.SendCallback:input_type -> callbacker_api.SendRequest
+	1, // 6: callbacker_api.CallbackerAPI.Health:output_type -> callbacker_api.HealthResponse
+	5, // 7: callbacker_api.CallbackerAPI.SendCallback:output_type -> google.protobuf.Empty
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_internal_callbacker_callbacker_api_callbacker_api_proto_init() }
@@ -595,7 +428,7 @@ func file_internal_callbacker_callbacker_api_callbacker_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDesc), len(file_internal_callbacker_callbacker_api_callbacker_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

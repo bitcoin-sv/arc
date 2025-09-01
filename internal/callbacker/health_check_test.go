@@ -58,18 +58,8 @@ func TestCheck(t *testing.T) {
 			req := &grpc_health_v1.HealthCheckRequest{
 				Service: tc.service,
 			}
-			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(url string, dto *callbacker.CallbackEntry) {
-				switch url {
-				case "https://example.com/callback1":
-					require.Equal(t, dto.Token, "token1")
-				case "https://example.com/callback2":
-					require.Equal(t, dto.Token, "token2")
-				default:
-					t.Fatalf("unexpected callback URL: %s", url)
-				}
-			}}
 
-			sut, err := callbacker.NewServer(slog.Default(), dispatcher, nil, tc.mqClient, grpc_utils.ServerConfig{})
+			sut, err := callbacker.NewServer(slog.Default(), nil, tc.mqClient, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -125,17 +115,7 @@ func TestWatch(t *testing.T) {
 				Service: tc.service,
 			}
 
-			dispatcher := &mocks.DispatcherMock{DispatchFunc: func(url string, dto *callbacker.CallbackEntry) {
-				switch url {
-				case "https://example.com/callback1":
-					require.Equal(t, dto.Token, "token1")
-				case "https://example.com/callback2":
-					require.Equal(t, dto.Token, "token2")
-				default:
-					t.Fatalf("unexpected callback URL: %s", url)
-				}
-			}}
-			sut, err := callbacker.NewServer(slog.Default(), dispatcher, nil, tc.mqClient, grpc_utils.ServerConfig{})
+			sut, err := callbacker.NewServer(slog.Default(), nil, tc.mqClient, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
 
 			defer sut.GracefulStop()

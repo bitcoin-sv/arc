@@ -123,8 +123,6 @@ func TestDoubleSpend(t *testing.T) {
 		}
 
 		// wait for callbacks
-		callbackTimeout := time.After(5 * time.Second)
-
 		var receivedCallbacks []callbackData
 
 	callbackLoop:
@@ -134,7 +132,7 @@ func TestDoubleSpend(t *testing.T) {
 				receivedCallbacks = append(receivedCallbacks, callbackData{txID: status.Txid, status: status.TxStatus})
 			case err = <-callbackErrChan:
 				t.Fatalf("callback error: %v", err)
-			case <-callbackTimeout:
+			case <-time.After(callbackDeadline):
 				break callbackLoop
 			}
 		}

@@ -61,48 +61,45 @@ func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
 		return
 	}
 
-	in := toGrpcInput(data)
-	if in == nil {
+	inputs := toGrpcInputs(data)
+	if inputs == nil {
 		return
 	}
 
-	_, err = c.client.SendCallback(ctx, in)
-	if err != nil {
-		c.logger.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
+	for _, in := range inputs {
+		_, err = c.client.SendCallback(ctx, in)
+		if err != nil {
+			c.logger.Error("sending callback failed", slog.String("err", err.Error()), slog.Any("input", in))
+		}
 	}
 }
 
-func toGrpcInput(data *store.Data) *callbacker_api.SendCallbackRequest {
-	routings := make([]*callbacker_api.CallbackRouting, 0, len(data.Callbacks))
+func toGrpcInputs(data *store.Data) []*callbacker_api.SendRequest {
+	requests := make([]*callbacker_api.SendRequest, 0, len(data.Callbacks))
 
 	for _, c := range data.Callbacks {
 		if c.CallbackURL != "" {
-			routings = append(routings, &callbacker_api.CallbackRouting{
-				Url:        c.CallbackURL,
-				Token:      c.CallbackToken,
-				AllowBatch: c.AllowBatch,
-			})
+			in := callbacker_api.SendRequest{
+				CallbackRouting: &callbacker_api.CallbackRouting{
+					Url:        c.CallbackURL,
+					Token:      c.CallbackToken,
+					AllowBatch: c.AllowBatch,
+				},
+				Txid:         data.Hash.String(),
+				Status:       callbacker_api.Status(data.Status),
+				MerklePath:   data.MerklePath,
+				ExtraInfo:    getCallbackExtraInfo(data),
+				CompetingTxs: getCallbackCompetitingTxs(data),
+
+				BlockHash:   getCallbackBlockHash(data),
+				BlockHeight: data.BlockHeight,
+			}
+
+			requests = append(requests, &in)
 		}
 	}
 
-	if len(routings) == 0 {
-		return nil
-	}
-
-	in := callbacker_api.SendCallbackRequest{
-		CallbackRoutings: routings,
-
-		Txid:         data.Hash.String(),
-		Status:       callbacker_api.Status(data.Status),
-		MerklePath:   data.MerklePath,
-		ExtraInfo:    getCallbackExtraInfo(data),
-		CompetingTxs: getCallbackCompetitingTxs(data),
-
-		BlockHash:   getCallbackBlockHash(data),
-		BlockHeight: data.BlockHeight,
-	}
-
-	return &in
+	return requests
 }
 
 func getCallbackExtraInfo(data *store.Data) string {

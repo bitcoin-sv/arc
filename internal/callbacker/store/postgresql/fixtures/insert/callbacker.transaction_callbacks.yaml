@@ -1,0 +1,7 @@
+- url: https://arc-callback-1/callback
+  token: token
+  tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
+  tx_status: "MINED"
+  timestamp: 2024-09-01 12:25:00
+  block_hash: 0000000000000000072be13e375ffd673b1f37b0ec5ecde7b7e15b01f5685d07
+  block_height: 4524235

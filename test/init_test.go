@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	log.Printf("current block height: %d", info.Blocks)
+	log.Printf("block height: %d", info.Blocks)
 	m.Run()
 }
 
@@ -45,6 +45,7 @@ func setupSut() {
 		log.Fatalln(err)
 	}
 
+	log.Printf("block height: %d", info.Blocks)
 	// fund node
 	const minNumbeOfBlocks = 101
 
@@ -68,6 +69,8 @@ func setupSut() {
 			if err != nil {
 				log.Fatalln(err)
 			}
+
+			log.Printf("block height: %d", info.Blocks)
 
 			missingBlocks := minNumbeOfBlocks - info.Blocks
 			if missingBlocks < 0 {

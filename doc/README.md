@@ -165,7 +165,7 @@ The Callbacker handles request retries and treats any HTTP status code outside t
 
 >NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
 
-Multiple instances of Callbacker can run in parallel. In order to ensure the chronological order of callbacks each callback URL is always handled by only one callbacker instance. The synchronization on which instance handles which URL happens using a dedicated database table which maps callbacker instance to URL.
+Multiple instances of Callbacker can run in parallel.
 
 ### BlockTx
 

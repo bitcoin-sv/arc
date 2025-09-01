@@ -21,8 +21,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -84,10 +82,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	var mqOpts []nats_jetstream.Option
-
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue)
 	if err != nil {
 		return nil, err
 	}

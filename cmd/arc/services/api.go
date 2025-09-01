@@ -9,8 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
@@ -67,9 +65,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		logger.Info("Shutdown complete")
 	}
 
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, []nats_jetstream.Option{}, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue)
 	if err != nil {
 		stopFn()
 		return nil, err

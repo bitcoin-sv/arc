@@ -35,7 +35,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
 func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, globalCfg *config.GlobalConfig) (func(), error) {
@@ -70,8 +69,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, global
 
 	mqOpts := getCbkMqOpts()
 
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}

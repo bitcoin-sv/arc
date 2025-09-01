@@ -15,7 +15,8 @@ global:
       enabled: true  # if enabled, message queue can store messages - currently ARC only supports message queue with streaming enabled
       fileStorage: false # if enabled messages are persisted on disk instead of in memory
     URL: nats://nats:4222 # URL for message queue
-    initialize: true # initialize streams and consumers
+    user: user
+    password: password
   reBroadcastExpiration: 24h # time since last submitted after which transactions are not re-broadcasted anymore
   tracing:
     enabled: true # if true, then tracing is enabled

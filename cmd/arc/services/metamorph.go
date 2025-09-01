@@ -28,7 +28,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -85,13 +84,9 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	var mqOpts []nats_jetstream.Option
-	if globalCfg.MessageQueue.Initialize {
-		mqOpts = getMtmMqOpts()
-	}
+	mqOpts := getMtmMqOpts()
 
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}

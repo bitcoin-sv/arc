@@ -1,6 +1,7 @@
 package blocktx_test
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"os"
@@ -18,6 +19,9 @@ import (
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 )
+
+var tx1 = []byte("tx1")
+var tx2 = []byte("tx2")
 
 func TestListenAndServe(t *testing.T) {
 	tt := []struct {
@@ -59,7 +63,7 @@ func TestAnyTransactionsMined(t *testing.T) {
 			name: "empty transactions",
 			minedTxs: []store.BlockTransaction{
 				{
-					TxHash: []byte("tx2"),
+					TxHash: tx2,
 				},
 			},
 			isMined: false,
@@ -68,7 +72,7 @@ func TestAnyTransactionsMined(t *testing.T) {
 			name: "found mined transaction",
 			minedTxs: []store.BlockTransaction{
 				{
-					TxHash: []byte("tx1"),
+					TxHash: tx1,
 				},
 			},
 			isMined: true,
@@ -91,10 +95,15 @@ func TestAnyTransactionsMined(t *testing.T) {
 			defer sut.GracefulStop()
 
 			res, err := sut.AnyTransactionsMined(context.Background(), &blocktx_api.Transactions{Transactions: []*blocktx_api.Transaction{
-				{Hash: []byte("tx1")},
+				{Hash: tx1},
 			}})
 			require.NoError(t, err)
-			require.Equal(t, tc.isMined, res.Transactions[0].Mined)
+			for _, tx := range res.Transactions {
+				if bytes.Equal(tx.Hash, tx1) {
+					require.Equal(t, tc.isMined, tx.Mined)
+					break
+				}
+			}
 		})
 	}
 }

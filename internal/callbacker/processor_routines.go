@@ -30,8 +30,8 @@ func LoadAndSendBatchCallbacks(p *Processor) {
 	LoadAndSendCallbacks(p, true, p.sendBatchCallback)
 }
 
-func LoadAndSendCallbacks(p *Processor, batch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, batch)
+func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, isBatch)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 		return

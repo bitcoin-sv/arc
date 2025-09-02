@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
-- [1.3.59](#1359---2025-08-28)
+- [1.4.0](#140---2025-09-02)
 - [1.3.54](#1354---2025-07-09)
 - [1.3.20](#1320---2025-02-06)
 - [1.3.13](#1313---2024-12-04)
@@ -24,7 +24,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [1.3.59] - 2025-08-28
+## [1.4.0] - 2025-09-02
 
 ### Changed
 - Callbacker stores all callbacks on the database. Any callbacker instance loads a batch of unsent callbacks and sends them in chronological order per URL. Once a callback was sent successfully, it is updated with a timestamp.

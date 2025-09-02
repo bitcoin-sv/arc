@@ -178,8 +178,8 @@ func (p *Processor) Start() error {
 		return err
 	}
 	p.StartRoutine(p.clearInterval, CallbackStoreCleanup)
-	p.StartRoutine(p.sendCallbacksInterval, SendCallbacks)
-	p.StartRoutine(p.batchSendInterval, SendBatchCallbacks)
+	p.StartRoutine(p.sendCallbacksInterval, LoadAndSendSingleCallbacks)
+	p.StartRoutine(p.batchSendInterval, LoadAndSendBatchCallbacks)
 	p.StartStoreCallbackRequests()
 
 	return nil

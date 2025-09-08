@@ -82,9 +82,9 @@ func TestSendCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:    1,
-			expectedSenderSendCalls:   2,
+			expectedSenderSendCalls:   3,
 			expectedSetSentCalls:      0,
-			expectedUnsetPendingCalls: 2,
+			expectedUnsetPendingCalls: 3,
 		},
 	}
 
@@ -165,8 +165,8 @@ func TestSendBatchCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 2,
-			expectedSetSentCalls:         2,
+			expectedSenderSendBatchCalls: 3,
+			expectedSetSentCalls:         3,
 			expectedUnsetPendingCalls:    0,
 		},
 		{
@@ -175,9 +175,9 @@ func TestSendBatchCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 2,
+			expectedSenderSendBatchCalls: 3,
 			expectedSetSentCalls:         0,
-			expectedUnsetPendingCalls:    2,
+			expectedUnsetPendingCalls:    3,
 		},
 	}
 

@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-const maxParallelRoutines = 10
+const maxParallelRoutines = 100
 
 func CallbackStoreCleanup(p *Processor) {
 	n := time.Now()
@@ -52,7 +52,6 @@ func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, 
 		if len(callbacks) == 0 {
 			continue
 		}
-
 
 		url := callbacks[0].URL
 

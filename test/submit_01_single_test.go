@@ -12,11 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 //go:embed fixtures/malformedTxHexString.txt
@@ -197,10 +196,15 @@ func TestReturnMinedStatus(t *testing.T) {
 			require.NoError(t, err)
 		}()
 
-		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		isClosed := PtrTo(false)
+		isClosedFunc := func() bool {
+			return *isClosed
+		}
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, isClosedFunc, mux)
 		defer func() {
 			t.Log("closing channels")
-
+			isClosed = PtrTo(true)
 			close(callbackReceivedChan)
 			close(callbackErrChan)
 		}()
@@ -350,10 +354,17 @@ func TestCallback(t *testing.T) {
 				callbackReceivedChan := make(chan TransactionResponse, 100) // do not block callback server responses
 				callbackErrChan := make(chan error, 100)
 
+				isClosed := PtrTo(false)
+				isClosedFunc := func() bool {
+					return *isClosed
+				}
+
 				callbackResponseFn := getResponseFunc[TransactionResponse](t, callbacksNumber)
-				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, callbackResponseFn, mux)
+				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, callbackResponseFn, isClosedFunc, mux)
 				defer func() {
 					t.Log("closing channels")
+
+					isClosed = PtrTo(true)
 
 					close(callbackReceivedChan)
 					close(callbackErrChan)
@@ -522,11 +533,16 @@ func TestBatchCallback(t *testing.T) {
 			for range tc.numberOfCallbackServers {
 				callbackReceivedChan := make(chan CallbackBatchResponse, 100) // do not block callback server responses
 				callbackErrChan := make(chan error, 100)
+				isClosed := PtrTo(false)
+				isClosedFunc := func() bool {
+					return *isClosed
+				}
 
 				calbackResponseFn := getResponseFunc[CallbackBatchResponse](t, callbacksNumber)
-				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, calbackResponseFn, mux)
+				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, calbackResponseFn, isClosedFunc, mux)
 				defer func() {
 					t.Log("closing channels")
+					isClosed = PtrTo(true)
 
 					close(callbackReceivedChan)
 					close(callbackErrChan)
@@ -610,12 +626,12 @@ func TestBatchCallback(t *testing.T) {
 
 						for _, callback := range batch.Callbacks {
 							visitNumber, txWasExpected := expectedTxsCallbacks[callback.Txid]
-							assert.True(t, txWasExpected)
+							require.True(t, txWasExpected)
 
 							visitNumber++
 							expectedTxsCallbacks[callback.Txid] = visitNumber
 
-							assert.Equal(t, StatusMined, callback.TxStatus)
+							require.Equal(t, StatusMined, callback.TxStatus)
 						}
 
 					case err = <-srv.errChan:
@@ -628,11 +644,11 @@ func TestBatchCallback(t *testing.T) {
 				}
 
 				for _, err = range errs {
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				}
 
 				for txID, receivedCallbacks := range expectedTxsCallbacks {
-					assert.Equalf(t, expectedCallbacksNumber, receivedCallbacks, "expected callbacks mismatch for tx: %s", txID)
+					require.Equalf(t, expectedCallbacksNumber, receivedCallbacks, "expected callbacks mismatch for tx: %s", txID)
 				}
 			}
 		})

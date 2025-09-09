@@ -257,7 +257,7 @@ services:
 
   tests:
     image: test-arc
-    command: [ "./e2e_test.test" ]
+    command: [ "./e2e_test.test" , "-test.v", " -test.failfast"]
     depends_on:
       - api
 

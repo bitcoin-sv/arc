@@ -47,7 +47,7 @@ tasks:
   run_e2e_tests:
     desc: Run end-to-end tests with multiple instances of services
     cmds:
-      - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --exit-code-from tests
+      - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --scale callbacker=2 --exit-code-from tests
       - docker compose down
 
   run_e2e_tests_with_tracing:

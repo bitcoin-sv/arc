@@ -67,6 +67,15 @@ type CallbackBatchResponse struct {
 	Callbacks []*TransactionResponse `json:"callbacks,omitempty"`
 }
 
+type ReceivedCallbackBatch struct {
+	response CallbackBatchResponse
+	url      string
+}
+
+func (c ReceivedCallbackBatch) GetTxID() string {
+	return c.response.Callbacks[0].Txid
+}
+
 func (c CallbackBatchResponse) GetTxID() string {
 	return c.Callbacks[0].Txid
 }
@@ -189,6 +198,73 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 			} else {
 				t.Log("callback received too late")
 			}
+		}
+	})
+
+	return callbackURL, token
+}
+
+func registerHandlerForBatchCallback(t *testing.T, receivedChan chan ReceivedCallbackBatch, errChan chan error, respondSuccessAtCallbacks int, isClosed func() bool, mux *http.ServeMux) (callbackURL, token string) {
+	t.Helper()
+
+	b := make([]byte, 16)
+	_, err := cRand.Read(b)
+	require.NoError(t, err)
+	callback := hex.EncodeToString(b)
+
+	token = "1234"
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	t.Logf("random callback URL: %s", callbackURL)
+
+	responseVisitMap := make(map[string]int)
+	mu := &sync.Mutex{}
+
+	mux.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+		// check auth
+		if expectedAuthHeader != req.Header.Get("Authorization") {
+			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+			err = respondToCallback(w, false)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+			return
+		}
+
+		status, err := readPayload[CallbackBatchResponse](t, req)
+		if err != nil {
+			errChan <- fmt.Errorf("read callback payload failed: %v", err)
+			return
+		}
+
+		mu.Lock()
+		txID := status.GetTxID()
+		callbackCounter := responseVisitMap[txID]
+		callbackCounter++
+		responseVisitMap[txID] = callbackCounter
+		mu.Unlock()
+
+		// Let ARC send the same callback few times
+		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
+
+		respondErr := respondToCallback(w, respondWithSuccess)
+		if respondErr != nil {
+			t.Fatalf("Failed to respond to callback: %v", respondErr)
+		}
+
+		if !isClosed() {
+			received := ReceivedCallbackBatch{
+				response: status,
+				url:      callbackURL,
+			}
+
+			receivedChan <- received
+		} else {
+			t.Log("callback received after closing channel")
 		}
 	})
 
@@ -325,7 +401,7 @@ func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) fu
 		if !isClosed() {
 			rc <- status
 		} else {
-			t.Log("callback received too late")
+			t.Log("callback received after closing channel")
 		}
 	}
 	return calbackResponseFn

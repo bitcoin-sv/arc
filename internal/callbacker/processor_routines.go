@@ -30,6 +30,11 @@ func LoadAndSendBatchCallbacks(p *Processor) {
 	LoadAndSendCallbacks(p, true, p.sendBatchCallback)
 }
 
+type callbackKey struct {
+	txID string
+	url  string
+}
+
 func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
 	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, isBatch)
 	if err != nil {
@@ -40,20 +45,24 @@ func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, 
 		return
 	}
 
-	hashCallbacksMap := map[string][]*store.CallbackData{}
+	hashCallbacksMap := map[callbackKey][]*store.CallbackData{}
 	for _, callbackRecord := range callbackRecords {
-		hashCallbacksMap[callbackRecord.TxID] = append(hashCallbacksMap[callbackRecord.TxID], callbackRecord)
+		key := callbackKey{
+			txID: callbackRecord.TxID,
+			url:  callbackRecord.URL,
+		}
+		hashCallbacksMap[key] = append(hashCallbacksMap[key], callbackRecord)
 	}
 
 	g, _ := errgroup.WithContext(p.ctx)
 	g.SetLimit(maxParallelRoutines)
 
-	for _, callbacks := range hashCallbacksMap {
+	for key, callbacks := range hashCallbacksMap {
 		if len(callbacks) == 0 {
 			continue
 		}
 
-		url := callbacks[0].URL
+		url := key.url
 
 		g.Go(func() error {
 			sendFunc(url, callbacks)

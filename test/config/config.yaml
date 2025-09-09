@@ -159,7 +159,7 @@ api:
 callbacker:
   listenAddr: 0.0.0.0:8021
   dialAddr: callbacker:8021
-  pause: 1s
+  pause: 100ms
   batchSendInterval: 5s
   pruneOlderThan: 336h
   pruneInterval: 24h

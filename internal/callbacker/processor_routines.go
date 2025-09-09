@@ -23,11 +23,11 @@ func CallbackStoreCleanup(p *Processor) {
 }
 
 func LoadAndSendSingleCallbacks(p *Processor) {
-	LoadAndSendCallbacks(p, false, p.sendSingleCallbacks)
+	LoadAndSendCallbacks(p, p.sendSingleCallbacks)
 }
 
 func LoadAndSendBatchCallbacks(p *Processor) {
-	LoadAndSendCallbacks(p, true, p.sendBatchCallback)
+	LoadAndSendBatchedCallbacks(p, p.sendBatchCallback)
 }
 
 type callbackKey struct {
@@ -35,8 +35,8 @@ type callbackKey struct {
 	url  string
 }
 
-func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, isBatch)
+func LoadAndSendCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 		return
@@ -63,6 +63,43 @@ func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, 
 		}
 
 		url := key.url
+
+		g.Go(func() error {
+			sendFunc(url, callbacks)
+			return nil
+		})
+	}
+
+	err = g.Wait()
+	if err != nil {
+		p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
+	}
+}
+
+func LoadAndSendBatchedCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
+	if err != nil {
+		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
+		return
+	}
+	if len(callbackRecords) == 0 {
+		return
+	}
+
+	hashCallbacksMap := map[string][]*store.CallbackData{}
+	for _, callbackRecord := range callbackRecords {
+		hashCallbacksMap[callbackRecord.URL] = append(hashCallbacksMap[callbackRecord.URL], callbackRecord)
+	}
+
+	g, _ := errgroup.WithContext(p.ctx)
+	g.SetLimit(maxParallelRoutines)
+
+	for key, callbacks := range hashCallbacksMap {
+		if len(callbacks) == 0 {
+			continue
+		}
+
+		url := key
 
 		g.Go(func() error {
 			sendFunc(url, callbacks)

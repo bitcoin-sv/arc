@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -165,8 +166,8 @@ func TestSendBatchCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 3,
-			expectedSetSentCalls:         3,
+			expectedSenderSendBatchCalls: 2,
+			expectedSetSentCalls:         2,
 			expectedUnsetPendingCalls:    0,
 		},
 		{
@@ -175,9 +176,9 @@ func TestSendBatchCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 3,
+			expectedSenderSendBatchCalls: 2,
 			expectedSetSentCalls:         0,
-			expectedUnsetPendingCalls:    3,
+			expectedUnsetPendingCalls:    2,
 		},
 	}
 
@@ -233,10 +234,10 @@ func TestSendBatchCallbacks(t *testing.T) {
 			defer processor.GracefulStop()
 			callbacker.LoadAndSendBatchCallbacks(processor)
 
-			require.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
-			require.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
-			require.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
-			require.Equal(t, tc.expectedSenderSendBatchCalls, len(sender.SendBatchCalls()))
+			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
+			assert.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
+			assert.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
+			assert.Equal(t, tc.expectedSenderSendBatchCalls, len(sender.SendBatchCalls()))
 		})
 	}
 }

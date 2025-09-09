@@ -36,7 +36,7 @@ const (
 	StatusRejected             = "REJECTED"
 	StatusMined                = "MINED"
 	StatusMinedInStaleBlock    = "MINED_IN_STALE_BLOCK"
-	callbackDeadline           = 30 * time.Second
+	callbackDeadline           = 20 * time.Second
 )
 
 type TransactionResponseBatch []TransactionResponse

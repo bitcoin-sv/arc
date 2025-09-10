@@ -57,15 +57,11 @@ func LoadAndSendCallbacks(p *Processor, sendFunc func(url string, cbs []*store.C
 	g, _ := errgroup.WithContext(p.ctx)
 	g.SetLimit(maxParallelRoutines)
 
-	for key, callbacks := range hashCallbacksMap {
-		if len(callbacks) == 0 {
-			continue
-		}
-
-		url := key.url
+	for cbKey, callbacks := range hashCallbacksMap {
+		url := cbKey.url
 
 		g.Go(func() error {
-			sendFunc(url, callbacks)
+			sendFunc(url, []*store.CallbackData{callbacks[len(callbacks)-1]})
 			return nil
 		})
 	}

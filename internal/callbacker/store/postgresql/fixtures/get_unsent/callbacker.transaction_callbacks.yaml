@@ -18,13 +18,6 @@
 - url: https://arc-callback-1/callback
   token: token
   tx_id: 3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7
-  tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:01
-  hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
-
-- url: https://arc-callback-1/callback
-  token: token
-  tx_id: 3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7
   tx_status: "MINED"
   timestamp: 2024-09-01 12:01:01
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
@@ -33,6 +26,13 @@
 
 - url: https://arc-callback-1/callback
   token: token
+  tx_id: 3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7
+  tx_status: "SEEN_ON_NETWORK"
+  timestamp: 2024-09-01 12:00:01
+  hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
+
+- url: https://arc-callback-1/callback
+  token: token
   tx_id: 277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
@@ -50,31 +50,31 @@
 - url: https://arc-callback-2/callback
   token: token
   tx_id: 13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343
-  tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
-  hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
-
-- url: https://arc-callback-2/callback
-  token: token
-  tx_id: 13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:02
+  timestamp: 2024-09-01 12:02:03
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
 
 - url: https://arc-callback-2/callback
   token: token
+  tx_id: 13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343
+  tx_status: "SEEN_ON_NETWORK"
+  timestamp: 2024-09-01 12:02:02
+  hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
+
+- url: https://arc-callback-2/callback
+  token: token
   tx_id: 862f7781e2e65efddd3cb6bb3a924ea53edba299354991eb38bf47ec6e5c986c
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
+  timestamp: 2024-09-01 12:03:01
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
 
 - url: https://arc-callback-2/callback
   token: token
   tx_id: 862f7781e2e65efddd3cb6bb3a924ea53edba299354991eb38bf47ec6e5c986c
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:02
+  timestamp: 2024-09-01 12:03:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
@@ -83,14 +83,14 @@
   token: token
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
+  timestamp: 2024-09-01 12:04:01
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
 
 - url: https://arc-callback-1/callback
   token: token
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:02
+  timestamp: 2024-09-01 12:04:02
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
@@ -98,18 +98,18 @@
 - url: https://arc-callback-2/callback
   token: token
   tx_id: 6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070
-  tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
+  tx_status: "MINED"
+  timestamp: 2024-09-01 12:05:02
+  block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
+  block_height: 860339
+  pending: 2024-09-01 12:02:02
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
 
 - url: https://arc-callback-2/callback
   token: token
   tx_id: 6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070
-  tx_status: "MINED"
-  timestamp: 2024-09-01 12:00:02
-  block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
-  block_height: 860339
-  pending: 2024-09-01 12:02:02
+  tx_status: "SEEN_ON_NETWORK"
+  timestamp: 2024-09-01 12:05:01
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
 
 - url: https://arc-callback-1/callback

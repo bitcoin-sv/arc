@@ -136,6 +136,10 @@ var Cmd = &cobra.Command{
 		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
 		go func() {
+			// Todo: print all settings
+
+			// Todo: start all rate broadcasters at once
+
 			// Start the broadcasting process
 			logger.Info("Starting rate broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize), slog.String("batch interval", submitBatchInterval.String()), slog.Int("parallel", rateBroadcaster.Len()))
 			err := rateBroadcaster.Start()

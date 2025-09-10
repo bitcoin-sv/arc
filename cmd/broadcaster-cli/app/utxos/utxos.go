@@ -40,7 +40,7 @@ func init() {
 	}
 
 	Cmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
-	err = viper.BindPFlag("callback", Cmd.PersistentFlags().Lookup("callback"))
+	err = viper.BindPFlag("callback", Cmd.PersistentFlags().Lookup("callback")) // Todo: Change to callbackURL
 	if err != nil {
 		logger.Error("failed to bind flag", slog.String("flag", "callback"), slog.String("err", err.Error()))
 		return

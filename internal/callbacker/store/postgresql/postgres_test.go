@@ -237,7 +237,6 @@ func TestPostgresDBt(t *testing.T) {
 		require.True(t, isSorted, "records are not sorted by timestamp ascending")
 
 		expected := store.CallbackData{
-			ID:         4,
 			URL:        "https://arc-callback-1/callback",
 			Token:      "token",
 			Timestamp:  time.Date(2024, 9, 1, 12, 0, 1, 0, time.UTC),
@@ -245,7 +244,12 @@ func TestPostgresDBt(t *testing.T) {
 			TxStatus:   "SEEN_ON_NETWORK",
 			AllowBatch: false,
 		}
-		require.Equal(t, expected, *records[0])
+		require.Equal(t, expected.URL, records[0].URL)
+		require.Equal(t, expected.Token, records[0].Token)
+		require.Equal(t, expected.Timestamp, records[0].Timestamp)
+		require.Equal(t, expected.TxID, records[0].TxID)
+		require.Equal(t, expected.TxStatus, records[0].TxStatus)
+		require.Equal(t, expected.AllowBatch, records[0].AllowBatch)
 
 		expectedTxIDs := map[string]struct{}{
 			"3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7": {},

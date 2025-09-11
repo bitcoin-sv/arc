@@ -82,9 +82,9 @@ func init() {
 		if err != nil {
 			logger.Error("failed to mark flag hidden", slog.String("flag", "fullStatusUpdates"), slog.String("err", err.Error()))
 		}
-		err = command.Flags().MarkHidden("callback")
+		err = command.Flags().MarkHidden("callbackURL")
 		if err != nil {
-			logger.Error("failed to mark flag hidden", slog.String("flag", "callback"), slog.String("err", err.Error()))
+			logger.Error("failed to mark flag hidden", slog.String("flag", "callbackURL"), slog.String("err", err.Error()))
 		}
 		err = command.Flags().MarkHidden("callbackToken")
 		if err != nil {

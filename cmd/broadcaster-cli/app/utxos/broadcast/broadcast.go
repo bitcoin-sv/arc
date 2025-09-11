@@ -47,7 +47,7 @@ var Cmd = &cobra.Command{
 
 		isTestnet := helper.GetBool("testnet")
 
-		callbackURL := helper.GetString("callback")
+		callbackURL := helper.GetString("callbackURL")
 
 		callbackToken := helper.GetString("callbackToken")
 

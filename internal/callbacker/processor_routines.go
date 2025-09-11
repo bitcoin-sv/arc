@@ -1,6 +1,7 @@
 package callbacker
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -70,18 +71,22 @@ func (p *Processor) sendSingleCallbacks(url string, cbs []*store.CallbackData) {
 	for i, cb := range cbs {
 		cbIDs[i] = cb.ID
 	}
+	p.wg.Add(1)
+	defer p.wg.Done()
+
+	ctx := context.WithoutCancel(p.ctx)
 	for _, cb := range cbs {
 		cbEntry := toEntry(cb)
 		success, retry := p.sender.Send(url, cbEntry.Token, cbEntry.Data)
 		if retry || !success {
-			err := p.store.UnsetPending(p.ctx, cbIDs)
+			err := p.store.UnsetPending(ctx, cbIDs)
 			if err != nil {
 				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
 			}
 			break
 		}
 
-		err := p.store.SetSent(p.ctx, []int64{cb.ID})
+		err := p.store.SetSent(ctx, []int64{cb.ID})
 		if err != nil {
 			p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
 		}
@@ -93,20 +98,25 @@ func (p *Processor) sendSingleCallbacks(url string, cbs []*store.CallbackData) {
 func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	batch := make([]*Callback, len(cbs))
 	cbIDs := make([]int64, len(cbs))
+	p.wg.Add(1)
+	defer p.wg.Done()
+
 	for i, cb := range cbs {
 		batch[i] = toCallback(cb)
 		cbIDs[i] = cb.ID
 	}
 	success, retry := p.sender.SendBatch(url, cbs[0].Token, batch)
+	ctx := context.WithoutCancel(p.ctx)
+
 	if retry || !success {
-		err := p.store.UnsetPending(p.ctx, cbIDs)
+		err := p.store.UnsetPending(ctx, cbIDs)
 		if err != nil {
 			p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
 		}
 		return
 	}
 
-	err := p.store.SetSent(p.ctx, cbIDs)
+	err := p.store.SetSent(ctx, cbIDs)
 	if err != nil {
 		p.logger.Error("Failed to set sent", slog.String("err", err.Error()))
 	}

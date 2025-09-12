@@ -19,7 +19,7 @@ var _ broadcaster.Ticker = &TickerMock{}
 //
 //		// make and configure a mocked broadcaster.Ticker
 //		mockedTicker := &TickerMock{
-//			GetTickerChFunc: func() (<-chan time.Time, error) {
+//			GetTickerChFunc: func() <-chan time.Time {
 //				panic("mock out the GetTickerCh method")
 //			},
 //		}
@@ -30,7 +30,7 @@ var _ broadcaster.Ticker = &TickerMock{}
 //	}
 type TickerMock struct {
 	// GetTickerChFunc mocks the GetTickerCh method.
-	GetTickerChFunc func() (<-chan time.Time, error)
+	GetTickerChFunc func() <-chan time.Time
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -42,7 +42,7 @@ type TickerMock struct {
 }
 
 // GetTickerCh calls GetTickerChFunc.
-func (mock *TickerMock) GetTickerCh() (<-chan time.Time, error) {
+func (mock *TickerMock) GetTickerCh() <-chan time.Time {
 	if mock.GetTickerChFunc == nil {
 		panic("TickerMock.GetTickerChFunc: method is nil but Ticker.GetTickerCh was just called")
 	}

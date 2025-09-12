@@ -10,7 +10,8 @@ import (
 )
 
 type RateBroadcaster interface {
-	Start() error
+	Initialize() error
+	Start()
 	Wait()
 	Shutdown()
 	GetLimit() int64
@@ -55,14 +56,52 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts
 }
 
 func (mrb *MultiKeyRateBroadcaster) Start() error {
-	mrb.logStats()
-	for _, rb := range mrb.rbs {
-		err := rb.Start()
+	errChan := make(chan error, 1) // buffered to avoid goroutine leak if multiple errors occur
+	initWG := &sync.WaitGroup{}
+	done := make(chan struct{})
 
+	mrb.logger.Info("initializing broadcasters")
+
+	for _, rb := range mrb.rbs {
+		initWG.Add(1)
+		go func() {
+			defer initWG.Done()
+
+			err := rb.Initialize()
+			if err != nil {
+				// Send the first error only; ignore subsequent ones.
+				select {
+				case errChan <- err:
+				default:
+				}
+			}
+		}()
+	}
+
+	// Signal when all initializations are done
+	go func() {
+		initWG.Wait()
+		close(done)
+	}()
+
+	// Wait for either the first error or successful completion
+	select {
+	case err := <-errChan:
+		// Cancel background work and return immediately
+		mrb.cancelAll()
+		return err
+	case <-done:
+	}
+
+	for _, rb := range mrb.rbs {
 		atomic.AddInt64(&mrb.target, rb.GetLimit())
-		if err != nil {
-			return err
-		}
+	}
+
+	mrb.logger.Info("initialized - starting broadcasters")
+	mrb.logStats()
+
+	for _, rb := range mrb.rbs {
+		rb.Start()
 	}
 
 	for _, rb := range mrb.rbs {

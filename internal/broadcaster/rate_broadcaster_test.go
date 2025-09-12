@@ -95,8 +95,8 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 	tickerCh := make(chan time.Time, 5)
 	ticker := &mocks.TickerMock{
-		GetTickerChFunc: func() (<-chan time.Time, error) {
-			return tickerCh, nil
+		GetTickerChFunc: func() <-chan time.Time {
+			return tickerCh
 		},
 	}
 	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
@@ -172,7 +172,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.NoError(t, err)
 
 			// when then
-			err = sut.Start()
+			err = sut.Initialize()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -245,8 +245,8 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			// given
 			tickerCh := make(chan time.Time, 5)
 			ticker := &mocks.TickerMock{
-				GetTickerChFunc: func() (<-chan time.Time, error) {
-					return tickerCh, nil
+				GetTickerChFunc: func() <-chan time.Time {
+					return tickerCh
 				},
 			}
 			utxoClient := &mocks.UtxoClientMock{
@@ -317,7 +317,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			}
 
 			// when then
-			err = sut.Start()
+			err = sut.Initialize()
 			require.NoError(t, err)
 
 			time.Sleep(2 * time.Second)

@@ -27,20 +27,20 @@ var (
 
 type Config struct {
 	RateTxsPerSecond    int
-	BatchSize           int
-	Limit               int64
 	WaitForStatus       int
+	CallbackURL         string
+	CallbackToken       string
+	ArcServer           string
+	IsTestnet           bool
+	BatchSize           int
+	FullStatusUpdates   bool
+	Limit               int64
 	OpReturn            string
 	RampUpTickerEnabled bool
 	SizeJitterMax       int64
-	FullStatusUpdates   bool
-	IsTestnet           bool
-	CallbackURL         string
-	CallbackToken       string
 	Authorization       string
-	MiningFeeSat        uint64
-	ArcServer           string
 	WocAPIKey           string
+	MiningFeeSat        uint64
 	LogLevel            string
 	LogFormat           string
 	MinFeeSat           uint64
@@ -160,11 +160,10 @@ var Cmd = &cobra.Command{
 
 		go func() {
 			logger.Info("config", slog.Any("config", cfg))
-
-			// Todo: start all rate broadcasters at once
+			keyNames := helper.GetOrderedKeys(keySetsMap)
+			logger.Info("keys", slog.Any("names", keyNames))
 
 			// Start the broadcasting process
-			logger.Info("Starting rate broadcaster")
 			err := rateBroadcaster.Start()
 			doneChan <- err // Send the completion or error signal
 		}()
@@ -172,7 +171,7 @@ var Cmd = &cobra.Command{
 		select {
 		case <-signalChan:
 			// If an interrupt signal is received
-			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
+			logger.Info("Shutdown signal received")
 		case err := <-doneChan:
 			if err != nil {
 				logger.Error("Error during broadcasting", slog.String("err", err.Error()))
@@ -181,7 +180,7 @@ var Cmd = &cobra.Command{
 
 		// Shutdown the broadcaster in all cases
 		rateBroadcaster.Shutdown()
-		logger.Info("Broadcasting shutdown complete")
+		logger.Info("Shutdown complete")
 		return nil
 	},
 }

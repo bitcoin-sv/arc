@@ -97,7 +97,7 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 		atomic.AddInt64(&mrb.target, rb.GetLimit())
 	}
 
-	mrb.logger.Info("broadcaster initialized - starting broadcasters")
+	mrb.logger.Info("initialized - starting broadcasters")
 	mrb.logStats()
 
 	for _, rb := range mrb.rbs {

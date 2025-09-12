@@ -30,10 +30,13 @@ var _ broadcaster.RateBroadcaster = &RateBroadcasterMock{}
 //			GetUtxoSetLenFunc: func() int {
 //				panic("mock out the GetUtxoSetLen method")
 //			},
+//			InitializeFunc: func() error {
+//				panic("mock out the Initialize method")
+//			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StartFunc: func() error {
+//			StartFunc: func()  {
 //				panic("mock out the Start method")
 //			},
 //			WaitFunc: func()  {
@@ -58,11 +61,14 @@ type RateBroadcasterMock struct {
 	// GetUtxoSetLenFunc mocks the GetUtxoSetLen method.
 	GetUtxoSetLenFunc func() int
 
+	// InitializeFunc mocks the Initialize method.
+	InitializeFunc func() error
+
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
 
 	// StartFunc mocks the Start method.
-	StartFunc func() error
+	StartFunc func()
 
 	// WaitFunc mocks the Wait method.
 	WaitFunc func()
@@ -81,6 +87,9 @@ type RateBroadcasterMock struct {
 		// GetUtxoSetLen holds details about calls to the GetUtxoSetLen method.
 		GetUtxoSetLen []struct {
 		}
+		// Initialize holds details about calls to the Initialize method.
+		Initialize []struct {
+		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
@@ -95,6 +104,7 @@ type RateBroadcasterMock struct {
 	lockGetLimit           sync.RWMutex
 	lockGetTxCount         sync.RWMutex
 	lockGetUtxoSetLen      sync.RWMutex
+	lockInitialize         sync.RWMutex
 	lockShutdown           sync.RWMutex
 	lockStart              sync.RWMutex
 	lockWait               sync.RWMutex
@@ -208,6 +218,33 @@ func (mock *RateBroadcasterMock) GetUtxoSetLenCalls() []struct {
 	return calls
 }
 
+// Initialize calls InitializeFunc.
+func (mock *RateBroadcasterMock) Initialize() error {
+	if mock.InitializeFunc == nil {
+		panic("RateBroadcasterMock.InitializeFunc: method is nil but RateBroadcaster.Initialize was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockInitialize.Lock()
+	mock.calls.Initialize = append(mock.calls.Initialize, callInfo)
+	mock.lockInitialize.Unlock()
+	return mock.InitializeFunc()
+}
+
+// InitializeCalls gets all the calls that were made to Initialize.
+// Check the length with:
+//
+//	len(mockedRateBroadcaster.InitializeCalls())
+func (mock *RateBroadcasterMock) InitializeCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockInitialize.RLock()
+	calls = mock.calls.Initialize
+	mock.lockInitialize.RUnlock()
+	return calls
+}
+
 // Shutdown calls ShutdownFunc.
 func (mock *RateBroadcasterMock) Shutdown() {
 	if mock.ShutdownFunc == nil {
@@ -236,7 +273,7 @@ func (mock *RateBroadcasterMock) ShutdownCalls() []struct {
 }
 
 // Start calls StartFunc.
-func (mock *RateBroadcasterMock) Start() error {
+func (mock *RateBroadcasterMock) Start() {
 	if mock.StartFunc == nil {
 		panic("RateBroadcasterMock.StartFunc: method is nil but RateBroadcaster.Start was just called")
 	}
@@ -245,7 +282,7 @@ func (mock *RateBroadcasterMock) Start() error {
 	mock.lockStart.Lock()
 	mock.calls.Start = append(mock.calls.Start, callInfo)
 	mock.lockStart.Unlock()
-	return mock.StartFunc()
+	mock.StartFunc()
 }
 
 // StartCalls gets all the calls that were made to Start.

@@ -46,6 +46,29 @@ type Config struct {
 	MinFeeSat           uint64
 }
 
+func (c Config) Log(logger *slog.Logger) {
+	logger.Info("config",
+		"rate", c.RateTxsPerSecond,
+		"waitForStatus", c.WaitForStatus,
+		"callbackURL", c.CallbackURL,
+		"callbackToken", c.CallbackToken,
+		"arcServer", c.ArcServer,
+		"isTestnet", c.IsTestnet,
+		"batchSize", c.BatchSize,
+		"fullStatusUpdates", c.FullStatusUpdates,
+		"limit", c.Limit,
+		"opReturn", c.OpReturn,
+		"rampUpTickerEnabled", c.RampUpTickerEnabled,
+		"sizeJitterMax", c.SizeJitterMax,
+		"authorization", c.Authorization,
+		"wocAPIKey", c.WocAPIKey,
+		"miningFeeSat", c.MiningFeeSat,
+		"logLevel", c.LogLevel,
+		"logFormat", c.LogFormat,
+		"minFeeSat", c.MinFeeSat,
+	)
+}
+
 var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "Submit transactions to ARC",
@@ -159,7 +182,7 @@ var Cmd = &cobra.Command{
 		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
 		go func() {
-			logger.Info("config", slog.Any("config", cfg))
+			cfg.Log(logger)
 			keyNames := helper.GetOrderedKeys(keySetsMap)
 			logger.Info("keys", slog.Any("names", keyNames))
 

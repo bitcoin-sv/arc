@@ -10,15 +10,15 @@ env:
 tasks:
   default:
     desc: Run dependencies, linting, build, and tests
-    deps: [deps, lint, build, test]
+    deps: [ deps, lint, build, test ]
 
   deps:
     desc: Download Go module dependencies
-    cmds: [go mod download]
+    cmds: [ go mod download ]
 
   build:
     desc: Build the Go project
-    cmds: [go build ./...]
+    cmds: [ go build ./... ]
 
   build_release:
     desc: Build release binary for Linux AMD64 with version info
@@ -34,26 +34,31 @@ tasks:
 
   run:
     desc: Run ARC services in Docker using development environment
-    deps: [build_docker]
+    deps: [ build_docker ]
     cmds:
       - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api
 
+  build_run_e2e_tests:
+    desc: Build and run end-to-end tests with multiple instances of services
+    deps: [ build_docker ]
+    cmds:
+      - task: run_e2e_tests
+
   run_e2e_tests:
     desc: Run end-to-end tests with multiple instances of services
-    deps: [build_docker]
     cmds:
-      - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --exit-code-from tests
+      - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests --scale blocktx=2 --scale metamorph=2 --scale callbacker=2 --exit-code-from tests
       - docker compose down
 
   run_e2e_tests_with_tracing:
     desc: Run E2E tests with tracing enabled and Jaeger
-    deps: [build_docker]
+    deps: [ build_docker ]
     cmds:
       - ARC_TRACING_ENABLED=TRUE docker compose --env-file ./.env.dev up blocktx callbacker metamorph api tests jaeger --scale blocktx=2 --scale metamorph=2 --no-attach jaeger
 
   run_e2e_mcast_tests:
     desc: Run multicast E2E tests using alternative docker-compose file
-    deps: [build_docker]
+    deps: [ build_docker ]
     cmds:
       - docker compose -f docker-compose-mcast.yaml --env-file ./.env.dev up mcast_sidecar blocktx metamorph api tests --scale blocktx=6 --exit-code-from tests
       - docker compose -f docker-compose-mcast.yaml down
@@ -82,7 +87,7 @@ tasks:
 
   install_lint:
     desc: Install linting tools (staticcheck)
-    cmds: [go install honnef.co/go/tools/cmd/staticcheck@2025.1.1]
+    cmds: [ go install honnef.co/go/tools/cmd/staticcheck@2025.1.1 ]
 
   lint:
     desc: Run linters (golangci-lint and staticcheck)
@@ -92,11 +97,11 @@ tasks:
 
   lint_fix:
     desc: Automatically fix lint issues with golangci-lint
-    cmds: [golangci-lint run -v ./... --fix]
+    cmds: [ golangci-lint run -v ./... --fix ]
 
   gen_go:
     desc: Generate Go code in code base
-    cmds: [go generate ./...]
+    cmds: [ go generate ./... ]
 
   gen:
     desc: Generate protobuf code for all APIs
@@ -152,7 +157,7 @@ tasks:
 
   clean:
     desc: Remove build artifacts
-    cmds: [rm -rf build/]
+    cmds: [ rm -rf build/ ]
 
   install:
     desc: Install pre-commit hooks
@@ -171,7 +176,7 @@ tasks:
 
   docs:
     desc: Generate project documentation
-    cmds: [sh scripts/generate_docs.sh]
+    cmds: [ sh scripts/generate_docs.sh ]
 
   gh-pages:
     desc: Publish documentation to GitHub Pages
@@ -180,7 +185,7 @@ tasks:
 
   api:
     desc: Generate Go API code from OpenAPI spec
-    cmds: [oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yaml > pkg/api/arc.go]
+    cmds: [ oapi-codegen -config pkg/api/config.yaml pkg/api/arc.yaml > pkg/api/arc.go ]
 
   compare_config:
     desc: Compare current configuration with dumped config

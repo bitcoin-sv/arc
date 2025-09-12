@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"log"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -229,11 +230,41 @@ func TestPostgresDBt(t *testing.T) {
 		const limit = 20
 		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false)
 		require.NoError(t, err)
-		require.Len(t, records, 6)
+		require.Len(t, records, 13)
+		isSorted := sort.SliceIsSorted(records, func(i, j int) bool {
+			return records[i].Timestamp.Before(records[j].Timestamp)
+		})
+		require.True(t, isSorted, "records are not sorted by timestamp ascending")
+
+		expected := store.CallbackData{
+			URL:        "https://arc-callback-1/callback",
+			Token:      "token",
+			Timestamp:  time.Date(2024, 9, 1, 12, 0, 1, 0, time.UTC),
+			TxID:       "3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7",
+			TxStatus:   "SEEN_ON_NETWORK",
+			AllowBatch: false,
+		}
+		require.Equal(t, expected.URL, records[0].URL)
+		require.Equal(t, expected.Token, records[0].Token)
+		require.Equal(t, expected.Timestamp, records[0].Timestamp)
+		require.Equal(t, expected.TxID, records[0].TxID)
+		require.Equal(t, expected.TxStatus, records[0].TxStatus)
+		require.Equal(t, expected.AllowBatch, records[0].AllowBatch)
+
+		expectedTxIDs := map[string]struct{}{
+			"3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7": {},
+			"277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc": {},
+			"13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343": {},
+			"862f7781e2e65efddd3cb6bb3a924ea53edba299354991eb38bf47ec6e5c986c": {},
+			"0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9": {},
+			"6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070": {},
+			"c50eeb84c58780bb0eb39f430deb93e5f362fe16b73aa4f811c089e14a1815ae": {},
+		}
 
 		ids := make([]int64, len(records))
 		for i, record := range records {
-			require.Equal(t, "https://arc-callback-2/callback", record.URL)
+			_, found := expectedTxIDs[record.TxID]
+			require.True(t, found)
 			ids[i] = record.ID
 		}
 

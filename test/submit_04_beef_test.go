@@ -16,6 +16,7 @@ import (
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
 )
@@ -82,10 +83,14 @@ func TestBeef(t *testing.T) {
 			err = lis.Close()
 			require.NoError(t, err)
 		}()
-
-		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		isClosed := ptr.To(false)
+		isClosedFunc := func() bool {
+			return *isClosed
+		}
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, isClosedFunc, mux)
 		defer func() {
 			t.Log("closing channels")
+			isClosed = ptr.To(true)
 
 			close(callbackReceivedChan)
 			close(callbackErrChan)

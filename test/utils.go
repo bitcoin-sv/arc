@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	ec "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -25,8 +26,6 @@ import (
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 const (
@@ -37,7 +36,7 @@ const (
 	StatusRejected             = "REJECTED"
 	StatusMined                = "MINED"
 	StatusMinedInStaleBlock    = "MINED_IN_STALE_BLOCK"
-	callbackDeadline           = 15 * time.Second
+	callbackDeadline           = 20 * time.Second
 )
 
 type TransactionResponseBatch []TransactionResponse
@@ -66,6 +65,15 @@ func (c TransactionResponse) GetTxID() string {
 type CallbackBatchResponse struct {
 	Count     int                    `json:"count"`
 	Callbacks []*TransactionResponse `json:"callbacks,omitempty"`
+}
+
+type ReceivedCallbackBatch struct {
+	response CallbackBatchResponse
+	url      string
+}
+
+func (c ReceivedCallbackBatch) GetTxID() string {
+	return c.response.Callbacks[0].Txid
 }
 
 func (c CallbackBatchResponse) GetTxID() string {
@@ -142,7 +150,7 @@ func postRequest[T any](t *testing.T, url string, reader io.Reader, headers map[
 }
 
 // registerHandlerForCallback registers a new handler function that responds to callbacks with bad request response first and at second try with success or alternative given response function. It returns the callback URL and token to be used.
-func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errChan chan error, alternativeResponseFn func(w http.ResponseWriter, rc chan T, ec chan error, status T), mux *http.ServeMux) (callbackURL, token string) {
+func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errChan chan error, alternativeResponseFn func(w http.ResponseWriter, rc chan T, ec chan error, status T, isClosed func() bool), isClosed func() bool, mux *http.ServeMux) (callbackURL, token string) {
 	t.Helper()
 
 	b := make([]byte, 16)
@@ -177,7 +185,7 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 		}
 
 		if alternativeResponseFn != nil {
-			alternativeResponseFn(w, receivedChan, errChan, status)
+			alternativeResponseFn(w, receivedChan, errChan, status, isClosed)
 		} else {
 			t.Log("callback received, responding success")
 			err = respondToCallback(w, true)
@@ -185,7 +193,78 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 				t.Fatalf("Failed to respond to callback: %v", err)
 			}
 
-			receivedChan <- status
+			if !isClosed() {
+				receivedChan <- status
+			} else {
+				t.Log("callback received too late")
+			}
+		}
+	})
+
+	return callbackURL, token
+}
+
+func registerHandlerForBatchCallback(t *testing.T, receivedChan chan ReceivedCallbackBatch, errChan chan error, respondSuccessAtCallbacks int, isClosed func() bool, mux *http.ServeMux) (callbackURL, token string) {
+	t.Helper()
+
+	b := make([]byte, 16)
+	_, err := cRand.Read(b)
+	require.NoError(t, err)
+	callback := hex.EncodeToString(b)
+
+	token = "1234"
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", token)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+
+	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	t.Logf("random callback URL: %s", callbackURL)
+
+	responseVisitMap := make(map[string]int)
+	mu := &sync.Mutex{}
+
+	mux.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
+		// check auth
+		if expectedAuthHeader != req.Header.Get("Authorization") {
+			errChan <- fmt.Errorf("auth header %s not as expected %s", expectedAuthHeader, req.Header.Get("Authorization"))
+			err = respondToCallback(w, false)
+			if err != nil {
+				t.Fatalf("Failed to respond to callback: %v", err)
+			}
+			return
+		}
+
+		status, err := readPayload[CallbackBatchResponse](t, req)
+		if err != nil {
+			errChan <- fmt.Errorf("read callback payload failed: %v", err)
+			return
+		}
+
+		mu.Lock()
+		txID := status.GetTxID()
+		callbackCounter := responseVisitMap[txID]
+		callbackCounter++
+		responseVisitMap[txID] = callbackCounter
+		mu.Unlock()
+
+		// Let ARC send the same callback few times
+		respondWithSuccess := callbackCounter >= respondSuccessAtCallbacks
+
+		respondErr := respondToCallback(w, respondWithSuccess)
+		if respondErr != nil {
+			t.Fatalf("Failed to respond to callback: %v", respondErr)
+		}
+
+		if !isClosed() {
+			received := ReceivedCallbackBatch{
+				response: status,
+				url:      callbackURL,
+			}
+
+			receivedChan <- received
+		} else {
+			t.Log("callback received after closing channel")
 		}
 	})
 
@@ -249,9 +328,15 @@ func CreateCallbackServer(t *testing.T) (callbackURL string, token string, callb
 		require.NoError(t, err)
 	})
 
-	callbackURL, token = registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+	isClosed := PtrTo(false)
+	isClosedFunc := func() bool {
+		return *isClosed
+	}
+	callbackURL, token = registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, isClosedFunc, mux)
 	cleanupFuncs = append(cleanupFuncs, func() {
 		t.Log("closing channels")
+
+		isClosed = PtrTo(true)
 
 		close(callbackReceivedChan)
 		close(callbackErrChan)
@@ -291,13 +376,13 @@ func testTxSubmission(t *testing.T, callbackURL string, token string, callbackBa
 	require.Equal(t, StatusSeenOnNetwork, response.TxStatus)
 }
 
-func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) func(w http.ResponseWriter, rc chan T, ec chan error, status T) {
+func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) func(w http.ResponseWriter, rc chan T, ec chan error, status T, isClosed func() bool) {
 	t.Helper()
 
 	responseVisitMap := make(map[string]int)
 	mu := &sync.Mutex{}
 
-	calbackResponseFn := func(w http.ResponseWriter, rc chan T, _ chan error, status T) {
+	calbackResponseFn := func(w http.ResponseWriter, rc chan T, _ chan error, status T, isClosed func() bool) {
 		mu.Lock()
 		txID := status.GetTxID()
 		callbackCounter := responseVisitMap[txID]
@@ -313,7 +398,11 @@ func getResponseFunc[T Response](t *testing.T, respondSuccessAtCallbacks int) fu
 			t.Fatalf("Failed to respond to callback: %v", err)
 		}
 
-		rc <- status
+		if !isClosed() {
+			rc <- status
+		} else {
+			t.Log("callback received after closing channel")
+		}
 	}
 	return calbackResponseFn
 }
@@ -397,4 +486,9 @@ func getMerklePath(t *testing.T, txID string) string {
 	require.NoError(t, err)
 
 	return merklePathStr
+}
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
 }

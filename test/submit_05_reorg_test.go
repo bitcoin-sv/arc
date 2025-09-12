@@ -32,10 +32,15 @@ func TestReorg(t *testing.T) {
 	// prepare a callback server for tx2
 	callbackReceivedChan := make(chan *TransactionResponse)
 	callbackErrChan := make(chan error)
-	callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+
+	isClosed := PtrTo(false)
+	isClosedFunc := func() bool {
+		return *isClosed
+	}
+	callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, isClosedFunc, mux)
 	defer func() {
 		t.Log("closing channels")
-
+		isClosed = PtrTo(true)
 		close(callbackReceivedChan)
 		close(callbackErrChan)
 	}()

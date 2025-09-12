@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.4.1](#141---2025-09-10)
 - [1.4.0](#140---2025-09-02)
 - [1.3.54](#1354---2025-07-09)
 - [1.3.20](#1320---2025-02-06)
@@ -23,6 +24,11 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.4.1] - 2025-09-10
+
+### Changed
+- Callbacker loads a batch of unsent callbacks and sends them in chronological order per transaction.
 
 ## [1.4.0] - 2025-09-02
 

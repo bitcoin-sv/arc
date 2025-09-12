@@ -12,11 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/node_client"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bitcoin-sv/arc/internal/node_client"
 )
 
 //go:embed fixtures/malformedTxHexString.txt
@@ -197,10 +196,15 @@ func TestReturnMinedStatus(t *testing.T) {
 			require.NoError(t, err)
 		}()
 
-		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, mux)
+		isClosed := PtrTo(false)
+		isClosedFunc := func() bool {
+			return *isClosed
+		}
+
+		callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, nil, isClosedFunc, mux)
 		defer func() {
 			t.Log("closing channels")
-
+			isClosed = PtrTo(true)
 			close(callbackReceivedChan)
 			close(callbackErrChan)
 		}()
@@ -350,10 +354,17 @@ func TestCallback(t *testing.T) {
 				callbackReceivedChan := make(chan TransactionResponse, 100) // do not block callback server responses
 				callbackErrChan := make(chan error, 100)
 
+				isClosed := PtrTo(false)
+				isClosedFunc := func() bool {
+					return *isClosed
+				}
+
 				callbackResponseFn := getResponseFunc[TransactionResponse](t, callbacksNumber)
-				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, callbackResponseFn, mux)
+				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, callbackResponseFn, isClosedFunc, mux)
 				defer func() {
 					t.Log("closing channels")
+
+					isClosed = PtrTo(true)
 
 					close(callbackReceivedChan)
 					close(callbackErrChan)
@@ -499,9 +510,7 @@ func TestBatchCallback(t *testing.T) {
 	}
 
 	type callbackServer struct {
-		url, token   string
-		responseChan chan CallbackBatchResponse
-		errChan      chan error
+		url, token string
 	}
 
 	for _, tc := range tt {
@@ -519,23 +528,26 @@ func TestBatchCallback(t *testing.T) {
 				err = lis.Close()
 				require.NoError(t, err)
 			}()
+
+			isClosed := PtrTo(false)
+			isClosedFunc := func() bool {
+				return *isClosed
+			}
+			receivedBatchCallbacksChan := make(chan ReceivedCallbackBatch, 100) // do not block callback server responses
+			callbackErrChan := make(chan error, 100)
+			defer func() {
+				t.Log("closing channels")
+				isClosed = PtrTo(true)
+
+				close(receivedBatchCallbacksChan)
+				close(callbackErrChan)
+			}()
+
 			for range tc.numberOfCallbackServers {
-				callbackReceivedChan := make(chan CallbackBatchResponse, 100) // do not block callback server responses
-				callbackErrChan := make(chan error, 100)
-
-				calbackResponseFn := getResponseFunc[CallbackBatchResponse](t, callbacksNumber)
-				callbackURL, token := registerHandlerForCallback(t, callbackReceivedChan, callbackErrChan, calbackResponseFn, mux)
-				defer func() {
-					t.Log("closing channels")
-
-					close(callbackReceivedChan)
-					close(callbackErrChan)
-				}()
+				callbackURL, token := registerHandlerForBatchCallback(t, receivedBatchCallbacksChan, callbackErrChan, callbacksNumber, isClosedFunc, mux)
 				callbackServers = append(callbackServers, &callbackServer{
-					url:          callbackURL,
-					token:        token,
-					responseChan: callbackReceivedChan,
-					errChan:      callbackErrChan,
+					url:   callbackURL,
+					token: token,
 				})
 			}
 
@@ -579,62 +591,79 @@ func TestBatchCallback(t *testing.T) {
 				}
 			}
 
+			// then
+			type receivedCallbackKey struct {
+				txID string
+				url  string
+			}
+
+			receivedCallbacksMap := make(map[receivedCallbackKey]int) // key: txID, value: number of received callbacks
+			for _, srv := range callbackServers {
+				for _, tx := range txs {
+					t.Logf("expected callback - url: %s, tx ID: %s", srv.url, tx.TxID().String())
+					key := receivedCallbackKey{txID: tx.TxID().String(), url: srv.url}
+					receivedCallbacksMap[key] = 0
+				}
+			}
+
 			// mine transactions
 			node_client.Generate(t, bitcoind, 1)
 
-			// then
-
+			// verify callbacks were received
 			var errs []error
 
-			// verify callbacks were received correctly
-			for _, srv := range callbackServers {
-				t.Logf("listen callbacks on server %s", srv.url)
+			timer := time.NewTimer(30 * time.Second)
 
-				expectedTxsCallbacks := make(map[string]int) // key: txID, value: number of received callbacks
-				for _, tx := range txs {
-					t.Logf("expected callback - server: %s, tx ID: %s", srv.url, tx.TxID().String())
-					expectedTxsCallbacks[tx.TxID().String()] = 0
-				}
+		outerLoop:
+			for {
+				select {
+				case receivedBatchCallback := <-receivedBatchCallbacksChan:
+					require.NotNil(t, receivedBatchCallback)
+					require.Greater(t, receivedBatchCallback.response.Count, 0)
+					require.NotNil(t, receivedBatchCallback.response.Callbacks)
 
-				expectedCallbacksNumber := callbacksNumber
-				for j := 0; j < expectedCallbacksNumber; j++ {
-					callbackTimeout := time.After(30 * time.Second)
+					t.Logf("callback batch received - url: %s, count: %d", receivedBatchCallback.url, receivedBatchCallback.response.Count)
+					for _, callback := range receivedBatchCallback.response.Callbacks {
+						key := receivedCallbackKey{
+							txID: callback.Txid,
+							url:  receivedBatchCallback.url,
+						}
+						t.Logf("callback received - url: %s, tx ID: %s, status: %s", receivedBatchCallback.url, callback.Txid, callback.TxStatus)
 
-					select {
-					case batch := <-srv.responseChan:
-						require.NotNil(t, batch)
-						require.Greater(t, batch.Count, 0)
-						require.NotNil(t, batch.Callbacks)
+						visitNumber, txWasExpected := receivedCallbacksMap[key]
+						if !txWasExpected {
+							t.Logf("unexpected callback received - url: %s, tx ID: %s", receivedBatchCallback.url, key.txID)
+						}
+						require.Equal(t, StatusMined, callback.TxStatus)
 
-						t.Logf("callback server: %s, callback: %d, count: %d result[0]: %s", srv.url, j, batch.Count, batch.Callbacks[0].TxStatus)
+						visitNumber++
 
-						for _, callback := range batch.Callbacks {
-							visitNumber, txWasExpected := expectedTxsCallbacks[callback.Txid]
-							assert.True(t, txWasExpected)
+						if visitNumber >= callbacksNumber {
+							delete(receivedCallbacksMap, key)
 
-							visitNumber++
-							expectedTxsCallbacks[callback.Txid] = visitNumber
+							if len(receivedCallbacksMap) == 0 {
+								break outerLoop
+							}
 
-							assert.Equal(t, StatusMined, callback.TxStatus)
+							continue
 						}
 
-					case err = <-srv.errChan:
-						errs = append(errs, fmt.Errorf("callback received with error - server: %s, callback: %d, err: %v", srv.url, j, err))
-						t.Fail()
-					case <-callbackTimeout:
-						errs = append(errs, fmt.Errorf("callback not received - server: %s callback: %d - timeout", srv.url, j))
-						t.Fail()
+						receivedCallbacksMap[key] = visitNumber
 					}
-				}
 
-				for _, err = range errs {
-					assert.NoError(t, err)
-				}
-
-				for txID, receivedCallbacks := range expectedTxsCallbacks {
-					assert.Equalf(t, expectedCallbacksNumber, receivedCallbacks, "expected callbacks mismatch for tx: %s", txID)
+				case err = <-callbackErrChan:
+					errs = append(errs, fmt.Errorf("callback received with error: %w", err))
+					t.Fail()
+				case <-timer.C:
+					break outerLoop
 				}
 			}
+
+			for _, err = range errs {
+				assert.NoError(t, err)
+			}
+
+			require.Lenf(t, receivedCallbacksMap, 0, "some callbacks were not received: %v", receivedCallbacksMap)
 		})
 	}
 }

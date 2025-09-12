@@ -10,7 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
-const maxParallelRoutines = 10
+const maxParallelRoutines = 100
 
 func CallbackStoreCleanup(p *Processor) {
 	n := time.Now()
@@ -24,15 +24,20 @@ func CallbackStoreCleanup(p *Processor) {
 }
 
 func LoadAndSendSingleCallbacks(p *Processor) {
-	LoadAndSendCallbacks(p, false, p.sendSingleCallbacks)
+	LoadAndSendCallbacks(p, p.sendSingleCallbacks)
 }
 
 func LoadAndSendBatchCallbacks(p *Processor) {
-	LoadAndSendCallbacks(p, true, p.sendBatchCallback)
+	LoadAndSendBatchedCallbacks(p, p.sendBatchCallback)
 }
 
-func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, cbs []*store.CallbackData)) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, isBatch)
+type callbackKey struct {
+	txID string
+	url  string
+}
+
+func LoadAndSendCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 		return
@@ -41,18 +46,57 @@ func LoadAndSendCallbacks(p *Processor, isBatch bool, sendFunc func(url string, 
 		return
 	}
 
-	urlCallbacksMap := map[string][]*store.CallbackData{}
+	hashCallbacksMap := map[callbackKey][]*store.CallbackData{}
 	for _, callbackRecord := range callbackRecords {
-		urlCallbacksMap[callbackRecord.URL] = append(urlCallbacksMap[callbackRecord.URL], callbackRecord)
+		key := callbackKey{
+			txID: callbackRecord.TxID,
+			url:  callbackRecord.URL,
+		}
+		hashCallbacksMap[key] = append(hashCallbacksMap[key], callbackRecord)
 	}
 
 	g, _ := errgroup.WithContext(p.ctx)
 	g.SetLimit(maxParallelRoutines)
 
-	for url, callbacks := range urlCallbacksMap {
+	for cbKey, callbacks := range hashCallbacksMap {
+		url := cbKey.url
+
+		g.Go(func() error {
+			sendFunc(url, []*store.CallbackData{callbacks[len(callbacks)-1]})
+			return nil
+		})
+	}
+
+	err = g.Wait()
+	if err != nil {
+		p.logger.Error("Failed send callbacks", slog.String("err", err.Error()))
+	}
+}
+
+func LoadAndSendBatchedCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
+	if err != nil {
+		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
+		return
+	}
+	if len(callbackRecords) == 0 {
+		return
+	}
+
+	hashCallbacksMap := map[string][]*store.CallbackData{}
+	for _, callbackRecord := range callbackRecords {
+		hashCallbacksMap[callbackRecord.URL] = append(hashCallbacksMap[callbackRecord.URL], callbackRecord)
+	}
+
+	g, _ := errgroup.WithContext(p.ctx)
+	g.SetLimit(maxParallelRoutines)
+
+	for key, callbacks := range hashCallbacksMap {
 		if len(callbacks) == 0 {
 			continue
 		}
+
+		url := key
 
 		g.Go(func() error {
 			sendFunc(url, callbacks)

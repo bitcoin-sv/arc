@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -82,9 +83,9 @@ func TestSendCallbacks(t *testing.T) {
 			sendRetry:   false,
 
 			expectedGetUnsentCalls:    1,
-			expectedSenderSendCalls:   2,
+			expectedSenderSendCalls:   3,
 			expectedSetSentCalls:      0,
-			expectedUnsetPendingCalls: 2,
+			expectedUnsetPendingCalls: 3,
 		},
 	}
 
@@ -98,7 +99,7 @@ func TestSendCallbacks(t *testing.T) {
 							URL:        "abc-1.com",
 							Token:      "1234",
 							TxID:       "tx-1",
-							TxStatus:   callbacker_api.Status_MINED.String(),
+							TxStatus:   callbacker_api.Status_SEEN_ON_NETWORK.String(),
 							AllowBatch: false,
 						},
 						{
@@ -117,13 +118,25 @@ func TestSendCallbacks(t *testing.T) {
 							TxStatus:   callbacker_api.Status_MINED.String(),
 							AllowBatch: false,
 						},
+						{
+							ID:         4,
+							URL:        "abc-1.com",
+							Token:      "1234",
+							TxID:       "tx-1",
+							TxStatus:   callbacker_api.Status_MINED.String(),
+							AllowBatch: false,
+						},
 					}
 					return callbackData, nil
 				},
-				SetSentFunc: func(_ context.Context, _ []int64) error {
+				SetSentFunc: func(_ context.Context, cbIDs []int64) error {
+					require.Subset(t, []int64{2, 3, 4}, cbIDs)
+
 					return nil
 				},
-				UnsetPendingFunc: func(_ context.Context, _ []int64) error {
+				UnsetPendingFunc: func(_ context.Context, cbIDs []int64) error {
+					require.Subset(t, []int64{2, 3, 4}, cbIDs)
+
 					return nil
 				},
 			}
@@ -140,10 +153,10 @@ func TestSendCallbacks(t *testing.T) {
 			defer processor.GracefulStop()
 			callbacker.LoadAndSendSingleCallbacks(processor)
 
-			require.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
-			require.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
-			require.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
-			require.Equal(t, tc.expectedSenderSendCalls, len(sender.SendCalls()))
+			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
+			assert.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
+			assert.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
+			assert.Equal(t, tc.expectedSenderSendCalls, len(sender.SendCalls()))
 		})
 	}
 }
@@ -233,10 +246,10 @@ func TestSendBatchCallbacks(t *testing.T) {
 			defer processor.GracefulStop()
 			callbacker.LoadAndSendBatchCallbacks(processor)
 
-			require.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
-			require.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
-			require.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
-			require.Equal(t, tc.expectedSenderSendBatchCalls, len(sender.SendBatchCalls()))
+			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
+			assert.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
+			assert.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
+			assert.Equal(t, tc.expectedSenderSendBatchCalls, len(sender.SendBatchCalls()))
 		})
 	}
 }

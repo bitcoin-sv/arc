@@ -17,9 +17,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
-var (
-	ErrRejectUnconfirmed = errors.New("transaction rejected as not existing in node mempool")
-)
+var ErrRejectUnconfirmed = errors.New("transaction rejected as not existing in node mempool")
 
 // ReAnnounceUnseen re-broadcasts transactions with status lower than SEEN_ON_NETWORK
 func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
@@ -112,8 +110,8 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		blocks := blocksSinceLastRequested.GetBlocks()
 		sinceLastProcessed := p.now().Sub(blocks[len(blocks)-1].ProcessedAt.AsTime())
 
-		// reject all txs which have been requested at least `rejectPendingSeenLastRequestedAgo` or the time since `rejectPendingBlocksSince` have been processed ago
-		requestedAgo := max(sinceLastProcessed, p.rejectPendingSeenLastRequestedAgo)
+		// reject all txs which have been requested at least `rejectPendingSeenLastRequestedAgo` AND the time since `rejectPendingBlocksSince` have been processed ago
+		requestedAgo := min(sinceLastProcessed, p.rejectPendingSeenLastRequestedAgo)
 
 		txs, err = p.store.GetUnconfirmedRequested(ctx, requestedAgo, loadLimit, offset)
 		if err != nil {

@@ -22,7 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-func TestRateBroadcasterStart(t *testing.T) {
+func TestRateBroadcasterInitialize(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
@@ -184,12 +184,11 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			sut.Shutdown()
-			time.Sleep(time.Millisecond)
 		})
 	}
 }
 
-func TestRateBroadcasterStartBroadcast(t *testing.T) {
+func TestRateBroadcasterStart(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
@@ -232,14 +231,6 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			putBackToChannel:                   true,
 		}}
 
-	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	hash1, err := chainhash.NewHash(txIDbytes)
-	require.NoError(t, err)
-	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
-	wocScript, err := hex.DecodeString(lockingScriptStr)
-	require.NoError(t, err)
-	lockingScript := script.Script(wocScript)
-	require.NoError(t, err)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
@@ -249,27 +240,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 					return tickerCh
 				},
 			}
-			utxoClient := &mocks.UtxoClientMock{
-				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
-					return 1000, 0, nil
-				},
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
-					baseUtxo := sdkTx.UTXOs{
-						{
-							TxID:          hash1,
-							Vout:          0,
-							LockingScript: &lockingScript,
-							Satoshis:      1000,
-						},
-					}
-					utxosToReturn := sdkTx.UTXOs{}
-					for i := 0; i < 200; i++ {
-						utxosToReturn = append(utxosToReturn, baseUtxo...)
-					}
-
-					return utxosToReturn, nil
-				},
-			}
+			utxoClient := &mocks.UtxoClientMock{}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -317,8 +288,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			}
 
 			// when then
-			err = sut.Initialize()
-			require.NoError(t, err)
+			sut.Start()
 
 			time.Sleep(2 * time.Second)
 

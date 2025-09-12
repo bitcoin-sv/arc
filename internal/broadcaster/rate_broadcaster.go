@@ -141,7 +141,6 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-
 			tx, err := b.createSelfPayingTx(utxo)
 			if err != nil {
 				return nil, err

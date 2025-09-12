@@ -32,7 +32,7 @@ const (
 	timeoutDefault                = 5 * time.Second
 )
 
-func WithInitRetrySleepDuration(d time.Duration) func(*CallbackSender) {
+func WithRetrySleepDuration(d time.Duration) func(*CallbackSender) {
 	return func(s *CallbackSender) {
 		s.retrySleepDuration = d
 	}

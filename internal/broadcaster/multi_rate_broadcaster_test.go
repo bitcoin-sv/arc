@@ -34,6 +34,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			rateBroadcaster1 := &mocks.RateBroadcasterMock{
 				StartFunc:              func() {},
+				InitializeFunc:         func() error { return nil },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 5 },
@@ -44,6 +45,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			rateBroadcaster2 := &mocks.RateBroadcasterMock{
 				StartFunc:              func() {},
+				InitializeFunc:         func() error { return tc.expectedError },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 10 },

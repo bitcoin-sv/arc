@@ -22,7 +22,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-func TestRateBroadcasterStart(t *testing.T) {
+func TestRateBroadcasterInitialize(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
@@ -30,10 +30,8 @@ func TestRateBroadcasterStart(t *testing.T) {
 		name                     string
 		getBalanceWithRetriesErr error
 		getUTXOsWithRetriesErr   error
-		broadcastTransactionsErr error
 		limit                    int64
 		initialUtxoSetLen        int
-		rateTxsPerSecond         int
 		batchSize                int
 
 		expectedBroadcastTransactionsCalls int
@@ -44,7 +42,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 		{
 			name:              "success",
 			initialUtxoSetLen: 2,
-			rateTxsPerSecond:  2,
 			batchSize:         2,
 
 			expectedBroadcastTransactionsCalls: 0,
@@ -53,7 +50,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 		{
 			name:                     "error - failed to get balance",
 			getBalanceWithRetriesErr: errors.New("utxo client error"),
-			rateTxsPerSecond:         2,
 			batchSize:                2,
 
 			expectedError:                      broadcaster.ErrFailedToGetBalance,
@@ -63,7 +59,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 		{
 			name:                   "error - failed to get utxos",
 			getUTXOsWithRetriesErr: errors.New("failed to get utxos"),
-			rateTxsPerSecond:       2,
 			batchSize:              2,
 
 			expectedError:                      broadcaster.ErrFailedToGetUTXOs,
@@ -73,7 +68,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			name:              "success - limit reached",
 			limit:             2,
 			initialUtxoSetLen: 2,
-			rateTxsPerSecond:  2,
 			batchSize:         2,
 
 			expectedBroadcastTransactionsCalls: 0,
@@ -84,7 +78,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 			name:              "error - utxo set smaller than batchSize",
 			limit:             2,
 			initialUtxoSetLen: 2,
-			rateTxsPerSecond:  2,
 			batchSize:         1000,
 
 			expectedError:                      broadcaster.ErrTooSmallUTXOSet,
@@ -95,12 +88,12 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 	tickerCh := make(chan time.Time, 5)
 	ticker := &mocks.TickerMock{
-		GetTickerChFunc: func() (<-chan time.Time, error) {
-			return tickerCh, nil
+		GetTickerChFunc: func() <-chan time.Time {
+			return tickerCh
 		},
 	}
-	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	hash1, err := chainhash.NewHash(txIDbytes)
+	txIDBytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash1, err := chainhash.NewHash(txIDBytes)
 	require.NoError(t, err)
 	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
 	wocScript, err := hex.DecodeString(lockingScriptStr)
@@ -137,21 +130,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-			client := &mocks.ArcClientMock{
-				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _ string, _ string, _ bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
-					if tc.broadcastTransactionsErr != nil {
-						return nil, tc.broadcastTransactionsErr
-					}
-					var statuses []*metamorph_api.TransactionStatus
-					for _, tx := range txs {
-						statuses = append(statuses, &metamorph_api.TransactionStatus{
-							Txid:   tx.TxID().String(),
-							Status: metamorph_api.Status_SEEN_ON_NETWORK,
-						})
-					}
-					return statuses, nil
-				},
-			}
+			client := &mocks.ArcClientMock{}
 
 			sut, err := broadcaster.NewRateBroadcaster(logger,
 				client,
@@ -161,7 +140,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				ticker,
 				broadcaster.WithBatchSize(tc.batchSize),
 				broadcaster.WithIsTestnet(false),
-				broadcaster.WithCallback("callbackurl", "callbacktoken"),
+				broadcaster.WithCallback("callbackURL", "callbackToken"),
 				broadcaster.WithOpReturn("0"),
 				broadcaster.WithFullstatusUpdates(false),
 				broadcaster.WithFees(1),
@@ -172,7 +151,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.NoError(t, err)
 
 			// when then
-			err = sut.Start()
+			err = sut.Initialize()
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -184,76 +163,75 @@ func TestRateBroadcasterStart(t *testing.T) {
 			require.Equal(t, tc.expectedLimit, sut.GetLimit())
 			require.Equal(t, int64(0), sut.GetConnectionCount())
 			sut.Shutdown()
-			time.Sleep(time.Millisecond)
 		})
 	}
 }
 
-func TestRateBroadcasterStartBroadcast(t *testing.T) {
+func TestRateBroadcasterStart(t *testing.T) {
 	ks, err := keyset.New(&chaincfg.MainNet)
 	require.NoError(t, err)
 
 	tt := []struct {
-		name             string
-		limit            int64
-		rateTxsPerSecond int
-		batchSize        int
-		expectedTxCount  int64
-		jitterSize       int64
+		name                     string
+		limit                    int64
+		txCount                  int64
+		broadcastTransactionsErr error
+		sizeJitterMax            int64
 
 		expectedBroadcastTransactionsCalls int
+		expectedError                      error
 		expectedLimit                      int64
-		expectedUtxoSetLen                 int
-		putBackToChannel                   bool
 	}{
 		{
-			name:             "success - limit reached with jitter",
-			limit:            10,
-			rateTxsPerSecond: 10,
-			batchSize:        4,
-			jitterSize:       1,
+			name:          "success",
+			txCount:       8,
+			sizeJitterMax: 1,
 
-			expectedTxCount:                    16,
 			expectedBroadcastTransactionsCalls: 4,
-			expectedLimit:                      10,
-			expectedUtxoSetLen:                 10,
+			expectedLimit:                      0,
 		},
 		{
-			name:             "error - put utxos back to channel",
-			limit:            10,
-			rateTxsPerSecond: 10,
-			batchSize:        4,
-			jitterSize:       1,
+			name:          "success - limit reached",
+			limit:         4,
+			txCount:       4,
+			sizeJitterMax: 1,
 
-			expectedTxCount:                    0,
-			expectedBroadcastTransactionsCalls: 5,
-			expectedLimit:                      10,
-			expectedUtxoSetLen:                 10,
-			putBackToChannel:                   true,
-		}}
+			expectedBroadcastTransactionsCalls: 2,
+			expectedLimit:                      4,
+		},
+		{
+			name:                     "error - broadcast transactions",
+			broadcastTransactionsErr: errors.New("some error"),
+			txCount:                  0,
 
-	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	hash1, err := chainhash.NewHash(txIDbytes)
+			expectedBroadcastTransactionsCalls: 4,
+			expectedLimit:                      0,
+		},
+	}
+
+	txIDBytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash1, err := chainhash.NewHash(txIDBytes)
 	require.NoError(t, err)
 	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
 	wocScript, err := hex.DecodeString(lockingScriptStr)
 	require.NoError(t, err)
 	lockingScript := script.Script(wocScript)
-	require.NoError(t, err)
 	for _, tc := range tt {
+		tickerCh := make(chan time.Time, 4)
+		ticker := &mocks.TickerMock{
+			GetTickerChFunc: func() <-chan time.Time {
+				return tickerCh
+			},
+		}
+
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			tickerCh := make(chan time.Time, 5)
-			ticker := &mocks.TickerMock{
-				GetTickerChFunc: func() (<-chan time.Time, error) {
-					return tickerCh, nil
-				},
-			}
 			utxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, nil
 				},
 				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+					utxosToReturn := sdkTx.UTXOs{}
 					baseUtxo := sdkTx.UTXOs{
 						{
 							TxID:          hash1,
@@ -262,7 +240,6 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 							Satoshis:      1000,
 						},
 					}
-					utxosToReturn := sdkTx.UTXOs{}
 					for i := 0; i < 200; i++ {
 						utxosToReturn = append(utxosToReturn, baseUtxo...)
 					}
@@ -275,6 +252,10 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 
 			client := &mocks.ArcClientMock{
 				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _ string, _ string, _ bool, _ bool) ([]*metamorph_api.TransactionStatus, error) {
+					if tc.broadcastTransactionsErr != nil {
+						return nil, tc.broadcastTransactionsErr
+					}
+
 					var statuses []*metamorph_api.TransactionStatus
 					for _, tx := range txs {
 						statuses = append(statuses, &metamorph_api.TransactionStatus{
@@ -282,9 +263,7 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 							Status: metamorph_api.Status_SEEN_ON_NETWORK,
 						})
 					}
-					if tc.putBackToChannel {
-						return nil, context.Canceled
-					}
+
 					return statuses, nil
 				},
 			}
@@ -295,10 +274,10 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 				utxoClient,
 				tc.limit,
 				ticker,
-				broadcaster.WithBatchSize(tc.batchSize),
-				broadcaster.WithSizeJitter(tc.jitterSize),
+				broadcaster.WithBatchSize(2),
+				broadcaster.WithSizeJitter(tc.sizeJitterMax),
 				broadcaster.WithIsTestnet(false),
-				broadcaster.WithCallback("callbackurl", "callbacktoken"),
+				broadcaster.WithCallback("callbackURL", "callbackToken"),
 				broadcaster.WithOpReturn("0"),
 				broadcaster.WithFullstatusUpdates(false),
 				broadcaster.WithFees(1),
@@ -308,22 +287,24 @@ func TestRateBroadcasterStartBroadcast(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			num := 4
-			if tc.putBackToChannel {
-				num = 5
-			}
-			for i := 0; i < num; i++ {
+			defer sut.Shutdown()
+
+			// when then
+			err = sut.Initialize()
+			require.ErrorIs(t, err, tc.expectedError)
+
+			const ticks = 4
+			for i := 0; i < ticks; i++ {
 				tickerCh <- time.Now()
 			}
 
-			// when then
-			err = sut.Start()
-			require.NoError(t, err)
+			sut.Start()
 
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 
+			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
-			assert.Equal(t, tc.expectedTxCount, sut.GetTxCount())
+			assert.Equal(t, tc.txCount, sut.GetTxCount())
 			assert.Equal(t, tc.expectedLimit, sut.GetLimit())
 			assert.Equal(t, int64(0), sut.GetConnectionCount())
 		})

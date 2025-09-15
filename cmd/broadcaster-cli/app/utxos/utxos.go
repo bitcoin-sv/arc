@@ -39,10 +39,10 @@ func init() {
 		return
 	}
 
-	Cmd.PersistentFlags().String("callback", "", "URL which will be called with ARC callbacks")
-	err = viper.BindPFlag("callback", Cmd.PersistentFlags().Lookup("callback"))
+	Cmd.PersistentFlags().String("callbackURL", "", "URL which will be called with ARC callbacks")
+	err = viper.BindPFlag("callbackURL", Cmd.PersistentFlags().Lookup("callbackURL"))
 	if err != nil {
-		logger.Error("failed to bind flag", slog.String("flag", "callback"), slog.String("err", err.Error()))
+		logger.Error("failed to bind flag", slog.String("flag", "callbackURL"), slog.String("err", err.Error()))
 		return
 	}
 

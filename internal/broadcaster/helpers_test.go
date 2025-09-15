@@ -52,8 +52,7 @@ func TestNewRampUpTicker(t *testing.T) {
 			}
 			require.NoError(t, actualErr)
 
-			tickerCh, err := ticker.GetTickerCh()
-			require.NoError(t, err)
+			tickerCh := ticker.GetTickerCh()
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 

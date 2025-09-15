@@ -33,7 +33,8 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			rateBroadcaster1 := &mocks.RateBroadcasterMock{
-				StartFunc:              func() error { return nil },
+				StartFunc:              func() {},
+				InitializeFunc:         func() error { return nil },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 5 },
@@ -43,7 +44,8 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 			}
 
 			rateBroadcaster2 := &mocks.RateBroadcasterMock{
-				StartFunc:              func() error { return tc.expectedError },
+				StartFunc:              func() {},
+				InitializeFunc:         func() error { return tc.expectedError },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 10 },

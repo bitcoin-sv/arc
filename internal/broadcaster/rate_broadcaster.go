@@ -35,7 +35,6 @@ type UTXORateBroadcaster struct {
 	Broadcaster
 	totalTxs        int64
 	connectionCount int64
-	shutdown        chan struct{}
 	utxoCh          chan *sdkTx.UTXO
 	wg              sync.WaitGroup
 	satoshiMap      sync.Map
@@ -45,7 +44,7 @@ type UTXORateBroadcaster struct {
 }
 
 type Ticker interface {
-	GetTickerCh() (<-chan time.Time, error)
+	GetTickerCh() <-chan time.Time
 }
 
 func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet, utxoClient UtxoClient, limit int64, ticker Ticker, opts ...func(p *Broadcaster)) (*UTXORateBroadcaster, error) {
@@ -55,7 +54,6 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	}
 	rb := &UTXORateBroadcaster{
 		Broadcaster:     b,
-		shutdown:        make(chan struct{}, 1),
 		utxoCh:          nil,
 		wg:              sync.WaitGroup{},
 		satoshiMap:      sync.Map{},
@@ -69,20 +67,7 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) Start() error {
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-		for {
-			select {
-			case <-b.shutdown:
-				b.cancelAll()
-			case <-b.ctx.Done():
-				return
-			}
-		}
-	}()
-
+func (b *UTXORateBroadcaster) Initialize() error {
 	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
 		return errors.Join(ErrFailedToGetBalance, err)
@@ -90,7 +75,6 @@ func (b *UTXORateBroadcaster) Start() error {
 	if math.Abs(float64(unconfirmed)) > 0 {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
-	b.logger.Info("Start broadcasting", slog.String("wait for status", b.waitForStatus.String()), slog.String("op return", b.opReturn), slog.Bool("full status updates", b.fullStatusUpdates), slog.String("callback URL", b.callbackURL), slog.String("callback token", b.callbackToken))
 
 	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
 	if err != nil {
@@ -106,17 +90,15 @@ func (b *UTXORateBroadcaster) Start() error {
 		b.utxoCh <- utxo
 	}
 
-	tickerCh, err := b.ticker.GetTickerCh()
-	if err != nil {
-		return fmt.Errorf("failed to get ticker channel: %w", err)
-	}
-	errCh := make(chan error, 100)
-
-	startBroadcastSelfPayingTxs(b, tickerCh, errCh)
 	return nil
 }
 
-func startBroadcastSelfPayingTxs(b *UTXORateBroadcaster, tickerCh <-chan time.Time, errCh chan error) {
+func (b *UTXORateBroadcaster) Start() {
+	tickerCh := b.ticker.GetTickerCh()
+	errCh := make(chan error, 100)
+
+	b.logger.Info("start broadcasting")
+
 	b.wg.Add(1)
 	go func() {
 		defer func() {
@@ -124,6 +106,7 @@ func startBroadcastSelfPayingTxs(b *UTXORateBroadcaster, tickerCh <-chan time.Ti
 			b.wg.Done()
 		}()
 
+	outerLoop:
 		for {
 			select {
 			case <-b.ctx.Done():
@@ -132,13 +115,12 @@ func startBroadcastSelfPayingTxs(b *UTXORateBroadcaster, tickerCh <-chan time.Ti
 				txs, err := b.createSelfPayingTxs()
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))
-					b.shutdown <- struct{}{}
-					continue
+					break outerLoop
 				}
 
 				if b.limit > 0 && atomic.LoadInt64(&b.totalTxs) >= b.limit {
 					b.logger.Info("limit reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
-					b.shutdown <- struct{}{}
+					break outerLoop
 				}
 
 				b.broadcastBatchAsync(txs, errCh, b.waitForStatus)
@@ -159,7 +141,6 @@ utxoLoop:
 		case <-b.ctx.Done():
 			return txs, nil
 		case utxo := <-b.utxoCh:
-
 			tx, err := b.createSelfPayingTx(utxo)
 			if err != nil {
 				return nil, err
@@ -235,7 +216,8 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 
 func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount *uint64) error {
 	// Add additional inputs to the transaction
-	randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
+	const maxRandomInputs = 10
+	randInt, err := cRand.Int(cRand.Reader, big.NewInt(maxRandomInputs))
 	if err != nil {
 		return fmt.Errorf("failed to generate random number: %v", err)
 	}
@@ -293,7 +275,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
-			// In case of error put utxos back in channel
+			// In case of error, put utxos back in the channel
 			b.putUTXOSBackInChannel(txs)
 			if errors.Is(err, context.Canceled) {
 				atomic.AddInt64(&b.connectionCount, -1)
@@ -328,6 +310,7 @@ func (b *UTXORateBroadcaster) putNewUTXOSInChannel(resp []*metamorph_api.Transac
 		hash, err := chainhash.NewHashFromHex(res.Txid)
 		if err != nil {
 			b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+			continue
 		}
 
 		if found && isValid {

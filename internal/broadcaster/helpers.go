@@ -73,7 +73,7 @@ func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, 
 
 	fee := float64(txSize) * float64(s.Satoshis) / 1000
 
-	// the minimum fees required is 1 satoshi
+	// the minimum fee required is 1 satoshi
 	feesRequiredRounded := uint64(math.Round(fee))
 	if feesRequiredRounded < 1 {
 		feesRequiredRounded = 1
@@ -92,7 +92,6 @@ type RampUpTicker struct {
 var (
 	ErrStepsZero                          = errors.New("steps must be greater than 0")
 	ErrStartIntervalNotGreaterEndInterval = errors.New("startInterval must be greater than endInterval")
-	ErrTickerIsNil                        = errors.New("ticker is nil")
 )
 
 // NewRampUpTicker returns a dynamic ticker based on time.Ticker. The time intervals linearly decrease starting from startInterval to endInterval. After a specified number of steps the time interval is equal to endInterval.
@@ -119,15 +118,11 @@ func (t *RampUpTicker) Stop() {
 	t.ticker.Stop()
 }
 
-func (t *RampUpTicker) GetTickerCh() (<-chan time.Time, error) {
+func (t *RampUpTicker) GetTickerCh() <-chan time.Time {
 	timeCh := make(chan time.Time)
 	step := int64(0)
 	stepsReached := false
 	stepNs := int64(float64(t.startInterval.Nanoseconds()-t.endInterval.Nanoseconds()) / float64(t.steps))
-
-	if t.ticker == nil {
-		return nil, ErrTickerIsNil
-	}
 
 	go func() {
 		for tick := range t.ticker.C {
@@ -150,7 +145,7 @@ func (t *RampUpTicker) GetTickerCh() (<-chan time.Time, error) {
 		}
 	}()
 
-	return timeCh, nil
+	return timeCh
 }
 
 type ConstantTicker struct {
@@ -161,12 +156,8 @@ func (t *ConstantTicker) Stop() {
 	t.ticker.Stop()
 }
 
-func (t *ConstantTicker) GetTickerCh() (<-chan time.Time, error) {
+func (t *ConstantTicker) GetTickerCh() <-chan time.Time {
 	timeCh := make(chan time.Time)
-
-	if t.ticker == nil {
-		return nil, ErrTickerIsNil
-	}
 
 	go func() {
 		for tick := range t.ticker.C {
@@ -174,7 +165,7 @@ func (t *ConstantTicker) GetTickerCh() (<-chan time.Time, error) {
 		}
 	}()
 
-	return timeCh, nil
+	return timeCh
 }
 
 func NewConstantTicker(endInterval time.Duration) *ConstantTicker {

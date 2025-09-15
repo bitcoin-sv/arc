@@ -25,94 +25,140 @@ var (
 	ErrTooHighSubmissionRate = errors.New("submission rate is too high")
 )
 
+type Config struct {
+	RateTxsPerSecond    int
+	WaitForStatus       int
+	CallbackURL         string
+	CallbackToken       string
+	ArcServer           string
+	IsTestnet           bool
+	BatchSize           int
+	FullStatusUpdates   bool
+	Limit               int64
+	OpReturn            string
+	RampUpTickerEnabled bool
+	SizeJitterMax       int64
+	Authorization       string
+	WocAPIKey           string
+	MiningFeeSat        uint64
+	LogLevel            string
+	LogFormat           string
+	MinFeeSat           uint64
+}
+
+func (c Config) Log(logger *slog.Logger) {
+	logger.Info("config",
+		"rate", c.RateTxsPerSecond,
+		"waitForStatus", c.WaitForStatus,
+		"callbackURL", c.CallbackURL,
+		"callbackToken", c.CallbackToken,
+		"arcServer", c.ArcServer,
+		"isTestnet", c.IsTestnet,
+		"batchSize", c.BatchSize,
+		"fullStatusUpdates", c.FullStatusUpdates,
+		"limit", c.Limit,
+		"opReturn", c.OpReturn,
+		"rampUpTickerEnabled", c.RampUpTickerEnabled,
+		"sizeJitterMax", c.SizeJitterMax,
+		"authorization", c.Authorization,
+		"wocAPIKey", c.WocAPIKey,
+		"miningFeeSat", c.MiningFeeSat,
+		"logLevel", c.LogLevel,
+		"logFormat", c.LogFormat,
+		"minFeeSat", c.MinFeeSat,
+	)
+}
+
 var Cmd = &cobra.Command{
 	Use:   "broadcast",
 	Short: "Submit transactions to ARC",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		rateTxsPerSecond := helper.GetInt("rate")
-		if rateTxsPerSecond == 0 {
+		cfg := Config{}
+
+		cfg.RateTxsPerSecond = helper.GetInt("rate")
+		if cfg.RateTxsPerSecond == 0 {
 			return errors.New("rate must be a value greater than 0")
 		}
 
-		waitForStatus := helper.GetInt("waitForStatus")
+		cfg.WaitForStatus = helper.GetInt("waitForStatus")
 
-		batchSize := helper.GetInt("batchsize")
-		if batchSize == 0 {
+		cfg.BatchSize = helper.GetInt("batchsize")
+		if cfg.BatchSize == 0 {
 			return errors.New("batch size must be a value greater than 0")
 		}
 
-		limit := helper.GetInt64("limit")
+		cfg.Limit = helper.GetInt64("limit")
 
-		fullStatusUpdates := helper.GetBool("fullStatusUpdates")
+		cfg.FullStatusUpdates = helper.GetBool("fullStatusUpdates")
 
-		isTestnet := helper.GetBool("testnet")
+		cfg.IsTestnet = helper.GetBool("testnet")
 
-		callbackURL := helper.GetString("callback")
+		cfg.CallbackURL = helper.GetString("callbackURL")
 
-		callbackToken := helper.GetString("callbackToken")
+		cfg.CallbackToken = helper.GetString("callbackToken")
 
-		authorization := helper.GetString("authorization")
+		cfg.Authorization = helper.GetString("authorization")
 
 		keySetsMap, err := helper.GetSelectedKeySets()
 		if err != nil {
 			return err
 		}
 
-		miningFeeSat := helper.GetUint64("miningFeeSatPerKb")
+		cfg.MiningFeeSat = helper.GetUint64("miningFeeSatPerKb")
 
-		if miningFeeSat == 0 {
+		if cfg.MiningFeeSat == 0 {
 			return errors.New("no mining fee was given")
 		}
 
-		arcServer := helper.GetString("apiURL")
-		if arcServer == "" {
+		cfg.ArcServer = helper.GetString("apiURL")
+		if cfg.ArcServer == "" {
 			return errors.New("no api URL was given")
 		}
 
-		wocAPIKey := helper.GetString("wocAPIKey")
+		cfg.WocAPIKey = helper.GetString("wocAPIKey")
 
-		opReturn := helper.GetString("opReturn")
+		cfg.OpReturn = helper.GetString("opReturn")
 
-		rampUpTickerEnabled := helper.GetBool("rampUpTickerEnabled")
+		cfg.RampUpTickerEnabled = helper.GetBool("rampUpTickerEnabled")
 
-		sizeJitterMax := helper.GetInt64("sizeJitter")
+		cfg.SizeJitterMax = helper.GetInt64("sizeJitter")
 
-		logLevel := helper.GetString("logLevel")
-		logFormat := helper.GetString("logFormat")
-		logger := helper.NewLogger(logLevel, logFormat)
+		cfg.LogLevel = helper.GetString("logLevel")
+		cfg.LogFormat = helper.GetString("logFormat")
+		logger := helper.NewLogger(cfg.LogLevel, cfg.LogFormat)
 
-		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: authorization}, arcServer, logger)
+		client, err := helper.CreateClient(&broadcaster.Auth{Authorization: cfg.Authorization}, cfg.ArcServer, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create client: %v", err)
 		}
 
-		wocClient := woc_client.New(!isTestnet, woc_client.WithAuth(wocAPIKey), woc_client.WithLogger(logger))
+		wocClient := woc_client.New(!cfg.IsTestnet, woc_client.WithAuth(cfg.WocAPIKey), woc_client.WithLogger(logger))
 
 		opts := []func(p *broadcaster.Broadcaster){
-			broadcaster.WithFees(miningFeeSat),
-			broadcaster.WithCallback(callbackURL, callbackToken),
-			broadcaster.WithFullstatusUpdates(fullStatusUpdates),
-			broadcaster.WithBatchSize(batchSize),
-			broadcaster.WithOpReturn(opReturn),
-			broadcaster.WithSizeJitter(sizeJitterMax),
-			broadcaster.WithIsTestnet(isTestnet),
+			broadcaster.WithFees(cfg.MiningFeeSat),
+			broadcaster.WithCallback(cfg.CallbackURL, cfg.CallbackToken),
+			broadcaster.WithFullstatusUpdates(cfg.FullStatusUpdates),
+			broadcaster.WithBatchSize(cfg.BatchSize),
+			broadcaster.WithOpReturn(cfg.OpReturn),
+			broadcaster.WithSizeJitter(cfg.SizeJitterMax),
+			broadcaster.WithIsTestnet(cfg.IsTestnet),
 		}
 
-		if waitForStatus > 0 {
-			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(waitForStatus)))
+		if cfg.WaitForStatus > 0 {
+			opts = append(opts, broadcaster.WithWaitForStatus(metamorph_api.Status(cfg.WaitForStatus)))
 		}
 
-		submitBatchesPerSecond := float64(rateTxsPerSecond) / float64(batchSize)
+		submitBatchesPerSecond := float64(cfg.RateTxsPerSecond) / float64(cfg.BatchSize)
 
 		if submitBatchesPerSecond > millisecondsPerSecond {
-			return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", rateTxsPerSecond, batchSize, submitBatchesPerSecond))
+			return errors.Join(ErrTooHighSubmissionRate, fmt.Errorf("submission rate %d [txs/s] and batch size %d [txs] result in submission frequency %.2f greater than 1000 [/s]", cfg.RateTxsPerSecond, cfg.BatchSize, submitBatchesPerSecond))
 		}
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
 		var submitBatchTicker broadcaster.Ticker
 		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
 
-		if rampUpTickerEnabled {
+		if cfg.RampUpTickerEnabled {
 			submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
 			if err != nil {
 				return err
@@ -121,7 +167,7 @@ var Cmd = &cobra.Command{
 
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
 		for keyName, ks := range keySetsMap {
-			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!isTestnet)), slog.String("name", keyName)), client, ks, wocClient, limit, submitBatchTicker, opts...)
+			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!cfg.IsTestnet)), slog.String("name", keyName)), client, ks, wocClient, cfg.Limit, submitBatchTicker, opts...)
 			if err != nil {
 				return err
 			}
@@ -136,8 +182,11 @@ var Cmd = &cobra.Command{
 		signal.Notify(signalChan, os.Interrupt) // Listen for Ctrl+C
 
 		go func() {
+			cfg.Log(logger)
+			keyNames := helper.GetOrderedKeys(keySetsMap)
+			logger.Info("keys", slog.Any("names", keyNames))
+
 			// Start the broadcasting process
-			logger.Info("Starting rate broadcaster", slog.Int("rate [txs/s]", rateTxsPerSecond), slog.Int("batch size", batchSize), slog.String("batch interval", submitBatchInterval.String()), slog.Int("parallel", rateBroadcaster.Len()))
 			err := rateBroadcaster.Start()
 			doneChan <- err // Send the completion or error signal
 		}()
@@ -145,7 +194,7 @@ var Cmd = &cobra.Command{
 		select {
 		case <-signalChan:
 			// If an interrupt signal is received
-			logger.Info("Shutdown signal received. Shutting down the rate broadcaster.")
+			logger.Info("Shutdown signal received")
 		case err := <-doneChan:
 			if err != nil {
 				logger.Error("Error during broadcasting", slog.String("err", err.Error()))
@@ -154,7 +203,7 @@ var Cmd = &cobra.Command{
 
 		// Shutdown the broadcaster in all cases
 		rateBroadcaster.Shutdown()
-		logger.Info("Broadcasting shutdown complete")
+		logger.Info("Shutdown complete")
 		return nil
 	},
 }

@@ -88,9 +88,9 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 
 	ticker := &mocks.TickerMock{
-		GetTickerChFunc: func() (<-chan time.Time, error) {
+		GetTickerChFunc: func() <-chan time.Time {
 			tickerCh := make(chan time.Time)
-			return tickerCh, nil
+			return tickerCh
 		},
 	}
 
@@ -113,7 +113,7 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	actualError := sut.Start()
+	actualError := sut.Initialize()
 
 	// then
 	require.NoError(t, actualError)

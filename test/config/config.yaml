@@ -164,6 +164,7 @@ callbacker:
   pruneOlderThan: 336h
   pruneInterval: 24h
   expiration: 24h
+  maxRetries: 10
   db:
     mode: postgres
     postgres:

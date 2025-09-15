@@ -27,6 +27,7 @@ const (
 	storeCallbacksIntervalDefault = 2 * time.Second
 	storeCallbackBatchSizeDefault = 500
 	sendCallbacksInterval         = 2 * time.Second
+	maxRetriesDefault             = 10
 )
 
 type Processor struct {
@@ -44,6 +45,7 @@ type Processor struct {
 	batchSendInterval      time.Duration
 	clearInterval          time.Duration
 	clearRetentionPeriod   time.Duration
+	maxRetries             int
 
 	wg        *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -98,6 +100,12 @@ func WithStoreCallbacksInterval(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithMaxRetries(retries int) func(*Processor) {
+	return func(m *Processor) {
+		m.maxRetries = retries
+	}
+}
+
 func toEntry(callbackData *store.CallbackData) CallbackEntry {
 	return CallbackEntry{
 		Token:      callbackData.Token,
@@ -133,6 +141,7 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 		batchSize:              batchSizeDefault,
 		singleSendInterval:     singleSendDefault,
 		batchSendInterval:      batchSendIntervalDefault,
+		maxRetries:             maxRetriesDefault,
 		wg:                     &sync.WaitGroup{},
 	}
 	for _, opt := range opts {

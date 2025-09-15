@@ -199,6 +199,7 @@ callbacker:
   pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)
   pruneInterval: 24h # interval at which old or failed callbacks are pruned from the store
   expiration: 24h # maximum time a callback can remain unsent before it's put as permanently failed
+  maxRetries: 10 # maximum number of times a callback is attempted to be sent
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres

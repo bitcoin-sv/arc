@@ -143,7 +143,7 @@ func (mock *ProcessorStoreMock) ClearCalls() []struct {
 }
 
 // GetUnsent calls GetUnsentFunc.
-func (mock *ProcessorStoreMock) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+func (mock *ProcessorStoreMock) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool, maxRetries int) ([]*store.CallbackData, error) {
 	if mock.GetUnsentFunc == nil {
 		panic("ProcessorStoreMock.GetUnsentFunc: method is nil but ProcessorStore.GetUnsent was just called")
 	}

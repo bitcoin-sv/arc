@@ -228,7 +228,7 @@ func TestPostgresDBt(t *testing.T) {
 		ctx := context.Background()
 
 		const limit = 20
-		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false)
+		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false, 0)
 		require.NoError(t, err)
 		require.Len(t, records, 13)
 		isSorted := sort.SliceIsSorted(records, func(i, j int) bool {

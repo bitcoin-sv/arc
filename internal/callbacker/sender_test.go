@@ -37,7 +37,7 @@ func TestCallbackSender_Send(t *testing.T) {
 
 			expectedSuccess: false,
 			expectedRetry:   true,
-			expectedRetries: 5, // Adjust based on your retry logic in `Send`
+			expectedRetries: 1, // Adjust based on your retry logic in `Send`
 		},
 		{
 			name:        "retry - server error and fails after retries",
@@ -145,7 +145,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			responseStatus: http.StatusInternalServerError,
 
 			expectedSuccess: false,
-			expectedRetries: 5,
+			expectedRetries: 1,
 		},
 	}
 

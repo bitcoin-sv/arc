@@ -217,7 +217,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 	require.NoError(t, err)
 	lockingScript := script.Script(wocScript)
 	for _, tc := range tt {
-
 		tickerCh := make(chan time.Time, 4)
 		ticker := &mocks.TickerMock{
 			GetTickerChFunc: func() <-chan time.Time {

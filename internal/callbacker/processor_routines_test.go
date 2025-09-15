@@ -62,30 +62,43 @@ func TestSendCallbacks(t *testing.T) {
 		sendRetry   bool
 		sendSuccess bool
 
-		expectedGetUnsentCalls    int
-		expectedSenderSendCalls   int
-		expectedSetSentCalls      int
-		expectedUnsetPendingCalls int
+		expectedGetUnsentCalls           int
+		expectedSenderSendCalls          int
+		expectedSetSentCalls             int
+		expectedUnsetPendingDisableCalls int
+		expectedUnsetPendingCalls        int
 	}{
 		{
 			name:        "success",
 			sendSuccess: true,
 			sendRetry:   false,
 
-			expectedGetUnsentCalls:    1,
-			expectedSenderSendCalls:   3,
-			expectedSetSentCalls:      3,
-			expectedUnsetPendingCalls: 0,
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendCalls:          3,
+			expectedSetSentCalls:             3,
+			expectedUnsetPendingDisableCalls: 0,
 		},
 		{
-			name:        "no success",
+			name:        "no success, no retries",
 			sendSuccess: false,
 			sendRetry:   false,
 
-			expectedGetUnsentCalls:    1,
-			expectedSenderSendCalls:   3,
-			expectedSetSentCalls:      0,
-			expectedUnsetPendingCalls: 3,
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendCalls:          3,
+			expectedSetSentCalls:             0,
+			expectedUnsetPendingDisableCalls: 3,
+			expectedUnsetPendingCalls:        0,
+		},
+		{
+			name:        "no success, retries",
+			sendSuccess: false,
+			sendRetry:   true,
+
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendCalls:          3,
+			expectedSetSentCalls:             0,
+			expectedUnsetPendingDisableCalls: 0,
+			expectedUnsetPendingCalls:        3,
 		},
 	}
 
@@ -139,6 +152,11 @@ func TestSendCallbacks(t *testing.T) {
 
 					return nil
 				},
+				UnsetPendingDisableFunc: func(_ context.Context, cbIDs []int64) error {
+					require.Subset(t, []int64{2, 3, 4}, cbIDs)
+
+					return nil
+				},
 			}
 
 			sender := &mocks.SenderIMock{
@@ -155,6 +173,7 @@ func TestSendCallbacks(t *testing.T) {
 
 			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
 			assert.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
+			assert.Equal(t, tc.expectedUnsetPendingDisableCalls, len(cbStore.UnsetPendingDisableCalls()))
 			assert.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
 			assert.Equal(t, tc.expectedSenderSendCalls, len(sender.SendCalls()))
 		})
@@ -167,30 +186,42 @@ func TestSendBatchCallbacks(t *testing.T) {
 		sendRetry   bool
 		sendSuccess bool
 
-		expectedGetUnsentCalls       int
-		expectedSenderSendBatchCalls int
-		expectedSetSentCalls         int
-		expectedUnsetPendingCalls    int
+		expectedGetUnsentCalls           int
+		expectedSenderSendBatchCalls     int
+		expectedSetSentCalls             int
+		expectedUnsetPendingDisableCalls int
+		expectedUnsetPendingCalls        int
 	}{
 		{
 			name:        "success",
 			sendSuccess: true,
 			sendRetry:   false,
 
-			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 2,
-			expectedSetSentCalls:         2,
-			expectedUnsetPendingCalls:    0,
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendBatchCalls:     2,
+			expectedSetSentCalls:             2,
+			expectedUnsetPendingDisableCalls: 0,
 		},
 		{
-			name:        "no success",
+			name:        "no success, no retries",
 			sendSuccess: false,
 			sendRetry:   false,
 
-			expectedGetUnsentCalls:       1,
-			expectedSenderSendBatchCalls: 2,
-			expectedSetSentCalls:         0,
-			expectedUnsetPendingCalls:    2,
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendBatchCalls:     2,
+			expectedSetSentCalls:             0,
+			expectedUnsetPendingDisableCalls: 2,
+		},
+		{
+			name:        "no success, retries",
+			sendSuccess: false,
+			sendRetry:   true,
+
+			expectedGetUnsentCalls:           1,
+			expectedSenderSendBatchCalls:     2,
+			expectedSetSentCalls:             0,
+			expectedUnsetPendingDisableCalls: 0,
+			expectedUnsetPendingCalls:        2,
 		},
 	}
 
@@ -232,6 +263,9 @@ func TestSendBatchCallbacks(t *testing.T) {
 				UnsetPendingFunc: func(_ context.Context, _ []int64) error {
 					return nil
 				},
+				UnsetPendingDisableFunc: func(_ context.Context, _ []int64) error {
+					return nil
+				},
 			}
 
 			sender := &mocks.SenderIMock{
@@ -248,6 +282,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 
 			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
 			assert.Equal(t, tc.expectedSetSentCalls, len(cbStore.SetSentCalls()))
+			assert.Equal(t, tc.expectedUnsetPendingDisableCalls, len(cbStore.UnsetPendingDisableCalls()))
 			assert.Equal(t, tc.expectedUnsetPendingCalls, len(cbStore.UnsetPendingCalls()))
 			assert.Equal(t, tc.expectedSenderSendBatchCalls, len(sender.SendBatchCalls()))
 		})

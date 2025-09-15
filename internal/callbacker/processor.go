@@ -24,9 +24,9 @@ const (
 	singleSendDefault             = 5 * time.Second
 	expirationDefault             = 24 * time.Hour
 	batchSendIntervalDefault      = 5 * time.Second
-	storeCallbacksIntervalDefault = 5 * time.Second
+	storeCallbacksIntervalDefault = 2 * time.Second
 	storeCallbackBatchSizeDefault = 500
-	sendCallbacksInterval         = 5 * time.Second
+	sendCallbacksInterval         = 2 * time.Second
 )
 
 type Processor struct {

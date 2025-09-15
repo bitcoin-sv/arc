@@ -310,6 +310,7 @@ func (b *UTXORateBroadcaster) putNewUTXOSInChannel(resp []*metamorph_api.Transac
 		hash, err := chainhash.NewHashFromHex(res.Txid)
 		if err != nil {
 			b.logger.Error("failed to create chainhash txid", slog.String("err", err.Error()))
+			continue
 		}
 
 		if found && isValid {

@@ -209,12 +209,6 @@ func TestRateBroadcasterStart(t *testing.T) {
 		},
 	}
 
-	tickerCh := make(chan time.Time, 5)
-	ticker := &mocks.TickerMock{
-		GetTickerChFunc: func() <-chan time.Time {
-			return tickerCh
-		},
-	}
 	txIDBytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
 	hash1, err := chainhash.NewHash(txIDBytes)
 	require.NoError(t, err)
@@ -223,6 +217,14 @@ func TestRateBroadcasterStart(t *testing.T) {
 	require.NoError(t, err)
 	lockingScript := script.Script(wocScript)
 	for _, tc := range tt {
+
+		tickerCh := make(chan time.Time, 4)
+		ticker := &mocks.TickerMock{
+			GetTickerChFunc: func() <-chan time.Time {
+				return tickerCh
+			},
+		}
+
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			utxoClient := &mocks.UtxoClientMock{

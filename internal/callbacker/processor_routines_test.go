@@ -92,7 +92,7 @@ func TestSendCallbacks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
-				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, error) {
+				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
 						{
 							ID:         1,
@@ -197,7 +197,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
-				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool) ([]*store.CallbackData, error) {
+				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
 						{
 							ID:         1,

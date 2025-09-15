@@ -73,7 +73,7 @@ func ComputeFee(tx *sdkTx.Transaction, s feemodel.SatoshisPerKilobyte) (uint64, 
 
 	fee := float64(txSize) * float64(s.Satoshis) / 1000
 
-	// the minimum fees required is 1 satoshi
+	// the minimum fee required is 1 satoshi
 	feesRequiredRounded := uint64(math.Round(fee))
 	if feesRequiredRounded < 1 {
 		feesRequiredRounded = 1

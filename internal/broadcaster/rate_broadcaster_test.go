@@ -92,8 +92,8 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 			return tickerCh
 		},
 	}
-	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	hash1, err := chainhash.NewHash(txIDbytes)
+	txIDBytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash1, err := chainhash.NewHash(txIDBytes)
 	require.NoError(t, err)
 	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
 	wocScript, err := hex.DecodeString(lockingScriptStr)
@@ -140,7 +140,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 				ticker,
 				broadcaster.WithBatchSize(tc.batchSize),
 				broadcaster.WithIsTestnet(false),
-				broadcaster.WithCallback("callbackurl", "callbacktoken"),
+				broadcaster.WithCallback("callbackURL", "callbackToken"),
 				broadcaster.WithOpReturn("0"),
 				broadcaster.WithFullstatusUpdates(false),
 				broadcaster.WithFees(1),
@@ -215,8 +215,8 @@ func TestRateBroadcasterStart(t *testing.T) {
 			return tickerCh
 		},
 	}
-	txIDbytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-	hash1, err := chainhash.NewHash(txIDbytes)
+	txIDBytes, _ := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
+	hash1, err := chainhash.NewHash(txIDBytes)
 	require.NoError(t, err)
 	lockingScriptStr := "d9ad6a3aba0b1cc57071409f3ebc229193647ad43f715e496a91427d6e812c60"
 	wocScript, err := hex.DecodeString(lockingScriptStr)
@@ -276,7 +276,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				broadcaster.WithBatchSize(2),
 				broadcaster.WithSizeJitter(tc.sizeJitterMax),
 				broadcaster.WithIsTestnet(false),
-				broadcaster.WithCallback("callbackurl", "callbacktoken"),
+				broadcaster.WithCallback("callbackURL", "callbackToken"),
 				broadcaster.WithOpReturn("0"),
 				broadcaster.WithFullstatusUpdates(false),
 				broadcaster.WithFees(1),

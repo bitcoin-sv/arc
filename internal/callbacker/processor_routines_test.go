@@ -166,7 +166,7 @@ func TestSendCallbacks(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger)
+			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger, callbacker.WithMaxRetries(5))
 			require.NoError(t, err)
 			defer processor.GracefulStop()
 			callbacker.LoadAndSendSingleCallbacks(processor)

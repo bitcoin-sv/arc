@@ -194,21 +194,20 @@ func sendCallback(url, token string, jsonPayload []byte, logger *slog.Logger, ti
 	}
 
 	if err != nil {
+		success = false
+		retry = true
 		if errors.Is(err, ErrCreateHTTPRequestFailed) {
 			logger.Error("Failed to create HTTP request",
 				slog.String("url", url),
 				slog.String("token", token),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
-			success = false
-			retry = true
 		} else if errors.Is(err, ErrHostNonExistent) {
 			logger.Warn("Host does not exist",
 				slog.String("url", url),
 				slog.String("token", token),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
-			success = false
 			retry = false
 		} else if errors.Is(err, ErrHTTPSendFailed) {
 			logger.Error("Failed to send http request",
@@ -216,16 +215,12 @@ func sendCallback(url, token string, jsonPayload []byte, logger *slog.Logger, ti
 				slog.String("token", token),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
-			success = false
-			retry = true
 		} else {
 			logger.Error("Failed to send callback",
 				slog.String("url", url),
 				slog.String("token", token),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
-			success = false
-			retry = true
 		}
 	}
 

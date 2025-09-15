@@ -174,29 +174,38 @@ func TestRateBroadcasterStart(t *testing.T) {
 	tt := []struct {
 		name                     string
 		limit                    int64
+		txCount                  int64
 		broadcastTransactionsErr error
+		sizeJitterMax            int64
 
 		expectedBroadcastTransactionsCalls int
 		expectedError                      error
 		expectedLimit                      int64
 	}{
 		{
-			name: "success",
+			name:          "success",
+			txCount:       8,
+			sizeJitterMax: 1,
 
-			expectedBroadcastTransactionsCalls: 0,
+			expectedBroadcastTransactionsCalls: 4,
+			expectedLimit:                      0,
 		},
 		{
-			name:  "success - limit reached",
-			limit: 2,
+			name:          "success - limit reached",
+			limit:         4,
+			txCount:       4,
+			sizeJitterMax: 1,
 
-			expectedBroadcastTransactionsCalls: 0,
-			expectedLimit:                      2,
+			expectedBroadcastTransactionsCalls: 2,
+			expectedLimit:                      4,
 		},
 		{
 			name:                     "error - broadcast transactions",
 			broadcastTransactionsErr: errors.New("some error"),
+			txCount:                  0,
 
-			expectedBroadcastTransactionsCalls: 0,
+			expectedBroadcastTransactionsCalls: 4,
+			expectedLimit:                      0,
 		},
 	}
 
@@ -265,7 +274,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				tc.limit,
 				ticker,
 				broadcaster.WithBatchSize(2),
-				broadcaster.WithSizeJitter(1),
+				broadcaster.WithSizeJitter(tc.sizeJitterMax),
 				broadcaster.WithIsTestnet(false),
 				broadcaster.WithCallback("callbackurl", "callbacktoken"),
 				broadcaster.WithOpReturn("0"),
@@ -283,22 +292,20 @@ func TestRateBroadcasterStart(t *testing.T) {
 			err = sut.Initialize()
 			require.ErrorIs(t, err, tc.expectedError)
 
-			num := 4
-			for i := 0; i < num; i++ {
+			const ticks = 4
+			for i := 0; i < ticks; i++ {
 				tickerCh <- time.Now()
 			}
 
 			sut.Start()
 
-			t.Log(len(client.BroadcastTransactionsCalls()))
+			time.Sleep(1 * time.Second)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedBroadcastTransactionsCalls, len(client.BroadcastTransactionsCalls()))
-			assert.Equal(t, int64(0), sut.GetTxCount())
+			assert.Equal(t, tc.txCount, sut.GetTxCount())
 			assert.Equal(t, tc.expectedLimit, sut.GetLimit())
 			assert.Equal(t, int64(0), sut.GetConnectionCount())
-
-			time.Sleep(2 * time.Second)
 		})
 	}
 }

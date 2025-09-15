@@ -216,7 +216,8 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 
 func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount *uint64) error {
 	// Add additional inputs to the transaction
-	randInt, err := cRand.Int(cRand.Reader, big.NewInt(10))
+	const maxRandomInputs = 10
+	randInt, err := cRand.Int(cRand.Reader, big.NewInt(maxRandomInputs))
 	if err != nil {
 		return fmt.Errorf("failed to generate random number: %v", err)
 	}
@@ -274,7 +275,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
-			// In case of error put utxos back in channel
+			// In case of error, put utxos back in the channel
 			b.putUTXOSBackInChannel(txs)
 			if errors.Is(err, context.Canceled) {
 				atomic.AddInt64(&b.connectionCount, -1)

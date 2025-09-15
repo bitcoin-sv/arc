@@ -62,7 +62,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
 
-	sender, err = callbacker.NewSender(logger, callbacker.WithTimeout(5*time.Second))
+	sender, err = callbacker.NewSender(logger, callbacker.WithTimeout(5*time.Second), callbacker.WithRetrySleepDuration(arcConfig.Callbacker.Pause))
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)

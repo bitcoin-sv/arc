@@ -28,10 +28,11 @@ type SenderOption func(s *CallbackSender)
 
 const (
 	retriesDefault                = 5
-	initRetrySleepDurationDefault = 5 * time.Second
+	initRetrySleepDurationDefault = 50 * time.Millisecond
+	timeoutDefault                = 5 * time.Second
 )
 
-func WithInitRetrySleepDuration(d time.Duration) func(*CallbackSender) {
+func WithRetrySleepDuration(d time.Duration) func(*CallbackSender) {
 	return func(s *CallbackSender) {
 		s.retrySleepDuration = d
 	}
@@ -69,8 +70,8 @@ func NewSender(logger *slog.Logger, opts ...SenderOption) (*CallbackSender, erro
 		stats:              cbStats,
 		logger:             logger.With(slog.String("module", "sender")),
 		retries:            retriesDefault,
-		retrySleepDuration: 5 * time.Second,
-		timeout:            5 * time.Second,
+		retrySleepDuration: initRetrySleepDurationDefault,
+		timeout:            timeoutDefault,
 	}
 
 	// apply options to processor

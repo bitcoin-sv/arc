@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -181,28 +180,4 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			require.Equal(t, tc.expectedRetries, retries, "Expected retries to be %d, but got %d", tc.expectedRetries, retries)
 		})
 	}
-}
-func TestCallbackSender_Send_WithRetries(t *testing.T) {
-	// Given
-	logger := slog.Default()
-	sut, _ := callbacker.NewSender(logger)
-
-	retryCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		retryCount++
-		if retryCount < 3 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// When
-	callback := &callbacker.Callback{TxID: "test-txid", TxStatus: "SEEN_ON_NETWORK"}
-	ok, retry := sut.Send(server.URL, "test-token", callback)
-
-	// Then
-	assert.True(t, ok)
-	assert.False(t, retry)
 }

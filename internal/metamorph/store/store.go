@@ -56,7 +56,7 @@ type StatusWithTimestamp struct {
 func NewStatusWithTimestamp(status metamorph_api.Status, timestamp time.Time) StatusWithTimestamp {
 	return StatusWithTimestamp{
 		Status:    status,
-		Timestamp: timestamp.UTC(),
+		Timestamp: timestamp,
 	}
 }
 

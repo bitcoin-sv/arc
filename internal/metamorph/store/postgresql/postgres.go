@@ -735,17 +735,16 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 				status = bulk_query.status,
 				reject_reason = bulk_query.reject_reason,
 				last_modified = $1,
-				status_history = status_history
-					|| COALESCE(
-						bulk_query.history_update || json_build_object(
-							'status', bulk_query.status,
-							'timestamp', bulk_query.timestamp
-						)::JSONB,
-						json_build_object(
-							'status', bulk_query.status,
-							'timestamp', bulk_query.timestamp
-						)::JSONB
-					)
+				status_history =  COALESCE(status_history, '[]'::jsonb) || COALESCE((
+					 SELECT jsonb_agg(new_status)
+						FROM (
+						SELECT jsonb_build_object(
+						   'status', (new_status->>'status')::INT,
+						   'timestamp', (new_status->>'timestamp')::TIMESTAMP WITH TIME ZONE
+						) AS new_status
+						FROM jsonb_array_elements(COALESCE(bulk_query.history_update, '[]'::JSONB)) AS new_status
+						) AS valid_statuses
+				), '[]'::JSONB)
 			FROM
 			(
 				SELECT t.hash, t.status, t.reject_reason, t.history_update, t.timestamp

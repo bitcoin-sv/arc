@@ -15,9 +15,14 @@
   last_submitted_at: 2023-10-01 14:00:00
 - hash: 0xee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa
   locked_by: metamorph-1
-  status: 80
+  status: 40
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00Z
+    - status: 40
+      timestamp: 2023-10-01T14:00:01.00Z
 - hash: 0x3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd
   locked_by: metamorph-1
   status: 120

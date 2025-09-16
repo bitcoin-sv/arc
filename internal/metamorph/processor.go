@@ -731,9 +731,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// store in database
+	// store in the database
 	// set tx status to Stored
-	sh := &store.StatusWithTimestamp{Status: req.Data.Status, Timestamp: p.now()}
+	sh := &store.StatusWithTimestamp{Status: req.Data.Status, Timestamp: p.now().UTC()}
 	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
 	req.Data.Status = metamorph_api.Status_STORED
 

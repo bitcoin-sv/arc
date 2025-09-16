@@ -49,7 +49,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
 		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
 			Status:    currentStatusUpdate.Status,
-			Timestamp: currentStatusUpdate.Timestamp,
+			Timestamp: currentStatusUpdate.Timestamp.UTC(),
 		})
 		currentStatusUpdate.Status = statusUpdate.Status
 		currentStatusUpdate.Timestamp = statusUpdate.Timestamp

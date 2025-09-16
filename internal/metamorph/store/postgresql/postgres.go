@@ -822,10 +822,7 @@ func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]b
 		}
 
 		var historyDataStr *string
-		update.StatusHistory = append(update.StatusHistory, store.StatusWithTimestamp{
-			Status:    update.Status,
-			Timestamp: update.Timestamp.UTC(),
-		})
+		update.StatusHistory = append(update.StatusHistory, store.NewStatusWithTimestamp(update.Status, update.Timestamp.UTC()))
 
 		historyData, err := json.Marshal(update.StatusHistory)
 		if err != nil {

@@ -672,10 +672,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED,
-			Timestamp: dataBeforeUpdate.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED, dataBeforeUpdate.LastModified)))
 		unmined.Status = metamorph_api.Status_MINED
 		unmined.LastModified = postgresDB.now()
 
@@ -711,14 +708,8 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
-			&store.StatusWithTimestamp{
-				Status:    metamorph_api.Status_QUEUED,
-				Timestamp: postgresDB.now(),
-			},
-			&store.StatusWithTimestamp{
-				Status:    metamorph_api.Status_RECEIVED,
-				Timestamp: postgresDB.now(),
-			},
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_QUEUED, postgresDB.now())),
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_RECEIVED, postgresDB.now())),
 		)
 		unmined.Status = metamorph_api.Status_RECEIVED
 		unmined.LastModified = postgresDB.now()
@@ -737,10 +728,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			Timestamp: postgresDB.now(),
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_ACCEPTED_BY_NETWORK, postgresDB.now())))
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
 		unmined.LastModified = postgresDB.now()
 
@@ -760,10 +748,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		unmined.CompetingTxs = []string{"5678"}
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, unmined.LastModified)))
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
 		require.Equal(t, &unmined, statusUpdates[0])
@@ -789,10 +774,9 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory,
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED, unmined.LastModified)),
+		)
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED
 		require.Equal(t, &unmined, updatedTx)
@@ -818,10 +802,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block2Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED_IN_STALE_BLOCK,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED_IN_STALE_BLOCK, unmined.LastModified)))
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		require.Equal(t, &unmined, updatedTx)

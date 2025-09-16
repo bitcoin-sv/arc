@@ -136,3 +136,8 @@ func Chainhash(t *testing.T, hashString string) *chainhash.Hash {
 
 	return txHash
 }
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
+}

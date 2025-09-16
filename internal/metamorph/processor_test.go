@@ -528,9 +528,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 					}
 					return nil, tc.updateErr
 				},
-				UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
-					return nil, nil
-				},
 				UpdateDoubleSpendFunc: func(_ context.Context, _ []store.UpdateStatus, _ bool) ([]*store.Data, error) {
 					if len(tc.updateResp) > 0 {
 						counter++
@@ -965,9 +962,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 					},
 					FullStatusUpdates: true,
 				}}, nil
-		},
-		UpdateStatusHistoryFunc: func(_ context.Context, _ []store.UpdateStatus) ([]*store.Data, error) {
-			return nil, nil
 		},
 	}
 	pm := &mocks.MediatorMock{}

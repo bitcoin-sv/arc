@@ -176,21 +176,6 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
-	processedMap := make(map[string]struct{}, len(processed))
-	unprocessed := make([]store.UpdateStatus, 0)
-	for _, p := range processed {
-		processedMap[string(p.Hash[:])] = struct{}{}
-	}
-	for _, s := range all {
-		_, found := processedMap[string(s.Hash[:])]
-		if !found {
-			unprocessed = append(unprocessed, s)
-		}
-	}
-	return unprocessed
-}
-
 func toSendRequest(d *store.Data, timestamp time.Time) []*callbacker_api.SendRequest {
 	if len(d.Callbacks) == 0 {
 		return nil

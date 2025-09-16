@@ -459,7 +459,7 @@ func (p *Processor) StartSendStatusUpdate() {
 
 				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
 
-				// update status of transaction in storage
+				// update transaction status in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
 					Status:       msg.Status,

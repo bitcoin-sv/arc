@@ -124,7 +124,7 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 					Peer:   peer.String(),
 					Start:  h.now(),
 				}:
-				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
+				default: // Ensure that writing to channel is non-blocking
 				}
 			}
 			// ignore INV with block or error
@@ -169,7 +169,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 		return
 	}
 
-	// do not block main goroutine
+	// do not block the main goroutine
 	go func(msg *wire.MsgGetData, peer p2p.PeerI) {
 		// handle tx INV
 		txRequests := make([][]byte, 0, len(msg.InvList))

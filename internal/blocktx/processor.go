@@ -430,6 +430,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.Bl
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
+		ProcessedAt:  blockMsg.Header.Timestamp,
 	}
 
 	if p.incomingIsLongest {

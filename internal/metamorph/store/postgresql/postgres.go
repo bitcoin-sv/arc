@@ -1002,6 +1002,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	blockHeights := make([]uint64, len(txsBlocks))
 	merklePaths := make([]string, len(txsBlocks))
 	statuses := make([]metamorph_api.Status, len(txsBlocks))
+	timestamps := make([]time.Time, len(txsBlocks))
 
 	for i, tx := range txsBlocks {
 		txHashes[i] = tx.TransactionHash
@@ -1012,6 +1013,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		if tx.BlockStatus == blocktx_api.Status_STALE {
 			statuses[i] = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		}
+		timestamps[i] = p.now()
 	}
 
 	qBulkUpdate := `
@@ -1022,16 +1024,16 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 			    block_height=bulk_query.block_height,
 			  	merkle_path=bulk_query.merkle_path,
 			  	last_modified=$1,
-				status_history=status_history || json_build_object(
+				status_history=COALESCE(status_history, '[]'::jsonb) || json_build_object(
 					'status', bulk_query.mined_status,
-					'timestamp', last_modified
+					'timestamp', bulk_query.timestamp
 				)::JSONB
 			FROM
 			  (
 				SELECT *
 				FROM
-					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[])
-					AS t(mined_status, hash, block_hash, block_height, merkle_path)
+					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[], $7::TIMESTAMP WITH TIME ZONE[])
+					AS t(mined_status, hash, block_hash, block_height, merkle_path, timestamp)
 			  ) AS bulk_query
 			WHERE
 			  t.hash=bulk_query.hash
@@ -1067,10 +1069,13 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	compTxsData := getCompetingTxsFromRows(rows)
 
-	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths))
-	rollbackErr = p.rollbackIfFailed(err, tx)
-	if rollbackErr != nil {
-		return nil, rollbackErr
+	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths), pq.Array(timestamps))
+	if err != nil {
+		rollbackErr = p.rollbackIfFailed(err, tx)
+		if rollbackErr != nil {
+			return nil, rollbackErr
+		}
+		return nil, err
 	}
 
 	defer rows.Close()

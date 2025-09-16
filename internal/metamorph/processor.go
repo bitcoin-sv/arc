@@ -27,8 +27,7 @@ import (
 const (
 	// maxRetriesDefault number of times we will retry announcing transaction if we haven't seen it on the network
 	maxRetriesDefault = 1000
-	// length of interval for checking transactions if they are seen on the network
-	// if not we resend them again for a few times
+	// length of the interval for checking transactions if they are seen on the network
 	rebroadcastUnseenIntervalDefault = 60 * time.Second
 	lockTransactionsIntervalDefault  = 60 * time.Second
 	reRegisterSeenIntervalDefault    = 3 * time.Minute
@@ -359,7 +358,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	p.logger.Info("Updated mined", slog.Int("count", len(txsBlocks)))
 
 	for _, data := range updatedData {
-		// if we have a pending request with given transaction hash, provide mined status
+		// if we have a pending request with the given the transaction hash, provide mined status
 		p.responseProcessor.UpdateStatus(data.Hash, StatusAndError{
 			Hash:   data.Hash,
 			Status: metamorph_api.Status_MINED,
@@ -379,7 +378,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 	}
 }
 
-// StartProcessSubmitted starts processing txs submitted to message queue
+// StartProcessSubmitted starts processing txs submitted to the message queue
 func (p *Processor) StartProcessSubmitted() {
 	p.waitGroup.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
@@ -695,7 +694,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	// check if tx already stored, return it
 	data, err := p.store.Get(p.ctx, req.Data.Hash[:])
 	if err == nil {
-		//	When transaction is re-submitted we update last_submitted_at with now()
+		//	When the transaction is re-submitted, we update last_submitted_at with now()
 		//	to make sure it will be loaded and re-broadcast if needed.
 		addNewCallback(data, req.Data)
 		err = p.storeData(p.ctx, data)
@@ -742,7 +741,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// broadcast that transaction is stored to client
+	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
 		Status: metamorph_api.Status_STORED,
 	})
@@ -753,16 +752,16 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		p.logger.Error("Failed to register tx in blocktx", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 	}
 
-	// Add this transaction to the map of transactions that client is listening to with open connection
+	// Add this transaction to the map of transactions that the client is listening to with an open connection
 	_, responseProcessorAddSpan := tracing.StartTracing(ctx, "responseProcessor.Add", p.tracingEnabled, p.tracingAttributes...)
 	p.responseProcessor.Add(statusResponse)
 	tracing.EndTracing(responseProcessorAddSpan, nil)
 
-	// Add this transaction to cache
+	// Add this transaction to the cache
 	err = p.saveTxToCache(statusResponse.Hash)
 	if err != nil {
 		p.logger.Error("failed to store tx in cache", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
-		// don't return here, because the transaction will try to be added to cache again when re-broadcasting unmined txs
+		// don't return here, because the transaction will try to be added to the cache again when re-broadcasting unmined txs
 	}
 
 	// ask network about the tx to see if they have it
@@ -790,7 +789,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 		tracing.EndTracing(span, err)
 	}()
 
-	// store in database
+	// store in the database
 	err = p.store.SetBulk(ctx, sReq)
 	if err != nil {
 		p.logger.Error("Failed to bulk store txs", slog.Int("count", len(sReq)), slog.String("err", err.Error()))
@@ -905,7 +904,7 @@ func (p *Processor) updateTxStatus(ctx context.Context, statusUpdate store.Updat
 }
 
 func (p *Processor) msgIsFound(msg *metamorph_p2p.TxStatusMessage) bool {
-	// if we receive new update check if we have client connection waiting for status and send it
+	// if we receive new update check if we have a client connection waiting for status and send it
 	found := p.responseProcessor.UpdateStatus(msg.Hash, StatusAndError{
 		Hash:         msg.Hash,
 		Status:       msg.Status,

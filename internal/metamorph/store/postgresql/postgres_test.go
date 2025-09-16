@@ -698,6 +698,7 @@ func TestPostgresDB(t *testing.T) {
 						Timestamp: postgresDB.now(),
 					},
 				},
+				Timestamp: postgresDB.now(),
 			},
 		}
 
@@ -719,8 +720,9 @@ func TestPostgresDB(t *testing.T) {
 		// Update tx with status RECEIVED to ACCEPTED_BY_NETWORK without additional history
 		updates = []store.UpdateStatus{
 			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Hash:      *unminedHash,
+				Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Timestamp: postgresDB.now(),
 			},
 		}
 
@@ -740,6 +742,7 @@ func TestPostgresDB(t *testing.T) {
 				Hash:         *unminedHash,
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"5678"},
+				Timestamp:    postgresDB.now(),
 			},
 		}
 

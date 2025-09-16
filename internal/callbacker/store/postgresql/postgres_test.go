@@ -256,9 +256,13 @@ func TestPostgresDBt(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unsent")
 		ctx := context.Background()
-
 		const limit = 20
+
 		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false, 0)
+		require.NoError(t, err)
+		require.Len(t, records, 0)
+
+		records, err = postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false, 10)
 		require.NoError(t, err)
 		require.Len(t, records, 13)
 		isSorted := sort.SliceIsSorted(records, func(i, j int) bool {

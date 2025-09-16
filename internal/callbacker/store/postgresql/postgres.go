@@ -165,7 +165,7 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 				UPDATE callbacker.transaction_callbacks c SET pending = $1
 				WHERE c.id IN (
 				    SELECT id FROM callbacker.transaction_callbacks c
-					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5) AND retries <= $6 AND disable IS NOT TRUE
+					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5) AND retries < $6 AND disable IS NOT TRUE
 					AND NOT EXISTS (
 					SELECT 1 FROM callbacker.transaction_callbacks c1
 					WHERE c1.hash=c.hash AND c1.url=c.url AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with hash for which there are already pending callbacks

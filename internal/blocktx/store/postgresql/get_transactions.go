@@ -73,7 +73,6 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 			MerkleTreeIndex: merkleTreeIndex,
 			BlockStatus:     blockStatus,
 			MerkleRoot:      merkleRoot,
-			Timestamp:       timestamp.Time,
 		}
 
 		if timestamp.Valid {

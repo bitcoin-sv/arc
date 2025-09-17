@@ -17,7 +17,7 @@ func TestCallbackSender_Send(t *testing.T) {
 	tests := []struct {
 		name           string
 		responseStatus int
-		useWrongURL    bool
+		nonExistingURL bool
 
 		expectedSuccess bool
 		expectedRetries int
@@ -40,8 +40,8 @@ func TestCallbackSender_Send(t *testing.T) {
 			expectedRetries: 1, // Adjust based on your retry logic in `Send`
 		},
 		{
-			name:        "retry - server error and fails after retries",
-			useWrongURL: true,
+			name:           "retry - server error and fails after retries",
+			nonExistingURL: true,
 
 			expectedSuccess: false,
 			expectedRetry:   false,
@@ -67,7 +67,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			defer sut.GracefulStop()
 
 			url := server.URL
-			if tc.useWrongURL {
+			if tc.nonExistingURL {
 				url = "https://abc.not-existing.abc"
 			}
 

@@ -1003,6 +1003,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	merklePaths := make([]string, len(txsBlocks))
 	statuses := make([]metamorph_api.Status, len(txsBlocks))
 	timestamps := make([]time.Time, len(txsBlocks))
+	minedAt := make([]time.Time, len(txsBlocks))
 
 	for i, tx := range txsBlocks {
 		txHashes[i] = tx.TransactionHash
@@ -1014,6 +1015,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 			statuses[i] = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		}
 		timestamps[i] = p.now()
+		minedAt[i] = tx.Timestamp.AsTime()
 	}
 
 	qBulkUpdate := `
@@ -1027,13 +1029,14 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 				status_history=COALESCE(status_history, '[]'::jsonb) || json_build_object(
 					'status', bulk_query.mined_status,
 					'timestamp', bulk_query.timestamp
-				)::JSONB
+				)::JSONB,
+				mined_at=bulk_query.mined_at
 			FROM
 			  (
 				SELECT *
 				FROM
-					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[], $7::TIMESTAMP WITH TIME ZONE[])
-					AS t(mined_status, hash, block_hash, block_height, merkle_path, timestamp)
+					UNNEST($2::INT[], $3::BYTEA[], $4::BYTEA[], $5::BIGINT[], $6::TEXT[], $7::TIMESTAMP WITH TIME ZONE[], $8::TIMESTAMP WITH TIME ZONE[])
+					AS t(mined_status, hash, block_hash, block_height, merkle_path, timestamp, mined_at)
 			  ) AS bulk_query
 			WHERE
 			  t.hash=bulk_query.hash
@@ -1069,7 +1072,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 	compTxsData := getCompetingTxsFromRows(rows)
 
-	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths), pq.Array(timestamps))
+	rows, err = tx.QueryContext(ctx, qBulkUpdate, p.now(), pq.Array(statuses), pq.Array(txHashes), pq.Array(blockHashes), pq.Array(blockHeights), pq.Array(merklePaths), pq.Array(timestamps), pq.Array(minedAt))
 	if err != nil {
 		rollbackErr = p.rollbackIfFailed(err, tx)
 		if rollbackErr != nil {

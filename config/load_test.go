@@ -30,13 +30,13 @@ func Test_Load(t *testing.T) {
 
 		// then
 		// verify not overridden default example value
-		assert.Equal(t, expectedConfig.GrpcMessageSize, actualConfig.GrpcMessageSize)
+		assert.Equal(t, expectedConfig.Global.GrpcMessageSize, actualConfig.Global.GrpcMessageSize)
 
 		// verify correct override
-		assert.Equal(t, "INFO", actualConfig.LogLevel)
-		assert.Equal(t, "text", actualConfig.LogFormat)
-		assert.Equal(t, "mainnet", actualConfig.Network)
-		assert.NotNil(t, actualConfig.Tracing)
-		assert.Equal(t, "http://tracing:1234", actualConfig.Tracing.DialAddr)
+		assert.Equal(t, "INFO", actualConfig.Global.LogLevel)
+		assert.Equal(t, "text", actualConfig.Global.LogFormat)
+		assert.Equal(t, "mainnet", actualConfig.Global.Network)
+		assert.NotNil(t, actualConfig.Global.Tracing)
+		assert.Equal(t, "http://tracing:1234", actualConfig.Global.Tracing.DialAddr)
 	})
 }

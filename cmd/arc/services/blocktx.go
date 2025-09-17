@@ -33,11 +33,9 @@ const (
 	minConnections        = 1
 )
 
-func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *config.GlobalConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
-
-	btxConfig := arcConfig.Blocktx
 
 	var (
 		blockStore     store.BlocktxStore
@@ -55,15 +53,15 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	shutdownFns := make([]func(), 0)
 	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
-	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
+	if globalCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "blocktx", globalCfg.Tracing.DialAddr, globalCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := arcConfig.Tracing.KeyValueAttributes
+		attributes := globalCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)
@@ -79,7 +77,7 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		logger.Info("Shutdown blocktx complete")
 	}
 
-	blockStore, err = NewBlocktxStore(logger, btxConfig.Db, arcConfig.Tracing)
+	blockStore, err = NewBlocktxStore(logger, btxCfg.Db, globalCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
@@ -89,18 +87,18 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 	var mqOpts []nats_jetstream.Option
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts, connOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	processorOpts = append(processorOpts,
-		blocktx.WithRetentionDays(btxConfig.RecordRetentionDays),
+		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
-		blocktx.WithRegisterTxsInterval(btxConfig.RegisterTxsInterval),
+		blocktx.WithRegisterTxsInterval(btxCfg.RegisterTxsInterval),
 		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithMaxBlockProcessingDuration(btxConfig.MaxBlockProcessingDuration),
-		blocktx.WithIncomingIsLongest(btxConfig.IncomingIsLongest),
+		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
+		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
 	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
@@ -118,13 +116,13 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
-	pm, mcastListener, err = setupBcNetworkCommunication(logger, arcConfig, blockStore, blockRequestCh, minConnections, blockProcessCh)
+	pm, mcastListener, err = setupBcNetworkCommunication(logger, btxCfg, blockStore, blockRequestCh, minConnections, blockProcessCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
 	}
 
-	if arcConfig.Prometheus.IsEnabled() {
+	if globalCfg.Prometheus.IsEnabled() {
 		statsCollector = blocktx.NewStatsCollector(logger, pm, blockStore)
 		err = statsCollector.Start()
 		if err != nil {
@@ -133,30 +131,30 @@ func StartBlockTx(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), err
 		}
 	}
 
-	if btxConfig.FillGaps != nil && btxConfig.FillGaps.Enabled {
+	if btxCfg.FillGaps != nil && btxCfg.FillGaps.Enabled {
 		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
-		workers.StartFillGaps(pm.GetPeers(), btxConfig.FillGaps.Interval, btxConfig.RecordRetentionDays, blockRequestCh)
+		workers.StartFillGaps(pm.GetPeers(), btxCfg.FillGaps.Interval, btxCfg.RecordRetentionDays, blockRequestCh)
 	}
 
-	if btxConfig.UnorphanRecentWrongOrphans != nil && btxConfig.UnorphanRecentWrongOrphans.Enabled {
+	if btxCfg.UnorphanRecentWrongOrphans != nil && btxCfg.UnorphanRecentWrongOrphans.Enabled {
 		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
-		workers.StartUnorphanRecentWrongOrphans(btxConfig.UnorphanRecentWrongOrphans.Interval)
+		workers.StartUnorphanRecentWrongOrphans(btxCfg.UnorphanRecentWrongOrphans.Interval)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.GrpcMessageSize,
-		TracingConfig:      arcConfig.Tracing,
+		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
+		MaxMsgSize:         globalCfg.GrpcMessageSize,
+		TracingConfig:      globalCfg.Tracing,
 		Name:               "blocktx",
 	}
 
-	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, arcConfig.Blocktx.MaxAllowedBlockHeightMismatch, mqClient)
+	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
 
-	err = server.ListenAndServe(btxConfig.ListenAddr)
+	err = server.ListenAndServe(btxCfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPCServer failed: %v", err)
@@ -201,7 +199,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 //
 // Parameters:
 // - `l *slog.Logger`: Logger instance for logging events.
-// - `arcConfig *config.ArcConfig`: Configuration object containing blockchain network settings.
+// - `bloctxCfg *config.BlocktxConfig`: Configuration object containing blockchain network settings.
 // - `store store.BlocktxStore`: A storage interface for blockchain transactions.
 // - `blockRequestCh chan<- blocktx_p2p.BlockRequest`: Channel for handling block requests.
 // - `blockProcessCh chan<- *bcnet.BlockMessage`: Channel for processing block messages.
@@ -223,7 +221,7 @@ func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 // Message Handlers:
 // - `blocktx_p2p.NewMsgHandler`: Used in classic mode, handles all blockchain communication exclusively via P2P.
 // - `blocktx_p2p.NewHybridMsgHandler`: Used in hybrid mode, seamlessly integrates P2P communication with multicast group updates.
-func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, minConnections int, blockProcessCh chan<- *bcnet.BlockMessagePeer) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
+func setupBcNetworkCommunication(l *slog.Logger, bloctxCfg *config.BlocktxConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, minConnections int, blockProcessCh chan<- *bcnet.BlockMessagePeer) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -242,7 +240,7 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 	// p2p global setting
 	p2p.SetExcessiveBlockSize(maximumBlockSize)
 
-	cfg := arcConfig.Blocktx.BlockchainNetwork
+	cfg := bloctxCfg.BlockchainNetwork
 	network, err := config.GetNetwork(cfg.Network)
 	if err != nil {
 		return
@@ -262,7 +260,7 @@ func setupBcNetworkCommunication(l *slog.Logger, arcConfig *config.ArcConfig, st
 
 	// connect to peers
 	var managerOpts []p2p.PeerManagerOptions
-	if arcConfig.Blocktx.MonitorPeers {
+	if bloctxCfg.MonitorPeers {
 		managerOpts = append(managerOpts, p2p.WithRestartUnhealthyPeers())
 	}
 

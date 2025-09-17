@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
+	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
@@ -36,14 +38,12 @@ import (
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
 	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *config.GlobalConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 	logger.Info("Starting")
 	var (
@@ -53,7 +53,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		merkleVerifierClient *merkle_verifier.Client
 	)
 
-	echoServer = setAPIEcho(logger, arcConfig.API)
+	echoServer = setAPIEcho(logger, apiCfg)
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
@@ -69,7 +69,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
 
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, []nats_jetstream.Option{}, connOpts)
+	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, []nats_jetstream.Option{}, connOpts)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -81,13 +81,13 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	apiOpts := []apiHandler.Option{
-		apiHandler.WithCallbackURLRestrictions(arcConfig.Metamorph.RejectCallbackContaining),
-		apiHandler.WithRebroadcastExpiration(arcConfig.ReBroadcastExpiration),
-		apiHandler.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
+		apiHandler.WithCallbackURLRestrictions(apiCfg.RejectCallbackContaining),
+		apiHandler.WithRebroadcastExpiration(globalCfg.ReBroadcastExpiration),
+		apiHandler.WithStandardFormatSupported(apiCfg.StandardFormatSupported),
 	}
 
 	var merkleVerifierOpts []merkle_verifier.Option
-	if arcConfig.Prometheus.IsEnabled() {
+	if globalCfg.Prometheus.IsEnabled() {
 		handlerStats, err := apiHandler.NewStats()
 		if err != nil {
 			stopFn()
@@ -98,23 +98,23 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	}
 
 	defaultValidatorOpts := []defaultValidator.Option{
-		defaultValidator.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
+		defaultValidator.WithStandardFormatSupported(apiCfg.StandardFormatSupported),
 	}
 	var beefValidatorOpts []beefValidator.Option
 	var cachedFinderOpts []func(f *txfinder.CachedFinder)
 	var finderOpts []func(f *txfinder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
-	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(arcConfig.API.WocAPIKey)}
+	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(apiCfg.WocAPIKey)}
 
-	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "api", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
+	if globalCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "api", globalCfg.Tracing.DialAddr, globalCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := arcConfig.Tracing.KeyValueAttributes
+		attributes := globalCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)
@@ -131,7 +131,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		beefValidatorOpts = append(beefValidatorOpts, beefValidator.WithTracer(attributes...))
 	}
 
-	conn, err := grpc_utils.DialGRPC(arcConfig.Metamorph.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	conn, err := grpc_utils.DialGRPC(apiCfg.MetamorphDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
@@ -142,7 +142,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		mtmOpts...,
 	)
 
-	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	btcConn, err := grpc_utils.DialGRPC(apiCfg.BlocktxDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
@@ -150,14 +150,14 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	var policy *bitcoin.Settings
-	policy, err = getPolicyFromNode(arcConfig.PeerRPC)
+	policy, err = getPolicyFromNode(apiCfg.PeerRPC)
 	if err != nil {
-		policy = arcConfig.API.DefaultPolicy
+		policy = apiCfg.DefaultPolicy
 	}
 
-	wocClient := woc_client.New(arcConfig.API.WocMainnet, wocClientOpts...)
+	wocClient := woc_client.New(apiCfg.WocMainnet, wocClientOpts...)
 
-	pc := arcConfig.PeerRPC
+	pc := apiCfg.PeerRPC
 
 	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
@@ -177,14 +177,14 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	var network string
 	var genesisBlock int32
 	var chainTracker beefValidator.ChainTracker
-	bhsDefined := len(arcConfig.API.MerkleRootVerification.BlockHeaderServices) != 0
+	bhsDefined := len(apiCfg.MerkleRootVerification.BlockHeaderServices) != 0
 
 	if bhsDefined {
 		var chainTrackers []*merkle_verifier.ChainTracker
-		if arcConfig.API.MerkleRootVerification.Timeout > 0 {
-			merkleVerifierOpts = append(merkleVerifierOpts, merkle_verifier.WithTimeout(arcConfig.API.MerkleRootVerification.Timeout))
+		if apiCfg.MerkleRootVerification.Timeout > 0 {
+			merkleVerifierOpts = append(merkleVerifierOpts, merkle_verifier.WithTimeout(apiCfg.MerkleRootVerification.Timeout))
 		}
-		for _, bhs := range arcConfig.API.MerkleRootVerification.BlockHeaderServices {
+		for _, bhs := range apiCfg.MerkleRootVerification.BlockHeaderServices {
 			ct := merkle_verifier.NewChainTracker(bhs.URL, bhs.APIKey)
 			chainTrackers = append(chainTrackers, ct)
 		}
@@ -193,17 +193,17 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		chainTracker = merkleVerifierClient
 	}
 
-	switch arcConfig.Network {
+	switch globalCfg.Network {
 	case "testnet":
 		network = "test"
 		if !bhsDefined {
-			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, arcConfig.API.WocAPIKey)
+			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, apiCfg.WocAPIKey)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
 		if !bhsDefined {
-			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, arcConfig.API.WocAPIKey)
+			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, apiCfg.WocAPIKey)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockMain
 	case "regtest":
@@ -214,7 +214,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
 		stopFn()
-		return nil, fmt.Errorf("invalid network type: %s", arcConfig.Network)
+		return nil, fmt.Errorf("invalid network type: %s", globalCfg.Network)
 	}
 
 	dv := defaultValidator.New(
@@ -236,9 +236,9 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.GrpcMessageSize,
-		TracingConfig:      arcConfig.Tracing,
+		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
+		MaxMsgSize:         globalCfg.GrpcMessageSize,
+		TracingConfig:      globalCfg.Tracing,
 		Name:               "api",
 	}
 
@@ -247,7 +247,7 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
-	err = server.ListenAndServe(arcConfig.API.ListenAddr)
+	err = server.ListenAndServe(apiCfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
@@ -260,8 +260,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 	// Serve HTTP until the world ends.
 	go func() {
-		logger.Info("Starting API server", slog.String("address", arcConfig.API.Address))
-		err := echoServer.Start(arcConfig.API.Address)
+		logger.Info("Starting API server", slog.String("address", apiCfg.Address))
+		err := echoServer.Start(apiCfg.Address)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				logger.Info("API http server closed")

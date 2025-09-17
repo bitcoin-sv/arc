@@ -166,7 +166,7 @@ services:
       migrate-blocktx:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -190,7 +190,7 @@ services:
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -214,7 +214,7 @@ services:
       migrate-metamorph:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -239,14 +239,14 @@ services:
       metamorph:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s" ]
       interval: 6s
       timeout: 5s
       retries: 3
 
   jaeger:
     image: jaegertracing/all-in-one:1.68.0
-    profiles: ["tracing"]
+    profiles: [ "tracing" ]
     ports:
       - "16686:16686"
       - "4317:4317"

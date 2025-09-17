@@ -38,16 +38,16 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
 	}
 
-	if arcConfig.Tracing != nil {
-		tracingAttributes := make([]attribute.KeyValue, len(arcConfig.Tracing.Attributes))
+	if arcConfig.Global.Tracing != nil {
+		tracingAttributes := make([]attribute.KeyValue, len(arcConfig.Global.Tracing.Attributes))
 		index := 0
-		for key, value := range arcConfig.Tracing.Attributes {
+		for key, value := range arcConfig.Global.Tracing.Attributes {
 			tracingAttributes[index] = attribute.String(key, value)
 			index++
 		}
 
 		if len(tracingAttributes) > 0 {
-			arcConfig.Tracing.KeyValueAttributes = tracingAttributes
+			arcConfig.Global.Tracing.KeyValueAttributes = tracingAttributes
 		}
 	}
 

@@ -40,7 +40,7 @@ func run() error {
 		return config.DumpConfig(dumpConfigFile)
 	}
 
-	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
+	logger, err := arcLogger.NewLogger(arcConfig.Global.LogLevel, arcConfig.Global.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}
@@ -70,18 +70,14 @@ func run() error {
 }
 
 func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
-	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cache store: %v", err)
-	}
 	logger.Info("Starting ARC", slog.String("version", version.Version), slog.String("commit", version.Commit))
 	shutdownFns := make([]func(), 0)
 
 	go func() {
-		if arcConfig.ProfilerAddr != "" {
-			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.ProfilerAddr))
+		if arcConfig.Global.ProfilerAddr != "" {
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.Global.ProfilerAddr))
 
-			err := http.ListenAndServe(arcConfig.ProfilerAddr, nil)
+			err := http.ListenAndServe(arcConfig.Global.ProfilerAddr, nil)
 			if err != nil {
 				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 			}
@@ -89,10 +85,10 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}()
 
 	go func() {
-		if arcConfig.Prometheus.IsEnabled() {
-			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Prometheus.Endpoint))
-			http.Handle(arcConfig.Prometheus.Endpoint, promhttp.Handler())
-			err = http.ListenAndServe(arcConfig.Prometheus.Addr, nil)
+		if arcConfig.Global.Prometheus.IsEnabled() {
+			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Global.Prometheus.Endpoint))
+			http.Handle(arcConfig.Global.Prometheus.Endpoint, promhttp.Handler())
+			err := http.ListenAndServe(arcConfig.Global.Prometheus.Addr, nil)
 			if err != nil {
 				logger.Error("failed to start prometheus server", slog.String("err", err.Error()))
 			}
@@ -109,7 +105,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Global)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -118,7 +114,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Global)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -127,7 +123,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startAPI {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig.API, arcConfig.Global)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start api: %v", err)
 		}
@@ -137,7 +133,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Global)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -145,7 +141,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Global)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start callbacker: %v", err)
 		}

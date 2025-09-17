@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.4.2](#142---2025-09-18)
 - [1.4.1](#141---2025-09-10)
 - [1.4.0](#140---2025-09-02)
 - [1.3.54](#1354---2025-07-09)
@@ -24,6 +25,11 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.4.2] - 2025-09-18
+
+### Changed
+- New callbacker config setting `maxRetries`. It allows configuring the maximum number of times a callback is attempted to be sent.
 
 ## [1.4.1] - 2025-09-10
 

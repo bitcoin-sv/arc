@@ -53,7 +53,7 @@ func run() error {
 		return err
 	}
 
-	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
+	logger, err := arcLogger.NewLogger(arcConfig.Global.LogLevel, arcConfig.Global.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}

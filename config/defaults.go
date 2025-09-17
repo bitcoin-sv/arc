@@ -8,6 +8,17 @@ import (
 
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
+		Global:     getDefaultGlobalConfig(),
+		Metamorph:  getMetamorphConfig(),
+		Blocktx:    getBlocktxConfig(),
+		API:        getAPIConfig(),
+		K8sWatcher: nil, // optional
+		Callbacker: getCallbackerConfig(),
+	}
+}
+
+func getDefaultGlobalConfig() *GlobalConfig {
+	return &GlobalConfig{
 		LogLevel:              "DEBUG",
 		LogFormat:             "text",
 		ProfilerAddr:          "", // optional
@@ -17,12 +28,6 @@ func getDefaultArcConfig() *ArcConfig {
 		ReBroadcastExpiration: 24 * time.Hour,
 		MessageQueue:          getDefaultMessageQueueConfig(),
 		Tracing:               getDefaultTracingConfig(),
-		PeerRPC:               getDefaultPeerRPCConfig(),
-		Metamorph:             getMetamorphConfig(),
-		Blocktx:               getBlocktxConfig(),
-		API:                   getAPIConfig(),
-		K8sWatcher:            nil, // optional
-		Callbacker:            getCallbackerConfig(),
 		Cache:                 getCacheConfig(),
 	}
 }
@@ -58,7 +63,6 @@ func getDefaultPeerRPCConfig() *PeerRPCConfig {
 func getMetamorphConfig() *MetamorphConfig {
 	return &MetamorphConfig{
 		ListenAddr:               "localhost:8001",
-		DialAddr:                 "localhost:8001",
 		Db:                       getDbConfig("metamorph"),
 		ReAnnounceUnseenInterval: 60 * time.Second,
 		ReAnnounceSeen: &ReAnnounceSeenConfig{
@@ -79,7 +83,7 @@ func getMetamorphConfig() *MetamorphConfig {
 		Health: &HealthConfig{
 			MinimumHealthyConnections: 2,
 		},
-		RejectCallbackContaining: []string{"http://localhost", "https://localhost"},
+
 		Stats: &StatsConfig{
 			NotSeenTimeLimit:  10 * time.Minute,
 			NotFinalTimeLimit: 20 * time.Minute,
@@ -102,7 +106,6 @@ func getMetamorphConfig() *MetamorphConfig {
 func getBlocktxConfig() *BlocktxConfig {
 	return &BlocktxConfig{
 		ListenAddr:                    "localhost:8011",
-		DialAddr:                      "localhost:8011",
 		Db:                            getDbConfig("blocktx"),
 		RecordRetentionDays:           28,
 		RegisterTxsInterval:           10 * time.Second,
@@ -131,6 +134,8 @@ func getBlocktxConfig() *BlocktxConfig {
 
 func getAPIConfig() *APIConfig {
 	return &APIConfig{
+		PeerRPC:                  getDefaultPeerRPCConfig(),
+		RejectCallbackContaining: []string{"http://localhost", "https://localhost"},
 		MerkleRootVerification: MerkleRootVerification{
 			BlockHeaderServices: []BlockHeaderService{},
 		},
@@ -193,7 +198,6 @@ func getDbConfig(dbName string) *DbConfig {
 func getCallbackerConfig() *CallbackerConfig {
 	return &CallbackerConfig{
 		ListenAddr:        "localhost:8021",
-		DialAddr:          "localhost:8021",
 		Pause:             0,
 		BatchSendInterval: 5 * time.Second,
 		PruneOlderThan:    14 * 24 * time.Hour,

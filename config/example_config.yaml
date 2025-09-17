@@ -1,45 +1,40 @@
 ---
-logLevel: DEBUG # mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR
-logFormat: text # format of logging. Value can be one of text | json | tint
-profilerAddr: localhost:9999 # address to start profiler server on
-prometheus:
-  enabled: false # if true, then prometheus metrics are enabled
-  endpoint: /metrics # endpoint for prometheus metrics
-  addr: :2112 # port for serving prometheus metrics
-grpcMessageSize: 100000000 # maximum grpc message size
-network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
-messageQueue:
-  streaming:
-    enabled: true  # if enabled, message queue can store messages - currently ARC only supports message queue with streaming enabled
-    fileStorage: false # if enabled messages are persisted on disk instead of in memory
-  URL: nats://nats:4222 # URL for message queue
-  initialize: true # initialize streams and consumers
-reBroadcastExpiration: 24h # time since last submitted after which transactions are not re-broadcasted anymore
 
-tracing:
-  enabled: true # if true, then tracing is enabled
-  dialAddr: http://localhost:4317 # address where traces are exported to
-  sample: 100 # sampling in percentage
-  attributes: # attributes to be added to each trace
-    key1: value1
-    key2: 100
-
-peerRpc: # rpc configuration for bitcoin node
-  password: bitcoin
-  user: bitcoin
-  host: localhost
-  port: 18332
-
-cache:
-  engine: redis # cache engine - one of in-memory | redis
-  redis: # redis cache configuration in case that engine: redis
-    addr: "localhost:6379"
-    password: ""
-    db: 1
+global:
+  logLevel: DEBUG # mode of logging. Value can be one of TRACE | DEBUG | INFO | WARN | ERROR
+  logFormat: text # format of logging. Value can be one of text | json | tint
+  profilerAddr: localhost:9999 # address to start profiler server on
+  prometheus:
+    enabled: false # if true, then prometheus metrics are enabled
+    endpoint: /metrics # endpoint for prometheus metrics
+    addr: :2112 # port for serving prometheus metrics
+  grpcMessageSize: 100000000 # maximum grpc message size
+  network: regtest # bitcoin network to connect to. Value can be one of mainnet | testnet | regtest
+  messageQueue:
+    streaming:
+      enabled: true  # if enabled, message queue can store messages - currently ARC only supports message queue with streaming enabled
+      fileStorage: false # if enabled messages are persisted on disk instead of in memory
+    URL: nats://nats:4222 # URL for message queue
+    initialize: true # initialize streams and consumers
+  reBroadcastExpiration: 24h # time since last submitted after which transactions are not re-broadcasted anymore
+  tracing:
+    enabled: true # if true, then tracing is enabled
+    dialAddr: http://localhost:4317 # address where traces are exported to
+    sample: 100 # sampling in percentage
+    attributes: # attributes to be added to each trace
+      key1: value1
+      key2: 100
+  cache:
+    engine: redis # cache engine - one of in-memory | redis
+    redis: # redis cache configuration in case that engine: redis
+      addr: "localhost:6379"
+      password: ""
+      db: 1
 
 metamorph:
   listenAddr: localhost:8001 # address space for metamorph to listen on. Can be for example localhost:8001 or :8001 for listening on all addresses
-  dialAddr: localhost:8001 # address for other services to dial metamorph service
+  blocktxDialAddr: localhost:8001 # dial address of blocktx service
+  callbackerDialAddr: localhost:8021 # dial address of callbacker service
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres
@@ -67,7 +62,6 @@ metamorph:
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:
     minimumHealthyConnections: 2 # minimum number of healthy peer connections for the processor to be considered healthy
-  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m # amount of time after storing at which a non-seen tx will be counted towards not seen stat
     notFinalTimeLimit: 20m # amount of time after storing at which a seen but not mined tx will be counted towards not mined stat
@@ -99,7 +93,6 @@ metamorph:
 
 blocktx:
   listenAddr: localhost:8011 # address space for blocktx to listen on. Can be for example localhost:8011 or :8011 for listening on all addresses
-  dialAddr: localhost:8011 # address for other services to dial blocktx service
   db:
     mode: postgres # db mode indicates which db to use. At the moment only postgres is offered
     postgres: # postgres db configuration in case that mode: postgres
@@ -146,6 +139,14 @@ blocktx:
         - "eth1"
 
 api:
+  metamorphDialAddr: localhost:8001  # dial address of metamorph service
+  blocktxDialAddr: localhost:8011 # dial address of blocktx service
+  peerRpc: # rpc configuration for bitcoin node
+    password: bitcoin
+    user: bitcoin
+    host: localhost
+    port: 18332
+  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   merkleRootVerification: # settings related to Merkle root verification
     timeout: 5s # timeout when calling block header service
     blockHeaderServices: # block header services to call during Merkle root verification of BEEF format. If none given WoC will be used as block header service by default
@@ -189,11 +190,11 @@ api:
     acceptnonstdconsolidationinput: false
 
 k8sWatcher:
+  metamorphDialAddr: localhost:8001  # dial address of metamorph service
   namespace: arc-namespace
 
 callbacker:
   listenAddr: localhost:8021 # address space for callbacker to listen on. Can be for example localhost:8021 or :8021 for listening on all addresses
-  dialAddr: localhost:8021 # address for other services to dial callbacker service
   pause: 1s # pause between sending next callback to the same receiver - must be greater 0s
   batchSendInterval: 5s # interval at witch batched callbacks are send (default 5s)
   pruneOlderThan: 336h # age threshold for pruning callbacks (older than this value will be removed)

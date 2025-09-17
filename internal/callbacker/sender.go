@@ -112,7 +112,6 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 			slog.String("err", err.Error()))
 		return false, false
 	}
-	var retries int
 
 	success, retry = sendCallback(url, token, payload, p.logger.With(slog.String("hash", dto.TxID), slog.String("status", dto.TxStatus)), p.timeout)
 	if success {
@@ -122,7 +121,6 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 			slog.String("hash", dto.TxID),
 			slog.String("status", dto.TxStatus),
 			slog.String("timestamp", dto.Timestamp.String()),
-			slog.Int("retries", retries),
 		)
 
 		p.updateSuccessStats(dto.TxStatus)

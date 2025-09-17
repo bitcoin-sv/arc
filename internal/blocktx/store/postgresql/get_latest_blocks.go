@@ -11,13 +11,14 @@ import (
 func (p *PostgreSQL) LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error) {
 	q := `
 		SELECT
-			hash
+		  hash
 		 ,prevhash
 		 ,merkleroot
 		 ,height
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM blocktx.blocks
 		WHERE is_longest = true AND processed_at IS NOT NULL order by height desc LIMIT $1`
 
@@ -32,6 +33,7 @@ func (p *PostgreSQL) LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*b
 	for rows.Next() {
 		var block blocktx_api.Block
 		var processedAt sql.NullTime
+		var timestamp sql.NullTime
 		err := rows.Scan(
 			&block.Hash,
 			&block.PreviousHash,
@@ -40,9 +42,14 @@ func (p *PostgreSQL) LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*b
 			&processedAt,
 			&block.Status,
 			&block.Chainwork,
+			&timestamp,
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		if timestamp.Valid {
+			block.Timestamp = timestamppb.New(timestamp.Time.UTC())
 		}
 
 		if processedAt.Valid {

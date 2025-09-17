@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (p *PostgreSQL) GetBlock(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
@@ -31,13 +32,14 @@ func (p *PostgreSQL) GetChainTip(ctx context.Context) (*blocktx_api.Block, error
 func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string, predicateParams ...any) (*blocktx_api.Block, error) {
 	q := `
 		SELECT
-			hash
+		  hash
 		 ,prevhash
 		 ,merkleroot
 		 ,height
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM blocktx.blocks
 	`
 
@@ -45,7 +47,8 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 
 	var block blocktx_api.Block
 
-	var processedAt sql.NullString
+	var processedAt sql.NullTime
+	var timestamp sql.NullTime
 
 	if err := p.db.QueryRowContext(ctx, q, predicateParams...).Scan(
 		&block.Hash,
@@ -55,6 +58,7 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 		&processedAt,
 		&block.Status,
 		&block.Chainwork,
+		&timestamp,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrBlockNotFound
@@ -63,6 +67,14 @@ func (p *PostgreSQL) queryBlockByPredicate(ctx context.Context, predicate string
 	}
 
 	block.Processed = processedAt.Valid
+
+	if processedAt.Valid {
+		block.ProcessedAt = timestamppb.New(processedAt.Time)
+	}
+
+	if timestamp.Valid {
+		block.Timestamp = timestamppb.New(timestamp.Time)
+	}
 
 	return &block, nil
 }

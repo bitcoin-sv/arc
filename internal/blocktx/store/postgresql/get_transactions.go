@@ -24,7 +24,8 @@ func (p *PostgreSQL) GetMinedTransactions(ctx context.Context, hashes [][]byte) 
 			b.height,
 			bt.merkle_tree_index,
 			b.status,
-			b.merkleroot
+			b.merkleroot,
+			b.timestamp
 		FROM blocktx.block_transactions AS bt
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id
 		WHERE bt.hash = ANY($1) AND (b.status = $2 OR b.status = $3) AND b.processed_at IS NOT NULL
@@ -50,6 +51,7 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 		var merkleTreeIndex int64
 		var blockStatus blocktx_api.Status
 		var merkleRoot []byte
+		var timestamp sql.NullTime
 
 		err := rows.Scan(
 			&txHash,
@@ -58,19 +60,27 @@ func (p *PostgreSQL) getBlockTransactions(rows *sql.Rows) ([]store.BlockTransact
 			&merkleTreeIndex,
 			&blockStatus,
 			&merkleRoot,
+			&timestamp,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		transactionBlocks = append(transactionBlocks, store.BlockTransaction{
+		bt := store.BlockTransaction{
 			TxHash:          txHash,
 			BlockHash:       blockHash,
 			BlockHeight:     blockHeight,
 			MerkleTreeIndex: merkleTreeIndex,
 			BlockStatus:     blockStatus,
 			MerkleRoot:      merkleRoot,
-		})
+			Timestamp:       timestamp.Time,
+		}
+
+		if timestamp.Valid {
+			bt.Timestamp = timestamp.Time
+		}
+
+		transactionBlocks = append(transactionBlocks, bt)
 	}
 
 	return transactionBlocks, nil
@@ -89,7 +99,8 @@ func (p *PostgreSQL) GetRegisteredTxsByBlockHashes(ctx context.Context, blockHas
 			b.height,
 			bt.merkle_tree_index,
 			b.status,
-			b.merkleroot
+			b.merkleroot,
+			b.timestamp
 		FROM blocktx.registered_transactions AS r
 			JOIN blocktx.block_transactions AS bt ON r.hash = bt.hash
 			JOIN blocktx.blocks AS b ON bt.block_id = b.id

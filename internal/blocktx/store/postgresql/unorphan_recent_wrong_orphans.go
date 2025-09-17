@@ -28,50 +28,50 @@ func (p *PostgreSQL) UnorphanRecentWrongOrphans(ctx context.Context) (unorphaned
 		is_longest = true
 		WHERE hash IN
 		( WITH RECURSIVE recent_orphans AS (SELECT *
-
-																  FROM (SELECT hash
-																			 , status
-																			 , prevhash
-																			 , processed_at
-																		FROM blocktx.blocks
-																		ORDER BY height DESC
-																		LIMIT 1000) recent_longest
-																  WHERE recent_longest.status = $1
-																  UNION ALL
-																  SELECT child.hash
-																	   , child.status
-																	   , child.prevhash
-																	   , child.processed_at
-																  FROM recent_orphans as parent
-																		   JOIN blocktx.blocks as child ON child.prevhash = parent.hash
-																  WHERE child.processed_at IS NOT NULL
-																	AND child.status = $2
-																    AND (SELECT COUNT(*) /* does not have a sibling that is LONGEST */
-																         FROM blocktx.blocks c
-																         WHERE c.prevhash = parent.hash
-																         AND c.processed_at IS NOT NULL
-																         AND c.status = $1
-																         ) = 0
-																	 AND (SELECT COUNT(*) /* does not have a sibling that is ORPHAN but with higher chainwork */
-																	 FROM blocktx.blocks c
-																	 WHERE c.prevhash = parent.hash
-																	 AND c.hash != child.hash
-																	 AND c.status = $2
-																	 AND c.processed_at IS NOT NULL
-																	 AND c.chainwork > child.chainwork
-																	 ) = 0
-																    )
+									  FROM (SELECT hash
+												 , status
+												 , prevhash
+												 , processed_at
+											FROM blocktx.blocks
+											ORDER BY height DESC
+											LIMIT 1000) recent_longest
+									  WHERE recent_longest.status = $1
+									  UNION ALL
+									  SELECT child.hash
+										   , child.status
+										   , child.prevhash
+										   , child.processed_at
+									  FROM recent_orphans as parent
+											   JOIN blocktx.blocks as child ON child.prevhash = parent.hash
+									  WHERE child.processed_at IS NOT NULL
+										AND child.status = $2
+										AND (SELECT COUNT(*) /* does not have a sibling that is LONGEST */
+											 FROM blocktx.blocks c
+											 WHERE c.prevhash = parent.hash
+											 AND c.processed_at IS NOT NULL
+											 AND c.status = $1
+											 ) = 0
+										 AND (SELECT COUNT(*) /* does not have a sibling that is ORPHAN but with higher chainwork */
+										 FROM blocktx.blocks c
+										 WHERE c.prevhash = parent.hash
+										 AND c.hash != child.hash
+										 AND c.status = $2
+										 AND c.processed_at IS NOT NULL
+										 AND c.chainwork > child.chainwork
+										 ) = 0
+										)
 								SELECT  r.hash
 								FROM recent_orphans r
 								WHERE status = $2
 								)
-	RETURNING  hash
-		, prevhash
-		, merkleroot
-		, height
-		, processed_at
-		, status
-		, chainwork
+	RETURNING hash
+		     ,prevhash
+		     ,merkleroot
+		     ,height
+		     ,processed_at
+		     ,status
+		     ,chainwork
+		     ,timestamp
 )
 SELECT *
 FROM updated

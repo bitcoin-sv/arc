@@ -80,6 +80,7 @@ message Block {
   Status status = 6;
   string chainwork = 7;
   google.protobuf.Timestamp processed_at = 8;
+  google.protobuf.Timestamp timestamp = 9;
 }
 
 // swagger:model Transactions
@@ -93,6 +94,7 @@ message TransactionBlock {
   bytes transaction_hash = 3; // Little endian
   string merklePath = 4;
   Status block_status = 5;
+  google.protobuf.Timestamp timestamp = 6;
 }
 
 message TransactionBlocks {

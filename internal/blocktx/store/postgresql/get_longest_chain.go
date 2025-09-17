@@ -16,6 +16,7 @@ func (p *PostgreSQL) GetLongestChainFromHeight(ctx context.Context, height uint6
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM blocktx.blocks
 		WHERE height >= $1 AND is_longest = true AND processed_at IS NOT NULL order by id asc
 	`

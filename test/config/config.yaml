@@ -1,35 +1,4 @@
 ---
-
-global:
-  logLevel: INFO
-  logFormat: tint
-  profilerAddr: localhost:9999
-  prometheus:
-    enabled: true
-    endpoint: /metrics
-    addr: :2112
-  grpcMessageSize: 100000000
-  network: regtest
-  messageQueue:
-    streaming:
-      enabled: true
-      fileStorage: false
-    URL: nats://nats-1:4222,nats://nats-2:4223
-    user:
-    password:
-  reBroadcastExpiration: 24h
-  tracing:
-    enabled: false
-    dialAddr: http://jaeger:4317
-    sample: 100
-
-  cache:
-    engine: redis
-    redis:
-      addr: cache:6379
-      password: ""
-      db: 1
-
 metamorph:
   listenAddr: 0.0.0.0:8001
   blocktxDialAddr: blocktx:8011
@@ -119,7 +88,7 @@ api:
   peerRpc:
     password: bitcoin
     user: bitcoin
-    host: localhost
+    host: node1
     port: 18332
   rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   standardFormatSupported: true

@@ -1,7 +1,8 @@
 ---
-logLevel: INFO
-logFormat: text
-network: mainnet
-tracing:
-  dialAddr: http://tracing:1234
-  sample: 10 # sampling in percentage
+common:
+  logLevel: INFO
+  logFormat: text
+  network: mainnet
+  tracing:
+    dialAddr: http://tracing:1234
+    sample: 10 # sampling in percentage

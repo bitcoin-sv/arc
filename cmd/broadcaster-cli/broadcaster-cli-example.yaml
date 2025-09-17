@@ -10,6 +10,7 @@ privateKeys: # map of private keys
 # flags
 miningFeeSatPerKb: 1 # Fee offered in transactions
 apiURL: https://arc-test.taal.com # URL of ARC instance
+authorization: Bearer some-token # Authorization header to use for the http api client
 testnet: true # Use testnet
 wocAPIKey: testnet_XXXX # WoC api key for faster requests to WoC
 callbackURL: http://callbacks.example.com # callback URL header

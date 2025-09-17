@@ -126,6 +126,14 @@ func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry 
 		p.updateSuccessStats(dto.TxStatus)
 		return success, retry
 	}
+	p.logger.Warn("Failed to send callback",
+		slog.String("url", url),
+		slog.String("token", token),
+		slog.String("hash", dto.TxID),
+		slog.String("status", dto.TxStatus),
+		slog.String("timestamp", dto.Timestamp.String()),
+		slog.Bool("batch", false),
+	)
 
 	p.stats.callbackFailedCount.Inc()
 	return success, retry
@@ -147,7 +155,6 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 
 		return false, false
 	}
-	var retries int
 
 	success, retry = sendCallback(url, token, payload, p.logger.With(slog.Int("batch size", len(dtos))), p.timeout)
 	p.stats.callbackBatchCount.Inc()
@@ -159,7 +166,6 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 				slog.String("hash", dto.TxID),
 				slog.String("status", dto.TxStatus),
 				slog.String("timestamp", dto.Timestamp.String()),
-				slog.Int("retries", retries),
 				slog.Int("batch size", len(dtos)),
 			)
 
@@ -168,11 +174,11 @@ func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success
 		return success, retry
 	}
 
-	p.logger.Info("Failed to send callback with retries",
+	p.logger.Warn("Failed to send callback",
 		slog.String("url", url),
 		slog.String("token", token),
 		slog.Bool("batch", true),
-		slog.Int("retries", retries))
+	)
 
 	p.stats.callbackFailedCount.Inc()
 	return success, retry
@@ -198,12 +204,14 @@ func sendCallback(url, token string, jsonPayload []byte, logger *slog.Logger, ti
 			logger.Error("Failed to create HTTP request",
 				slog.String("url", url),
 				slog.String("token", token),
+				slog.Int("code", statusCode),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
 		} else if errors.Is(err, ErrHostNonExistent) {
 			logger.Warn("Host does not exist",
 				slog.String("url", url),
 				slog.String("token", token),
+				slog.Int("code", statusCode),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
 			retry = false
@@ -211,15 +219,24 @@ func sendCallback(url, token string, jsonPayload []byte, logger *slog.Logger, ti
 			logger.Error("Failed to send http request",
 				slog.String("url", url),
 				slog.String("token", token),
+				slog.Int("code", statusCode),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
 		} else {
-			logger.Error("Failed to send callback",
+			logger.Error("Failed to send payload",
 				slog.String("url", url),
 				slog.String("token", token),
+				slog.Int("code", statusCode),
 				slog.String("resp", responseText),
 				slog.String("err", err.Error()))
 		}
+	} else {
+		logger.Warn("Status code is not OK",
+			slog.String("url", url),
+			slog.String("token", token),
+			slog.Int("code", statusCode),
+			slog.String("resp", responseText),
+		)
 	}
 
 	return success, retry

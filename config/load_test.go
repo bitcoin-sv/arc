@@ -25,7 +25,7 @@ func Test_Load(t *testing.T) {
 		expectedConfig := getDefaultArcConfig()
 
 		// when
-		actualConfig, err := Load("./test_files/")
+		actualConfig, err := Load("./test_files/config.yaml")
 		require.NoError(t, err, "error loading config")
 
 		// then

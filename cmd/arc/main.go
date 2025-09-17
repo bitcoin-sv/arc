@@ -9,14 +9,14 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	"github.com/bitcoin-sv/arc/config"
 	arcLogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/version"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -29,9 +29,10 @@ func main() {
 }
 
 func run() error {
-	configDir, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
+	configFiles, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
+	configFileSlice := strings.Split(configFiles, ",")
 
-	arcConfig, err := config.Load(configDir)
+	arcConfig, err := config.Load(configFileSlice...)
 	if err != nil {
 		return fmt.Errorf("failed to load app config: %w", err)
 	}
@@ -165,7 +166,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	help := flag.Bool("help", false, "Show help")
 	dumpConfigFile := flag.String("dump_config", "", "dump config to specified file and exit")
-	configDir := flag.String("config", "", "path to configuration file")
+	configFiles := flag.String("config", "", "comma separated list of paths to configuration files e.g. -config=/path/to/config1.yaml,/path/to/config2.yaml")
 
 	flag.Parse()
 
@@ -188,8 +189,8 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		fmt.Println("    -callbacker=<true|false>")
 		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
-		fmt.Println("    -config=/location")
-		fmt.Println("          directory to look for config (default='')")
+		fmt.Println("    -config=/path/to/config.yaml")
+		fmt.Println("          comma separated path to config file to look for config (default='./config.yaml')")
 		fmt.Println("")
 		fmt.Println("    -dump_config=/file.yaml")
 		fmt.Println("          dump config to specified file and exit (default='config/dumped_config.yaml')")
@@ -197,7 +198,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		os.Exit(0)
 	}
 
-	return *configDir, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
+	return *configFiles, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
 }
 
 func isAnyFlagPassed(flags ...string) bool {

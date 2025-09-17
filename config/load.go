@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
+	"log"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -16,7 +16,7 @@ var (
 	ErrConfigPath                = errors.New("config path error")
 )
 
-func Load(configFileDirs ...string) (*ArcConfig, error) {
+func Load(configFiles ...string) (*ArcConfig, error) {
 	arcConfig := getDefaultArcConfig()
 
 	err := setDefaults(arcConfig)
@@ -24,7 +24,7 @@ func Load(configFileDirs ...string) (*ArcConfig, error) {
 		return nil, err
 	}
 
-	err = overrideWithFiles(configFileDirs...)
+	err = overrideWithFiles(configFiles...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,29 +69,19 @@ func setDefaults(defaultConfig *ArcConfig) error {
 	return nil
 }
 
-func overrideWithFiles(configFileDirs ...string) error {
-	if len(configFileDirs) == 0 || configFileDirs[0] == "" {
+func overrideWithFiles(files ...string) error {
+	if len(files) == 0 || files[0] == "" {
 		return nil
 	}
 
-	for _, path := range configFileDirs {
-		stat, err := os.Stat(path)
+	for _, f := range files {
+		viper.SetConfigFile(f)
+		err := viper.MergeInConfig()
 		if err != nil {
-			if os.IsNotExist(err) {
-				return errors.Join(ErrConfigPath, fmt.Errorf("path: %s does not exist", path))
-			}
-			return err
-		}
-		if !stat.IsDir() {
-			return errors.Join(ErrConfigPath, fmt.Errorf("path: %s should be a directory", path))
+			return errors.Join(ErrConfigPath, err)
 		}
 
-		viper.AddConfigPath(path)
-	}
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		return err
+		log.Default().Printf("Merged config from:%s", viper.ConfigFileUsed())
 	}
 
 	return nil

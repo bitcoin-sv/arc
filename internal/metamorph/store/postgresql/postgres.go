@@ -1004,6 +1004,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	statuses := make([]metamorph_api.Status, len(txsBlocks))
 	timestamps := make([]time.Time, len(txsBlocks))
 	minedAt := make([]time.Time, len(txsBlocks))
+	timestamp := p.now()
 
 	for i, tx := range txsBlocks {
 		txHashes[i] = tx.TransactionHash
@@ -1014,7 +1015,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		if tx.BlockStatus == blocktx_api.Status_STALE {
 			statuses[i] = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		}
-		timestamps[i] = p.now()
+		timestamps[i] = timestamp
 		minedAt[i] = tx.Timestamp.AsTime()
 	}
 

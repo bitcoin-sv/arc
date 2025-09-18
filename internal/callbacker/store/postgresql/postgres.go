@@ -159,13 +159,13 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 	return rowsAffected, err
 }
 
-func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool, maxRetries int) ([]*store.CallbackData, error) {
 	const q = `
 				WITH updated AS (
 				UPDATE callbacker.transaction_callbacks c SET pending = $1
 				WHERE c.id IN (
 				    SELECT id FROM callbacker.transaction_callbacks c
-					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5)
+					WHERE timestamp > $2 AND allow_batch = $3 AND sent_at IS NULL AND (c.pending IS NULL OR c.pending < $5) AND retries < $6 AND disable IS NOT TRUE
 					AND NOT EXISTS (
 					SELECT 1 FROM callbacker.transaction_callbacks c1
 					WHERE c1.hash=c.hash AND c1.url=c.url AND c1.pending IS NOT NULL AND c1.pending > $5 -- skip those with hash for which there are already pending callbacks
@@ -195,7 +195,7 @@ func (p *PostgreSQL) GetUnsent(ctx context.Context, limit int, expiration time.D
 
 	const lockTime = 3 * time.Minute
 	expirationDate := p.now().Add(-1 * expiration)
-	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit, p.now().Add(-1*lockTime))
+	rows, err := p.db.QueryContext(ctx, q, p.now(), expirationDate, batch, limit, p.now().Add(-1*lockTime), maxRetries)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (p *PostgreSQL) Clear(ctx context.Context, t time.Time) error {
 }
 
 func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
-	const q = `UPDATE callbacker.transaction_callbacks SET sent_at = $1, pending = NULL WHERE id = ANY($2::INTEGER[])`
+	const q = `UPDATE callbacker.transaction_callbacks SET sent_at = $1, pending = NULL, retries = retries+1 WHERE id = ANY($2::INTEGER[])`
 
 	_, err := p.db.ExecContext(ctx, q, p.now(), pq.Array(ids))
 	if err != nil {
@@ -229,7 +229,18 @@ func (p *PostgreSQL) SetSent(ctx context.Context, ids []int64) error {
 }
 
 func (p *PostgreSQL) UnsetPending(ctx context.Context, ids []int64) error {
-	const q = `UPDATE callbacker.transaction_callbacks SET pending = NULL WHERE id = ANY($1::INTEGER[])`
+	const q = `UPDATE callbacker.transaction_callbacks SET pending = NULL, retries = retries+1 WHERE id = ANY($1::INTEGER[])`
+
+	_, err := p.db.ExecContext(ctx, q, pq.Array(ids))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PostgreSQL) UnsetPendingDisable(ctx context.Context, ids []int64) error {
+	const q = `UPDATE callbacker.transaction_callbacks SET pending = NULL, retries = retries+1, disable = TRUE WHERE id = ANY($1::INTEGER[])`
 
 	_, err := p.db.ExecContext(ctx, q, pq.Array(ids))
 	if err != nil {

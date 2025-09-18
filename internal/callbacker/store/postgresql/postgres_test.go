@@ -208,16 +208,46 @@ func TestPostgresDBt(t *testing.T) {
 		require.NoError(t, err)
 
 		r, err := postgresDB.db.QueryContext(ctx,
-			`SELECT pending FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
+			`SELECT pending, disable, retries FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
 			pq.Array([]int64{1, 2, 3}),
 		)
 		require.NoError(t, err)
 
 		for r.Next() {
 			var pending sql.NullTime
-			err = r.Scan(&pending)
+			var disable bool
+			var retries int
+			err = r.Scan(&pending, &disable, &retries)
 			require.NoError(t, err)
 			require.False(t, pending.Valid)
+			require.False(t, disable)
+			require.Equal(t, 1, retries)
+		}
+	})
+
+	t.Run("unset pending disable", func(t *testing.T) {
+		defer pruneTables(t, postgresDB.db)
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/unset_pending")
+		ctx := context.Background()
+
+		err = postgresDB.UnsetPendingDisable(ctx, []int64{1, 2, 3})
+		require.NoError(t, err)
+
+		r, err := postgresDB.db.QueryContext(ctx,
+			`SELECT pending, disable, retries FROM callbacker.transaction_callbacks WHERE id = ANY($1::INTEGER[])`,
+			pq.Array([]int64{1, 2, 3}),
+		)
+		require.NoError(t, err)
+
+		for r.Next() {
+			var pending sql.NullTime
+			var disable bool
+			var retries int
+			err = r.Scan(&pending, &disable, &retries)
+			require.NoError(t, err)
+			require.False(t, pending.Valid)
+			require.True(t, disable)
+			require.Equal(t, 1, retries)
 		}
 	})
 
@@ -226,9 +256,13 @@ func TestPostgresDBt(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unsent")
 		ctx := context.Background()
-
 		const limit = 20
-		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false)
+
+		records, err := postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false, 0)
+		require.NoError(t, err)
+		require.Len(t, records, 0)
+
+		records, err = postgresDB.GetUnsent(ctx, limit, 1*time.Hour, false, 10)
 		require.NoError(t, err)
 		require.Len(t, records, 13)
 		isSorted := sort.SliceIsSorted(records, func(i, j int) bool {

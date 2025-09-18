@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -18,7 +17,7 @@ func TestCallbackSender_Send(t *testing.T) {
 	tests := []struct {
 		name           string
 		responseStatus int
-		useWrongURL    bool
+		nonExistingURL bool
 
 		expectedSuccess bool
 		expectedRetries int
@@ -38,11 +37,11 @@ func TestCallbackSender_Send(t *testing.T) {
 
 			expectedSuccess: false,
 			expectedRetry:   true,
-			expectedRetries: 5, // Adjust based on your retry logic in `Send`
+			expectedRetries: 1, // Adjust based on your retry logic in `Send`
 		},
 		{
-			name:        "retry - server error and fails after retries",
-			useWrongURL: true,
+			name:           "retry - server error and fails after retries",
+			nonExistingURL: true,
 
 			expectedSuccess: false,
 			expectedRetry:   false,
@@ -62,13 +61,13 @@ func TestCallbackSender_Send(t *testing.T) {
 			defer server.Close()
 
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithRetrySleepDuration(20*time.Millisecond), callbacker.WithTimeout(500*time.Second))
+			sut, err := callbacker.NewSender(logger, callbacker.WithTimeout(500*time.Second))
 			require.NoError(t, err)
 
 			defer sut.GracefulStop()
 
 			url := server.URL
-			if tc.useWrongURL {
+			if tc.nonExistingURL {
 				url = "https://abc.not-existing.abc"
 			}
 
@@ -85,7 +84,7 @@ func TestCallbackSender_Send(t *testing.T) {
 func TestCallbackSender_GracefulStop(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(logger, callbacker.WithRetries(1), callbacker.WithRetrySleepDuration(50*time.Millisecond))
+	sut, err := callbacker.NewSender(logger)
 	require.NoError(t, err)
 
 	// When: Call GracefulStop twice to ensure it handles double stop gracefully
@@ -100,7 +99,7 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 func TestCallbackSender_Health(t *testing.T) {
 	// Given
 	logger := slog.Default()
-	sut, err := callbacker.NewSender(logger, callbacker.WithRetries(1), callbacker.WithRetrySleepDuration(50*time.Millisecond))
+	sut, err := callbacker.NewSender(logger)
 	require.NoError(t, err)
 
 	// When: Test Health on active sender
@@ -146,7 +145,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			responseStatus: http.StatusInternalServerError,
 
 			expectedSuccess: false,
-			expectedRetries: 5,
+			expectedRetries: 1,
 		},
 	}
 
@@ -169,7 +168,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			defer server.Close()
 
 			logger := slog.Default()
-			sut, err := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithRetrySleepDuration(20*time.Millisecond), callbacker.WithTimeout(2*time.Second))
+			sut, err := callbacker.NewSender(logger, callbacker.WithTimeout(2*time.Second))
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -181,28 +180,4 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			require.Equal(t, tc.expectedRetries, retries, "Expected retries to be %d, but got %d", tc.expectedRetries, retries)
 		})
 	}
-}
-func TestCallbackSender_Send_WithRetries(t *testing.T) {
-	// Given
-	logger := slog.Default()
-	sut, _ := callbacker.NewSender(logger, callbacker.WithRetries(5), callbacker.WithRetrySleepDuration(50*time.Millisecond))
-
-	retryCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		retryCount++
-		if retryCount < 3 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// When
-	callback := &callbacker.Callback{TxID: "test-txid", TxStatus: "SEEN_ON_NETWORK"}
-	ok, retry := sut.Send(server.URL, "test-token", callback)
-
-	// Then
-	assert.True(t, ok)
-	assert.False(t, retry)
 }

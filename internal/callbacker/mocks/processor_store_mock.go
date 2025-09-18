@@ -23,7 +23,7 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			ClearFunc: func(ctx context.Context, t time.Time) error {
 //				panic("mock out the Clear method")
 //			},
-//			GetUnsentFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+//			GetUnsentFunc: func(ctx context.Context, limit int, expiration time.Duration, batch bool, maxRetries int) ([]*store.CallbackData, error) {
 //				panic("mock out the GetUnsent method")
 //			},
 //			InsertFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
@@ -34,6 +34,9 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			},
 //			UnsetPendingFunc: func(ctx context.Context, ids []int64) error {
 //				panic("mock out the UnsetPending method")
+//			},
+//			UnsetPendingDisableFunc: func(ctx context.Context, ids []int64) error {
+//				panic("mock out the UnsetPendingDisable method")
 //			},
 //		}
 //
@@ -46,7 +49,7 @@ type ProcessorStoreMock struct {
 	ClearFunc func(ctx context.Context, t time.Time) error
 
 	// GetUnsentFunc mocks the GetUnsent method.
-	GetUnsentFunc func(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error)
+	GetUnsentFunc func(ctx context.Context, limit int, expiration time.Duration, batch bool, maxRetries int) ([]*store.CallbackData, error)
 
 	// InsertFunc mocks the Insert method.
 	InsertFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
@@ -56,6 +59,9 @@ type ProcessorStoreMock struct {
 
 	// UnsetPendingFunc mocks the UnsetPending method.
 	UnsetPendingFunc func(ctx context.Context, ids []int64) error
+
+	// UnsetPendingDisableFunc mocks the UnsetPendingDisable method.
+	UnsetPendingDisableFunc func(ctx context.Context, ids []int64) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -76,6 +82,8 @@ type ProcessorStoreMock struct {
 			Expiration time.Duration
 			// Batch is the batch argument value.
 			Batch bool
+			// MaxRetries is the maxRetries argument value.
+			MaxRetries int
 		}
 		// Insert holds details about calls to the Insert method.
 		Insert []struct {
@@ -98,12 +106,20 @@ type ProcessorStoreMock struct {
 			// Ids is the ids argument value.
 			Ids []int64
 		}
+		// UnsetPendingDisable holds details about calls to the UnsetPendingDisable method.
+		UnsetPendingDisable []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ids is the ids argument value.
+			Ids []int64
+		}
 	}
-	lockClear        sync.RWMutex
-	lockGetUnsent    sync.RWMutex
-	lockInsert       sync.RWMutex
-	lockSetSent      sync.RWMutex
-	lockUnsetPending sync.RWMutex
+	lockClear               sync.RWMutex
+	lockGetUnsent           sync.RWMutex
+	lockInsert              sync.RWMutex
+	lockSetSent             sync.RWMutex
+	lockUnsetPending        sync.RWMutex
+	lockUnsetPendingDisable sync.RWMutex
 }
 
 // Clear calls ClearFunc.
@@ -143,7 +159,7 @@ func (mock *ProcessorStoreMock) ClearCalls() []struct {
 }
 
 // GetUnsent calls GetUnsentFunc.
-func (mock *ProcessorStoreMock) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool) ([]*store.CallbackData, error) {
+func (mock *ProcessorStoreMock) GetUnsent(ctx context.Context, limit int, expiration time.Duration, batch bool, maxRetries int) ([]*store.CallbackData, error) {
 	if mock.GetUnsentFunc == nil {
 		panic("ProcessorStoreMock.GetUnsentFunc: method is nil but ProcessorStore.GetUnsent was just called")
 	}
@@ -152,16 +168,18 @@ func (mock *ProcessorStoreMock) GetUnsent(ctx context.Context, limit int, expira
 		Limit      int
 		Expiration time.Duration
 		Batch      bool
+		MaxRetries int
 	}{
 		Ctx:        ctx,
 		Limit:      limit,
 		Expiration: expiration,
 		Batch:      batch,
+		MaxRetries: maxRetries,
 	}
 	mock.lockGetUnsent.Lock()
 	mock.calls.GetUnsent = append(mock.calls.GetUnsent, callInfo)
 	mock.lockGetUnsent.Unlock()
-	return mock.GetUnsentFunc(ctx, limit, expiration, batch)
+	return mock.GetUnsentFunc(ctx, limit, expiration, batch, maxRetries)
 }
 
 // GetUnsentCalls gets all the calls that were made to GetUnsent.
@@ -173,12 +191,14 @@ func (mock *ProcessorStoreMock) GetUnsentCalls() []struct {
 	Limit      int
 	Expiration time.Duration
 	Batch      bool
+	MaxRetries int
 } {
 	var calls []struct {
 		Ctx        context.Context
 		Limit      int
 		Expiration time.Duration
 		Batch      bool
+		MaxRetries int
 	}
 	mock.lockGetUnsent.RLock()
 	calls = mock.calls.GetUnsent
@@ -291,5 +311,41 @@ func (mock *ProcessorStoreMock) UnsetPendingCalls() []struct {
 	mock.lockUnsetPending.RLock()
 	calls = mock.calls.UnsetPending
 	mock.lockUnsetPending.RUnlock()
+	return calls
+}
+
+// UnsetPendingDisable calls UnsetPendingDisableFunc.
+func (mock *ProcessorStoreMock) UnsetPendingDisable(ctx context.Context, ids []int64) error {
+	if mock.UnsetPendingDisableFunc == nil {
+		panic("ProcessorStoreMock.UnsetPendingDisableFunc: method is nil but ProcessorStore.UnsetPendingDisable was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Ids []int64
+	}{
+		Ctx: ctx,
+		Ids: ids,
+	}
+	mock.lockUnsetPendingDisable.Lock()
+	mock.calls.UnsetPendingDisable = append(mock.calls.UnsetPendingDisable, callInfo)
+	mock.lockUnsetPendingDisable.Unlock()
+	return mock.UnsetPendingDisableFunc(ctx, ids)
+}
+
+// UnsetPendingDisableCalls gets all the calls that were made to UnsetPendingDisable.
+// Check the length with:
+//
+//	len(mockedProcessorStore.UnsetPendingDisableCalls())
+func (mock *ProcessorStoreMock) UnsetPendingDisableCalls() []struct {
+	Ctx context.Context
+	Ids []int64
+} {
+	var calls []struct {
+		Ctx context.Context
+		Ids []int64
+	}
+	mock.lockUnsetPendingDisable.RLock()
+	calls = mock.calls.UnsetPendingDisable
+	mock.lockUnsetPendingDisable.RUnlock()
 	return calls
 }

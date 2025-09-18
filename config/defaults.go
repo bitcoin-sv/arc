@@ -199,6 +199,7 @@ func getCallbackerConfig() *CallbackerConfig {
 		PruneOlderThan:    14 * 24 * time.Hour,
 		PruneInterval:     24 * time.Hour,
 		Expiration:        24 * time.Hour,
+		MaxRetries:        10,
 		Db:                getDbConfig("callbacker"),
 	}
 }

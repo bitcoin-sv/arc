@@ -4,6 +4,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:00
   hash: 0x285ccf9955a9dcef803dcc766fbcb257bfedd134ce19cc6ead3bdc96baf8cb96
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -14,6 +15,7 @@
   block_height: 860339
   pending: 2024-09-01 12:24:00
   hash: 0x285ccf9955a9dcef803dcc766fbcb257bfedd134ce19cc6ead3bdc96baf8cb96
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -23,6 +25,7 @@
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -30,6 +33,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:01
   hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -37,6 +41,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
   hash: 0xcc823ff474ae65c47eea0d1ae0b41a744e8861ce1f3023717537eea619b67f27
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -46,6 +51,7 @@
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xcc823ff474ae65c47eea0d1ae0b41a744e8861ce1f3023717537eea619b67f27
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -55,6 +61,7 @@
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -62,6 +69,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:02:02
   hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -69,6 +77,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:03:01
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -78,6 +87,7 @@
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -85,6 +95,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:04:01
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -94,6 +105,7 @@
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -104,6 +116,7 @@
   block_height: 860339
   pending: 2024-09-01 12:02:02
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
+  retries: 5
 
 - url: https://arc-callback-2/callback
   token: token
@@ -111,6 +124,7 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:05:01
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
+  retries: 5
 
 - url: https://arc-callback-1/callback
   token: token
@@ -118,3 +132,4 @@
   tx_status: "SEEN_ON_NETWORK"
   timestamp: 2024-09-01 12:00:02
   hash: 0xae15184ae189c011f8a43ab716fe62f3e593eb0d439fb30ebb8087c584eb0ec5
+  retries: 5

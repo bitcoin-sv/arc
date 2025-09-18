@@ -221,6 +221,7 @@ type CallbackerConfig struct {
 	PruneOlderThan    time.Duration `mapstructure:"pruneOlderThan"`
 	PruneInterval     time.Duration `mapstructure:"pruneInterval"`
 	Expiration        time.Duration `mapstructure:"expiration"`
+	MaxRetries        int           `mapstructure:"maxRetries"`
 	Db                *DbConfig     `mapstructure:"db"`
 }
 

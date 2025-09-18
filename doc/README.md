@@ -159,11 +159,9 @@ The Callbacker is a microservice responsible for handling all registered callbac
 
 The specification of the callback objects, along with examples, can be found [here for single](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#callback) callback and [here for batched](https://github.com/bitcoin-sv/arc/blob/main/doc/api.md#batchedCallbacks) callbacks.
 
-To prevent DDoS attacks on callback receivers, each Callbacker service instance sends callbacks to the specified URLs in a serial (sequential) manner, ensuring that only one request is sent at a time.
+To prevent DDoS attacks on callback receivers, each Callbacker service instance sends callbacks to the specified URLs a limited number of times. This limit is configurable and defaults to a maximum of `10` attempts per callback.
 
-The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status after a certain number of retries, the callback will be retried later. Callbacker sends the http messages in chronological order. If a callback fails, Callbacker will resend the same callback until the callback is sent successfully, or it expires before it attempts to send the next callback.
-
->NOTE: Callbacks that have not been successfully sent for an extended period (e.g., 24 hours) are no longer sent.
+The Callbacker handles request retries and treats any HTTP status code outside the range of `200–299` as a failure. If the receiver fails to return a success status, the callback will be retried later. Callbacker sends the status updates in chronological order per transaction. If a callback fails, Callbacker will resend the same callback until the callback is sent successfully, or the maximum number of retries is reached. There is also an expiration time for callbacks, which is configurable and defaults to 24 hours. Callbacks that have not been successfully sent during the expiration time are no longer sent.
 
 Multiple instances of Callbacker can run in parallel.
 

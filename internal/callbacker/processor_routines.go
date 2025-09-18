@@ -37,7 +37,7 @@ type callbackKey struct {
 }
 
 func LoadAndSendCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false)
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, false, p.maxRetries)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 		return
@@ -74,7 +74,7 @@ func LoadAndSendCallbacks(p *Processor, sendFunc func(url string, cbs []*store.C
 }
 
 func LoadAndSendBatchedCallbacks(p *Processor, sendFunc func(url string, cbs []*store.CallbackData)) {
-	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true)
+	callbackRecords, err := p.store.GetUnsent(p.ctx, p.batchSize, p.expiration, true, p.maxRetries)
 	if err != nil {
 		p.logger.Error("Failed to get many", slog.String("err", err.Error()))
 		return
@@ -122,12 +122,20 @@ func (p *Processor) sendSingleCallbacks(url string, cbs []*store.CallbackData) {
 	for _, cb := range cbs {
 		cbEntry := toEntry(cb)
 		success, retry := p.sender.Send(url, cbEntry.Token, cbEntry.Data)
-		if retry || !success {
-			err := p.store.UnsetPending(ctx, cbIDs)
-			if err != nil {
-				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+		if !success {
+			if retry {
+				err := p.store.UnsetPending(ctx, cbIDs)
+				if err != nil {
+					p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+				}
+				continue
 			}
-			break
+
+			err := p.store.UnsetPendingDisable(ctx, cbIDs)
+			if err != nil {
+				p.logger.Error("Failed to set not pending and disable", slog.String("err", err.Error()))
+			}
+			continue
 		}
 
 		err := p.store.SetSent(ctx, []int64{cb.ID})
@@ -152,10 +160,18 @@ func (p *Processor) sendBatchCallback(url string, cbs []*store.CallbackData) {
 	success, retry := p.sender.SendBatch(url, cbs[0].Token, batch)
 	ctx := context.WithoutCancel(p.ctx)
 
-	if retry || !success {
-		err := p.store.UnsetPending(ctx, cbIDs)
+	if !success {
+		if retry {
+			err := p.store.UnsetPending(ctx, cbIDs)
+			if err != nil {
+				p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+			}
+			return
+		}
+
+		err := p.store.UnsetPendingDisable(ctx, cbIDs)
 		if err != nil {
-			p.logger.Error("Failed to set not pending", slog.String("err", err.Error()))
+			p.logger.Error("Failed to set not pending and disable", slog.String("err", err.Error()))
 		}
 		return
 	}

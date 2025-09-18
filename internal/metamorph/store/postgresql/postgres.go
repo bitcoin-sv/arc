@@ -821,17 +821,14 @@ func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]b
 			rejectReasons[i] = update.Error.Error()
 		}
 
-		var historyDataStr *string
 		update.StatusHistory = append(update.StatusHistory, store.NewStatusWithTimestamp(update.Status, update.Timestamp.UTC()))
 
 		historyData, err := json.Marshal(update.StatusHistory)
 		if err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
-		historyStr := string(historyData)
-		historyDataStr = &historyStr
 
-		statusHistories[i] = historyDataStr
+		statusHistories[i] = PtrTo(string(historyData))
 	}
 	return txHashes, statuses, rejectReasons, statusHistories, timestamps, nil
 }
@@ -1407,4 +1404,9 @@ func (p *PostgreSQL) rollbackIfFailed(err error, tx *sql.Tx) error {
 		}
 	}
 	return nil
+}
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
 }

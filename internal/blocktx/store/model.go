@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/hex"
 	"slices"
+	"time"
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
@@ -31,6 +32,7 @@ type BlockTransaction struct {
 	MerkleTreeIndex int64
 	BlockStatus     blocktx_api.Status
 	MerkleRoot      []byte
+	Timestamp       time.Time
 }
 
 type BlockStatusUpdate struct {

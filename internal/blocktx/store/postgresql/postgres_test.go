@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -26,20 +27,21 @@ import (
 )
 
 type Block struct {
-	ID           int64     `db:"id"`
-	Hash         string    `db:"hash"`
-	PreviousHash string    `db:"prevhash"`
-	MerkleRoot   string    `db:"merkleroot"`
-	MerklePath   *string   `db:"merkle_path"`
-	Height       int64     `db:"height"`
-	Status       int       `db:"status"`
-	Chainwork    string    `db:"chainwork"`
-	IsLongest    bool      `db:"is_longest"`
-	Size         *int64    `db:"size"`
-	TxCount      *int64    `db:"tx_count"`
-	Processed    bool      `db:"processed"`
-	ProcessedAt  time.Time `db:"processed_at"`
-	InsertedAt   time.Time `db:"inserted_at"`
+	ID           int64      `db:"id"`
+	Hash         string     `db:"hash"`
+	PreviousHash string     `db:"prevhash"`
+	MerkleRoot   string     `db:"merkleroot"`
+	MerklePath   *string    `db:"merkle_path"`
+	Height       int64      `db:"height"`
+	Status       int        `db:"status"`
+	Chainwork    string     `db:"chainwork"`
+	IsLongest    bool       `db:"is_longest"`
+	Size         *int64     `db:"size"`
+	TxCount      *int64     `db:"tx_count"`
+	Processed    bool       `db:"processed"`
+	ProcessedAt  time.Time  `db:"processed_at"`
+	InsertedAt   time.Time  `db:"inserted_at"`
+	Timestamp    *time.Time `db:"timestamp"`
 }
 
 type RegisteredTransaction struct {
@@ -151,6 +153,8 @@ func TestPostgresDB(t *testing.T) {
 			Height:       100,
 			Status:       blocktx_api.Status_LONGEST,
 			Processed:    true,
+			ProcessedAt:  timestamppb.New(time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)),
+			Timestamp:    timestamppb.New(time.Date(2023, 12, 22, 11, 55, 0, 0, time.UTC)),
 		}
 		expectedBlockViolatingUniqueIndex := &blocktx_api.Block{
 			Hash:         blockHashViolating[:],
@@ -166,6 +170,8 @@ func TestPostgresDB(t *testing.T) {
 			Height:       100,
 			Status:       blocktx_api.Status_ORPHANED,
 			Processed:    true,
+			ProcessedAt:  timestamppb.New(time.Date(2023, 12, 22, 12, 0, 0, 0, time.UTC)),
+			Timestamp:    timestamppb.New(time.Date(2023, 12, 22, 11, 55, 0, 0, time.UTC)),
 		}
 
 		// when

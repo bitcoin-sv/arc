@@ -34,6 +34,7 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 				,processed_at
 				,status
 				,chainwork
+			    ,timestamp
 			FROM blocktx.blocks WHERE hash = $1 AND status = $2
 			UNION ALL
 			SELECT
@@ -44,6 +45,7 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 				,b.processed_at
 				,b.status
 				,b.chainwork
+			    ,b.timestamp
 			FROM blocktx.blocks b JOIN orphans o ON o.prevhash = b.hash AND b.status = $2
 			WHERE b.processed_at IS NOT NULL
 		)
@@ -55,6 +57,7 @@ func (p *PostgreSQL) GetOrphansBackToNonOrphanAncestor(ctx context.Context, hash
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM orphans
 		ORDER BY height
 	`
@@ -121,7 +124,8 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 				,b.processed_at
 				,b.status
 				,b.chainwork
-			FROM blocktx.blocks b, (SELECT hash FROM blocktx.blocks WHERE hash = $1 AND status = $2) p 
+			    ,b.timestamp
+			FROM blocktx.blocks b, (SELECT hash FROM blocktx.blocks WHERE hash = $1 AND status = $2) p
 			WHERE b.prevhash = $1
 			UNION ALL
 			SELECT
@@ -132,6 +136,7 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 				,b.processed_at
 				,b.status
 				,b.chainwork
+			    ,b.timestamp
 			FROM blocktx.blocks b JOIN nextBlocks n ON b.prevhash = n.hash AND b.status = $3
 			WHERE b.processed_at IS NOT NULL
 		)
@@ -143,6 +148,7 @@ func (p *PostgreSQL) GetOrphansForwardFromHash(ctx context.Context, hash []byte)
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM nextBlocks
 		ORDER BY height
 	`

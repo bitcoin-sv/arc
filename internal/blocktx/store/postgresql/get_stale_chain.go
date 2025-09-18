@@ -37,6 +37,7 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,processed_at
 				,status
 				,chainwork
+			    ,timestamp
 			FROM blocktx.blocks WHERE hash = $1
 			UNION ALL
 			SELECT
@@ -47,6 +48,7 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 				,b.processed_at
 				,b.status
 				,b.chainwork
+			    ,b.timestamp
 			FROM blocktx.blocks b JOIN prevBlocks p ON b.hash = p.prevhash AND b.status = $2
 			WHERE b.processed_at IS NOT NULL
 		)
@@ -58,6 +60,7 @@ func (p *PostgreSQL) GetStaleChainBackFromHash(ctx context.Context, hash []byte)
 		 ,processed_at
 		 ,status
 		 ,chainwork
+		 ,timestamp
 		FROM prevBlocks
 		ORDER BY height
 	`

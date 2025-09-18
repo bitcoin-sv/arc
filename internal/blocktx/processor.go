@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
@@ -430,6 +431,7 @@ func (p *Processor) verifyAndInsertBlock(ctx context.Context, blockMsg *bcnet.Bl
 		MerkleRoot:   merkleRoot[:],
 		Height:       blockMsg.Height,
 		Chainwork:    calculateChainwork(blockMsg.Header.Bits).String(),
+		Timestamp:    timestamppb.New(blockMsg.Header.Timestamp),
 	}
 
 	if p.incomingIsLongest {
@@ -934,6 +936,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 			TransactionHash: tx.TxHash,
 			MerklePath:      tx.MerklePath,
 			BlockStatus:     tx.BlockStatus,
+			Timestamp:       timestamppb.New(tx.Timestamp),
 		}
 
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
@@ -1057,6 +1060,7 @@ func getBlockTransactionsWithMerklePath(txs []store.BlockTransaction) map[string
 				MerkleTreeIndex: tx.MerkleTreeIndex,
 				BlockStatus:     tx.BlockStatus,
 				MerkleRoot:      tx.MerkleRoot,
+				Timestamp:       tx.Timestamp,
 			},
 		}
 

@@ -550,7 +550,11 @@ func TestPostgresDB(t *testing.T) {
 
 	t.Run("update mined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_mined")
+
+		//postgresDB.now = func() time.Time {
+		//	return time.Date(2023, 10, 1, 11, 8, 0, 0, time.UTC)
+		//}
 
 		unmined := *unminedData
 		err = postgresDB.Set(ctx, &unmined)

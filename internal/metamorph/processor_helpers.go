@@ -24,8 +24,7 @@ type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 var CacheStatusUpdateHash = "mtm-tx-status-update"
 
 var (
-	ErrFailedToSerialize   = errors.New("failed to serialize value")
-	ErrFailedToDeserialize = errors.New("failed to deserialize value")
+	ErrFailedToSerialize = errors.New("failed to serialize value")
 )
 
 func (p *Processor) GetProcessorMapSize() int {
@@ -36,7 +35,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	currentStatusUpdate, err := p.getTransactionStatus(statusUpdate.Hash)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheNotFound) {
-			// if record doesn't exist, save new one
+			// if the record doesn't exist, store a new one
 			return p.setTransactionStatus(statusUpdate)
 		}
 		return err
@@ -47,10 +46,7 @@ func (p *Processor) updateStatusMap(statusUpdate store.UpdateStatus) error {
 	}
 
 	if shouldUpdateStatus(statusUpdate, *currentStatusUpdate) {
-		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.StatusWithTimestamp{
-			Status:    currentStatusUpdate.Status,
-			Timestamp: currentStatusUpdate.Timestamp,
-		})
+		currentStatusUpdate.StatusHistory = append(currentStatusUpdate.StatusHistory, store.NewStatusWithTimestamp(currentStatusUpdate.Status, currentStatusUpdate.Timestamp))
 		currentStatusUpdate.Status = statusUpdate.Status
 		currentStatusUpdate.Timestamp = statusUpdate.Timestamp
 	}
@@ -174,21 +170,6 @@ func mergeUnique(arr1, arr2 []string) []string {
 	}
 
 	return uniqueSlice
-}
-
-func filterUpdates(all []store.UpdateStatus, processed []*store.Data) []store.UpdateStatus {
-	processedMap := make(map[string]struct{}, len(processed))
-	unprocessed := make([]store.UpdateStatus, 0)
-	for _, p := range processed {
-		processedMap[string(p.Hash[:])] = struct{}{}
-	}
-	for _, s := range all {
-		_, found := processedMap[string(s.Hash[:])]
-		if !found {
-			unprocessed = append(unprocessed, s)
-		}
-	}
-	return unprocessed
 }
 
 func toSendRequest(d *store.Data, timestamp time.Time) []*callbacker_api.SendRequest {

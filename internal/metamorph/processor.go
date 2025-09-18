@@ -459,7 +459,7 @@ func (p *Processor) StartSendStatusUpdate() {
 
 				p.logger.Debug("Status update received", slog.String("hash", msg.Hash.String()), slog.String("status", msg.Status.String()))
 
-				// update status of transaction in storage
+				// update transaction status in storage
 				p.storageStatusUpdateCh <- store.UpdateStatus{
 					Hash:         *msg.Hash,
 					Status:       msg.Status,
@@ -570,12 +570,6 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 			return err
 		}
 		updatedData = append(updatedData, updatedDoubleSpendData...)
-	}
-
-	statusHistoryUpdates := filterUpdates(statusUpdates, updatedData)
-	_, err = p.store.UpdateStatusHistory(ctx, statusHistoryUpdates)
-	if err != nil {
-		p.logger.Error("failed to update status history", slog.String("err", err.Error()))
 	}
 
 	for _, data := range updatedData {
@@ -731,9 +725,9 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 		return
 	}
 
-	// store in database
+	// store in the database
 	// set tx status to Stored
-	sh := &store.StatusWithTimestamp{Status: req.Data.Status, Timestamp: p.now()}
+	sh := PtrTo(store.NewStatusWithTimestamp(req.Data.Status, p.now()))
 	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
 	req.Data.Status = metamorph_api.Status_STORED
 

@@ -377,37 +377,50 @@ func TestPostgresDB(t *testing.T) {
 
 		updates := []store.UpdateStatus{
 			{
-				Hash:   *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), // update expected
+				Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update not expected - old status = new status
-				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), // update is not expected - old status = new status
+				Status:    metamorph_api.Status_REQUESTED_BY_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
-				Status: metamorph_api.Status_REJECTED,
-				Error:  errors.New("missing inputs"),
+				Hash:      *testutils.RevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), // update expected
+				Status:    metamorph_api.Status_REJECTED,
+				Error:     errors.New("missing inputs"),
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
 				Hash:   *testutils.RevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
+				StatusHistory: []store.StatusWithTimestamp{
+					{Status: metamorph_api.Status_REQUESTED_BY_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 2, 0, time.UTC)},
+					{Status: metamorph_api.Status_SENT_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 3, 0, time.UTC)},
+					{Status: metamorph_api.Status_ACCEPTED_BY_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 4, 0, time.UTC)},
+				},
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update not expected - status is mined
-				Status: metamorph_api.Status_SENT_TO_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), // update is not expected - status is mined
+				Status:    metamorph_api.Status_SENT_TO_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update not expected - old status > new status
-				Status: metamorph_api.Status_SENT_TO_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), // update is not expected - old status > new status
+				Status:    metamorph_api.Status_SENT_TO_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update not expected - hash non-existent in db
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "3ce1e0c6cbbbe2118c3f80d2e6899d2d487f319ef0923feb61f3d26335b2225c"), // update is not expected - hash non-existent in db
+				Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 			{
-				Hash:   *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update not expected - hash non-existent in db
-				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Hash:      *testutils.RevChainhash(t, "7e3350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"), // update is not expected - hash non-existent in db
+				Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
+				Timestamp: time.Date(2023, 10, 1, 14, 0, 5, 0, time.UTC),
 			},
 		}
 		updatedStatuses := 3
@@ -659,10 +672,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED,
-			Timestamp: dataBeforeUpdate.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED, dataBeforeUpdate.LastModified)))
 		unmined.Status = metamorph_api.Status_MINED
 		unmined.LastModified = postgresDB.now()
 
@@ -688,6 +698,7 @@ func TestPostgresDB(t *testing.T) {
 						Timestamp: postgresDB.now(),
 					},
 				},
+				Timestamp: postgresDB.now(),
 			},
 		}
 
@@ -698,14 +709,8 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
-			&store.StatusWithTimestamp{
-				Status:    metamorph_api.Status_QUEUED,
-				Timestamp: postgresDB.now(),
-			},
-			&store.StatusWithTimestamp{
-				Status:    metamorph_api.Status_RECEIVED,
-				Timestamp: postgresDB.now(),
-			},
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_QUEUED, postgresDB.now())),
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_RECEIVED, postgresDB.now())),
 		)
 		unmined.Status = metamorph_api.Status_RECEIVED
 		unmined.LastModified = postgresDB.now()
@@ -715,8 +720,9 @@ func TestPostgresDB(t *testing.T) {
 		// Update tx with status RECEIVED to ACCEPTED_BY_NETWORK without additional history
 		updates = []store.UpdateStatus{
 			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Hash:      *unminedHash,
+				Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
+				Timestamp: postgresDB.now(),
 			},
 		}
 
@@ -724,10 +730,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			Timestamp: postgresDB.now(),
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_ACCEPTED_BY_NETWORK, postgresDB.now())))
 		unmined.Status = metamorph_api.Status_ACCEPTED_BY_NETWORK
 		unmined.LastModified = postgresDB.now()
 
@@ -739,6 +742,7 @@ func TestPostgresDB(t *testing.T) {
 				Hash:         *unminedHash,
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 				CompetingTxs: []string{"5678"},
+				Timestamp:    postgresDB.now(),
 			},
 		}
 
@@ -747,10 +751,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		unmined.CompetingTxs = []string{"5678"}
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, unmined.LastModified)))
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED
 		require.Equal(t, &unmined, statusUpdates[0])
@@ -776,10 +777,9 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory,
+			testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED, unmined.LastModified)),
+		)
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED
 		require.Equal(t, &unmined, updatedTx)
@@ -805,10 +805,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block2Hash
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_MINED_IN_STALE_BLOCK,
-			Timestamp: unmined.LastModified,
-		})
+		unmined.StatusHistory = append(unmined.StatusHistory, testutils.PtrTo(store.NewStatusWithTimestamp(metamorph_api.Status_MINED_IN_STALE_BLOCK, unmined.LastModified)))
 		unmined.LastModified = postgresDB.now()
 		unmined.Status = metamorph_api.Status_MINED_IN_STALE_BLOCK
 		require.Equal(t, &unmined, updatedTx)
@@ -852,149 +849,6 @@ func TestPostgresDB(t *testing.T) {
 		updated, err := postgresDB.UpdateMined(ctx, txBlocks)
 		require.NoError(t, err)
 		require.Len(t, updated, expectedUpdates)
-	})
-
-	t.Run("update status history - status bigger than actual with history", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-
-		unmined := *unminedData
-		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
-		err = postgresDB.Set(ctx, &unmined)
-		require.NoError(t, err)
-
-		updates := []store.UpdateStatus{
-			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_MINED,
-				StatusHistory: []store.StatusWithTimestamp{
-					{
-						Status:    metamorph_api.Status_STORED,
-						Timestamp: postgresDB.now(),
-					},
-				},
-			},
-		}
-
-		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
-		require.NoError(t, err)
-		require.Len(t, statusUpdates, 1)
-
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_STORED,
-			Timestamp: postgresDB.now(),
-		})
-		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, statusUpdates[0])
-	})
-
-	t.Run("update status history - status equal than actual with history", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-
-		unmined := *unminedData
-		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
-		err = postgresDB.Set(ctx, &unmined)
-		require.NoError(t, err)
-
-		updates := []store.UpdateStatus{
-			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-				StatusHistory: []store.StatusWithTimestamp{
-					{
-						Status:    metamorph_api.Status_STORED,
-						Timestamp: postgresDB.now(),
-					},
-					{
-						Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						Timestamp: postgresDB.now(),
-					},
-				},
-			},
-		}
-
-		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
-		require.NoError(t, err)
-		require.Len(t, statusUpdates, 1)
-
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_STORED,
-			Timestamp: postgresDB.now(),
-		}, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			Timestamp: postgresDB.now(),
-		})
-		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, statusUpdates[0])
-	})
-
-	t.Run("update status history - status lower than actual with history", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-
-		unmined := *unminedData
-		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
-		err = postgresDB.Set(ctx, &unmined)
-		require.NoError(t, err)
-
-		updates := []store.UpdateStatus{
-			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-				StatusHistory: []store.StatusWithTimestamp{
-					{
-						Status:    metamorph_api.Status_STORED,
-						Timestamp: postgresDB.now(),
-					},
-					{
-						Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-						Timestamp: postgresDB.now(),
-					},
-				},
-			},
-		}
-
-		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
-		require.NoError(t, err)
-		require.Len(t, statusUpdates, 1)
-
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_STORED,
-			Timestamp: postgresDB.now(),
-		}, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ANNOUNCED_TO_NETWORK,
-			Timestamp: postgresDB.now(),
-		}, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			Timestamp: postgresDB.now(),
-		})
-		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, statusUpdates[0])
-	})
-
-	t.Run("update status history - status lower than actual without history", func(t *testing.T) {
-		defer pruneTables(t, postgresDB.db)
-
-		unmined := *unminedData
-		unmined.Status = metamorph_api.Status_SEEN_ON_NETWORK
-		err = postgresDB.Set(ctx, &unmined)
-		require.NoError(t, err)
-
-		updates := []store.UpdateStatus{
-			{
-				Hash:   *unminedHash,
-				Status: metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			},
-		}
-
-		statusUpdates, err := postgresDB.UpdateStatusHistory(ctx, updates)
-		require.NoError(t, err)
-		require.Len(t, statusUpdates, 1)
-
-		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
-			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
-			Timestamp: postgresDB.now(),
-		})
-		unmined.LastModified = postgresDB.now()
-		require.Equal(t, &unmined, statusUpdates[0])
 	})
 
 	t.Run("clear data", func(t *testing.T) {

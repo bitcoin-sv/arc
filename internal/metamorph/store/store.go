@@ -53,6 +53,13 @@ type StatusWithTimestamp struct {
 	Timestamp time.Time            `json:"timestamp"`
 }
 
+func NewStatusWithTimestamp(status metamorph_api.Status, timestamp time.Time) StatusWithTimestamp {
+	return StatusWithTimestamp{
+		Status:    status,
+		Timestamp: timestamp,
+	}
+}
+
 type Stats struct {
 	StatusStored               int64
 	StatusAnnouncedToNetwork   int64
@@ -85,7 +92,6 @@ type MetamorphStore interface {
 	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*Data, error)
 	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*Data, err error)
 	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
-	UpdateStatusHistory(ctx context.Context, updates []UpdateStatus) (res []*Data, err error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
 	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*Data, error)
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*Data, error)

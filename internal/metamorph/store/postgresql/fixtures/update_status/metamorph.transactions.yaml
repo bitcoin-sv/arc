@@ -3,28 +3,58 @@
   status: 60
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 60
+      timestamp: 2023-10-01T14:00:01.00+00:00
 - hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
   locked_by: metamorph-3
   status: 50
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 50
+      timestamp: 2023-10-01T14:00:01.00+00:00
 - hash: 0xb16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430
   locked_by: metamorph-1
   status: 90
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 90
+      timestamp: 2023-10-01T14:00:01.00+00:00
 - hash: 0xee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa
   locked_by: metamorph-1
-  status: 80
+  status: 40
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 40
+      timestamp: 2023-10-01T14:00:01.00+00:00
 - hash: 0x3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd
   locked_by: metamorph-1
   status: 120
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 120
+      timestamp: 2023-10-01T14:00:01.00+00:00
 - hash: 0x7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f
   locked_by: metamorph-1
   status: 70
   stored_at: 2023-10-01 14:00:00
   last_submitted_at: 2023-10-01 14:00:00
+  status_history:
+    - status: 20
+      timestamp: 2023-10-01T14:00:00.00+00:00
+    - status: 70
+      timestamp: 2023-10-01T14:00:01.00+00:00

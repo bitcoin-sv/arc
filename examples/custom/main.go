@@ -87,7 +87,7 @@ func main() {
 	}
 
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Global.GrpcMessageSize, nil)
+	conn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Common.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -95,16 +95,16 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Global.GrpcMessageSize, nil)
+	btcConn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Common.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
-	network := arcConfig.Global.Network
+	network := arcConfig.Common.Network
 	genesisBlock := apiHandler.GenesisForkBlockRegtest
-	switch arcConfig.Global.Network {
+	switch arcConfig.Common.Network {
 	case "testnet":
 		network = "test"
 		genesisBlock = apiHandler.GenesisForkBlockTest
@@ -153,9 +153,9 @@ func main() {
 	handler = defaultHandler
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Global.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.Global.GrpcMessageSize,
-		TracingConfig:      arcConfig.Global.Tracing,
+		PrometheusEndpoint: arcConfig.Common.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.Common.GrpcMessageSize,
+		TracingConfig:      arcConfig.Common.Tracing,
 		Name:               "api",
 	}
 

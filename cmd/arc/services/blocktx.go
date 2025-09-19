@@ -31,7 +31,7 @@ const (
 	minConnections        = 1
 )
 
-func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *config.GlobalConfig) (func(), error) {
+func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "blocktx"))
 	logger.Info("Starting")
 
@@ -51,15 +51,15 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *
 	shutdownFns := make([]func(), 0)
 	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
-	if globalCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", globalCfg.Tracing.DialAddr, globalCfg.Tracing.Sample)
+	if commonCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "blocktx", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := globalCfg.Tracing.KeyValueAttributes
+		attributes := commonCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)
@@ -75,14 +75,14 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *
 		logger.Info("Shutdown blocktx complete")
 	}
 
-	blockStore, err = NewBlocktxStore(logger, btxCfg.Db, globalCfg.Tracing)
+	blockStore, err = NewBlocktxStore(logger, btxCfg.Db, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
 	}
 
-	if globalCfg.Prometheus.IsEnabled() {
+	if commonCfg.Prometheus.IsEnabled() {
 		statsCollector = blocktx.NewStatsCollector(logger, pm, blockStore)
 		err = statsCollector.Start()
 		if err != nil {
@@ -137,9 +137,9 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, globalCfg *
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
-		MaxMsgSize:         globalCfg.GrpcMessageSize,
-		TracingConfig:      globalCfg.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "blocktx",
 	}
 

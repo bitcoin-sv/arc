@@ -1,5 +1,5 @@
 ---
-global:
+common:
   logLevel: INFO
   logFormat: tint
   profilerAddr: localhost:9999

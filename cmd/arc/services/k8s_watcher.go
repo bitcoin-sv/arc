@@ -11,10 +11,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
-func StartK8sWatcher(logger *slog.Logger, k8sWatcherCfg *config.K8sWatcherConfig, globalCfg *config.GlobalConfig) (func(), error) {
+func StartK8sWatcher(logger *slog.Logger, k8sWatcherCfg *config.K8sWatcherConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger.With(slog.String("service", "k8s-watcher"))
 
-	mtmConn, err := grpc_utils.DialGRPC(k8sWatcherCfg.MetamorphDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, nil)
+	mtmConn, err := grpc_utils.DialGRPC(k8sWatcherCfg.MetamorphDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}

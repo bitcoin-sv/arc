@@ -50,9 +50,9 @@ func main() {
 	defaultHandler.StartUpdateCurrentBlockHeight()
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Global.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.Global.GrpcMessageSize,
-		TracingConfig:      arcConfig.Global.Tracing,
+		PrometheusEndpoint: arcConfig.Common.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.Common.GrpcMessageSize,
+		TracingConfig:      arcConfig.Common.Tracing,
 		Name:               "api",
 	}
 

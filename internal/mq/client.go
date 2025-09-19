@@ -50,7 +50,7 @@ type MessageQueueClient interface {
 	Shutdown()
 }
 
-func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts []nats_jetstream.Option, connOpts []nats_connection.Option) (MessageQueueClient, error) {
+func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts ...nats_jetstream.Option) (MessageQueueClient, error) {
 	if mqCfg == nil {
 		return nil, errors.New("mqCfg is required")
 	}
@@ -59,6 +59,12 @@ func NewMqClient(logger *slog.Logger, mqCfg *config.MessageQueueConfig, jsOpts [
 
 	var conn *nats.Conn
 	var err error
+
+	connOpts := []nats_connection.Option{
+		nats_connection.WithMaxReconnects(-1),
+		nats_connection.WithUser(mqCfg.User),
+		nats_connection.WithPassword(mqCfg.Password),
+	}
 
 	conn, err = nats_connection.New(mqCfg.URL, logger, connOpts...)
 	if err != nil {

@@ -1,42 +1,8 @@
 ---
-logLevel: INFO
-logFormat: tint
-profilerAddr: localhost:9999
-prometheus:
-  enabled: true
-  endpoint: /metrics
-  addr: :2112
-grpcMessageSize: 100000000
-network: regtest
-messageQueue:
-  streaming:
-    enabled: true
-    fileStorage: false
-  URL: nats://nats-1:4222,nats://nats-2:4223
-  initialize: true
-reBroadcastExpiration: 24h
-
-tracing:
-  enabled: false
-  dialAddr: http://jaeger:4317
-  sample: 100
-
-peerRpc:
-  password: bitcoin
-  user: bitcoin
-  host: node1
-  port: 18332
-
-cache:
-  engine: redis
-  redis:
-    addr: cache:6379
-    password: ""
-    db: 1
-
 metamorph:
   listenAddr: 0.0.0.0:8001
-  dialAddr: metamorph:8001
+  blocktxDialAddr: blocktx:8011
+  callbackerDialAddr: callbacker:8021
   db:
     mode: postgres
     postgres:
@@ -64,7 +30,6 @@ metamorph:
   monitorPeers: true
   health:
     minimumHealthyConnections: 2
-  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   stats:
     notSeenTimeLimit: 10m
     notFinalTimeLimit: 20m
@@ -82,7 +47,6 @@ metamorph:
 
 blocktx:
   listenAddr: 0.0.0.0:8011
-  dialAddr: blocktx:8011
   db:
     mode: postgres
     postgres:
@@ -119,6 +83,14 @@ blocktx:
           p2p: 18333
 
 api:
+  metamorphDialAddr: metamorph:8001
+  blocktxDialAddr: blocktx:8011
+  peerRpc:
+    password: bitcoin
+    user: bitcoin
+    host: node1
+    port: 18332
+  rejectCallbackContaining: [ "http://localhost", "https://localhost" ]
   standardFormatSupported: true
   address: 0.0.0.0:9090
   listenAddr: 0.0.0.0:8033
@@ -158,7 +130,6 @@ api:
 
 callbacker:
   listenAddr: 0.0.0.0:8021
-  dialAddr: callbacker:8021
   pause: 100ms
   batchSendInterval: 200ms
   pruneOlderThan: 336h

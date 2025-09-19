@@ -87,7 +87,7 @@ func main() {
 	}
 
 	// add a single metamorph, with the BlockTx client we want to use
-	conn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	conn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Common.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -95,16 +95,16 @@ func main() {
 	metamorphClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn))
 
 	// add blocktx as MerkleRootsVerifier
-	btcConn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.GrpcMessageSize, nil)
+	btcConn, err := grpc_utils.DialGRPC("localhost:8011", "", arcConfig.Common.GrpcMessageSize, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
-	network := arcConfig.Network
+	network := arcConfig.Common.Network
 	genesisBlock := apiHandler.GenesisForkBlockRegtest
-	switch arcConfig.Network {
+	switch arcConfig.Common.Network {
 	case "testnet":
 		network = "test"
 		genesisBlock = apiHandler.GenesisForkBlockTest
@@ -116,7 +116,7 @@ func main() {
 
 	se := goscript.NewScriptEngine(network)
 
-	pc := arcConfig.PeerRPC
+	pc := arcConfig.API.PeerRPC
 	nc, err := rpc_client.NewRPCClient(pc.Host, pc.Port, pc.User, pc.Password)
 	if err != nil {
 		panic(err)
@@ -153,9 +153,9 @@ func main() {
 	handler = defaultHandler
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.GrpcMessageSize,
-		TracingConfig:      arcConfig.Tracing,
+		PrometheusEndpoint: arcConfig.Common.Prometheus.Endpoint,
+		MaxMsgSize:         arcConfig.Common.GrpcMessageSize,
+		TracingConfig:      arcConfig.Common.Tracing,
 		Name:               "api",
 	}
 

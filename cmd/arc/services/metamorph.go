@@ -28,7 +28,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -37,11 +36,9 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore cache.Store) (func(), error) {
+func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
-
-	mtmConfig := arcConfig.Metamorph
 
 	var (
 		metamorphStore  store.MetamorphStore
@@ -54,11 +51,17 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		processor       *metamorph.Processor
 		server          *metamorph.Server
 		healthServer    *grpc_utils.GrpcServer
+		cacheStore      cache.Store
 
 		err error
 	)
 
-	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(arcConfig, logger)
+	cacheStore, err = metamorph.NewCacheStore(commonCfg.Cache)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache store: %v", err)
+	}
+
+	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(commonCfg, logger)
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
@@ -66,35 +69,31 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		logger.Info("Shutdown metamorph complete")
 	}
 
-	metamorphStore, err = NewMetamorphStore(mtmConfig.Db, arcConfig.Tracing)
+	metamorphStore, err = NewMetamorphStore(mtmCfg.Db, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
 
-	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, arcConfig, mtmConfig.Health.MinimumHealthyConnections, bcMediatorOpts)
+	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, mtmCfg, mtmCfg.Health.MinimumHealthyConnections, bcMediatorOpts)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
 
-	// maximum amount of messages that could be coming from a single block
+	// maximum number of messages that could be coming from a single block
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	var mqOpts []nats_jetstream.Option
-	if arcConfig.MessageQueue.Initialize {
-		mqOpts = getMtmMqOpts()
-	}
+	mqOpts := getMtmMqOpts()
 
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(arcConfig.Callbacker.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	callbackerConn, err := initGrpcCallbackerConn(mtmCfg.CallbackerDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -102,33 +101,33 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 
 	callbackSender := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
-	btcConn, err := grpc_utils.DialGRPC(arcConfig.Blocktx.DialAddr, arcConfig.Prometheus.Endpoint, arcConfig.GrpcMessageSize, arcConfig.Tracing)
+	btcConn, err := grpc_utils.DialGRPC(mtmCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	processorOpts = append(processorOpts,
-		metamorph.WithReBroadcastExpiration(arcConfig.ReBroadcastExpiration),
-		metamorph.WithReAnnounceUnseenInterval(mtmConfig.ReAnnounceUnseenInterval),
-		metamorph.WithReAnnounceSeenLastConfirmedAgo(mtmConfig.ReAnnounceSeen.LastConfirmedAgo),
-		metamorph.WithReAnnounceSeenPendingSince(mtmConfig.ReAnnounceSeen.PendingSince),
-		metamorph.WithReRegisterSeen(mtmConfig.ReRegisterSeen),
-		metamorph.WithRejectPendingSeenEnabled(mtmConfig.RejectPendingSeen.Enabled),
-		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmConfig.RejectPendingSeen.LastRequestedAgo),
-		metamorph.WithRejectPendingBlocksSince(mtmConfig.RejectPendingSeen.BlocksSince),
+		metamorph.WithReBroadcastExpiration(commonCfg.ReBroadcastExpiration),
+		metamorph.WithReAnnounceUnseenInterval(mtmCfg.ReAnnounceUnseenInterval),
+		metamorph.WithReAnnounceSeenLastConfirmedAgo(mtmCfg.ReAnnounceSeen.LastConfirmedAgo),
+		metamorph.WithReAnnounceSeenPendingSince(mtmCfg.ReAnnounceSeen.PendingSince),
+		metamorph.WithReRegisterSeen(mtmCfg.ReRegisterSeen),
+		metamorph.WithRejectPendingSeenEnabled(mtmCfg.RejectPendingSeen.Enabled),
+		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmCfg.RejectPendingSeen.LastRequestedAgo),
+		metamorph.WithRejectPendingBlocksSince(mtmCfg.RejectPendingSeen.BlocksSince),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
-		metamorph.WithStatusUpdatesInterval(mtmConfig.StatusUpdateInterval),
+		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),
 		metamorph.WithCallbackSender(callbackSender),
-		metamorph.WithStatTimeLimits(mtmConfig.Stats.NotSeenTimeLimit, mtmConfig.Stats.NotFinalTimeLimit),
-		metamorph.WithMaxRetries(mtmConfig.MaxRetries),
-		metamorph.WithMinimumHealthyConnections(mtmConfig.Health.MinimumHealthyConnections),
+		metamorph.WithStatTimeLimits(mtmCfg.Stats.NotSeenTimeLimit, mtmCfg.Stats.NotFinalTimeLimit),
+		metamorph.WithMaxRetries(mtmCfg.MaxRetries),
+		metamorph.WithMinimumHealthyConnections(mtmCfg.Health.MinimumHealthyConnections),
 		metamorph.WithBlocktxClient(blockTxClient),
-		metamorph.WithDoubleSpendCheckInterval(mtmConfig.DoubleSpendCheckInterval),
-		metamorph.WithDoubleSpendTxStatusOlderThanInterval(mtmConfig.DoubleSpendTxStatusOlderThanInterval),
+		metamorph.WithDoubleSpendCheckInterval(mtmCfg.DoubleSpendCheckInterval),
+		metamorph.WithDoubleSpendTxStatusOlderThanInterval(mtmCfg.DoubleSpendTxStatusOlderThanInterval),
 	)
 
 	processor, err = metamorph.NewProcessor(
@@ -142,16 +141,16 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, err
 	}
-	err = processor.Start(arcConfig.Prometheus.IsEnabled())
+	err = processor.Start(commonCfg.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.GrpcMessageSize,
-		TracingConfig:      arcConfig.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "metamorph",
 	}
 
@@ -160,34 +159,34 @@ func StartMetamorph(logger *slog.Logger, arcConfig *config.ArcConfig, cacheStore
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
-	err = server.ListenAndServe(mtmConfig.ListenAddr)
+	err = server.ListenAndServe(mtmCfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
-	err = startZMQs(logger, arcConfig.Metamorph.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
+	err = startZMQs(logger, mtmCfg.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
 	if err != nil {
 		return nil, err
 	}
 	return stopFn, nil
 }
 
-func enableTracing(arcConfig *config.ArcConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
+func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
 	shutdownFns := make([]func(), 0)
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
 	callbackerOpts := make([]callbacker.Option, 0)
 	bcMediatorOpts := make([]bcnet.Option, 0)
 
-	if arcConfig.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", arcConfig.Tracing.DialAddr, arcConfig.Tracing.Sample)
+	if commonCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "metamorph", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := arcConfig.Tracing.KeyValueAttributes
+		attributes := commonCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)
@@ -280,7 +279,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 // Parameters:
 // - `l *slog.Logger`: Logger instance for event logging.
 // - `s store.MetamorphStore`: Storage interface for Metamorph operations.
-// - `arcConfig *config.ArcConfig`: Configuration object for blockchain network settings.
+// - `metamorphCfg  *config.MetamorphConfig`: Configuration object for blockchain network settings.
 // - `mediatorOpts []bcnet.Option`: Additional options for the mediator.
 //
 // Returns:
@@ -303,7 +302,7 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 // Message Handlers:
 // - `metamorph_p2p.NewMsgHandler`: Used in classic mode, handling all communication via P2P.
 // - `metamorph_p2p.NewHybridMsgHandler`: Used in hybrid mode, integrating P2P communication with multicast group updates.
-func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcConfig *config.ArcConfig, minConnections int, mediatorOpts []bcnet.Option) (
+func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, metamorphCfg *config.MetamorphConfig, minConnections int, mediatorOpts []bcnet.Option) (
 	mediator *bcnet.Mediator, messenger *p2p.NetworkMessenger, manager *p2p.PeerManager, multicaster *mcast.Multicaster,
 	messageCh chan *metamorph_p2p.TxStatusMessage, err error) {
 	defer func() {
@@ -328,7 +327,7 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcC
 		}
 	}()
 
-	cfg := arcConfig.Metamorph.BlockchainNetwork
+	cfg := metamorphCfg.BlockchainNetwork
 	network, err := config.GetNetwork(cfg.Network)
 	if err != nil {
 		return
@@ -352,7 +351,7 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, arcC
 
 	// connect to peers
 	var managerOpts []p2p.PeerManagerOptions
-	if arcConfig.Metamorph.MonitorPeers {
+	if metamorphCfg.MonitorPeers {
 		managerOpts = append(managerOpts, p2p.WithRestartUnhealthyPeers())
 	}
 

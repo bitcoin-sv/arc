@@ -41,7 +41,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *config.GlobalConfig) (func(), error) {
+func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 	logger.Info("Starting")
 	var (
@@ -65,7 +65,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		logger.Info("Shutdown complete")
 	}
 
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
 		stopFn()
 		return nil, err
@@ -78,12 +78,12 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 
 	apiOpts := []apiHandler.Option{
 		apiHandler.WithCallbackURLRestrictions(apiCfg.RejectCallbackContaining),
-		apiHandler.WithRebroadcastExpiration(globalCfg.ReBroadcastExpiration),
+		apiHandler.WithRebroadcastExpiration(commonCfg.ReBroadcastExpiration),
 		apiHandler.WithStandardFormatSupported(apiCfg.StandardFormatSupported),
 	}
 
 	var merkleVerifierOpts []merkle_verifier.Option
-	if globalCfg.Prometheus.IsEnabled() {
+	if commonCfg.Prometheus.IsEnabled() {
 		handlerStats, err := apiHandler.NewStats()
 		if err != nil {
 			stopFn()
@@ -102,15 +102,15 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 	var nodeClientOpts []func(client *node_client.NodeClient)
 	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(apiCfg.WocAPIKey)}
 
-	if globalCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "api", globalCfg.Tracing.DialAddr, globalCfg.Tracing.Sample)
+	if commonCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "api", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := globalCfg.Tracing.KeyValueAttributes
+		attributes := commonCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)
@@ -127,7 +127,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		beefValidatorOpts = append(beefValidatorOpts, beefValidator.WithTracer(attributes...))
 	}
 
-	conn, err := grpc_utils.DialGRPC(apiCfg.MetamorphDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
+	conn, err := grpc_utils.DialGRPC(apiCfg.MetamorphDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
@@ -138,7 +138,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		mtmOpts...,
 	)
 
-	btcConn, err := grpc_utils.DialGRPC(apiCfg.BlocktxDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
+	btcConn, err := grpc_utils.DialGRPC(apiCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
@@ -189,7 +189,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		chainTracker = merkleVerifierClient
 	}
 
-	switch globalCfg.Network {
+	switch commonCfg.Network {
 	case "testnet":
 		network = "test"
 		if !bhsDefined {
@@ -210,7 +210,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
 		stopFn()
-		return nil, fmt.Errorf("invalid network type: %s", globalCfg.Network)
+		return nil, fmt.Errorf("invalid network type: %s", commonCfg.Network)
 	}
 
 	dv := defaultValidator.New(
@@ -232,9 +232,9 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, globalCfg *co
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
-		MaxMsgSize:         globalCfg.GrpcMessageSize,
-		TracingConfig:      globalCfg.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "api",
 	}
 

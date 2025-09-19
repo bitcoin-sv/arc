@@ -13,7 +13,7 @@ const (
 )
 
 type ArcConfig struct {
-	Global     *GlobalConfig     `mapstructure:"global"`
+	Common     *CommonConfig     `mapstructure:"common"`
 	Metamorph  *MetamorphConfig  `mapstructure:"metamorph"`
 	Blocktx    *BlocktxConfig    `mapstructure:"blocktx"`
 	API        *APIConfig        `mapstructure:"api"`
@@ -21,7 +21,7 @@ type ArcConfig struct {
 	Callbacker *CallbackerConfig `mapstructure:"callbacker"`
 }
 
-type GlobalConfig struct {
+type CommonConfig struct {
 	LogLevel              string              `mapstructure:"logLevel"`
 	LogFormat             string              `mapstructure:"logFormat"`
 	ProfilerAddr          string              `mapstructure:"profilerAddr"`
@@ -34,7 +34,7 @@ type GlobalConfig struct {
 	Cache                 *CacheConfig        `mapstructure:"cache"`
 }
 
-func (a *GlobalConfig) IsTracingEnabled() bool {
+func (a *CommonConfig) IsTracingEnabled() bool {
 	return a.Tracing != nil && a.Tracing.IsEnabled()
 }
 

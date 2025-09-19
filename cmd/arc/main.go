@@ -41,7 +41,7 @@ func run() error {
 		return config.DumpConfig(dumpConfigFile)
 	}
 
-	logger, err := arcLogger.NewLogger(arcConfig.Global.LogLevel, arcConfig.Global.LogFormat)
+	logger, err := arcLogger.NewLogger(arcConfig.Common.LogLevel, arcConfig.Common.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}
@@ -75,10 +75,10 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	shutdownFns := make([]func(), 0)
 
 	go func() {
-		if arcConfig.Global.ProfilerAddr != "" {
-			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.Global.ProfilerAddr))
+		if arcConfig.Common.ProfilerAddr != "" {
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.Common.ProfilerAddr))
 
-			err := http.ListenAndServe(arcConfig.Global.ProfilerAddr, nil)
+			err := http.ListenAndServe(arcConfig.Common.ProfilerAddr, nil)
 			if err != nil {
 				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 			}
@@ -86,10 +86,10 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}()
 
 	go func() {
-		if arcConfig.Global.Prometheus.IsEnabled() {
-			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Global.Prometheus.Endpoint))
-			http.Handle(arcConfig.Global.Prometheus.Endpoint, promhttp.Handler())
-			err := http.ListenAndServe(arcConfig.Global.Prometheus.Addr, nil)
+		if arcConfig.Common.Prometheus.IsEnabled() {
+			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Common.Prometheus.Endpoint))
+			http.Handle(arcConfig.Common.Prometheus.Endpoint, promhttp.Handler())
+			err := http.ListenAndServe(arcConfig.Common.Prometheus.Addr, nil)
 			if err != nil {
 				logger.Error("failed to start prometheus server", slog.String("err", err.Error()))
 			}
@@ -106,7 +106,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Global)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -115,7 +115,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Global)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -124,7 +124,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startAPI {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig.API, arcConfig.Global)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig.API, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start api: %v", err)
 		}
@@ -134,7 +134,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Global)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -142,7 +142,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Global)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start callbacker: %v", err)
 		}

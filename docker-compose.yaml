@@ -151,8 +151,8 @@ services:
       - "8011"
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
-      - ./test/config/config_global.yaml:/service/config_global.yaml
-    command: [ "./arc", "-blocktx=true", "-config=./config.yaml,./config_global.yaml" ]
+      - ./test/config/config_common.yaml:/service/config_common.yaml
+    command: [ "./arc", "-blocktx=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     depends_on:
@@ -176,12 +176,12 @@ services:
     image: test-arc
     expose:
       - "8021"
-    command: [ "./arc", "-callbacker=true", "-config=./config.yaml,./config_global.yaml" ]
+    command: [ "./arc", "-callbacker=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
-      - ./test/config/config_global.yaml:/service/config_global.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       nats-1:
         condition: service_healthy
@@ -201,12 +201,12 @@ services:
     image: test-arc
     expose:
       - "8001"
-    command: [ "./arc", "-metamorph=true", "-config=./config.yaml,./config_global.yaml" ]
+    command: [ "./arc", "-metamorph=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
-      - ./test/config/config_global.yaml:/service/config_global.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       blocktx:
         condition: service_healthy
@@ -233,12 +233,12 @@ services:
       - "9090"
       - "2112"
       - "8033"
-    command: [ "./arc", "-api=true", "-config=./config.yaml,./config_global.yaml" ]
+    command: [ "./arc", "-api=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
-      - ./test/config/config_global.yaml:/service/config_global.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       metamorph:
         condition: service_healthy

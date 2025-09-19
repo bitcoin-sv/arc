@@ -8,7 +8,7 @@ import (
 
 func getDefaultArcConfig() *ArcConfig {
 	return &ArcConfig{
-		Global:     getDefaultGlobalConfig(),
+		Common:     getDefaultCommonConfig(),
 		Metamorph:  getMetamorphConfig(),
 		Blocktx:    getBlocktxConfig(),
 		API:        getAPIConfig(),
@@ -17,8 +17,8 @@ func getDefaultArcConfig() *ArcConfig {
 	}
 }
 
-func getDefaultGlobalConfig() *GlobalConfig {
-	return &GlobalConfig{
+func getDefaultCommonConfig() *CommonConfig {
+	return &CommonConfig{
 		LogLevel:              "DEBUG",
 		LogFormat:             "text",
 		ProfilerAddr:          "", // optional

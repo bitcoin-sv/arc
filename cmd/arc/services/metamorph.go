@@ -36,7 +36,7 @@ const (
 	chanBufferSize = 4000
 )
 
-func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalCfg *config.GlobalConfig) (func(), error) {
+func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
 
@@ -56,12 +56,12 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 		err error
 	)
 
-	cacheStore, err = metamorph.NewCacheStore(globalCfg.Cache)
+	cacheStore, err = metamorph.NewCacheStore(commonCfg.Cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache store: %v", err)
 	}
 
-	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(globalCfg, logger)
+	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(commonCfg, logger)
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
@@ -69,7 +69,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 		logger.Info("Shutdown metamorph complete")
 	}
 
-	metamorphStore, err = NewMetamorphStore(mtmCfg.Db, globalCfg.Tracing)
+	metamorphStore, err = NewMetamorphStore(mtmCfg.Db, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
@@ -86,14 +86,14 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 
 	mqOpts := getMtmMqOpts()
 
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts...)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(mtmCfg.CallbackerDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
+	callbackerConn, err := initGrpcCallbackerConn(mtmCfg.CallbackerDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
@@ -101,14 +101,14 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 
 	callbackSender := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
 
-	btcConn, err := grpc_utils.DialGRPC(mtmCfg.BlocktxDialAddr, globalCfg.Prometheus.Endpoint, globalCfg.GrpcMessageSize, globalCfg.Tracing)
+	btcConn, err := grpc_utils.DialGRPC(mtmCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
 	}
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	processorOpts = append(processorOpts,
-		metamorph.WithReBroadcastExpiration(globalCfg.ReBroadcastExpiration),
+		metamorph.WithReBroadcastExpiration(commonCfg.ReBroadcastExpiration),
 		metamorph.WithReAnnounceUnseenInterval(mtmCfg.ReAnnounceUnseenInterval),
 		metamorph.WithReAnnounceSeenLastConfirmedAgo(mtmCfg.ReAnnounceSeen.LastConfirmedAgo),
 		metamorph.WithReAnnounceSeenPendingSince(mtmCfg.ReAnnounceSeen.PendingSince),
@@ -141,16 +141,16 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 		stopFn()
 		return nil, err
 	}
-	err = processor.Start(globalCfg.Prometheus.IsEnabled())
+	err = processor.Start(commonCfg.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to start metamorph processor: %v", err)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
-		MaxMsgSize:         globalCfg.GrpcMessageSize,
-		TracingConfig:      globalCfg.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "metamorph",
 	}
 
@@ -171,22 +171,22 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, globalC
 	return stopFn, nil
 }
 
-func enableTracing(globalCfg *config.GlobalConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
+func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
 	shutdownFns := make([]func(), 0)
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
 	callbackerOpts := make([]callbacker.Option, 0)
 	bcMediatorOpts := make([]bcnet.Option, 0)
 
-	if globalCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", globalCfg.Tracing.DialAddr, globalCfg.Tracing.Sample)
+	if commonCfg.IsTracingEnabled() {
+		cleanup, err := tracing.Enable(logger, "metamorph", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
 			shutdownFns = append(shutdownFns, cleanup)
 		}
 
-		attributes := globalCfg.Tracing.KeyValueAttributes
+		attributes := commonCfg.Tracing.KeyValueAttributes
 		hostname, err := os.Hostname()
 		if err == nil {
 			hostnameAttr := attribute.String("hostname", hostname)

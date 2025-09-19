@@ -37,7 +37,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 )
 
-func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, globalCfg *config.GlobalConfig) (func(), error) {
+func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 	var (
@@ -69,7 +69,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, global
 
 	mqOpts := getCbkMqOpts()
 
-	mqClient, err = mq.NewMqClient(logger, globalCfg.MessageQueue, mqOpts...)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, global
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: globalCfg.Prometheus.Endpoint,
-		MaxMsgSize:         globalCfg.GrpcMessageSize,
-		TracingConfig:      globalCfg.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "blocktx",
 	}
 

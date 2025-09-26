@@ -49,12 +49,12 @@ type Config struct {
 func (c Config) Log(logger *slog.Logger) {
 	logger.Info("config",
 		"rate", c.RateTxsPerSecond,
+		"batchSize", c.BatchSize,
 		"waitForStatus", c.WaitForStatus,
 		"callbackURL", c.CallbackURL,
 		"callbackToken", c.CallbackToken,
 		"arcServer", c.ArcServer,
 		"isTestnet", c.IsTestnet,
-		"batchSize", c.BatchSize,
 		"fullStatusUpdates", c.FullStatusUpdates,
 		"limit", c.Limit,
 		"opReturn", c.OpReturn,
@@ -185,6 +185,7 @@ var Cmd = &cobra.Command{
 			cfg.Log(logger)
 			keyNames := helper.GetOrderedKeys(keySetsMap)
 			logger.Info("keys", slog.Any("names", keyNames))
+			logger.Info("submit batch interval", slog.String("interval", submitBatchInterval.String()))
 
 			// Start the broadcasting process
 			err := rateBroadcaster.Start()

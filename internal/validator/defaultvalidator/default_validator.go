@@ -100,9 +100,9 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 		return vErr
 	}
 
-	// 10) Reject if the sum of input values is less than sum of output values
-	// 11) Reject if transaction fee would be too low (minRelayTxFee) to get into an empty block.
-	switch feeValidation {
+	// 10) Reject if the sum of input values is less than the sum of output values
+	// 11) Reject if the transaction fee was too low (minRelayTxFee) to get into an empty block.
+	switch feeValidation { // nolint:revive // make it explicit that not handling the default case on purpose
 	case validator.StandardFeeValidation:
 		if vErr = checkStandardFees(tx, internalApi.FeesToFeeModel(v.policy.MinMiningTxFee)); vErr != nil {
 			return vErr

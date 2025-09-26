@@ -155,18 +155,16 @@ var Cmd = &cobra.Command{
 		}
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-		var submitBatchTicker broadcaster.Ticker
-		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
-
-		if cfg.RampUpTickerEnabled {
-			submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-			if err != nil {
-				return err
-			}
-		}
-
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
 		for keyName, ks := range keySetsMap {
+			var submitBatchTicker broadcaster.Ticker
+			submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
+			if cfg.RampUpTickerEnabled {
+				submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+				if err != nil {
+					return err
+				}
+			}
 			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!cfg.IsTestnet)), slog.String("name", keyName)), client, ks, wocClient, cfg.Limit, submitBatchTicker, opts...)
 			if err != nil {
 				return err

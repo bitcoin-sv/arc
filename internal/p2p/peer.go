@@ -436,15 +436,13 @@ func (p *Peer) listenForMessages() {
 			cmd := msg.Command()
 			l.Log(context.Background(), slogLvlTrace, "Received", slogUpperString(commandKey, cmd))
 
-			switch cmd {
+			switch cmd { // nolint:revive // make default and inventory message case explicit
 			// micro optimization - INV is the most frequently received message
 			case wire.CmdInv:
 				p.mh.OnReceive(msg, p)
 
 			// ignore handshake type messages
-			case wire.CmdVersion:
-				fallthrough
-			case wire.CmdVerAck:
+			case wire.CmdVerAck, wire.CmdVersion:
 				l.Warn("Received handshake message after handshake completed", slogUpperString(commandKey, cmd))
 
 			// handle keep-alive ping-pong
@@ -461,7 +459,7 @@ func (p *Peer) listenForMessages() {
 			case wire.CmdPong:
 				p.aliveCh <- struct{}{}
 
-			// pass message to client
+			// pass message to the client
 			default:
 				p.mh.OnReceive(msg, p)
 			}

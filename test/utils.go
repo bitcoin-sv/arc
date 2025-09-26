@@ -164,7 +164,7 @@ func registerHandlerForCallback[T any](t *testing.T, receivedChan chan T, errCha
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
-	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback) // nolint:revive // unsecure url scheme in test
 	t.Logf("random callback URL: %s", callbackURL)
 
 	mux.HandleFunc(fmt.Sprintf("/%s", callback), func(w http.ResponseWriter, req *http.Request) {
@@ -218,7 +218,7 @@ func registerHandlerForBatchCallback(t *testing.T, receivedChan chan ReceivedCal
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
-	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback)
+	callbackURL = fmt.Sprintf("http://%s:9000/%s", hostname, callback) // nolint:revive // unsecure url scheme in test
 	t.Logf("random callback URL: %s", callbackURL)
 
 	responseVisitMap := make(map[string]int)

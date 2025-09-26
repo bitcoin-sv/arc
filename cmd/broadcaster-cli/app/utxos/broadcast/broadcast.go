@@ -49,12 +49,12 @@ type Config struct {
 func (c Config) Log(logger *slog.Logger) {
 	logger.Info("config",
 		"rate", c.RateTxsPerSecond,
+		"batchSize", c.BatchSize,
 		"waitForStatus", c.WaitForStatus,
 		"callbackURL", c.CallbackURL,
 		"callbackToken", c.CallbackToken,
 		"arcServer", c.ArcServer,
 		"isTestnet", c.IsTestnet,
-		"batchSize", c.BatchSize,
 		"fullStatusUpdates", c.FullStatusUpdates,
 		"limit", c.Limit,
 		"opReturn", c.OpReturn,
@@ -155,18 +155,16 @@ var Cmd = &cobra.Command{
 		}
 		submitBatchInterval := time.Duration(millisecondsPerSecond/float64(submitBatchesPerSecond)) * time.Millisecond
 
-		var submitBatchTicker broadcaster.Ticker
-		submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
-
-		if cfg.RampUpTickerEnabled {
-			submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
-			if err != nil {
-				return err
-			}
-		}
-
 		rbs := make([]broadcaster.RateBroadcaster, 0, len(keySetsMap))
 		for keyName, ks := range keySetsMap {
+			var submitBatchTicker broadcaster.Ticker
+			submitBatchTicker = broadcaster.NewConstantTicker(submitBatchInterval)
+			if cfg.RampUpTickerEnabled {
+				submitBatchTicker, err = broadcaster.NewRampUpTicker(5*time.Second+submitBatchInterval, submitBatchInterval, 10)
+				if err != nil {
+					return err
+				}
+			}
 			rb, err := broadcaster.NewRateBroadcaster(logger.With(slog.String("address", ks.Address(!cfg.IsTestnet)), slog.String("name", keyName)), client, ks, wocClient, cfg.Limit, submitBatchTicker, opts...)
 			if err != nil {
 				return err
@@ -185,6 +183,7 @@ var Cmd = &cobra.Command{
 			cfg.Log(logger)
 			keyNames := helper.GetOrderedKeys(keySetsMap)
 			logger.Info("keys", slog.Any("names", keyNames))
+			logger.Info("submit batch interval", slog.String("interval", submitBatchInterval.String()))
 
 			// Start the broadcasting process
 			err := rateBroadcaster.Start()

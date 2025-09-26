@@ -9,7 +9,7 @@ import (
 var (
 	nodeHost = "node1"
 
-	arcEndpoint      = "http://api:9090/"
+	arcEndpoint      = "http://api:9090/" // nolint:revive // unsecure url scheme in test
 	arcEndpointV1Tx  = arcEndpoint + v1Tx
 	arcEndpointV1Txs = arcEndpoint + v1Txs
 )

@@ -102,7 +102,6 @@ func (b *UTXORateBroadcaster) Start() {
 	b.wg.Add(1)
 	go func() {
 		defer func() {
-			b.logger.Info("shutting down broadcaster")
 			b.wg.Done()
 		}()
 
@@ -112,6 +111,8 @@ func (b *UTXORateBroadcaster) Start() {
 			case <-b.ctx.Done():
 				return
 			case <-tickerCh:
+				b.logger.Debug("tick")
+
 				txs, err := b.createSelfPayingTxs()
 				if err != nil {
 					b.logger.Error("failed to create self paying txs", slog.String("err", err.Error()))

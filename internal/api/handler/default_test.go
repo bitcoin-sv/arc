@@ -32,7 +32,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/default"
+	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 

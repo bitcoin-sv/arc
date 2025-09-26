@@ -27,7 +27,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/node_client"
 	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
-	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
+	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/rpc_client"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"

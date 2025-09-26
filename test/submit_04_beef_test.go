@@ -141,12 +141,7 @@ func TestBeef(t *testing.T) {
 			select {
 			case status := <-callbackReceivedChan:
 				switch status.Txid {
-				case tx2.TxID().String():
-					require.Equal(t, StatusMined, status.TxStatus)
-					require.NotNil(t, statusResp.BlockHash)
-					require.Equal(t, blockHash2, *statusResp.BlockHash)
-					callbackReceived++
-				case tx3.TxID().String():
+				case tx2.TxID().String(), tx3.TxID().String():
 					require.Equal(t, StatusMined, status.TxStatus)
 					require.NotNil(t, statusResp.BlockHash)
 					require.Equal(t, blockHash2, *statusResp.BlockHash)

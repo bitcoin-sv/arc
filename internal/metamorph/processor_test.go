@@ -278,7 +278,7 @@ func TestProcessTransaction(t *testing.T) {
 
 			// when
 			var wg sync.WaitGroup
-			wg.Add(len(tc.expectedResponses))
+			wg.Add(len(tc.expectedResponses)) // nolint:revive // intentional
 			go func() {
 				n := 0
 				for response := range responseChannel {

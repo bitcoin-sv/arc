@@ -151,7 +151,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 			require.NoError(t, err)
 
 			// when then
-			err = sut.Initialize()
+			err = sut.Initialize(context.TODO())
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -290,7 +290,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when then
-			err = sut.Initialize()
+			err = sut.Initialize(context.TODO())
 			require.ErrorIs(t, err, tc.expectedError)
 
 			const ticks = 4

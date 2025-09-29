@@ -1,6 +1,7 @@
 package broadcaster_test
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
@@ -34,7 +35,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			rateBroadcaster1 := &mocks.RateBroadcasterMock{
 				StartFunc:              func() {},
-				InitializeFunc:         func() error { return nil },
+				InitializeFunc:         func(_ context.Context) error { return nil },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 5 },
@@ -45,7 +46,7 @@ func TestMultiRateBroadcasterStart(t *testing.T) {
 
 			rateBroadcaster2 := &mocks.RateBroadcasterMock{
 				StartFunc:              func() {},
-				InitializeFunc:         func() error { return tc.expectedError },
+				InitializeFunc:         func(_ context.Context) error { return tc.expectedError },
 				WaitFunc:               func() {},
 				ShutdownFunc:           func() {},
 				GetTxCountFunc:         func() int64 { return 10 },

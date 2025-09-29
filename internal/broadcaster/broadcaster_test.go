@@ -113,7 +113,7 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	actualError := sut.Initialize()
+	actualError := sut.Initialize(context.TODO())
 
 	// then
 	require.NoError(t, actualError)

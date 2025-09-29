@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"sync"
 )
@@ -30,7 +31,7 @@ var _ broadcaster.RateBroadcaster = &RateBroadcasterMock{}
 //			GetUtxoSetLenFunc: func() int {
 //				panic("mock out the GetUtxoSetLen method")
 //			},
-//			InitializeFunc: func() error {
+//			InitializeFunc: func(ctx context.Context) error {
 //				panic("mock out the Initialize method")
 //			},
 //			ShutdownFunc: func()  {
@@ -62,7 +63,7 @@ type RateBroadcasterMock struct {
 	GetUtxoSetLenFunc func() int
 
 	// InitializeFunc mocks the Initialize method.
-	InitializeFunc func() error
+	InitializeFunc func(ctx context.Context) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
@@ -89,6 +90,8 @@ type RateBroadcasterMock struct {
 		}
 		// Initialize holds details about calls to the Initialize method.
 		Initialize []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
@@ -219,16 +222,19 @@ func (mock *RateBroadcasterMock) GetUtxoSetLenCalls() []struct {
 }
 
 // Initialize calls InitializeFunc.
-func (mock *RateBroadcasterMock) Initialize() error {
+func (mock *RateBroadcasterMock) Initialize(ctx context.Context) error {
 	if mock.InitializeFunc == nil {
 		panic("RateBroadcasterMock.InitializeFunc: method is nil but RateBroadcaster.Initialize was just called")
 	}
 	callInfo := struct {
-	}{}
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
 	mock.lockInitialize.Lock()
 	mock.calls.Initialize = append(mock.calls.Initialize, callInfo)
 	mock.lockInitialize.Unlock()
-	return mock.InitializeFunc()
+	return mock.InitializeFunc(ctx)
 }
 
 // InitializeCalls gets all the calls that were made to Initialize.
@@ -236,8 +242,10 @@ func (mock *RateBroadcasterMock) Initialize() error {
 //
 //	len(mockedRateBroadcaster.InitializeCalls())
 func (mock *RateBroadcasterMock) InitializeCalls() []struct {
+	Ctx context.Context
 } {
 	var calls []struct {
+		Ctx context.Context
 	}
 	mock.lockInitialize.RLock()
 	calls = mock.calls.Initialize

@@ -67,8 +67,11 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) Initialize() error {
-	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+func (b *UTXORateBroadcaster) Initialize(ctx context.Context) error {
+	const wocBackoff = 10 * time.Second
+	const wocRetries = 5
+
+	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries)
 	if err != nil {
 		return errors.Join(ErrFailedToGetBalance, err)
 	}
@@ -76,7 +79,7 @@ func (b *UTXORateBroadcaster) Initialize() error {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
 
-	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}

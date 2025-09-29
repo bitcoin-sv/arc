@@ -10,7 +10,7 @@ import (
 )
 
 type RateBroadcaster interface {
-	Initialize() error
+	Initialize(ctx context.Context) error
 	Start()
 	Wait()
 	Shutdown()
@@ -72,9 +72,9 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 		go func() {
 			defer initWG.Done()
 
-			err := rb.Initialize()
+			err := rb.Initialize(mrb.ctx)
 			if err != nil {
-				// Send the first error only; ignore subsequent ones.
+				// Send the first error only; ignore later ones.
 				select {
 				case errChan <- err:
 				default:
@@ -92,6 +92,7 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 	// Wait for either the first error or successful completion
 	select {
 	case err := <-errChan:
+		mrb.logger.Error("Received error during initialization - cancel all", slog.String("err", err.Error()))
 		// Cancel background work and return immediately
 		mrb.cancelAll()
 		return err

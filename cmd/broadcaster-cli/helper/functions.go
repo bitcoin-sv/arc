@@ -141,16 +141,15 @@ func NewLogger(logLevel, logFormat string) *slog.Logger {
 	default:
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+	var logger *slog.Logger
 
 	switch logFormat {
 	case "json":
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
-	case "text":
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
 	case "tint":
 		logger = slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel}))
-	default:
+	default: // text logger
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
 	}
 
 	return logger

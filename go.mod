@@ -1,6 +1,6 @@
 module github.com/bitcoin-sv/arc
 
-go 1.24.4
+go 1.25.1
 
 require (
 	github.com/bitcoin-sv/bdk/module/gobdk v1.2.0-beta8

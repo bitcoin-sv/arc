@@ -182,14 +182,14 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	}
 
 	// for each transaction if we have status in the db already set that status in the response
-	// if not we store the transaction data and set the transaction status in response array to - STORED
+	// if not, we store the transaction data and set the transaction status in response array to - STORED
 	type processTxInput struct {
 		data          *store.Data
 		waitForStatus metamorph_api.Status
 		responseIndex int
 	}
 
-	// prepare response object before filling with tx statuses
+	// prepare the response object before filling with tx statuses
 	resp := &metamorph_api.TransactionStatuses{}
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
@@ -209,14 +209,11 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	// Concurrently process each transaction and wait for the transaction status to return
 	wg := &sync.WaitGroup{}
 	for hash, input := range processTxsInputMap {
-		wg.Add(1)
-		go func(ctx context.Context, processTxInput processTxInput, txID string, wg *sync.WaitGroup, resp *metamorph_api.TransactionStatuses) {
-			defer wg.Done()
+		wg.Go(func() {
+			statusNew := s.processTransaction(ctx, input.waitForStatus, input.data, hash.String())
 
-			statusNew := s.processTransaction(ctx, processTxInput.waitForStatus, processTxInput.data, txID)
-
-			resp.Statuses[processTxInput.responseIndex] = statusNew
-		}(ctx, input, hash.String(), wg, resp)
+			resp.Statuses[input.responseIndex] = statusNew
+		})
 	}
 
 	wg.Wait()

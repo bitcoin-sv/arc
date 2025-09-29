@@ -1,7 +1,7 @@
 FROM debian:sid-slim AS build-stage
 
 ARG TARGETARCH
-ARG GOVERSION=1.24.4
+ARG GOVERSION=1.25.1
 
 # install tool-chain + Go
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -49,6 +49,7 @@ func NewUTXOCreator(logger *slog.Logger, client ArcClient, keySet *keyset.KeySet
 func (b *UTXOCreator) Wait() {
 	b.wg.Wait()
 }
+
 func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput uint64) error {
 	// Use a goroutine for concurrent execution
 

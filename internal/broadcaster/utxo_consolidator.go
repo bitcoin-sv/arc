@@ -16,9 +16,7 @@ import (
 	"github.com/bitcoin-sv/arc/pkg/keyset"
 )
 
-var (
-	ErrFailedToParseValueToUTXO = errors.New("failed to parse value to utxo")
-)
+var ErrFailedToParseValueToUTXO = errors.New("failed to parse value to utxo")
 
 type UTXOConsolidator struct {
 	Broadcaster

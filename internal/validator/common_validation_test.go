@@ -198,13 +198,14 @@ func TestCheckInputs(t *testing.T) {
 			name: "invalid input satoshis",
 			args: args{
 				tx: &sdkTx.Transaction{
-					Inputs: []*sdkTx.TransactionInput{{
-						SourceTXID:        sourceTxHash,
-						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
-					}, {
-						SourceTXID:        sourceTxHash,
-						SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
-					},
+					Inputs: []*sdkTx.TransactionInput{
+						{
+							SourceTXID:        sourceTxHash,
+							SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
+						}, {
+							SourceTXID:        sourceTxHash,
+							SourceTransaction: &sdkTx.Transaction{Outputs: []*sdkTx.TransactionOutput{{Satoshis: maxSatoshis - 100}}},
+						},
 					},
 				},
 			},
@@ -354,7 +355,8 @@ func TestPushDataCheck(t *testing.T) {
 				},
 			},
 			wantErr: true,
-		}, {
+		},
+		{
 			name: "invalid push data",
 			args: args{
 				tx: &sdkTx.Transaction{

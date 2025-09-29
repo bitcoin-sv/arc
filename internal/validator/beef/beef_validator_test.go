@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
 	"github.com/stretchr/testify/assert"

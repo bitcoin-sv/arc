@@ -288,6 +288,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 		b.putNewUTXOSInChannel(resp)
 	}()
 }
+
 func (b *UTXORateBroadcaster) putUTXOSBackInChannel(txs sdkTx.Transactions) {
 	for _, tx := range txs {
 		for _, input := range tx.Inputs {

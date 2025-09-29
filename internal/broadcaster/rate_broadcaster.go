@@ -272,7 +272,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 	go func() {
 		defer b.wg.Done()
 
-		ctx, cancel := context.WithTimeout(b.ctx, 20*time.Second)
+		ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
 		defer cancel()
 
 		atomic.AddInt64(&b.connectionCount, 1)

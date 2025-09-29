@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/validator"
-	fixture "github.com/bitcoin-sv/arc/internal/validator/default/testdata"
+	fixture "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator/mocks"
 )
 

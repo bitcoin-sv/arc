@@ -1,4 +1,4 @@
-package cmd
+package services
 
 import (
 	"context"
@@ -27,14 +27,14 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
-	arc_logger "github.com/bitcoin-sv/arc/internal/logger"
+	arclogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/node_client"
-	tx_finder "github.com/bitcoin-sv/arc/internal/tx_finder"
+	txfinder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	beefValidator "github.com/bitcoin-sv/arc/internal/validator/beef"
-	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/default"
+	defaultValidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
@@ -101,8 +101,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		defaultValidator.WithStandardFormatSupported(arcConfig.API.StandardFormatSupported),
 	}
 	var beefValidatorOpts []beefValidator.Option
-	var cachedFinderOpts []func(f *tx_finder.CachedFinder)
-	var finderOpts []func(f *tx_finder.Finder)
+	var cachedFinderOpts []func(f *txfinder.CachedFinder)
+	var finderOpts []func(f *txfinder.Finder)
 	var nodeClientOpts []func(client *node_client.NodeClient)
 	wocClientOpts := []func(client *woc_client.WocClient){woc_client.WithAuth(arcConfig.API.WocAPIKey)}
 
@@ -123,8 +123,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 
 		mtmOpts = append(mtmOpts, metamorph.WithClientTracer(attributes...))
 		apiOpts = append(apiOpts, apiHandler.WithTracer(attributes...))
-		cachedFinderOpts = append(cachedFinderOpts, tx_finder.WithTracerCachedFinder(attributes...))
-		finderOpts = append(finderOpts, tx_finder.WithTracerFinder(attributes...))
+		cachedFinderOpts = append(cachedFinderOpts, txfinder.WithTracerCachedFinder(attributes...))
+		finderOpts = append(finderOpts, txfinder.WithTracerFinder(attributes...))
 		nodeClientOpts = append(nodeClientOpts, node_client.WithTracer(attributes...))
 		wocClientOpts = append(wocClientOpts, woc_client.WithTracer(attributes...))
 		defaultValidatorOpts = append(defaultValidatorOpts, defaultValidator.WithTracer(attributes...))
@@ -171,8 +171,8 @@ func StartAPIServer(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), e
 		return nil, fmt.Errorf("failed to create node client: %v", err)
 	}
 
-	finder := tx_finder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
-	cachedFinder := tx_finder.NewCached(finder, cachedFinderOpts...)
+	finder := txfinder.New(mtmClient, nodeClient, wocClient, logger, finderOpts...)
+	cachedFinder := txfinder.NewCached(finder, cachedFinderOpts...)
 
 	var network string
 	var genesisBlock int32
@@ -296,7 +296,7 @@ func setAPIEcho(logger *slog.Logger, cfg *config.APIConfig) *echo.Echo {
 		return func(c echo.Context) error {
 			req := c.Request()
 			//nolint:staticcheck // use string key on purpose
-			reqCtx := context.WithValue(req.Context(), arc_logger.EventIDField, uuid.New().String()) //lint:ignore SA1029 use string key on purpose
+			reqCtx := context.WithValue(req.Context(), arclogger.EventIDField, uuid.New().String()) //lint:ignore SA1029 use string key on purpose
 			c.SetRequest(req.WithContext(reqCtx))
 
 			return next(c)

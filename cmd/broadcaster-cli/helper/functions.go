@@ -127,6 +127,7 @@ func GetBool(settingName string) bool {
 
 func NewLogger(logLevel, logFormat string) *slog.Logger {
 	var slogLevel slog.Level
+	slogLevel = slog.LevelInfo
 
 	switch logLevel {
 	case "INFO":
@@ -138,19 +139,20 @@ func NewLogger(logLevel, logFormat string) *slog.Logger {
 	case "DEBUG":
 		slogLevel = slog.LevelDebug
 	default:
-		slogLevel = slog.LevelInfo
 	}
+
+	var logger *slog.Logger
 
 	switch logFormat {
 	case "json":
-		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
-	case "text":
-		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
 	case "tint":
-		return slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel}))
-	default:
-		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+		logger = slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slogLevel}))
+	default: // text logger
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
 	}
+
+	return logger
 }
 
 func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*keyset.KeySet, error) {

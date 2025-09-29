@@ -1,4 +1,4 @@
-package cmd
+package services
 
 import (
 	"errors"

@@ -29,6 +29,9 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			InsertFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
 //				panic("mock out the Insert method")
 //			},
+//			PingFunc: func(ctx context.Context) error {
+//				panic("mock out the Ping method")
+//			},
 //			SetSentFunc: func(ctx context.Context, ids []int64) error {
 //				panic("mock out the SetSent method")
 //			},
@@ -53,6 +56,9 @@ type ProcessorStoreMock struct {
 
 	// InsertFunc mocks the Insert method.
 	InsertFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
+
+	// PingFunc mocks the Ping method.
+	PingFunc func(ctx context.Context) error
 
 	// SetSentFunc mocks the SetSent method.
 	SetSentFunc func(ctx context.Context, ids []int64) error
@@ -92,6 +98,11 @@ type ProcessorStoreMock struct {
 			// Data is the data argument value.
 			Data []*store.CallbackData
 		}
+		// Ping holds details about calls to the Ping method.
+		Ping []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
 		// SetSent holds details about calls to the SetSent method.
 		SetSent []struct {
 			// Ctx is the ctx argument value.
@@ -117,6 +128,7 @@ type ProcessorStoreMock struct {
 	lockClear               sync.RWMutex
 	lockGetUnsent           sync.RWMutex
 	lockInsert              sync.RWMutex
+	lockPing                sync.RWMutex
 	lockSetSent             sync.RWMutex
 	lockUnsetPending        sync.RWMutex
 	lockUnsetPendingDisable sync.RWMutex
@@ -239,6 +251,38 @@ func (mock *ProcessorStoreMock) InsertCalls() []struct {
 	mock.lockInsert.RLock()
 	calls = mock.calls.Insert
 	mock.lockInsert.RUnlock()
+	return calls
+}
+
+// Ping calls PingFunc.
+func (mock *ProcessorStoreMock) Ping(ctx context.Context) error {
+	if mock.PingFunc == nil {
+		panic("ProcessorStoreMock.PingFunc: method is nil but ProcessorStore.Ping was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockPing.Lock()
+	mock.calls.Ping = append(mock.calls.Ping, callInfo)
+	mock.lockPing.Unlock()
+	return mock.PingFunc(ctx)
+}
+
+// PingCalls gets all the calls that were made to Ping.
+// Check the length with:
+//
+//	len(mockedProcessorStore.PingCalls())
+func (mock *ProcessorStoreMock) PingCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockPing.RLock()
+	calls = mock.calls.Ping
+	mock.lockPing.RUnlock()
 	return calls
 }
 

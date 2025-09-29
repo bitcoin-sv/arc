@@ -6,6 +6,7 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/mq"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"sync"
@@ -54,7 +55,7 @@ var _ mq.MessageQueueClient = &MessageQueueClientMock{}
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StatusFunc: func() string {
+//			StatusFunc: func() nats.Status {
 //				panic("mock out the Status method")
 //			},
 //		}
@@ -98,7 +99,7 @@ type MessageQueueClientMock struct {
 	ShutdownFunc func()
 
 	// StatusFunc mocks the Status method.
-	StatusFunc func() string
+	StatusFunc func() nats.Status
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -580,7 +581,7 @@ func (mock *MessageQueueClientMock) ShutdownCalls() []struct {
 }
 
 // Status calls StatusFunc.
-func (mock *MessageQueueClientMock) Status() string {
+func (mock *MessageQueueClientMock) Status() nats.Status {
 	if mock.StatusFunc == nil {
 		panic("MessageQueueClientMock.StatusFunc: method is nil but MessageQueueClient.Status was just called")
 	}

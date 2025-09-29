@@ -18,8 +18,8 @@ import (
 
 func TestCheck(t *testing.T) {
 	mqClient := &mqMocks.MessageQueueClientMock{
-		StatusFunc: func() string {
-			return nats.CONNECTED.String()
+		StatusFunc: func() nats.Status {
+			return nats.CONNECTED
 		},
 		IsConnectedFunc: func() bool {
 			return true
@@ -75,8 +75,8 @@ func TestCheck(t *testing.T) {
 
 func TestWatch(t *testing.T) {
 	mqClient := &mqMocks.MessageQueueClientMock{
-		StatusFunc: func() string {
-			return nats.CONNECTED.String()
+		StatusFunc: func() nats.Status {
+			return nats.CONNECTED
 		},
 		IsConnectedFunc: func() bool {
 			return true

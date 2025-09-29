@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -16,6 +17,52 @@ const (
 type HealthWatchServer interface {
 	Send(*grpc_health_v1.HealthCheckResponse) error
 	grpc.ServerStream
+}
+
+func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) (*grpc_health_v1.HealthListResponse, error) {
+	mqStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	if s.mq != nil {
+		if s.mq.Status() == nats.CONNECTED {
+			mqStatus = grpc_health_v1.HealthCheckResponse_SERVING
+		}
+	}
+
+	storeStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	if s.store.Ping(ctx) == nil {
+		storeStatus = grpc_health_v1.HealthCheckResponse_SERVING
+	}
+
+	healthyConnections := 0
+	for _, peer := range s.processor.GetPeers() {
+		if peer.Connected() {
+			healthyConnections++
+			continue
+		}
+	}
+
+	peerStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	if healthyConnections > 0 {
+		peerStatus = grpc_health_v1.HealthCheckResponse_SERVING
+	}
+
+	listResp := &grpc_health_v1.HealthListResponse{
+		Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
+			"server": {
+				Status: grpc_health_v1.HealthCheckResponse_SERVING,
+			},
+			"mq": {
+				Status: mqStatus,
+			},
+			"store": {
+				Status: storeStatus,
+			},
+			"peers": {
+				Status: peerStatus,
+			},
+		},
+	}
+
+	return listResp, nil
 }
 
 func (s *Server) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {

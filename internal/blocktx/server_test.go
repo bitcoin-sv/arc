@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -221,8 +222,8 @@ func TestHealth(t *testing.T) {
 				IsConnectedFunc: func() bool {
 					return true
 				},
-				StatusFunc: func() string {
-					return "CONNECTED"
+				StatusFunc: func() nats.Status {
+					return nats.CONNECTED
 				},
 			}
 			sut, err := blocktx.NewServer(logger, nil, nil, nil, grpc_utils.ServerConfig{}, 0, mqMock, 20)

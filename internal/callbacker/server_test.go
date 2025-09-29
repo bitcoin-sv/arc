@@ -38,8 +38,8 @@ func TestNewServer(t *testing.T) {
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
 		mqClient := &mqMocks.MessageQueueClientMock{
-			StatusFunc: func() string {
-				return nats.CONNECTED.String()
+			StatusFunc: func() nats.Status {
+				return nats.CONNECTED
 			},
 		}
 

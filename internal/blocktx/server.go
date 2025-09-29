@@ -80,14 +80,14 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, pr
 }
 
 func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.HealthResponse, error) {
-	status := nats.DISCONNECTED.String()
+	status := nats.DISCONNECTED
 	if s.mqClient != nil {
 		status = s.mqClient.Status()
 	}
 
 	return &blocktx_api.HealthResponse{
 		Ok:        s.mqClient.IsConnected(),
-		Nats:      status,
+		Nats:      status.String(),
 		Timestamp: timestamppb.New(time.Now()),
 	}, nil
 }

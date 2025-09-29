@@ -66,8 +66,8 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 		initWG.Add(1)
 
 		// Add wait time between each initialization so that WoC request context deadline won't exceed
-		const sleepDuration = 2 * time.Second
-		time.Sleep(sleepDuration)
+		const delayBetweenWoCInitializations = 2 * time.Second
+		time.Sleep(delayBetweenWoCInitializations)
 
 		go func() {
 			defer initWG.Done()

@@ -88,7 +88,9 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
-		return nil, err
+		logger.Warn("Failed to create mq client", slog.String("err", err.Error()))
+	} else {
+		processorOpts = append(processorOpts, metamorph.WithMessageQueueClient(mqClient))
 	}
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
@@ -117,7 +119,6 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmCfg.RejectPendingSeen.LastRequestedAgo),
 		metamorph.WithRejectPendingBlocksSince(mtmCfg.RejectPendingSeen.BlocksSince),
 		metamorph.WithProcessorLogger(procLogger),
-		metamorph.WithMessageQueueClient(mqClient),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),

@@ -66,15 +66,14 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		logger.Info("Shutdown complete")
 	}
 
+	mtmOpts := []func(*metamorph.Metamorph){
+		metamorph.WithLogger(logger),
+	}
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
-		stopFn()
-		return nil, err
-	}
-
-	mtmOpts := []func(*metamorph.Metamorph){
-		metamorph.WithMqClient(mqClient),
-		metamorph.WithLogger(logger),
+		logger.Warn("Failed to create mqClient", slog.String("err", err.Error()))
+	} else {
+		mtmOpts = append(mtmOpts, metamorph.WithMqClient(mqClient))
 	}
 
 	apiOpts := []apiHandler.Option{

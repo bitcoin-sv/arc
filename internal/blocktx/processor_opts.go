@@ -12,6 +12,7 @@ import (
 func WithMessageQueueClient(mqClient mq.MessageQueueClient) func(*Processor) {
 	return func(p *Processor) {
 		p.mqClient = mqClient
+		p.mqClientEnabled = true
 	}
 }
 

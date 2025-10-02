@@ -18,7 +18,11 @@ const (
 )
 
 type UtxoClient interface {
+	// GetUTXOs returns a list of UTXOs for the given address.
+	// `utxoLimit` is the maximum number of UTXOs to return.
+	// `utxoLimit=0` means no limit. The lower the limit, the quicker the result will be returned
 	GetUTXOs(ctx context.Context, address string, utxoLimit int) (sdkTx.UTXOs, error)
+	// GetUTXOsWithRetries is a wrapper around GetUTXOs that implements a retry mechanism.
 	GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxoLimit int) (sdkTx.UTXOs, error)
 	GetBalance(ctx context.Context, address string) (uint64, uint64, error)
 	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)

@@ -92,10 +92,6 @@ var Cmd = &cobra.Command{
 		cfg.Limit = helper.GetInt64("limit")
 		cfg.UTXOs = helper.GetInt("utxos")
 
-		if cfg.UTXOs == 0 {
-			cfg.UTXOs = 1000
-		}
-
 		cfg.FullStatusUpdates = helper.GetBool("fullStatusUpdates")
 
 		cfg.IsTestnet = helper.GetBool("testnet")
@@ -281,11 +277,10 @@ func init() {
 		return
 	}
 
-	Cmd.PersistentFlags().Int("utxos", 0, "Nr of utxos to use")
+	Cmd.PersistentFlags().Int("utxos", 1000, "Limit of utxos to be fetched for an address to be used for broadcasting")
 	err = viper.BindPFlag("utxos", Cmd.PersistentFlags().Lookup("utxos"))
 	if err != nil {
 		logger.Error("failed to bind flag", slog.String("flag", "utxos"), slog.String("err", err.Error()))
 		return
 	}
-
 }

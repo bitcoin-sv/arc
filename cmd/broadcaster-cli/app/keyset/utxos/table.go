@@ -32,7 +32,7 @@ func getUtxosTable(ctx context.Context, logger *slog.Logger, t table.Writer, key
 
 	for _, name := range names {
 		ks := keySets[name]
-		utxos, err := wocClient.GetUTXOsWithRetries(ctx, ks.Address(!isTestnet), 1*time.Second, 5)
+		utxos, err := wocClient.GetUTXOsWithRetries(ctx, ks.Address(!isTestnet), 1*time.Second, 5, 0)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return t

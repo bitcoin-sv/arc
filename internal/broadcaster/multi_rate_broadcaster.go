@@ -59,7 +59,6 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts
 // Start starts all the broadcasters and waits for them to finish. `timeout` is the maximum time to wait for all
 // broadcasters to finish.
 func (mrb *MultiKeyRateBroadcaster) Start(timeout time.Duration, utxos int) error {
-
 	mrb.logger.Info("initializing broadcasters")
 
 	for _, rb := range mrb.rbs {

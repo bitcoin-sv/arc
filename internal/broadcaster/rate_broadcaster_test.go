@@ -106,7 +106,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
-				GetLimitedUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 					if tc.getUTXOsWithRetriesErr != nil {
 						return nil, tc.getUTXOsWithRetriesErr
 					}
@@ -230,7 +230,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, nil
 				},
-				GetLimitedUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 					utxosToReturn := sdkTx.UTXOs{}
 					baseUtxo := sdkTx.UTXOs{
 						{

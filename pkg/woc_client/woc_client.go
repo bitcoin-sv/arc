@@ -143,35 +143,12 @@ type WocRawTx struct {
 	Error         string `json:"error"`
 }
 
-func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error) {
+func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxoLimit int) (sdkTx.UTXOs, error) {
 	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
 
 	policyContext := backoff.WithContext(policy, ctx)
 	operation := func() (sdkTx.UTXOs, error) {
-		wocUtxos, err := w.GetUTXOs(ctx, address)
-		if err != nil {
-			return nil, errors.Join(ErrWOCFailedToGetUTXOs, err)
-		}
-		return wocUtxos, nil
-	}
-
-	notify := func(err error, nextTry time.Duration) {
-		w.logger.ErrorContext(ctx, "failed to get utxos from WoC", slog.String("address", address), slog.String("next try", nextTry.String()), slog.String("err", err.Error()))
-	}
-
-	utxos, err := backoff.RetryNotifyWithData(operation, policyContext, notify)
-	if err != nil {
-		return nil, err
-	}
-	return utxos, nil
-}
-
-func (w *WocClient) GetLimitedUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxosCount int) (sdkTx.UTXOs, error) {
-	policy := backoff.WithMaxRetries(backoff.NewConstantBackOff(constantBackoff), retries)
-
-	policyContext := backoff.WithContext(policy, ctx)
-	operation := func() (sdkTx.UTXOs, error) {
-		wocUtxos, err := w.GetLimitedUTXOs(ctx, address, utxosCount)
+		wocUtxos, err := w.GetUTXOs(ctx, address, utxoLimit)
 		if err != nil {
 			return nil, errors.Join(ErrWOCFailedToGetUTXOs, err)
 		}
@@ -214,8 +191,9 @@ func (w *WocClient) fetchPageUTXOs(ctx context.Context, url, token string) (*woc
 }
 
 // GetUTXOs Get UTXOs from WhatsOnChain
-func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error) {
+func (w *WocClient) GetUTXOs(ctx context.Context, address string, utxoLimit int) (sdkTx.UTXOs, error) {
 	url := fmt.Sprintf("address/%s/unspent/all", address)
+
 	unspentTotal := make(sdkTx.UTXOs, 0, 10000)
 
 	addr, err := script.NewAddressFromString(address)
@@ -248,52 +226,7 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, 
 			})
 		}
 
-		if wocUnspent.NextPageToken == "" {
-			break
-		}
-		token = wocUnspent.NextPageToken
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	return unspentTotal, nil
-}
-
-// GetLimitedUTXOs Get UTXOs from WhatsOnChain
-func (w *WocClient) GetLimitedUTXOs(ctx context.Context, address string, utxos int) (sdkTx.UTXOs, error) {
-	url := fmt.Sprintf("address/%s/unspent/all", address)
-	unspentTotal := make(sdkTx.UTXOs, 0, utxos)
-
-	addr, err := script.NewAddressFromString(address)
-	if err != nil {
-		return nil, err
-	}
-
-	p2pkhScript, err := p2pkh.Lock(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	var token string
-	for {
-		wocUnspent, err := w.fetchPageUTXOs(ctx, url, token)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, utxo := range wocUnspent.Result {
-			h, err := chainhash.NewHashFromHex(utxo.Txid)
-			if err != nil {
-				return nil, err
-			}
-			unspentTotal = append(unspentTotal, &sdkTx.UTXO{
-				TxID:          h,
-				Vout:          utxo.Vout,
-				LockingScript: p2pkhScript,
-				Satoshis:      utxo.Satoshis,
-			})
-		}
-
-		if wocUnspent.NextPageToken == "" || len(unspentTotal) >= utxos {
+		if wocUnspent.NextPageToken == "" || (utxoLimit > 0 && len(unspentTotal) >= utxoLimit) {
 			break
 		}
 		token = wocUnspent.NextPageToken

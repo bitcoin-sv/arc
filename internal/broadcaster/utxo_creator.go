@@ -67,7 +67,7 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 		return errors.Join(ErrRequestedSatoshisTooHigh, fmt.Errorf("requested: %d, balance: %d", requestedOutputsSatoshis, balance))
 	}
 
-	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
+	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5, 0)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}

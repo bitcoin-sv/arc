@@ -79,7 +79,7 @@ func (b *UTXORateBroadcaster) Initialize(ctx context.Context, utxos int) error {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
 
-	utxoSet, err := b.utxoClient.GetLimitedUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries, utxos)
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries, utxos)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}

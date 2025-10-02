@@ -48,7 +48,7 @@ func (b *UTXOConsolidator) Start(txsRateTxsPerMinute int) error {
 	submitBatchesPerMinute := float64(txsRateTxsPerMinute) / float64(b.batchSize)
 
 	submitBatchInterval := time.Duration(millisecondsPerSecond*60/float64(submitBatchesPerMinute)) * time.Millisecond
-	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5)
+	utxos, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.keySet.Address(!b.isTestnet), 1*time.Second, 5, 0)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}

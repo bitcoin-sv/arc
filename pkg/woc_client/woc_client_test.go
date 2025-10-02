@@ -195,7 +195,7 @@ func Test_GetUTXOs(t *testing.T) {
 			sut := New(false, WithURL(svr.URL))
 
 			// when
-			actual, err := sut.GetUTXOs(context.TODO(), tc.address)
+			actual, err := sut.GetUTXOs(context.TODO(), tc.address, 0)
 
 			// then
 			if tc.expectedError != nil {

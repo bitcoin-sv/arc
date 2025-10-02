@@ -162,12 +162,14 @@ func Test_GetUTXOs(t *testing.T) {
 		},
 		{
 			name:       "response not OK",
+			address:    testnetAddr,
 			responseOk: false,
 
 			expectedError: ErrWOCResponseNotOK,
 		},
 		{
 			name:         "response not OK",
+			address:      testnetAddr,
 			responseOk:   true,
 			responseBody: "not a WoC UTXO",
 

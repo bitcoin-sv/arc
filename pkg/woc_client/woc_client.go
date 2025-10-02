@@ -198,12 +198,12 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string, utxoLimit int)
 
 	addr, err := script.NewAddressFromString(address)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse address: %w", err)
 	}
 
 	p2pkhScript, err := p2pkh.Lock(addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create p2pkh script: %w", err)
 	}
 
 	var token string

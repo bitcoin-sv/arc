@@ -58,7 +58,7 @@ func TestBroadcaster(t *testing.T) {
 				},
 			}, nil // Mock response for UTXOs retrieval with multiple UTXOs
 		},
-		GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+		GetLimitedUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          hash1,
@@ -119,5 +119,5 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, actualError)
 	require.Equal(t, 0, len(mockedUtxoClient.GetBalanceCalls()))
 	require.Equal(t, 1, len(mockedUtxoClient.GetBalanceWithRetriesCalls()))
-	require.Equal(t, 1, len(mockedUtxoClient.GetUTXOsWithRetriesCalls()))
+	require.Equal(t, 1, len(mockedUtxoClient.GetLimitedUTXOsWithRetriesCalls()))
 }

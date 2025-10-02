@@ -178,7 +178,7 @@ func (b *UTXOConsolidator) consolidateToFundingKeyset(txsConsolidation *sdkTx.Tr
 		return err
 	}
 
-	(*txsConsolidation) = append((*txsConsolidation), tx)
+	*txsConsolidation = append(*txsConsolidation, tx)
 	satoshiMap[tx.TxID().String()] = tx.TotalOutputSatoshis()
 
 	return nil

@@ -83,16 +83,6 @@ func Test_GetUTXOsFromWoC(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, unspent, 10000)
-
-			// marshal and write unspent to a JSON file at the end of the test
-			data, mErr := json.MarshalIndent(unspent, "", "  ")
-			require.NoError(t, mErr)
-
-			outPath := filepath.Join(t.TempDir(), "unspent.json")
-			wErr := os.WriteFile(outPath, data, 0o644)
-			require.NoError(t, wErr)
-			t.Logf("wrote unspent UTXOs to %s", outPath)
-
 		})
 	}
 }

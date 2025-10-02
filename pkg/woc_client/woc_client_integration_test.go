@@ -73,7 +73,7 @@ func Test_GetUTXOsFromWoC(t *testing.T) {
 			// given
 			sut := New(false, WithURL("https://api.whatsonchain.com/v1/bsv/"))
 			// when
-			_, err := sut.GetUTXOs(context.TODO(), tc.address)
+			unspent, err := sut.GetUTXOs(context.TODO(), tc.address)
 			// then
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
@@ -81,6 +81,18 @@ func Test_GetUTXOsFromWoC(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+
+			require.Len(t, unspent, 10000)
+
+			// marshal and write unspent to a JSON file at the end of the test
+			data, mErr := json.MarshalIndent(unspent, "", "  ")
+			require.NoError(t, mErr)
+
+			outPath := filepath.Join(t.TempDir(), "unspent.json")
+			wErr := os.WriteFile(outPath, data, 0o644)
+			require.NoError(t, wErr)
+			t.Logf("wrote unspent UTXOs to %s", outPath)
+
 		})
 	}
 }

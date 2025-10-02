@@ -114,9 +114,10 @@ type wocUtxo struct {
 }
 
 type wocResponse struct {
-	Address string    `json:"address"`
-	Script  string    `json:"script"`
-	Result  []wocUtxo `json:"result"`
+	Address       string    `json:"address"`
+	Script        string    `json:"script"`
+	Result        []wocUtxo `json:"result"`
+	NextPageToken string    `json:"nextPageToken"`
 }
 
 type wocConfirmedBalance struct {
@@ -167,7 +168,10 @@ func (w *WocClient) GetUTXOsWithRetries(ctx context.Context, address string, con
 
 // GetUTXOs Get UTXOs from WhatsOnChain
 func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error) {
-	req, err := w.httpRequest(ctx, "GET", fmt.Sprintf("address/%s/unspent/all", address), nil)
+	url := fmt.Sprintf("address/%s/unspent/all", address)
+	unspentTotal := make(sdkTx.UTXOs, 0, 10000)
+
+	req, err := w.httpRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +188,6 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, 
 		return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
 	}
 
-	unspent := make(sdkTx.UTXOs, len(wocUnspent.Result))
 	addr, err := script.NewAddressFromString(address)
 	if err != nil {
 		return nil, err
@@ -195,20 +198,67 @@ func (w *WocClient) GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, 
 		return nil, err
 	}
 
-	for i, utxo := range wocUnspent.Result {
+	for _, utxo := range wocUnspent.Result {
 		h, err := chainhash.NewHashFromHex(utxo.Txid)
 		if err != nil {
-			return unspent, err
+			return nil, err
 		}
-		unspent[i] = &sdkTx.UTXO{
+		unspentTotal = append(unspentTotal, &sdkTx.UTXO{
 			TxID:          h,
 			Vout:          utxo.Vout,
 			LockingScript: p2pkhScript,
 			Satoshis:      utxo.Satoshis,
+		})
+	}
+
+	for wocUnspent.NextPageToken != "" {
+		url = fmt.Sprintf("address/%s/unspent/all?token=%s", address, wocUnspent.NextPageToken)
+
+		req, err = w.httpRequest(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err = w.doRequest(req)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		err = json.NewDecoder(resp.Body).Decode(&wocUnspent)
+		if err != nil {
+			return nil, errors.Join(ErrWOCFailedToDecodeResponse, err)
+		}
+
+		addr, err = script.NewAddressFromString(address)
+		if err != nil {
+			return nil, err
+		}
+
+		p2pkhScript, err = p2pkh.Lock(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, utxo := range wocUnspent.Result {
+			h, err := chainhash.NewHashFromHex(utxo.Txid)
+			if err != nil {
+				return nil, err
+			}
+			unspentTotal = append(unspentTotal, &sdkTx.UTXO{
+				TxID:          h,
+				Vout:          utxo.Vout,
+				LockingScript: p2pkhScript,
+				Satoshis:      utxo.Satoshis,
+			})
+		}
+
+		if wocUnspent.NextPageToken != "" {
+			time.Sleep(200 * time.Millisecond)
 		}
 	}
 
-	return unspent, nil
+	return unspentTotal, nil
 }
 
 func (w *WocClient) GetBalance(ctx context.Context, address string) (uint64, uint64, error) {

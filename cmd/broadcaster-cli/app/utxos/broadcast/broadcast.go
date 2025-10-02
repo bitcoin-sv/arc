@@ -185,8 +185,11 @@ var Cmd = &cobra.Command{
 			logger.Info("keys", slog.Any("names", keyNames))
 			logger.Info("submit batch interval", slog.String("interval", submitBatchInterval.String()))
 
+			projectedTimeSeconds := float64(cfg.Limit) / float64(cfg.RateTxsPerSecond)
+			const delayMargin = 1.2
+			timeout := time.Duration(projectedTimeSeconds*delayMargin) * time.Second // Add 20% to account for potential delays
 			// Start the broadcasting process
-			err := rateBroadcaster.Start()
+			err := rateBroadcaster.Start(timeout)
 			doneChan <- err // Send the completion or error signal
 		}()
 

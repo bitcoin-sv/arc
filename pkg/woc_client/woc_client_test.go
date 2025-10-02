@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testnetAddr = "miGidJu3HrpGuFxhF7gCg1yV13AJzANz4P"
+const testnetAddr = "mmiXBPgRghXWKQaFEPojszwPZpvRKiuFxm"
 
 func Test_New(t *testing.T) {
 	tcs := []struct {

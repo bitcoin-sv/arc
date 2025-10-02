@@ -268,10 +268,7 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-
+	b.wg.Go(func() {
 		ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
 		defer cancel()
 
@@ -290,7 +287,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		atomic.AddInt64(&b.connectionCount, -1)
 		b.putNewUTXOSInChannel(resp)
-	}()
+	})
 }
 func (b *UTXORateBroadcaster) putUTXOSBackInChannel(txs sdkTx.Transactions) {
 	for _, tx := range txs {

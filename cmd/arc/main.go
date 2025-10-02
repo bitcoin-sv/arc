@@ -190,7 +190,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
 		fmt.Println("    -config=/path/to/config.yaml")
-		fmt.Println("          comma separated path to config file to look for config (default='./config.yaml')")
+		fmt.Println("          comma separated path to config file (default='./config_common.yaml,./config_api')")
 		fmt.Println("")
 		fmt.Println("    -dump_config=/file.yaml")
 		fmt.Println("          dump config to specified file and exit (default='config/dumped_config.yaml')")

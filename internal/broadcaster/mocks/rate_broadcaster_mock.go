@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"sync"
+	"time"
 )
 
 // Ensure, that RateBroadcasterMock does implement broadcaster.RateBroadcaster.
@@ -31,13 +32,13 @@ var _ broadcaster.RateBroadcaster = &RateBroadcasterMock{}
 //			GetUtxoSetLenFunc: func() int {
 //				panic("mock out the GetUtxoSetLen method")
 //			},
-//			InitializeFunc: func(ctx context.Context) error {
+//			InitializeFunc: func(ctx context.Context, utxos int) error {
 //				panic("mock out the Initialize method")
 //			},
 //			ShutdownFunc: func()  {
 //				panic("mock out the Shutdown method")
 //			},
-//			StartFunc: func()  {
+//			StartFunc: func(timeout time.Duration)  {
 //				panic("mock out the Start method")
 //			},
 //			WaitFunc: func()  {
@@ -63,13 +64,13 @@ type RateBroadcasterMock struct {
 	GetUtxoSetLenFunc func() int
 
 	// InitializeFunc mocks the Initialize method.
-	InitializeFunc func(ctx context.Context) error
+	InitializeFunc func(ctx context.Context, utxos int) error
 
 	// ShutdownFunc mocks the Shutdown method.
 	ShutdownFunc func()
 
 	// StartFunc mocks the Start method.
-	StartFunc func()
+	StartFunc func(timeout time.Duration)
 
 	// WaitFunc mocks the Wait method.
 	WaitFunc func()
@@ -92,12 +93,16 @@ type RateBroadcasterMock struct {
 		Initialize []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// Utxos is the utxos argument value.
+			Utxos int
 		}
 		// Shutdown holds details about calls to the Shutdown method.
 		Shutdown []struct {
 		}
 		// Start holds details about calls to the Start method.
 		Start []struct {
+			// Timeout is the timeout argument value.
+			Timeout time.Duration
 		}
 		// Wait holds details about calls to the Wait method.
 		Wait []struct {
@@ -222,19 +227,21 @@ func (mock *RateBroadcasterMock) GetUtxoSetLenCalls() []struct {
 }
 
 // Initialize calls InitializeFunc.
-func (mock *RateBroadcasterMock) Initialize(ctx context.Context) error {
+func (mock *RateBroadcasterMock) Initialize(ctx context.Context, utxos int) error {
 	if mock.InitializeFunc == nil {
 		panic("RateBroadcasterMock.InitializeFunc: method is nil but RateBroadcaster.Initialize was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
+		Ctx   context.Context
+		Utxos int
 	}{
-		Ctx: ctx,
+		Ctx:   ctx,
+		Utxos: utxos,
 	}
 	mock.lockInitialize.Lock()
 	mock.calls.Initialize = append(mock.calls.Initialize, callInfo)
 	mock.lockInitialize.Unlock()
-	return mock.InitializeFunc(ctx)
+	return mock.InitializeFunc(ctx, utxos)
 }
 
 // InitializeCalls gets all the calls that were made to Initialize.
@@ -242,10 +249,12 @@ func (mock *RateBroadcasterMock) Initialize(ctx context.Context) error {
 //
 //	len(mockedRateBroadcaster.InitializeCalls())
 func (mock *RateBroadcasterMock) InitializeCalls() []struct {
-	Ctx context.Context
+	Ctx   context.Context
+	Utxos int
 } {
 	var calls []struct {
-		Ctx context.Context
+		Ctx   context.Context
+		Utxos int
 	}
 	mock.lockInitialize.RLock()
 	calls = mock.calls.Initialize
@@ -281,16 +290,19 @@ func (mock *RateBroadcasterMock) ShutdownCalls() []struct {
 }
 
 // Start calls StartFunc.
-func (mock *RateBroadcasterMock) Start() {
+func (mock *RateBroadcasterMock) Start(timeout time.Duration) {
 	if mock.StartFunc == nil {
 		panic("RateBroadcasterMock.StartFunc: method is nil but RateBroadcaster.Start was just called")
 	}
 	callInfo := struct {
-	}{}
+		Timeout time.Duration
+	}{
+		Timeout: timeout,
+	}
 	mock.lockStart.Lock()
 	mock.calls.Start = append(mock.calls.Start, callInfo)
 	mock.lockStart.Unlock()
-	mock.StartFunc()
+	mock.StartFunc(timeout)
 }
 
 // StartCalls gets all the calls that were made to Start.
@@ -298,8 +310,10 @@ func (mock *RateBroadcasterMock) Start() {
 //
 //	len(mockedRateBroadcaster.StartCalls())
 func (mock *RateBroadcasterMock) StartCalls() []struct {
+	Timeout time.Duration
 } {
 	var calls []struct {
+		Timeout time.Duration
 	}
 	mock.lockStart.RLock()
 	calls = mock.calls.Start

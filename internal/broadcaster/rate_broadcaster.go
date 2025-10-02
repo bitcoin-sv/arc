@@ -67,7 +67,7 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) Initialize(ctx context.Context) error {
+func (b *UTXORateBroadcaster) Initialize(ctx context.Context, utxos int) error {
 	const wocBackoff = 10 * time.Second
 	const wocRetries = 5
 
@@ -79,7 +79,7 @@ func (b *UTXORateBroadcaster) Initialize(ctx context.Context) error {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
 
-	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries)
+	utxoSet, err := b.utxoClient.GetLimitedUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries, utxos)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
@@ -92,6 +92,8 @@ func (b *UTXORateBroadcaster) Initialize(ctx context.Context) error {
 	for _, utxo := range utxoSet {
 		b.utxoCh <- utxo
 	}
+
+	b.logger.Info("utxo set initialized", slog.Int("utxo set", len(utxoSet)))
 
 	return nil
 }
@@ -192,6 +194,8 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 		}
 	}
 
+	// Todo: send single satoshi txs without change
+
 	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return nil, err
@@ -210,11 +214,18 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 	}
 	amount -= fee
 
-	err = PayTo(tx, b.ks.Script, amount)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToAddOutput, err)
+	if amount == 0 {
+		b.logger.Info("spending last satoshi")
+		err = tx.AddOpReturnOutput([]byte("last satoshi"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+		}
+	} else {
+		err = PayTo(tx, b.ks.Script, amount)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToAddOutput, err)
+		}
 	}
-
 	err = SignAllInputs(tx, b.ks.PrivateKey)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToFillInputs, err)

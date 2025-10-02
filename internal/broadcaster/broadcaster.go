@@ -20,6 +20,7 @@ const (
 type UtxoClient interface {
 	GetUTXOs(ctx context.Context, address string) (sdkTx.UTXOs, error)
 	GetUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (sdkTx.UTXOs, error)
+	GetLimitedUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxosCount int) (sdkTx.UTXOs, error)
 	GetBalance(ctx context.Context, address string) (uint64, uint64, error)
 	GetBalanceWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
 	TopUp(ctx context.Context, address string) error

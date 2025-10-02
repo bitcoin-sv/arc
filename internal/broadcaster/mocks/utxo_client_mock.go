@@ -27,6 +27,9 @@ var _ broadcaster.UtxoClient = &UtxoClientMock{}
 //			GetBalanceWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error) {
 //				panic("mock out the GetBalanceWithRetries method")
 //			},
+//			GetLimitedUTXOsWithRetriesFunc: func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxosCount int) (sdkTx.UTXOs, error) {
+//				panic("mock out the GetLimitedUTXOsWithRetries method")
+//			},
 //			GetUTXOsFunc: func(ctx context.Context, address string) (sdkTx.UTXOs, error) {
 //				panic("mock out the GetUTXOs method")
 //			},
@@ -48,6 +51,9 @@ type UtxoClientMock struct {
 
 	// GetBalanceWithRetriesFunc mocks the GetBalanceWithRetries method.
 	GetBalanceWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64) (uint64, uint64, error)
+
+	// GetLimitedUTXOsWithRetriesFunc mocks the GetLimitedUTXOsWithRetries method.
+	GetLimitedUTXOsWithRetriesFunc func(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxosCount int) (sdkTx.UTXOs, error)
 
 	// GetUTXOsFunc mocks the GetUTXOs method.
 	GetUTXOsFunc func(ctx context.Context, address string) (sdkTx.UTXOs, error)
@@ -78,6 +84,19 @@ type UtxoClientMock struct {
 			// Retries is the retries argument value.
 			Retries uint64
 		}
+		// GetLimitedUTXOsWithRetries holds details about calls to the GetLimitedUTXOsWithRetries method.
+		GetLimitedUTXOsWithRetries []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Address is the address argument value.
+			Address string
+			// ConstantBackoff is the constantBackoff argument value.
+			ConstantBackoff time.Duration
+			// Retries is the retries argument value.
+			Retries uint64
+			// UtxosCount is the utxosCount argument value.
+			UtxosCount int
+		}
 		// GetUTXOs holds details about calls to the GetUTXOs method.
 		GetUTXOs []struct {
 			// Ctx is the ctx argument value.
@@ -104,11 +123,12 @@ type UtxoClientMock struct {
 			Address string
 		}
 	}
-	lockGetBalance            sync.RWMutex
-	lockGetBalanceWithRetries sync.RWMutex
-	lockGetUTXOs              sync.RWMutex
-	lockGetUTXOsWithRetries   sync.RWMutex
-	lockTopUp                 sync.RWMutex
+	lockGetBalance                 sync.RWMutex
+	lockGetBalanceWithRetries      sync.RWMutex
+	lockGetLimitedUTXOsWithRetries sync.RWMutex
+	lockGetUTXOs                   sync.RWMutex
+	lockGetUTXOsWithRetries        sync.RWMutex
+	lockTopUp                      sync.RWMutex
 }
 
 // GetBalance calls GetBalanceFunc.
@@ -188,6 +208,54 @@ func (mock *UtxoClientMock) GetBalanceWithRetriesCalls() []struct {
 	mock.lockGetBalanceWithRetries.RLock()
 	calls = mock.calls.GetBalanceWithRetries
 	mock.lockGetBalanceWithRetries.RUnlock()
+	return calls
+}
+
+// GetLimitedUTXOsWithRetries calls GetLimitedUTXOsWithRetriesFunc.
+func (mock *UtxoClientMock) GetLimitedUTXOsWithRetries(ctx context.Context, address string, constantBackoff time.Duration, retries uint64, utxosCount int) (sdkTx.UTXOs, error) {
+	if mock.GetLimitedUTXOsWithRetriesFunc == nil {
+		panic("UtxoClientMock.GetLimitedUTXOsWithRetriesFunc: method is nil but UtxoClient.GetLimitedUTXOsWithRetries was just called")
+	}
+	callInfo := struct {
+		Ctx             context.Context
+		Address         string
+		ConstantBackoff time.Duration
+		Retries         uint64
+		UtxosCount      int
+	}{
+		Ctx:             ctx,
+		Address:         address,
+		ConstantBackoff: constantBackoff,
+		Retries:         retries,
+		UtxosCount:      utxosCount,
+	}
+	mock.lockGetLimitedUTXOsWithRetries.Lock()
+	mock.calls.GetLimitedUTXOsWithRetries = append(mock.calls.GetLimitedUTXOsWithRetries, callInfo)
+	mock.lockGetLimitedUTXOsWithRetries.Unlock()
+	return mock.GetLimitedUTXOsWithRetriesFunc(ctx, address, constantBackoff, retries, utxosCount)
+}
+
+// GetLimitedUTXOsWithRetriesCalls gets all the calls that were made to GetLimitedUTXOsWithRetries.
+// Check the length with:
+//
+//	len(mockedUtxoClient.GetLimitedUTXOsWithRetriesCalls())
+func (mock *UtxoClientMock) GetLimitedUTXOsWithRetriesCalls() []struct {
+	Ctx             context.Context
+	Address         string
+	ConstantBackoff time.Duration
+	Retries         uint64
+	UtxosCount      int
+} {
+	var calls []struct {
+		Ctx             context.Context
+		Address         string
+		ConstantBackoff time.Duration
+		Retries         uint64
+		UtxosCount      int
+	}
+	mock.lockGetLimitedUTXOsWithRetries.RLock()
+	calls = mock.calls.GetLimitedUTXOsWithRetries
+	mock.lockGetLimitedUTXOsWithRetries.RUnlock()
 	return calls
 }
 

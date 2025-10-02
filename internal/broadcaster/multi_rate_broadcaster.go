@@ -2,6 +2,7 @@ package broadcaster
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
 	"sync"
@@ -10,8 +11,7 @@ import (
 )
 
 type RateBroadcaster interface {
-	Initialize(ctx context.Context) error
-	Start()
+	Initialize(ctx context.Context, utxos int) error
 	Wait()
 	Shutdown()
 	GetLimit() int64
@@ -63,40 +63,15 @@ func (mrb *MultiKeyRateBroadcaster) Start(timeout time.Duration, utxos int) erro
 	mrb.logger.Info("initializing broadcasters")
 
 	for _, rb := range mrb.rbs {
-		initWG.Add(1)
-
 		// Add wait time between each initialization so that WoC request context deadline won't exceed
-		const delayBetweenWoCInitializations = 2 * time.Second
+		const delayBetweenWoCInitializations = 1 * time.Second
 		time.Sleep(delayBetweenWoCInitializations)
 
-		go func() {
-			defer initWG.Done()
-
-			err := rb.Initialize(mrb.ctx)
-			if err != nil {
-				// Send the first error only; ignore later ones.
-				select {
-				case errChan <- err:
-				default:
-				}
-			}
-		}()
-	}
-
-	// Signal when all initializations are done
-	go func() {
-		initWG.Wait()
-		close(done)
-	}()
-
-	// Wait for either the first error or successful completion
-	select {
-	case err := <-errChan:
-		mrb.logger.Error("Received error during initialization - cancel all", slog.String("err", err.Error()))
-		// Cancel background work and return immediately
-		mrb.cancelAll()
-		return err
-	case <-done:
+		err := rb.Initialize(mrb.ctx, utxos)
+		if err != nil {
+			// Send the first error only; ignore later ones.
+			return fmt.Errorf("failed to initialize broadcaster: %w", err)
+		}
 	}
 
 	for _, rb := range mrb.rbs {

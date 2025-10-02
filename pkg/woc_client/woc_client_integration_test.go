@@ -73,7 +73,7 @@ func Test_GetUTXOsFromWoC(t *testing.T) {
 			// given
 			sut := New(false, WithURL("https://api.whatsonchain.com/v1/bsv/"))
 			// when
-			_, err := sut.GetUTXOs(context.TODO(), tc.address)
+			unspent, err := sut.GetUTXOs(context.TODO(), tc.address)
 			// then
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
@@ -81,6 +81,8 @@ func Test_GetUTXOsFromWoC(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+
+			require.Len(t, unspent, 10000)
 		})
 	}
 }

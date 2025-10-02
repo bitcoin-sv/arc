@@ -106,7 +106,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, tc.getBalanceWithRetriesErr
 				},
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 					if tc.getUTXOsWithRetriesErr != nil {
 						return nil, tc.getUTXOsWithRetriesErr
 					}
@@ -151,7 +151,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 			require.NoError(t, err)
 
 			// when then
-			err = sut.Initialize()
+			err = sut.Initialize(context.TODO(), 20)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -230,7 +230,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 					return 1000, 0, nil
 				},
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 					utxosToReturn := sdkTx.UTXOs{}
 					baseUtxo := sdkTx.UTXOs{
 						{
@@ -290,7 +290,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 			defer sut.Shutdown()
 
 			// when then
-			err = sut.Initialize()
+			err = sut.Initialize(context.TODO(), 20)
 			require.ErrorIs(t, err, tc.expectedError)
 
 			const ticks = 4
@@ -298,7 +298,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				tickerCh <- time.Now()
 			}
 
-			sut.Start()
+			sut.Start(5 * time.Second)
 
 			time.Sleep(1 * time.Second)
 

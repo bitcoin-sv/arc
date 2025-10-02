@@ -66,6 +66,8 @@ var Cmd = &cobra.Command{
 			consolidator.Shutdown()
 		}()
 
+		logger.Info("keys", slog.Any("names", names))
+
 		logger.Info("Starting consolidator")
 		consolidator.Start()
 

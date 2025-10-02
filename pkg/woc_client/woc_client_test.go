@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testnetAddr = "miGidJu3HrpGuFxhF7gCg1yV13AJzANz4P"
+const testnetAddr = "mmiXBPgRghXWKQaFEPojszwPZpvRKiuFxm"
 
 func Test_New(t *testing.T) {
 	tcs := []struct {
@@ -162,12 +162,14 @@ func Test_GetUTXOs(t *testing.T) {
 		},
 		{
 			name:       "response not OK",
+			address:    testnetAddr,
 			responseOk: false,
 
 			expectedError: ErrWOCResponseNotOK,
 		},
 		{
 			name:         "response not OK",
+			address:      testnetAddr,
 			responseOk:   true,
 			responseBody: "not a WoC UTXO",
 
@@ -195,7 +197,7 @@ func Test_GetUTXOs(t *testing.T) {
 			sut := New(false, WithURL(svr.URL))
 
 			// when
-			actual, err := sut.GetUTXOs(context.TODO(), tc.address)
+			actual, err := sut.GetUTXOs(context.TODO(), tc.address, 0)
 
 			// then
 			if tc.expectedError != nil {

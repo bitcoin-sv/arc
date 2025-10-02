@@ -74,7 +74,7 @@ func TestUTXOCreator(t *testing.T) {
 
 			mockUtxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: tt.getBalanceFunc,
-				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 					return tt.getUTXOsResp, nil
 				},
 			}

@@ -67,8 +67,11 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	return rb, nil
 }
 
-func (b *UTXORateBroadcaster) Initialize() error {
-	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+func (b *UTXORateBroadcaster) Initialize(ctx context.Context, utxos int) error {
+	const wocBackoff = 10 * time.Second
+	const wocRetries = 5
+
+	_, unconfirmed, err := b.utxoClient.GetBalanceWithRetries(ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries)
 	if err != nil {
 		return errors.Join(ErrFailedToGetBalance, err)
 	}
@@ -76,7 +79,7 @@ func (b *UTXORateBroadcaster) Initialize() error {
 		return errors.Join(ErrKeyHasUnconfirmedBalance, fmt.Errorf("address %s, unconfirmed amount %d", b.ks.Address(!b.isTestnet), unconfirmed))
 	}
 
-	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), 1*time.Second, 5)
+	utxoSet, err := b.utxoClient.GetUTXOsWithRetries(b.ctx, b.ks.Address(!b.isTestnet), wocBackoff, wocRetries, utxos)
 	if err != nil {
 		return errors.Join(ErrFailedToGetUTXOs, err)
 	}
@@ -90,14 +93,19 @@ func (b *UTXORateBroadcaster) Initialize() error {
 		b.utxoCh <- utxo
 	}
 
+	b.logger.Info("utxo set initialized", slog.Int("utxo set", len(utxoSet)))
+
 	return nil
 }
 
-func (b *UTXORateBroadcaster) Start() {
+// Start starts the broadcasting process. `timeout` is the maximum time to wait for the broadcasting to finish.
+func (b *UTXORateBroadcaster) Start(timeout time.Duration) {
 	tickerCh := b.ticker.GetTickerCh()
 	errCh := make(chan error, 100)
 
-	b.logger.Info("start broadcasting")
+	timeoutTimer := time.NewTimer(timeout)
+
+	b.logger.Info("start broadcasting", slog.Int("utxo set", len(b.utxoCh)))
 
 	b.wg.Add(1)
 	go func() {
@@ -128,6 +136,9 @@ func (b *UTXORateBroadcaster) Start() {
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+			case <-timeoutTimer.C:
+				b.logger.Info("timeout reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
+				break outerLoop
 			}
 		}
 	}()
@@ -183,6 +194,8 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 		}
 	}
 
+	// Todo: send single satoshi txs without change
+
 	fee, err := ComputeFee(tx, b.feeModel)
 	if err != nil {
 		return nil, err
@@ -201,11 +214,18 @@ func (b *UTXORateBroadcaster) createSelfPayingTx(utxo *sdkTx.UTXO) (*sdkTx.Trans
 	}
 	amount -= fee
 
-	err = PayTo(tx, b.ks.Script, amount)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToAddOutput, err)
+	if amount == 0 {
+		b.logger.Info("spending last satoshi")
+		err = tx.AddOpReturnOutput([]byte("last satoshi"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to add OP_RETURN output: %v", err)
+		}
+	} else {
+		err = PayTo(tx, b.ks.Script, amount)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToAddOutput, err)
+		}
 	}
-
 	err = SignAllInputs(tx, b.ks.PrivateKey)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToFillInputs, err)
@@ -265,11 +285,8 @@ func addRandomDataInputs(b *UTXORateBroadcaster, tx **sdkTx.Transaction, amount 
 }
 
 func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh chan error, waitForStatus metamorph_api.Status) {
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-
-		ctx, cancel := context.WithTimeout(b.ctx, 20*time.Second)
+	b.wg.Go(func() {
+		ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
 		defer cancel()
 
 		atomic.AddInt64(&b.connectionCount, 1)
@@ -287,7 +304,7 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		atomic.AddInt64(&b.connectionCount, -1)
 		b.putNewUTXOSInChannel(resp)
-	}()
+	})
 }
 func (b *UTXORateBroadcaster) putUTXOSBackInChannel(txs sdkTx.Transactions) {
 	for _, tx := range txs {

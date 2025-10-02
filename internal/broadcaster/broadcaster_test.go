@@ -42,7 +42,7 @@ func TestBroadcaster(t *testing.T) {
 		GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
 			return 1000, 0, nil
 		},
-		GetUTXOsFunc: func(_ context.Context, _ string) (sdkTx.UTXOs, error) {
+		GetUTXOsFunc: func(_ context.Context, _ string, _ int) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          hash1,
@@ -58,7 +58,7 @@ func TestBroadcaster(t *testing.T) {
 				},
 			}, nil // Mock response for UTXOs retrieval with multiple UTXOs
 		},
-		GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (sdkTx.UTXOs, error) {
+		GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {
 			return sdkTx.UTXOs{
 				{
 					TxID:          hash1,
@@ -113,7 +113,7 @@ func TestBroadcaster(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	actualError := sut.Initialize()
+	actualError := sut.Initialize(context.TODO(), 20)
 
 	// then
 	require.NoError(t, actualError)

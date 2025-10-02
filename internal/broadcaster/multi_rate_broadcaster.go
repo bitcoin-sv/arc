@@ -2,6 +2,7 @@ package broadcaster
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
 	"sync"
@@ -10,14 +11,14 @@ import (
 )
 
 type RateBroadcaster interface {
-	Initialize() error
-	Start()
+	Initialize(ctx context.Context, utxos int) error
 	Wait()
 	Shutdown()
 	GetLimit() int64
 	GetTxCount() int64
 	GetConnectionCount() int64
 	GetUtxoSetLen() int
+	Start(timeout time.Duration)
 }
 
 type MultiKeyRateBroadcaster struct {
@@ -55,47 +56,21 @@ func NewMultiKeyRateBroadcaster(logger *slog.Logger, rbs []RateBroadcaster, opts
 	return mrb
 }
 
-func (mrb *MultiKeyRateBroadcaster) Start() error {
-	errChan := make(chan error, 1) // buffered to avoid goroutine leak if multiple errors occur
-	initWG := &sync.WaitGroup{}
-	done := make(chan struct{})
-
+// Start starts all the broadcasters and waits for them to finish. `timeout` is the maximum time to wait for all
+// broadcasters to finish.
+func (mrb *MultiKeyRateBroadcaster) Start(timeout time.Duration, utxos int) error {
 	mrb.logger.Info("initializing broadcasters")
 
 	for _, rb := range mrb.rbs {
-		initWG.Add(1)
-
 		// Add wait time between each initialization so that WoC request context deadline won't exceed
-		const delayBetweenWoCInitializations = 2 * time.Second
+		const delayBetweenWoCInitializations = 1 * time.Second
 		time.Sleep(delayBetweenWoCInitializations)
 
-		go func() {
-			defer initWG.Done()
-
-			err := rb.Initialize()
-			if err != nil {
-				// Send the first error only; ignore subsequent ones.
-				select {
-				case errChan <- err:
-				default:
-				}
-			}
-		}()
-	}
-
-	// Signal when all initializations are done
-	go func() {
-		initWG.Wait()
-		close(done)
-	}()
-
-	// Wait for either the first error or successful completion
-	select {
-	case err := <-errChan:
-		// Cancel background work and return immediately
-		mrb.cancelAll()
-		return err
-	case <-done:
+		err := rb.Initialize(mrb.ctx, utxos)
+		if err != nil {
+			// Send the first error only; ignore later ones.
+			return fmt.Errorf("failed to initialize broadcaster: %w", err)
+		}
 	}
 
 	for _, rb := range mrb.rbs {
@@ -106,7 +81,7 @@ func (mrb *MultiKeyRateBroadcaster) Start() error {
 	mrb.logStats()
 
 	for _, rb := range mrb.rbs {
-		rb.Start()
+		rb.Start(timeout)
 	}
 
 	for _, rb := range mrb.rbs {

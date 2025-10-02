@@ -44,6 +44,7 @@ type Config struct {
 	LogLevel            string
 	LogFormat           string
 	MinFeeSat           uint64
+	UTXOs               int
 }
 
 func (c Config) Log(logger *slog.Logger) {
@@ -66,6 +67,7 @@ func (c Config) Log(logger *slog.Logger) {
 		"logLevel", c.LogLevel,
 		"logFormat", c.LogFormat,
 		"minFeeSat", c.MinFeeSat,
+		"utxos", c.UTXOs,
 	)
 }
 
@@ -88,6 +90,7 @@ var Cmd = &cobra.Command{
 		}
 
 		cfg.Limit = helper.GetInt64("limit")
+		cfg.UTXOs = helper.GetInt("utxos")
 
 		cfg.FullStatusUpdates = helper.GetBool("fullStatusUpdates")
 
@@ -185,8 +188,11 @@ var Cmd = &cobra.Command{
 			logger.Info("keys", slog.Any("names", keyNames))
 			logger.Info("submit batch interval", slog.String("interval", submitBatchInterval.String()))
 
+			projectedTimeSeconds := float64(cfg.Limit) / float64(cfg.RateTxsPerSecond)
+			const delayMargin = 1.2
+			timeout := time.Duration(projectedTimeSeconds*delayMargin) * time.Second // Add 20% to account for potential delays
 			// Start the broadcasting process
-			err := rateBroadcaster.Start()
+			err := rateBroadcaster.Start(timeout, cfg.UTXOs)
 			doneChan <- err // Send the completion or error signal
 		}()
 
@@ -268,6 +274,13 @@ func init() {
 	err = viper.BindPFlag("sizeJitter", Cmd.Flags().Lookup("sizeJitter"))
 	if err != nil {
 		logger.Error("failed to bind flag", slog.String("flag", "sizeJitter"), slog.String("err", err.Error()))
+		return
+	}
+
+	Cmd.PersistentFlags().Int("utxos", 1000, "Limit of utxos to be fetched for an address to be used for broadcasting")
+	err = viper.BindPFlag("utxos", Cmd.PersistentFlags().Lookup("utxos"))
+	if err != nil {
+		logger.Error("failed to bind flag", slog.String("flag", "utxos"), slog.String("err", err.Error()))
 		return
 	}
 }

@@ -96,11 +96,14 @@ func (b *UTXORateBroadcaster) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (b *UTXORateBroadcaster) Start() {
+// Start starts the broadcasting process. `timeout` is the maximum time to wait for the broadcasting to finish.
+func (b *UTXORateBroadcaster) Start(timeout time.Duration) {
 	tickerCh := b.ticker.GetTickerCh()
 	errCh := make(chan error, 100)
 
-	b.logger.Info("start broadcasting")
+	timeoutTimer := time.NewTimer(timeout)
+
+	b.logger.Info("start broadcasting", slog.Int("utxo set", len(b.utxoCh)))
 
 	b.wg.Add(1)
 	go func() {
@@ -131,6 +134,9 @@ func (b *UTXORateBroadcaster) Start() {
 
 			case responseErr := <-errCh:
 				b.logger.Error("failed to submit transactions", slog.String("err", responseErr.Error()))
+			case <-timeoutTimer.C:
+				b.logger.Info("timeout reached", slog.Int64("total", atomic.LoadInt64(&b.totalTxs)), slog.Int64("limit", b.limit))
+				break outerLoop
 			}
 		}
 	}()

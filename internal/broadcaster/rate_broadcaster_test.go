@@ -298,7 +298,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 				tickerCh <- time.Now()
 			}
 
-			sut.Start()
+			sut.Start(5 * time.Second)
 
 			time.Sleep(1 * time.Second)
 

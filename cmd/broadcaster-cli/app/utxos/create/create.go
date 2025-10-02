@@ -84,6 +84,7 @@ var Cmd = &cobra.Command{
 		}()
 
 		logger.Info("Starting UTXO creation")
+		logger.Info("keys", slog.Any("names", names))
 		multiCreator.Start(outputs, satoshisPerOutput)
 		return nil
 	},

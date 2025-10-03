@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	cbcMocks "github.com/bitcoin-sv/arc/internal/callbacker/mocks"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher"
 	"github.com/bitcoin-sv/arc/internal/k8s_watcher/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -57,11 +56,10 @@ func TestStartWatcher(t *testing.T) {
 					return &emptypb.Empty{}, nil
 				},
 			}
-			callbackerClient := &cbcMocks.CallbackerAPIClientMock{}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			watcher := k8s_watcher.New(logger, metamorphMock, callbackerClient, k8sClientMock, "test-namespace", k8s_watcher.WithUpdateInterval(20*time.Millisecond))
+			watcher := k8s_watcher.New(logger, metamorphMock, k8sClientMock, "test-namespace", k8s_watcher.WithUpdateInterval(20*time.Millisecond))
 			err := watcher.Start()
 			require.NoError(t, err)
 

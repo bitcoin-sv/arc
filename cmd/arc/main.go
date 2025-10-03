@@ -9,14 +9,14 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
 	"github.com/bitcoin-sv/arc/config"
 	arcLogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/version"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -29,9 +29,10 @@ func main() {
 }
 
 func run() error {
-	configDir, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
+	configFiles, startAPI, startMetamorph, startBlockTx, startK8sWatcher, startCallbacker, dumpConfigFile := parseFlags()
+	configFileSlice := strings.Split(configFiles, ",")
 
-	arcConfig, err := config.Load(configDir)
+	arcConfig, err := config.Load(configFileSlice...)
 	if err != nil {
 		return fmt.Errorf("failed to load app config: %w", err)
 	}
@@ -40,7 +41,7 @@ func run() error {
 		return config.DumpConfig(dumpConfigFile)
 	}
 
-	logger, err := arcLogger.NewLogger(arcConfig.LogLevel, arcConfig.LogFormat)
+	logger, err := arcLogger.NewLogger(arcConfig.Common.LogLevel, arcConfig.Common.LogFormat)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}
@@ -70,18 +71,14 @@ func run() error {
 }
 
 func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bool, startMetamorph bool, startBlockTx bool, startK8sWatcher bool, startCallbacker bool) ([]func(), error) {
-	cacheStore, err := cmd.NewCacheStore(arcConfig.Cache)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cache store: %v", err)
-	}
 	logger.Info("Starting ARC", slog.String("version", version.Version), slog.String("commit", version.Commit))
 	shutdownFns := make([]func(), 0)
 
 	go func() {
-		if arcConfig.ProfilerAddr != "" {
-			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.ProfilerAddr))
+		if arcConfig.Common.ProfilerAddr != "" {
+			logger.Info(fmt.Sprintf("Starting profiler on http://%s/debug/pprof", arcConfig.Common.ProfilerAddr))
 
-			err := http.ListenAndServe(arcConfig.ProfilerAddr, nil)
+			err := http.ListenAndServe(arcConfig.Common.ProfilerAddr, nil)
 			if err != nil {
 				logger.Error("failed to start profiler server", slog.String("err", err.Error()))
 			}
@@ -89,10 +86,10 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}()
 
 	go func() {
-		if arcConfig.Prometheus.IsEnabled() {
-			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Prometheus.Endpoint))
-			http.Handle(arcConfig.Prometheus.Endpoint, promhttp.Handler())
-			err = http.ListenAndServe(arcConfig.Prometheus.Addr, nil)
+		if arcConfig.Common.Prometheus.IsEnabled() {
+			logger.Info("Starting prometheus", slog.String("endpoint", arcConfig.Common.Prometheus.Endpoint))
+			http.Handle(arcConfig.Common.Prometheus.Endpoint, promhttp.Handler())
+			err := http.ListenAndServe(arcConfig.Common.Prometheus.Addr, nil)
 			if err != nil {
 				logger.Error("failed to start prometheus server", slog.String("err", err.Error()))
 			}
@@ -109,7 +106,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig)
+		shutdown, err := cmd.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -118,7 +115,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig, cacheStore)
+		shutdown, err := cmd.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -127,7 +124,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startAPI {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig)
+		shutdown, err := cmd.StartAPIServer(logger, arcConfig.API, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start api: %v", err)
 		}
@@ -137,7 +134,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig)
+		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -145,7 +142,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig)
+		shutdown, err := cmd.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start callbacker: %v", err)
 		}
@@ -169,7 +166,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 	startCallbacker := flag.Bool("callbacker", false, "start callbacker")
 	help := flag.Bool("help", false, "Show help")
 	dumpConfigFile := flag.String("dump_config", "", "dump config to specified file and exit")
-	configDir := flag.String("config", "", "path to configuration file")
+	configFiles := flag.String("config", "", "comma separated list of paths to configuration files e.g. -config=/path/to/config1.yaml,/path/to/config2.yaml")
 
 	flag.Parse()
 
@@ -192,8 +189,8 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		fmt.Println("    -callbacker=<true|false>")
 		fmt.Println("          whether to start callbacker (default=true)")
 		fmt.Println("")
-		fmt.Println("    -config=/location")
-		fmt.Println("          directory to look for config (default='')")
+		fmt.Println("    -config=/path/to/config.yaml")
+		fmt.Println("          comma separated path to config file (default='./config_common.yaml,./config_api')")
 		fmt.Println("")
 		fmt.Println("    -dump_config=/file.yaml")
 		fmt.Println("          dump config to specified file and exit (default='config/dumped_config.yaml')")
@@ -201,7 +198,7 @@ func parseFlags() (string, bool, bool, bool, bool, bool, string) {
 		os.Exit(0)
 	}
 
-	return *configDir, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
+	return *configFiles, *startAPI, *startMetamorph, *startBlockTx, *startK8sWatcher, *startCallbacker, *dumpConfigFile
 }
 
 func isAnyFlagPassed(flags ...string) bool {

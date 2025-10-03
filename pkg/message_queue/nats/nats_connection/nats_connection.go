@@ -48,7 +48,21 @@ func WithMaxPingsOutstanding(maxPingsOutstanding int) func(config *NatsConfig) {
 	}
 }
 
+func WithUser(user string) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.user = user
+	}
+}
+
+func WithPassword(password string) func(config *NatsConfig) {
+	return func(config *NatsConfig) {
+		config.password = password
+	}
+}
+
 type NatsConfig struct {
+	user                 string
+	password             string
 	maxReconnects        int
 	pingInterval         time.Duration
 	reconnectBufSize     int
@@ -124,6 +138,10 @@ func New(natsURL string, logger *slog.Logger, opts ...Option) (*nats.Conn, error
 		nats.ReconnectBufSize(cfg.reconnectBufSize),
 		nats.MaxReconnects(cfg.maxReconnects),
 		nats.ReconnectWait(cfg.reconnectWait),
+	}
+
+	if cfg.user != "" && cfg.password != "" {
+		natsOpts = append(natsOpts, nats.UserInfo(cfg.user, cfg.password))
 	}
 
 	nc, err = nats.Connect(natsURL, natsOpts...)

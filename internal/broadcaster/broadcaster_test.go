@@ -105,7 +105,7 @@ func TestBroadcaster(t *testing.T) {
 		broadcaster.WithWaitForStatus(metamorph_api.Status_SEEN_ON_NETWORK),
 		broadcaster.WithFees(uint64(1)),
 		broadcaster.WithFullstatusUpdates(true),
-		broadcaster.WithCallback(api.CallbackUrl("someurl"), "token"),
+		broadcaster.WithCallback(api.CallbackUrl("someurl"), "token", false),
 		broadcaster.WithOpReturn("op"),
 		broadcaster.WithSizeJitter(1000),
 		broadcaster.WithIsTestnet(false),

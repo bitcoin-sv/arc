@@ -30,6 +30,7 @@ type Config struct {
 	WaitForStatus       int
 	CallbackURL         string
 	CallbackToken       string
+	AddTimestampToToken bool
 	ArcServer           string
 	IsTestnet           bool
 	BatchSize           int
@@ -53,6 +54,7 @@ func (c Config) Log(logger *slog.Logger) {
 		"waitForStatus", c.WaitForStatus,
 		"callbackURL", c.CallbackURL,
 		"callbackToken", c.CallbackToken,
+		"addTimestampToToken", c.AddTimestampToToken,
 		"arcServer", c.ArcServer,
 		"isTestnet", c.IsTestnet,
 		"fullStatusUpdates", c.FullStatusUpdates,
@@ -97,6 +99,8 @@ var Cmd = &cobra.Command{
 
 		cfg.CallbackToken = helper.GetString("callbackToken")
 
+		cfg.AddTimestampToToken = helper.GetBool("addTimestampToToken")
+
 		cfg.Authorization = helper.GetString("authorization")
 
 		keySetsMap, err := helper.GetSelectedKeySets()
@@ -136,7 +140,7 @@ var Cmd = &cobra.Command{
 
 		opts := []func(p *broadcaster.Broadcaster){
 			broadcaster.WithFees(cfg.MiningFeeSat),
-			broadcaster.WithCallback(cfg.CallbackURL, cfg.CallbackToken),
+			broadcaster.WithCallback(cfg.CallbackURL, cfg.CallbackToken, cfg.AddTimestampToToken),
 			broadcaster.WithFullstatusUpdates(cfg.FullStatusUpdates),
 			broadcaster.WithBatchSize(cfg.BatchSize),
 			broadcaster.WithOpReturn(cfg.OpReturn),

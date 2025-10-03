@@ -15,6 +15,7 @@ testnet: true # Use testnet
 wocAPIKey: testnet_XXXX # WoC api key for faster requests to WoC
 callbackURL: http://callbacks.example.com # callback URL header
 callbackToken: some-token # callback token header
+addTimestampToToken: true # add a _YYYYMMDD suffix to the callbackToken
 fullStatusUpdates: false # full status updates header
 opReturn: example text # text which will be added to an OP_RETURN output. If empty, no OP_RETURN output will be added
 rampUpTickerEnabled: false # whether to use the ramp up ticker. If false, constant ticker will be used

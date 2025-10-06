@@ -66,7 +66,7 @@ func WithCallback(callbackURL string, callbackToken string, addCallbackToToken b
 		broadcaster.callbackURL = callbackURL
 		broadcaster.callbackToken = callbackToken
 		if addCallbackToToken {
-			broadcaster.callbackToken += "_" + time.Now().Format("20060102")
+			broadcaster.callbackToken += "_" + time.Now().Format("20060102150405")
 		}
 	}
 }

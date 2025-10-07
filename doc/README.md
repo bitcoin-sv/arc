@@ -511,7 +511,7 @@ Outcome:
 	* If callback URL is specified for transaction `A` - the callback with status `DOUBLE_SPEND_ATTEMPTED` and an ID (hash) of transaction `B` as a competing transaction will be sent for transaction `A`.
 3. Querying for transaction `A` will now also result in `DOUBLE_SPEND_ATTEMPTED` status and an ID (hash) of transaction `B` as a competing transaction.
 4. After transaction `A` is mined, it will receive status `MINED`.
-	* If callback URL is specified for transaction `A` - a callback with status `DOUBLE_SPEND_ATTEMPTED` and an extra information that this transactions was previously a double spend attempt will be sent.
+	* If callback URL is specified for transaction `A` - a callback with status `MINED` and an extra information that this transactions was previously a double spend attempt will be sent.
 5. Transaction `B` will be rejected and receive status `REJECTED`. The callback will be sent with an information.
 	* If callback URL is specified for transaction `B` - a callback with status `REJECTED` and an extra information that this transactions was a double spend attempt will be sent.
 6. Querying for transaction `A` will now also result in `MINED` status and an extra information that this transactions was previously a double spend attempt.

@@ -151,7 +151,8 @@ services:
       - "8011"
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
-    command: [ "./arc", "-blocktx=true", "-config=." ]
+      - ./test/config/config_common.yaml:/service/config_common.yaml
+    command: [ "./arc", "-blocktx=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     depends_on:
@@ -166,7 +167,7 @@ services:
       migrate-blocktx:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8011", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -175,11 +176,12 @@ services:
     image: test-arc
     expose:
       - "8021"
-    command: [ "./arc", "-callbacker=true", "-config=." ]
+    command: [ "./arc", "-callbacker=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       nats-1:
         condition: service_healthy
@@ -190,7 +192,7 @@ services:
       migrate-callbacker:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8021", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -199,11 +201,12 @@ services:
     image: test-arc
     expose:
       - "8001"
-    command: [ "./arc", "-metamorph=true", "-config=." ]
+    command: [ "./arc", "-metamorph=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       blocktx:
         condition: service_healthy
@@ -214,7 +217,7 @@ services:
       migrate-metamorph:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8001", "-service=liveness", "-rpc-timeout=5s" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -230,23 +233,24 @@ services:
       - "9090"
       - "2112"
       - "8033"
-    command: [ "./arc", "-api=true", "-config=." ]
+    command: [ "./arc", "-api=true", "-config=./config.yaml,./config_common.yaml" ]
     environment:
       - ARC_TRACING_ENABLED
     volumes:
       - ./test/config/config.yaml:/service/config.yaml
+      - ./test/config/config_common.yaml:/service/config_common.yaml
     depends_on:
       metamorph:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s"]
+      test: [ "CMD", "/bin/grpc_health_probe", "-addr=:8033", "-service=readiness", "-rpc-timeout=5s" ]
       interval: 6s
       timeout: 5s
       retries: 3
 
   jaeger:
     image: jaegertracing/all-in-one:1.68.0
-    profiles: ["tracing"]
+    profiles: [ "tracing" ]
     ports:
       - "16686:16686"
       - "4317:4317"

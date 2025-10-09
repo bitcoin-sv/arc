@@ -35,10 +35,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
-	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/nats_connection"
 )
 
-func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), error) {
+func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
 	var (
@@ -57,7 +56,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		logger.Info("Shutdown callbacker complete")
 	}
 
-	callbackerStore, err = newStore(arcConfig.Callbacker.Db)
+	callbackerStore, err = newStore(cbCfg.Db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
@@ -70,8 +69,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 
 	mqOpts := getCbkMqOpts()
 
-	connOpts := []nats_connection.Option{nats_connection.WithMaxReconnects(-1)}
-	mqClient, err = mq.NewMqClient(logger, arcConfig.MessageQueue, mqOpts, connOpts)
+	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +79,12 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		callbackerStore,
 		mqClient,
 		logger,
-		callbacker.WithExpiration(arcConfig.Callbacker.Expiration),
-		callbacker.WithSingleSendInterval(arcConfig.Callbacker.Pause),
-		callbacker.WithBatchSendInterval(arcConfig.Callbacker.BatchSendInterval),
-		callbacker.WithClearInterval(arcConfig.Callbacker.PruneInterval),
-		callbacker.WithClearRetentionPeriod(arcConfig.Callbacker.PruneOlderThan),
-		callbacker.WithMaxRetries(arcConfig.Callbacker.MaxRetries),
+		callbacker.WithExpiration(cbCfg.Expiration),
+		callbacker.WithSingleSendInterval(cbCfg.Pause),
+		callbacker.WithBatchSendInterval(cbCfg.BatchSendInterval),
+		callbacker.WithClearInterval(cbCfg.PruneInterval),
+		callbacker.WithClearRetentionPeriod(cbCfg.PruneOlderThan),
+		callbacker.WithMaxRetries(cbCfg.MaxRetries),
 	)
 	if err != nil {
 		stopFn()
@@ -100,9 +98,9 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 	}
 
 	serverCfg := grpc_utils.ServerConfig{
-		PrometheusEndpoint: arcConfig.Prometheus.Endpoint,
-		MaxMsgSize:         arcConfig.GrpcMessageSize,
-		TracingConfig:      arcConfig.Tracing,
+		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
+		MaxMsgSize:         commonCfg.GrpcMessageSize,
+		TracingConfig:      commonCfg.Tracing,
 		Name:               "blocktx",
 	}
 
@@ -112,7 +110,7 @@ func StartCallbacker(logger *slog.Logger, arcConfig *config.ArcConfig) (func(), 
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
 
-	err = server.ListenAndServe(arcConfig.Callbacker.ListenAddr)
+	err = server.ListenAndServe(cbCfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)

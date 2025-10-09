@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.5.0](#150---2025-10-09)
 - [1.4.2](#142---2025-09-18)
 - [1.4.1](#141---2025-09-10)
 - [1.4.0](#140---2025-09-02)
@@ -25,6 +26,14 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.5.0] - 2025-10-09
+
+### Changed
+- Major refactoring of ARC configuration
+  - Settings which are used in multiple services are moved under a configuration `common` object
+  - ARC cli `-config` flag requires the exact path to the configuration file instead of the configuration path
+  - Configuration can be combined from multiple configuration files
 
 ## [1.4.2] - 2025-09-18
 

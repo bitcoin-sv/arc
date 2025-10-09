@@ -13,22 +13,29 @@ const (
 )
 
 type ArcConfig struct {
+	Common     *CommonConfig     `mapstructure:"common"`
+	Metamorph  *MetamorphConfig  `mapstructure:"metamorph"`
+	Blocktx    *BlocktxConfig    `mapstructure:"blocktx"`
+	API        *APIConfig        `mapstructure:"api"`
+	K8sWatcher *K8sWatcherConfig `mapstructure:"k8sWatcher"`
+	Callbacker *CallbackerConfig `mapstructure:"callbacker"`
+}
+
+type CommonConfig struct {
 	LogLevel              string              `mapstructure:"logLevel"`
 	LogFormat             string              `mapstructure:"logFormat"`
 	ProfilerAddr          string              `mapstructure:"profilerAddr"`
-	Prometheus            *PrometheusConfig   `mapstructure:"prometheus"`
-	GrpcMessageSize       int                 `mapstructure:"grpcMessageSize"`
 	Network               string              `mapstructure:"network"`
+	GrpcMessageSize       int                 `mapstructure:"grpcMessageSize"`
+	Prometheus            *PrometheusConfig   `mapstructure:"prometheus"`
 	ReBroadcastExpiration time.Duration       `mapstructure:"reBroadcastExpiration"`
 	MessageQueue          *MessageQueueConfig `mapstructure:"messageQueue"`
 	Tracing               *TracingConfig      `mapstructure:"tracing"`
-	PeerRPC               *PeerRPCConfig      `mapstructure:"peerRpc"`
-	Metamorph             *MetamorphConfig    `mapstructure:"metamorph"`
-	Blocktx               *BlocktxConfig      `mapstructure:"blocktx"`
-	API                   *APIConfig          `mapstructure:"api"`
-	K8sWatcher            *K8sWatcherConfig   `mapstructure:"k8sWatcher"`
-	Callbacker            *CallbackerConfig   `mapstructure:"callbacker"`
 	Cache                 *CacheConfig        `mapstructure:"cache"`
+}
+
+func (a *CommonConfig) IsTracingEnabled() bool {
+	return a.Tracing != nil && a.Tracing.IsEnabled()
 }
 
 type PrometheusConfig struct {
@@ -47,9 +54,10 @@ type PeerConfig struct {
 }
 
 type MessageQueueConfig struct {
-	URL        string                `mapstructure:"url"`
-	Streaming  MessageQueueStreaming `mapstructure:"streaming"`
-	Initialize bool                  `mapstructure:"initialize"`
+	URL       string                `mapstructure:"url"`
+	User      string                `mapstructure:"user"`
+	Password  string                `mapstructure:"password"`
+	Streaming MessageQueueStreaming `mapstructure:"streaming"`
 }
 
 type MessageQueueStreaming struct {
@@ -63,10 +71,6 @@ type TracingConfig struct {
 	Sample             int               `mapstructure:"sample"`
 	Attributes         map[string]string `mapstructure:"attributes"`
 	KeyValueAttributes []attribute.KeyValue
-}
-
-func (a *ArcConfig) IsTracingEnabled() bool {
-	return a.Tracing != nil && a.Tracing.IsEnabled()
 }
 
 func (t *TracingConfig) IsEnabled() bool {
@@ -87,7 +91,6 @@ type PeerPortConfig struct {
 
 type MetamorphConfig struct {
 	ListenAddr                           string                               `mapstructure:"listenAddr"`
-	DialAddr                             string                               `mapstructure:"dialAddr"`
 	Db                                   *DbConfig                            `mapstructure:"db"`
 	ReAnnounceUnseenInterval             time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
 	ReAnnounceSeen                       *ReAnnounceSeenConfig                `mapstructure:"reAnnounceSeen"`
@@ -97,11 +100,12 @@ type MetamorphConfig struct {
 	StatusUpdateInterval                 time.Duration                        `mapstructure:"statusUpdateInterval"`
 	MonitorPeers                         bool                                 `mapstructure:"monitorPeers"`
 	Health                               *HealthConfig                        `mapstructure:"health"`
-	RejectCallbackContaining             []string                             `mapstructure:"rejectCallbackContaining"`
 	Stats                                *StatsConfig                         `mapstructure:"stats"`
 	BlockchainNetwork                    *BlockchainNetwork[*MetamorphGroups] `mapstructure:"bcnet"`
 	DoubleSpendCheckInterval             time.Duration                        `mapstructure:"doubleSpendCheckInterval"`
 	DoubleSpendTxStatusOlderThanInterval time.Duration                        `mapstructure:"doubleSpendTxStatusOlderThanInterval"`
+	BlocktxDialAddr                      string                               `mapstructure:"blocktxDialAddr"`
+	CallbackerDialAddr                   string                               `mapstructure:"callbackerDialAddr"`
 }
 
 type RejectPendingSeenConfig struct {
@@ -121,7 +125,6 @@ type HealthConfig struct {
 
 type BlocktxConfig struct {
 	ListenAddr                    string                             `mapstructure:"listenAddr"`
-	DialAddr                      string                             `mapstructure:"dialAddr"`
 	Db                            *DbConfig                          `mapstructure:"db"`
 	RecordRetentionDays           int                                `mapstructure:"recordRetentionDays"`
 	RegisterTxsInterval           time.Duration                      `mapstructure:"registerTxsInterval"`
@@ -199,23 +202,27 @@ type UnorphanRecentWrongOrphansConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 }
 type APIConfig struct {
-	StandardFormatSupported bool                   `mapstructure:"standardFormatSupported"`
-	Address                 string                 `mapstructure:"address"`
-	ListenAddr              string                 `mapstructure:"listenAddr"`
-	WocAPIKey               string                 `mapstructure:"wocApiKey"`
-	WocMainnet              bool                   `mapstructure:"wocMainnet"`
-	DefaultPolicy           *bitcoin.Settings      `mapstructure:"defaultPolicy"`
-	RequestExtendedLogs     bool                   `mapstructure:"requestExtendedLogs"`
-	MerkleRootVerification  MerkleRootVerification `mapstructure:"merkleRootVerification"`
+	PeerRPC                  *PeerRPCConfig         `mapstructure:"peerRpc"`
+	RejectCallbackContaining []string               `mapstructure:"rejectCallbackContaining"`
+	StandardFormatSupported  bool                   `mapstructure:"standardFormatSupported"`
+	Address                  string                 `mapstructure:"address"`
+	ListenAddr               string                 `mapstructure:"listenAddr"`
+	WocAPIKey                string                 `mapstructure:"wocApiKey"`
+	WocMainnet               bool                   `mapstructure:"wocMainnet"`
+	DefaultPolicy            *bitcoin.Settings      `mapstructure:"defaultPolicy"`
+	RequestExtendedLogs      bool                   `mapstructure:"requestExtendedLogs"`
+	MerkleRootVerification   MerkleRootVerification `mapstructure:"merkleRootVerification"`
+	MetamorphDialAddr        string                 `mapstructure:"metamorphDialAddr"`
+	BlocktxDialAddr          string                 `mapstructure:"blocktxDialAddr"`
 }
 
 type K8sWatcherConfig struct {
-	Namespace string `mapstructure:"namespace"`
+	MetamorphDialAddr string `mapstructure:"metamorphDialAddr"`
+	Namespace         string `mapstructure:"namespace"`
 }
 
 type CallbackerConfig struct {
 	ListenAddr        string        `mapstructure:"listenAddr"`
-	DialAddr          string        `mapstructure:"dialAddr"`
 	Pause             time.Duration `mapstructure:"pause"`
 	BatchSendInterval time.Duration `mapstructure:"batchSendInterval"`
 	PruneOlderThan    time.Duration `mapstructure:"pruneOlderThan"`

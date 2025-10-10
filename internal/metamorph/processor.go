@@ -136,8 +136,8 @@ type CallbackSender interface {
 }
 
 type Mediator interface {
-	AskForTxAsync(ctx context.Context, tx *store.Data)
-	AnnounceTxAsync(ctx context.Context, tx *store.Data)
+	AskForTxAsync(ctx context.Context, hash *chainhash.Hash)
+	AnnounceTxAsync(ctx context.Context, hash *chainhash.Hash, rawTx []byte)
 	GetPeers() []p2p.PeerI
 	CountConnectedPeers() uint
 }
@@ -765,8 +765,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// ask network about the tx to see if they have it
-	p.bcMediator.AskForTxAsync(ctx, req.Data)
-	p.bcMediator.AnnounceTxAsync(ctx, req.Data)
+	p.bcMediator.AskForTxAsync(ctx, req.Data.Hash)
+	p.bcMediator.AnnounceTxAsync(ctx, req.Data.Hash, req.Data.RawTx)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -808,7 +808,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data)
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}
 
-		p.bcMediator.AnnounceTxAsync(ctx, data)
+		p.bcMediator.AnnounceTxAsync(ctx, data.Hash, data.RawTx)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{

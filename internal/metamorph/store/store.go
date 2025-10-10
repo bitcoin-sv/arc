@@ -89,7 +89,7 @@ type MetamorphStore interface {
 	SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error)
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
 	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
-	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*Data, error)
+	GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*RawTx, error)
 	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*Data, err error)
 	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
 	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
@@ -105,6 +105,22 @@ type MetamorphStore interface {
 	SetRequested(ctx context.Context, hashes []*chainhash.Hash) error
 	GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
 	MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error
+}
+
+type RawTx struct {
+	Hash  *chainhash.Hash
+	RawTx []byte
+}
+
+func (d *RawTx) UpdateTxHash(txHash []byte) error {
+	if len(txHash) > 0 {
+		var err error
+		d.Hash, err = chainhash.NewHash(txHash)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type UpdateStatus struct {

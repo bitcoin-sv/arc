@@ -258,8 +258,8 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			messenger := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
@@ -682,7 +682,7 @@ func TestStartProcessSubmitted(t *testing.T) {
 				},
 			}
 			messenger := &mocks.MediatorMock{
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {
 					announceMsgCounter.Add(1)
 					if announceMsgCounter.Load() >= tc.expectedAnnounceCalls {
 						stopCh <- struct{}{}
@@ -804,8 +804,8 @@ func TestReAnnounceUnseen(t *testing.T) {
 			}
 
 			messenger := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
@@ -1072,8 +1072,8 @@ func TestReAnnounceSeen(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenPendingFunc: func(_ context.Context, _ time.Duration, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
-					require.Equal(t, int64(50), limit)
+				GetPendingFunc: func(_ context.Context, _ time.Duration, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.RawTx, error) {
+					require.Equal(t, int64(500), limit)
 
 					if tc.getSeenErr != nil {
 						stop <- struct{}{}
@@ -1083,11 +1083,11 @@ func TestReAnnounceSeen(t *testing.T) {
 
 					if iterations >= 3 {
 						stop <- struct{}{}
-						return []*store.Data{}, nil
+						return []*store.RawTx{}, nil
 					}
 
 					iterations++
-					return []*store.Data{
+					return []*store.RawTx{
 						{Hash: testdata.TX1Hash},
 						{Hash: testdata.TX1Hash},
 						{Hash: testdata.TX1Hash},
@@ -1097,8 +1097,8 @@ func TestReAnnounceSeen(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
 			blockTxClient := &btxMocks.ClientMock{
@@ -1126,7 +1126,7 @@ func TestReAnnounceSeen(t *testing.T) {
 			metamorph.ReAnnounceSeen(context.TODO(), sut)
 
 			// then
-			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenPendingCalls()))
+			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetPendingCalls()))
 		})
 	}
 }

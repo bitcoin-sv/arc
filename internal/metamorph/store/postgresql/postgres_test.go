@@ -869,9 +869,9 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 13, numberOfRemainingTxs)
 	})
 
-	t.Run("get seen pending", func(t *testing.T) {
+	t.Run("get pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
-		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_seen_pending")
+		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_pending")
 
 		postgresDB.now = func() time.Time {
 			return time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
@@ -881,7 +881,7 @@ func TestPostgresDB(t *testing.T) {
 		confirmedAgo := 30 * time.Minute
 		seenAgo := 5 * time.Minute
 
-		records, err := postgresDB.GetSeenPending(ctx, fromDuration, confirmedAgo, seenAgo, 5, 0)
+		records, err := postgresDB.GetPending(ctx, fromDuration, confirmedAgo, seenAgo, 5, 0)
 		require.NoError(t, err)
 
 		require.Len(t, records, 4)

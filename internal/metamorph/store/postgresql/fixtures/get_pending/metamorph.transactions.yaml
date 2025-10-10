@@ -1,13 +1,25 @@
 # return
 - hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
   locked_by: metamorph-1
-  status: 90
+  status: 40
   stored_at: 2025-05-08 12:53:34.260 +0200
   last_submitted_at: 2025-05-08 12:53:34.260 +0200
   status_history:
     - status: 20
       timestamp: 2025-05-08T10:53:34.260275433Z
-    - status: 90
+    - status: 40
+      timestamp: 2025-05-08T10:53:34.577864+00:00
+
+# don't return only stored status
+- hash: 0x9fd604885a0e5a1dc1168fe96a0abb9a768602716ecd525db16c82b03f0ebfff
+  locked_by: metamorph-1
+  status: 30
+  stored_at: 2025-05-08 12:53:34.260 +0200
+  last_submitted_at: 2025-05-08 12:53:34.260 +0200
+  status_history:
+    - status: 20
+      timestamp: 2025-05-08T10:53:34.260275433Z
+    - status: 30
       timestamp: 2025-05-08T10:53:34.577864+00:00
 
 # just requested => don't return
@@ -40,13 +52,13 @@
 # confirmed long ago => return
 - hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
   locked_by: metamorph-1
-  status: 90
+  status: 60
   stored_at: 2025-05-08 12:53:34.260 +0200
   last_submitted_at: 2025-05-08 12:53:34.260 +0200
   status_history:
     - status: 20
       timestamp: 2025-05-08T10:53:34.260275433Z
-    - status: 90
+    - status: 60
       timestamp: 2025-05-08T10:53:34.577864+00:00
   requested_at: 2025-05-08 12:10:00.000 +0200
   confirmed_at: 2025-05-08 12:30:34.260 +0200

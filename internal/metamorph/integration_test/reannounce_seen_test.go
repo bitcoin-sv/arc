@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
@@ -38,8 +38,8 @@ func TestReAnnounceSeen(t *testing.T) {
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
 		messenger := &mocks.MediatorMock{
-			AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
-			AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+			AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 		}
 
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)

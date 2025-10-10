@@ -53,12 +53,12 @@ metamorph:
   doubleSpendCheckInterval: 10s # interval of checking for double spends and marking as rejected if competing mined
   reAnnounceUnseenInterval: 60s # time interval in which unseen transactions are re-announced
   reAnnounceSeen:
-    pendingSince: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
-    lastConfirmedAgo: 10m # time duration after which transaction was marked as SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
+    pendingSince: 10m     # time duration since the last status update after which transactions with status ANNOUNCED_TO_NETWORK, REQUESTED_BY_NETWORK, SENT_TO_NETWORK, ACCEPTED_BY_NETWORK or SEEN_ON_NETWORK are re-requested
+    lastConfirmedAgo: 10m # time duration since last confirmation after which transactions with status ANNOUNCED_TO_NETWORK, REQUESTED_BY_NETWORK, SENT_TO_NETWORK, ACCEPTED_BY_NETWORK or SEEN_ON_NETWORK are re-requested
   rejectPendingSeen:
     enabled: false # if enabled, transactions which are pending in seen on network status are marked as REJECTED if no connected peer has seen them and if a number of blocks specified by `blocksSince` has passed in the meantime
-    lastRequestedAgo: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-requested since it was last submitted
-    blocksSince: 3 # number of processed blocks after which transactions with SEEN_ON_NETWORK status will be considered rejected
+    lastRequestedAgo: 10m # time duration since the last request to network without subsequent confirmation after which transactions with status ANNOUNCED_TO_NETWORK, REQUESTED_BY_NETWORK, SENT_TO_NETWORK, ACCEPTED_BY_NETWORK or SEEN_ON_NETWORK are rejected
+    blocksSince: 3 # number of processed blocks after which transactions with status ANNOUNCED_TO_NETWORK, REQUESTED_BY_NETWORK, SENT_TO_NETWORK, ACCEPTED_BY_NETWORK or SEEN_ON_NETWORK are rejected
   reRegisterSeen: 10m # time duration after which SEEN_ON_NETWORK transactions should be re-registered since it was last submitted
   monitorPeers: false # if enabled, peers which do not receive alive signal from nodes will be restarted
   health:

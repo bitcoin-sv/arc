@@ -590,85 +590,75 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 	return getStoreDataFromRows(rows)
 }
 
-// GetSeenPending returns all transactions that are pending in SEEN_ON_NETWORK status for longer than `pendingSince`
-func (p *PostgreSQL) GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+// GetPending returns all transactions that are pending for longer than `pendingSince`
+func (p *PostgreSQL) GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, lastUpdateAgo time.Duration, limit int64, offset int64) (res []*store.RawTx, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
 	q := `
-	WITH seen_txs AS (SELECT
-		TO_TIMESTAMP(substring(elem->>'timestamp' from 1 for 22), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')::TIMESTAMP WITHOUT TIME ZONE AS seen_at,
-		t.stored_at AT TIME ZONE 'UTC' AS stored_at_utc,
-		t.stored_at,
-		t.hash,
-		t.status,
-		t.block_height,
-		t.block_hash,
-		t.callbacks,
-		t.full_status_updates,
-		t.reject_reason,
-		t.competing_txs,
-		t.raw_tx,
-		t.locked_by,
-		t.merkle_path,
-		t.retries,
-		t.status_history,
-		t.last_modified,
+	SELECT txs.hash, txs.raw_tx FROM (
+		SELECT
+		TO_TIMESTAMP(substring(t.status_history -> -1 ->> 'timestamp' from 1 for 22), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')::TIMESTAMP WITHOUT TIME ZONE AS ts_last_update, -- last update of status history
 		t.last_submitted_at,
-	 	t.requested_at,
-	 	t.confirmed_at
-	FROM
-		metamorph.transactions t,
-	    LATERAL jsonb_array_elements(status_history) AS elem
-	WHERE
-	(elem->>'status')::int = $1
-	AND t.status = $1
-	)
-	SELECT
-		seen_txs.stored_at,
-		seen_txs.hash,
-		seen_txs.status,
-		seen_txs.block_height,
-		seen_txs.block_hash,
-		seen_txs.callbacks,
-		seen_txs.full_status_updates,
-		seen_txs.reject_reason,
-		seen_txs.competing_txs,
-		seen_txs.raw_tx,
-		seen_txs.locked_by,
-		seen_txs.merkle_path,
-		seen_txs.retries,
-		seen_txs.status_history,
-		seen_txs.last_modified
-	FROM seen_txs
-	WHERE seen_txs.last_submitted_at > $2
--- 	AND $3 - seen_txs.seen_at > $4 * INTERVAL '1 SEC'
-	AND seen_txs.seen_at < $3
-	AND (
-		seen_txs.requested_at IS NULL -- either never been requested
-	OR (
-	    seen_txs.requested_at IS NOT NULL AND seen_txs.confirmed_at IS NOT NULL -- requested and confirmed before
-		AND seen_txs.confirmed_at > seen_txs.requested_at -- confirmation was after last request
-		AND seen_txs.confirmed_at < $4 -- confirmation before specified date
-	))
-	AND seen_txs.locked_by = $5
+		t.requested_at,
+		t.confirmed_at,
+		t.hash,
+		t.raw_tx,
+		t.locked_by
+		FROM metamorph.transactions t
+		WHERE t.status = ANY( $1 )
+		) AS txs
+	WHERE txs.last_submitted_at > $2
+		AND txs.ts_last_update < $3
+		AND (
+		txs.requested_at IS NULL -- either never been requested
+		OR (
+		 txs.requested_at IS NOT NULL AND txs.confirmed_at IS NOT NULL -- requested and confirmed before
+		 AND txs.confirmed_at > txs.requested_at -- confirmation was after last request
+		 AND txs.confirmed_at < $4 -- confirmation before specified date
+		))
+		AND txs.locked_by = $5
 	LIMIT $6 OFFSET $7
 	;
 	`
 
 	lastSubmittedAfter := p.now().Add(-1 * lastSubmittedSince)
 	confirmedBefore := p.now().Add(-1 * confirmedAgo)
-	seenBefore := p.now().Add(-1 * seenAgo)
+	lastUpdatedBefore := p.now().Add(-1 * lastUpdateAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_SEEN_ON_NETWORK, lastSubmittedAfter, seenBefore, confirmedBefore, p.hostname, limit, offset)
+	pendingStatuses := []metamorph_api.Status{metamorph_api.Status_ANNOUNCED_TO_NETWORK, metamorph_api.Status_REQUESTED_BY_NETWORK, metamorph_api.Status_SENT_TO_NETWORK, metamorph_api.Status_ACCEPTED_BY_NETWORK, metamorph_api.Status_SEEN_ON_NETWORK}
+
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(pendingStatuses), lastSubmittedAfter, lastUpdatedBefore, confirmedBefore, p.hostname, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	return getStoreDataFromRows(rows)
+	return getRawTxDataFromRows(rows)
+}
+
+func getRawTxDataFromRows(rows *sql.Rows) ([]*store.RawTx, error) {
+	rawTxs := make([]*store.RawTx, 0, 50)
+	for rows.Next() {
+		newRawTx := &store.RawTx{}
+		var txHash []byte
+
+		err := rows.Scan(&txHash, &newRawTx.RawTx)
+		if err != nil {
+			return nil, err
+		}
+
+		err = newRawTx.UpdateTxHash(txHash)
+		if err != nil {
+			return nil, err
+		}
+
+		rawTxs = append(rawTxs, newRawTx)
+	}
+
+	return rawTxs, nil
 }
 
 func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {

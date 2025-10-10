@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
 	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
@@ -32,8 +33,8 @@ func TestProcessor(t *testing.T) {
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
 		messenger := &mocks.MediatorMock{
-			AskForTxAsyncFunc:   func(_ context.Context, _ *store.Data) {},
-			AnnounceTxAsyncFunc: func(_ context.Context, _ *store.Data) {},
+			AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+			AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 		}
 
 		mqClient := &mqMocks.MessageQueueClientMock{

@@ -40,8 +40,8 @@ const (
 	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
 	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
 	rejectPendingSeenBlocksSinceDefault      = uint64(3)
-	loadLimit                                = int64(50)
-	minimumHealthyConnectionsDefault         = 2
+
+	minimumHealthyConnectionsDefault = 2
 
 	statusUpdatesIntervalDefault        = 500 * time.Millisecond
 	doubleSpendTxStatusCheckDefault     = 10 * time.Second
@@ -596,6 +596,8 @@ func (p *Processor) StartLockTransactions() {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 	p.waitGroup.Add(1)
 
+	const setLockedLoadLimit = int64(50)
+
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -604,7 +606,7 @@ func (p *Processor) StartLockTransactions() {
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.rebroadcastExpiration)
-				err := p.store.SetLocked(p.ctx, expiredSince, loadLimit)
+				err := p.store.SetLocked(p.ctx, expiredSince, setLockedLoadLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}

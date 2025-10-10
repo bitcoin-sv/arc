@@ -591,7 +591,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 }
 
 // GetPending returns all transactions that are pending for longer than `pendingSince`
-func (p *PostgreSQL) GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) (res []*store.RawTx, err error) {
+func (p *PostgreSQL) GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, lastUpdateAgo time.Duration, limit int64, offset int64) (res []*store.RawTx, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -626,11 +626,11 @@ func (p *PostgreSQL) GetPending(ctx context.Context, lastSubmittedSince time.Dur
 
 	lastSubmittedAfter := p.now().Add(-1 * lastSubmittedSince)
 	confirmedBefore := p.now().Add(-1 * confirmedAgo)
-	seenBefore := p.now().Add(-1 * seenAgo)
+	lastUpdatedBefore := p.now().Add(-1 * lastUpdateAgo)
 
 	pendingStatuses := []metamorph_api.Status{metamorph_api.Status_ANNOUNCED_TO_NETWORK, metamorph_api.Status_REQUESTED_BY_NETWORK, metamorph_api.Status_SENT_TO_NETWORK, metamorph_api.Status_ACCEPTED_BY_NETWORK, metamorph_api.Status_SEEN_ON_NETWORK}
 
-	rows, err := p.db.QueryContext(ctx, q, pq.Array(pendingStatuses), lastSubmittedAfter, seenBefore, confirmedBefore, p.hostname, limit, offset)
+	rows, err := p.db.QueryContext(ctx, q, pq.Array(pendingStatuses), lastSubmittedAfter, lastUpdatedBefore, confirmedBefore, p.hostname, limit, offset)
 	if err != nil {
 		return nil, err
 	}

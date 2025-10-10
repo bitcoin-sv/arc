@@ -203,15 +203,17 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", totalSeenOnNetworkTxs)}
 }
 
-// RegisterSeenTxs re-registers and SEEN_ON_NETWORK transactions
+// RegisterSeenTxs re-registers SEEN_ON_NETWORK transactions
 func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
 	var seenOnNetworkTxs []*store.Data
 	var err error
 
+	const getSeenLoadLimit = 500
+
 	for {
-		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadLimit, offset)
+		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, getSeenLoadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
 			break
@@ -221,7 +223,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		offset += loadLimit
+		offset += getSeenLoadLimit
 		totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 		err = p.registerTransactions(ctx, seenOnNetworkTxs)
@@ -229,7 +231,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 			p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 
 	if totalSeenOnNetworkTxs > 0 {

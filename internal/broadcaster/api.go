@@ -21,6 +21,7 @@ var (
 	ErrFailedToBroadcastTxs = errors.New("failed to broadcast transactions")
 	ErrFailedToBroadcastTx  = errors.New("failed to broadcast transaction")
 	ErrInvalidARCUrl        = errors.New("arcUrl is not a valid url")
+	ErrUnauthorized         = errors.New("unauthorized Woc API key/invalid for the selected network")
 )
 
 type APIBroadcaster struct {
@@ -87,6 +88,10 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 	bodyBytes, err = io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if response.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
 	}
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {

@@ -40,7 +40,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetManyFunc: func(ctx context.Context, keys [][]byte) ([]*store.Data, error) {
 //				panic("mock out the GetMany method")
 //			},
-//			GetPendingFunc: func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error) {
+//			GetPendingFunc: func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, lastUpdateAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error) {
 //				panic("mock out the GetPending method")
 //			},
 //			GetRawTxsFunc: func(ctx context.Context, hashes [][]byte) ([][]byte, error) {
@@ -120,7 +120,7 @@ type MetamorphStoreMock struct {
 	GetManyFunc func(ctx context.Context, keys [][]byte) ([]*store.Data, error)
 
 	// GetPendingFunc mocks the GetPending method.
-	GetPendingFunc func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error)
+	GetPendingFunc func(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, lastUpdateAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error)
 
 	// GetRawTxsFunc mocks the GetRawTxs method.
 	GetRawTxsFunc func(ctx context.Context, hashes [][]byte) ([][]byte, error)
@@ -223,8 +223,8 @@ type MetamorphStoreMock struct {
 			LastSubmittedSince time.Duration
 			// ConfirmedAgo is the confirmedAgo argument value.
 			ConfirmedAgo time.Duration
-			// SeenAgo is the seenAgo argument value.
-			SeenAgo time.Duration
+			// LastUpdateAgo is the lastUpdateAgo argument value.
+			LastUpdateAgo time.Duration
 			// Limit is the limit argument value.
 			Limit int64
 			// Offset is the offset argument value.
@@ -609,7 +609,7 @@ func (mock *MetamorphStoreMock) GetManyCalls() []struct {
 }
 
 // GetPending calls GetPendingFunc.
-func (mock *MetamorphStoreMock) GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error) {
+func (mock *MetamorphStoreMock) GetPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, lastUpdateAgo time.Duration, limit int64, offset int64) ([]*store.RawTx, error) {
 	if mock.GetPendingFunc == nil {
 		panic("MetamorphStoreMock.GetPendingFunc: method is nil but MetamorphStore.GetPending was just called")
 	}
@@ -617,21 +617,21 @@ func (mock *MetamorphStoreMock) GetPending(ctx context.Context, lastSubmittedSin
 		Ctx                context.Context
 		LastSubmittedSince time.Duration
 		ConfirmedAgo       time.Duration
-		SeenAgo            time.Duration
+		LastUpdateAgo      time.Duration
 		Limit              int64
 		Offset             int64
 	}{
 		Ctx:                ctx,
 		LastSubmittedSince: lastSubmittedSince,
 		ConfirmedAgo:       confirmedAgo,
-		SeenAgo:            seenAgo,
+		LastUpdateAgo:      lastUpdateAgo,
 		Limit:              limit,
 		Offset:             offset,
 	}
 	mock.lockGetPending.Lock()
 	mock.calls.GetPending = append(mock.calls.GetPending, callInfo)
 	mock.lockGetPending.Unlock()
-	return mock.GetPendingFunc(ctx, lastSubmittedSince, confirmedAgo, seenAgo, limit, offset)
+	return mock.GetPendingFunc(ctx, lastSubmittedSince, confirmedAgo, lastUpdateAgo, limit, offset)
 }
 
 // GetPendingCalls gets all the calls that were made to GetPending.
@@ -642,7 +642,7 @@ func (mock *MetamorphStoreMock) GetPendingCalls() []struct {
 	Ctx                context.Context
 	LastSubmittedSince time.Duration
 	ConfirmedAgo       time.Duration
-	SeenAgo            time.Duration
+	LastUpdateAgo      time.Duration
 	Limit              int64
 	Offset             int64
 } {
@@ -650,7 +650,7 @@ func (mock *MetamorphStoreMock) GetPendingCalls() []struct {
 		Ctx                context.Context
 		LastSubmittedSince time.Duration
 		ConfirmedAgo       time.Duration
-		SeenAgo            time.Duration
+		LastUpdateAgo      time.Duration
 		Limit              int64
 		Offset             int64
 	}

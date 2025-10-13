@@ -3,11 +3,13 @@ package blocktx_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -259,6 +261,60 @@ func TestClearBlocks(t *testing.T) {
 			resp, err := sut.ClearBlocks(context.Background(), &blocktx_api.ClearData{RetentionDays: 1})
 			require.NoError(t, err)
 			require.Equal(t, int64(42), resp.Rows)
+		})
+	}
+}
+
+func TestLatestBlocks(t *testing.T) {
+	tt := []struct {
+		name            string
+		getBlockGapsErr error
+		latestBlocksErr error
+
+		expectedError error
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:            "failed to get latest blocks",
+			latestBlocksErr: errors.New("some error"),
+
+			expectedError: blocktx.ErrFailedToGetLatestBlocks,
+		},
+		{
+			name:            "failed to get block gaps",
+			getBlockGapsErr: errors.New("some error"),
+
+			expectedError: blocktx.ErrFailedToGetBlockGaps,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			storeMock := &storeMocks.BlocktxStoreMock{
+				LatestBlocksFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
+					return []*blocktx_api.Block{{Hash: []byte("block-hash-1")}, {Hash: []byte("block-hash-2")}}, tc.latestBlocksErr
+				},
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
+					return []*store.BlockGap{{Hash: testdata.Block1Hash}, {Hash: testdata.Block2Hash}}, tc.getBlockGapsErr
+				},
+			}
+			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			actual, actualError := sut.LatestBlocks(context.Background(), &blocktx_api.NumOfLatestBlocks{Blocks: 10})
+			// then
+			if tc.expectedError != nil {
+				require.ErrorIs(t, actualError, tc.expectedError)
+				return
+			}
+			require.NoError(t, actualError)
+
+			require.Len(t, actual.Blocks, 2)
+			require.Len(t, actual.BlockGaps, 2)
 		})
 	}
 }

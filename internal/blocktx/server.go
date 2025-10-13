@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -18,6 +19,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+)
+
+var (
+	ErrFailedToGetBlockGaps    = errors.New("failed to get block gaps")
+	ErrFailedToGetLatestBlocks = errors.New("failed to get latest blocks")
 )
 
 type ProcessorI interface {
@@ -153,7 +159,7 @@ func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*block
 func (s *Server) LatestBlocks(ctx context.Context, req *blocktx_api.NumOfLatestBlocks) (*blocktx_api.LatestBlocksResponse, error) {
 	blocks, err := s.store.LatestBlocks(ctx, req.Blocks)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFailedToGetLatestBlocks, err)
 	}
 	const (
 		hoursPerDay   = 24
@@ -163,15 +169,18 @@ func (s *Server) LatestBlocks(ctx context.Context, req *blocktx_api.NumOfLatestB
 	heightRange := s.retentionDays * hoursPerDay * blocksPerHour
 	blockGaps, err := s.store.GetBlockGaps(ctx, heightRange)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFailedToGetBlockGaps, err)
 	}
 
-	gaps := make([]*blocktx_api.BlockGap, len(blockGaps))
-	for i, v := range blockGaps {
-		gaps[i] = &blocktx_api.BlockGap{
+	gaps := make([]*blocktx_api.BlockGap, 0, len(blockGaps))
+	for _, v := range blockGaps {
+		if v.Hash == nil {
+			continue
+		}
+		gaps = append(gaps, &blocktx_api.BlockGap{
 			Hash:   v.Hash[:],
 			Height: v.Height,
-		}
+		})
 	}
 
 	response := &blocktx_api.LatestBlocksResponse{

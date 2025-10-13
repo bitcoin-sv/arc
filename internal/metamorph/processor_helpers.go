@@ -8,12 +8,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -23,9 +24,7 @@ type StatusUpdateMap map[chainhash.Hash]store.UpdateStatus
 
 var CacheStatusUpdateHash = "mtm-tx-status-update"
 
-var (
-	ErrFailedToSerialize = errors.New("failed to serialize value")
-)
+var ErrFailedToSerialize = errors.New("failed to serialize value")
 
 func (p *Processor) GetProcessorMapSize() int {
 	return p.responseProcessor.getMapLen()
@@ -172,7 +171,7 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func toSendRequest(d *store.Data, timestamp time.Time) []*callbacker_api.SendRequest {
+func toSendRequest(d *global.Data, timestamp time.Time) []*callbacker_api.SendRequest {
 	if len(d.Callbacks) == 0 {
 		return nil
 	}
@@ -207,7 +206,7 @@ func toSendRequest(d *store.Data, timestamp time.Time) []*callbacker_api.SendReq
 	return requests
 }
 
-func getCallbackExtraInfo(d *store.Data) string {
+func getCallbackExtraInfo(d *global.Data) string {
 	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -215,7 +214,7 @@ func getCallbackExtraInfo(d *store.Data) string {
 	return d.RejectReason
 }
 
-func getCallbackCompetitingTxs(d *store.Data) []string {
+func getCallbackCompetitingTxs(d *global.Data) []string {
 	if d.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -223,7 +222,7 @@ func getCallbackCompetitingTxs(d *store.Data) []string {
 	return d.CompetingTxs
 }
 
-func getCallbackBlockHash(d *store.Data) string {
+func getCallbackBlockHash(d *global.Data) string {
 	if d.BlockHash == nil {
 		return ""
 	}

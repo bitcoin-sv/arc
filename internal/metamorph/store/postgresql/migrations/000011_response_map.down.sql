@@ -1,1 +1,1 @@
-ALTER TABLE metamorph.transactions DROP COLUMN retries;
+ALTER TABLE global.Transactions DROP COLUMN retries;

@@ -5,10 +5,9 @@ package mocks
 
 import (
 	"context"
-	"sync"
-
 	"github.com/bitcoin-sv/arc/internal/global"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"sync"
 )
 
 // Ensure, that TransactionHandlerMock does implement global.TransactionHandler.

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	bchainhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -117,12 +118,27 @@ func RevHexDecodeString(t *testing.T, hashString string) []byte {
 	return hash
 }
 
+func PtrTo[T any](v T) *T {
+	return &v
+}
+
 func RevChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	t.Helper()
 
 	hash, err := hex.DecodeString(hashString)
 	require.NoError(t, err)
 	txHash, err := chainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
+}
+
+func GobtRevChainhash(t *testing.T, hashString string) *bchainhash.Hash {
+	t.Helper()
+
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+	txHash, err := bchainhash.NewHash(hash)
 	require.NoError(t, err)
 
 	return txHash
@@ -137,7 +153,22 @@ func Chainhash(t *testing.T, hashString string) *chainhash.Hash {
 	return txHash
 }
 
-// PtrTo returns a pointer to the given value.
-func PtrTo[T any](v T) *T {
-	return &v
+func BRevChainhash(t *testing.T, hashString string) *bchainhash.Hash {
+	t.Helper()
+
+	hash, err := hex.DecodeString(hashString)
+	require.NoError(t, err)
+	txHash, err := bchainhash.NewHash(hash)
+	require.NoError(t, err)
+
+	return txHash
+}
+
+func BChainhash(t *testing.T, hashString string) *bchainhash.Hash {
+	t.Helper()
+
+	txHash, err := bchainhash.NewHashFromStr(hashString)
+	require.NoError(t, err)
+
+	return txHash
 }

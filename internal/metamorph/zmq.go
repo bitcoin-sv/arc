@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"

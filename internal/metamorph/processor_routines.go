@@ -8,11 +8,12 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/bsv-blockchain/go-sdk/util"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
@@ -52,7 +53,7 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
-func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store.Data) (int, int) {
+func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*global.Data) (int, int) {
 	requested := 0
 	announced := 0
 	for _, tx := range unminedTxs {
@@ -151,7 +152,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var pendingSeen []*store.Data
+	var pendingSeen []*global.Data
 	var hashes []*chainhash.Hash
 	var err error
 
@@ -202,7 +203,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var seenOnNetworkTxs []*store.Data
+	var seenOnNetworkTxs []*global.Data
 	var err error
 
 	for {

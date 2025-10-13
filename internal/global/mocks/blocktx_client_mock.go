@@ -5,20 +5,20 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"sync"
 )
 
-// Ensure, that ClientMock does implement blocktx.Client.
+// Ensure, that ClientMock does implement global.Client.
 // If this is not the case, regenerate this file with moq.
-var _ blocktx.Client = &ClientMock{}
+var _ global.Client = &ClientMock{}
 
-// ClientMock is a mock implementation of blocktx.Client.
+// ClientMock is a mock implementation of global.Client.
 //
 //	func TestSomethingThatUsesClient(t *testing.T) {
 //
-//		// make and configure a mocked blocktx.Client
+//		// make and configure a mocked global.Client
 //		mockedClient := &ClientMock{
 //			AnyTransactionsMinedFunc: func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 //				panic("mock out the AnyTransactionsMined method")
@@ -37,7 +37,7 @@ var _ blocktx.Client = &ClientMock{}
 //			},
 //		}
 //
-//		// use mockedClient in code that requires blocktx.Client
+//		// use mockedClient in code that requires global.Client
 //		// and then make assertions.
 //
 //	}

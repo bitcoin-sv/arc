@@ -12,38 +12,14 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
-var (
-	ErrTransactionNotFound = errors.New("transaction not found")
-)
-
-type TransactionHandler interface {
-	Health(ctx context.Context) error
-	GetTransactions(ctx context.Context, txIDs []string) ([]*Transaction, error)
-	GetTransactionStatus(ctx context.Context, txID string) (*TransactionStatus, error)
-	GetTransactionStatuses(ctx context.Context, txIDs []string) ([]*TransactionStatus, error)
-	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
-}
-
-// TransactionStatus defines model for TransactionStatus.
-type TransactionStatus struct {
-	TxID          string
-	MerklePath    string
-	BlockHash     string
-	BlockHeight   uint64
-	Status        string
-	ExtraInfo     string
-	Callbacks     []*metamorph_api.Callback
-	CompetingTxs  []string
-	LastSubmitted timestamppb.Timestamp
-	Timestamp     int64
-}
+var ErrTransactionNotFound = errors.New("transaction not found")
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
@@ -124,7 +100,7 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx []by
 }
 
 // GetTransactions gets the transactions data from metamorph.
-func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result []*Transaction, err error) {
+func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result []*global.Transaction, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -138,12 +114,12 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result
 	}
 
 	if txs == nil {
-		return make([]*Transaction, 0), nil
+		return make([]*global.Transaction, 0), nil
 	}
 
-	result = make([]*Transaction, len(txs.Transactions))
+	result = make([]*global.Transaction, len(txs.Transactions))
 	for i, tx := range txs.Transactions {
-		result[i] = &Transaction{
+		result[i] = &global.Transaction{
 			TxID:        tx.Txid,
 			Bytes:       tx.RawTx,
 			BlockHeight: tx.BlockHeight,
@@ -154,7 +130,7 @@ func (m *Metamorph) GetTransactions(ctx context.Context, txIDs []string) (result
 }
 
 // GetTransactionStatus gets the status of a transaction.
-func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txStatus *TransactionStatus, err error) {
+func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txStatus *global.TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetTransactionStatus", m.tracingEnabled, append(m.tracingAttributes, attribute.String("txID", txID))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -172,7 +148,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 		return nil, ErrTransactionNotFound
 	}
 
-	txStatus = &TransactionStatus{
+	txStatus = &global.TransactionStatus{
 		TxID:         txID,
 		MerklePath:   tx.GetMerklePath(),
 		Status:       tx.GetStatus().String(),
@@ -191,7 +167,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 }
 
 // GetTransactionStatuses gets the status of all transactions.
-func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) (txStatus []*TransactionStatus, err error) {
+func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) (txStatus []*global.TransactionStatus, err error) {
 	tracingAttr := m.tracingAttributes
 	if len(txIDs) == 1 {
 		tracingAttr = append(m.tracingAttributes, attribute.String("txID", txIDs[0]))
@@ -203,7 +179,7 @@ func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) 
 	}()
 
 	var txStatuses *metamorph_api.TransactionStatuses
-	var txs []*TransactionStatus
+	var txs []*global.TransactionStatus
 	var transactionStatusRequests metamorph_api.TransactionsStatusRequest
 	transactionStatusRequests.TxIDs = append(transactionStatusRequests.TxIDs, txIDs...)
 	txStatuses, err = m.client.GetTransactionStatuses(ctx, &transactionStatusRequests)
@@ -212,7 +188,7 @@ func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) 
 	}
 
 	for _, tx := range txStatuses.Statuses {
-		txs = append(txs, &TransactionStatus{
+		txs = append(txs, &global.TransactionStatus{
 			TxID:          tx.Txid,
 			MerklePath:    tx.GetMerklePath(),
 			Status:        tx.GetStatus().String(),
@@ -244,7 +220,7 @@ func (m *Metamorph) Health(ctx context.Context) (err error) {
 }
 
 // SubmitTransactions submits transactions to the bitcoin network and returns the transaction in raw format.
-func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *TransactionOptions) (txStatuses []*TransactionStatus, err error) {
+func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactions, options *global.TransactionOptions) (txStatuses []*global.TransactionStatus, err error) {
 	attributes := m.tracingAttributes
 	if len(txs) == 1 {
 		attributes = append(m.tracingAttributes, attribute.String("txID", txs[0].TxID().String()))
@@ -271,9 +247,9 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		}
 
 		// parse response and return to user
-		ret := make([]*TransactionStatus, 0)
+		ret := make([]*global.TransactionStatus, 0)
 		for _, tx := range txs {
-			ret = append(ret, &TransactionStatus{
+			ret = append(ret, &global.TransactionStatus{
 				TxID:      tx.TxID().String(),
 				Status:    metamorph_api.Status_QUEUED.String(),
 				Timestamp: m.now().Unix(),
@@ -299,7 +275,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		return nil, err
 	}
 	for _, response := range responses.GetStatuses() {
-		txStatuses = append(txStatuses, &TransactionStatus{
+		txStatuses = append(txStatuses, &global.TransactionStatus{
 			TxID:         response.GetTxid(),
 			MerklePath:   response.GetMerklePath(),
 			Status:       response.GetStatus().String(),
@@ -314,7 +290,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 	return txStatuses, nil
 }
 
-func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_api.PostTransactionRequest {
+func transactionRequest(rawTx []byte, options *global.TransactionOptions) *metamorph_api.PostTransactionRequest {
 	return &metamorph_api.PostTransactionRequest{
 		RawTx:             rawTx,
 		CallbackUrl:       options.CallbackURL,
@@ -323,24 +299,4 @@ func transactionRequest(rawTx []byte, options *TransactionOptions) *metamorph_ap
 		WaitForStatus:     options.WaitForStatus,
 		FullStatusUpdates: options.FullStatusUpdates,
 	}
-}
-
-// TransactionOptions options passed from header when creating transactions.
-type TransactionOptions struct {
-	CallbackURL             string               `json:"callback_url,omitempty"`
-	CallbackToken           string               `json:"callback_token,omitempty"`
-	CallbackBatch           bool                 `json:"callback_batch,omitempty"`
-	SkipFeeValidation       bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation    bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation        bool                 `json:"X-SkipTxValidation,omitempty"`
-	ForceValidation         bool                 `json:"X-ForceValidation,omitempty"`
-	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
-	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
-}
-
-type Transaction struct {
-	TxID        string
-	Bytes       []byte
-	BlockHeight uint64
 }

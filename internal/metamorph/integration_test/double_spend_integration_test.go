@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -48,7 +48,7 @@ const (
 var hashes = []string{"8e75ae10f86d8a43044a54c3c57d660d20cdb74e233be4b5c90ba752ebdc7e88", "d64adfce6b105dc6bdf475494925bf06802a41a0582586f33c2b16d537a0b7b6"}
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	testutils.PruneTables(t, db, "metamorph.transactions")
+	testutils.PruneTables(t, db, "global.Transactions")
 }
 
 func TestDoubleSpendDetection(t *testing.T) {

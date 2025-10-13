@@ -4,12 +4,12 @@ import (
 	"log"
 
 	"github.com/bitcoin-sv/arc/internal/api/dictionary"
+	"github.com/bitcoin-sv/arc/internal/global"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	middleware "github.com/oapi-codegen/echo-middleware"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
 
@@ -32,13 +32,13 @@ func CheckSwagger(e *echo.Echo) *openapi3.T {
 	return swagger
 }
 
-func filterStatusesByTxIDs(txIDs []string, statuses []*metamorph.TransactionStatus) []*metamorph.TransactionStatus {
+func filterStatusesByTxIDs(txIDs []string, statuses []*global.TransactionStatus) []*global.TransactionStatus {
 	if len(txIDs) == 1 && len(statuses) == 1 { // optimization for a common scenario
 		if statuses[0] != nil && statuses[0].TxID == txIDs[0] {
 			return statuses
 		}
 
-		return make([]*metamorph.TransactionStatus, 0)
+		return make([]*global.TransactionStatus, 0)
 	}
 
 	idsMap := make(map[string]struct{})
@@ -46,7 +46,7 @@ func filterStatusesByTxIDs(txIDs []string, statuses []*metamorph.TransactionStat
 		idsMap[id] = struct{}{}
 	}
 
-	filteredStatuses := make([]*metamorph.TransactionStatus, 0)
+	filteredStatuses := make([]*global.TransactionStatus, 0)
 	for _, txStatus := range statuses {
 		if _, ok := idsMap[txStatus.TxID]; ok {
 			filteredStatuses = append(filteredStatuses, txStatus)

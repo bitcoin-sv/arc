@@ -12,7 +12,7 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/global"
 	metamorphMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	txfinder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/internal/tx_finder/mocks"
@@ -35,7 +35,7 @@ func Test_GetRawTxs(t *testing.T) {
 		ids                []string
 		wocGetRawTxsResp   []*woc_client.WocRawTx
 		wocGetRawTxsErr    error
-		thResp             []*metamorph.Transaction
+		thResp             []*global.Transaction
 		getTransactionsErr error
 		nodeRawTxsResp     *sdkTx.Transaction
 		nodeGetRawTxErr    error
@@ -50,7 +50,7 @@ func Test_GetRawTxs(t *testing.T) {
 				"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df",
 				"8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8",
 			},
-			thResp: []*metamorph.Transaction{
+			thResp: []*global.Transaction{
 				{TxID: "24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", Bytes: txBytes1},
 				{TxID: "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8", Bytes: txBytes2},
 			},
@@ -61,20 +61,20 @@ func Test_GetRawTxs(t *testing.T) {
 			name:   "search transaction handler only - not found",
 			source: validator.SourceTransactionHandler,
 			ids:    []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
-			thResp: []*metamorph.Transaction{},
+			thResp: []*global.Transaction{},
 		},
 		{
 			name:               "search transaction handler only - error",
 			source:             validator.SourceTransactionHandler,
 			ids:                []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
-			thResp:             []*metamorph.Transaction{},
+			thResp:             []*global.Transaction{},
 			getTransactionsErr: errors.New("error"),
 		},
 		{
 			name:   "search transaction handler only - malformed hex string",
 			source: validator.SourceTransactionHandler,
 			ids:    []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
-			thResp: []*metamorph.Transaction{
+			thResp: []*global.Transaction{
 				{TxID: "24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", Bytes: []byte("not valid")},
 				{TxID: "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8", Bytes: []byte("not valid")},
 			},
@@ -125,7 +125,7 @@ func Test_GetRawTxs(t *testing.T) {
 			name:   "search transaction handler & WoC - success",
 			source: validator.SourceTransactionHandler | validator.SourceWoC,
 			ids:    []string{"24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8"},
-			thResp: []*metamorph.Transaction{
+			thResp: []*global.Transaction{
 				{TxID: "24953abc1d6e08643b35af5c905f987b44f4e9b8725d318a115324ed8fe5e9df", Bytes: txBytes1},
 				{TxID: "8dfceb6e65ebf90761aab35be2f081767150be9d2c969a44d89e7eab45e306b8", Bytes: txBytes2},
 			},
@@ -157,10 +157,10 @@ func Test_GetRawTxs(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			var transactionHandler metamorph.TransactionHandler
+			var transactionHandler global.TransactionHandler
 			if tc.source.Has(validator.SourceTransactionHandler) {
 				transactionHandler = &metamorphMocks.TransactionHandlerMock{
-					GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+					GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 						return tc.thResp, tc.getTransactionsErr
 					},
 				}

@@ -2,18 +2,15 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
-
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
@@ -22,39 +19,8 @@ var (
 	ErrUpdateCompeting = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
 )
 
-type Data struct {
-	RawTx             []byte
-	StoredAt          time.Time
-	LastModified      time.Time
-	Hash              *chainhash.Hash
-	Status            metamorph_api.Status
-	BlockHeight       uint64
-	BlockHash         *chainhash.Hash
-	Callbacks         []Callback
-	StatusHistory     []*StatusWithTimestamp
-	FullStatusUpdates bool
-	RejectReason      string
-	CompetingTxs      []string
-	LockedBy          string
-	TTL               int64
-	MerklePath        string
-	LastSubmittedAt   time.Time
-	Retries           int
-}
-
-type Callback struct {
-	CallbackURL   string `json:"callback_url"`
-	CallbackToken string `json:"callback_token"`
-	AllowBatch    bool   `json:"allow_batch"`
-}
-
-type StatusWithTimestamp struct {
-	Status    metamorph_api.Status `json:"status"`
-	Timestamp time.Time            `json:"timestamp"`
-}
-
-func NewStatusWithTimestamp(status metamorph_api.Status, timestamp time.Time) StatusWithTimestamp {
-	return StatusWithTimestamp{
+func NewStatusWithTimestamp(status metamorph_api.Status, timestamp time.Time) global.StatusWithTimestamp {
+	return global.StatusWithTimestamp{
 		Status:    status,
 		Timestamp: timestamp,
 	}
@@ -78,23 +44,23 @@ type Stats struct {
 }
 
 type MetamorphStore interface {
-	Get(ctx context.Context, key []byte) (*Data, error)
-	GetMany(ctx context.Context, keys [][]byte) ([]*Data, error)
-	Set(ctx context.Context, value *Data) error
-	SetBulk(ctx context.Context, data []*Data) error
+	Get(ctx context.Context, key []byte) (*global.Data, error)
+	GetMany(ctx context.Context, keys [][]byte) ([]*global.Data, error)
+	Set(ctx context.Context, value *global.Data) error
+	SetBulk(ctx context.Context, data []*global.Data) error
 	Del(ctx context.Context, key []byte) error
 
 	SetLocked(ctx context.Context, since time.Time, limit int64) error
 	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error)
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*Data, error)
-	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*Data, error)
-	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*Data, err error)
-	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*Data, error)
-	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*Data, error)
-	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*Data, error)
-	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*Data, error)
+	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*global.Data, error)
+	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*global.Data, error)
+	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*global.Data, err error)
+	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*global.Data, error)
+	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*global.Data, error)
+	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*global.Data, error)
+	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*global.Data, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error
@@ -108,12 +74,12 @@ type MetamorphStore interface {
 }
 
 type UpdateStatus struct {
-	Hash          chainhash.Hash        `json:"-"`
-	Status        metamorph_api.Status  `json:"status"`
-	Error         error                 `json:"-"`
-	CompetingTxs  []string              `json:"competing_txs"`
-	StatusHistory []StatusWithTimestamp `json:"status_history"`
-	Timestamp     time.Time             `json:"timestamp"`
+	Hash          chainhash.Hash               `json:"-"`
+	Status        metamorph_api.Status         `json:"status"`
+	Error         error                        `json:"-"`
+	CompetingTxs  []string                     `json:"competing_txs"`
+	StatusHistory []global.StatusWithTimestamp `json:"status_history"`
+	Timestamp     time.Time                    `json:"timestamp"`
 	// Fields for marshalling
 	HashStr  string `json:"hash"`
 	ErrorStr string `json:"error"`
@@ -158,58 +124,4 @@ func (u UpdateStatus) MarshalJSON() ([]byte, error) {
 	u.HashStr = u.Hash.String() // Convert hash to string for marshaling
 
 	return json.Marshal((*Alias)(&u))
-}
-
-func (d *Data) UpdateStatusFromSQL(status sql.NullInt32) {
-	if status.Valid {
-		d.Status = metamorph_api.Status(status.Int32)
-	}
-}
-func (d *Data) UpdateBlockHash(blockHash []byte) error {
-	if len(blockHash) > 0 {
-		var err error
-		d.BlockHash, err = chainhash.NewHash(blockHash)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func (d *Data) UpdateTxHash(txHash []byte) error {
-	if len(txHash) > 0 {
-		var err error
-		d.Hash, err = chainhash.NewHash(txHash)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (d *Data) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
-	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
-	if err != nil {
-		return err
-	}
-	if blockHeight.Valid {
-		d.BlockHeight = blockHeightUint64
-	}
-	return nil
-}
-
-func (d *Data) UpdateRetriesFromSQL(retries sql.NullInt32) {
-	if retries.Valid {
-		d.Retries = int(retries.Int32)
-	}
-}
-
-func (d *Data) UpdateLastModifiedFromSQL(lastModified sql.NullTime) {
-	if lastModified.Valid {
-		d.LastModified = lastModified.Time.UTC()
-	}
-}
-func (d *Data) UpdateCompetingTxs(competingTxs sql.NullString) {
-	if competingTxs.String != "" {
-		d.CompetingTxs = strings.Split(competingTxs.String, ",")
-	}
 }

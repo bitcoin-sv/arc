@@ -10,15 +10,13 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
 )
 
-var (
-	ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from node client")
-)
+var ErrFailedToGetMempoolAncestors = errors.New("failed to get mempool ancestors from node client")
 
 const (
 	deadline  = 10 * time.Second
@@ -27,7 +25,7 @@ const (
 )
 
 type Finder struct {
-	transactionHandler metamorph.TransactionHandler
+	transactionHandler global.TransactionHandler
 	nodeClient         NodeClient
 	wocClient          WocClient
 	logger             *slog.Logger
@@ -57,7 +55,7 @@ func WithTracerFinder(attr ...attribute.KeyValue) func(s *Finder) {
 	}
 }
 
-func New(th metamorph.TransactionHandler, nodeClient NodeClient, wocClient WocClient, logger *slog.Logger, opts ...func(f *Finder)) *Finder {
+func New(th global.TransactionHandler, nodeClient NodeClient, wocClient WocClient, logger *slog.Logger, opts ...func(f *Finder)) *Finder {
 	logger = logger.With(slog.String("module", "tx-finder"))
 
 	f := &Finder{
@@ -112,7 +110,7 @@ func (f Finder) getRawTxsFromTransactionHandler(ctx context.Context, remainingID
 	var foundTxs []*sdkTx.Transaction
 
 	ids := getKeys(remainingIDs)
-	var thTxs []*metamorph.Transaction
+	var thTxs []*global.Transaction
 	var err error
 	thTxs, err = f.transactionHandler.GetTransactions(ctx, ids)
 	if err != nil {

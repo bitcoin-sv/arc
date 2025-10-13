@@ -12,7 +12,7 @@ import (
 	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
@@ -67,6 +67,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 
 	return bitcoinHandler, nil
 }
+
 func (c *CustomHandler) GETPolicy(ctx echo.Context) error {
 	// custom get policy logic
 	arcPolicy := bitcoin.Settings{}

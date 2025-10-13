@@ -1,1 +1,1 @@
-ALTER TABLE metamorph.transactions ALTER COLUMN status SET DEFAULT 3;
+ALTER TABLE global.Transactions ALTER COLUMN status SET DEFAULT 3;

@@ -1,13 +1,13 @@
 package metamorph
 
 import (
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 )
 
 type ProcessorRequest struct {
-	Data            *store.Data
+	Data            *global.Data
 	ResponseChannel chan StatusAndError
 }
 

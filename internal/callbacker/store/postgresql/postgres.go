@@ -8,20 +8,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
-
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 const (
 	postgresDriverName = "postgres"
 )
 
-var (
-	ErrFailedToOpenDB = errors.New("failed to open postgres DB")
-)
+var ErrFailedToOpenDB = errors.New("failed to open postgres DB")
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	return func(m *PostgreSQL) {
@@ -280,7 +277,6 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			&ts,
 			&r.AllowBatch,
 		)
-
 		if err != nil {
 			return nil, err
 		}

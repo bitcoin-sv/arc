@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -25,7 +26,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 	now := time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC)
 	tt := []struct {
 		name               string
-		options            *metamorph.TransactionOptions
+		options            *global.TransactionOptions
 		putTxErr           error
 		putTxStatus        *metamorph_api.TransactionStatus
 		getTxErr           error
@@ -34,11 +35,11 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		publishSubmitTxErr error
 
 		expectedErrorStr string
-		expectedStatus   *metamorph.TransactionStatus
+		expectedStatus   *global.TransactionStatus
 	}{
 		{
 			name: "wait for received",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
@@ -46,7 +47,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Status: metamorph_api.Status_RECEIVED,
 			},
 
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
 				Timestamp: now.Unix(),
@@ -54,7 +55,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for seen - double spend attempted",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
@@ -63,7 +64,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				CompetingTxs: []string{"1234"},
 			},
 
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:         testdata.TX1Hash.String(),
 				Status:       metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED.String(),
 				Timestamp:    now.Unix(),
@@ -72,7 +73,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
@@ -87,7 +88,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err deadline exceeded",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
@@ -100,7 +101,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Status: metamorph_api.Status_RECEIVED,
 			},
 
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
 				Timestamp: now.Unix(),
@@ -108,7 +109,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err deadline exceeded, get tx err",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatus{
@@ -118,7 +119,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			},
 			withMqClient: false,
 			getTxErr:     errors.New("failed to get tx status"),
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
 				Timestamp: now.Unix(),
@@ -126,12 +127,12 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for queued, with mq client",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 			withMqClient: true,
 
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_QUEUED.String(),
 				Timestamp: now.Unix(),
@@ -139,7 +140,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 		},
 		{
 			name: "wait for queued, with mq client, publish submit tx err",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 			withMqClient:       true,
@@ -184,7 +185,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			defer cancel()
 			txStatuses, err := client.SubmitTransactions(timeoutCtx, sdkTx.Transactions{tx}, tc.options)
 
-			var txStatus *metamorph.TransactionStatus
+			var txStatus *global.TransactionStatus
 			if len(txStatuses) != 0 {
 				txStatus = txStatuses[0]
 			}
@@ -209,7 +210,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 	require.NoError(t, err)
 	tt := []struct {
 		name               string
-		options            *metamorph.TransactionOptions
+		options            *global.TransactionOptions
 		putTxErr           error
 		putTxStatus        *metamorph_api.TransactionStatuses
 		getTxErr           error
@@ -218,11 +219,11 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		publishSubmitTxErr error
 
 		expectedErrorStr string
-		expectedStatuses []*metamorph.TransactionStatus
+		expectedStatuses []*global.TransactionStatus
 	}{
 		{
 			name: "wait for received",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatuses{
@@ -242,7 +243,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 				},
 			},
 
-			expectedStatuses: []*metamorph.TransactionStatus{
+			expectedStatuses: []*global.TransactionStatus{
 				{
 					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
@@ -262,7 +263,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err, no mq client",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatuses{
@@ -289,7 +290,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err deadline exceeded",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatuses{
@@ -314,7 +315,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 				Status: metamorph_api.Status_RECEIVED,
 			},
 
-			expectedStatuses: []*metamorph.TransactionStatus{
+			expectedStatuses: []*global.TransactionStatus{
 				{
 					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
@@ -334,7 +335,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		},
 		{
 			name: "wait for received, put tx err deadline exceeded, get tx err",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 			putTxStatus: &metamorph_api.TransactionStatuses{
@@ -356,7 +357,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			withMqClient: false,
 			getTxErr:     errors.New("failed to get tx status"),
 
-			expectedStatuses: []*metamorph.TransactionStatus{
+			expectedStatuses: []*global.TransactionStatus{
 				{
 					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_RECEIVED.String(),
@@ -376,12 +377,12 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		},
 		{
 			name: "wait for queued, with mq client",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 			withMqClient: true,
 
-			expectedStatuses: []*metamorph.TransactionStatus{
+			expectedStatuses: []*global.TransactionStatus{
 				{
 					TxID:      tx1.TxID().String(),
 					Status:    metamorph_api.Status_QUEUED.String(),
@@ -401,7 +402,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 		},
 		{
 			name: "wait for queued, with mq client, publish submit tx err",
-			options: &metamorph.TransactionOptions{
+			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 			withMqClient:       true,
@@ -606,7 +607,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 		txID           string
 		mockResp       *metamorph_api.TransactionStatus
 		mockErr        error
-		expectedStatus *metamorph.TransactionStatus
+		expectedStatus *global.TransactionStatus
 		expectedErrStr string
 	}{
 		{
@@ -637,7 +638,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 				RejectReason: "none",
 				CompetingTxs: []string{"competingTx1"},
 			},
-			expectedStatus: &metamorph.TransactionStatus{
+			expectedStatus: &global.TransactionStatus{
 				TxID:         "testTxID2",
 				MerklePath:   "sampleMerklePath",
 				Status:       metamorph_api.Status_MINED.String(),

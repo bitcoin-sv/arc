@@ -8,10 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 )
 
 func TestCheckSwagger(t *testing.T) {
@@ -41,36 +40,36 @@ func TestFilterStatusesByTxIDs(t *testing.T) {
 	tcs := []struct {
 		name     string
 		txIDs    []string
-		statuses []*metamorph.TransactionStatus
-		expected []*metamorph.TransactionStatus
+		statuses []*global.TransactionStatus
+		expected []*global.TransactionStatus
 	}{
 		{
 			name:  "Single txID with matching status",
 			txIDs: []string{"tx1"},
-			statuses: []*metamorph.TransactionStatus{
+			statuses: []*global.TransactionStatus{
 				{TxID: "tx1"},
 			},
-			expected: []*metamorph.TransactionStatus{
+			expected: []*global.TransactionStatus{
 				{TxID: "tx1"},
 			},
 		},
 		{
 			name:  "Single txID with non-matching status",
 			txIDs: []string{"tx1"},
-			statuses: []*metamorph.TransactionStatus{
+			statuses: []*global.TransactionStatus{
 				{TxID: "tx2"},
 			},
-			expected: []*metamorph.TransactionStatus{},
+			expected: []*global.TransactionStatus{},
 		},
 		{
 			name:  "Multiple txIDs with some matching statuses",
 			txIDs: []string{"tx1", "tx3"},
-			statuses: []*metamorph.TransactionStatus{
+			statuses: []*global.TransactionStatus{
 				{TxID: "tx1"},
 				{TxID: "tx2"},
 				{TxID: "tx3"},
 			},
-			expected: []*metamorph.TransactionStatus{
+			expected: []*global.TransactionStatus{
 				{TxID: "tx1"},
 				{TxID: "tx3"},
 			},
@@ -78,17 +77,17 @@ func TestFilterStatusesByTxIDs(t *testing.T) {
 		{
 			name:  "No txIDs",
 			txIDs: []string{},
-			statuses: []*metamorph.TransactionStatus{
+			statuses: []*global.TransactionStatus{
 				{TxID: "tx1"},
 				{TxID: "tx2"},
 			},
-			expected: []*metamorph.TransactionStatus{},
+			expected: []*global.TransactionStatus{},
 		},
 		{
 			name:     "No statuses",
 			txIDs:    []string{"tx1", "tx2"},
-			statuses: []*metamorph.TransactionStatus{},
-			expected: []*metamorph.TransactionStatus{},
+			statuses: []*global.TransactionStatus{},
+			expected: []*global.TransactionStatus{},
 		},
 	}
 
@@ -112,9 +111,9 @@ func BenchmarkFilterStatusesByTxIDs(b *testing.B) {
 				txIDs[i] = fmt.Sprintf("tx-%d", i)
 			}
 
-			statuses := make([]*metamorph.TransactionStatus, n)
+			statuses := make([]*global.TransactionStatus, n)
 			for i := 0; i < n; i++ {
-				statuses[i] = &metamorph.TransactionStatus{TxID: fmt.Sprintf("tx-%d", i)}
+				statuses[i] = &global.TransactionStatus{TxID: fmt.Sprintf("tx-%d", i)}
 			}
 
 			b.ResetTimer()

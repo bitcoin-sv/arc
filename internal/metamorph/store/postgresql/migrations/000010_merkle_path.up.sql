@@ -1,3 +1,3 @@
-ALTER TABLE metamorph.transactions ADD COLUMN merkle_path TEXT DEFAULT '' :: TEXT;
+ALTER TABLE global.Transactions ADD COLUMN merkle_path TEXT DEFAULT '' :: TEXT;
 
 DROP TABLE metamorph.blocks;

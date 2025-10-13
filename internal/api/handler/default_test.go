@@ -27,7 +27,8 @@ import (
 
 	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/global"
+	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
@@ -92,21 +93,21 @@ var (
 		AcceptNonStdConsolidationInput:  false,
 	}
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	txResult   = &metamorph.TransactionStatus{
+	txResult   = &global.TransactionStatus{
 		TxID:        validTxID,
 		BlockHash:   "",
 		BlockHeight: 0,
 		Status:      "OK",
 		Timestamp:   time.Now().Unix(),
 	}
-	beefTxResult = &metamorph.TransactionStatus{
+	beefTxResult = &global.TransactionStatus{
 		TxID:        validBeefTxID,
 		BlockHash:   "",
 		BlockHeight: 0,
 		Status:      "OK",
 		Timestamp:   time.Now().Unix(),
 	}
-	txResults = []*metamorph.TransactionStatus{
+	txResults = []*global.TransactionStatus{
 		{
 			TxID:        validBeefTxID,
 			BlockHash:   "",
@@ -122,7 +123,7 @@ var (
 			Timestamp:   time.Now().Unix(),
 		},
 	}
-	txCallbackResults = []*metamorph.TransactionStatus{
+	txCallbackResults = []*global.TransactionStatus{
 		{
 			TxID:        validBeefTxID,
 			BlockHash:   "",
@@ -223,7 +224,7 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check success", func(t *testing.T) {
-		txHandler := &mtmMocks.TransactionHandlerMock{
+		txHandler := &btxMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
@@ -255,7 +256,7 @@ func TestGETHealth(t *testing.T) {
 	})
 
 	t.Run("health check fail", func(t *testing.T) {
-		txHandler := &mtmMocks.TransactionHandlerMock{
+		txHandler := &btxMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return errors.New("some connection error")
 			},
@@ -314,7 +315,6 @@ func TestValidateCallbackURL(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateCallbackURL(tc.callbackURL, []string{"http://localhost"})
-
 			if err != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -327,7 +327,7 @@ func TestValidateCallbackURL(t *testing.T) {
 func TestGETTransactionStatus(t *testing.T) {
 	tt := []struct {
 		name                 string
-		txHandlerStatusFound *metamorph.TransactionStatus
+		txHandlerStatusFound *global.TransactionStatus
 		txHandlerErr         error
 
 		expectedStatus   api.StatusCode
@@ -335,7 +335,7 @@ func TestGETTransactionStatus(t *testing.T) {
 	}{
 		{
 			name: "success",
-			txHandlerStatusFound: &metamorph.TransactionStatus{
+			txHandlerStatusFound: &global.TransactionStatus{
 				TxID:      "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 				Status:    "SEEN_ON_NETWORK",
 				Timestamp: time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
@@ -354,7 +354,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		},
 		{
 			name: "success - double spend attempted",
-			txHandlerStatusFound: &metamorph.TransactionStatus{
+			txHandlerStatusFound: &global.TransactionStatus{
 				TxID:         "c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46",
 				Status:       "DOUBLE_SPEND_ATTEMPTED",
 				Timestamp:    time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC).Unix(),
@@ -403,8 +403,8 @@ func TestGETTransactionStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
-			txHandler := &mtmMocks.TransactionHandlerMock{
-				GetTransactionStatusFunc: func(_ context.Context, _ string) (*metamorph.TransactionStatus, error) {
+			txHandler := &btxMocks.TransactionHandlerMock{
+				GetTransactionStatusFunc: func(_ context.Context, _ string) (*global.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
 			}
@@ -465,7 +465,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 		contentType                string
 		txHexString                string
 		getTx                      []byte
-		submitTxResponse           *metamorph.TransactionStatus
+		submitTxResponse           *global.TransactionStatus
 		submitTxErr                error
 		validateTransactionErr     error
 		validateBeefTransactionErr error
@@ -547,7 +547,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validTx,
 			getTx:       validTxParentBytes,
 			expectedFee: 1000,
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID: "",
 			},
 			validateTransactionErr: validator.NewError(defaultvalidator.ErrTxFeeTooLow, api.ErrStatusFees),
@@ -573,7 +573,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validExtendedTx,
 			getTx:       inputTxLowFeesBytes,
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:        validTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -600,7 +600,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			txHexString: validExtendedTx,
 			getTx:       inputTxLowFeesBytes,
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:         validTxID,
 				BlockHash:    "",
 				BlockHeight:  0,
@@ -655,7 +655,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[0],
 			txHexString: validBeef,
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:        validBeefTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -681,7 +681,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[1],
 			txHexString: fmt.Sprintf("{\"rawTx\": \"%s\"}", validBeef),
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:        validBeefTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -707,7 +707,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[1],
 			txHexString: fmt.Sprintf("{\"rawTx\": \"%s\"}", validBeef1MinexTx),
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:        validBeef1MinexTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -733,7 +733,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 			contentType: contentTypes[2],
 			txHexString: string(validBeefBytes),
 
-			submitTxResponse: &metamorph.TransactionStatus{
+			submitTxResponse: &global.TransactionStatus{
 				TxID:        validBeefTxID,
 				BlockHash:   "",
 				BlockHeight: 0,
@@ -764,32 +764,32 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				policy.MinMiningTxFee = float64(tc.expectedFee)
 			}
 
-			txHandler := &mtmMocks.TransactionHandlerMock{
+			txHandler := &btxMocks.TransactionHandlerMock{
 				HealthFunc: func(_ context.Context) error {
 					return nil
 				},
 
-				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					if tc.getTx != nil {
 						tx, _ := sdkTx.NewTransactionFromBytes(tc.getTx)
 
-						mt := metamorph.Transaction{
+						mt := global.Transaction{
 							TxID:        tx.TxID().String(),
 							Bytes:       tc.getTx,
 							BlockHeight: 100,
 						}
-						return []*metamorph.Transaction{&mt}, nil
+						return []*global.Transaction{&mt}, nil
 					}
 
 					return nil, nil
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
 					return nil, metamorph.ErrTransactionNotFound
 				},
 
-				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					return []*metamorph.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					return []*global.TransactionStatus{tc.submitTxResponse}, tc.submitTxErr
 				},
 			}
 
@@ -920,17 +920,17 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					var txStatuses []*metamorph.TransactionStatus
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					var txStatuses []*global.TransactionStatus
 					return txStatuses, nil
 				},
 
-				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					return nil, metamorph.ErrTransactionNotFound
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 
 				HealthFunc: func(_ context.Context) error {
@@ -954,13 +954,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					txStatuses := []*metamorph.TransactionStatus{txResult}
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					txStatuses := []*global.TransactionStatus{txResult}
 					return txStatuses, nil
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 
 				HealthFunc: func(_ context.Context) error {
@@ -988,8 +988,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				HealthFunc: func(_ context.Context) error {
 					return nil
 				},
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 			},
 		},
@@ -1004,13 +1004,13 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(validBeefBytes),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					txStatuses := []*metamorph.TransactionStatus{beefTxResult}
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					txStatuses := []*global.TransactionStatus{beefTxResult}
 					return txStatuses, nil
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 
 				HealthFunc: func(_ context.Context) error {
@@ -1034,9 +1034,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
-					return []*metamorph.Transaction{
+					return []*global.Transaction{
 						{
 							TxID:        tx.TxID().String(),
 							Bytes:       validTxParentBytes,
@@ -1044,11 +1044,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 						},
 					}, nil
 				},
-				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					var res []*metamorph.TransactionStatus
+				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					var res []*global.TransactionStatus
 					for _, t := range txs {
 						txID := t.TxID()
-						if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+						if status, found := find(txResults, func(e *global.TransactionStatus) bool { return e.TxID == txID.String() }); found {
 							res = append(res, status)
 						}
 					}
@@ -1056,8 +1056,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 					return res, nil
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 
 				HealthFunc: func(_ context.Context) error {
@@ -1081,9 +1081,9 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
-					return []*metamorph.Transaction{
+					return []*global.Transaction{
 						{
 							TxID:        tx.TxID().String(),
 							Bytes:       validTxParentBytes,
@@ -1091,11 +1091,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 						},
 					}, nil
 				},
-				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
-					var res []*metamorph.TransactionStatus
+				SubmitTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
+					var res []*global.TransactionStatus
 					for _, t := range txs {
 						txID := t.TxID()
-						if status, found := find(txResults, func(e *metamorph.TransactionStatus) bool { return e.TxID == txID.String() }); found {
+						if status, found := find(txResults, func(e *global.TransactionStatus) bool { return e.TxID == txID.String() }); found {
 							res = append(res, status)
 						}
 					}
@@ -1103,8 +1103,8 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 					return res, nil
 				},
 
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
-					return make([]*metamorph.TransactionStatus, 0), nil
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
+					return make([]*global.TransactionStatus, 0), nil
 				},
 
 				HealthFunc: func(_ context.Context) error {
@@ -1133,10 +1133,10 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
 			txHandler: &mtmMocks.TransactionHandlerMock{
-				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*metamorph.TransactionStatus, error) {
+				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
 					return txCallbackResults, nil
 				},
-				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 					return txCallbackResults, nil
 				},
 			},
@@ -1151,11 +1151,11 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			//given
+			// given
 			btxClient := &btxMocks.ClientMock{}
 			sut, err := NewDefault(testLogger, tc.txHandler, btxClient, defaultPolicy, tc.dv, tc.bv)
 			require.NoError(t, err)
-			//when then
+			// when then
 			testPOSTTransactionsContentTypes(t, sut, tc)
 			testPOSTTransactionsInputTxs(t, sut, tc)
 			testPOSTTransactionsExpectedErrors(t, sut, tc)
@@ -1191,7 +1191,7 @@ func testPOSTTransactionsExpectedErrors(t *testing.T, sut *ArcDefaultHandler, tc
 
 func testPOSTTransactionsInputTxs(t *testing.T, sut *ArcDefaultHandler, tc PostTransactionsTest) {
 	if tc.skipProcessing {
-		//when
+		// when
 		callbackURL := "https://callback.example.com"
 		rec, ctx := createEchoPostRequest(strings.NewReader("[{\"rawTx\":\""+validBeef+"\"}, {\"rawTx\":\""+validTx+"\"}]"), echo.MIMEApplicationJSON, "/v1/txs")
 		err := sut.POSTTransactions(ctx, api.POSTTransactionsParams{
@@ -1347,19 +1347,19 @@ func TestGetTransactionOptions(t *testing.T) {
 		params api.POSTTransactionsParams
 
 		expectedError   error
-		expectedOptions *metamorph.TransactionOptions
+		expectedOptions *global.TransactionOptions
 	}{
 		{
 			name:   "no options",
 			params: api.POSTTransactionsParams{},
 
-			expectedOptions: &metamorph.TransactionOptions{},
+			expectedOptions: &global.TransactionOptions{},
 		},
 		{
 			name:   "max timeout",
 			params: api.POSTTransactionsParams{},
 
-			expectedOptions: &metamorph.TransactionOptions{},
+			expectedOptions: &global.TransactionOptions{},
 		},
 		{
 			name: "valid callback url",
@@ -1368,7 +1368,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XCallbackToken: PtrTo("1234"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				CallbackURL:   "http://api.callme.com",
 				CallbackToken: "1234",
 			},
@@ -1387,7 +1387,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitFor: PtrTo("QUEUED"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
 		},
@@ -1397,7 +1397,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitFor: PtrTo("RECEIVED"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_RECEIVED,
 			},
 		},
@@ -1407,7 +1407,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitFor: PtrTo("SENT_TO_NETWORK"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_SENT_TO_NETWORK,
 			},
 		},
@@ -1417,7 +1417,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitFor: PtrTo("ACCEPTED_BY_NETWORK"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			},
 		},
@@ -1427,7 +1427,7 @@ func TestGetTransactionOptions(t *testing.T) {
 				XWaitFor: PtrTo("SEEN_ON_NETWORK"),
 			},
 
-			expectedOptions: &metamorph.TransactionOptions{
+			expectedOptions: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_SEEN_ON_NETWORK,
 			},
 		},

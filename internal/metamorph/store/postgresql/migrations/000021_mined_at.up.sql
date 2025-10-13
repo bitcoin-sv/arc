@@ -1,2 +1,2 @@
 
-ALTER TABLE metamorph.transactions ADD COLUMN mined_at TIMESTAMPTZ;
+ALTER TABLE global.Transactions ADD COLUMN mined_at TIMESTAMPTZ;

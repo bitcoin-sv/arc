@@ -1,1 +1,1 @@
-ALTER TABLE metamorph.transactions DROP COLUMN merkle_proof;
+ALTER TABLE global.Transactions DROP COLUMN merkle_proof;

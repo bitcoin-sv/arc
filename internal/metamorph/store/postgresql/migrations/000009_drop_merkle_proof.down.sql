@@ -1,1 +1,1 @@
-ALTER TABLE metamorph.transactions ADD COLUMN merkle_proof TEXT;
+ALTER TABLE global.Transactions ADD COLUMN merkle_proof TEXT;

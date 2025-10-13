@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -50,7 +50,7 @@ func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logg
 	return c
 }
 
-func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
+func (c GrpcCallbacker) SendCallback(ctx context.Context, data *global.Data) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "SendCallback", c.tracingEnabled, c.tracingAttributes...)
 	defer func() {
@@ -74,7 +74,7 @@ func (c GrpcCallbacker) SendCallback(ctx context.Context, data *store.Data) {
 	}
 }
 
-func toGrpcInputs(data *store.Data) []*callbacker_api.SendRequest {
+func toGrpcInputs(data *global.Data) []*callbacker_api.SendRequest {
 	requests := make([]*callbacker_api.SendRequest, 0, len(data.Callbacks))
 
 	for _, c := range data.Callbacks {
@@ -102,7 +102,7 @@ func toGrpcInputs(data *store.Data) []*callbacker_api.SendRequest {
 	return requests
 }
 
-func getCallbackExtraInfo(data *store.Data) string {
+func getCallbackExtraInfo(data *global.Data) string {
 	if data.Status == metamorph_api.Status_MINED && len(data.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -110,7 +110,7 @@ func getCallbackExtraInfo(data *store.Data) string {
 	return data.RejectReason
 }
 
-func getCallbackCompetitingTxs(data *store.Data) []string {
+func getCallbackCompetitingTxs(data *global.Data) []string {
 	if data.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -118,7 +118,7 @@ func getCallbackCompetitingTxs(data *store.Data) []string {
 	return data.CompetingTxs
 }
 
-func getCallbackBlockHash(data *store.Data) string {
+func getCallbackBlockHash(data *global.Data) string {
 	if data.BlockHash == nil {
 		return ""
 	}

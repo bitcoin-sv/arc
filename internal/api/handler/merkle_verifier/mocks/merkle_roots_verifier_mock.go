@@ -5,32 +5,33 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"sync"
 )
 
-// Ensure, that MerkleRootsVerifierMock does implement blocktx.MerkleRootsVerifier.
+// Ensure, that MerkleRootsVerifierMock does implement global.MerkleRootsVerifier.
 // If this is not the case, regenerate this file with moq.
-var _ blocktx.MerkleRootsVerifier = &MerkleRootsVerifierMock{}
+var _ global.MerkleRootsVerifier = &MerkleRootsVerifierMock{}
 
-// MerkleRootsVerifierMock is a mock implementation of blocktx.MerkleRootsVerifier.
+// MerkleRootsVerifierMock is a mock implementation of global.MerkleRootsVerifier.
 //
 //	func TestSomethingThatUsesMerkleRootsVerifier(t *testing.T) {
 //
-//		// make and configure a mocked blocktx.MerkleRootsVerifier
+//		// make and configure a mocked global.MerkleRootsVerifier
 //		mockedMerkleRootsVerifier := &MerkleRootsVerifierMock{
-//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+//			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest) ([]uint64, error) {
 //				panic("mock out the VerifyMerkleRoots method")
 //			},
 //		}
 //
-//		// use mockedMerkleRootsVerifier in code that requires blocktx.MerkleRootsVerifier
+//		// use mockedMerkleRootsVerifier in code that requires global.MerkleRootsVerifier
 //		// and then make assertions.
 //
 //	}
 type MerkleRootsVerifierMock struct {
 	// VerifyMerkleRootsFunc mocks the VerifyMerkleRoots method.
-	VerifyMerkleRootsFunc func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error)
+	VerifyMerkleRootsFunc func(ctx context.Context, merkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest) ([]uint64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -39,20 +40,20 @@ type MerkleRootsVerifierMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// MerkleRootVerificationRequest is the merkleRootVerificationRequest argument value.
-			MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
+			MerkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest
 		}
 	}
 	lockVerifyMerkleRoots sync.RWMutex
 }
 
 // VerifyMerkleRoots calls VerifyMerkleRootsFunc.
-func (mock *MerkleRootsVerifierMock) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
+func (mock *MerkleRootsVerifierMock) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest) ([]uint64, error) {
 	if mock.VerifyMerkleRootsFunc == nil {
 		panic("MerkleRootsVerifierMock.VerifyMerkleRootsFunc: method is nil but MerkleRootsVerifier.VerifyMerkleRoots was just called")
 	}
 	callInfo := struct {
 		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
+		MerkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest
 	}{
 		Ctx:                           ctx,
 		MerkleRootVerificationRequest: merkleRootVerificationRequest,
@@ -69,11 +70,11 @@ func (mock *MerkleRootsVerifierMock) VerifyMerkleRoots(ctx context.Context, merk
 //	len(mockedMerkleRootsVerifier.VerifyMerkleRootsCalls())
 func (mock *MerkleRootsVerifierMock) VerifyMerkleRootsCalls() []struct {
 	Ctx                           context.Context
-	MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
+	MerkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest
 } {
 	var calls []struct {
 		Ctx                           context.Context
-		MerkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest
+		MerkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest
 	}
 	mock.lockVerifyMerkleRoots.RLock()
 	calls = mock.calls.VerifyMerkleRoots

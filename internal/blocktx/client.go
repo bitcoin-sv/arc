@@ -9,27 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 )
 
-// check if BtxClient implements all necessary interfaces
-var _ MerkleRootsVerifier = &BtxClient{}
-var _ Client = &BtxClient{}
-
-// MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
-type MerkleRootsVerifier interface {
-	// VerifyMerkleRoots verifies the merkle roots existence in blocktx db and returns unverified block heights.
-	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error)
-}
-
-var (
-	ErrRegisterTransaction = errors.New("failed to register transaction")
-)
-
-type Client interface {
-	AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
-	RegisterTransaction(ctx context.Context, hash []byte) error
-	RegisterTransactions(ctx context.Context, hashes [][]byte) error
-	CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error)
-	LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error)
-}
+var ErrRegisterTransaction = errors.New("failed to register transaction")
 
 type MerkleRootVerificationRequest struct {
 	MerkleRoot  string

@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -14,8 +14,8 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/mocks"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
 
 func TestSendGRPCCallback(t *testing.T) {
@@ -23,25 +23,25 @@ func TestSendGRPCCallback(t *testing.T) {
 		name          string
 		expectedCalls int
 		err           error
-		data          *store.Data
+		data          *global.Data
 	}{
 		{
 			name:          "empty callbacks",
 			expectedCalls: 0,
-			data: &store.Data{
+			data: &global.Data{
 				Status:    metamorph_api.Status_UNKNOWN,
 				Hash:      &chainhash.Hash{},
-				Callbacks: []store.Callback{},
+				Callbacks: []global.Callback{},
 			},
 		},
 		{
 			name:          "empty url",
 			expectedCalls: 0,
 
-			data: &store.Data{
+			data: &global.Data{
 				Status: metamorph_api.Status_UNKNOWN,
 				Hash:   &chainhash.Hash{},
-				Callbacks: []store.Callback{
+				Callbacks: []global.Callback{
 					{
 						CallbackURL: "",
 					},
@@ -51,10 +51,10 @@ func TestSendGRPCCallback(t *testing.T) {
 		{
 			name:          "expected call",
 			expectedCalls: 1,
-			data: &store.Data{
+			data: &global.Data{
 				Status: metamorph_api.Status_UNKNOWN,
 				Hash:   &chainhash.Hash{},
-				Callbacks: []store.Callback{
+				Callbacks: []global.Callback{
 					{
 						CallbackURL: "http://someurl.comg",
 					},

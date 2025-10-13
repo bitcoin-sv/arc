@@ -8,8 +8,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
+	chhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/bsvutil"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -97,8 +98,9 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 		}
 
 		hash := txMsg.TxHash()
+		ch, _ := chhash.NewHashFromStr(hash.String())
 		h.messageCh <- &TxStatusMessage{
-			Hash:   &hash,
+			Hash:   ch,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   peer.String(),
 			Start:  h.now(),
@@ -116,15 +118,16 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 
 	go func() {
 		for _, iv := range msg.InvList {
+			ch, _ := chhash.NewHashFromStr(iv.Hash.String())
 			if iv.Type == wire.InvTypeTx {
 				select {
 				case h.messageCh <- &TxStatusMessage{
-					Hash:   &iv.Hash,
+					Hash:   ch,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
 					Start:  h.now(),
 				}:
-				default: // Ensure that writing to channel is non-blocking
+				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
 				}
 			}
 			// ignore INV with block or error
@@ -139,8 +142,10 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 	}
 
 	hash := msg.TxHash()
+	ch, _ := chhash.NewHashFromStr(hash.String())
+
 	h.messageCh <- &TxStatusMessage{
-		Hash:          &hash,
+		Hash:          ch,
 		Status:        metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:          peer.String(),
 		Start:         h.now(),
@@ -154,8 +159,9 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) 
 		return
 	}
 
+	ch, _ := chhash.NewHashFromStr(msg.Hash.String())
 	h.messageCh <- &TxStatusMessage{
-		Hash:   &msg.Hash,
+		Hash:   ch,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
 		Err:    errors.Join(ErrTxRejectedByPeer, fmt.Errorf("peer: %s reason: %s", peer.String(), msg.Reason)),
@@ -169,7 +175,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 		return
 	}
 
-	// do not block the main goroutine
+	// do not block main goroutine
 	go func(msg *wire.MsgGetData, peer p2p.PeerI) {
 		// handle tx INV
 		txRequests := make([][]byte, 0, len(msg.InvList))
@@ -194,8 +200,9 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 				continue
 			}
 
+			ch, _ := chhash.NewHashFromStr(tx.Hash().String())
 			h.messageCh <- &TxStatusMessage{
-				Hash:   tx.Hash(),
+				Hash:   ch,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   peer.String(),
 				Start:  h.now(),

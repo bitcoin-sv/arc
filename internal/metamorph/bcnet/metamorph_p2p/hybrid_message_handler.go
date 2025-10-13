@@ -5,6 +5,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	chhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
 
@@ -54,10 +55,11 @@ func (h *HybridMsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.Peer
 
 	go func() {
 		for _, iv := range msg.InvList {
+			ch, _ := chhash.NewHashFromStr(iv.Hash.String())
 			if iv.Type == wire.InvTypeTx {
 				select {
 				case h.messageCh <- &TxStatusMessage{
-					Hash:   &iv.Hash,
+					Hash:   ch,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
 				}:
@@ -76,8 +78,9 @@ func (h *HybridMsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI
 	}
 
 	hash := msg.TxHash()
+	ch, _ := chhash.NewHashFromStr(hash.String())
 	h.messageCh <- &TxStatusMessage{
-		Hash:   &hash,
+		Hash:   ch,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
 	}

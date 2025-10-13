@@ -17,10 +17,15 @@ type HealthWatchServer interface {
 }
 
 func (s *Server) List(_ context.Context, _ *grpc_health_v1.HealthListRequest) (*grpc_health_v1.HealthListResponse, error) {
+	serverStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	if s.handler.CurrentBlockHeight() > 0 {
+		serverStatus = grpc_health_v1.HealthCheckResponse_SERVING
+	}
+
 	listResp := &grpc_health_v1.HealthListResponse{
 		Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
 			"server": {
-				Status: grpc_health_v1.HealthCheckResponse_SERVING,
+				Status: serverStatus,
 			},
 		},
 	}

@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 
+	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -155,6 +157,97 @@ func TestWatch(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
+		})
+	}
+}
+
+func TestList(t *testing.T) {
+	tt := []struct {
+		name           string
+		pingErr        error
+		connectedPeers uint
+
+		expectedStatus *grpc_health_v1.HealthListResponse
+	}{
+		{
+			name:           "success",
+			pingErr:        nil,
+			connectedPeers: 1,
+
+			expectedStatus: &grpc_health_v1.HealthListResponse{
+				Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
+					"server": {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"mq":     {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"store":  {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"peers":  {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+				},
+			},
+		},
+		{
+			name:           "readiness - peer not found",
+			pingErr:        nil,
+			connectedPeers: 0,
+
+			expectedStatus: &grpc_health_v1.HealthListResponse{
+				Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
+					"server": {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"mq":     {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"store":  {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"peers":  {Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING},
+				},
+			},
+		},
+		{
+			name:           "readiness - db error - not connected",
+			pingErr:        errors.New("not connected"),
+			connectedPeers: 1,
+
+			expectedStatus: &grpc_health_v1.HealthListResponse{
+				Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
+					"server": {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"mq":     {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+					"store":  {Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING},
+					"peers":  {Status: grpc_health_v1.HealthCheckResponse_SERVING},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			storeMock := &storeMocks.BlocktxStoreMock{
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
+					return nil, nil
+				},
+				PingFunc: func(_ context.Context) error {
+					return tc.pingErr
+				},
+			}
+			mqClient := &mqMocks.MessageQueueClientMock{
+				StatusFunc: func() nats.Status {
+					return nats.CONNECTED
+				},
+			}
+
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			pm := &mocks.PeerManagerMock{
+				CountConnectedPeersFunc: func() uint {
+					return tc.connectedPeers
+				},
+			}
+			serverCfg := grpc_utils.ServerConfig{}
+
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			// when
+			resp, err := sut.List(context.Background(), &grpc_health_v1.HealthListRequest{})
+
+			// then
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, resp)
 		})
 	}
 }

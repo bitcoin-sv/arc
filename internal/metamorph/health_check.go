@@ -32,17 +32,10 @@ func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) 
 		storeStatus = grpc_health_v1.HealthCheckResponse_SERVING
 	}
 
-	healthyConnections := 0
-	for _, peer := range s.processor.GetPeers() {
-		if peer.Connected() {
-			healthyConnections++
-			continue
-		}
-	}
-
-	peerStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
-	if healthyConnections > 0 {
-		peerStatus = grpc_health_v1.HealthCheckResponse_SERVING
+	processorStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
+	err := s.processor.Health()
+	if err == nil {
+		processorStatus = grpc_health_v1.HealthCheckResponse_SERVING
 	}
 
 	listResp := &grpc_health_v1.HealthListResponse{
@@ -56,8 +49,8 @@ func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) 
 			"store": {
 				Status: storeStatus,
 			},
-			"peers": {
-				Status: peerStatus,
+			"processor": {
+				Status: processorStatus,
 			},
 		},
 	}

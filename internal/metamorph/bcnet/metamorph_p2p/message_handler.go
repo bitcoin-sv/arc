@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	chhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/bsvutil"
 	"github.com/libsv/go-p2p/wire"
 
@@ -98,7 +97,7 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 		}
 
 		hash := txMsg.TxHash()
-		ch, _ := chhash.NewHashFromStr(hash.String())
+		ch, _ := chainhash.NewHashFromStr(hash.String())
 		h.messageCh <- &TxStatusMessage{
 			Hash:   ch,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
@@ -118,7 +117,7 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 
 	go func() {
 		for _, iv := range msg.InvList {
-			ch, _ := chhash.NewHashFromStr(iv.Hash.String())
+			ch, _ := chainhash.NewHashFromStr(iv.Hash.String())
 			if iv.Type == wire.InvTypeTx {
 				select {
 				case h.messageCh <- &TxStatusMessage{
@@ -142,7 +141,7 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 	}
 
 	hash := msg.TxHash()
-	ch, _ := chhash.NewHashFromStr(hash.String())
+	ch, _ := chainhash.NewHashFromStr(hash.String())
 
 	h.messageCh <- &TxStatusMessage{
 		Hash:          ch,
@@ -159,7 +158,7 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) 
 		return
 	}
 
-	ch, _ := chhash.NewHashFromStr(msg.Hash.String())
+	ch, _ := chainhash.NewHashFromStr(msg.Hash.String())
 	h.messageCh <- &TxStatusMessage{
 		Hash:   ch,
 		Status: metamorph_api.Status_REJECTED,
@@ -200,7 +199,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 				continue
 			}
 
-			ch, _ := chhash.NewHashFromStr(tx.Hash().String())
+			ch, _ := chainhash.NewHashFromStr(tx.Hash().String())
 			h.messageCh <- &TxStatusMessage{
 				Hash:   ch,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,

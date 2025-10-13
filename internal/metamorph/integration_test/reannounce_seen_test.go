@@ -62,17 +62,17 @@ func TestReAnnounceSeen(t *testing.T) {
 
 		var requestedAt1 time.Time
 		expectedRequestedAt1 := now
-		assert.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash1[:]))
+		assert.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
 		assert.True(t, expectedRequestedAt1.Equal(requestedAt1))
 
 		var requestedAt2 time.Time
 		expectedRequestedAt2 := time.Date(2025, 5, 8, 10, 10, 0, 0, time.UTC)
-		assert.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash2[:]))
+		assert.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash2[:]))
 		assert.True(t, expectedRequestedAt2.Equal(requestedAt2))
 
 		var requestedAt3 time.Time
 		expectedRequestedAt3 := now
-		assert.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash3[:]))
+		assert.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash3[:]))
 		assert.True(t, expectedRequestedAt3.Equal(requestedAt3))
 	})
 }

@@ -67,7 +67,7 @@ func testmain(m *testing.M) int {
 }
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	testutils.PruneTables(t, db, "global.Transactions")
+	testutils.PruneTables(t, db, "metamorph.transactions")
 }
 
 func TestPostgresDB(t *testing.T) {
@@ -865,7 +865,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(5), res)
 
 		var numberOfRemainingTxs int
-		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM global.Transactions;").Scan(&numberOfRemainingTxs)
+		err = postgresDB.db.QueryRowContext(ctx, "SELECT count(*) FROM metamorph.transactions;").Scan(&numberOfRemainingTxs)
 		require.NoError(t, err)
 		require.Equal(t, 13, numberOfRemainingTxs)
 	})
@@ -939,17 +939,17 @@ func TestPostgresDB(t *testing.T) {
 
 		var requestedAt1 time.Time
 		expectedRequestedAt1 := now
-		require.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash1[:]))
+		require.NoError(t, d.Get(&requestedAt1, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
 		require.True(t, expectedRequestedAt1.Equal(requestedAt1))
 
 		var requestedAt2 time.Time
 		expectedRequestedAt2 := now
-		require.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash2[:]))
+		require.NoError(t, d.Get(&requestedAt2, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash2[:]))
 		require.True(t, expectedRequestedAt2.Equal(requestedAt2))
 
 		var requestedAt3 time.Time
 		expectedRequestedAt3 := now
-		require.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM global.Transactions WHERE hash = $1", chainHash3[:]))
+		require.NoError(t, d.Get(&requestedAt3, "SELECT requested_at FROM metamorph.transactions WHERE hash = $1", chainHash3[:]))
 		require.True(t, expectedRequestedAt3.Equal(requestedAt3))
 	})
 
@@ -966,7 +966,7 @@ func TestPostgresDB(t *testing.T) {
 
 		var requestedAt time.Time
 		expectedRequestedAt := now
-		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM global.Transactions WHERE hash = $1", chainHash1[:]))
+		require.NoError(t, d.Get(&requestedAt, "SELECT confirmed_at FROM metamorph.transactions WHERE hash = $1", chainHash1[:]))
 
 		require.True(t, expectedRequestedAt.Equal(requestedAt))
 	})

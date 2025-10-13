@@ -71,7 +71,7 @@ func New(dbInfo string, hostname string, idleConns int, maxOpenConns int, opts .
 }
 
 func (p *PostgreSQL) SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error) {
-	q := "UPDATE global.Transactions SET locked_by = 'NONE' WHERE NOT locked_by = ANY($1::TEXT[]);"
+	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE NOT locked_by = ANY($1::TEXT[]);"
 
 	// remove empty strings
 	var exceptUnlocked []string
@@ -98,7 +98,7 @@ func (p *PostgreSQL) SetUnlockedByNameExcept(ctx context.Context, except []strin
 }
 
 func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error) {
-	q := "UPDATE global.Transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
+	q := "UPDATE metamorph.transactions SET locked_by = 'NONE' WHERE locked_by = $1;"
 
 	rows, err := p.db.ExecContext(ctx, q, lockedBy)
 	if err != nil {
@@ -137,7 +137,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *global.Data, e
 		,retries
 		,status_history
 		,last_modified
-	 	FROM global.Transactions WHERE hash = $1 LIMIT 1;`
+	 	FROM metamorph.transactions WHERE hash = $1 LIMIT 1;`
 
 	var storedAt time.Time
 	var lastSubmittedAt time.Time
@@ -254,7 +254,7 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	retRawTxs := make([][]byte, 0)
 
 	q := `SELECT raw_tx
-		FROM global.Transactions
+		FROM metamorph.transactions
 		WHERE hash in (SELECT UNNEST($1::BYTEA[]))`
 
 	rows, err := p.db.QueryContext(ctx, q, pq.Array(hashes))
@@ -302,7 +302,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*global
 		,retries
 		,status_history
 		,last_modified
-	 FROM global.Transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
+	 FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[]));`
 
 	rows, err := p.db.QueryContext(ctx, q, pq.Array(keys))
 	if err != nil {
@@ -336,7 +336,7 @@ func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (da
 		,retries
 		,status_history
 		,last_modified
-	 FROM global.Transactions WHERE status=$1 AND last_modified<$2;`
+	 FROM metamorph.transactions WHERE status=$1 AND last_modified<$2;`
 
 	rows, err := p.db.QueryContext(ctx, q, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, older)
 	if err != nil {
@@ -348,7 +348,7 @@ func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (da
 }
 
 func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash) error {
-	q := `UPDATE global.Transactions SET retries = retries+1 WHERE hash = $1;`
+	q := `UPDATE metamorph.transactions SET retries = retries+1 WHERE hash = $1;`
 
 	_, err := p.db.ExecContext(ctx, q, hash[:])
 	if err != nil {
@@ -365,7 +365,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *global.Data) (err error) {
 		tracing.EndTracing(span, err)
 	}()
 
-	q := `INSERT INTO global.Transactions (
+	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,hash
 		,status
@@ -486,7 +486,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*global.Data) error {
 		statusHistory[i] = string(statusHistoryData)
 	}
 
-	q := `INSERT INTO global.Transactions (
+	q := `INSERT INTO metamorph.transactions (
 		 stored_at
 		,hash
 		,status
@@ -533,11 +533,11 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*global.Data) error {
 
 func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64) error {
 	q := `
-		UPDATE global.Transactions t
+		UPDATE metamorph.transactions t
 		SET locked_by = $1
 		WHERE t.hash IN (
 		   SELECT t2.hash
-		   FROM global.Transactions t2
+		   FROM metamorph.transactions t2
 		   WHERE t2.locked_by = 'NONE' AND t2.status <= $3 AND last_submitted_at > $4
 		   ORDER BY hash
 		   LIMIT $2
@@ -575,7 +575,7 @@ func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64
 		,retries
 		,status_history
 		,last_modified
-		FROM global.Transactions
+		FROM metamorph.transactions
 		WHERE locked_by = $5
 		AND status < $1
 		AND last_submitted_at > $2
@@ -621,7 +621,7 @@ func (p *PostgreSQL) GetSeenPending(ctx context.Context, lastSubmittedSince time
 	 	t.requested_at,
 	 	t.confirmed_at
 	FROM
-		global.Transactions t,
+		metamorph.transactions t,
 	    LATERAL jsonb_array_elements(status_history) AS elem
 	WHERE
 	(elem->>'status')::int = $1
@@ -694,7 +694,7 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, to
 			,retries
 			,status_history
 			,last_modified
-	FROM global.Transactions
+	FROM metamorph.transactions
 	WHERE locked_by = $6
 	AND status = $1
 	AND last_submitted_at > $2
@@ -731,7 +731,7 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 	}
 
 	qBulk := `
-		UPDATE global.Transactions
+		UPDATE metamorph.transactions
 			SET
 				status = bulk_query.status,
 				reject_reason = bulk_query.reject_reason,
@@ -751,23 +751,23 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 				SELECT t.hash, t.status, t.reject_reason, t.history_update, t.timestamp
 				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::JSONB[], $6::TIMESTAMP WITH TIME ZONE[]) AS t(hash, status, reject_reason, history_update, timestamp)
 			) AS bulk_query
-			WHERE global.Transactions.hash = bulk_query.hash
-				AND global.Transactions.status < bulk_query.status
-		RETURNING global.Transactions.stored_at
-		,global.Transactions.hash
-		,global.Transactions.status
-		,global.Transactions.block_height
-		,global.Transactions.block_hash
-		,global.Transactions.callbacks
-		,global.Transactions.full_status_updates
-		,global.Transactions.reject_reason
-		,global.Transactions.competing_txs
-		,global.Transactions.raw_tx
-		,global.Transactions.locked_by
-		,global.Transactions.merkle_path
-		,global.Transactions.retries
-		,global.Transactions.status_history
-		,global.Transactions.last_modified
+			WHERE metamorph.transactions.hash = bulk_query.hash
+				AND metamorph.transactions.status < bulk_query.status
+		RETURNING metamorph.transactions.stored_at
+		,metamorph.transactions.hash
+		,metamorph.transactions.status
+		,metamorph.transactions.block_height
+		,metamorph.transactions.block_hash
+		,metamorph.transactions.callbacks
+		,metamorph.transactions.full_status_updates
+		,metamorph.transactions.reject_reason
+		,metamorph.transactions.competing_txs
+		,metamorph.transactions.raw_tx
+		,metamorph.transactions.locked_by
+		,metamorph.transactions.merkle_path
+		,metamorph.transactions.retries
+		,metamorph.transactions.status_history
+		,metamorph.transactions.last_modified
 		;
     `
 
@@ -779,7 +779,7 @@ func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateSta
 		_ = tx.Rollback()
 	}()
 
-	_, err = tx.Exec(`SELECT * FROM global.Transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
+	_, err = tx.Exec(`SELECT * FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	if err != nil {
 		return nil, err
 	}
@@ -841,7 +841,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}()
 
 	qBulk := `
-		UPDATE global.Transactions
+		UPDATE metamorph.transactions
 			SET
 			status = bulk_query.status,
 			reject_reason = bulk_query.reject_reason,
@@ -863,25 +863,25 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 				FROM UNNEST($2::BYTEA[], $3::INT[], $4::TEXT[], $5::TEXT[], $6::TIMESTAMP WITH TIME ZONE[], $7::JSONB[])
 				AS t(hash, status, reject_reason, competing_txs, timestamp, history_update)
 			) AS bulk_query
-			WHERE global.Transactions.hash=bulk_query.hash
-				AND global.Transactions.status <= bulk_query.status
-				AND (global.Transactions.competing_txs IS NULL
-						OR LENGTH(global.Transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
-		RETURNING global.Transactions.stored_at
-		,global.Transactions.hash
-		,global.Transactions.status
-		,global.Transactions.block_height
-		,global.Transactions.block_hash
-		,global.Transactions.callbacks
-		,global.Transactions.full_status_updates
-		,global.Transactions.reject_reason
-		,global.Transactions.competing_txs
-		,global.Transactions.raw_tx
-		,global.Transactions.locked_by
-		,global.Transactions.merkle_path
-		,global.Transactions.retries
-		,global.Transactions.status_history
-		,global.Transactions.last_modified
+			WHERE metamorph.transactions.hash=bulk_query.hash
+				AND metamorph.transactions.status <= bulk_query.status
+				AND (metamorph.transactions.competing_txs IS NULL
+						OR LENGTH(metamorph.transactions.competing_txs) < LENGTH(bulk_query.competing_txs))
+		RETURNING metamorph.transactions.stored_at
+		,metamorph.transactions.hash
+		,metamorph.transactions.status
+		,metamorph.transactions.block_height
+		,metamorph.transactions.block_hash
+		,metamorph.transactions.callbacks
+		,metamorph.transactions.full_status_updates
+		,metamorph.transactions.reject_reason
+		,metamorph.transactions.competing_txs
+		,metamorph.transactions.raw_tx
+		,metamorph.transactions.locked_by
+		,metamorph.transactions.merkle_path
+		,metamorph.transactions.retries
+		,metamorph.transactions.status_history
+		,metamorph.transactions.last_modified
 		;
     `
 
@@ -896,7 +896,7 @@ func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.Upda
 	}
 
 	// Get current competing transactions and lock them for update
-	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM global.Transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	rollbackErr := p.rollbackIfFailed(err, tx)
 	if rollbackErr != nil {
 		return nil, rollbackErr
@@ -1021,7 +1021,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	}
 
 	qBulkUpdate := `
-		UPDATE global.Transactions t
+		UPDATE metamorph.transactions t
 			SET
 			    status=bulk_query.mined_status,
 			    block_hash=bulk_query.block_hash,
@@ -1065,7 +1065,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 		return nil, err
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM global.Transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
+	rows, err := tx.QueryContext(ctx, `SELECT hash, competing_txs FROM metamorph.transactions WHERE hash in (SELECT UNNEST($1::BYTEA[])) ORDER BY hash FOR UPDATE`, pq.Array(txHashes))
 	rollbackErr := p.rollbackIfFailed(err, tx)
 	if rollbackErr != nil {
 		return nil, rollbackErr
@@ -1105,7 +1105,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 
 func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData) ([]*global.Data, error) {
 	qRejectDoubleSpends := `
-		UPDATE global.Transactions t
+		UPDATE metamorph.transactions t
 		SET
 			status=$1,
 			reject_reason=$2
@@ -1162,7 +1162,7 @@ func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxs
 }
 
 func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
-	q := `DELETE FROM global.Transactions WHERE hash = $1;`
+	q := `DELETE FROM metamorph.transactions WHERE hash = $1;`
 
 	_, err := p.db.ExecContext(ctx, q, key)
 	if err != nil {
@@ -1193,7 +1193,7 @@ func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64,
 
 	deleteBeforeDate := start.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	res, err := p.db.ExecContext(ctx, "DELETE FROM global.Transactions WHERE last_submitted_at <= $1", deleteBeforeDate)
+	res, err := p.db.ExecContext(ctx, "DELETE FROM metamorph.transactions WHERE last_submitted_at <= $1", deleteBeforeDate)
 	if err != nil {
 		return 0, err
 	}
@@ -1238,7 +1238,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		t.status,
 		count(*) AS status_count
 	FROM
-		global.Transactions t WHERE t.last_submitted_at > $1 AND t.locked_by = $2
+		metamorph.transactions t WHERE t.last_submitted_at > $1 AND t.locked_by = $2
 	GROUP BY
 		t.status
 	) AS found_statuses ON found_statuses.status = all_statuses.status) AS status_counts
@@ -1289,7 +1289,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 		t.status,
 		count(*) AS status_count
 	FROM
-		global.Transactions t WHERE t.last_submitted_at > $1
+		metamorph.transactions t WHERE t.last_submitted_at > $1
 	GROUP BY
 		t.status
 	) AS found_statuses ON found_statuses.status = all_statuses.status) AS status_counts
@@ -1311,7 +1311,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	SELECT
 		count(*)
 	FROM
-		global.Transactions t
+		metamorph.transactions t
 		WHERE t.last_submitted_at > $1 AND status < $2 AND t.locked_by = $3
 		AND $4 - t.stored_at > $5
 `
@@ -1324,7 +1324,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 	SELECT
 		count(*)
 	FROM
-		global.Transactions t
+		metamorph.transactions t
 		WHERE t.last_submitted_at > $1 AND status >= $2 AND status <$3 AND t.locked_by = $4
 		AND EXTRACT(EPOCH FROM ($5 - t.stored_at)) > $6
 `
@@ -1338,7 +1338,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, since time.Time, notSeenLimit
 
 func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash) error {
 	q := `
-		UPDATE global.Transactions SET requested_at = $2
+		UPDATE metamorph.transactions SET requested_at = $2
 		WHERE hash = ANY($1::BYTEA[]);
 		`
 
@@ -1357,7 +1357,7 @@ func (p *PostgreSQL) SetRequested(ctx context.Context, hashes []*chainhash.Hash)
 
 // MarkConfirmedRequested updates the confirmed_at date to timestamp now
 func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash.Hash) error {
-	q := `UPDATE global.Transactions SET confirmed_at = $1 WHERE hash = $2`
+	q := `UPDATE metamorph.transactions SET confirmed_at = $1 WHERE hash = $2`
 
 	_, err := p.db.ExecContext(ctx, q, p.now(), hash[:])
 	if err != nil {
@@ -1370,7 +1370,7 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 // GetUnconfirmedRequested transactions which have been requested more than `requestedAgo` time ago either never been confirmed or where last confirmation was longer ago than last request
 func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
 	q := `
-	SELECT hash FROM global.Transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
+	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
 	                                            AND (confirmed_at IS NULL OR confirmed_at < requested_at)
 	                                            AND status = $2
 	LIMIT $3 OFFSET $4

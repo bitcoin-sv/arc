@@ -48,7 +48,7 @@ const (
 var hashes = []string{"8e75ae10f86d8a43044a54c3c57d660d20cdb74e233be4b5c90ba752ebdc7e88", "d64adfce6b105dc6bdf475494925bf06802a41a0582586f33c2b16d537a0b7b6"}
 
 func pruneTables(t *testing.T, db *sql.DB) {
-	testutils.PruneTables(t, db, "global.Transactions")
+	testutils.PruneTables(t, db, "metamorph.Transactions")
 }
 
 func TestDoubleSpendDetection(t *testing.T) {

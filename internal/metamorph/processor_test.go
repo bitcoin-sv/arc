@@ -1257,14 +1257,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{
-
-				testdata.TX1Hash,
-
-				testdata.TX2Hash,
-
-				testdata.TX3Hash,
-			},
+			requestedTimes: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash, testdata.TX3Hash},
 		},
 		{
 			name:                        "not expected number of blocks available",
@@ -1279,11 +1272,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{
-				testdata.TX1Hash,
-				testdata.TX2Hash,
-				testdata.TX3Hash,
-			},
+			requestedTimes: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash, testdata.TX3Hash},
 		},
 		{
 			name:                        "skip rejecting for no old txs",
@@ -1304,6 +1293,32 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				},
 			},
 			requestedTimes: []*chainhash.Hash{},
+		},
+		{
+			name:                        "skip rejecting for block gaps",
+			expectedGetUnconfirmedCalls: 0,
+			expectedRejections:          0,
+			blocks: &blocktx_api.LatestBlocksResponse{
+				Blocks: []*blocktx_api.Block{
+					{
+						Height:      1000,
+						Hash:        testdata.Block1Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 10)),
+					},
+					{
+						Height:      999,
+						Hash:        testdata.Block2Hash.CloneBytes(),
+						ProcessedAt: timestamppb.New(time.Now().Add(-time.Minute * 20)),
+					},
+				},
+				BlockGaps: []*blocktx_api.BlockGap{
+					{
+						Height: 1000,
+						Hash:   testdata.Block1Hash.CloneBytes(),
+					},
+				},
+			},
+			requestedTimes: []*chainhash.Hash{testdata.TX1Hash, testdata.TX2Hash, testdata.TX3Hash},
 		},
 	}
 

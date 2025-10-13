@@ -39,7 +39,7 @@ func TestListenAndServe(t *testing.T) {
 			storeMock := &storeMocks.BlocktxStoreMock{}
 			pm := &p2p.PeerManager{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -90,7 +90,7 @@ func TestAnyTransactionsMined(t *testing.T) {
 			}
 			pm := &p2p.PeerManager{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -126,7 +126,7 @@ func TestRegisterTransactions(t *testing.T) {
 				RegisterTransactionFunc: func(_ []byte) {},
 			}
 
-			sut, err := blocktx.NewServer(logger, nil, nil, proc, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, nil, nil, proc, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -162,7 +162,7 @@ func TestRegisterTransaction(t *testing.T) {
 				RegisterTransactionFunc: func(_ []byte) {},
 			}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, proc, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, proc, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -194,7 +194,7 @@ func TestCurrentBlockHeight(t *testing.T) {
 					return 23, nil
 				},
 			}
-			sut, err := blocktx.NewServer(logger, nil, nil, proc, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, nil, nil, proc, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 			resp, err := sut.CurrentBlockHeight(context.Background(), nil)
@@ -223,7 +223,7 @@ func TestHealth(t *testing.T) {
 					return "CONNECTED"
 				},
 			}
-			sut, err := blocktx.NewServer(logger, nil, nil, nil, grpc_utils.ServerConfig{}, 0, mqMock)
+			sut, err := blocktx.NewServer(logger, nil, nil, nil, grpc_utils.ServerConfig{}, 0, mqMock, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -252,7 +252,7 @@ func TestClearBlocks(t *testing.T) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
 				},
 			}
-			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

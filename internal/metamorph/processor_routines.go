@@ -108,7 +108,14 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 		if uint64(len(blocksSinceLastRequested.Blocks)) != p.rejectPendingBlocksSince {
-			p.logger.Warn("Unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			p.logger.Warn("Rejecting unconfirmed txs aborted - unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			break
+		}
+
+		// Do not reject any transactions if there are block gaps because those transactions could have been mined in missing blocks
+		gaps := blocksSinceLastRequested.GetBlockGaps()
+		if len(gaps) != 0 {
+			p.logger.Warn("Rejecting unconfirmed txs aborted - block gaps received", slog.Int("count", len(gaps)))
 			break
 		}
 

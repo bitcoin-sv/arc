@@ -1,1 +1,1 @@
-ALTER TABLE global.Transactions DROP COLUMN competing_txs;
+ALTER TABLE metamorph.transactions DROP COLUMN competing_txs;

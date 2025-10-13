@@ -1,1 +1,1 @@
-ALTER TABLE global.Transactions ALTER COLUMN status DROP DEFAULT;
+ALTER TABLE metamorph.transactions ALTER COLUMN status DROP DEFAULT;

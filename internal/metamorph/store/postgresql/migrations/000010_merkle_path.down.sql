@@ -1,4 +1,4 @@
-ALTER TABLE global.Transactions DROP COLUMN merkle_path;
+ALTER TABLE metamorph.transactions DROP COLUMN merkle_path;
 
 CREATE TABLE metamorph.blocks (
                                   hash BYTEA PRIMARY KEY,

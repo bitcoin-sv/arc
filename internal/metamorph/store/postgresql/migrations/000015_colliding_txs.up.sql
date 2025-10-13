@@ -1,1 +1,1 @@
-ALTER TABLE global.Transactions ADD COLUMN competing_txs TEXT DEFAULT '';
+ALTER TABLE metamorph.transactions ADD COLUMN competing_txs TEXT DEFAULT '';

@@ -1,1 +1,1 @@
-ALTER TABLE global.Transactions ADD column full_status_updates boolean default(false);
+ALTER TABLE metamorph.transactions ADD column full_status_updates boolean default(false);

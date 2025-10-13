@@ -1,1 +1,1 @@
-DROP TABLE global.Transactions;
+DROP TABLE metamorph.transactions;

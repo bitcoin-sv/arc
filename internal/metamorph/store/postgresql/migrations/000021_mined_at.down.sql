@@ -1,2 +1,2 @@
 
-ALTER TABLE global.Transactions DROP COLUMN mined_at;
+ALTER TABLE metamorph.transactions DROP COLUMN mined_at;

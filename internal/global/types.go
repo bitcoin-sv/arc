@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
@@ -29,7 +30,7 @@ const (
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
 type MerkleRootsVerifier interface {
 	// VerifyMerkleRoots verifies the merkle roots existence in blocktx db and returns unverified block heights.
-	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx_api.MerkleRootVerificationRequest) ([]uint64, error)
+	VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error)
 }
 
 type TransactionHandler interface {

@@ -18,7 +18,7 @@ import (
 
 var (
 	ErrStatusNotSupported   = errors.New("status code not supported")
-	ErrFailedToBroadcastTxs = errors.New("failed to broadcast transactions")
+	ErrFailedToBroadcastTxs = errors.New("failed to broadcast transactions - status code not OK")
 	ErrFailedToBroadcastTx  = errors.New("failed to broadcast transaction")
 	ErrInvalidARCUrl        = errors.New("arcUrl is not a valid url")
 	ErrUnauthorized         = errors.New("unauthorized Woc API key/invalid for the selected network")
@@ -95,11 +95,11 @@ func (a *APIBroadcaster) BroadcastTransactions(ctx context.Context, txs sdkTx.Tr
 	}
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		_, err := json.Marshal(body)
+		responseBody, err := io.ReadAll(response.Body)
 		if err != nil {
-			return nil, err
+			return nil, errors.Join(ErrFailedToBroadcastTxs, fmt.Errorf("status: %s, failed to read response body: %w", response.Status, err))
 		}
-		return nil, ErrFailedToBroadcastTxs
+		return nil, errors.Join(ErrFailedToBroadcastTxs, fmt.Errorf("status: %s, response: %s", response.Status, string(responseBody)))
 	}
 
 	var bodyResponse []Response

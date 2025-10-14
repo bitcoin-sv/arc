@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.5.1](#151---2025-10-15)
 - [1.5.0](#150---2025-10-09)
 - [1.4.2](#142---2025-09-18)
 - [1.4.1](#141---2025-09-10)
@@ -26,6 +27,13 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.5.1] - 2025-10-15
+
+### Changed
+
+- Re-announce/request txs which have been pending in statuses ANNOUNCED_TO_NETWORK, REQUESTED_BY_NETWORK, SENT_TO_NETWORK, ACCEPTED_BY_NETWORK or SEEN_ON_NETWORK for a specified amount of time since the last status update
+- Eventually reject those transactions if no peer responds by sending the requested transaction
 
 ## [1.5.0] - 2025-10-09
 

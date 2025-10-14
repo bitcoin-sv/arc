@@ -143,7 +143,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		Name:               "blocktx",
 	}
 
-	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient)
+	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient, btxCfg.RecordRetentionDays)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)

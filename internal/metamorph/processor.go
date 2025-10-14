@@ -40,8 +40,8 @@ const (
 	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
 	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
 	rejectPendingSeenBlocksSinceDefault      = uint64(3)
-	loadLimit                                = int64(50)
-	minimumHealthyConnectionsDefault         = 2
+
+	minimumHealthyConnectionsDefault = 2
 
 	statusUpdatesIntervalDefault        = 500 * time.Millisecond
 	doubleSpendTxStatusCheckDefault     = 10 * time.Second
@@ -136,8 +136,8 @@ type CallbackSender interface {
 }
 
 type Mediator interface {
-	AskForTxAsync(ctx context.Context, tx *global.TransactionData)
-	AnnounceTxAsync(ctx context.Context, tx *global.TransactionData)
+	AskForTxAsync(ctx context.Context, hash *chainhash.Hash)
+	AnnounceTxAsync(ctx context.Context, hash *chainhash.Hash, rawTx []byte)
 	GetPeers() []p2p.PeerI
 	CountConnectedPeers() uint
 }
@@ -596,6 +596,8 @@ func (p *Processor) StartLockTransactions() {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
 	p.waitGroup.Add(1)
 
+	const setLockedLoadLimit = int64(50)
+
 	go func() {
 		defer p.waitGroup.Done()
 		for {
@@ -604,7 +606,7 @@ func (p *Processor) StartLockTransactions() {
 				return
 			case <-ticker.C:
 				expiredSince := p.now().Add(-1 * p.rebroadcastExpiration)
-				err := p.store.SetLocked(p.ctx, expiredSince, loadLimit)
+				err := p.store.SetLocked(p.ctx, expiredSince, setLockedLoadLimit)
 				if err != nil {
 					p.logger.Error("Failed to set transactions locked", slog.String("err", err.Error()))
 				}
@@ -765,8 +767,8 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	}
 
 	// ask network about the tx to see if they have it
-	p.bcMediator.AskForTxAsync(ctx, req.Data)
-	p.bcMediator.AnnounceTxAsync(ctx, req.Data)
+	p.bcMediator.AskForTxAsync(ctx, req.Data.Hash)
+	p.bcMediator.AnnounceTxAsync(ctx, req.Data.Hash, req.Data.RawTx)
 
 	// update status in response
 	statusResponse.UpdateStatus(StatusAndError{
@@ -808,7 +810,7 @@ func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*global.Tran
 			p.logger.Error("Failed to register tx in blocktx", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
 		}
 
-		p.bcMediator.AnnounceTxAsync(ctx, data)
+		p.bcMediator.AnnounceTxAsync(ctx, data.Hash, data.RawTx)
 
 		// update status in storage
 		p.storageStatusUpdateCh <- store.UpdateStatus{

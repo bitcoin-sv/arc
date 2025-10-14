@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
@@ -31,8 +31,8 @@ func TestStartRoutine(t *testing.T) {
 				},
 			}
 			messenger := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *global.TransactionData) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *global.TransactionData) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 			sut, err := metamorph.NewProcessor(
 				s,

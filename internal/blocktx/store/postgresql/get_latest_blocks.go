@@ -20,7 +20,7 @@ func (p *PostgreSQL) LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*b
 		 ,chainwork
 		 ,timestamp
 		FROM blocktx.blocks
-		WHERE is_longest = true AND processed_at IS NOT NULL order by height desc LIMIT $1`
+		WHERE is_longest = TRUE AND processed_at IS NOT NULL ORDER BY height DESC LIMIT $1`
 
 	rows, err := p.db.QueryContext(ctx, q, numOfBlocks)
 	if err != nil {

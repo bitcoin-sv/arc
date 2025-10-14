@@ -28,8 +28,7 @@ import (
 	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
-	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
-	mtmMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
+	globalMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -167,7 +166,7 @@ type PostTransactionsTest struct {
 	bErr              string
 	errorsLength      int
 	expectedErrors    map[string]string
-	txHandler         *mtmMocks.TransactionHandlerMock
+	txHandler         *globalMocks.TransactionHandlerMock
 	dv                *apiHandlerMocks.DefaultValidatorMock
 	expectedErrorCode api.StatusCode
 	txIDs             []string
@@ -178,7 +177,7 @@ type PostTransactionsTest struct {
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		btxClient := &btxMocks.BlocktxClientMock{}
+		btxClient := &globalMocks.BlocktxClientMock{}
 
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
@@ -191,7 +190,7 @@ func TestNewDefault(t *testing.T) {
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		// given
-		btxClient := &btxMocks.BlocktxClientMock{}
+		btxClient := &globalMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
@@ -224,13 +223,13 @@ func TestGETPolicy(t *testing.T) {
 
 func TestGETHealth(t *testing.T) {
 	t.Run("health check success", func(t *testing.T) {
-		txHandler := &btxMocks.TransactionHandlerMock{
+		txHandler := &globalMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return nil
 			},
 		}
 
-		btxClient := &btxMocks.BlocktxClientMock{}
+		btxClient := &globalMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
@@ -256,12 +255,12 @@ func TestGETHealth(t *testing.T) {
 	})
 
 	t.Run("health check fail", func(t *testing.T) {
-		txHandler := &btxMocks.TransactionHandlerMock{
+		txHandler := &globalMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return errors.New("some connection error")
 			},
 		}
-		btxClient := &btxMocks.BlocktxClientMock{}
+		btxClient := &globalMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
@@ -403,13 +402,13 @@ func TestGETTransactionStatus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
-			txHandler := &btxMocks.TransactionHandlerMock{
+			txHandler := &globalMocks.TransactionHandlerMock{
 				GetTransactionStatusFunc: func(_ context.Context, _ string) (*global.TransactionStatus, error) {
 					return tc.txHandlerStatusFound, tc.txHandlerErr
 				},
 			}
 
-			btxClient := &btxMocks.BlocktxClientMock{}
+			btxClient := &globalMocks.BlocktxClientMock{}
 			bv := &apiHandlerMocks.BeefValidatorMock{}
 			dv := &apiHandlerMocks.DefaultValidatorMock{}
 			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, dv, bv, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
@@ -764,7 +763,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				policy.MinMiningTxFee = float64(tc.expectedFee)
 			}
 
-			txHandler := &btxMocks.TransactionHandlerMock{
+			txHandler := &globalMocks.TransactionHandlerMock{
 				HealthFunc: func(_ context.Context) error {
 					return nil
 				},
@@ -793,7 +792,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			blocktxClient := &btxMocks.BlocktxClientMock{}
+			blocktxClient := &globalMocks.BlocktxClientMock{}
 
 			handlerStats, err := NewStats()
 			urlRestrictions := []string{"skiptest"}
@@ -919,7 +918,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validTx + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(validTxBytes),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 					var txStatuses []*global.TransactionStatus
 					return txStatuses, nil
@@ -953,7 +952,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validExtendedTx + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(validExtendedTxBytes),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 					txStatuses := []*global.TransactionStatus{txResult}
 					return txStatuses, nil
@@ -984,7 +983,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEOctetStream:     bytes.NewReader(invalidBeefNoBUMPIndexBytes),
 			},
 			expectedErrorCode: api.ErrStatusMalformed,
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				HealthFunc: func(_ context.Context) error {
 					return nil
 				},
@@ -1003,7 +1002,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(validBeefBytes),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 					txStatuses := []*global.TransactionStatus{beefTxResult}
 					return txStatuses, nil
@@ -1033,7 +1032,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
 					return []*global.Transaction{
@@ -1080,7 +1079,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					tx, _ := sdkTx.NewTransactionFromBytes(validTxParentBytes)
 					return []*global.Transaction{
@@ -1132,7 +1131,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				echo.MIMEApplicationJSON: strings.NewReader("[{\"rawTx\":\"" + validBeef + "\"}, {\"rawTx\":\"" + validBeef + "\"}]"),
 				echo.MIMEOctetStream:     bytes.NewReader(append(validBeefBytes, validBeefBytes...)),
 			},
-			txHandler: &mtmMocks.TransactionHandlerMock{
+			txHandler: &globalMocks.TransactionHandlerMock{
 				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
 					return txCallbackResults, nil
 				},
@@ -1152,7 +1151,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			btxClient := &btxMocks.BlocktxClientMock{}
+			btxClient := &globalMocks.BlocktxClientMock{}
 			sut, err := NewDefault(testLogger, tc.txHandler, btxClient, defaultPolicy, tc.dv, tc.bv)
 			require.NoError(t, err)
 			// when then
@@ -1532,7 +1531,7 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 	t.Run("check block height updates", func(t *testing.T) {
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		btxClient := &btxMocks.BlocktxClientMock{
+		btxClient := &globalMocks.BlocktxClientMock{
 			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 				return &blocktx_api.CurrentBlockHeightResponse{
 					CurrentBlockHeight: 24,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	chhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
 
@@ -54,14 +55,18 @@ func (h *HybridMsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.Peer
 
 	go func() {
 		for _, iv := range msg.InvList {
+			ch, err := chhash.NewHashFromStr(iv.Hash.String())
+			if err != nil {
+				continue
+			}
 			if iv.Type == wire.InvTypeTx {
 				select {
 				case h.messageCh <- &TxStatusMessage{
-					Hash:   &iv.Hash,
+					Hash:   ch,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
 				}:
-				default: // Ensure that writing to channel is non-blocking -- probably we should give up on this
+				default: // Ensure that writing to channel is non-blocking
 				}
 			}
 			// ignore INV with block or error
@@ -76,8 +81,13 @@ func (h *HybridMsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI
 	}
 
 	hash := msg.TxHash()
+	ch, err := chhash.NewHashFromStr(hash.String())
+	if err != nil {
+		h.logger.Error("failed to parse tx hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()), slog.String("err", err.Error()))
+		return
+	}
 	h.messageCh <- &TxStatusMessage{
-		Hash:   &hash,
+		Hash:   ch,
 		Status: metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:   peer.String(),
 	}

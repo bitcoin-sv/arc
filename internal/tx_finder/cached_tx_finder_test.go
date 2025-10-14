@@ -11,8 +11,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/internal/global"
+	"github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/internal/validator"
 )
@@ -21,7 +21,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 	tt := []struct {
 		name      string
 		cachedTx  []sdkTx.Transaction
-		fetchedTx []*metamorph.Transaction
+		fetchedTx []*global.Transaction
 	}{
 		{
 			name:     "all from cache",
@@ -29,7 +29,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 		},
 		{
 			name: "all from finder",
-			fetchedTx: []*metamorph.Transaction{
+			fetchedTx: []*global.Transaction{
 				{TxID: testdata.TX1Raw.TxID().String(), Bytes: testdata.TX1Raw.Bytes()},
 				{TxID: testdata.TX6Raw.TxID().String(), Bytes: testdata.TX6Raw.Bytes()},
 			},
@@ -37,7 +37,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 		{
 			name:     "cached and fetched mixed",
 			cachedTx: []sdkTx.Transaction{*testdata.TX1Raw},
-			fetchedTx: []*metamorph.Transaction{
+			fetchedTx: []*global.Transaction{
 				{TxID: testdata.TX6Raw.TxID().String(), Bytes: testdata.TX6Raw.Bytes()},
 			},
 		},
@@ -47,7 +47,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			thMq := &mocks.TransactionHandlerMock{
-				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*metamorph.Transaction, error) {
+				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 					return tc.fetchedTx, nil
 				},
 			}

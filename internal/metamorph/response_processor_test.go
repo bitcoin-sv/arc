@@ -8,7 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,24 +23,24 @@ func TestStatusResponse(t *testing.T) {
 	}{
 		{
 			name:   "announced_to_network",
-			hash:   testdata.TX1Hash,
+			hash:   testdata.TX1HashB,
 			status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			err:    nil,
 
 			expectedStatusAndError: StatusAndError{
-				Hash:   testdata.TX1Hash,
+				Hash:   testdata.TX1HashB,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 				Err:    nil,
 			},
 		},
 		{
 			name:   "announced_to_network - error",
-			hash:   testdata.TX2Hash,
+			hash:   testdata.TX2HashB,
 			status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 			err:    errors.New("some error"),
 
 			expectedStatusAndError: StatusAndError{
-				Hash:   testdata.TX2Hash,
+				Hash:   testdata.TX2HashB,
 				Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 				Err:    errors.New("some error"),
 			},
@@ -80,7 +80,7 @@ func TestResponseProcessor(t *testing.T) {
 
 		sut := NewResponseProcessor()
 
-		dummyStatus := NewStatusResponse(ctx, testdata.TX1Hash, nil)
+		dummyStatus := NewStatusResponse(ctx, testdata.TX1HashB, nil)
 
 		// when
 		sut.Add(dummyStatus)
@@ -98,9 +98,9 @@ func TestResponseProcessor(t *testing.T) {
 		tx1Ch := make(chan StatusAndError, 1)
 		tx2Ch := make(chan StatusAndError, 1)
 
-		dummyStatus := NewStatusResponse(context.Background(), testdata.TX1Hash, tx1Ch)
-		dummyStatus2 := NewStatusResponse(context.Background(), testdata.TX2Hash, tx2Ch)
-		dummyStatus3 := NewStatusResponse(context.Background(), testdata.TX3Hash, nil)
+		dummyStatus := NewStatusResponse(context.Background(), testdata.TX1HashB, tx1Ch)
+		dummyStatus2 := NewStatusResponse(context.Background(), testdata.TX2HashB, tx2Ch)
+		dummyStatus3 := NewStatusResponse(context.Background(), testdata.TX3HashB, nil)
 
 		// when
 		sut.Add(dummyStatus)
@@ -109,10 +109,10 @@ func TestResponseProcessor(t *testing.T) {
 
 		require.Equal(t, 3, sut.getMapLen())
 
-		sut.UpdateStatus(testdata.TX1Hash, StatusAndError{
+		sut.UpdateStatus(testdata.TX1HashB, StatusAndError{
 			Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK,
 		})
-		sut.UpdateStatus(testdata.TX2Hash, StatusAndError{
+		sut.UpdateStatus(testdata.TX2HashB, StatusAndError{
 			Status: metamorph_api.Status_RECEIVED,
 			Err:    errors.New("error for tx2"),
 		})

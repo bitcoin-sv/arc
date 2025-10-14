@@ -20,7 +20,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/beef"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -48,8 +48,8 @@ var (
 )
 
 type ArcDefaultHandler struct {
-	TransactionHandler      metamorph.TransactionHandler
-	btxClient               blocktx.Client
+	TransactionHandler      global.TransactionHandler
+	btxClient               global.BlocktxClient
 	NodePolicy              *bitcoin.Settings
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
@@ -138,8 +138,8 @@ type BeefValidator interface {
 
 func NewDefault(
 	logger *slog.Logger,
-	transactionHandler metamorph.TransactionHandler,
-	btxClient blocktx.Client,
+	transactionHandler global.TransactionHandler,
+	btxClient global.BlocktxClient,
 	policy *bitcoin.Settings,
 	defaultValidator DefaultValidator,
 	beefValidator BeefValidator,
@@ -233,7 +233,6 @@ func (m *ArcDefaultHandler) GETPolicy(ctx echo.Context) (err error) {
 	satoshis, bytes := calcFeesFromBSVPerKB(m.NodePolicy.MinMiningTxFee)
 
 	return ctx.JSON(http.StatusOK, api.PolicyResponse{
-
 		Policy: api.Policy{
 			Maxscriptsizepolicy:     m.maxscriptsizepolicy,
 			Maxtxsigopscountspolicy: m.maxTxSigopsCountsPolicy,
@@ -445,7 +444,7 @@ func (m *ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, pa
 	return PostResponse{int(api.StatusOK), responses}
 }
 
-func (m *ArcDefaultHandler) checkAllProcessed(txStatuses []*metamorph.TransactionStatus, transactionOptions *metamorph.TransactionOptions) bool {
+func (m *ArcDefaultHandler) checkAllProcessed(txStatuses []*global.TransactionStatus, transactionOptions *global.TransactionOptions) bool {
 	allProcessed := true
 	for _, tx := range txStatuses {
 		exists := false
@@ -474,7 +473,7 @@ func mergeSuccessAndFailResults(successes []*api.TransactionResponse, fails []*a
 	return responses
 }
 
-func (m *ArcDefaultHandler) postResponseForAllTxsProcessed(txStatuses []*metamorph.TransactionStatus) PostResponse {
+func (m *ArcDefaultHandler) postResponseForAllTxsProcessed(txStatuses []*global.TransactionStatus) PostResponse {
 	var successes []*api.TransactionResponse
 	for _, tx := range txStatuses {
 		successes = append(successes, &api.TransactionResponse{
@@ -538,8 +537,8 @@ func ValidateCallbackURL(callbackURL string, rejectedCallbackURLSubstrings []str
 	return nil
 }
 
-func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackURLSubstrings []string) (*metamorph.TransactionOptions, error) {
-	transactionOptions := &metamorph.TransactionOptions{}
+func getTransactionsOptions(params api.POSTTransactionsParams, rejectedCallbackURLSubstrings []string) (*global.TransactionOptions, error) {
+	transactionOptions := &global.TransactionOptions{}
 	if params.XCallbackUrl != nil {
 		if err := ValidateCallbackURL(*params.XCallbackUrl, rejectedCallbackURLSubstrings); err != nil {
 			return nil, err
@@ -631,7 +630,7 @@ func (m *ArcDefaultHandler) getTxIDs(txsHex []byte) ([]string, *api.ErrorFields)
 }
 
 // processTransactions validates all the transactions in the array and submits to metamorph for processing.
-func (m *ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *metamorph.TransactionOptions) (successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields) {
+func (m *ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []byte, options *global.TransactionOptions) (successes []*api.TransactionResponse, fails []*api.ErrorFields, processingErr *api.ErrorFields) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -684,7 +683,7 @@ func (m *ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []by
 	return successes, fails, nil
 }
 
-func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metamorph.TransactionOptions, txsHex []byte, fails []*api.ErrorFields) ([]string, []*sdkTx.Transaction, []*api.ErrorFields, *api.ErrorFields) {
+func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *global.TransactionOptions, txsHex []byte, fails []*api.ErrorFields) ([]string, []*sdkTx.Transaction, []*api.ErrorFields, *api.ErrorFields) {
 	var submittedTxs []*sdkTx.Transaction
 	var txIDs []string
 
@@ -742,7 +741,7 @@ func (m *ArcDefaultHandler) getTxDataFromHex(ctx context.Context, options *metam
 	return txIDs, submittedTxs, fails, nil
 }
 
-func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, tx *sdkTx.Transaction, options *metamorph.TransactionOptions) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, tx *sdkTx.Transaction, options *global.TransactionOptions) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -765,7 +764,7 @@ func (m *ArcDefaultHandler) validateEFTransaction(ctx context.Context, tx *sdkTx
 	return nil
 }
 
-func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx *sdkTx.Beef, options *metamorph.TransactionOptions, txID string) *api.ErrorFields {
+func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx *sdkTx.Beef, options *global.TransactionOptions, txID string) *api.ErrorFields {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "validateBEEFTransaction", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
@@ -792,14 +791,14 @@ func (m *ArcDefaultHandler) validateBEEFTransaction(ctx context.Context, beefTx 
 	return nil
 }
 
-func (m *ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, *api.ErrorFields) {
+func (m *ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx.Transaction, options *global.TransactionOptions) ([]*global.TransactionStatus, *api.ErrorFields) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "submitTransactions", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
 	}()
 
-	var submitStatuses []*metamorph.TransactionStatus
+	var submitStatuses []*global.TransactionStatus
 
 	// to avoid false negatives first check if ctx is expired
 	select {
@@ -828,7 +827,7 @@ func (m *ArcDefaultHandler) submitTransactions(ctx context.Context, txs []*sdkTx
 	return submitStatuses, nil
 }
 
-func (m *ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (tx *metamorph.TransactionStatus, err error) {
+func (m *ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string) (tx *global.TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "getTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -842,7 +841,7 @@ func (m *ArcDefaultHandler) getTransactionStatus(ctx context.Context, id string)
 	return tx, nil
 }
 
-func (m *ArcDefaultHandler) getTransactionStatuses(ctx context.Context, txIDs []string) (tx []*metamorph.TransactionStatus, err error) {
+func (m *ArcDefaultHandler) getTransactionStatuses(ctx context.Context, txIDs []string) (tx []*global.TransactionStatus, err error) {
 	ctx, span := tracing.StartTracing(ctx, "getTransactionStatus", m.tracingEnabled, m.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -888,7 +887,7 @@ func PtrTo[T any](v T) *T {
 	return &v
 }
 
-func toValidationOpts(opts *metamorph.TransactionOptions) (validator.FeeValidation, validator.ScriptValidation) {
+func toValidationOpts(opts *global.TransactionOptions) (validator.FeeValidation, validator.ScriptValidation) {
 	fv := validator.StandardFeeValidation
 	if opts.SkipFeeValidation {
 		fv = validator.NoneFeeValidation

@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/bsvutil"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -97,8 +97,13 @@ func (h *MsgHandler) OnSend(msg wire.Message, peer p2p.PeerI) {
 		}
 
 		hash := txMsg.TxHash()
+		ch, err := chainhash.NewHashFromStr(hash.String())
+		if err != nil {
+			h.logger.Error("failed to parse tx hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()), slog.String("err", err.Error()))
+			return
+		}
 		h.messageCh <- &TxStatusMessage{
-			Hash:   &hash,
+			Hash:   ch,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   peer.String(),
 			Start:  h.now(),
@@ -116,10 +121,15 @@ func (h *MsgHandler) handleReceivedInv(wireMsg wire.Message, peer p2p.PeerI) {
 
 	go func() {
 		for _, iv := range msg.InvList {
+			ch, err := chainhash.NewHashFromStr(iv.Hash.String())
+			if err != nil {
+				h.logger.Error("failed to parse tx hash", slog.String("hash", iv.Hash.String()), slog.String("peer", peer.String()), slog.String("err", err.Error()))
+				continue
+			}
 			if iv.Type == wire.InvTypeTx {
 				select {
 				case h.messageCh <- &TxStatusMessage{
-					Hash:   &iv.Hash,
+					Hash:   ch,
 					Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					Peer:   peer.String(),
 					Start:  h.now(),
@@ -139,8 +149,14 @@ func (h *MsgHandler) handleReceivedTx(wireMsg wire.Message, peer p2p.PeerI) {
 	}
 
 	hash := msg.TxHash()
+	ch, err := chainhash.NewHashFromStr(hash.String())
+	if err != nil {
+		h.logger.Error("failed to parse tx hash", slog.String("hash", hash.String()), slog.String("peer", peer.String()), slog.String("err", err.Error()))
+		return
+	}
+
 	h.messageCh <- &TxStatusMessage{
-		Hash:          &hash,
+		Hash:          ch,
 		Status:        metamorph_api.Status_SEEN_ON_NETWORK,
 		Peer:          peer.String(),
 		Start:         h.now(),
@@ -154,8 +170,13 @@ func (h *MsgHandler) handleReceivedReject(wireMsg wire.Message, peer p2p.PeerI) 
 		return
 	}
 
+	ch, err := chainhash.NewHashFromStr(msg.Hash.String())
+	if err != nil {
+		h.logger.Error("failed to parse tx hash", slog.String("hash", msg.Hash.String()), slog.String("peer", peer.String()), slog.String("err", err.Error()))
+		return
+	}
 	h.messageCh <- &TxStatusMessage{
-		Hash:   &msg.Hash,
+		Hash:   ch,
 		Status: metamorph_api.Status_REJECTED,
 		Peer:   peer.String(),
 		Err:    errors.Join(ErrTxRejectedByPeer, fmt.Errorf("peer: %s reason: %s", peer.String(), msg.Reason)),
@@ -169,7 +190,7 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 		return
 	}
 
-	// do not block the main goroutine
+	// do not block main goroutine
 	go func(msg *wire.MsgGetData, peer p2p.PeerI) {
 		// handle tx INV
 		txRequests := make([][]byte, 0, len(msg.InvList))
@@ -194,8 +215,13 @@ func (h *MsgHandler) handleReceivedGetData(wireMsg wire.Message, peer p2p.PeerI)
 				continue
 			}
 
+			ch, err := chainhash.NewHashFromStr(tx.Hash().String())
+			if err != nil {
+				h.logger.Error("failed to parse tx hash", slog.String("hash", tx.Hash().String()), slog.String("err", err.Error()))
+				continue
+			}
 			h.messageCh <- &TxStatusMessage{
-				Hash:   tx.Hash(),
+				Hash:   ch,
 				Status: metamorph_api.Status_REQUESTED_BY_NETWORK,
 				Peer:   peer.String(),
 				Start:  h.now(),

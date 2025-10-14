@@ -5,16 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/stretchr/testify/require"
 
-	btxMocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/global"
+	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -45,7 +45,7 @@ func TestProcessor(t *testing.T) {
 
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+		blocktxClient := &btxMocks.BlocktxClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
@@ -58,15 +58,15 @@ func TestProcessor(t *testing.T) {
 		sut.StartSendStatusUpdate()
 		sut.StartProcessStatusUpdatesInStorage()
 
-		tx1 := testutils.RevChainhash(t, "830b8424653d2e2eaedfd802d37696821ee5f538a0837dd27ae817a20804b4c5")
-		tx2 := testutils.RevChainhash(t, "f00bf349d23b14ab23931e668312f2fe8e58024b462e3d038332581c1433e4a2")
-		txNotRegistered := testutils.RevChainhash(t, "acd4d7bf340e420abe925a63f0d6cf9310292106a8f396ac738a19ad5b9b3b63")
+		tx1 := testutils.BRevChainhash(t, "830b8424653d2e2eaedfd802d37696821ee5f538a0837dd27ae817a20804b4c5")
+		tx2 := testutils.BRevChainhash(t, "f00bf349d23b14ab23931e668312f2fe8e58024b462e3d038332581c1433e4a2")
+		txNotRegistered := testutils.BRevChainhash(t, "acd4d7bf340e420abe925a63f0d6cf9310292106a8f396ac738a19ad5b9b3b63")
 
 		tx1ResponseChannel := make(chan metamorph.StatusAndError, 10)
 		tx2ResponseChannel := make(chan metamorph.StatusAndError, 10)
 
 		req1 := &metamorph.ProcessorRequest{
-			Data: &store.Data{
+			Data: &global.TransactionData{
 				Hash:              tx1,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,
@@ -74,7 +74,7 @@ func TestProcessor(t *testing.T) {
 			ResponseChannel: tx1ResponseChannel,
 		}
 		req2 := &metamorph.ProcessorRequest{
-			Data: &store.Data{
+			Data: &global.TransactionData{
 				Hash:              tx2,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,

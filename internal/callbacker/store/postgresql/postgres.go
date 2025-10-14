@@ -19,9 +19,7 @@ const (
 	postgresDriverName = "postgres"
 )
 
-var (
-	ErrFailedToOpenDB = errors.New("failed to open postgres DB")
-)
+var ErrFailedToOpenDB = errors.New("failed to open postgres DB")
 
 func WithNow(nowFunc func() time.Time) func(*PostgreSQL) {
 	return func(m *PostgreSQL) {
@@ -280,7 +278,6 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 			&ts,
 			&r.AllowBatch,
 		)
-
 		if err != nil {
 			return nil, err
 		}

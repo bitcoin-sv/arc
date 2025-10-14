@@ -8,18 +8,17 @@ import (
 	"github.com/ccoveille/go-safecast"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/global"
 )
 
-var (
-	ErrVerifyMerkleRoots = errors.New("failed to verify merkle roots")
-)
+var ErrVerifyMerkleRoots = errors.New("failed to verify merkle roots")
 
 type MerkleVerifier struct {
-	verifier blocktx.MerkleRootsVerifier
-	blocktx  blocktx.Client
+	verifier global.MerkleRootsVerifier
+	blocktx  global.BlocktxClient
 }
 
-func New(v blocktx.MerkleRootsVerifier, blocktx blocktx.Client) MerkleVerifier {
+func New(v global.MerkleRootsVerifier, blocktx global.BlocktxClient) MerkleVerifier {
 	return MerkleVerifier{verifier: v, blocktx: blocktx}
 }
 

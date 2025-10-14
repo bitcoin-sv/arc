@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"github.com/bitcoin-sv/arc/internal/global"
 )
 
 type competingTxsData struct {
@@ -34,11 +34,11 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
-	var storeData []*store.Data
+func getStoreDataFromRows(rows *sql.Rows) ([]*global.TransactionData, error) {
+	var storeData []*global.TransactionData
 
 	for rows.Next() {
-		data, err := getStoreDataFromRow(rows, &store.Data{})
+		data, err := getStoreDataFromRow(rows, &global.TransactionData{})
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*store.Data, error) {
 	return storeData, nil
 }
 
-func getStoreDataFromRow(rows *sql.Rows, data *store.Data) (*store.Data, error) {
+func getStoreDataFromRow(rows *sql.Rows, data *global.TransactionData) (*global.TransactionData, error) {
 	var storedAt time.Time
 	var status sql.NullInt32
 
@@ -151,8 +151,8 @@ func getCompetingTxsFromRows(rows *sql.Rows) []competingTxsData {
 	return dbData
 }
 
-func readCallbacksFromDB(callbacks []byte) ([]store.Callback, error) {
-	var callbacksData []store.Callback
+func readCallbacksFromDB(callbacks []byte) ([]global.Callback, error) {
+	var callbacksData []global.Callback
 	err := json.Unmarshal(callbacks, &callbacksData)
 	if err != nil {
 		return nil, err
@@ -160,8 +160,8 @@ func readCallbacksFromDB(callbacks []byte) ([]store.Callback, error) {
 	return callbacksData, nil
 }
 
-func readStatusHistoryFromDB(statusHistory []byte) ([]*store.StatusWithTimestamp, error) {
-	var statusHistoryData []*store.StatusWithTimestamp
+func readStatusHistoryFromDB(statusHistory []byte) ([]*global.StatusWithTimestamp, error) {
+	var statusHistoryData []*global.StatusWithTimestamp
 	err := json.Unmarshal(statusHistory, &statusHistoryData)
 	if err != nil {
 		return nil, err

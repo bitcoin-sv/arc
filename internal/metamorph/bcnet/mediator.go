@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"runtime"
 
+	chh "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
@@ -80,23 +81,36 @@ func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, 
 	return m
 }
 
-func (m *Mediator) AskForTxAsync(ctx context.Context, hash *chainhash.Hash) {
+func (m *Mediator) AskForTxAsync(ctx context.Context, hash *chh.Hash) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+	var err error
+	var h *chainhash.Hash
+	defer tracing.EndTracing(span, err)
 
-	m.p2pMessenger.RequestWithAutoBatch(hash, wire.InvTypeTx)
-	tracing.EndTracing(span, nil)
+	h, err = chainhash.NewHashFromStr(hash.String())
+	if err != nil {
+		m.logger.Error("Failed to convert hash string to chainhash.Hash", slog.String("error", err.Error()), slog.String("hash", hash.String()))
+		return
+	}
+	m.p2pMessenger.RequestWithAutoBatch(h, wire.InvTypeTx)
 }
 
-func (m *Mediator) AnnounceTxAsync(ctx context.Context, hash *chainhash.Hash, rawTx []byte) {
+func (m *Mediator) AnnounceTxAsync(ctx context.Context, hash *chh.Hash, rawTx []byte) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
+	var err error
+	var h *chainhash.Hash
+	defer tracing.EndTracing(span, err)
 
 	if m.classic {
-		m.p2pMessenger.AnnounceWithAutoBatch(hash, wire.InvTypeTx)
+		h, err = chainhash.NewHashFromStr(hash.String())
+		if err != nil {
+			m.logger.Error("Failed to convert hash string to chainhash.Hash", slog.String("error", err.Error()), slog.String("hash", hash.String()))
+			return
+		}
+		m.p2pMessenger.AnnounceWithAutoBatch(h, wire.InvTypeTx)
 	} else {
 		_ = m.mcaster.SendTx(rawTx)
 	}
-
-	tracing.EndTracing(span, nil)
 }
 
 func (m *Mediator) GetPeers() []p2p.PeerI {

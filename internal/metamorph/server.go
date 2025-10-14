@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	chh "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/bsv-blockchain/go-sdk/util"
 	"github.com/ccoveille/go-safecast"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,6 +22,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -38,9 +39,7 @@ const (
 	minusDeadlineExtension     = -1 * deadlineExtension
 )
 
-var (
-	ErrNotFound = errors.New("key could not be found")
-)
+var ErrNotFound = errors.New("key could not be found")
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
@@ -184,7 +183,7 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	// for each transaction if we have status in the db already set that status in the response
 	// if not, we store the transaction data and set the transaction status in response array to - STORED
 	type processTxInput struct {
-		data          *store.Data
+		data          *global.TransactionData
 		waitForStatus metamorph_api.Status
 		responseIndex int
 	}
@@ -193,11 +192,11 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	resp := &metamorph_api.TransactionStatuses{}
 	resp.Statuses = make([]*metamorph_api.TransactionStatus, len(req.GetTransactions()))
 
-	processTxsInputMap := make(map[chainhash.Hash]processTxInput)
+	processTxsInputMap := make(map[chh.Hash]processTxInput)
 
 	for ind, txReq := range req.GetTransactions() {
 		statusReceived := metamorph_api.Status_RECEIVED
-		hash := PtrTo(chainhash.DoubleHashH(txReq.GetRawTx()))
+		hash := PtrTo(chh.DoubleHashH(txReq.GetRawTx()))
 
 		processTxsInputMap[*hash] = processTxInput{
 			data:          requestToStoreData(hash, statusReceived, txReq),
@@ -221,10 +220,10 @@ func (s *Server) PostTransactions(ctx context.Context, req *metamorph_api.PostTr
 	return resp, nil
 }
 
-func requestToStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Status, req *metamorph_api.PostTransactionRequest) *store.Data {
-	callbacks := make([]store.Callback, 0)
+func requestToStoreData(hash *chh.Hash, statusReceived metamorph_api.Status, req *metamorph_api.PostTransactionRequest) *global.TransactionData {
+	callbacks := make([]global.Callback, 0)
 	if req.GetCallbackUrl() != "" || req.GetCallbackToken() != "" {
-		callbacks = []store.Callback{
+		callbacks = []global.Callback{
 			{
 				CallbackURL:   req.GetCallbackUrl(),
 				CallbackToken: req.GetCallbackToken(),
@@ -233,7 +232,7 @@ func requestToStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Statu
 		}
 	}
 
-	return &store.Data{
+	return &global.TransactionData{
 		Hash:              hash,
 		Status:            statusReceived,
 		Callbacks:         callbacks,
@@ -241,7 +240,8 @@ func requestToStoreData(hash *chainhash.Hash, statusReceived metamorph_api.Statu
 		RawTx:             req.GetRawTx(),
 	}
 }
-func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *store.Data, txID string) *metamorph_api.TransactionStatus {
+
+func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph_api.Status, data *global.TransactionData, txID string) *metamorph_api.TransactionStatus {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "processTransaction", s.tracingEnabled, s.tracingAttributes...)
 	returnedStatus := &metamorph_api.TransactionStatus{
@@ -284,7 +284,7 @@ func (s *Server) processTransaction(ctx context.Context, waitForStatus metamorph
 	return status
 }
 
-func updateReturnedCallbacks(data *store.Data, returnedStatus *metamorph_api.TransactionStatus) {
+func updateReturnedCallbacks(data *global.TransactionData, returnedStatus *metamorph_api.TransactionStatus) {
 	for _, cb := range data.Callbacks {
 		if cb.CallbackURL != "" {
 			returnedStatus.Callbacks = append(returnedStatus.Callbacks, &metamorph_api.Callback{
@@ -471,7 +471,7 @@ func (s *Server) GetTransactionStatuses(ctx context.Context, req *metamorph_api.
 	return returnStatus, nil
 }
 
-func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*store.Data, *timestamppb.Timestamp, error) {
+func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.TransactionStatusRequest) (*global.TransactionData, *timestamppb.Timestamp, error) {
 	txBytes, err := hex.DecodeString(req.GetTxid())
 	if err != nil {
 		return nil, nil, err
@@ -479,7 +479,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 
 	hash := util.ReverseBytes(txBytes)
 
-	var data *store.Data
+	var data *global.TransactionData
 	data, err = s.store.Get(ctx, hash)
 	if err != nil {
 		return nil, nil, err
@@ -493,7 +493,7 @@ func (s *Server) getTransactionData(ctx context.Context, req *metamorph_api.Tran
 	return data, storedAt, nil
 }
 
-func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*store.Data, error) {
+func (s *Server) getTransactions(ctx context.Context, req *metamorph_api.TransactionsStatusRequest) ([]*global.TransactionData, error) {
 	keys := make([][]byte, 0, len(req.TxIDs))
 	for _, id := range req.TxIDs {
 		idBytes, err := hex.DecodeString(id)

@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -114,7 +115,7 @@ func (p *PostgreSQL) SetUnlockedByName(ctx context.Context, lockedBy string) (in
 
 // Get implements the MetamorphStore interface. It attempts to get a value for a given key.
 // If the key does not exist an error is returned, otherwise the retrieved value.
-func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Data, err error) {
+func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "Get", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -178,7 +179,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Data, er
 		return nil, err
 	}
 
-	data = &store.Data{}
+	data = &global.TransactionData{}
 	data.Hash, err = chainhash.NewHash(hash)
 	if err != nil {
 		return nil, err
@@ -278,7 +279,7 @@ func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, 
 	return retRawTxs, nil
 }
 
-func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*store.Data, err error) {
+func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetMany", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -312,7 +313,7 @@ func (p *PostgreSQL) GetMany(ctx context.Context, keys [][]byte) (data []*store.
 	return getStoreDataFromRows(rows)
 }
 
-func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (data []*store.Data, err error) {
+func (p *PostgreSQL) GetDoubleSpendTxs(ctx context.Context, older time.Time) (data []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetDoubleSpendTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -358,7 +359,7 @@ func (p *PostgreSQL) IncrementRetries(ctx context.Context, hash *chainhash.Hash)
 }
 
 // Set stores a single record in the transactions table.
-func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) (err error) {
+func (p *PostgreSQL) Set(ctx context.Context, value *global.TransactionData) (err error) {
 	ctx, span := tracing.StartTracing(ctx, "Set", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -418,7 +419,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) (err error) {
 	}
 
 	if value.StatusHistory == nil {
-		value.StatusHistory = make([]*store.StatusWithTimestamp, 0)
+		value.StatusHistory = make([]*global.StatusWithTimestamp, 0)
 	}
 	statusHistoryData, err := json.Marshal(value.StatusHistory)
 	if err != nil {
@@ -449,7 +450,7 @@ func (p *PostgreSQL) Set(ctx context.Context, value *store.Data) (err error) {
 }
 
 // SetBulk bulk inserts records into the transactions table. If a record with the same hash already exists the field last_submitted_at will be overwritten with NOW()
-func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.Data) error {
+func (p *PostgreSQL) SetBulk(ctx context.Context, data []*global.TransactionData) error {
 	storedAt := make([]time.Time, len(data))
 	hashes := make([][]byte, len(data))
 	statuses := make([]int, len(data))
@@ -476,7 +477,7 @@ func (p *PostgreSQL) SetBulk(ctx context.Context, data []*store.Data) error {
 		callbacks[i] = string(callbacksData)
 
 		if txData.StatusHistory == nil {
-			txData.StatusHistory = make([]*store.StatusWithTimestamp, 0)
+			txData.StatusHistory = make([]*global.StatusWithTimestamp, 0)
 		}
 		statusHistoryData, err := json.Marshal(txData.StatusHistory)
 		if err != nil {
@@ -552,7 +553,7 @@ func (p *PostgreSQL) SetLocked(ctx context.Context, since time.Time, limit int64
 	return nil
 }
 
-func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) (data []*store.Data, err error) {
+func (p *PostgreSQL) GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) (data []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetUnseen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -661,7 +662,7 @@ func getRawTxDataFromRows(rows *sql.Rows) ([]*store.RawTx, error) {
 	return rawTxs, nil
 }
 
-func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*store.Data, err error) {
+func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "GetSeen", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -709,7 +710,7 @@ func (p *PostgreSQL) GetSeen(ctx context.Context, fromDuration time.Duration, to
 	return res, nil
 }
 
-func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateStatus(ctx context.Context, updates []store.UpdateStatus) (res []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateStatusBulk", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -823,7 +824,7 @@ func (p *PostgreSQL) prepareStatusHistories(updates []store.UpdateStatus) ([][]b
 	return txHashes, statuses, rejectReasons, statusHistories, timestamps, nil
 }
 
-func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) (res []*store.Data, err error) {
+func (p *PostgreSQL) UpdateDoubleSpend(ctx context.Context, updates []store.UpdateStatus, updateCompetingTxs bool) (res []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateDoubleSpend", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(updates)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -977,7 +978,7 @@ func (p *PostgreSQL) prepareCompetingTxs(updates []store.UpdateStatus, compTxsDa
 	return statuses, competingTxs, allCompetingTxs, rejectReasons, nil
 }
 
-func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) (data []*store.Data, err error) {
+func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) (data []*global.TransactionData, err error) {
 	ctx, span := tracing.StartTracing(ctx, "UpdateMined", p.tracingEnabled, append(p.tracingAttributes, attribute.Int("updates", len(txsBlocks)))...)
 	defer func() {
 		tracing.EndTracing(span, err)
@@ -1092,7 +1093,7 @@ func (p *PostgreSQL) UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.T
 	return append(res, rejectedResponses...), nil
 }
 
-func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData) ([]*store.Data, error) {
+func (p *PostgreSQL) updateDoubleSpendRejected(ctx context.Context, competingTxsData []competingTxsData) ([]*global.TransactionData, error) {
 	qRejectDoubleSpends := `
 		UPDATE metamorph.transactions t
 		SET

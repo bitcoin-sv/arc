@@ -26,6 +26,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/api/handler/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	arclogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -205,7 +206,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	case "regtest":
 		network = "regtest"
 		if !bhsDefined {
-			chainTracker = merkle_verifier.New(blocktx.MerkleRootsVerifier(blockTxClient), blockTxClient)
+			chainTracker = merkle_verifier.New(global.MerkleRootsVerifier(blockTxClient), blockTxClient)
 		}
 		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:

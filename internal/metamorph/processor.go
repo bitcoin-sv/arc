@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
@@ -126,13 +126,13 @@ type Processor struct {
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 
-	blocktxClient blocktx.Client
+	blocktxClient global.BlocktxClient
 }
 
 type Option func(f *Processor)
 
 type CallbackSender interface {
-	SendCallback(ctx context.Context, data *store.Data)
+	SendCallback(ctx context.Context, data *global.TransactionData)
 }
 
 type Mediator interface {
@@ -385,7 +385,7 @@ func (p *Processor) StartProcessSubmitted() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		reqs := make([]*store.Data, 0, p.processTransactionsBatchSize)
+		reqs := make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -393,7 +393,7 @@ func (p *Processor) StartProcessSubmitted() {
 			case <-ticker.C:
 				if len(reqs) > 0 {
 					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
+					reqs = make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to maintain the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
@@ -403,18 +403,18 @@ func (p *Processor) StartProcessSubmitted() {
 					continue
 				}
 				now := p.now()
-				sReq := &store.Data{
+				sReq := &global.TransactionData{
 					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
 					Status:            metamorph_api.Status_STORED,
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
-					Callbacks:         []store.Callback{},
+					Callbacks:         []global.Callback{},
 					StoredAt:          now,
 					LastSubmittedAt:   now,
 				}
 
 				if submittedTx.GetCallbackUrl() != "" || submittedTx.GetCallbackToken() != "" {
-					sReq.Callbacks = []store.Callback{
+					sReq.Callbacks = []global.Callback{
 						{
 							CallbackURL:   submittedTx.GetCallbackUrl(),
 							CallbackToken: submittedTx.GetCallbackToken(),
@@ -425,7 +425,7 @@ func (p *Processor) StartProcessSubmitted() {
 				reqs = append(reqs, sReq)
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*store.Data, 0, p.processTransactionsBatchSize)
+					reqs = make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to maintain the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
@@ -554,7 +554,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		tracing.EndTracing(span, err)
 	}()
 
-	var updatedData []*store.Data
+	var updatedData []*global.TransactionData
 
 	if len(statusUpdates) > 0 {
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
@@ -636,7 +636,7 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 	return nil
 }
 
-func (p *Processor) registerTransactions(ctx context.Context, data []*store.Data) error {
+func (p *Processor) registerTransactions(ctx context.Context, data []*global.TransactionData) error {
 	txHashesBatch := make([][]byte, 0, len(data))
 
 	for _, hash := range data {
@@ -784,7 +784,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 // ProcessTransactions processes txs submitted to message queue
-func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.Data) {
+func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*global.TransactionData) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -832,12 +832,12 @@ func (p *Processor) Health() error {
 	return nil
 }
 
-func (p *Processor) storeData(ctx context.Context, data *store.Data) error {
+func (p *Processor) storeData(ctx context.Context, data *global.TransactionData) error {
 	data.LastSubmittedAt = p.now()
 	return p.store.Set(ctx, data)
 }
 
-func addNewCallback(data, reqData *store.Data) {
+func addNewCallback(data, reqData *global.TransactionData) {
 	if len(reqData.Callbacks) == 0 {
 		return
 	}
@@ -847,7 +847,7 @@ func addNewCallback(data, reqData *store.Data) {
 	}
 }
 
-func callbackExists(callback store.Callback, data *store.Data) bool {
+func callbackExists(callback global.Callback, data *global.TransactionData) bool {
 	for _, c := range data.Callbacks {
 		if c == callback {
 			return true

@@ -5,57 +5,57 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/global"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"sync"
 )
 
-// Ensure, that TransactionHandlerMock does implement metamorph.TransactionHandler.
+// Ensure, that TransactionHandlerMock does implement global.TransactionHandler.
 // If this is not the case, regenerate this file with moq.
-var _ metamorph.TransactionHandler = &TransactionHandlerMock{}
+var _ global.TransactionHandler = &TransactionHandlerMock{}
 
-// TransactionHandlerMock is a mock implementation of metamorph.TransactionHandler.
+// TransactionHandlerMock is a mock implementation of global.TransactionHandler.
 //
 //	func TestSomethingThatUsesTransactionHandler(t *testing.T) {
 //
-//		// make and configure a mocked metamorph.TransactionHandler
+//		// make and configure a mocked global.TransactionHandler
 //		mockedTransactionHandler := &TransactionHandlerMock{
-//			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
+//			GetTransactionStatusFunc: func(ctx context.Context, txID string) (*global.TransactionStatus, error) {
 //				panic("mock out the GetTransactionStatus method")
 //			},
-//			GetTransactionStatusesFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.TransactionStatus, error) {
+//			GetTransactionStatusesFunc: func(ctx context.Context, txIDs []string) ([]*global.TransactionStatus, error) {
 //				panic("mock out the GetTransactionStatuses method")
 //			},
-//			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+//			GetTransactionsFunc: func(ctx context.Context, txIDs []string) ([]*global.Transaction, error) {
 //				panic("mock out the GetTransactions method")
 //			},
 //			HealthFunc: func(ctx context.Context) error {
 //				panic("mock out the Health method")
 //			},
-//			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+//			SubmitTransactionsFunc: func(ctx context.Context, tx sdkTx.Transactions, options *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 //				panic("mock out the SubmitTransactions method")
 //			},
 //		}
 //
-//		// use mockedTransactionHandler in code that requires metamorph.TransactionHandler
+//		// use mockedTransactionHandler in code that requires global.TransactionHandler
 //		// and then make assertions.
 //
 //	}
 type TransactionHandlerMock struct {
 	// GetTransactionStatusFunc mocks the GetTransactionStatus method.
-	GetTransactionStatusFunc func(ctx context.Context, txID string) (*metamorph.TransactionStatus, error)
+	GetTransactionStatusFunc func(ctx context.Context, txID string) (*global.TransactionStatus, error)
 
 	// GetTransactionStatusesFunc mocks the GetTransactionStatuses method.
-	GetTransactionStatusesFunc func(ctx context.Context, txIDs []string) ([]*metamorph.TransactionStatus, error)
+	GetTransactionStatusesFunc func(ctx context.Context, txIDs []string) ([]*global.TransactionStatus, error)
 
 	// GetTransactionsFunc mocks the GetTransactions method.
-	GetTransactionsFunc func(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error)
+	GetTransactionsFunc func(ctx context.Context, txIDs []string) ([]*global.Transaction, error)
 
 	// HealthFunc mocks the Health method.
 	HealthFunc func(ctx context.Context) error
 
 	// SubmitTransactionsFunc mocks the SubmitTransactions method.
-	SubmitTransactionsFunc func(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error)
+	SubmitTransactionsFunc func(ctx context.Context, tx sdkTx.Transactions, options *global.TransactionOptions) ([]*global.TransactionStatus, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -92,7 +92,7 @@ type TransactionHandlerMock struct {
 			// Tx is the tx argument value.
 			Tx sdkTx.Transactions
 			// Options is the options argument value.
-			Options *metamorph.TransactionOptions
+			Options *global.TransactionOptions
 		}
 	}
 	lockGetTransactionStatus   sync.RWMutex
@@ -103,7 +103,7 @@ type TransactionHandlerMock struct {
 }
 
 // GetTransactionStatus calls GetTransactionStatusFunc.
-func (mock *TransactionHandlerMock) GetTransactionStatus(ctx context.Context, txID string) (*metamorph.TransactionStatus, error) {
+func (mock *TransactionHandlerMock) GetTransactionStatus(ctx context.Context, txID string) (*global.TransactionStatus, error) {
 	if mock.GetTransactionStatusFunc == nil {
 		panic("TransactionHandlerMock.GetTransactionStatusFunc: method is nil but TransactionHandler.GetTransactionStatus was just called")
 	}
@@ -139,7 +139,7 @@ func (mock *TransactionHandlerMock) GetTransactionStatusCalls() []struct {
 }
 
 // GetTransactionStatuses calls GetTransactionStatusesFunc.
-func (mock *TransactionHandlerMock) GetTransactionStatuses(ctx context.Context, txIDs []string) ([]*metamorph.TransactionStatus, error) {
+func (mock *TransactionHandlerMock) GetTransactionStatuses(ctx context.Context, txIDs []string) ([]*global.TransactionStatus, error) {
 	if mock.GetTransactionStatusesFunc == nil {
 		panic("TransactionHandlerMock.GetTransactionStatusesFunc: method is nil but TransactionHandler.GetTransactionStatuses was just called")
 	}
@@ -175,7 +175,7 @@ func (mock *TransactionHandlerMock) GetTransactionStatusesCalls() []struct {
 }
 
 // GetTransactions calls GetTransactionsFunc.
-func (mock *TransactionHandlerMock) GetTransactions(ctx context.Context, txIDs []string) ([]*metamorph.Transaction, error) {
+func (mock *TransactionHandlerMock) GetTransactions(ctx context.Context, txIDs []string) ([]*global.Transaction, error) {
 	if mock.GetTransactionsFunc == nil {
 		panic("TransactionHandlerMock.GetTransactionsFunc: method is nil but TransactionHandler.GetTransactions was just called")
 	}
@@ -243,14 +243,14 @@ func (mock *TransactionHandlerMock) HealthCalls() []struct {
 }
 
 // SubmitTransactions calls SubmitTransactionsFunc.
-func (mock *TransactionHandlerMock) SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *metamorph.TransactionOptions) ([]*metamorph.TransactionStatus, error) {
+func (mock *TransactionHandlerMock) SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *global.TransactionOptions) ([]*global.TransactionStatus, error) {
 	if mock.SubmitTransactionsFunc == nil {
 		panic("TransactionHandlerMock.SubmitTransactionsFunc: method is nil but TransactionHandler.SubmitTransactions was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
 		Tx      sdkTx.Transactions
-		Options *metamorph.TransactionOptions
+		Options *global.TransactionOptions
 	}{
 		Ctx:     ctx,
 		Tx:      tx,
@@ -269,12 +269,12 @@ func (mock *TransactionHandlerMock) SubmitTransactions(ctx context.Context, tx s
 func (mock *TransactionHandlerMock) SubmitTransactionsCalls() []struct {
 	Ctx     context.Context
 	Tx      sdkTx.Transactions
-	Options *metamorph.TransactionOptions
+	Options *global.TransactionOptions
 } {
 	var calls []struct {
 		Ctx     context.Context
 		Tx      sdkTx.Transactions
-		Options *metamorph.TransactionOptions
+		Options *global.TransactionOptions
 	}
 	mock.lockSubmitTransactions.RLock()
 	calls = mock.calls.SubmitTransactions

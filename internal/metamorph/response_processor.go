@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 )
 
 type StatusResponse struct {

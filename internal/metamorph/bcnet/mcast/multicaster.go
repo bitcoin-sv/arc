@@ -10,6 +10,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/multicast"
+	chhash "github.com/bsv-blockchain/go-bt/v2/chainhash"
 )
 
 var ErrTxRejectedByPeer = errors.New("transaction rejected by peer")
@@ -97,8 +98,9 @@ func (m *Multicaster) OnReceiveFromMcast(msg wire.Message) {
 			return
 		}
 
+		ch, _ := chhash.NewHashFromStr(rejectMsg.Hash.String())
 		m.messageCh <- &metamorph_p2p.TxStatusMessage{
-			Hash:   &rejectMsg.Hash,
+			Hash:   ch,
 			Status: metamorph_api.Status_REJECTED,
 			Peer:   "Mcast REJECT",
 			Err:    errors.Join(ErrTxRejectedByPeer, errors.New(rejectMsg.Reason)),
@@ -117,8 +119,10 @@ func (m *Multicaster) OnSendToMcast(msg wire.Message) {
 		}
 
 		hash := txMsg.TxHash()
+
+		ch, _ := chhash.NewHashFromStr(hash.String())
 		m.messageCh <- &metamorph_p2p.TxStatusMessage{
-			Hash:   &hash,
+			Hash:   ch,
 			Status: metamorph_api.Status_SENT_TO_NETWORK,
 			Peer:   "Mcast TX",
 		}

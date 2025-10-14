@@ -5,21 +5,21 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"sync"
 )
 
-// Ensure, that ClientMock does implement blocktx.Client.
+// Ensure, that BlocktxClientMock does implement global.BlocktxClient.
 // If this is not the case, regenerate this file with moq.
-var _ blocktx.Client = &ClientMock{}
+var _ global.BlocktxClient = &BlocktxClientMock{}
 
-// ClientMock is a mock implementation of blocktx.Client.
+// BlocktxClientMock is a mock implementation of global.BlocktxClient.
 //
-//	func TestSomethingThatUsesClient(t *testing.T) {
+//	func TestSomethingThatUsesBlocktxClient(t *testing.T) {
 //
-//		// make and configure a mocked blocktx.Client
-//		mockedClient := &ClientMock{
+//		// make and configure a mocked global.BlocktxClient
+//		mockedBlocktxClient := &BlocktxClientMock{
 //			AnyTransactionsMinedFunc: func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 //				panic("mock out the AnyTransactionsMined method")
 //			},
@@ -37,11 +37,11 @@ var _ blocktx.Client = &ClientMock{}
 //			},
 //		}
 //
-//		// use mockedClient in code that requires blocktx.Client
+//		// use mockedBlocktxClient in code that requires global.BlocktxClient
 //		// and then make assertions.
 //
 //	}
-type ClientMock struct {
+type BlocktxClientMock struct {
 	// AnyTransactionsMinedFunc mocks the AnyTransactionsMined method.
 	AnyTransactionsMinedFunc func(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
 
@@ -101,9 +101,9 @@ type ClientMock struct {
 }
 
 // AnyTransactionsMined calls AnyTransactionsMinedFunc.
-func (mock *ClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
+func (mock *BlocktxClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error) {
 	if mock.AnyTransactionsMinedFunc == nil {
-		panic("ClientMock.AnyTransactionsMinedFunc: method is nil but Client.AnyTransactionsMined was just called")
+		panic("BlocktxClientMock.AnyTransactionsMinedFunc: method is nil but BlocktxClient.AnyTransactionsMined was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
@@ -121,8 +121,8 @@ func (mock *ClientMock) AnyTransactionsMined(ctx context.Context, hash [][]byte)
 // AnyTransactionsMinedCalls gets all the calls that were made to AnyTransactionsMined.
 // Check the length with:
 //
-//	len(mockedClient.AnyTransactionsMinedCalls())
-func (mock *ClientMock) AnyTransactionsMinedCalls() []struct {
+//	len(mockedBlocktxClient.AnyTransactionsMinedCalls())
+func (mock *BlocktxClientMock) AnyTransactionsMinedCalls() []struct {
 	Ctx  context.Context
 	Hash [][]byte
 } {
@@ -137,9 +137,9 @@ func (mock *ClientMock) AnyTransactionsMinedCalls() []struct {
 }
 
 // CurrentBlockHeight calls CurrentBlockHeightFunc.
-func (mock *ClientMock) CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
+func (mock *BlocktxClientMock) CurrentBlockHeight(ctx context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 	if mock.CurrentBlockHeightFunc == nil {
-		panic("ClientMock.CurrentBlockHeightFunc: method is nil but Client.CurrentBlockHeight was just called")
+		panic("BlocktxClientMock.CurrentBlockHeightFunc: method is nil but BlocktxClient.CurrentBlockHeight was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
@@ -155,8 +155,8 @@ func (mock *ClientMock) CurrentBlockHeight(ctx context.Context) (*blocktx_api.Cu
 // CurrentBlockHeightCalls gets all the calls that were made to CurrentBlockHeight.
 // Check the length with:
 //
-//	len(mockedClient.CurrentBlockHeightCalls())
-func (mock *ClientMock) CurrentBlockHeightCalls() []struct {
+//	len(mockedBlocktxClient.CurrentBlockHeightCalls())
+func (mock *BlocktxClientMock) CurrentBlockHeightCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
@@ -169,9 +169,9 @@ func (mock *ClientMock) CurrentBlockHeightCalls() []struct {
 }
 
 // LatestBlocks calls LatestBlocksFunc.
-func (mock *ClientMock) LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
+func (mock *BlocktxClientMock) LatestBlocks(ctx context.Context, blocks uint64) (*blocktx_api.LatestBlocksResponse, error) {
 	if mock.LatestBlocksFunc == nil {
-		panic("ClientMock.LatestBlocksFunc: method is nil but Client.LatestBlocks was just called")
+		panic("BlocktxClientMock.LatestBlocksFunc: method is nil but BlocktxClient.LatestBlocks was just called")
 	}
 	callInfo := struct {
 		Ctx    context.Context
@@ -189,8 +189,8 @@ func (mock *ClientMock) LatestBlocks(ctx context.Context, blocks uint64) (*block
 // LatestBlocksCalls gets all the calls that were made to LatestBlocks.
 // Check the length with:
 //
-//	len(mockedClient.LatestBlocksCalls())
-func (mock *ClientMock) LatestBlocksCalls() []struct {
+//	len(mockedBlocktxClient.LatestBlocksCalls())
+func (mock *BlocktxClientMock) LatestBlocksCalls() []struct {
 	Ctx    context.Context
 	Blocks uint64
 } {
@@ -205,9 +205,9 @@ func (mock *ClientMock) LatestBlocksCalls() []struct {
 }
 
 // RegisterTransaction calls RegisterTransactionFunc.
-func (mock *ClientMock) RegisterTransaction(ctx context.Context, hash []byte) error {
+func (mock *BlocktxClientMock) RegisterTransaction(ctx context.Context, hash []byte) error {
 	if mock.RegisterTransactionFunc == nil {
-		panic("ClientMock.RegisterTransactionFunc: method is nil but Client.RegisterTransaction was just called")
+		panic("BlocktxClientMock.RegisterTransactionFunc: method is nil but BlocktxClient.RegisterTransaction was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
@@ -225,8 +225,8 @@ func (mock *ClientMock) RegisterTransaction(ctx context.Context, hash []byte) er
 // RegisterTransactionCalls gets all the calls that were made to RegisterTransaction.
 // Check the length with:
 //
-//	len(mockedClient.RegisterTransactionCalls())
-func (mock *ClientMock) RegisterTransactionCalls() []struct {
+//	len(mockedBlocktxClient.RegisterTransactionCalls())
+func (mock *BlocktxClientMock) RegisterTransactionCalls() []struct {
 	Ctx  context.Context
 	Hash []byte
 } {
@@ -241,9 +241,9 @@ func (mock *ClientMock) RegisterTransactionCalls() []struct {
 }
 
 // RegisterTransactions calls RegisterTransactionsFunc.
-func (mock *ClientMock) RegisterTransactions(ctx context.Context, hashes [][]byte) error {
+func (mock *BlocktxClientMock) RegisterTransactions(ctx context.Context, hashes [][]byte) error {
 	if mock.RegisterTransactionsFunc == nil {
-		panic("ClientMock.RegisterTransactionsFunc: method is nil but Client.RegisterTransactions was just called")
+		panic("BlocktxClientMock.RegisterTransactionsFunc: method is nil but BlocktxClient.RegisterTransactions was just called")
 	}
 	callInfo := struct {
 		Ctx    context.Context
@@ -261,8 +261,8 @@ func (mock *ClientMock) RegisterTransactions(ctx context.Context, hashes [][]byt
 // RegisterTransactionsCalls gets all the calls that were made to RegisterTransactions.
 // Check the length with:
 //
-//	len(mockedClient.RegisterTransactionsCalls())
-func (mock *ClientMock) RegisterTransactionsCalls() []struct {
+//	len(mockedBlocktxClient.RegisterTransactionsCalls())
+func (mock *BlocktxClientMock) RegisterTransactionsCalls() []struct {
 	Ctx    context.Context
 	Hashes [][]byte
 } {

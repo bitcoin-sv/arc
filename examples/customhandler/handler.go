@@ -12,7 +12,7 @@ import (
 	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/api/transaction_handler"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
+	"github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/pkg/api"
 )
@@ -39,7 +39,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	}
 
 	// add blocktx, header service or custom implementation of merkle roots verifier
-	merkleRootVerifier := &mocks.ClientMock{}
+	merkleRootVerifier := &mocks.BlocktxClientMock{}
 
 	dv := &apiHandlerMocks.DefaultValidatorMock{}
 	bv := &apiHandlerMocks.BeefValidatorMock{
@@ -67,6 +67,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 
 	return bitcoinHandler, nil
 }
+
 func (c *CustomHandler) GETPolicy(ctx echo.Context) error {
 	// custom get policy logic
 	arcPolicy := bitcoin.Settings{}

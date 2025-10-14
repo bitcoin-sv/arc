@@ -6,25 +6,26 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"sync"
 )
 
-// Ensure, that MerkleRootsVerifierMock does implement blocktx.MerkleRootsVerifier.
+// Ensure, that MerkleRootsVerifierMock does implement global.MerkleRootsVerifier.
 // If this is not the case, regenerate this file with moq.
-var _ blocktx.MerkleRootsVerifier = &MerkleRootsVerifierMock{}
+var _ global.MerkleRootsVerifier = &MerkleRootsVerifierMock{}
 
-// MerkleRootsVerifierMock is a mock implementation of blocktx.MerkleRootsVerifier.
+// MerkleRootsVerifierMock is a mock implementation of global.MerkleRootsVerifier.
 //
 //	func TestSomethingThatUsesMerkleRootsVerifier(t *testing.T) {
 //
-//		// make and configure a mocked blocktx.MerkleRootsVerifier
+//		// make and configure a mocked global.MerkleRootsVerifier
 //		mockedMerkleRootsVerifier := &MerkleRootsVerifierMock{
 //			VerifyMerkleRootsFunc: func(ctx context.Context, merkleRootVerificationRequest []blocktx.MerkleRootVerificationRequest) ([]uint64, error) {
 //				panic("mock out the VerifyMerkleRoots method")
 //			},
 //		}
 //
-//		// use mockedMerkleRootsVerifier in code that requires blocktx.MerkleRootsVerifier
+//		// use mockedMerkleRootsVerifier in code that requires global.MerkleRootsVerifier
 //		// and then make assertions.
 //
 //	}

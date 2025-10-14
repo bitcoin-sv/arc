@@ -6,6 +6,7 @@ require (
 	github.com/bitcoin-sv/bdk/module/gobdk v1.2.0-beta8
 	github.com/bitcoin-sv/block-headers-service v0.13.1
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
+	github.com/bsv-blockchain/go-bt/v2 v2.5.0
 	github.com/bsv-blockchain/go-sdk v1.2.10
 	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
 	github.com/ccoveille/go-safecast v1.6.1
@@ -17,7 +18,7 @@ require (
 	github.com/go-testfixtures/testfixtures/v3 v3.14.0
 	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/golang-migrate/migrate/v4 v4.18.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
@@ -49,10 +50,10 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
-	golang.org/x/net v0.44.0
+	golang.org/x/net v0.45.0
 	golang.org/x/sync v0.17.0
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.10
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
@@ -179,12 +180,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/term v0.36.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/api v0.220.0 // indirect
 	google.golang.org/genproto v0.0.0-20250204164813-702378808489 // indirect

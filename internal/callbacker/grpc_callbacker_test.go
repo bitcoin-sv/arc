@@ -23,12 +23,12 @@ func TestSendGRPCCallback(t *testing.T) {
 		name          string
 		expectedCalls int
 		err           error
-		data          *global.Data
+		data          *global.TransactionData
 	}{
 		{
 			name:          "empty callbacks",
 			expectedCalls: 0,
-			data: &global.Data{
+			data: &global.TransactionData{
 				Status:    metamorph_api.Status_UNKNOWN,
 				Hash:      &chainhash.Hash{},
 				Callbacks: []global.Callback{},
@@ -38,7 +38,7 @@ func TestSendGRPCCallback(t *testing.T) {
 			name:          "empty url",
 			expectedCalls: 0,
 
-			data: &global.Data{
+			data: &global.TransactionData{
 				Status: metamorph_api.Status_UNKNOWN,
 				Hash:   &chainhash.Hash{},
 				Callbacks: []global.Callback{
@@ -51,7 +51,7 @@ func TestSendGRPCCallback(t *testing.T) {
 		{
 			name:          "expected call",
 			expectedCalls: 1,
-			data: &global.Data{
+			data: &global.TransactionData{
 				Status: metamorph_api.Status_UNKNOWN,
 				Hash:   &chainhash.Hash{},
 				Callbacks: []global.Callback{

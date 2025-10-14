@@ -21,10 +21,10 @@ var _ metamorph.Mediator = &MediatorMock{}
 //
 //		// make and configure a mocked metamorph.Mediator
 //		mockedMediator := &MediatorMock{
-//			AnnounceTxAsyncFunc: func(ctx context.Context, tx *global.Data)  {
+//			AnnounceTxAsyncFunc: func(ctx context.Context, tx *global.TransactionData)  {
 //				panic("mock out the AnnounceTxAsync method")
 //			},
-//			AskForTxAsyncFunc: func(ctx context.Context, tx *global.Data)  {
+//			AskForTxAsyncFunc: func(ctx context.Context, tx *global.TransactionData)  {
 //				panic("mock out the AskForTxAsync method")
 //			},
 //			CountConnectedPeersFunc: func() uint {
@@ -41,10 +41,10 @@ var _ metamorph.Mediator = &MediatorMock{}
 //	}
 type MediatorMock struct {
 	// AnnounceTxAsyncFunc mocks the AnnounceTxAsync method.
-	AnnounceTxAsyncFunc func(ctx context.Context, tx *global.Data)
+	AnnounceTxAsyncFunc func(ctx context.Context, tx *global.TransactionData)
 
 	// AskForTxAsyncFunc mocks the AskForTxAsync method.
-	AskForTxAsyncFunc func(ctx context.Context, tx *global.Data)
+	AskForTxAsyncFunc func(ctx context.Context, tx *global.TransactionData)
 
 	// CountConnectedPeersFunc mocks the CountConnectedPeers method.
 	CountConnectedPeersFunc func() uint
@@ -59,14 +59,14 @@ type MediatorMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Tx is the tx argument value.
-			Tx *global.Data
+			Tx *global.TransactionData
 		}
 		// AskForTxAsync holds details about calls to the AskForTxAsync method.
 		AskForTxAsync []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Tx is the tx argument value.
-			Tx *global.Data
+			Tx *global.TransactionData
 		}
 		// CountConnectedPeers holds details about calls to the CountConnectedPeers method.
 		CountConnectedPeers []struct {
@@ -82,13 +82,13 @@ type MediatorMock struct {
 }
 
 // AnnounceTxAsync calls AnnounceTxAsyncFunc.
-func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, tx *global.Data) {
+func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, tx *global.TransactionData) {
 	if mock.AnnounceTxAsyncFunc == nil {
 		panic("MediatorMock.AnnounceTxAsyncFunc: method is nil but Mediator.AnnounceTxAsync was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		Tx  *global.Data
+		Tx  *global.TransactionData
 	}{
 		Ctx: ctx,
 		Tx:  tx,
@@ -105,11 +105,11 @@ func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, tx *global.Data) 
 //	len(mockedMediator.AnnounceTxAsyncCalls())
 func (mock *MediatorMock) AnnounceTxAsyncCalls() []struct {
 	Ctx context.Context
-	Tx  *global.Data
+	Tx  *global.TransactionData
 } {
 	var calls []struct {
 		Ctx context.Context
-		Tx  *global.Data
+		Tx  *global.TransactionData
 	}
 	mock.lockAnnounceTxAsync.RLock()
 	calls = mock.calls.AnnounceTxAsync
@@ -118,13 +118,13 @@ func (mock *MediatorMock) AnnounceTxAsyncCalls() []struct {
 }
 
 // AskForTxAsync calls AskForTxAsyncFunc.
-func (mock *MediatorMock) AskForTxAsync(ctx context.Context, tx *global.Data) {
+func (mock *MediatorMock) AskForTxAsync(ctx context.Context, tx *global.TransactionData) {
 	if mock.AskForTxAsyncFunc == nil {
 		panic("MediatorMock.AskForTxAsyncFunc: method is nil but Mediator.AskForTxAsync was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		Tx  *global.Data
+		Tx  *global.TransactionData
 	}{
 		Ctx: ctx,
 		Tx:  tx,
@@ -141,11 +141,11 @@ func (mock *MediatorMock) AskForTxAsync(ctx context.Context, tx *global.Data) {
 //	len(mockedMediator.AskForTxAsyncCalls())
 func (mock *MediatorMock) AskForTxAsyncCalls() []struct {
 	Ctx context.Context
-	Tx  *global.Data
+	Tx  *global.TransactionData
 } {
 	var calls []struct {
 		Ctx context.Context
-		Tx  *global.Data
+		Tx  *global.TransactionData
 	}
 	mock.lockAskForTxAsync.RLock()
 	calls = mock.calls.AskForTxAsync

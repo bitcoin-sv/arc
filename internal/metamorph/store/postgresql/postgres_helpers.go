@@ -34,8 +34,8 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func getStoreDataFromRows(rows *sql.Rows) ([]*global.Data, error) {
-	var storeData []*global.Data
+func getStoreDataFromRows(rows *sql.Rows) ([]*global.TransactionData, error) {
+	var storeData []*global.TransactionData
 
 	for rows.Next() {
 		data, err := getStoreDataFromRow(rows, &global.Data{})
@@ -48,7 +48,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*global.Data, error) {
 	return storeData, nil
 }
 
-func getStoreDataFromRow(rows *sql.Rows, data *global.Data) (*global.Data, error) {
+func getStoreDataFromRow(rows *sql.Rows, data *global.TransactionData) (*global.TransactionData, error) {
 	var storedAt time.Time
 	var status sql.NullInt32
 

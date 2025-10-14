@@ -50,7 +50,7 @@ func NewGrpcCallbacker(api callbacker_api.CallbackerAPIClient, logger *slog.Logg
 	return c
 }
 
-func (c GrpcCallbacker) SendCallback(ctx context.Context, data *global.Data) {
+func (c GrpcCallbacker) SendCallback(ctx context.Context, data *global.TransactionData) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "SendCallback", c.tracingEnabled, c.tracingAttributes...)
 	defer func() {
@@ -74,7 +74,7 @@ func (c GrpcCallbacker) SendCallback(ctx context.Context, data *global.Data) {
 	}
 }
 
-func toGrpcInputs(data *global.Data) []*callbacker_api.SendRequest {
+func toGrpcInputs(data *global.TransactionData) []*callbacker_api.SendRequest {
 	requests := make([]*callbacker_api.SendRequest, 0, len(data.Callbacks))
 
 	for _, c := range data.Callbacks {
@@ -102,7 +102,7 @@ func toGrpcInputs(data *global.Data) []*callbacker_api.SendRequest {
 	return requests
 }
 
-func getCallbackExtraInfo(data *global.Data) string {
+func getCallbackExtraInfo(data *global.TransactionData) string {
 	if data.Status == metamorph_api.Status_MINED && len(data.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -110,7 +110,7 @@ func getCallbackExtraInfo(data *global.Data) string {
 	return data.RejectReason
 }
 
-func getCallbackCompetitingTxs(data *global.Data) []string {
+func getCallbackCompetitingTxs(data *global.TransactionData) []string {
 	if data.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -118,7 +118,7 @@ func getCallbackCompetitingTxs(data *global.Data) []string {
 	return data.CompetingTxs
 }
 
-func getCallbackBlockHash(data *global.Data) string {
+func getCallbackBlockHash(data *global.TransactionData) string {
 	if data.BlockHash == nil {
 		return ""
 	}

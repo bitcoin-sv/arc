@@ -81,19 +81,29 @@ func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, 
 	return m
 }
 
-func (m *Mediator) AskForTxAsync(ctx context.Context, tx *global.Data) {
+func (m *Mediator) AskForTxAsync(ctx context.Context, tx *global.TransactionData) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
 
-	hash, _ := chainhash.NewHash(tx.Hash.CloneBytes())
+	hash, err := chainhash.NewHash(tx.Hash.CloneBytes())
+	if err != nil {
+		m.logger.Error("failed to parse tx hash", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+		tracing.EndTracing(span, err)
+		return
+	}
 	m.p2pMessenger.RequestWithAutoBatch(hash, wire.InvTypeTx)
 	tracing.EndTracing(span, nil)
 }
 
-func (m *Mediator) AnnounceTxAsync(ctx context.Context, tx *global.Data) {
+func (m *Mediator) AnnounceTxAsync(ctx context.Context, tx *global.TransactionData) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
 
 	if m.classic {
-		hash, _ := chainhash.NewHash(tx.Hash.CloneBytes())
+		hash, err := chainhash.NewHash(tx.Hash.CloneBytes())
+		if err != nil {
+			m.logger.Error("failed to parse tx hash", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+			tracing.EndTracing(span, err)
+			return
+		}
 		m.p2pMessenger.AnnounceWithAutoBatch(hash, wire.InvTypeTx)
 	} else {
 		_ = m.mcaster.SendTx(tx.RawTx)

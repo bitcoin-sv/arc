@@ -188,7 +188,7 @@ func WithTracerProcessor(attr ...attribute.KeyValue) func(*Processor) {
 	}
 }
 
-func WithBlocktxClient(client global.Client) func(*Processor) {
+func WithBlocktxClient(client global.BlocktxClient) func(*Processor) {
 	return func(p *Processor) {
 		p.blocktxClient = client
 	}

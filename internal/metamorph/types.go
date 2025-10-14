@@ -7,7 +7,7 @@ import (
 )
 
 type ProcessorRequest struct {
-	Data            *global.Data
+	Data            *global.TransactionData
 	ResponseChannel chan StatusAndError
 }
 

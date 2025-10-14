@@ -38,8 +38,8 @@ func TestReAnnounceSeen(t *testing.T) {
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
 		messenger := &mocks.MediatorMock{
-			AskForTxAsyncFunc:   func(_ context.Context, _ *global.Data) {},
-			AnnounceTxAsyncFunc: func(_ context.Context, _ *global.Data) {},
+			AskForTxAsyncFunc:   func(_ context.Context, _ *global.TransactionData) {},
+			AnnounceTxAsyncFunc: func(_ context.Context, _ *global.TransactionData) {},
 		}
 
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)

@@ -171,7 +171,7 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func toSendRequest(d *global.Data, timestamp time.Time) []*callbacker_api.SendRequest {
+func toSendRequest(d *global.TransactionData, timestamp time.Time) []*callbacker_api.SendRequest {
 	if len(d.Callbacks) == 0 {
 		return nil
 	}
@@ -206,7 +206,7 @@ func toSendRequest(d *global.Data, timestamp time.Time) []*callbacker_api.SendRe
 	return requests
 }
 
-func getCallbackExtraInfo(d *global.Data) string {
+func getCallbackExtraInfo(d *global.TransactionData) string {
 	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -214,7 +214,7 @@ func getCallbackExtraInfo(d *global.Data) string {
 	return d.RejectReason
 }
 
-func getCallbackCompetitingTxs(d *global.Data) []string {
+func getCallbackCompetitingTxs(d *global.TransactionData) []string {
 	if d.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -222,7 +222,7 @@ func getCallbackCompetitingTxs(d *global.Data) []string {
 	return d.CompetingTxs
 }
 
-func getCallbackBlockHash(d *global.Data) string {
+func getCallbackBlockHash(d *global.TransactionData) string {
 	if d.BlockHash == nil {
 		return ""
 	}

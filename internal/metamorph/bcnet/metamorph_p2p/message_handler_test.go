@@ -10,6 +10,7 @@ import (
 
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
@@ -30,8 +31,10 @@ var (
 )
 
 func Test_MessageHandlerOnReceive(t *testing.T) {
-	ch, _ := chhash.NewHashFromStr(ptrTo(wire.NewMsgTx(70001).TxHash()).String())
-	ch2, _ := chhash.NewHashFromStr(ptrTo(wire.NewMsgReject("command", wire.RejectMalformed, "malformed").Hash).String())
+	ch, err := chhash.NewHashFromStr(ptrTo(wire.NewMsgTx(70001).TxHash()).String())
+	require.NoError(t, err)
+	ch2, err := chhash.NewHashFromStr(ptrTo(wire.NewMsgReject("command", wire.RejectMalformed, "malformed").Hash).String())
+	require.NoError(t, err)
 
 	tt := []struct {
 		name                 string
@@ -143,7 +146,8 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 }
 
 func Test_MessageHandlerOnSend(t *testing.T) {
-	ch3, _ := chhash.NewHashFromStr(ptrTo(wire.NewMsgTx(70001).TxHash()).String())
+	ch3, err := chhash.NewHashFromStr(ptrTo(wire.NewMsgTx(70001).TxHash()).String())
+	require.NoError(t, err)
 	tt := []struct {
 		name                 string
 		wireMsg              wire.Message

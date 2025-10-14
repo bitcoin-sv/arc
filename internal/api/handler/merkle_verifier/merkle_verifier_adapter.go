@@ -15,10 +15,10 @@ var ErrVerifyMerkleRoots = errors.New("failed to verify merkle roots")
 
 type MerkleVerifier struct {
 	verifier global.MerkleRootsVerifier
-	blocktx  global.Client
+	blocktx  global.BlocktxClient
 }
 
-func New(v global.MerkleRootsVerifier, blocktx global.Client) MerkleVerifier {
+func New(v global.MerkleRootsVerifier, blocktx global.BlocktxClient) MerkleVerifier {
 	return MerkleVerifier{verifier: v, blocktx: blocktx}
 }
 

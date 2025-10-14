@@ -32,8 +32,8 @@ func TestProcessor(t *testing.T) {
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 
 		messenger := &mocks.MediatorMock{
-			AskForTxAsyncFunc:   func(_ context.Context, _ *global.Data) {},
-			AnnounceTxAsyncFunc: func(_ context.Context, _ *global.Data) {},
+			AskForTxAsyncFunc:   func(_ context.Context, _ *global.TransactionData) {},
+			AnnounceTxAsyncFunc: func(_ context.Context, _ *global.TransactionData) {},
 		}
 
 		mqClient := &mqMocks.MessageQueueClientMock{
@@ -44,7 +44,7 @@ func TestProcessor(t *testing.T) {
 
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-		blocktxClient := &btxMocks.ClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
+		blocktxClient := &btxMocks.BlocktxClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
@@ -65,7 +65,7 @@ func TestProcessor(t *testing.T) {
 		tx2ResponseChannel := make(chan metamorph.StatusAndError, 10)
 
 		req1 := &metamorph.ProcessorRequest{
-			Data: &global.Data{
+			Data: &global.TransactionData{
 				Hash:              tx1,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,
@@ -73,7 +73,7 @@ func TestProcessor(t *testing.T) {
 			ResponseChannel: tx1ResponseChannel,
 		}
 		req2 := &metamorph.ProcessorRequest{
-			Data: &global.Data{
+			Data: &global.TransactionData{
 				Hash:              tx2,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,

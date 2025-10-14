@@ -77,7 +77,7 @@ func TestPostgresDB(t *testing.T) {
 	}
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1HashB
-	minedData := &global.Data{
+	minedData := &global.TransactionData{
 		RawTx:         make([]byte, 0),
 		StoredAt:      now,
 		Hash:          minedHash,
@@ -91,7 +91,7 @@ func TestPostgresDB(t *testing.T) {
 	}
 
 	unminedHash := testdata.TX1HashB
-	unminedData := &global.Data{
+	unminedData := &global.TransactionData{
 		RawTx:    make([]byte, 0),
 		StoredAt: now,
 		Hash:     unminedHash,
@@ -203,7 +203,7 @@ func TestPostgresDB(t *testing.T) {
 
 		hash2 := testutils.BRevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
 
-		data := []*global.Data{
+		data := []*global.TransactionData{
 			{
 				RawTx:             testdata.TX1Raw.Bytes(),
 				StoredAt:          now,

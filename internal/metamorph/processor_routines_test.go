@@ -31,8 +31,8 @@ func TestStartRoutine(t *testing.T) {
 				},
 			}
 			messenger := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *global.Data) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *global.Data) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *global.TransactionData) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *global.TransactionData) {},
 			}
 			sut, err := metamorph.NewProcessor(
 				s,

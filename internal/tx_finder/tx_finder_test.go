@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/global"
-	metamorphMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	globalMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	txfinder "github.com/bitcoin-sv/arc/internal/tx_finder"
 	"github.com/bitcoin-sv/arc/internal/tx_finder/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
@@ -159,7 +159,7 @@ func Test_GetRawTxs(t *testing.T) {
 			// when
 			var transactionHandler global.TransactionHandler
 			if tc.source.Has(validator.SourceTransactionHandler) {
-				transactionHandler = &metamorphMocks.TransactionHandlerMock{
+				transactionHandler = &globalMocks.TransactionHandlerMock{
 					GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
 						return tc.thResp, tc.getTransactionsErr
 					},

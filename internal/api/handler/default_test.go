@@ -29,9 +29,9 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
+	mtmMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	mtmMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
@@ -178,7 +178,7 @@ type PostTransactionsTest struct {
 
 func TestNewDefault(t *testing.T) {
 	t.Run("simple init", func(t *testing.T) {
-		btxClient := &btxMocks.ClientMock{}
+		btxClient := &btxMocks.BlocktxClientMock{}
 
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
@@ -191,7 +191,7 @@ func TestNewDefault(t *testing.T) {
 func TestGETPolicy(t *testing.T) {
 	t.Run("default policy", func(t *testing.T) {
 		// given
-		btxClient := &btxMocks.ClientMock{}
+		btxClient := &btxMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, nil, btxClient, defaultPolicy, dv, bv)
@@ -230,7 +230,7 @@ func TestGETHealth(t *testing.T) {
 			},
 		}
 
-		btxClient := &btxMocks.ClientMock{}
+		btxClient := &btxMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
@@ -261,7 +261,7 @@ func TestGETHealth(t *testing.T) {
 				return errors.New("some connection error")
 			},
 		}
-		btxClient := &btxMocks.ClientMock{}
+		btxClient := &btxMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		sut, err := NewDefault(testLogger, txHandler, btxClient, defaultPolicy, dv, bv)
@@ -409,7 +409,7 @@ func TestGETTransactionStatus(t *testing.T) {
 				},
 			}
 
-			btxClient := &btxMocks.ClientMock{}
+			btxClient := &btxMocks.BlocktxClientMock{}
 			bv := &apiHandlerMocks.BeefValidatorMock{}
 			dv := &apiHandlerMocks.DefaultValidatorMock{}
 			defaultHandler, err := NewDefault(testLogger, txHandler, btxClient, nil, dv, bv, WithNow(func() time.Time { return time.Date(2023, 5, 3, 10, 0, 0, 0, time.UTC) }))
@@ -793,7 +793,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 			}
 
-			blocktxClient := &btxMocks.ClientMock{}
+			blocktxClient := &btxMocks.BlocktxClientMock{}
 
 			handlerStats, err := NewStats()
 			urlRestrictions := []string{"skiptest"}
@@ -1152,7 +1152,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			btxClient := &btxMocks.ClientMock{}
+			btxClient := &btxMocks.BlocktxClientMock{}
 			sut, err := NewDefault(testLogger, tc.txHandler, btxClient, defaultPolicy, tc.dv, tc.bv)
 			require.NoError(t, err)
 			// when then
@@ -1532,7 +1532,7 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 	t.Run("check block height updates", func(t *testing.T) {
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
-		btxClient := &btxMocks.ClientMock{
+		btxClient := &btxMocks.BlocktxClientMock{
 			CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 				return &blocktx_api.CurrentBlockHeightResponse{
 					CurrentBlockHeight: 24,

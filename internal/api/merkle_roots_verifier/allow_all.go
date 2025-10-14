@@ -7,6 +7,6 @@ import (
 
 // NewAllowAllVerifier Returns a MerkleRootsVerifier that accepts all merkle roots.
 // For test purposes only!
-func NewAllowAllVerifier() global.Client {
-	return &mocks.ClientMock{}
+func NewAllowAllVerifier() global.BlocktxClient {
+	return &mocks.BlocktxClientMock{}
 }

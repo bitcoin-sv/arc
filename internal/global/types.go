@@ -3,8 +3,6 @@ package global
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,16 +13,6 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ccoveille/go-safecast"
 	"google.golang.org/protobuf/types/known/timestamppb"
-)
-
-var (
-	ErrTransactionNotFound = errors.New("transaction not found")
-	ErrNotFound            = errors.New("key could not be found")
-	ErrUpdateCompeting     = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
-)
-
-const (
-	MaxTimeout = 30
 )
 
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.
@@ -41,7 +29,7 @@ type TransactionHandler interface {
 	SubmitTransactions(ctx context.Context, tx sdkTx.Transactions, options *TransactionOptions) ([]*TransactionStatus, error)
 }
 
-type Client interface {
+type BlocktxClient interface {
 	AnyTransactionsMined(ctx context.Context, hash [][]byte) ([]*blocktx_api.IsMined, error)
 	RegisterTransaction(ctx context.Context, hash []byte) error
 	RegisterTransactions(ctx context.Context, hashes [][]byte) error
@@ -83,7 +71,7 @@ type TransactionOptions struct {
 	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
 }
 
-type Data struct {
+type TransactionData struct {
 	RawTx             []byte
 	StoredAt          time.Time
 	LastModified      time.Time
@@ -114,13 +102,13 @@ type StatusWithTimestamp struct {
 	Timestamp time.Time            `json:"timestamp"`
 }
 
-func (d *Data) UpdateStatusFromSQL(status sql.NullInt32) {
+func (d *TransactionData) UpdateStatusFromSQL(status sql.NullInt32) {
 	if status.Valid {
 		d.Status = metamorph_api.Status(status.Int32)
 	}
 }
 
-func (d *Data) UpdateBlockHash(blockHash []byte) error {
+func (d *TransactionData) UpdateBlockHash(blockHash []byte) error {
 	if len(blockHash) > 0 {
 		var err error
 		d.BlockHash, err = chainhash.NewHash(blockHash)
@@ -131,7 +119,7 @@ func (d *Data) UpdateBlockHash(blockHash []byte) error {
 	return nil
 }
 
-func (d *Data) UpdateTxHash(txHash []byte) error {
+func (d *TransactionData) UpdateTxHash(txHash []byte) error {
 	if len(txHash) > 0 {
 		var err error
 		d.Hash, err = chainhash.NewHash(txHash)
@@ -142,7 +130,7 @@ func (d *Data) UpdateTxHash(txHash []byte) error {
 	return nil
 }
 
-func (d *Data) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
+func (d *TransactionData) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
 	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
 	if err != nil {
 		return err
@@ -153,19 +141,19 @@ func (d *Data) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
 	return nil
 }
 
-func (d *Data) UpdateRetriesFromSQL(retries sql.NullInt32) {
+func (d *TransactionData) UpdateRetriesFromSQL(retries sql.NullInt32) {
 	if retries.Valid {
 		d.Retries = int(retries.Int32)
 	}
 }
 
-func (d *Data) UpdateLastModifiedFromSQL(lastModified sql.NullTime) {
+func (d *TransactionData) UpdateLastModifiedFromSQL(lastModified sql.NullTime) {
 	if lastModified.Valid {
 		d.LastModified = lastModified.Time.UTC()
 	}
 }
 
-func (d *Data) UpdateCompetingTxs(competingTxs sql.NullString) {
+func (d *TransactionData) UpdateCompetingTxs(competingTxs sql.NullString) {
 	if competingTxs.String != "" {
 		d.CompetingTxs = strings.Split(competingTxs.String, ",")
 	}

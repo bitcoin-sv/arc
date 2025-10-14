@@ -53,7 +53,7 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
-func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*global.Data) (int, int) {
+func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*global.TransactionData) (int, int) {
 	requested := 0
 	announced := 0
 	for _, tx := range unminedTxs {
@@ -152,7 +152,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var pendingSeen []*global.Data
+	var pendingSeen []*global.TransactionData
 	var hashes []*chainhash.Hash
 	var err error
 
@@ -203,7 +203,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var seenOnNetworkTxs []*global.Data
+	var seenOnNetworkTxs []*global.TransactionData
 	var err error
 
 	for {

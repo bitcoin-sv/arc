@@ -39,7 +39,7 @@ func NewCustomHandler() (api.ServerInterface, error) {
 	}
 
 	// add blocktx, header service or custom implementation of merkle roots verifier
-	merkleRootVerifier := &mocks.ClientMock{}
+	merkleRootVerifier := &mocks.BlocktxClientMock{}
 
 	dv := &apiHandlerMocks.DefaultValidatorMock{}
 	bv := &apiHandlerMocks.BeefValidatorMock{

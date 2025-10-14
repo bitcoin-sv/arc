@@ -44,23 +44,23 @@ type Stats struct {
 }
 
 type MetamorphStore interface {
-	Get(ctx context.Context, key []byte) (*global.Data, error)
-	GetMany(ctx context.Context, keys [][]byte) ([]*global.Data, error)
-	Set(ctx context.Context, value *global.Data) error
-	SetBulk(ctx context.Context, data []*global.Data) error
+	Get(ctx context.Context, key []byte) (*global.TransactionData, error)
+	GetMany(ctx context.Context, keys [][]byte) ([]*global.TransactionData, error)
+	Set(ctx context.Context, value *global.TransactionData) error
+	SetBulk(ctx context.Context, data []*global.TransactionData) error
 	Del(ctx context.Context, key []byte) error
 
 	SetLocked(ctx context.Context, since time.Time, limit int64) error
 	IncrementRetries(ctx context.Context, hash *chainhash.Hash) error
 	SetUnlockedByNameExcept(ctx context.Context, except []string) (int64, error)
 	SetUnlockedByName(ctx context.Context, lockedBy string) (int64, error)
-	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*global.Data, error)
-	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*global.Data, error)
-	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*global.Data, err error)
-	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*global.Data, error)
-	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*global.Data, error)
-	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*global.Data, error)
-	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*global.Data, error)
+	GetUnseen(ctx context.Context, since time.Time, limit int64, offset int64) ([]*global.TransactionData, error)
+	GetSeenPending(ctx context.Context, lastSubmittedSince time.Duration, confirmedAgo time.Duration, seenAgo time.Duration, limit int64, offset int64) ([]*global.TransactionData, error)
+	GetSeen(ctx context.Context, fromDuration time.Duration, toDuration time.Duration, limit int64, offset int64) (res []*global.TransactionData, err error)
+	UpdateStatus(ctx context.Context, updates []UpdateStatus) ([]*global.TransactionData, error)
+	UpdateMined(ctx context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*global.TransactionData, error)
+	GetDoubleSpendTxs(ctx context.Context, older time.Time) ([]*global.TransactionData, error)
+	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*global.TransactionData, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
 	Ping(ctx context.Context) error

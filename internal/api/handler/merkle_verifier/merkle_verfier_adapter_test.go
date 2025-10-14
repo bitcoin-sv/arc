@@ -44,7 +44,7 @@ func TestMerkleVerifier_IsValidRootForHeight(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			blocktxClient := &btxMocks.ClientMock{
+			blocktxClient := &btxMocks.BlocktxClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: 10}, nil
 				},

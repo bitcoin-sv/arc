@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/ccoveille/go-safecast"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
+
+	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 )
 
 const (

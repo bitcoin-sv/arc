@@ -49,7 +49,7 @@ var (
 
 type ArcDefaultHandler struct {
 	TransactionHandler      global.TransactionHandler
-	btxClient               global.Client
+	btxClient               global.BlocktxClient
 	NodePolicy              *bitcoin.Settings
 	maxTxSizePolicy         uint64
 	maxTxSigopsCountsPolicy uint64
@@ -139,7 +139,7 @@ type BeefValidator interface {
 func NewDefault(
 	logger *slog.Logger,
 	transactionHandler global.TransactionHandler,
-	btxClient global.Client,
+	btxClient global.BlocktxClient,
 	policy *bitcoin.Settings,
 	defaultValidator DefaultValidator,
 	beefValidator BeefValidator,

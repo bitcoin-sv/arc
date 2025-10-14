@@ -1091,9 +1091,9 @@ func TestReAnnounceSeen(t *testing.T) {
 
 					iterations++
 					return []*store.RawTx{
-						{Hash: testdata.TX1Hash},
-						{Hash: testdata.TX1Hash},
-						{Hash: testdata.TX1Hash},
+						{Hash: testdata.TX1HashB},
+						{Hash: testdata.TX1HashB},
+						{Hash: testdata.TX1HashB},
 					}, nil
 				},
 				SetRequestedFunc:      func(_ context.Context, _ []*chainhash.Hash) error { return nil },
@@ -1175,7 +1175,7 @@ func TestRegisterSeen(t *testing.T) {
 			stop := make(chan struct{}, 1)
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*store.Data, error) {
+				GetSeenFunc: func(_ context.Context, _ time.Duration, _ time.Duration, limit int64, _ int64) ([]*global.TransactionData, error) {
 					require.Equal(t, int64(500), limit)
 
 					if tc.getSeenErr != nil {

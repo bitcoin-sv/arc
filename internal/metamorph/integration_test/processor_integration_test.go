@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libsv/go-p2p/chaincfg/chainhash"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/cache"

@@ -38,7 +38,7 @@ func getStoreDataFromRows(rows *sql.Rows) ([]*global.TransactionData, error) {
 	var storeData []*global.TransactionData
 
 	for rows.Next() {
-		data, err := getStoreDataFromRow(rows, &global.Data{})
+		data, err := getStoreDataFromRow(rows, &store.TransactionData{})
 		if err != nil {
 			return nil, err
 		}

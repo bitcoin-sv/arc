@@ -248,13 +248,8 @@ func (p *PostgreSQL) UnsetPendingDisable(ctx context.Context, ids []int64) error
 	return nil
 }
 
-func (p *PostgreSQL) Ping(ctx context.Context) error {
-	r, err := p.db.QueryContext(ctx, "SELECT 1;")
-	if err != nil {
-		return err
-	}
-
-	return r.Close()
+func (p *PostgreSQL) Ping() error {
+	return p.db.Ping()
 }
 
 func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, error) {

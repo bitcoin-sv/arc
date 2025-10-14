@@ -59,7 +59,7 @@ func TestCheck(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}
@@ -129,7 +129,7 @@ func TestWatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}
@@ -223,7 +223,7 @@ func TestList(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}

@@ -1,7 +1,6 @@
 package postgresql
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"runtime"
@@ -71,11 +70,6 @@ func (p *PostgreSQL) Close() error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) Ping(ctx context.Context) error {
-	r, err := p.db.QueryContext(ctx, "SELECT 1;")
-	if err != nil {
-		return err
-	}
-
-	return r.Close()
+func (p *PostgreSQL) Ping() error {
+	return p.db.Ping()
 }

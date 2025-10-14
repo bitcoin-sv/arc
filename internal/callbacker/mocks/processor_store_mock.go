@@ -29,7 +29,7 @@ var _ store.ProcessorStore = &ProcessorStoreMock{}
 //			InsertFunc: func(ctx context.Context, data []*store.CallbackData) (int64, error) {
 //				panic("mock out the Insert method")
 //			},
-//			PingFunc: func(ctx context.Context) error {
+//			PingFunc: func() error {
 //				panic("mock out the Ping method")
 //			},
 //			SetSentFunc: func(ctx context.Context, ids []int64) error {
@@ -58,7 +58,7 @@ type ProcessorStoreMock struct {
 	InsertFunc func(ctx context.Context, data []*store.CallbackData) (int64, error)
 
 	// PingFunc mocks the Ping method.
-	PingFunc func(ctx context.Context) error
+	PingFunc func() error
 
 	// SetSentFunc mocks the SetSent method.
 	SetSentFunc func(ctx context.Context, ids []int64) error
@@ -100,8 +100,6 @@ type ProcessorStoreMock struct {
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 		}
 		// SetSent holds details about calls to the SetSent method.
 		SetSent []struct {
@@ -255,19 +253,16 @@ func (mock *ProcessorStoreMock) InsertCalls() []struct {
 }
 
 // Ping calls PingFunc.
-func (mock *ProcessorStoreMock) Ping(ctx context.Context) error {
+func (mock *ProcessorStoreMock) Ping() error {
 	if mock.PingFunc == nil {
 		panic("ProcessorStoreMock.PingFunc: method is nil but ProcessorStore.Ping was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
+	}{}
 	mock.lockPing.Lock()
 	mock.calls.Ping = append(mock.calls.Ping, callInfo)
 	mock.lockPing.Unlock()
-	return mock.PingFunc(ctx)
+	return mock.PingFunc()
 }
 
 // PingCalls gets all the calls that were made to Ping.
@@ -275,10 +270,8 @@ func (mock *ProcessorStoreMock) Ping(ctx context.Context) error {
 //
 //	len(mockedProcessorStore.PingCalls())
 func (mock *ProcessorStoreMock) PingCalls() []struct {
-	Ctx context.Context
 } {
 	var calls []struct {
-		Ctx context.Context
 	}
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping

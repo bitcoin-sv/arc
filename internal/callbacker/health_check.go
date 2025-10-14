@@ -2,10 +2,16 @@ package callbacker
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+)
+
+const (
+	readiness = "readiness"
+	liveness  = "liveness"
 )
 
 type HealthWatchServer interface {
@@ -13,7 +19,7 @@ type HealthWatchServer interface {
 	grpc.ServerStream
 }
 
-func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) (*grpc_health_v1.HealthListResponse, error) {
+func (s *Server) List(_ context.Context, _ *grpc_health_v1.HealthListRequest) (*grpc_health_v1.HealthListResponse, error) {
 	mqStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
 	if s.mqClient != nil {
 		if s.mqClient.Status() == nats.CONNECTED {
@@ -22,7 +28,7 @@ func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) 
 	}
 
 	storeStatus := grpc_health_v1.HealthCheckResponse_NOT_SERVING
-	if s.store.Ping(ctx) == nil {
+	if s.store.Ping() == nil {
 		storeStatus = grpc_health_v1.HealthCheckResponse_SERVING
 	}
 
@@ -43,12 +49,29 @@ func (s *Server) List(ctx context.Context, _ *grpc_health_v1.HealthListRequest) 
 	return listResp, nil
 }
 
-func (s *Server) Check(_ context.Context, _ *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	if s.mqClient == nil || !s.mqClient.IsConnected() {
-		s.logger.Error("nats not connected")
+func (s *Server) Check(_ context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
+	switch req.Service {
+	case readiness:
+		err := s.store.Ping()
+		if err != nil {
+			s.logger.Error("no connection to DB", slog.String("err", err.Error()))
+			return &grpc_health_v1.HealthCheckResponse{
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			}, nil
+		}
+
+		if s.mqClient == nil || !s.mqClient.IsConnected() {
+			s.logger.Error("nats not connected")
+			return &grpc_health_v1.HealthCheckResponse{
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			}, nil
+		}
+
+	case liveness:
 		return &grpc_health_v1.HealthCheckResponse{
-			Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			Status: grpc_health_v1.HealthCheckResponse_SERVING,
 		}, nil
+	default:
 	}
 
 	return &grpc_health_v1.HealthCheckResponse{
@@ -57,6 +80,14 @@ func (s *Server) Check(_ context.Context, _ *grpc_health_v1.HealthCheckRequest) 
 }
 
 func (s *Server) Watch(_ *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
+	err := s.store.Ping()
+	if err != nil {
+		s.logger.Error("no connection to DB", slog.String("err", err.Error()))
+		return server.Send(&grpc_health_v1.HealthCheckResponse{
+			Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+		})
+	}
+
 	if s.mqClient == nil || !s.mqClient.IsConnected() {
 		s.logger.Error("nats not connected")
 		return server.Send(&grpc_health_v1.HealthCheckResponse{

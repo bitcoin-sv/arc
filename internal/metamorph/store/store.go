@@ -63,7 +63,7 @@ type MetamorphStore interface {
 	UpdateDoubleSpend(ctx context.Context, updates []UpdateStatus, updateCompetingTxs bool) ([]*global.TransactionData, error)
 	Close(ctx context.Context) error
 	ClearData(ctx context.Context, retentionDays int32) (int64, error)
-	Ping(ctx context.Context) error
+	Ping() error
 
 	GetStats(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*Stats, error)
 	GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error)

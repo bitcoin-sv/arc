@@ -59,7 +59,7 @@ func TestCheck(t *testing.T) {
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}
@@ -128,7 +128,7 @@ func TestWatch(t *testing.T) {
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}
@@ -220,7 +220,7 @@ func TestList(t *testing.T) {
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					return nil, nil
 				},
-				PingFunc: func(_ context.Context) error {
+				PingFunc: func() error {
 					return tc.pingErr
 				},
 			}
@@ -238,7 +238,7 @@ func TestList(t *testing.T) {
 			}
 			serverCfg := grpc_utils.ServerConfig{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

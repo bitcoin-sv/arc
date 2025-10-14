@@ -73,7 +73,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			MarkBlockAsDoneFunc: func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error {
 //				panic("mock out the MarkBlockAsDone method")
 //			},
-//			PingFunc: func(ctx context.Context) error {
+//			PingFunc: func() error {
 //				panic("mock out the Ping method")
 //			},
 //			RegisterTransactionsFunc: func(ctx context.Context, txHashes [][]byte) (int64, error) {
@@ -153,7 +153,7 @@ type BlocktxStoreMock struct {
 	MarkBlockAsDoneFunc func(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 
 	// PingFunc mocks the Ping method.
-	PingFunc func(ctx context.Context) error
+	PingFunc func() error
 
 	// RegisterTransactionsFunc mocks the RegisterTransactions method.
 	RegisterTransactionsFunc func(ctx context.Context, txHashes [][]byte) (int64, error)
@@ -296,8 +296,6 @@ type BlocktxStoreMock struct {
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 		}
 		// RegisterTransactions holds details about calls to the RegisterTransactions method.
 		RegisterTransactions []struct {
@@ -986,19 +984,16 @@ func (mock *BlocktxStoreMock) MarkBlockAsDoneCalls() []struct {
 }
 
 // Ping calls PingFunc.
-func (mock *BlocktxStoreMock) Ping(ctx context.Context) error {
+func (mock *BlocktxStoreMock) Ping() error {
 	if mock.PingFunc == nil {
 		panic("BlocktxStoreMock.PingFunc: method is nil but BlocktxStore.Ping was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
+	}{}
 	mock.lockPing.Lock()
 	mock.calls.Ping = append(mock.calls.Ping, callInfo)
 	mock.lockPing.Unlock()
-	return mock.PingFunc(ctx)
+	return mock.PingFunc()
 }
 
 // PingCalls gets all the calls that were made to Ping.
@@ -1006,10 +1001,8 @@ func (mock *BlocktxStoreMock) Ping(ctx context.Context) error {
 //
 //	len(mockedBlocktxStore.PingCalls())
 func (mock *BlocktxStoreMock) PingCalls() []struct {
-	Ctx context.Context
 } {
 	var calls []struct {
-		Ctx context.Context
 	}
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping

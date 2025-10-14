@@ -2,7 +2,7 @@
   token: token
   tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:00
+  timestamp: 2024-09-01T12:00:00+00:00
   hash: 0x285ccf9955a9dcef803dcc766fbcb257bfedd134ce19cc6ead3bdc96baf8cb96
   retries: 5
 
@@ -10,10 +10,10 @@
   token: token
   tx_id: 96cbf8ba96dc3bad6ecc19ce34d1edbf57b2bc6f76cc3d80efdca95599cf5c28
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:00
+  timestamp: 2024-09-01T12:01:00+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  pending: 2024-09-01 12:24:00
+  pending: 2024-09-01T12:24:00+00:00
   hash: 0x285ccf9955a9dcef803dcc766fbcb257bfedd134ce19cc6ead3bdc96baf8cb96
   retries: 5
 
@@ -21,7 +21,7 @@
   token: token
   tx_id: 3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:01
+  timestamp: 2024-09-01T12:01:01+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
@@ -31,7 +31,7 @@
   token: token
   tx_id: 3413cc9b40d48661c7f36bee88ebb39fca1d593f9672f840afdf07b018e73bb7
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:01
+  timestamp: 2024-09-01T12:00:01+00:00
   hash: 0xb73be718b007dfaf40f872963f591dca9fb3eb88ee6bf3c76186d4409bcc1334
   retries: 5
 
@@ -39,7 +39,7 @@
   token: token
   tx_id: 277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
+  timestamp: 2024-09-01T12:00:02+00:00
   hash: 0xcc823ff474ae65c47eea0d1ae0b41a744e8861ce1f3023717537eea619b67f27
   retries: 5
 
@@ -47,7 +47,7 @@
   token: token
   tx_id: 277fb619a6ee37757123301fce61884e741ab4e01a0dea7ec465ae74f43f82cc
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:01:02
+  timestamp: 2024-09-01T12:01:02+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xcc823ff474ae65c47eea0d1ae0b41a744e8861ce1f3023717537eea619b67f27
@@ -57,7 +57,7 @@
   token: token
   tx_id: 13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:02:03
+  timestamp: 2024-09-01T12:02:03+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
@@ -67,7 +67,7 @@
   token: token
   tx_id: 13441601b8f4bd6062ce113118e957c04442a3293360fffbe0ed8805c34c6343
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:02:02
+  timestamp: 2024-09-01T12:02:02+00:00
   hash: 0x43634cc30588ede0fbff603329a34244c057e9183111ce6260bdf4b801164413
   retries: 5
 
@@ -75,7 +75,7 @@
   token: token
   tx_id: 862f7781e2e65efddd3cb6bb3a924ea53edba299354991eb38bf47ec6e5c986c
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:03:01
+  timestamp: 2024-09-01T12:03:01+00:00
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
   retries: 5
 
@@ -83,7 +83,7 @@
   token: token
   tx_id: 862f7781e2e65efddd3cb6bb3a924ea53edba299354991eb38bf47ec6e5c986c
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:03:02
+  timestamp: 2024-09-01T12:03:02+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0x6c985c6eec47bf38eb91493599a2db3ea54e923abbb63cddfd5ee6e281772f86
@@ -93,7 +93,7 @@
   token: token
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:04:01
+  timestamp: 2024-09-01T12:04:01+00:00
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
   retries: 5
 
@@ -101,7 +101,7 @@
   token: token
   tx_id: 0e27376ded97b656ccc02ecd6948d2e775d8904e7093eb89e8d2bf1eb7a60ea9
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:04:02
+  timestamp: 2024-09-01T12:04:02+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
   hash: 0xa90ea6b71ebfd2e889eb93704e90d875e7d24869cd2ec0cc56b697ed6d37270e
@@ -111,10 +111,10 @@
   token: token
   tx_id: 6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070
   tx_status: "MINED"
-  timestamp: 2024-09-01 12:05:02
+  timestamp: 2024-09-01T12:05:02+00:00
   block_hash: 0000000000000000086527da012efb2d45e00fba9f31e84c35dce998abb409ad
   block_height: 860339
-  pending: 2024-09-01 12:02:02
+  pending: 2024-09-01T12:02:02+00:00
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
   retries: 5
 
@@ -122,7 +122,7 @@
   token: token
   tx_id: 6bcfe17b6b41511ee891401998caefb7ffdcee87653e197dfb1add5860b6a070
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:05:01
+  timestamp: 2024-09-01T12:05:01+00:00
   hash: 0x70a0b66058dd1afb7d193e6587eedcffb7efca98194091e81e51416b7be1cf6b
   retries: 5
 
@@ -130,6 +130,6 @@
   token: token
   tx_id: c50eeb84c58780bb0eb39f430deb93e5f362fe16b73aa4f811c089e14a1815ae
   tx_status: "SEEN_ON_NETWORK"
-  timestamp: 2024-09-01 12:00:02
+  timestamp: 2024-09-01T12:00:02+00:00
   hash: 0xae15184ae189c011f8a43ab716fe62f3e593eb0d439fb30ebb8087c584eb0ec5
   retries: 5

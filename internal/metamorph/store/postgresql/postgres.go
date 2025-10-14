@@ -1169,13 +1169,8 @@ func (p *PostgreSQL) Close(ctx context.Context) error {
 	return p.db.Close()
 }
 
-func (p *PostgreSQL) Ping(ctx context.Context) error {
-	rows, err := p.db.QueryContext(ctx, "SELECT 1;")
-	if err != nil {
-		return err
-	}
-
-	return rows.Close()
+func (p *PostgreSQL) Ping() error {
+	return p.db.Ping()
 }
 
 func (p *PostgreSQL) ClearData(ctx context.Context, retentionDays int32) (int64, error) {

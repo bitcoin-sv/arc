@@ -45,7 +45,7 @@ type MessageQueueClient interface {
 	// QueueSubscribe subscribes to a topic and calls the specified function for each message as byte array
 	QueueSubscribe(topic string, msgFunc func([]byte) error) error
 
-	Status() string
+	Status() nats.Status
 	IsConnected() bool
 	Shutdown()
 }

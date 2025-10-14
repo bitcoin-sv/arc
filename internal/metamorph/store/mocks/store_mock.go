@@ -65,7 +65,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			MarkConfirmedRequestedFunc: func(ctx context.Context, hash *chainhash.Hash) error {
 //				panic("mock out the MarkConfirmedRequested method")
 //			},
-//			PingFunc: func(ctx context.Context) error {
+//			PingFunc: func() error {
 //				panic("mock out the Ping method")
 //			},
 //			SetFunc: func(ctx context.Context, value *global.TransactionData) error {
@@ -145,7 +145,7 @@ type MetamorphStoreMock struct {
 	MarkConfirmedRequestedFunc func(ctx context.Context, hash *chainhash.Hash) error
 
 	// PingFunc mocks the Ping method.
-	PingFunc func(ctx context.Context) error
+	PingFunc func() error
 
 	// SetFunc mocks the Set method.
 	SetFunc func(ctx context.Context, value *global.TransactionData) error
@@ -300,8 +300,6 @@ type MetamorphStoreMock struct {
 		}
 		// Ping holds details about calls to the Ping method.
 		Ping []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
@@ -950,19 +948,16 @@ func (mock *MetamorphStoreMock) MarkConfirmedRequestedCalls() []struct {
 }
 
 // Ping calls PingFunc.
-func (mock *MetamorphStoreMock) Ping(ctx context.Context) error {
+func (mock *MetamorphStoreMock) Ping() error {
 	if mock.PingFunc == nil {
 		panic("MetamorphStoreMock.PingFunc: method is nil but MetamorphStore.Ping was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
+	}{}
 	mock.lockPing.Lock()
 	mock.calls.Ping = append(mock.calls.Ping, callInfo)
 	mock.lockPing.Unlock()
-	return mock.PingFunc(ctx)
+	return mock.PingFunc()
 }
 
 // PingCalls gets all the calls that were made to Ping.
@@ -970,10 +965,8 @@ func (mock *MetamorphStoreMock) Ping(ctx context.Context) error {
 //
 //	len(mockedMetamorphStore.PingCalls())
 func (mock *MetamorphStoreMock) PingCalls() []struct {
-	Ctx context.Context
 } {
 	var calls []struct {
-		Ctx context.Context
 	}
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping

@@ -16,6 +16,22 @@ type HealthWatchServer interface {
 	grpc.ServerStream
 }
 
+func (s *Server) List(_ context.Context, _ *grpc_health_v1.HealthListRequest) (*grpc_health_v1.HealthListResponse, error) {
+	listResp := &grpc_health_v1.HealthListResponse{
+		Statuses: map[string]*grpc_health_v1.HealthCheckResponse{
+			"server": {
+				Status: grpc_health_v1.HealthCheckResponse_NOT_SERVING,
+			},
+		},
+	}
+
+	if s.handler.CurrentBlockHeight() > 0 {
+		listResp.Statuses["server"].Status = grpc_health_v1.HealthCheckResponse_SERVING
+	}
+
+	return listResp, nil
+}
+
 func (s *Server) Check(_ context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
 	s.logger.Debug("checking health", slog.String("service", req.Service))
 	if req.Service == readiness {

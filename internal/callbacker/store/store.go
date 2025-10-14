@@ -27,4 +27,5 @@ type ProcessorStore interface {
 	SetSent(ctx context.Context, ids []int64) error
 	UnsetPending(ctx context.Context, ids []int64) error
 	UnsetPendingDisable(ctx context.Context, ids []int64) error
+	Ping() error
 }

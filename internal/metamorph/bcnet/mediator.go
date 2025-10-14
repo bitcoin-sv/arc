@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"runtime"
 
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/mcast"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
@@ -80,20 +80,20 @@ func NewMediator(l *slog.Logger, classic bool, messenger *p2p.NetworkMessenger, 
 	return m
 }
 
-func (m *Mediator) AskForTxAsync(ctx context.Context, tx *store.Data) {
+func (m *Mediator) AskForTxAsync(ctx context.Context, hash *chainhash.Hash) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
 
-	m.p2pMessenger.RequestWithAutoBatch(tx.Hash, wire.InvTypeTx)
+	m.p2pMessenger.RequestWithAutoBatch(hash, wire.InvTypeTx)
 	tracing.EndTracing(span, nil)
 }
 
-func (m *Mediator) AnnounceTxAsync(ctx context.Context, tx *store.Data) {
+func (m *Mediator) AnnounceTxAsync(ctx context.Context, hash *chainhash.Hash, rawTx []byte) {
 	_, span := tracing.StartTracing(ctx, "AskForTxAsync", m.tracingEnabled, m.tracingAttributes...)
 
 	if m.classic {
-		m.p2pMessenger.AnnounceWithAutoBatch(tx.Hash, wire.InvTypeTx)
+		m.p2pMessenger.AnnounceWithAutoBatch(hash, wire.InvTypeTx)
 	} else {
-		_ = m.mcaster.SendTx(tx.RawTx)
+		_ = m.mcaster.SendTx(rawTx)
 	}
 
 	tracing.EndTracing(span, nil)

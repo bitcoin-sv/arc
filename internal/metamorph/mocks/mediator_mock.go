@@ -6,8 +6,8 @@ package mocks
 import (
 	"context"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
-	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"sync"
 )
 
@@ -21,10 +21,10 @@ var _ metamorph.Mediator = &MediatorMock{}
 //
 //		// make and configure a mocked metamorph.Mediator
 //		mockedMediator := &MediatorMock{
-//			AnnounceTxAsyncFunc: func(ctx context.Context, tx *store.Data)  {
+//			AnnounceTxAsyncFunc: func(ctx context.Context, hash *chainhash.Hash, rawTx []byte)  {
 //				panic("mock out the AnnounceTxAsync method")
 //			},
-//			AskForTxAsyncFunc: func(ctx context.Context, tx *store.Data)  {
+//			AskForTxAsyncFunc: func(ctx context.Context, hash *chainhash.Hash)  {
 //				panic("mock out the AskForTxAsync method")
 //			},
 //			CountConnectedPeersFunc: func() uint {
@@ -41,10 +41,10 @@ var _ metamorph.Mediator = &MediatorMock{}
 //	}
 type MediatorMock struct {
 	// AnnounceTxAsyncFunc mocks the AnnounceTxAsync method.
-	AnnounceTxAsyncFunc func(ctx context.Context, tx *store.Data)
+	AnnounceTxAsyncFunc func(ctx context.Context, hash *chainhash.Hash, rawTx []byte)
 
 	// AskForTxAsyncFunc mocks the AskForTxAsync method.
-	AskForTxAsyncFunc func(ctx context.Context, tx *store.Data)
+	AskForTxAsyncFunc func(ctx context.Context, hash *chainhash.Hash)
 
 	// CountConnectedPeersFunc mocks the CountConnectedPeers method.
 	CountConnectedPeersFunc func() uint
@@ -58,15 +58,17 @@ type MediatorMock struct {
 		AnnounceTxAsync []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Tx is the tx argument value.
-			Tx *store.Data
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
+			// RawTx is the rawTx argument value.
+			RawTx []byte
 		}
 		// AskForTxAsync holds details about calls to the AskForTxAsync method.
 		AskForTxAsync []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// Tx is the tx argument value.
-			Tx *store.Data
+			// Hash is the hash argument value.
+			Hash *chainhash.Hash
 		}
 		// CountConnectedPeers holds details about calls to the CountConnectedPeers method.
 		CountConnectedPeers []struct {
@@ -82,21 +84,23 @@ type MediatorMock struct {
 }
 
 // AnnounceTxAsync calls AnnounceTxAsyncFunc.
-func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, tx *store.Data) {
+func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, hash *chainhash.Hash, rawTx []byte) {
 	if mock.AnnounceTxAsyncFunc == nil {
 		panic("MediatorMock.AnnounceTxAsyncFunc: method is nil but Mediator.AnnounceTxAsync was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-		Tx  *store.Data
+		Ctx   context.Context
+		Hash  *chainhash.Hash
+		RawTx []byte
 	}{
-		Ctx: ctx,
-		Tx:  tx,
+		Ctx:   ctx,
+		Hash:  hash,
+		RawTx: rawTx,
 	}
 	mock.lockAnnounceTxAsync.Lock()
 	mock.calls.AnnounceTxAsync = append(mock.calls.AnnounceTxAsync, callInfo)
 	mock.lockAnnounceTxAsync.Unlock()
-	mock.AnnounceTxAsyncFunc(ctx, tx)
+	mock.AnnounceTxAsyncFunc(ctx, hash, rawTx)
 }
 
 // AnnounceTxAsyncCalls gets all the calls that were made to AnnounceTxAsync.
@@ -104,12 +108,14 @@ func (mock *MediatorMock) AnnounceTxAsync(ctx context.Context, tx *store.Data) {
 //
 //	len(mockedMediator.AnnounceTxAsyncCalls())
 func (mock *MediatorMock) AnnounceTxAsyncCalls() []struct {
-	Ctx context.Context
-	Tx  *store.Data
+	Ctx   context.Context
+	Hash  *chainhash.Hash
+	RawTx []byte
 } {
 	var calls []struct {
-		Ctx context.Context
-		Tx  *store.Data
+		Ctx   context.Context
+		Hash  *chainhash.Hash
+		RawTx []byte
 	}
 	mock.lockAnnounceTxAsync.RLock()
 	calls = mock.calls.AnnounceTxAsync
@@ -118,21 +124,21 @@ func (mock *MediatorMock) AnnounceTxAsyncCalls() []struct {
 }
 
 // AskForTxAsync calls AskForTxAsyncFunc.
-func (mock *MediatorMock) AskForTxAsync(ctx context.Context, tx *store.Data) {
+func (mock *MediatorMock) AskForTxAsync(ctx context.Context, hash *chainhash.Hash) {
 	if mock.AskForTxAsyncFunc == nil {
 		panic("MediatorMock.AskForTxAsyncFunc: method is nil but Mediator.AskForTxAsync was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
-		Tx  *store.Data
+		Ctx  context.Context
+		Hash *chainhash.Hash
 	}{
-		Ctx: ctx,
-		Tx:  tx,
+		Ctx:  ctx,
+		Hash: hash,
 	}
 	mock.lockAskForTxAsync.Lock()
 	mock.calls.AskForTxAsync = append(mock.calls.AskForTxAsync, callInfo)
 	mock.lockAskForTxAsync.Unlock()
-	mock.AskForTxAsyncFunc(ctx, tx)
+	mock.AskForTxAsyncFunc(ctx, hash)
 }
 
 // AskForTxAsyncCalls gets all the calls that were made to AskForTxAsync.
@@ -140,12 +146,12 @@ func (mock *MediatorMock) AskForTxAsync(ctx context.Context, tx *store.Data) {
 //
 //	len(mockedMediator.AskForTxAsyncCalls())
 func (mock *MediatorMock) AskForTxAsyncCalls() []struct {
-	Ctx context.Context
-	Tx  *store.Data
+	Ctx  context.Context
+	Hash *chainhash.Hash
 } {
 	var calls []struct {
-		Ctx context.Context
-		Tx  *store.Data
+		Ctx  context.Context
+		Hash *chainhash.Hash
 	}
 	mock.lockAskForTxAsync.RLock()
 	calls = mock.calls.AskForTxAsync

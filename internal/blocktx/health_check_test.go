@@ -74,7 +74,7 @@ func TestCheck(t *testing.T) {
 			}
 			serverCfg := grpc_utils.ServerConfig{}
 
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 
@@ -139,7 +139,7 @@ func TestWatch(t *testing.T) {
 
 			serverCfg := grpc_utils.ServerConfig{}
 			pm := &mocks.PeerManagerMock{CountConnectedPeersFunc: func() uint { return 0 }}
-			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil)
+			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.GracefulStop()
 

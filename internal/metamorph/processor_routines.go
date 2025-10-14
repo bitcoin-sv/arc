@@ -27,15 +27,18 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 
 	requested := 0
 	announced := 0
+
+	const getUnseenloadLimit = 500
+
 	for {
 		// get all transactions since then chunk by chunk
-		unminedTxs, err := p.store.GetUnseen(ctx, getUnseenSince, loadLimit, offset)
+		unminedTxs, err := p.store.GetUnseen(ctx, getUnseenSince, getUnseenloadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get unmined transactions", slog.String("err", err.Error()))
 			break
 		}
 
-		offset += loadLimit
+		offset += getUnseenloadLimit
 		if len(unminedTxs) == 0 {
 			break
 		}
@@ -43,6 +46,8 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 		announcedUnseen, requestedUnseen := p.reAnnounceUnseenTxs(ctx, unminedTxs)
 		announced += announcedUnseen
 		requested += requestedUnseen
+
+		time.Sleep(1 * time.Second)
 	}
 
 	if announced > 0 || requested > 0 {
@@ -76,13 +81,13 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store
 		if tx.Retries%2 != 0 {
 			// Send GETDATA to peers to see if they have it
 			p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AskForTxAsync(ctx, tx)
+			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
 			requested++
 			continue
 		}
 
 		p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
-		p.bcMediator.AnnounceTxAsync(ctx, tx)
+		p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 		announced++
 	}
 	return announced, requested
@@ -95,7 +100,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	var txs []*chainhash.Hash
 	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
-
+	const getUnconfirmedloadLimit = 500
 	for {
 		blocksSinceLastRequested, err = p.blocktxClient.LatestBlocks(ctx, p.rejectPendingBlocksSince)
 		if err != nil {
@@ -103,7 +108,14 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			break
 		}
 		if uint64(len(blocksSinceLastRequested.Blocks)) != p.rejectPendingBlocksSince {
-			p.logger.Warn("Unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			p.logger.Warn("Rejecting unconfirmed txs aborted - unexpected number of blocks received", slog.Uint64("expected", p.rejectPendingBlocksSince), slog.Int("received", len(blocksSinceLastRequested.Blocks)))
+			break
+		}
+
+		// Do not reject any transactions if there are block gaps because those transactions could have been mined in missing blocks
+		gaps := blocksSinceLastRequested.GetBlockGaps()
+		if len(gaps) != 0 {
+			p.logger.Warn("Rejecting unconfirmed txs aborted - block gaps received", slog.Int("count", len(gaps)))
 			break
 		}
 
@@ -113,13 +125,13 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		// reject all txs, which have been requested at least `rejectPendingSeenLastRequestedAgo` AND the time since `rejectPendingBlocksSince` was processed ago
 		requestedAgo := min(sinceLastProcessed, p.rejectPendingSeenLastRequestedAgo)
 
-		txs, err = p.store.GetUnconfirmedRequested(ctx, requestedAgo, loadLimit, offset)
+		txs, err = p.store.GetUnconfirmedRequested(ctx, requestedAgo, getUnconfirmedloadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
 		}
 
-		offset += loadLimit
+		offset += getUnconfirmedloadLimit
 
 		p.logger.Debug("Unconfirmed requested txs", slog.Int("count", len(txs)), slog.Duration("requestedAgo", requestedAgo), slog.Bool("enabled", p.rejectPendingSeenEnabled))
 		if len(txs) != 0 {
@@ -137,7 +149,7 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 			totalRejected += len(txs)
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 
 	if totalRejected > 0 {
@@ -151,12 +163,14 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var pendingSeen []*store.Data
+	var pendingSeen []*store.RawTx
 	var hashes []*chainhash.Hash
 	var err error
 
+	const getPendingLimit = 500
+
 	for {
-		pendingSeen, err = p.store.GetSeenPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeenLastConfirmedAgo, p.reAnnounceSeenPendingSince, loadLimit, offset)
+		pendingSeen, err = p.store.GetPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeenLastConfirmedAgo, p.reAnnounceSeenPendingSince, getPendingLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
@@ -167,28 +181,26 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		offset += loadLimit
+		offset += getPendingLimit
 		totalSeenOnNetworkTxs += len(pendingSeen)
 
 		// re-announce transactions
 		for i, tx := range pendingSeen {
 			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AskForTxAsync(ctx, tx)
+			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
 
 			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AnnounceTxAsync(ctx, tx)
+			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 
 			hashes[i] = tx.Hash
 		}
-
-		time.Sleep(100 * time.Millisecond)
 
 		err = p.store.SetRequested(ctx, hashes)
 		if err != nil {
 			p.logger.Error("Failed to mark seen txs requested", slog.String("err", err.Error()))
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 
 	if totalSeenOnNetworkTxs > 0 {
@@ -198,15 +210,17 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", totalSeenOnNetworkTxs)}
 }
 
-// RegisterSeenTxs re-registers and SEEN_ON_NETWORK transactions
+// RegisterSeenTxs re-registers SEEN_ON_NETWORK transactions
 func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
 	var seenOnNetworkTxs []*store.Data
 	var err error
 
+	const getSeenLoadLimit = 500
+
 	for {
-		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, loadLimit, offset)
+		seenOnNetworkTxs, err = p.store.GetSeen(ctx, p.rebroadcastExpiration, p.reRegisterSeen, getSeenLoadLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get SeenOnNetwork transactions", slog.String("err", err.Error()))
 			break
@@ -216,7 +230,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		offset += loadLimit
+		offset += getSeenLoadLimit
 		totalSeenOnNetworkTxs += len(seenOnNetworkTxs)
 
 		err = p.registerTransactions(ctx, seenOnNetworkTxs)
@@ -224,7 +238,7 @@ func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 			p.logger.Error("Failed to register txs in blocktx", slog.String("err", err.Error()))
 		}
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 
 	if totalSeenOnNetworkTxs > 0 {

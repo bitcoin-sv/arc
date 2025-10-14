@@ -3,6 +3,7 @@ package blocktx
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -18,6 +19,11 @@ import (
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
+)
+
+var (
+	ErrFailedToGetBlockGaps    = errors.New("failed to get block gaps")
+	ErrFailedToGetLatestBlocks = errors.New("failed to get latest blocks")
 )
 
 type ProcessorI interface {
@@ -41,10 +47,11 @@ type Server struct {
 	maxAllowedBlockHeightMismatch uint64
 	processor                     ProcessorI
 	mqClient                      mq.MessageQueueClient
+	retentionDays                 int
 }
 
 // NewServer will return a server instance with the logger stored within it.
-func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch uint64, mqClient mq.MessageQueueClient) (*Server, error) {
+func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, processor ProcessorI, cfg grpc_utils.ServerConfig, maxAllowedBlockHeightMismatch uint64, mqClient mq.MessageQueueClient, retentionDays int) (*Server, error) {
 	logger = logger.With(slog.String("module", "server"))
 
 	grpcServer, err := grpc_utils.NewGrpcServer(logger, cfg)
@@ -60,6 +67,7 @@ func NewServer(logger *slog.Logger, store store.BlocktxStore, pm PeerManager, pr
 		processor:                     processor,
 		maxAllowedBlockHeightMismatch: maxAllowedBlockHeightMismatch,
 		mqClient:                      mqClient,
+		retentionDays:                 retentionDays,
 	}
 
 	// register health server endpoint
@@ -118,7 +126,7 @@ func (s *Server) AnyTransactionsMined(ctx context.Context, req *blocktx_api.Tran
 	minedTxs := make([][]byte, len(req.Transactions))
 	minedStatuses := make(map[string]bool, len(req.Transactions))
 	for i, v := range req.Transactions {
-		minedStatuses[string(hex.EncodeToString(v.Hash))] = false
+		minedStatuses[hex.EncodeToString(v.Hash)] = false
 		minedTxs[i] = util.ReverseBytes(v.Hash)
 	}
 
@@ -129,7 +137,7 @@ func (s *Server) AnyTransactionsMined(ctx context.Context, req *blocktx_api.Tran
 		return &res, err
 	}
 	for _, tx := range txs {
-		minedStatuses[string(hex.EncodeToString(tx.TxHash))] = true
+		minedStatuses[hex.EncodeToString(tx.TxHash)] = true
 	}
 
 	for k, v := range minedStatuses {
@@ -151,8 +159,34 @@ func (s *Server) CurrentBlockHeight(_ context.Context, _ *emptypb.Empty) (*block
 func (s *Server) LatestBlocks(ctx context.Context, req *blocktx_api.NumOfLatestBlocks) (*blocktx_api.LatestBlocksResponse, error) {
 	blocks, err := s.store.LatestBlocks(ctx, req.Blocks)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrFailedToGetLatestBlocks, err)
+	}
+	const (
+		hoursPerDay   = 24
+		blocksPerHour = 6
+	)
+
+	heightRange := s.retentionDays * hoursPerDay * blocksPerHour
+	blockGaps, err := s.store.GetBlockGaps(ctx, heightRange)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToGetBlockGaps, err)
 	}
 
-	return &blocktx_api.LatestBlocksResponse{Blocks: blocks}, nil
+	gaps := make([]*blocktx_api.BlockGap, 0, len(blockGaps))
+	for _, v := range blockGaps {
+		if v.Hash == nil {
+			continue
+		}
+		gaps = append(gaps, &blocktx_api.BlockGap{
+			Hash:   v.Hash[:],
+			Height: v.Height,
+		})
+	}
+
+	response := &blocktx_api.LatestBlocksResponse{
+		Blocks:    blocks,
+		BlockGaps: gaps,
+	}
+
+	return response, nil
 }

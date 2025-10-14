@@ -47,6 +47,7 @@ message NumOfLatestBlocks {
 
 message LatestBlocksResponse {
   repeated Block blocks = 1;
+  repeated BlockGap block_gaps = 2;
 }
 
 message AnyTransactionsMinedResponse {
@@ -81,6 +82,12 @@ message Block {
   string chainwork = 7;
   google.protobuf.Timestamp processed_at = 8;
   google.protobuf.Timestamp timestamp = 9;
+}
+
+// swagger:model BlockGap {
+message BlockGap {
+  bytes hash = 1; // Little endian
+  uint64 height = 2;
 }
 
 // swagger:model Transactions

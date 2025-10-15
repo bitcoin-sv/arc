@@ -1239,7 +1239,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 		expectedRejections          int
 		expectedGetUnconfirmedCalls int
 		blocks                      *blocktx_api.LatestBlocksResponse
-		requestedTimes              []*chainhash.Hash
+		requestedTimes              []*global.TransactionData
 	}{
 		{
 			name: "success - only last tx is behind 2 blocks to be rejected",
@@ -1260,7 +1260,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{testdata.TX1HashB, testdata.TX2HashB, testdata.TX3HashB},
+			requestedTimes: []*global.TransactionData{{Hash: testdata.TX1HashB, Status: metamorph_api.Status_SENT_TO_NETWORK}, {Hash: testdata.TX2HashB, Status: metamorph_api.Status_SEEN_ON_NETWORK}, {Hash: testdata.TX3HashB, Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK}},
 		},
 		{
 			name:                        "not expected number of blocks available",
@@ -1275,7 +1275,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{testdata.TX1HashB, testdata.TX2HashB, testdata.TX3HashB},
+			requestedTimes: []*global.TransactionData{{Hash: testdata.TX1HashB, Status: metamorph_api.Status_SENT_TO_NETWORK}, {Hash: testdata.TX2HashB, Status: metamorph_api.Status_SEEN_ON_NETWORK}, {Hash: testdata.TX3HashB, Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK}},
 		},
 		{
 			name:                        "skip rejecting for no old txs",
@@ -1295,7 +1295,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{},
+			requestedTimes: []*global.TransactionData{},
 		},
 		{
 			name:                        "skip rejecting for block gaps",
@@ -1321,7 +1321,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 					},
 				},
 			},
-			requestedTimes: []*chainhash.Hash{testdata.TX1HashB, testdata.TX2HashB, testdata.TX3HashB},
+			requestedTimes: []*global.TransactionData{{Hash: testdata.TX1HashB, Status: metamorph_api.Status_SENT_TO_NETWORK}, {Hash: testdata.TX2HashB, Status: metamorph_api.Status_SEEN_ON_NETWORK}, {Hash: testdata.TX3HashB, Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK}},
 		},
 	}
 
@@ -1339,7 +1339,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*chainhash.Hash, error) {
+				GetUnconfirmedRequestedFunc: func(_ context.Context, _ time.Duration, _ int64, _ int64) ([]*global.TransactionData, error) {
 					return tc.requestedTimes, nil
 				},
 			}

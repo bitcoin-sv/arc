@@ -980,17 +980,17 @@ func TestPostgresDB(t *testing.T) {
 		}
 		requestedAgo := 4 * time.Minute
 
-		rows, err := postgresDB.GetUnconfirmedRequested(ctx, requestedAgo, 5, 0)
+		unconfirmedRequested, err := postgresDB.GetUnconfirmedRequested(ctx, requestedAgo, 5, 0)
 		require.NoError(t, err)
 
-		require.Len(t, rows, 2)
+		require.Len(t, unconfirmedRequested, 2)
 
 		chainHash1 := testutils.BRevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")
 		chainHash2 := testutils.BRevChainhash(t, "8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e")
 		expectedRows := []*chainhash.Hash{chainHash1, chainHash2}
 
-		require.Equal(t, expectedRows[0], rows[0])
-		require.Equal(t, expectedRows[1], rows[1])
+		require.True(t, expectedRows[0].Equal(*unconfirmedRequested[0].Hash))
+		require.True(t, expectedRows[1].Equal(*unconfirmedRequested[1].Hash))
 
 		postgresDB.now = func() time.Time { return now }
 	})

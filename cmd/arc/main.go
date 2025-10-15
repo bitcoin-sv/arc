@@ -12,11 +12,12 @@ import (
 	"strings"
 	"syscall"
 
-	cmd "github.com/bitcoin-sv/arc/cmd/arc/services"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/bitcoin-sv/arc/cmd/services"
 	"github.com/bitcoin-sv/arc/config"
 	arcLogger "github.com/bitcoin-sv/arc/internal/logger"
 	"github.com/bitcoin-sv/arc/internal/version"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -106,7 +107,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startBlockTx {
 		logger.Info("Starting BlockTx")
-		shutdown, err := cmd.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Common)
+		shutdown, err := services.StartBlockTx(logger, arcConfig.Blocktx, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start blocktx: %v", err)
 		}
@@ -115,7 +116,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startMetamorph {
 		logger.Info("Starting Metamorph")
-		shutdown, err := cmd.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Common)
+		shutdown, err := services.StartMetamorph(logger, arcConfig.Metamorph, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start metamorph: %v", err)
 		}
@@ -124,7 +125,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startAPI {
 		logger.Info("Starting API")
-		shutdown, err := cmd.StartAPIServer(logger, arcConfig.API, arcConfig.Common)
+		shutdown, err := services.StartAPIServer(logger, arcConfig.API, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start api: %v", err)
 		}
@@ -134,7 +135,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 
 	if startK8sWatcher {
 		logger.Info("Starting K8s-Watcher")
-		shutdown, err := cmd.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Common)
+		shutdown, err := services.StartK8sWatcher(logger, arcConfig.K8sWatcher, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start k8s-watcher: %v", err)
 		}
@@ -142,7 +143,7 @@ func startServices(arcConfig *config.ArcConfig, logger *slog.Logger, startAPI bo
 	}
 
 	if startCallbacker {
-		shutdown, err := cmd.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Common)
+		shutdown, err := services.StartCallbacker(logger, arcConfig.Callbacker, arcConfig.Common)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start callbacker: %v", err)
 		}

@@ -7,7 +7,7 @@ ARG TARGETOS
 # Install packages and install Golang
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y ca-certificates build-essential gawk bison manpages-dev file curl gnupg wget software-properties-common && \
+    apt-get install -y ca-certificates build-essential wget software-properties-common && \
     wget https://go.dev/dl/go${GOVERSION}.${TARGETOS}-${TARGETARCH}.tar.gz && \
     tar -C /usr/local -xzf go${GOVERSION}.${TARGETOS}-${TARGETARCH}.tar.gz && \
     ln -s /usr/local/go/bin/go /usr/bin/go && \

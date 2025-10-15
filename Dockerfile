@@ -1,13 +1,17 @@
-FROM debian:sid-slim AS build-stage
+FROM ubuntu:noble AS build-stage
 
 ARG TARGETARCH
 ARG GOVERSION=1.25.1
+ARG TARGETOS
 
-# install tool-chain + Go
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential ca-certificates g++ git pkg-config wget \
-   && wget -qO- https://go.dev/dl/go${GOVERSION}.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf - \
-   && rm -rf /var/lib/apt/lists/*
+# Install packages and install Golang
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y ca-certificates build-essential wget software-properties-common && \
+    wget https://go.dev/dl/go${GOVERSION}.${TARGETOS}-${TARGETARCH}.tar.gz && \
+    tar -C /usr/local -xzf go${GOVERSION}.${TARGETOS}-${TARGETARCH}.tar.gz && \
+    ln -s /usr/local/go/bin/go /usr/bin/go && \
+    ln -s /usr/local/go/bin/gofmt /usr/bin/gofmt
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=1
@@ -31,7 +35,7 @@ COPY config/ config/
 COPY test/ test/
 
 # Add grpc_health_probe
-RUN GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.41 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
 

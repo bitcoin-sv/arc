@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
+- [1.5.2](#152---2025-10-16)
 - [1.5.1](#151---2025-10-15)
 - [1.5.0](#150---2025-10-09)
 - [1.4.2](#142---2025-09-18)
@@ -27,6 +28,13 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - YYYY-MM-DD](#100---yyyy-mm-dd)
 
 ## [Unreleased]
+
+## [1.5.2] - 2025-10-16
+
+### Changed
+
+- ARC starts even if ARC cannot initially to the message queue. This is to avoid the scenario where the message queue is down for whatever reason which can lead to ARC getting stuck in a crash loop
+- ARC keeps retrying to connect to the message queue in the background in such a case
 
 ## [1.5.1] - 2025-10-15
 

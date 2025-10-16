@@ -34,8 +34,7 @@ import (
 const (
 	checkStatusIntervalDefault = 5 * time.Second
 	minedDoubleSpendMsg        = "previously double spend attempted"
-	MaxTimeout                 = 30
-	deadlineExtension          = 1 * time.Second * MaxTimeout
+	deadlineExtension          = 1 * time.Second * global.MaxTimeout
 	minusDeadlineExtension     = -1 * deadlineExtension
 )
 

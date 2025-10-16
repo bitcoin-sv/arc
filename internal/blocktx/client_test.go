@@ -7,11 +7,10 @@ import (
 
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/bitcoin-sv/arc/internal/blocktx"
-
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 )

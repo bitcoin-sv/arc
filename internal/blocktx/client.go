@@ -31,8 +31,8 @@ func NewClient(client blocktx_api.BlockTxAPIClient) *BtxClient {
 func (btc *BtxClient) VerifyMerkleRoots(ctx context.Context, merkleRootVerificationRequest []MerkleRootVerificationRequest) ([]uint64, error) {
 	merkleRoots := make([]*blocktx_api.MerkleRootVerificationRequest, 0)
 
-	for _, mr := range merkleRootVerificationRequest {
-		merkleRoots = append(merkleRoots, &blocktx_api.MerkleRootVerificationRequest{MerkleRoot: mr.MerkleRoot, BlockHeight: mr.BlockHeight})
+	for i := range merkleRootVerificationRequest {
+		merkleRoots = append(merkleRoots, &blocktx_api.MerkleRootVerificationRequest{MerkleRoot: merkleRootVerificationRequest[i].MerkleRoot, BlockHeight: merkleRootVerificationRequest[i].BlockHeight})
 	}
 
 	resp, err := btc.client.VerifyMerkleRoots(ctx, &blocktx_api.MerkleRootsVerificationRequest{MerkleRoots: merkleRoots})

@@ -3,6 +3,8 @@ package global
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +15,16 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/ccoveille/go-safecast"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	ErrTransactionNotFound = errors.New("transaction not found")
+	ErrNotFound            = errors.New("key could not be found")
+	ErrUpdateCompeting     = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
+)
+
+const (
+	MaxTimeout = 30
 )
 
 // MerkleRootsVerifier verifies the merkle roots existence in blocktx db and returns unverified block heights.

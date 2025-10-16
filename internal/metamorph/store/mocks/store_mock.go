@@ -53,7 +53,7 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			GetStatsFunc: func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
-//			GetUnconfirmedRequestedFunc: func(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+//			GetUnconfirmedRequestedFunc: func(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*global.TransactionData, error) {
 //				panic("mock out the GetUnconfirmedRequested method")
 //			},
 //			GetUnseenFunc: func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*global.TransactionData, error) {
@@ -133,7 +133,7 @@ type MetamorphStoreMock struct {
 	GetStatsFunc func(ctx context.Context, since time.Time, notSeenLimit time.Duration, notMinedLimit time.Duration) (*store.Stats, error)
 
 	// GetUnconfirmedRequestedFunc mocks the GetUnconfirmedRequested method.
-	GetUnconfirmedRequestedFunc func(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error)
+	GetUnconfirmedRequestedFunc func(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*global.TransactionData, error)
 
 	// GetUnseenFunc mocks the GetUnseen method.
 	GetUnseenFunc func(ctx context.Context, since time.Time, limit int64, offset int64) ([]*global.TransactionData, error)
@@ -788,7 +788,7 @@ func (mock *MetamorphStoreMock) GetStatsCalls() []struct {
 }
 
 // GetUnconfirmedRequested calls GetUnconfirmedRequestedFunc.
-func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+func (mock *MetamorphStoreMock) GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*global.TransactionData, error) {
 	if mock.GetUnconfirmedRequestedFunc == nil {
 		panic("MetamorphStoreMock.GetUnconfirmedRequestedFunc: method is nil but MetamorphStore.GetUnconfirmedRequested was just called")
 	}

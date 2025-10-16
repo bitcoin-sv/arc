@@ -1352,44 +1352,40 @@ func (p *PostgreSQL) MarkConfirmedRequested(ctx context.Context, hash *chainhash
 	return nil
 }
 
-// GetUnconfirmedRequested transactions which have been requested more than `requestedAgo` time ago either never been confirmed or where last confirmation was longer ago than last request
-func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, lastRequestedAgo time.Duration, limit int64, offset int64) ([]*chainhash.Hash, error) {
+// GetUnconfirmedRequested transactions which have been requested more than `requestedAgo` time ago either never been confirmed or where the last confirmation was longer ago than last request
+func (p *PostgreSQL) GetUnconfirmedRequested(ctx context.Context, requestedAgo time.Duration, limit int64, offset int64) ([]*global.TransactionData, error) {
 	q := `
-	SELECT hash FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
-	                                            AND (confirmed_at IS NULL OR confirmed_at < requested_at)
-	                                            AND status = $2
+	SELECT
+		stored_at
+		,hash
+		,status
+		,block_height
+		,block_hash
+		,callbacks
+		,full_status_updates
+		,reject_reason
+		,competing_txs
+		,raw_tx
+		,locked_by
+		,merkle_path
+		,retries
+		,status_history
+		,last_modified
+	FROM metamorph.transactions t WHERE requested_at IS NOT NULL AND requested_at < $1 -- requested is less than specified time ago
+	                                    AND (confirmed_at IS NULL OR confirmed_at < requested_at)
+	                                    AND t.status = ANY($2)
 	LIMIT $3 OFFSET $4
 	`
-	requestedBefore := p.now().Add(-lastRequestedAgo)
+	requestedBefore := p.now().Add(-requestedAgo)
 
-	rows, err := p.db.QueryContext(ctx, q, requestedBefore, metamorph_api.Status_SEEN_ON_NETWORK, limit, offset)
+	pendingStatuses := []metamorph_api.Status{metamorph_api.Status_ANNOUNCED_TO_NETWORK, metamorph_api.Status_REQUESTED_BY_NETWORK, metamorph_api.Status_SENT_TO_NETWORK, metamorph_api.Status_ACCEPTED_BY_NETWORK, metamorph_api.Status_SEEN_ON_NETWORK}
+	rows, err := p.db.QueryContext(ctx, q, requestedBefore, pq.Array(pendingStatuses), limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	hashes := make([]*chainhash.Hash, 0)
-
-	for rows.Next() {
-		var hashBytes []byte
-		err = rows.Scan(&hashBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		newHash, err := chainhash.NewHash(hashBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		hashes = append(hashes, newHash)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return hashes, nil
+	return getStoreDataFromRows(rows)
 }
 
 func (p *PostgreSQL) rollbackIfFailed(err error, tx *sql.Tx) error {

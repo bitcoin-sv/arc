@@ -98,7 +98,7 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*globa
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
-	var txs []*chainhash.Hash
+	var txs []*global.TransactionData
 	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
 	const getUnconfirmedloadLimit = 500
@@ -137,10 +137,10 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		p.logger.Debug("Unconfirmed requested txs", slog.Int("count", len(txs)), slog.Duration("requestedAgo", requestedAgo), slog.Bool("enabled", p.rejectPendingSeenEnabled))
 		if len(txs) != 0 {
 			for _, tx := range txs {
-				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.String()))
+				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
 				if p.rejectPendingSeenEnabled {
 					p.storageStatusUpdateCh <- store.UpdateStatus{
-						Hash:      *tx,
+						Hash:      *tx.Hash,
 						Status:    metamorph_api.Status_REJECTED,
 						Error:     ErrRejectUnconfirmed,
 						Timestamp: p.now(),

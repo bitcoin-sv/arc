@@ -81,8 +81,10 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	mqOpts := getMtmMqOpts()
-
+	var mqOpts []nats_jetstream.Option
+	if commonCfg.MessageQueue.Initialize {
+		mqOpts = getMtmMqOpts()
+	}
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err

@@ -14,6 +14,7 @@ common:
     streaming:
       enabled: true  # if enabled, message queue can store messages - currently ARC only supports message queue with streaming enabled
       fileStorage: false # if enabled messages are persisted on disk instead of in memory
+    initialize: false # if enabled, message queue is initialized with streams and consumers
     URL: nats://nats:4222 # URL for message queue
     user: user
     password: password

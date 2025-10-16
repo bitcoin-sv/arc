@@ -31,9 +31,12 @@ func TestReconnect(t *testing.T) {
 	for _, cont := range list {
 		t.Log(cont.Names)
 	}
-
-	const waitTime = 2 * time.Second
-
+	const (
+		waitTime   = 2 * time.Second
+		topic      = "recon-topic"
+		streamName = "recon-topic-stream"
+		consName   = "recon-topic-const"
+	)
 	var receivedCounter *atomic.Int32
 
 	msgReceived := func(bytes []byte) error {
@@ -71,9 +74,6 @@ func TestReconnect(t *testing.T) {
 			natsConn, err := nats_connection.New(natsURL, logger, nats_connection.WithMaxReconnects(-1))
 			require.NoError(t, err)
 
-			topic := "recon-topic"
-			streamName := "recon-topic-stream"
-			consName := "recon-topic-const"
 			jsOpts := []nats_jetstream.Option{
 				nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
 				nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
@@ -163,4 +163,95 @@ func TestReconnect(t *testing.T) {
 			require.Equal(t, tc.expectedReceivedCounter, receivedCounter.Load())
 		})
 	}
+}
+
+func TestAutoReconnect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("auto reconnect after initially unavailable server", func(t *testing.T) {
+		ctx := context.Background()
+
+		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		require.NoError(t, err)
+
+		list, err := dockerClient.ContainerList(ctx, container.ListOptions{})
+		require.NoError(t, err)
+
+		for _, cont := range list {
+			t.Log(cont.Names)
+		}
+
+		const (
+			topic      = "recon-topic"
+			streamName = "recon-topic-stream"
+			consName   = "recon-topic-const"
+		)
+
+		connOpts := []nats_connection.Option{
+			nats_connection.WithReconnectWait(100 * time.Millisecond),
+			nats_connection.WithRetryOnFailedConnect(true),
+			nats_connection.WithPingInterval(500 * time.Millisecond),
+			nats_connection.WithMaxPingsOutstanding(1),
+			nats_connection.WithMaxReconnects(-1),
+		}
+		jsOpts := []nats_jetstream.Option{
+			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
+			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
+		}
+		natsConn, err := nats_connection.New(natsURL, logger, connOpts...)
+		require.NoError(t, err)
+		mqClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)
+		require.NoError(t, err)
+		defer mqClient.Shutdown()
+
+		err = dockerClient.ContainerPause(ctx, containerID)
+		require.NoError(t, err)
+		t.Log("message queue paused")
+
+		natsConnRecon, err := nats_connection.New(natsURL, logger, connOpts...)
+		require.NoError(t, err)
+		defer natsConnRecon.Status()
+
+		mqClientRecon, err := nats_jetstream.New(natsConnRecon, logger)
+		require.NoError(t, err)
+		t.Log("message client created")
+		defer mqClientRecon.Shutdown()
+
+		var newMessage = []byte("new message")
+
+		const publishTimeout = 100 * time.Second
+		for range 3 {
+			ctx, cancel := context.WithTimeout(context.Background(), publishTimeout)
+			err = mqClientRecon.Publish(ctx, topic, newMessage)
+			defer cancel()
+			require.ErrorIs(t, err, nats_jetstream.ErrFailedToPublish)
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			t.Log("failed to publish, waiting for reconnect")
+		}
+
+		err = dockerClient.ContainerUnpause(ctx, containerID)
+		require.NoError(t, err)
+		t.Log("message queue unpaused")
+
+		for range 3 {
+			ctx, cancel := context.WithTimeout(context.Background(), publishTimeout)
+			err = mqClientRecon.Publish(ctx, topic, newMessage)
+			defer cancel()
+			require.NoError(t, err)
+			t.Log("message published")
+		}
+
+		err = dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
+			Signal:  "",
+			Timeout: PtrTo(5),
+		})
+		require.NoError(t, err)
+	})
+}
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T {
+	return &v
 }

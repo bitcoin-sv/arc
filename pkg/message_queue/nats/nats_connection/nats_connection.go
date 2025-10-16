@@ -11,7 +11,7 @@ import (
 
 var ErrNatsConnectionFailed = errors.New("failed to connect to NATS server")
 
-// WithMaxReconnects is an Option to set the maximum number of reconnect attempts. If negative, it will never stop trying to reconnect. Defaults to 10
+// WithMaxReconnects is an Option to set the maximum number of reconnecting attempts. If negative, it will never stop trying to reconnect. Defaults to 10
 func WithMaxReconnects(maxReconnects int) func(config *NatsConfig) {
 	return func(config *NatsConfig) {
 		config.maxReconnects = maxReconnects

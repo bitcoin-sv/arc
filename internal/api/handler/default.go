@@ -43,7 +43,7 @@ var (
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
 	ErrBeefByteSlice            = errors.New("error while getting BEEF byte slice")
-	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", global.MaxTimeout)
+	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d ", global.MaxTimeout)
 )
 
 type ArcDefaultHandler struct {

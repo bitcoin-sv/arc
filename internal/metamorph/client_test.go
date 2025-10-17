@@ -484,7 +484,7 @@ func TestClient_GetTransaction(t *testing.T) {
 			mockResp:       nil,
 			mockErr:        nil,
 			expectedData:   nil,
-			expectedErrStr: metamorph.ErrTransactionNotFound.Error(),
+			expectedErrStr: global.ErrTransactionNotFound.Error(),
 		},
 	}
 
@@ -624,7 +624,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 			mockResp:       nil,
 			mockErr:        nil,
 			expectedStatus: nil,
-			expectedErrStr: metamorph.ErrTransactionNotFound.Error(),
+			expectedErrStr: global.ErrTransactionNotFound.Error(),
 		},
 		{
 			name: "success - transaction status retrieved",

@@ -170,7 +170,7 @@ func TestAutoReconnect(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("auto reconnect after initially unavailable server", func(t *testing.T) {
+	t.Run("auto reconnect after server is initially unavailable", func(t *testing.T) {
 		ctx := context.Background()
 
 		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())

@@ -5,8 +5,8 @@ package mocks
 
 import (
 	"context"
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"sync"
 )
 
@@ -20,7 +20,7 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //
 //		// make and configure a mocked metamorph.CallbackSender
 //		mockedCallbackSender := &CallbackSenderMock{
-//			SendCallbackFunc: func(ctx context.Context, data *global.TransactionData)  {
+//			SendCallbackFunc: func(ctx context.Context, data *store.TransactionData)  {
 //				panic("mock out the SendCallback method")
 //			},
 //		}
@@ -31,7 +31,7 @@ var _ metamorph.CallbackSender = &CallbackSenderMock{}
 //	}
 type CallbackSenderMock struct {
 	// SendCallbackFunc mocks the SendCallback method.
-	SendCallbackFunc func(ctx context.Context, data *global.TransactionData)
+	SendCallbackFunc func(ctx context.Context, data *store.TransactionData)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -40,20 +40,20 @@ type CallbackSenderMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Data is the data argument value.
-			Data *global.TransactionData
+			Data *store.TransactionData
 		}
 	}
 	lockSendCallback sync.RWMutex
 }
 
 // SendCallback calls SendCallbackFunc.
-func (mock *CallbackSenderMock) SendCallback(ctx context.Context, data *global.TransactionData) {
+func (mock *CallbackSenderMock) SendCallback(ctx context.Context, data *store.TransactionData) {
 	if mock.SendCallbackFunc == nil {
 		panic("CallbackSenderMock.SendCallbackFunc: method is nil but CallbackSender.SendCallback was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
-		Data *global.TransactionData
+		Data *store.TransactionData
 	}{
 		Ctx:  ctx,
 		Data: data,
@@ -70,11 +70,11 @@ func (mock *CallbackSenderMock) SendCallback(ctx context.Context, data *global.T
 //	len(mockedCallbackSender.SendCallbackCalls())
 func (mock *CallbackSenderMock) SendCallbackCalls() []struct {
 	Ctx  context.Context
-	Data *global.TransactionData
+	Data *store.TransactionData
 } {
 	var calls []struct {
 		Ctx  context.Context
-		Data *global.TransactionData
+		Data *store.TransactionData
 	}
 	mock.lockSendCallback.RLock()
 	calls = mock.calls.SendCallback

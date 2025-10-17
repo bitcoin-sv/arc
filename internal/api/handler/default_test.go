@@ -29,7 +29,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	globalMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
@@ -375,7 +374,7 @@ func TestGETTransactionStatus(t *testing.T) {
 		{
 			name:                 "error - tx not found",
 			txHandlerStatusFound: nil,
-			txHandlerErr:         metamorph.ErrTransactionNotFound,
+			txHandlerErr:         global.ErrTransactionNotFound,
 
 			expectedStatus:   api.ErrStatusNotFound,
 			expectedResponse: *api.NewErrorFields(api.ErrStatusNotFound, "transaction not found"),
@@ -784,7 +783,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 				},
 
 				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {
-					return nil, metamorph.ErrTransactionNotFound
+					return nil, global.ErrTransactionNotFound
 				},
 
 				SubmitTransactionsFunc: func(_ context.Context, _ sdkTx.Transactions, _ *global.TransactionOptions) ([]*global.TransactionStatus, error) {
@@ -925,7 +924,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 				},
 
 				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {
-					return nil, metamorph.ErrTransactionNotFound
+					return nil, global.ErrTransactionNotFound
 				},
 
 				GetTransactionStatusesFunc: func(_ context.Context, _ []string) ([]*global.TransactionStatus, error) {

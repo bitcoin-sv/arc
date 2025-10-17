@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/global"
 	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
+	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
 	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -66,7 +66,7 @@ func TestProcessor(t *testing.T) {
 		tx2ResponseChannel := make(chan metamorph.StatusAndError, 10)
 
 		req1 := &metamorph.ProcessorRequest{
-			Data: &global.TransactionData{
+			Data: &store.TransactionData{
 				Hash:              tx1,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,
@@ -74,7 +74,7 @@ func TestProcessor(t *testing.T) {
 			ResponseChannel: tx1ResponseChannel,
 		}
 		req2 := &metamorph.ProcessorRequest{
-			Data: &global.TransactionData{
+			Data: &store.TransactionData{
 				Hash:              tx2,
 				Status:            metamorph_api.Status_STORED,
 				FullStatusUpdates: false,

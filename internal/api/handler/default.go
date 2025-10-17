@@ -21,7 +21,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/beef"
 	"github.com/bitcoin-sv/arc/internal/global"
-	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
 	"github.com/bitcoin-sv/arc/internal/version"
@@ -44,7 +43,7 @@ var (
 	ErrStatusNotSupported       = errors.New("status not supported")
 	ErrDecodingBeef             = errors.New("error while decoding BEEF")
 	ErrBeefByteSlice            = errors.New("error while getting BEEF byte slice")
-	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d", metamorph.MaxTimeout)
+	ErrMaxTimeoutExceeded       = fmt.Errorf("max timeout can not be higher than %d ", global.MaxTimeout)
 )
 
 type ArcDefaultHandler struct {
@@ -280,7 +279,7 @@ func calcFeesFromBSVPerKB(feePerKB float64) (uint64, uint64) {
 func (m *ArcDefaultHandler) POSTTransaction(ctx echo.Context, params api.POSTTransactionParams) (err error) {
 	timeout := m.defaultTimeout
 	if params.XMaxTimeout != nil {
-		if *params.XMaxTimeout > metamorph.MaxTimeout {
+		if *params.XMaxTimeout > global.MaxTimeout {
 			e := api.NewErrorFields(api.ErrStatusBadRequest, ErrMaxTimeoutExceeded.Error())
 			return ctx.JSON(e.Status, e)
 		}
@@ -338,7 +337,7 @@ func (m *ArcDefaultHandler) GETTransactionStatus(ctx echo.Context, id string) (e
 
 	tx, err := m.getTransactionStatus(reqCtx, id)
 	if err != nil {
-		if errors.Is(err, metamorph.ErrTransactionNotFound) {
+		if errors.Is(err, global.ErrTransactionNotFound) {
 			e := api.NewErrorFields(api.ErrStatusNotFound, err.Error())
 			return ctx.JSON(e.Status, e)
 		}
@@ -409,7 +408,7 @@ func (m *ArcDefaultHandler) postTransactions(ctx echo.Context, txsHex []byte, pa
 		allTransactionsProcessed := false
 		if err != nil {
 			// if we have error which is NOT ErrTransactionNotFound, return err
-			if !errors.Is(err, metamorph.ErrTransactionNotFound) {
+			if !errors.Is(err, global.ErrTransactionNotFound) {
 				e := api.NewErrorFields(api.ErrStatusGeneric, err.Error())
 				return PostResponse{e.Status, e}
 			}
@@ -501,7 +500,7 @@ func (m *ArcDefaultHandler) postResponseForAllTxsProcessed(txStatuses []*global.
 func (m *ArcDefaultHandler) POSTTransactions(ctx echo.Context, params api.POSTTransactionsParams) (err error) {
 	timeout := m.defaultTimeout
 	if params.XMaxTimeout != nil {
-		if *params.XMaxTimeout > metamorph.MaxTimeout {
+		if *params.XMaxTimeout > global.MaxTimeout {
 			e := api.NewErrorFields(api.ErrStatusBadRequest, ErrMaxTimeoutExceeded.Error())
 			return ctx.JSON(e.Status, e)
 		}
@@ -648,7 +647,7 @@ func (m *ArcDefaultHandler) processTransactions(ctx context.Context, txsHex []by
 		return nil, fails, nil
 	}
 
-	// submit valid transactions to metamorph
+	// submit valid transactions
 	txStatuses, e := m.submitTransactions(ctx, submittedTxs, options)
 	if e != nil {
 		return nil, nil, e

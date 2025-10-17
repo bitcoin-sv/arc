@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -12,6 +13,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/mq"
+)
+
+var (
+	ErrSubscribe = errors.New("failed to subscribe")
 )
 
 type Sender interface {
@@ -155,27 +160,34 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 	return p, nil
 }
 
-func (p *Processor) Subscribe() error {
-	err := p.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
-		serialized := &callbacker_api.SendRequest{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
-		}
-
-		p.logger.Debug("Enqueued callback request",
-			slog.String("url", serialized.CallbackRouting.Url),
-			slog.String("token", serialized.CallbackRouting.Token),
-			slog.String("hash", serialized.Txid),
-			slog.String("status", serialized.Status.String()),
-		)
-
-		p.sendRequestCh <- serialized
-
-		return nil
-	})
+func (p *Processor) processCallbackMessage(msg []byte) error {
+	serialized := &callbacker_api.SendRequest{}
+	err := proto.Unmarshal(msg, serialized)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
+		return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
+	}
+
+	p.logger.Debug("Enqueued callback request",
+		slog.String("url", serialized.CallbackRouting.Url),
+		slog.String("token", serialized.CallbackRouting.Token),
+		slog.String("hash", serialized.Txid),
+		slog.String("status", serialized.Status.String()),
+	)
+
+	p.sendRequestCh <- serialized
+
+	return nil
+}
+
+func (p *Processor) Subscribe() error {
+	err := p.mqClient.Consume(mq.CallbackTopic, p.processCallbackMessage)
+	if err != nil {
+		p.logger.Warn("Failed to start consuming from topic", slog.String("topic", mq.CallbackTopic), slog.String("err", err.Error()))
+
+		errSubscribe := p.mqClient.QueueSubscribe(mq.CallbackTopic, p.processCallbackMessage)
+		if errSubscribe != nil {
+			return errors.Join(ErrSubscribe, fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err))
+		}
 	}
 
 	return nil

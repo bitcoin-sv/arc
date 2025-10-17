@@ -5,12 +5,11 @@ package mocks
 
 import (
 	"context"
-	"sync"
-	"time"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
+	"sync"
+	"time"
 )
 
 // Ensure, that MetamorphStoreMock does implement store.MetamorphStore.
@@ -299,7 +298,8 @@ type MetamorphStoreMock struct {
 			Hash *chainhash.Hash
 		}
 		// Ping holds details about calls to the Ping method.
-		Ping []struct{}
+		Ping []struct {
+		}
 		// Set holds details about calls to the Set method.
 		Set []struct {
 			// Ctx is the ctx argument value.
@@ -951,7 +951,8 @@ func (mock *MetamorphStoreMock) Ping() error {
 	if mock.PingFunc == nil {
 		panic("MetamorphStoreMock.PingFunc: method is nil but MetamorphStore.Ping was just called")
 	}
-	callInfo := struct{}{}
+	callInfo := struct {
+	}{}
 	mock.lockPing.Lock()
 	mock.calls.Ping = append(mock.calls.Ping, callInfo)
 	mock.lockPing.Unlock()
@@ -962,8 +963,10 @@ func (mock *MetamorphStoreMock) Ping() error {
 // Check the length with:
 //
 //	len(mockedMetamorphStore.PingCalls())
-func (mock *MetamorphStoreMock) PingCalls() []struct{} {
-	var calls []struct{}
+func (mock *MetamorphStoreMock) PingCalls() []struct {
+} {
+	var calls []struct {
+	}
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping
 	mock.lockPing.RUnlock()

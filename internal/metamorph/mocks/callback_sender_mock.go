@@ -5,10 +5,9 @@ package mocks
 
 import (
 	"context"
-	"sync"
-
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
+	"sync"
 )
 
 // Ensure, that CallbackSenderMock does implement metamorph.CallbackSender.

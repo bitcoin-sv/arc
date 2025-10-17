@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -31,14 +32,8 @@ func TestReconnect(t *testing.T) {
 	for _, cont := range list {
 		t.Log(cont.Names)
 	}
-	const (
-		waitTime   = 2 * time.Second
-		topic      = "recon-topic"
-		streamName = "recon-topic-stream"
-		consName   = "recon-topic-const"
-	)
-	var receivedCounter *atomic.Int32
 
+	var receivedCounter *atomic.Int32
 	msgReceived := func(bytes []byte) error {
 		logger.Info("message received", "msg", string(bytes))
 		receivedCounter.Add(1)
@@ -48,6 +43,7 @@ func TestReconnect(t *testing.T) {
 	tt := []struct {
 		name          string
 		autoReconnect bool
+		topic         string
 
 		expectedPublishErr      error
 		expectedReceivedCounter int32
@@ -55,12 +51,14 @@ func TestReconnect(t *testing.T) {
 		{
 			name:          "auto reconnect enabled",
 			autoReconnect: true,
+			topic:         "recon-topic-enabled",
 
 			expectedReceivedCounter: 8,
 		},
 		{
 			name:          "auto reconnect disabled",
 			autoReconnect: false,
+			topic:         "recon-topic-disabled",
 
 			expectedPublishErr:      nats_jetstream.ErrFailedToPublish,
 			expectedReceivedCounter: 2,
@@ -74,16 +72,19 @@ func TestReconnect(t *testing.T) {
 			natsConn, err := nats_connection.New(natsURL, logger, nats_connection.WithMaxReconnects(-1))
 			require.NoError(t, err)
 
+			streamName := fmt.Sprintf("%s-stream", tc.topic)
+			consName := fmt.Sprintf("%s-cons", tc.topic)
+
 			jsOpts := []nats_jetstream.Option{
-				nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream(tc.topic, streamName, jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer(tc.topic, streamName, consName, true, jetstream.AckExplicitPolicy),
 			}
 
 			oppositeClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)
 			require.NoError(t, err)
 			defer oppositeClient.Shutdown()
 
-			err = oppositeClient.Consume(topic, msgReceived)
+			err = oppositeClient.Consume(tc.topic, msgReceived)
 			require.NoError(t, err)
 
 			closedCh := make(chan struct{}, 1)
@@ -101,8 +102,6 @@ func TestReconnect(t *testing.T) {
 			}
 			connOpts = append(connOpts, maxReconnects)
 
-			time.Sleep(waitTime)
-
 			natsConn, err = nats_connection.New(natsURL, logger, connOpts...)
 			require.NoError(t, err)
 
@@ -112,24 +111,15 @@ func TestReconnect(t *testing.T) {
 			t.Log("message client created")
 
 			var newMessage = []byte("new message")
-			err = mqClient.Publish(ctx, topic, newMessage)
-			require.NoError(t, err)
 
-			err = mqClient.Publish(ctx, topic, newMessage)
-			require.NoError(t, err)
+			for range 2 {
+				err = mqClient.Publish(ctx, tc.topic, newMessage)
+				require.NoError(t, err)
+			}
 
 			err = dockerClient.ContainerPause(ctx, containerID)
 			require.NoError(t, err)
 			t.Log("message queue paused")
-
-			time.Sleep(waitTime)
-			err = mqClient.Publish(ctx, topic, newMessage)
-			require.Error(t, err)
-			t.Log("publishing failed")
-
-			err = mqClient.Publish(ctx, topic, newMessage)
-			require.Error(t, err)
-			t.Log("publishing failed")
 
 			if !tc.autoReconnect {
 				t.Log("waiting for connection to be closed")
@@ -141,16 +131,18 @@ func TestReconnect(t *testing.T) {
 				}
 			}
 
-			time.Sleep(waitTime)
+			for range 2 {
+				err = mqClient.Publish(ctx, tc.topic, newMessage)
+				require.ErrorIs(t, err, nats_jetstream.ErrFailedToPublish)
+				t.Log("publishing failed")
+			}
 
 			err = dockerClient.ContainerUnpause(ctx, containerID)
 			require.NoError(t, err)
 			t.Log("message queue unpaused")
 
-			time.Sleep(waitTime)
-
 			for range 4 {
-				err = mqClient.Publish(ctx, topic, newMessage)
+				err = mqClient.Publish(ctx, tc.topic, newMessage)
 				if tc.expectedPublishErr != nil {
 					require.ErrorIs(t, err, tc.expectedPublishErr)
 				} else {
@@ -158,7 +150,7 @@ func TestReconnect(t *testing.T) {
 				}
 			}
 
-			time.Sleep(waitTime)
+			time.Sleep(1 * time.Second)
 
 			require.Equal(t, tc.expectedReceivedCounter, receivedCounter.Load())
 		})
@@ -187,7 +179,7 @@ func TestInitialAutoReconnect(t *testing.T) {
 		const (
 			topic      = "recon-topic"
 			streamName = "recon-topic-stream"
-			consName   = "recon-topic-const"
+			consName   = "recon-topic-cons"
 		)
 		jsOpts := []nats_jetstream.Option{
 			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),

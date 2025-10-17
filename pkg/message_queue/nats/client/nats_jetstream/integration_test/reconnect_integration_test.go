@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/pkg/message_queue/nats/client/nats_jetstream"
@@ -35,7 +37,7 @@ func TestReconnect(t *testing.T) {
 
 	var receivedCounter *atomic.Int32
 	msgReceived := func(bytes []byte) error {
-		logger.Info("message received", "msg", string(bytes))
+		t.Logf("message received: %s", string(bytes))
 		receivedCounter.Add(1)
 		return nil
 	}
@@ -163,8 +165,6 @@ func TestInitialAutoReconnect(t *testing.T) {
 	}
 
 	t.Run("auto reconnect after server is initially unavailable", func(t *testing.T) {
-		ctx := context.Background()
-
 		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		require.NoError(t, err)
 
@@ -183,49 +183,80 @@ func TestInitialAutoReconnect(t *testing.T) {
 		)
 		jsOpts := []nats_jetstream.Option{
 			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
-			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
+			//nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
 		}
-		natsConn, err := nats_connection.New(natsURL, logger, connOpts...)
+		natsConn1, err := nats_connection.New(natsURL, logger.With(slog.String("conn", "1")), connOpts...)
 		require.NoError(t, err)
-		mqClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)
+		mqClient1, err := nats_jetstream.New(natsConn1, logger.With(slog.String("client", "1")), jsOpts...)
 		require.NoError(t, err)
-		defer mqClient.Shutdown()
+		defer mqClient1.Shutdown()
 
-		err = dockerClient.ContainerPause(ctx, containerID)
+		// nats server is unavailable
+		err = dockerClient.ContainerPause(context.TODO(), containerID)
 		require.NoError(t, err)
 		t.Log("message queue paused")
 
-		natsConnRecon, err := nats_connection.New(natsURL, logger, connOpts...)
+		// create a new client while the nats server is unavailable
+		natsConn2, err := nats_connection.New(natsURL, logger.With(slog.String("conn", "2")), connOpts...)
 		require.NoError(t, err)
-		defer natsConnRecon.Status()
+		defer natsConn2.Status()
 
-		mqClientRecon, err := nats_jetstream.New(natsConnRecon, logger)
+		mqClient2, err := nats_jetstream.New(natsConn2, logger.With(slog.String("client", "2")))
 		require.NoError(t, err)
 		t.Log("message client created")
-		defer mqClientRecon.Shutdown()
-
-		var newMessage = []byte("new message")
+		defer mqClient2.Shutdown()
 
 		const publishTimeout = 100 * time.Millisecond
+		ctxErrPublish, cancel := context.WithTimeout(context.TODO(), publishTimeout)
+		defer cancel()
 		for range 3 {
-			ctx, cancel := context.WithTimeout(context.Background(), publishTimeout)
-			err = mqClientRecon.Publish(ctx, topic, newMessage)
-			defer cancel()
+			err = mqClient2.Publish(ctxErrPublish, topic, []byte("new message"))
 			require.ErrorIs(t, err, nats_jetstream.ErrFailedToPublish)
 			require.ErrorIs(t, err, context.DeadlineExceeded)
 			t.Log("failed to publish, waiting for reconnect")
 		}
 
-		err = dockerClient.ContainerUnpause(ctx, containerID)
+		receivedCounter1 := &atomic.Int32{}
+		msgReceived1 := func(bytes []byte) error {
+			t.Logf("client 1 message received: %s", string(bytes))
+			receivedCounter1.Add(1)
+			return nil
+		}
+		receivedCounter2 := &atomic.Int32{}
+		msgReceived2 := func(bytes []byte) error {
+			t.Logf("client 2 message received: %s", string(bytes))
+			receivedCounter2.Add(1)
+			return nil
+		}
+
+		// subscribe while nats server unavailable
+		err = mqClient1.QueueSubscribe(topic, msgReceived1)
+		require.NoError(t, err)
+		err = mqClient2.QueueSubscribe(topic, msgReceived2)
+		require.NoError(t, err)
+
+		// nats server is available
+		err = dockerClient.ContainerUnpause(context.TODO(), containerID)
 		require.NoError(t, err)
 		t.Log("message queue unpaused")
 
+		time.Sleep(5 * time.Second)
+
+		t.Log("publishing messages")
 		for range 3 {
-			ctx, cancel := context.WithTimeout(context.Background(), publishTimeout)
-			err = mqClientRecon.Publish(ctx, topic, newMessage)
-			defer cancel()
+			err = mqClient2.Publish(context.TODO(), topic, []byte("new message sent from client 2"))
 			require.NoError(t, err)
 			t.Log("message published")
 		}
+		for range 3 {
+			err = mqClient1.Publish(context.TODO(), topic, []byte("new message sent from client 1"))
+			require.NoError(t, err)
+			t.Log("message published")
+		}
+
+		time.Sleep(3 * time.Second)
+
+		assert.Equal(t, int32(4), receivedCounter1.Load())
+		assert.Equal(t, int32(3), receivedCounter2.Load())
 	})
 }

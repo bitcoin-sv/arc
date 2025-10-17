@@ -132,7 +132,7 @@ type Processor struct {
 type Option func(f *Processor)
 
 type CallbackSender interface {
-	SendCallback(ctx context.Context, data *global.TransactionData)
+	SendCallback(ctx context.Context, data *store.TransactionData)
 }
 
 type Mediator interface {
@@ -385,7 +385,7 @@ func (p *Processor) StartProcessSubmitted() {
 	go func() {
 		defer p.waitGroup.Done()
 
-		reqs := make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
+		reqs := make([]*store.TransactionData, 0, p.processTransactionsBatchSize)
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -393,7 +393,7 @@ func (p *Processor) StartProcessSubmitted() {
 			case <-ticker.C:
 				if len(reqs) > 0 {
 					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
+					reqs = make([]*store.TransactionData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to maintain the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
@@ -403,18 +403,18 @@ func (p *Processor) StartProcessSubmitted() {
 					continue
 				}
 				now := p.now()
-				sReq := &global.TransactionData{
+				sReq := &store.TransactionData{
 					Hash:              PtrTo(chainhash.DoubleHashH(submittedTx.GetRawTx())),
 					Status:            metamorph_api.Status_STORED,
 					FullStatusUpdates: submittedTx.GetFullStatusUpdates(),
 					RawTx:             submittedTx.GetRawTx(),
-					Callbacks:         []global.Callback{},
+					Callbacks:         []store.Callback{},
 					StoredAt:          now,
 					LastSubmittedAt:   now,
 				}
 
 				if submittedTx.GetCallbackUrl() != "" || submittedTx.GetCallbackToken() != "" {
-					sReq.Callbacks = []global.Callback{
+					sReq.Callbacks = []store.Callback{
 						{
 							CallbackURL:   submittedTx.GetCallbackUrl(),
 							CallbackToken: submittedTx.GetCallbackToken(),
@@ -425,7 +425,7 @@ func (p *Processor) StartProcessSubmitted() {
 				reqs = append(reqs, sReq)
 				if len(reqs) >= p.processTransactionsBatchSize {
 					p.ProcessTransactions(p.ctx, reqs)
-					reqs = make([]*global.TransactionData, 0, p.processTransactionsBatchSize)
+					reqs = make([]*store.TransactionData, 0, p.processTransactionsBatchSize)
 
 					// Reset ticker to maintain the intended time interval between batches.
 					ticker.Reset(p.processTransactionsInterval)
@@ -554,7 +554,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		tracing.EndTracing(span, err)
 	}()
 
-	var updatedData []*global.TransactionData
+	var updatedData []*store.TransactionData
 
 	if len(statusUpdates) > 0 {
 		updatedData, err = p.store.UpdateStatus(ctx, statusUpdates)
@@ -636,7 +636,7 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 	return nil
 }
 
-func (p *Processor) registerTransactions(ctx context.Context, data []*global.TransactionData) error {
+func (p *Processor) registerTransactions(ctx context.Context, data []*store.TransactionData) error {
 	txHashesBatch := make([][]byte, 0, len(data))
 
 	for _, hash := range data {
@@ -728,7 +728,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 
 	// store in the database
 	// set tx status to Stored
-	sh := &global.StatusWithTimestamp{Status: req.Data.Status, Timestamp: p.now()}
+	sh := &store.StatusWithTimestamp{Status: req.Data.Status, Timestamp: p.now()}
 	req.Data.StatusHistory = append(req.Data.StatusHistory, sh)
 	req.Data.Status = metamorph_api.Status_STORED
 
@@ -784,7 +784,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 }
 
 // ProcessTransactions processes txs submitted to message queue
-func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*global.TransactionData) {
+func (p *Processor) ProcessTransactions(ctx context.Context, sReq []*store.TransactionData) {
 	var err error
 	ctx, span := tracing.StartTracing(ctx, "ProcessTransactions", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
@@ -832,12 +832,12 @@ func (p *Processor) Health() error {
 	return nil
 }
 
-func (p *Processor) storeData(ctx context.Context, data *global.TransactionData) error {
+func (p *Processor) storeData(ctx context.Context, data *store.TransactionData) error {
 	data.LastSubmittedAt = p.now()
 	return p.store.Set(ctx, data)
 }
 
-func addNewCallback(data, reqData *global.TransactionData) {
+func addNewCallback(data, reqData *store.TransactionData) {
 	if len(reqData.Callbacks) == 0 {
 		return
 	}
@@ -847,7 +847,7 @@ func addNewCallback(data, reqData *global.TransactionData) {
 	}
 }
 
-func callbackExists(callback global.Callback, data *global.TransactionData) bool {
+func callbackExists(callback store.Callback, data *store.TransactionData) bool {
 	for _, c := range data.Callbacks {
 		if c == callback {
 			return true

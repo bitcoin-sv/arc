@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -135,8 +134,8 @@ func TestPostTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*global.TransactionData, error) {
-					return &global.TransactionData{
+				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
+					return &store.TransactionData{
 						Hash:   testdata.TX1HashB,
 						Status: metamorph_api.Status_SEEN_ON_NETWORK,
 					}, nil
@@ -322,13 +321,13 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*global.TransactionData, error) {
-					data := &global.TransactionData{
+				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
+					data := &store.TransactionData{
 						StoredAt:        testdata.Time,
 						Hash:            testdata.TX1HashB,
 						Status:          tt.status,
 						CompetingTxs:    tt.competingTxs,
-						Callbacks:       []global.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+						Callbacks:       []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
 						MerklePath:      "00000",
 						LastSubmittedAt: time.Time(testdata.Time),
 					}
@@ -570,14 +569,14 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*global.TransactionData, error) {
-					data := []*global.TransactionData{
+				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.TransactionData, error) {
+					data := []*store.TransactionData{
 						{
 							StoredAt:        testdata.Time,
 							Hash:            testdata.TX1HashB,
 							Status:          tt.status,
 							CompetingTxs:    tt.competingTxs,
-							Callbacks:       []global.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+							Callbacks:       []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
 							MerklePath:      "00000",
 							LastSubmittedAt: time.Time(testdata.Time),
 						},
@@ -586,7 +585,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 							Hash:            testdata.TX2HashB,
 							Status:          tt.status,
 							CompetingTxs:    tt.competingTxs,
-							Callbacks:       []global.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
+							Callbacks:       []store.Callback{{CallbackURL: "https://test.com", CallbackToken: "token"}},
 							MerklePath:      "00000",
 							LastSubmittedAt: time.Time(testdata.Time),
 						},
@@ -599,7 +598,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 
 						return data, tt.getErr
 					}
-					return []*global.TransactionData{}, tt.getErr
+					return []*store.TransactionData{}, tt.getErr
 				},
 			}
 
@@ -642,7 +641,7 @@ func TestPostTransactions(t *testing.T) {
 	tt := []struct {
 		name              string
 		processorResponse map[string]*metamorph.StatusAndError
-		transactionFound  map[int]*global.TransactionData
+		transactionFound  map[int]*store.TransactionData
 		requests          *metamorph_api.PostTransactionsRequest
 		getErr            error
 
@@ -786,7 +785,7 @@ func TestPostTransactions(t *testing.T) {
 					},
 				},
 			},
-			transactionFound: map[int]*global.TransactionData{1: {
+			transactionFound: map[int]*store.TransactionData{1: {
 				Status:   metamorph_api.Status_SENT_TO_NETWORK,
 				Hash:     hash1,
 				StoredAt: time.Time{},
@@ -869,7 +868,7 @@ func TestPostTransactions(t *testing.T) {
 			}
 
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*global.TransactionData, error) {
+				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
 					return nil, store.ErrNotFound
 				},
 			}
@@ -963,8 +962,8 @@ func TestListenAndServe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*global.TransactionData, error) {
-					return &global.TransactionData{}, nil
+				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
+					return &store.TransactionData{}, nil
 				},
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
@@ -1029,15 +1028,15 @@ func TestGetTransactions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
-				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*global.TransactionData, error) {
+				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.TransactionData, error) {
 					if tc.expectedError != nil {
 						return nil, tc.expectedError
 					}
 
-					res := make([]*global.TransactionData, 0)
+					res := make([]*store.TransactionData, 0)
 					for _, hash := range tc.request.TxIDs {
 						h, _ := chainhash.NewHashFromStr(hash)
-						d := global.TransactionData{
+						d := store.TransactionData{
 							Hash: h,
 						}
 
@@ -1104,14 +1103,14 @@ func TestGetTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
-				GetFunc: func(_ context.Context, _ []byte) (*global.TransactionData, error) {
+				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
 					if tc.expectedError != nil {
 						return nil, tc.expectedError
 					}
 
-					res := make([]*global.TransactionData, 0)
+					res := make([]*store.TransactionData, 0)
 					h, _ := chainhash.NewHashFromStr(tc.request.Txid)
-					d := global.TransactionData{
+					d := store.TransactionData{
 						Hash: h,
 					}
 
@@ -1120,7 +1119,7 @@ func TestGetTransaction(t *testing.T) {
 					if len(res) > 0 {
 						return res[0], nil
 					}
-					return &global.TransactionData{}, nil
+					return &store.TransactionData{}, nil
 				},
 			}
 			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})

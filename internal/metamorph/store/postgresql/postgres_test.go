@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/testdata"
@@ -77,21 +76,21 @@ func TestPostgresDB(t *testing.T) {
 	}
 	now := time.Date(2023, 10, 1, 14, 25, 0, 0, time.UTC)
 	minedHash := testdata.TX1HashB
-	minedData := &global.TransactionData{
+	minedData := &store.TransactionData{
 		RawTx:         make([]byte, 0),
 		StoredAt:      now,
 		Hash:          minedHash,
 		Status:        metamorph_api.Status_MINED,
 		BlockHeight:   100,
 		BlockHash:     testdata.Block1HashB,
-		Callbacks:     []global.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
+		Callbacks:     []store.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "12345"}},
 		RejectReason:  "not rejected",
 		LockedBy:      "metamorph-1",
-		StatusHistory: make([]*global.StatusWithTimestamp, 0),
+		StatusHistory: make([]*store.StatusWithTimestamp, 0),
 	}
 
 	unminedHash := testdata.TX1HashB
-	unminedData := &global.TransactionData{
+	unminedData := &store.TransactionData{
 		RawTx:    make([]byte, 0),
 		StoredAt: now,
 		Hash:     unminedHash,
@@ -128,7 +127,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2024, 5, 31, 15, 16, 0, 0, time.UTC), dataReturned2.LastSubmittedAt)
 
-		mined.Callbacks = append(mined.Callbacks, global.Callback{CallbackURL: "http://callback.example2.com", CallbackToken: "67890"})
+		mined.Callbacks = append(mined.Callbacks, store.Callback{CallbackURL: "http://callback.example2.com", CallbackToken: "67890"})
 		err = postgresDB.Set(ctx, &mined)
 		require.NoError(t, err)
 
@@ -203,13 +202,13 @@ func TestPostgresDB(t *testing.T) {
 
 		hash2 := testutils.BRevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853") // hash already existing in db - no update expected
 
-		data := []*global.TransactionData{
+		data := []*store.TransactionData{
 			{
 				RawTx:             testdata.TX1Raw.Bytes(),
 				StoredAt:          now,
 				Hash:              testdata.TX1HashB,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []global.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "1234"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example.com", CallbackToken: "1234"}},
 				FullStatusUpdates: false,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -219,7 +218,7 @@ func TestPostgresDB(t *testing.T) {
 				StoredAt:          now,
 				Hash:              testdata.TX6HashB,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []global.Callback{{CallbackURL: "http://callback.example2.com", CallbackToken: "5678"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example2.com", CallbackToken: "5678"}},
 				FullStatusUpdates: true,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -229,7 +228,7 @@ func TestPostgresDB(t *testing.T) {
 				StoredAt:          now,
 				Hash:              hash2,
 				Status:            metamorph_api.Status_STORED,
-				Callbacks:         []global.Callback{{CallbackURL: "http://callback.example3.com", CallbackToken: "5678"}},
+				Callbacks:         []store.Callback{{CallbackURL: "http://callback.example3.com", CallbackToken: "5678"}},
 				FullStatusUpdates: true,
 				LastSubmittedAt:   now,
 				LockedBy:          "metamorph-1",
@@ -396,7 +395,7 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:   *testutils.BRevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa"), // update expected
 				Status: metamorph_api.Status_SEEN_ON_NETWORK,
-				StatusHistory: []global.StatusWithTimestamp{
+				StatusHistory: []store.StatusWithTimestamp{
 					{Status: metamorph_api.Status_REQUESTED_BY_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 2, 0, time.UTC)},
 					{Status: metamorph_api.Status_SENT_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 3, 0, time.UTC)},
 					{Status: metamorph_api.Status_ACCEPTED_BY_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 4, 0, time.UTC)},
@@ -507,26 +506,26 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[0].Status)
 		require.Equal(t, *testutils.BRevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), *statusUpdates[0].Hash)
-		require.ElementsMatch(t, []*global.StatusWithTimestamp{
+		require.ElementsMatch(t, []*store.StatusWithTimestamp{
 			{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp},
 			{Status: metamorph_api.Status_ANNOUNCED_TO_NETWORK, Timestamp: time.Date(2023, 10, 1, 14, 0, 0, 0, time.UTC)},
 		}, statusUpdates[0].StatusHistory)
 		require.ElementsMatch(t, []string{"55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[0].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[1].Status)
 		require.Equal(t, *testutils.BRevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"), *statusUpdates[1].Hash)
-		require.Equal(t, []*global.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[1].StatusHistory)
+		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[1].StatusHistory)
 		require.ElementsMatch(t, []string{"11132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "22232d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e", "55532d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[1].CompetingTxs)
 
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[2].Status)
 		require.Equal(t, *testutils.BRevChainhash(t, "b16cea53fc823e146fbb9ae4ad3124f7c273f30562585ad6e4831495d609f430"), *statusUpdates[2].Hash)
-		require.Equal(t, []*global.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[2].StatusHistory)
+		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, Timestamp: timestamp}}, statusUpdates[2].StatusHistory)
 		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[2].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED, statusUpdates[3].Status)
 		require.Equal(t, *testutils.BRevChainhash(t, "3e0b5b218c344110f09bf485bc58de4ea5378e55744185edf9c1dafa40068ecd"), *statusUpdates[3].Hash)
 		require.Equal(t, []string{"aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002"}, statusUpdates[3].CompetingTxs)
 		require.Equal(t, metamorph_api.Status_REJECTED, statusUpdates[4].Status)
 		require.Equal(t, *testutils.BRevChainhash(t, "7809b730cbe7bb723f299a4e481fb5165f31175876392a54cde85569a18cc75f"), *statusUpdates[4].Hash)
-		require.Equal(t, []*global.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[4].StatusHistory)
+		require.Equal(t, []*store.StatusWithTimestamp{{Status: metamorph_api.Status_REJECTED, Timestamp: timestamp}}, statusUpdates[4].StatusHistory)
 		require.Equal(t, []string{"33332d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e"}, statusUpdates[4].CompetingTxs)
 		require.Equal(t, "double spend attempted", statusUpdates[4].RejectReason)
 		res, err := postgresDB.Get(ctx, testutils.BRevChainhash(t, "aaa350ca12a0dd9375540e13637b02e054a3436336e9d6b82fe7f2b23c710002")[:])
@@ -677,7 +676,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
-		unmined.StatusHistory = append(unmined.StatusHistory, &global.StatusWithTimestamp{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED,
 			Timestamp: dataBeforeUpdate.LastModified,
 		})
@@ -700,7 +699,7 @@ func TestPostgresDB(t *testing.T) {
 			{
 				Hash:   *unminedHash,
 				Status: metamorph_api.Status_RECEIVED,
-				StatusHistory: []global.StatusWithTimestamp{
+				StatusHistory: []store.StatusWithTimestamp{
 					{
 						Status:    metamorph_api.Status_QUEUED,
 						Timestamp: postgresDB.now(),
@@ -717,11 +716,11 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 0
 		unmined.BlockHash = nil
 		unmined.StatusHistory = append(unmined.StatusHistory,
-			&global.StatusWithTimestamp{
+			&store.StatusWithTimestamp{
 				Status:    metamorph_api.Status_QUEUED,
 				Timestamp: postgresDB.now(),
 			},
-			&global.StatusWithTimestamp{
+			&store.StatusWithTimestamp{
 				Status:    metamorph_api.Status_RECEIVED,
 				Timestamp: postgresDB.now(),
 			},
@@ -744,7 +743,7 @@ func TestPostgresDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statusUpdates, 1)
 
-		unmined.StatusHistory = append(unmined.StatusHistory, &global.StatusWithTimestamp{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_ACCEPTED_BY_NETWORK,
 			Timestamp: postgresDB.now(),
 		})
@@ -768,7 +767,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 1)
 
 		unmined.CompetingTxs = []string{"5678"}
-		unmined.StatusHistory = append(unmined.StatusHistory, &global.StatusWithTimestamp{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_DOUBLE_SPEND_ATTEMPTED,
 			Timestamp: unmined.LastModified,
 		})
@@ -797,7 +796,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block1HashB
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &global.StatusWithTimestamp{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED,
 			Timestamp: unmined.LastModified,
 		})
@@ -826,7 +825,7 @@ func TestPostgresDB(t *testing.T) {
 		unmined.BlockHeight = 100
 		unmined.BlockHash = testdata.Block2HashB
 		unmined.MerklePath = "merkle-path-1"
-		unmined.StatusHistory = append(unmined.StatusHistory, &global.StatusWithTimestamp{
+		unmined.StatusHistory = append(unmined.StatusHistory, &store.StatusWithTimestamp{
 			Status:    metamorph_api.Status_MINED_IN_STALE_BLOCK,
 			Timestamp: unmined.LastModified,
 		})

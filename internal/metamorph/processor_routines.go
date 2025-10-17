@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 )
@@ -58,7 +57,7 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
-func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*global.TransactionData) (int, int) {
+func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store.TransactionData) (int, int) {
 	requested := 0
 	announced := 0
 	for _, tx := range unminedTxs {
@@ -98,7 +97,7 @@ func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*globa
 func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalRejected int
-	var txs []*global.TransactionData
+	var txs []*store.TransactionData
 	var blocksSinceLastRequested *blocktx_api.LatestBlocksResponse
 	var err error
 	const getUnconfirmedloadLimit = 500
@@ -215,7 +214,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 func RegisterSeenTxs(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
-	var seenOnNetworkTxs []*global.TransactionData
+	var seenOnNetworkTxs []*store.TransactionData
 	var err error
 
 	const getSeenLoadLimit = 500

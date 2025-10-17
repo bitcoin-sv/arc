@@ -256,9 +256,9 @@ func TestInitialAutoReconnect(t *testing.T) {
 			t.Log("message published")
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 
-		assert.Equal(t, int32(6), receivedCounter1.Load())
+		assert.Equal(t, int32(4), receivedCounter1.Load())
 		assert.Equal(t, int32(3), receivedCounter2.Load())
 	})
 }

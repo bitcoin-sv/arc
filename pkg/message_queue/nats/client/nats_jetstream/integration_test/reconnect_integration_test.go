@@ -176,13 +176,6 @@ func TestAutoReconnect(t *testing.T) {
 		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		require.NoError(t, err)
 
-		list, err := dockerClient.ContainerList(ctx, container.ListOptions{})
-		require.NoError(t, err)
-
-		for _, cont := range list {
-			t.Log(cont.Names)
-		}
-
 		const (
 			topic      = "recon-topic"
 			streamName = "recon-topic-stream"
@@ -242,16 +235,5 @@ func TestAutoReconnect(t *testing.T) {
 			require.NoError(t, err)
 			t.Log("message published")
 		}
-
-		err = dockerClient.ContainerStop(ctx, containerID, container.StopOptions{
-			Signal:  "",
-			Timeout: PtrTo(5),
-		})
-		require.NoError(t, err)
 	})
-}
-
-// PtrTo returns a pointer to the given value.
-func PtrTo[T any](v T) *T {
-	return &v
 }

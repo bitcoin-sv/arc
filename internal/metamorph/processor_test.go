@@ -263,7 +263,7 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishAsyncFunc: func(_ string, _ []byte) error {
+				PublishCoreFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}

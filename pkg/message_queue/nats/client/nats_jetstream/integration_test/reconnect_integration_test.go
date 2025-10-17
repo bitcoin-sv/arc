@@ -165,7 +165,7 @@ func TestReconnect(t *testing.T) {
 	}
 }
 
-func TestAutoReconnect(t *testing.T) {
+func TestInitialAutoReconnect(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -176,12 +176,6 @@ func TestAutoReconnect(t *testing.T) {
 		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		require.NoError(t, err)
 
-		const (
-			topic      = "recon-topic"
-			streamName = "recon-topic-stream"
-			consName   = "recon-topic-const"
-		)
-
 		connOpts := []nats_connection.Option{
 			nats_connection.WithReconnectWait(100 * time.Millisecond),
 			nats_connection.WithRetryOnFailedConnect(true),
@@ -189,6 +183,12 @@ func TestAutoReconnect(t *testing.T) {
 			nats_connection.WithMaxPingsOutstanding(1),
 			nats_connection.WithMaxReconnects(-1),
 		}
+
+		const (
+			topic      = "recon-topic"
+			streamName = "recon-topic-stream"
+			consName   = "recon-topic-const"
+		)
 		jsOpts := []nats_jetstream.Option{
 			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
 			nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
@@ -214,7 +214,7 @@ func TestAutoReconnect(t *testing.T) {
 
 		var newMessage = []byte("new message")
 
-		const publishTimeout = 100 * time.Second
+		const publishTimeout = 100 * time.Millisecond
 		for range 3 {
 			ctx, cancel := context.WithTimeout(context.Background(), publishTimeout)
 			err = mqClientRecon.Publish(ctx, topic, newMessage)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -17,11 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	ErrTransactionNotFound = errors.New("transaction not found")
-	ErrNotFound            = errors.New("key could not be found")
-	ErrUpdateCompeting     = fmt.Errorf("failed to updated competing transactions with status %s", metamorph_api.Status_REJECTED.String())
-)
+var ErrTransactionNotFound = errors.New("transaction not found")
 
 const (
 	MaxTimeout = 30

@@ -177,13 +177,14 @@ func TestInitialAutoReconnect(t *testing.T) {
 		}
 
 		const (
-			topic      = "recon-topic"
-			streamName = "recon-topic-stream"
-			consName   = "recon-topic-cons"
+			topic1      = "topic-1"
+			streamName1 = "topic-1-stream"
+			topic2      = "topic-2"
+			streamName2 = "topic-2-stream"
 		)
 		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic, streamName, jetstream.WorkQueuePolicy, false),
-			//nats_jetstream.WithConsumer(topic, streamName, consName, true, jetstream.AckExplicitPolicy),
+			nats_jetstream.WithStream(topic1, streamName1, jetstream.WorkQueuePolicy, false),
+			nats_jetstream.WithStream(topic2, streamName2, jetstream.WorkQueuePolicy, false),
 		}
 		natsConn1, err := nats_connection.New(natsURL, logger.With(slog.String("conn", "1")), connOpts...)
 		require.NoError(t, err)
@@ -209,8 +210,9 @@ func TestInitialAutoReconnect(t *testing.T) {
 		const publishTimeout = 100 * time.Millisecond
 		ctxErrPublish, cancel := context.WithTimeout(context.TODO(), publishTimeout)
 		defer cancel()
+
 		for range 3 {
-			err = mqClient2.Publish(ctxErrPublish, topic, []byte("new message"))
+			err = mqClient2.Publish(ctxErrPublish, topic2, []byte("new message sent from client 2"))
 			require.ErrorIs(t, err, nats_jetstream.ErrFailedToPublish)
 			require.ErrorIs(t, err, context.DeadlineExceeded)
 			t.Log("failed to publish, waiting for reconnect")
@@ -230,9 +232,9 @@ func TestInitialAutoReconnect(t *testing.T) {
 		}
 
 		// subscribe while nats server unavailable
-		err = mqClient1.QueueSubscribe(topic, msgReceived1)
+		err = mqClient1.QueueSubscribe(topic2, msgReceived1)
 		require.NoError(t, err)
-		err = mqClient2.QueueSubscribe(topic, msgReceived2)
+		err = mqClient2.QueueSubscribe(topic1, msgReceived2)
 		require.NoError(t, err)
 
 		// nats server is available
@@ -244,19 +246,19 @@ func TestInitialAutoReconnect(t *testing.T) {
 
 		t.Log("publishing messages")
 		for range 3 {
-			err = mqClient2.Publish(context.TODO(), topic, []byte("new message sent from client 2"))
+			err = mqClient2.Publish(context.TODO(), topic2, []byte("new message sent from client 2"))
 			require.NoError(t, err)
 			t.Log("message published")
 		}
 		for range 3 {
-			err = mqClient1.Publish(context.TODO(), topic, []byte("new message sent from client 1"))
+			err = mqClient1.Publish(context.TODO(), topic1, []byte("new message sent from client 1"))
 			require.NoError(t, err)
 			t.Log("message published")
 		}
 
 		time.Sleep(3 * time.Second)
 
-		assert.Equal(t, int32(4), receivedCounter1.Load())
+		assert.Equal(t, int32(6), receivedCounter1.Load())
 		assert.Equal(t, int32(3), receivedCounter2.Load())
 	})
 }

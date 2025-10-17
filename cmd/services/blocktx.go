@@ -49,7 +49,16 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	)
 
 	shutdownFns := make([]func(), 0)
-	processorOpts := make([]func(handler *blocktx.Processor), 0)
+
+	registerTxsChan := make(chan []byte, chanBufferSize)
+
+	processorOpts := []func(handler *blocktx.Processor){
+		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
+		blocktx.WithRegisterTxsChan(registerTxsChan),
+		blocktx.WithRegisterTxsInterval(btxCfg.RegisterTxsInterval),
+		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
+		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
+	}
 
 	if commonCfg.IsTracingEnabled() {
 		cleanup, err := tracing.Enable(logger, "blocktx", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
@@ -80,21 +89,12 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
 
-	registerTxsChan := make(chan []byte, chanBufferSize)
-
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
-		return nil, err
+		logger.Warn("Failed to create mq client", slog.String("err", err.Error()))
+	} else {
+		processorOpts = append(processorOpts, blocktx.WithMessageQueueClient(mqClient))
 	}
-
-	processorOpts = append(processorOpts,
-		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
-		blocktx.WithRegisterTxsChan(registerTxsChan),
-		blocktx.WithRegisterTxsInterval(btxCfg.RegisterTxsInterval),
-		blocktx.WithMessageQueueClient(mqClient),
-		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
-		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
-	)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *bcnet.BlockMessagePeer, blockProcessingBuffer)

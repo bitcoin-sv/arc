@@ -25,6 +25,7 @@ var ErrTransactionNotFound = errors.New("transaction not found")
 type Metamorph struct {
 	client            metamorph_api.MetaMorphAPIClient
 	mqClient          mq.MessageQueueClient
+	mqClientEnabled   bool
 	logger            *slog.Logger
 	now               func() time.Time
 	tracingEnabled    bool
@@ -34,6 +35,7 @@ type Metamorph struct {
 func WithMqClient(mqClient mq.MessageQueueClient) func(*Metamorph) {
 	return func(m *Metamorph) {
 		m.mqClient = mqClient
+		m.mqClientEnabled = true
 	}
 }
 
@@ -238,7 +240,7 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		in.Transactions = append(in.Transactions, transactionRequest(tx.Bytes(), options))
 	}
 
-	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
+	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClientEnabled {
 		for _, tx := range in.Transactions {
 			err = m.mqClient.PublishMarshal(ctx, mq.SubmitTxTopic, tx)
 			if err != nil {

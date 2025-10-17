@@ -64,6 +64,7 @@ type Processor struct {
 	transactionStorageBatchSize int
 	dataRetentionDays           int
 	mqClient                    mq.MessageQueueClient
+	mqClientEnabled             bool
 	registerTxsChan             chan []byte
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
@@ -122,38 +123,39 @@ func NewProcessor(
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
-		select {
-		case p.registerTxsChan <- msg:
-		default:
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxTopic), err)
-	}
-
-	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.Transactions{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-		}
-
-		for _, tx := range serialized.Transactions {
+	if p.mqClientEnabled {
+		err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
 			select {
-			case p.registerTxsChan <- tx.Hash:
+			case p.registerTxsChan <- msg:
 			default:
 			}
+
+			return nil
+		})
+		if err != nil {
+			return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxTopic), err)
 		}
 
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-	}
+		err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
+			serialized := &blocktx_api.Transactions{}
+			err := proto.Unmarshal(msg, serialized)
+			if err != nil {
+				return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
+			}
 
+			for _, tx := range serialized.Transactions {
+				select {
+				case p.registerTxsChan <- tx.Hash:
+				default:
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
+		}
+	}
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
@@ -920,6 +922,10 @@ func (p *Processor) acceptIntoChain(ctx context.Context, blocks []*blocktx_api.B
 
 func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransactionWithMerklePath) error {
 	var publishErr error
+	if !p.mqClientEnabled {
+		return nil
+	}
+
 	_, span := tracing.StartTracing(ctx, "publishMinedTxs", p.tracingEnabled, p.tracingAttributes...)
 	defer func() {
 		tracing.EndTracing(span, publishErr)

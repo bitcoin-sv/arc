@@ -9,13 +9,11 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -380,19 +378,6 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, meta
 	messenger = p2p.NewNetworkMessenger(l, manager)
 	mediator = bcnet.NewMediator(l, cfg.Mode == "classic", messenger, multicaster, mediatorOpts...)
 	return
-}
-
-func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_utils.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingConfig)
-	if err != nil {
-		return nil, err
-	}
-	callbackerConn, err := grpc.NewClient(address, dialOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return callbacker_api.NewCallbackerAPIClient(callbackerConn), nil
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,

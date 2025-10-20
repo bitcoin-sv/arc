@@ -24,7 +24,6 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 		storeCallbackBatchSize int
 		storeCallbacksInterval time.Duration
 		consumeErr             error
-		queueSubscribeErr      error
 
 		expectedError       error
 		expectedInsertCalls int
@@ -49,17 +48,8 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			storeCallbacksInterval: 20 * time.Second,
 			consumeErr:             errors.New("some error"),
 
+			expectedError:       callbacker.ErrConsume,
 			expectedInsertCalls: 1,
-		},
-		{
-			name:                   "insert batch - consume err & subscribe err",
-			storeCallbackBatchSize: 4,
-			storeCallbacksInterval: 20 * time.Second,
-			consumeErr:             errors.New("some error"),
-			queueSubscribeErr:      errors.New("some error"),
-
-			expectedError:       callbacker.ErrSubscribe,
-			expectedInsertCalls: 0,
 		},
 	}
 
@@ -93,16 +83,6 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 				ConsumeFunc: func(_ string, msgFunc func([]byte) error) error {
 					if tc.consumeErr != nil {
 						return tc.consumeErr
-					}
-					for range 5 {
-						err := msgFunc(data)
-						require.NoError(t, err)
-					}
-					return nil
-				},
-				QueueSubscribeFunc: func(_ string, msgFunc func([]byte) error) error {
-					if tc.queueSubscribeErr != nil {
-						return tc.queueSubscribeErr
 					}
 					for range 5 {
 						err := msgFunc(data)

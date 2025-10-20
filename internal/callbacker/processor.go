@@ -160,25 +160,6 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 	return p, nil
 }
 
-func (p *Processor) processCallbackMessage(msg []byte) error {
-	serialized := &callbacker_api.SendRequest{}
-	err := proto.Unmarshal(msg, serialized)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
-	}
-
-	p.logger.Debug("Enqueued callback request",
-		slog.String("url", serialized.CallbackRouting.Url),
-		slog.String("token", serialized.CallbackRouting.Token),
-		slog.String("hash", serialized.Txid),
-		slog.String("status", serialized.Status.String()),
-	)
-
-	p.sendRequestCh <- serialized
-
-	return nil
-}
-
 func (p *Processor) Subscribe() error {
 	err := p.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}

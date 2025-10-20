@@ -17,8 +17,8 @@ service BlockTxAPI {
   // ClearRegisteredTransactions clears registered transactions
   rpc ClearRegisteredTransactions(ClearData) returns (RowsAffectedResponse) {}
 
-	// VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
-	rpc VerifyMerkleRoots(MerkleRootsVerificationRequest) returns (MerkleRootVerificationResponse) {}
+  // VerifyMerkleRoots verifies the merkle roots existance in blocktx db and returns unverified block heights
+  rpc VerifyMerkleRoots(MerkleRootsVerificationRequest) returns (MerkleRootVerificationResponse) {}
 
   // RegisterTransaction registers a transaction in blocktx
   rpc RegisterTransaction (Transaction) returns (google.protobuf.Empty) {}

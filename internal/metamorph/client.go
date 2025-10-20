@@ -2,7 +2,6 @@ package metamorph
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"os"
 	"runtime"
@@ -18,8 +17,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
-
-var ErrTransactionNotFound = errors.New("transaction not found")
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
@@ -93,7 +90,7 @@ func (m *Metamorph) GetTransaction(ctx context.Context, txID string) (rawTx []by
 	}
 
 	if tx == nil {
-		return nil, ErrTransactionNotFound
+		return nil, global.ErrTransactionNotFound
 	}
 
 	return tx.GetRawTx(), nil
@@ -145,7 +142,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	}
 
 	if tx == nil {
-		return nil, ErrTransactionNotFound
+		return nil, global.ErrTransactionNotFound
 	}
 
 	txStatus = &global.TransactionStatus{

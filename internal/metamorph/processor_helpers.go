@@ -14,7 +14,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
@@ -171,7 +170,7 @@ func mergeUnique(arr1, arr2 []string) []string {
 	return uniqueSlice
 }
 
-func toSendRequest(d *global.TransactionData, timestamp time.Time) []*callbacker_api.SendRequest {
+func toSendRequest(d *store.TransactionData, timestamp time.Time) []*callbacker_api.SendRequest {
 	if len(d.Callbacks) == 0 {
 		return nil
 	}
@@ -206,7 +205,7 @@ func toSendRequest(d *global.TransactionData, timestamp time.Time) []*callbacker
 	return requests
 }
 
-func getCallbackExtraInfo(d *global.TransactionData) string {
+func getCallbackExtraInfo(d *store.TransactionData) string {
 	if d.Status == metamorph_api.Status_MINED && len(d.CompetingTxs) > 0 {
 		return minedDoubleSpendMsg
 	}
@@ -214,7 +213,7 @@ func getCallbackExtraInfo(d *global.TransactionData) string {
 	return d.RejectReason
 }
 
-func getCallbackCompetitingTxs(d *global.TransactionData) []string {
+func getCallbackCompetitingTxs(d *store.TransactionData) []string {
 	if d.Status == metamorph_api.Status_MINED {
 		return nil
 	}
@@ -222,7 +221,7 @@ func getCallbackCompetitingTxs(d *global.TransactionData) []string {
 	return d.CompetingTxs
 }
 
-func getCallbackBlockHash(d *global.TransactionData) string {
+func getCallbackBlockHash(d *store.TransactionData) string {
 	if d.BlockHash == nil {
 		return ""
 	}

@@ -9,14 +9,11 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/grpc"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
-	"github.com/bitcoin-sv/arc/internal/callbacker"
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -61,7 +58,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		return nil, fmt.Errorf("failed to create cache store: %v", err)
 	}
 
-	shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts := enableTracing(commonCfg, logger)
+	shutdownFns, optsServer, processorOpts, bcMediatorOpts := enableTracing(commonCfg, logger)
 
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
@@ -93,14 +90,6 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
-	callbackerConn, err := initGrpcCallbackerConn(mtmCfg.CallbackerDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to create callbacker client: %v", err)
-	}
-
-	callbackSender := callbacker.NewGrpcCallbacker(callbackerConn, procLogger, callbackerOpts...)
-
 	btcConn, err := grpc_utils.DialGRPC(mtmCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to blocktx server: %v", err)
@@ -121,7 +110,6 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),
-		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatTimeLimits(mtmCfg.Stats.NotSeenTimeLimit, mtmCfg.Stats.NotFinalTimeLimit),
 		metamorph.WithMaxRetries(mtmCfg.MaxRetries),
 		metamorph.WithMinimumHealthyConnections(mtmCfg.Health.MinimumHealthyConnections),
@@ -171,11 +159,10 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	return stopFn, nil
 }
 
-func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []callbacker.Option, []bcnet.Option) {
+func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []bcnet.Option) {
 	shutdownFns := make([]func(), 0)
 	optsServer := make([]metamorph.ServerOption, 0)
 	processorOpts := make([]metamorph.Option, 0)
-	callbackerOpts := make([]callbacker.Option, 0)
 	bcMediatorOpts := make([]bcnet.Option, 0)
 
 	if commonCfg.IsTracingEnabled() {
@@ -194,11 +181,10 @@ func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(
 		}
 
 		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
-		callbackerOpts = append(callbackerOpts, callbacker.WithTracerCallbacker(attributes...))
 		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
 		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
 	}
-	return shutdownFns, optsServer, processorOpts, callbackerOpts, bcMediatorOpts
+	return shutdownFns, optsServer, processorOpts, bcMediatorOpts
 }
 
 func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns *[]func()) error {
@@ -304,7 +290,8 @@ func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingC
 // - `metamorph_p2p.NewHybridMsgHandler`: Used in hybrid mode, integrating P2P communication with multicast group updates.
 func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, metamorphCfg *config.MetamorphConfig, minConnections int, mediatorOpts []bcnet.Option) (
 	mediator *bcnet.Mediator, messenger *p2p.NetworkMessenger, manager *p2p.PeerManager, multicaster *mcast.Multicaster,
-	messageCh chan *metamorph_p2p.TxStatusMessage, err error) {
+	messageCh chan *metamorph_p2p.TxStatusMessage, err error,
+) {
 	defer func() {
 		// cleanup on error
 		if err == nil {
@@ -391,19 +378,6 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, meta
 	messenger = p2p.NewNetworkMessenger(l, manager)
 	mediator = bcnet.NewMediator(l, cfg.Mode == "classic", messenger, multicaster, mediatorOpts...)
 	return
-}
-
-func initGrpcCallbackerConn(address, prometheusEndpoint string, grpcMsgSize int, tracingConfig *config.TracingConfig) (callbacker_api.CallbackerAPIClient, error) {
-	dialOpts, err := grpc_utils.GetGRPCClientOpts(prometheusEndpoint, grpcMsgSize, tracingConfig)
-	if err != nil {
-		return nil, err
-	}
-	callbackerConn, err := grpc.NewClient(address, dialOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return callbacker_api.NewCallbackerAPIClient(callbackerConn), nil
 }
 
 func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,

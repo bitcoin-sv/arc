@@ -683,7 +683,7 @@ func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]
 	}
 	txsMsg := &blocktx_api.Transactions{Transactions: txs}
 
-	err = p.mqClient.PublishMarshal(ctx, mq.RegisterTxsTopic, txsMsg)
+	err = p.mqClient.PublishMarshalCore(mq.RegisterTxsTopic, txsMsg)
 	if err != nil {
 		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxsTopic, err)
 	}

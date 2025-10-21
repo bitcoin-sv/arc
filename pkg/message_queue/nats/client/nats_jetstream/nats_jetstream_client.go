@@ -38,14 +38,14 @@ func WithStream(topic string, streamName string, retentionPolicy jetstream.Reten
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
-		// get or create stream for topic
+		// get or create the stream for the topic
 		_, err := cl.js.Stream(ctx, streamName)
 		if err != nil {
 			if !errors.Is(err, jetstream.ErrStreamNotFound) {
 				return errors.Join(ErrFailedToGetStream, err)
 			}
 
-			cl.logger.Warn("stream not found", slog.String("name", streamName))
+			cl.logger.Warn("stream not found", slog.String("stream", streamName))
 
 			_, err = cl.js.CreateStream(ctx, jetstream.StreamConfig{
 				Name:        streamName,
@@ -61,7 +61,9 @@ func WithStream(topic string, streamName string, retentionPolicy jetstream.Reten
 				return errors.Join(ErrFailedToCreateStream, err)
 			}
 
-			cl.logger.Info("stream created", slog.String("name", streamName))
+			cl.logger.Info("stream created", slog.String("stream", streamName))
+		} else {
+			cl.logger.Info("stream found", slog.String("stream", streamName))
 		}
 
 		return nil
@@ -73,7 +75,7 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
-		// get or create consumer for topic
+		// get or create the consumer for the topic
 		cons, err := cl.js.Consumer(ctx, streamName, consumerName)
 		if err != nil {
 			if !errors.Is(err, jetstream.ErrConsumerNotFound) {
@@ -83,7 +85,7 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 			if durable {
 				durableName = consumerName
 			}
-			cl.logger.Warn("consumer not found", slog.String("name", streamName))
+			cl.logger.Warn("consumer not found", slog.String("stream", streamName), slog.String("consumer", consumerName))
 
 			cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
 				Name:          consumerName,
@@ -94,7 +96,9 @@ func WithConsumer(topic string, streamName string, consumerName string, durable 
 			if err != nil {
 				return errors.Join(ErrFailedToCreateConsumer, err)
 			}
-			cl.logger.Info("consumer created", slog.String("name", streamName))
+			cl.logger.Info("consumer created", slog.String("stream", streamName), slog.String("consumer", consumerName))
+		} else {
+			cl.logger.Info("consumer found", slog.String("stream", streamName), slog.String("consumer", consumerName))
 		}
 		cl.consumers[topic] = cons
 		return nil

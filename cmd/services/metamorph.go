@@ -81,10 +81,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	var mqOpts []nats_jetstream.Option
-	if commonCfg.MessageQueue.Initialize {
-		mqOpts = getMtmMqOpts()
-	}
+	mqOpts := getMtmMqOpts(commonCfg.MessageQueue.Initialize)
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
@@ -219,13 +216,13 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 	return nil
 }
 
-func getMtmMqOpts() []nats_jetstream.Option {
+func getMtmMqOpts(initalize bool) []nats_jetstream.Option {
 	submitStreamName := fmt.Sprintf("%s-stream", mq.SubmitTxTopic)
 	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false),
-		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy),
+		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false, initalize),
+		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy, initalize),
 	}
 	return mqOpts
 }

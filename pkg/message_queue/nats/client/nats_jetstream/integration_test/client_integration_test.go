@@ -101,8 +101,8 @@ func TestPublish(t *testing.T) {
 			name:  "publish marshal - work queue policy",
 			topic: "pub-topic-1",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("pub-topic-1", "pub-topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("pub-topic-1", "pub-topic-1-stream", "pub-topic-1-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-1", "pub-topic-1-stream", jetstream.WorkQueuePolicy, false, true),
+				nats_jetstream.WithConsumer("pub-topic-1", "pub-topic-1-stream", "pub-topic-1-cons", false, jetstream.AckExplicitPolicy, true),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
@@ -114,8 +114,8 @@ func TestPublish(t *testing.T) {
 			name:  "publish marshal async - work queue policy",
 			topic: "pub-topic-2",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("pub-topic-2", "pub-topic-2-stream", jetstream.WorkQueuePolicy, true),
-				nats_jetstream.WithConsumer("pub-topic-2", "pub-topic-2-stream", "pub-topic-2-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-2", "pub-topic-2-stream", jetstream.WorkQueuePolicy, true, true),
+				nats_jetstream.WithConsumer("pub-topic-2", "pub-topic-2-stream", "pub-topic-2-cons", false, jetstream.AckExplicitPolicy, true),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshalAsync(topic, msg)
@@ -127,8 +127,8 @@ func TestPublish(t *testing.T) {
 			name:  "publish marshal - interest policy",
 			topic: "pub-topic-3",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("pub-topic-3", "pub-topic-3-stream", jetstream.InterestPolicy, false),
-				nats_jetstream.WithConsumer("pub-topic-3", "pub-topic-3-stream", "pub-topic-3-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("pub-topic-3", "pub-topic-3-stream", jetstream.InterestPolicy, false, true),
+				nats_jetstream.WithConsumer("pub-topic-3", "pub-topic-3-stream", "pub-topic-3-cons", false, jetstream.AckExplicitPolicy, true),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, msg *test_api.TestMessage) {
 				err = cl.PublishMarshal(context.TODO(), topic, msg)
@@ -214,8 +214,8 @@ func TestSubscribe(t *testing.T) {
 			name:  "subscribe - work queue policy",
 			topic: "sub-topic-1",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("sub-topic-1", "sub-topic-1-stream", jetstream.WorkQueuePolicy, false),
-				nats_jetstream.WithConsumer("sub-topic-1", "sub-topic-1-stream", "sub-topic-1-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("sub-topic-1", "sub-topic-1-stream", jetstream.WorkQueuePolicy, false, true),
+				nats_jetstream.WithConsumer("sub-topic-1", "sub-topic-1-stream", "sub-topic-1-cons", false, jetstream.AckExplicitPolicy, true),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
 				err = cl.Consume(topic, func(bytes []byte) error {
@@ -234,8 +234,8 @@ func TestSubscribe(t *testing.T) {
 			name:  "subscribe msg - interest policy",
 			topic: "sub-topic-2",
 			opts: []nats_jetstream.Option{
-				nats_jetstream.WithStream("sub-topic-2", "sub-topic-2-stream", jetstream.InterestPolicy, false),
-				nats_jetstream.WithConsumer("sub-topic-2", "sub-topic-2-stream", "sub-topic-2-cons", false, jetstream.AckExplicitPolicy),
+				nats_jetstream.WithStream("sub-topic-2", "sub-topic-2-stream", jetstream.InterestPolicy, false, true),
+				nats_jetstream.WithConsumer("sub-topic-2", "sub-topic-2-stream", "sub-topic-2-cons", false, jetstream.AckExplicitPolicy, true),
 			},
 			testFunc: func(cl *nats_jetstream.Client, topic string, messageChan chan *test_api.TestMessage) {
 				err = cl.ConsumeMsg(topic, func(msg jetstream.Msg) error {

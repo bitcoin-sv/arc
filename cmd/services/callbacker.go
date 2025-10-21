@@ -67,10 +67,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	var mqOpts []nats_jetstream.Option
-	if commonCfg.MessageQueue.Initialize {
-		mqOpts = getCbkMqOpts()
-	}
+	mqOpts := getCbkMqOpts(commonCfg.MessageQueue.Initialize)
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
@@ -122,13 +119,13 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 	return stopFn, nil
 }
 
-func getCbkMqOpts() []nats_jetstream.Option {
+func getCbkMqOpts(initialize bool) []nats_jetstream.Option {
 	callbackStreamName := fmt.Sprintf("%s-stream", mq.CallbackTopic)
 	callbackConsName := fmt.Sprintf("%s-cons", mq.CallbackTopic)
 
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.CallbackTopic, callbackStreamName, jetstream.WorkQueuePolicy, false),
-		nats_jetstream.WithConsumer(mq.CallbackTopic, callbackStreamName, callbackConsName, true, jetstream.AckExplicitPolicy),
+		nats_jetstream.WithStream(mq.CallbackTopic, callbackStreamName, jetstream.WorkQueuePolicy, false, initialize),
+		nats_jetstream.WithConsumer(mq.CallbackTopic, callbackStreamName, callbackConsName, true, jetstream.AckExplicitPolicy, initialize),
 	}
 	return mqOpts
 }

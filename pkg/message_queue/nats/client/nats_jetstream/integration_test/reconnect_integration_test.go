@@ -78,8 +78,8 @@ func TestReconnect(t *testing.T) {
 			consName := fmt.Sprintf("%s-cons", tc.topic)
 
 			jsOpts := []nats_jetstream.Option{
-				nats_jetstream.WithStream(tc.topic, streamName, jetstream.WorkQueuePolicy, false, true),
-				nats_jetstream.WithConsumer(tc.topic, streamName, consName, true, jetstream.AckExplicitPolicy, true),
+				nats_jetstream.WithStream(tc.topic, streamName, jetstream.WorkQueuePolicy, false),
+				nats_jetstream.WithConsumer(tc.topic, streamName, consName, true, jetstream.AckExplicitPolicy),
 			}
 
 			oppositeClient, err := nats_jetstream.New(natsConn, logger, jsOpts...)
@@ -183,8 +183,8 @@ func TestInitialAutoReconnect(t *testing.T) {
 			streamName2 = "topic-2-stream"
 		)
 		jsOpts := []nats_jetstream.Option{
-			nats_jetstream.WithStream(topic1, streamName1, jetstream.WorkQueuePolicy, false, true),
-			nats_jetstream.WithStream(topic2, streamName2, jetstream.WorkQueuePolicy, false, true),
+			nats_jetstream.WithStream(topic1, streamName1, jetstream.WorkQueuePolicy, false),
+			nats_jetstream.WithStream(topic2, streamName2, jetstream.WorkQueuePolicy, false),
 		}
 		natsConn1, err := nats_connection.New(natsURL, logger.With(slog.String("conn", "1")), connOpts...)
 		require.NoError(t, err)

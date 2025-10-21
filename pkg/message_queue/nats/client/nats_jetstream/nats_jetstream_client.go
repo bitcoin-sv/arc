@@ -33,77 +33,69 @@ var (
 	ErrFailedToSubscribe      = errors.New("failed to subscribe")
 )
 
-func WithStream(topic string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool, initialize bool) func(*Client) error {
+func WithStream(topic string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool) func(*Client) error {
 	return func(cl *Client) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
+		// get or create stream for topic
 		_, err := cl.js.Stream(ctx, streamName)
-		if err == nil {
-			cl.logger.Info("stream found", slog.String("stream", streamName))
-			return nil
-		}
-
-		if !initialize {
-			return errors.Join(ErrFailedToGetStream, err)
-		}
-
-		cl.logger.Warn("stream not found", slog.String("stream", streamName))
-
-		_, err = cl.js.CreateStream(ctx, jetstream.StreamConfig{
-			Name:        streamName,
-			Description: "Stream for topic " + topic,
-			Subjects:    []string{topic},
-			Retention:   retentionPolicy,
-			Discard:     jetstream.DiscardOld,
-			MaxAge:      10 * time.Minute,
-			Storage:     cl.storageType,
-			NoAck:       noAck,
-		})
 		if err != nil {
-			return errors.Join(ErrFailedToCreateStream, err)
-		}
+			if !errors.Is(err, jetstream.ErrStreamNotFound) {
+				return errors.Join(ErrFailedToGetStream, err)
+			}
 
-		cl.logger.Info("stream created", slog.String("stream", streamName))
+			cl.logger.Warn("stream not found", slog.String("name", streamName))
+
+			_, err = cl.js.CreateStream(ctx, jetstream.StreamConfig{
+				Name:        streamName,
+				Description: "Stream for topic " + topic,
+				Subjects:    []string{topic},
+				Retention:   retentionPolicy,
+				Discard:     jetstream.DiscardOld,
+				MaxAge:      10 * time.Minute,
+				Storage:     cl.storageType,
+				NoAck:       noAck,
+			})
+			if err != nil {
+				return errors.Join(ErrFailedToCreateStream, err)
+			}
+
+			cl.logger.Info("stream created", slog.String("name", streamName))
+		}
 
 		return nil
 	}
 }
 
-func WithConsumer(topic string, streamName string, consumerName string, durable bool, ackPolicy jetstream.AckPolicy, initialize bool) func(*Client) error {
+func WithConsumer(topic string, streamName string, consumerName string, durable bool, ackPolicy jetstream.AckPolicy) func(*Client) error {
 	return func(cl *Client) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		// get or create consumer for topic
 		cons, err := cl.js.Consumer(ctx, streamName, consumerName)
-		if err == nil {
-			cl.logger.Info("consumer found", slog.String("stream", streamName), slog.String("consumer", consumerName))
-			cl.consumers[topic] = cons
-			return nil
-		}
-
-		if !initialize {
-			return errors.Join(ErrFailedToGetConsumer, err)
-		}
-
-		durableName := ""
-		if durable {
-			durableName = consumerName
-		}
-		cl.logger.Warn("consumer not found", slog.String("stream", streamName), slog.String("consumer", consumerName))
-
-		cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
-			Name:          consumerName,
-			Durable:       durableName,
-			AckPolicy:     ackPolicy,
-			MaxAckPending: 5000,
-		})
 		if err != nil {
-			return errors.Join(ErrFailedToCreateConsumer, err)
-		}
-		cl.logger.Info("consumer created", slog.String("stream", streamName), slog.String("consumer", consumerName))
+			if !errors.Is(err, jetstream.ErrConsumerNotFound) {
+				return errors.Join(ErrFailedToGetConsumer, err)
+			}
+			durableName := ""
+			if durable {
+				durableName = consumerName
+			}
+			cl.logger.Warn("consumer not found", slog.String("name", streamName))
 
+			cons, err = cl.js.CreateConsumer(ctx, streamName, jetstream.ConsumerConfig{
+				Name:          consumerName,
+				Durable:       durableName,
+				AckPolicy:     ackPolicy,
+				MaxAckPending: 5000,
+			})
+			if err != nil {
+				return errors.Join(ErrFailedToCreateConsumer, err)
+			}
+			cl.logger.Info("consumer created", slog.String("name", streamName))
+		}
 		cl.consumers[topic] = cons
 		return nil
 	}

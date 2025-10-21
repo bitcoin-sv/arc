@@ -85,15 +85,10 @@ tasks:
       - go tool cover -html=cov_short.out -o coverage_report_short.html
       - goverreport -coverprofile cov_short.out -packages -sort block
 
-  install_lint:
-    desc: Install linting tools (staticcheck)
-    cmds: [ go install honnef.co/go/tools/cmd/staticcheck@2025.1.1 ]
-
   lint:
-    desc: Run linters (golangci-lint and staticcheck)
+    desc: Run linter
     cmds:
       - golangci-lint run -v ./...
-      - staticcheck ./...
 
   lint_fix:
     desc: Automatically fix lint issues with golangci-lint

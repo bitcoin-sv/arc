@@ -220,9 +220,33 @@ func getMtmMqOpts(logger *slog.Logger) []nats_jetstream.Option {
 	submitStreamName := fmt.Sprintf("%s-stream", mq.SubmitTxTopic)
 	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
 
+	var streamWrapper nats_jetstream.Option = func(cl *nats_jetstream.Client) error {
+		withStreamFunc := nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false)
+
+		// do not return the error so that metamorph runs even if stream creation fails
+		err := withStreamFunc(cl)
+		if err != nil {
+			logger.Warn("failed to create stream", slog.String("stream", submitStreamName), slog.String("err", err.Error()))
+		}
+
+		return nil
+	}
+
+	var consumerWrapper nats_jetstream.Option = func(cl *nats_jetstream.Client) error {
+		withConsumerFunc := nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy)
+
+		// do not return the error so that metamorph runs even if consumer creation fails
+		err := withConsumerFunc(cl)
+		if err != nil {
+			logger.Warn("failed to create consumer", slog.String("stream", submitStreamName), slog.String("consumer", submitConsName), slog.String("err", err.Error()))
+		}
+
+		return nil
+	}
+
 	mqOpts := []nats_jetstream.Option{
-		nats_jetstream.WithStream(mq.SubmitTxTopic, submitStreamName, jetstream.WorkQueuePolicy, false),
-		nats_jetstream.WithConsumer(mq.SubmitTxTopic, submitStreamName, submitConsName, true, jetstream.AckExplicitPolicy),
+		streamWrapper,
+		consumerWrapper,
 	}
 	return mqOpts
 }

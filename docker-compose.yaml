@@ -13,7 +13,6 @@ services:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
-      - node1-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node2:18333" ]
 
   node2:
@@ -26,7 +25,6 @@ services:
       test: [ "CMD", "/entrypoint.sh", "bitcoin-cli", "getinfo" ]
     volumes:
       - ./test/config/bitcoin.conf:/data/bitcoin.conf
-      - node2-data:/data
     command: [ "/entrypoint.sh", "bitcoind", "-connect=node1:18333" ]
 
   db:
@@ -111,7 +109,6 @@ services:
       - "4222:4222"
     hostname: nats-server
     volumes:
-      - nats1-data:/data
       - ./test/config/nats-server-host-1.conf:/etc/nats/nats-server.conf
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
@@ -127,7 +124,6 @@ services:
       - "4223:4222"
     hostname: nats-server
     volumes:
-      - nats2-data:/data
       - ./test/config/nats-server-host-2.conf:/etc/nats/nats-server.conf
     healthcheck:
       test: wget http://localhost:8222/healthz -q -S -O -
@@ -140,8 +136,6 @@ services:
     hostname: redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
 
@@ -264,15 +258,3 @@ services:
     command: [ "./e2e_test.test" , "-test.v" , "-test.failfast" ]
     depends_on:
       - api
-
-volumes:
-  node1-data:
-    external: false
-  node2-data:
-    external: false
-  nats1-data:
-    external: false
-  nats2-data:
-    external: false
-  redis-data:
-    external: false

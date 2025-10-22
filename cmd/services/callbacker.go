@@ -68,7 +68,6 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 	}
 
 	mqOpts := getCbkMqOpts()
-
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err

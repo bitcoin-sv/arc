@@ -2,6 +2,7 @@ package callbacker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -12,6 +13,10 @@ import (
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
 	"github.com/bitcoin-sv/arc/internal/mq"
+)
+
+var (
+	ErrConsume = errors.New("failed to consume")
 )
 
 type Sender interface {
@@ -175,7 +180,7 @@ func (p *Processor) Subscribe() error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe on %s topic: %v", mq.CallbackTopic, err)
+		return errors.Join(ErrConsume, fmt.Errorf("failed to consume topic %s: %v", mq.CallbackTopic, err))
 	}
 
 	return nil

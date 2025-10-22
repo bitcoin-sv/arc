@@ -2,6 +2,7 @@ package callbacker_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -22,7 +23,9 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 		name                   string
 		storeCallbackBatchSize int
 		storeCallbacksInterval time.Duration
+		consumeErr             error
 
+		expectedError       error
 		expectedInsertCalls int
 	}{
 		{
@@ -37,6 +40,15 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			storeCallbackBatchSize: 50,
 			storeCallbacksInterval: 20 * time.Millisecond,
 
+			expectedInsertCalls: 1,
+		},
+		{
+			name:                   "insert batch - consume err",
+			storeCallbackBatchSize: 4,
+			storeCallbacksInterval: 20 * time.Second,
+			consumeErr:             errors.New("some error"),
+
+			expectedError:       callbacker.ErrConsume,
 			expectedInsertCalls: 1,
 		},
 	}
@@ -69,6 +81,9 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 
 			mqClient := &mqMocks.MessageQueueClientMock{
 				ConsumeFunc: func(_ string, msgFunc func([]byte) error) error {
+					if tc.consumeErr != nil {
+						return tc.consumeErr
+					}
 					for range 5 {
 						err := msgFunc(data)
 						require.NoError(t, err)
@@ -89,6 +104,11 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 			defer processor.GracefulStop()
 
 			err = processor.Subscribe()
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
 			require.NoError(t, err)
 
 			processor.StartStoreCallbackRequests()

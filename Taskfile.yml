@@ -34,9 +34,14 @@ tasks:
 
   run:
     desc: Run ARC services in Docker using development environment
-    deps: [ build_docker ]
     cmds:
       - docker compose --env-file ./.env.dev up blocktx callbacker metamorph api
+
+  build_run:
+    desc: Run ARC services in Docker using development environment
+    deps: [ build_docker ]
+    cmds:
+      - task: run
 
   build_run_e2e_tests:
     desc: Build and run end-to-end tests with multiple instances of services

@@ -1,4 +1,4 @@
-FROM ubuntu:noble AS build-stage
+FROM ubuntu:noble-20251001 AS build-stage
 
 ARG TARGETARCH
 ARG GOVERSION=1.25.1

@@ -263,7 +263,7 @@ func TestProcessTransaction(t *testing.T) {
 			}
 
 			publisher := &mqMocks.MessageQueueClientMock{
-				PublishAsyncFunc: func(_ string, _ []byte) error {
+				PublishCoreFunc: func(_ string, _ []byte) error {
 					return nil
 				},
 			}
@@ -303,7 +303,7 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
 			require.Equal(t, tc.expectedRequestCalls, len(messenger.AskForTxAsyncCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishAsyncCalls()))
+			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCoreCalls()))
 		})
 	}
 }
@@ -1203,7 +1203,7 @@ func TestRegisterSeen(t *testing.T) {
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
 			}
 			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
+				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
 					return nil
 				},
 			}
@@ -1226,7 +1226,7 @@ func TestRegisterSeen(t *testing.T) {
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
 			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
-			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCalls()))
+			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }

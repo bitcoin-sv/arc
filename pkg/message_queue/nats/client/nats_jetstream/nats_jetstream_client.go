@@ -35,7 +35,7 @@ var (
 
 func WithStream(topic string, streamName string, retentionPolicy jetstream.RetentionPolicy, noAck bool) func(*Client) error {
 	return func(cl *Client) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		// get or create the stream for the topic
@@ -72,7 +72,7 @@ func WithStream(topic string, streamName string, retentionPolicy jetstream.Reten
 
 func WithConsumer(topic string, streamName string, consumerName string, durable bool, ackPolicy jetstream.AckPolicy) func(*Client) error {
 	return func(cl *Client) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		// get or create the consumer for the topic

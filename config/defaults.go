@@ -42,10 +42,9 @@ func getDefaultPrometheusConfig() *PrometheusConfig {
 
 func getDefaultMessageQueueConfig() *MessageQueueConfig {
 	return &MessageQueueConfig{
-		URL:        "nats://nats:4222",
-		User:       "",
-		Password:   "",
-		Initialize: false,
+		URL:      "nats://nats:4222",
+		User:     "",
+		Password: "",
 		Streaming: MessageQueueStreaming{
 			Enabled:     true,
 			FileStorage: false,

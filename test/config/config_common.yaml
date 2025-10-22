@@ -16,7 +16,6 @@ common:
     URL: nats://nats-1:4222,nats://nats-2:4223
     user:
     password:
-    initialize: true
   reBroadcastExpiration: 24h
   tracing:
     enabled: false

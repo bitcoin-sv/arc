@@ -67,10 +67,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
-	var mqOpts []nats_jetstream.Option
-	if commonCfg.MessageQueue.Initialize {
-		mqOpts = getCbkMqOpts()
-	}
+	mqOpts := getCbkMqOpts()
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err

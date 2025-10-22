@@ -81,10 +81,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	var mqOpts []nats_jetstream.Option
-	if commonCfg.MessageQueue.Initialize {
-		mqOpts = getMtmMqOpts()
-	}
+	mqOpts := getMtmMqOpts(logger)
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		return nil, err
@@ -219,7 +216,7 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 	return nil
 }
 
-func getMtmMqOpts() []nats_jetstream.Option {
+func getMtmMqOpts(logger *slog.Logger) []nats_jetstream.Option {
 	submitStreamName := fmt.Sprintf("%s-stream", mq.SubmitTxTopic)
 	submitConsName := fmt.Sprintf("%s-cons", mq.SubmitTxTopic)
 

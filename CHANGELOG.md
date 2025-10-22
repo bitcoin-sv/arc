@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 - [Unreleased](#unreleased)
-- [1.5.2](#152---2025-10-22)
+- [1.5.3](#153---2025-10-22)
 - [1.5.1](#151---2025-10-15)
 - [1.5.0](#150---2025-10-09)
 - [1.4.2](#142---2025-09-18)
@@ -29,7 +29,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [1.5.2] - 2025-10-22
+## [1.5.3] - 2025-10-22
 
 ### Changed
 

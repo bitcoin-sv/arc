@@ -94,7 +94,6 @@
   size: 1620000
   tx_count: 5578
 
-# competing chain at height 822018 - 822020
 - inserted_at: 2023-12-15 14:50:00
   id: 8
   hash: 0x0000000000000000092497212ff3447c8b53c8777d83082049aa64998d1f04f0

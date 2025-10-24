@@ -3,6 +3,7 @@ package postgresql
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
 
@@ -39,10 +40,10 @@ func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64
 		if !ok {
 			return errors.New("driverConn.(*stdlib.Conn) conversion failed")
 		}
-		conn := c.Conn() // conn is a *pgx.Conn
+		cn := c.Conn() // conn is a *pgx.Conn
 		var pqErr *pgconn.PgError
 
-		_, err = conn.CopyFrom(
+		_, copyFromErr := cn.CopyFrom(
 			ctx,
 			pgx.Identifier{"blocktx", "block_transactions"},
 			[]string{"block_id", "hash", "merkle_tree_index"},
@@ -50,16 +51,20 @@ func (p *PostgreSQL) InsertBlockTransactions(ctx context.Context, blockID uint64
 		)
 
 		// Error 23505 is: "duplicate key violates unique constraint"
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		if errors.As(copyFromErr, &pqErr) && pqErr.Code == "23505" {
 			// ON CONFLICT DO NOTHING
-			err = nil
+			copyFromErr = nil
 		}
-		if err != nil {
-			return err
+		if copyFromErr != nil {
+			return fmt.Errorf("failed to copy from: %w", copyFromErr)
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return fmt.Errorf("failed to insert rows: %w", err)
+	}
 
 	return nil
 }

@@ -294,7 +294,7 @@ func TestPostgresDB(t *testing.T) {
 		const expectedGaps = int64(2007) // range (2016) - already existing blocks (9) = gaps (2007)
 
 		// when
-		actualBlockGaps, err := postgresDB.GetStats(ctx)
+		actualBlockGaps, err := postgresDB.GetStats(ctx, 14)
 
 		// then
 		require.NoError(t, err)

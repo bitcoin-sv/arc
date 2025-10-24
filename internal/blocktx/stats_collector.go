@@ -38,9 +38,10 @@ type StatsCollector struct {
 	logger                 *slog.Logger
 	store                  store.BlocktxStore
 	pm                     PeerManager
+	retentionDays          int
 }
 
-func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxStore, opts ...func(stats *StatsCollector)) *StatsCollector {
+func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxStore, retentionDays int, opts ...func(stats *StatsCollector)) *StatsCollector {
 	p := &StatsCollector{
 		CurrentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
@@ -59,6 +60,7 @@ func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxS
 		logger:                 logger,
 		store:                  store,
 		pm:                     pm,
+		retentionDays:          retentionDays,
 	}
 
 	for _, opt := range opts {
@@ -99,7 +101,7 @@ func (p *StatsCollector) Start() error {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				collectedStats, err := p.store.GetStats(p.ctx)
+				collectedStats, err := p.store.GetStats(p.ctx, p.retentionDays)
 				if err != nil {
 					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
 					continue

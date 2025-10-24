@@ -61,7 +61,7 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetStaleChainBackFromHash method")
 //			},
-//			GetStatsFunc: func(ctx context.Context) (*store.Stats, error) {
+//			GetStatsFunc: func(ctx context.Context, retentionDays int) (*store.Stats, error) {
 //				panic("mock out the GetStats method")
 //			},
 //			InsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error {
@@ -141,7 +141,7 @@ type BlocktxStoreMock struct {
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
 
 	// GetStatsFunc mocks the GetStats method.
-	GetStatsFunc func(ctx context.Context) (*store.Stats, error)
+	GetStatsFunc func(ctx context.Context, retentionDays int) (*store.Stats, error)
 
 	// InsertBlockTransactionsFunc mocks the InsertBlockTransactions method.
 	InsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error
@@ -266,6 +266,8 @@ type BlocktxStoreMock struct {
 		GetStats []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int
 		}
 		// InsertBlockTransactions holds details about calls to the InsertBlockTransactions method.
 		InsertBlockTransactions []struct {
@@ -832,19 +834,21 @@ func (mock *BlocktxStoreMock) GetStaleChainBackFromHashCalls() []struct {
 }
 
 // GetStats calls GetStatsFunc.
-func (mock *BlocktxStoreMock) GetStats(ctx context.Context) (*store.Stats, error) {
+func (mock *BlocktxStoreMock) GetStats(ctx context.Context, retentionDays int) (*store.Stats, error) {
 	if mock.GetStatsFunc == nil {
 		panic("BlocktxStoreMock.GetStatsFunc: method is nil but BlocktxStore.GetStats was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
+		Ctx           context.Context
+		RetentionDays int
 	}{
-		Ctx: ctx,
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
 	}
 	mock.lockGetStats.Lock()
 	mock.calls.GetStats = append(mock.calls.GetStats, callInfo)
 	mock.lockGetStats.Unlock()
-	return mock.GetStatsFunc(ctx)
+	return mock.GetStatsFunc(ctx, retentionDays)
 }
 
 // GetStatsCalls gets all the calls that were made to GetStats.
@@ -852,10 +856,12 @@ func (mock *BlocktxStoreMock) GetStats(ctx context.Context) (*store.Stats, error
 //
 //	len(mockedBlocktxStore.GetStatsCalls())
 func (mock *BlocktxStoreMock) GetStatsCalls() []struct {
-	Ctx context.Context
+	Ctx           context.Context
+	RetentionDays int
 } {
 	var calls []struct {
-		Ctx context.Context
+		Ctx           context.Context
+		RetentionDays int
 	}
 	mock.lockGetStats.RLock()
 	calls = mock.calls.GetStats

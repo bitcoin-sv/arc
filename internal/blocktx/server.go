@@ -98,7 +98,7 @@ func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearDa
 		return nil, err
 	}
 
-	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
+	return s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
 }
 
 func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {

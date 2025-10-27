@@ -648,6 +648,27 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrUnableToPrepareStatement)
 	})
 
+	t.Run("clear blocks", func(t *testing.T) {
+		prepareDb(t, postgresDB, "fixtures/clear_blocks")
+
+		resp, err := postgresDB.ClearBlocks(context.Background(), 10)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), resp.Rows)
+
+		d, err := sqlx.Open("postgres", dbInfo)
+		require.NoError(t, err)
+		var blocks []Block
+
+		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocktx.blocks"))
+
+		require.Len(t, blocks, 1)
+
+		var bts []BlockTransaction
+		require.NoError(t, d.Select(&bts, "SELECT block_id FROM blocktx.block_transactions"))
+
+		require.Len(t, bts, 5)
+	})
+
 	t.Run("set block processing", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/block_processing")
 

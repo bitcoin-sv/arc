@@ -28,3 +28,15 @@ func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32,
 	rows, _ := res.RowsAffected()
 	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil
 }
+
+func (p *PostgreSQL) ClearBlocks(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error) {
+	now := p.now()
+	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
+
+	res, err := p.db.ExecContext(ctx, `DELETE FROM blocktx.blocks WHERE timestamp <= $1`, deleteBeforeDate)
+	if err != nil {
+		return nil, errors.Join(store.ErrUnableToDeleteRows, err)
+	}
+	rows, _ := res.RowsAffected()
+	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil
+}

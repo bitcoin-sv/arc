@@ -254,6 +254,9 @@ func TestClearBlocks(t *testing.T) {
 				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ string) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
 				},
+				ClearBlocksFunc: func(_ context.Context, _ int32) (*blocktx_api.RowsAffectedResponse, error) {
+					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
+				},
 			}
 			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)

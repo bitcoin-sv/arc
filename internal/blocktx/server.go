@@ -97,7 +97,7 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
 	rowsBlockProcessing, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableBlockProcessing)
 	if err != nil {
-		s.logger.Error("Failed to clear blocks table", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
+		s.logger.Error("Failed to clear blocks table", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
 		return nil, errors.Join(ErrClearBlocktxTable, err)
 	}
 
@@ -105,7 +105,7 @@ func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearDa
 
 	rowsBlocks, err := s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
 	if err != nil {
-		s.logger.Error("Failed to clear blocks", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
+		s.logger.Error("Failed to clear blocks", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
 		return nil, errors.Join(ErrClearBlocks, err)
 	}
 

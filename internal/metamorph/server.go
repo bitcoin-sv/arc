@@ -530,7 +530,7 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 
 	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
 	if err != nil {
-		s.logger.Error("Failed to clear data", slog.String("err", err.Error()))
+		s.logger.Error("Failed to clear data", slog.Int64("retention days", int64(req.RetentionDays)), slog.String("err", err.Error()))
 		return nil, errors.Join(ErrClearData, err)
 	}
 

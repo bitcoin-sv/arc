@@ -37,11 +37,6 @@ const (
 	TableBlockProcessing
 )
 
-var ClearBlocktxTableName = map[ClearBlocktxTable]string{
-	TableRegisteredTransactions: "registered_transactions",
-	TableBlockProcessing:        "block_processing",
-}
-
 type BlocktxStore interface {
 	UnorphanRecentWrongOrphans(ctx context.Context) (healedOrphans []*blocktx_api.Block, err error)
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (rowsAffected int64, err error)

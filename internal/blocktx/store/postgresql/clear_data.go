@@ -12,11 +12,16 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
+var clearBlocktxTableName = map[store.ClearBlocktxTable]string{
+	store.TableRegisteredTransactions: "registered_transactions",
+	store.TableBlockProcessing:        "block_processing",
+}
+
 func (p *PostgreSQL) ClearBlocktxTable(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
 	now := p.now()
 	deleteBeforeDate := now.Add(-24 * time.Hour * time.Duration(retentionDays))
 
-	tableName, ok := store.ClearBlocktxTableName[table]
+	tableName, ok := clearBlocktxTableName[table]
 	if !ok {
 		return nil, errors.Join(store.ErrInvalidTable, fmt.Errorf("invalid table: %d", table))
 	}

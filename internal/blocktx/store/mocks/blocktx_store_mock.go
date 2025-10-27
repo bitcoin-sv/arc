@@ -22,7 +22,10 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
+//			ClearBlocksFunc: func(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error) {
+//				panic("mock out the ClearBlocks method")
+//			},
+//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
 //			CloseFunc: func() error {
@@ -101,8 +104,11 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //	}
 type BlocktxStoreMock struct {
+	// ClearBlocksFunc mocks the ClearBlocks method.
+	ClearBlocksFunc func(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error)
+
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
-	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error)
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
@@ -175,6 +181,13 @@ type BlocktxStoreMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ClearBlocks holds details about calls to the ClearBlocks method.
+		ClearBlocks []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// RetentionDays is the retentionDays argument value.
+			RetentionDays int32
+		}
 		// ClearBlocktxTable holds details about calls to the ClearBlocktxTable method.
 		ClearBlocktxTable []struct {
 			// Ctx is the ctx argument value.
@@ -182,7 +195,7 @@ type BlocktxStoreMock struct {
 			// RetentionDays is the retentionDays argument value.
 			RetentionDays int32
 			// Table is the table argument value.
-			Table string
+			Table store.ClearBlocktxTable
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
@@ -348,6 +361,7 @@ type BlocktxStoreMock struct {
 			MaxAllowedBlockHeightMismatch uint64
 		}
 	}
+	lockClearBlocks                       sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
 	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
@@ -374,15 +388,51 @@ type BlocktxStoreMock struct {
 	lockVerifyMerkleRoots                 sync.RWMutex
 }
 
+// ClearBlocks calls ClearBlocksFunc.
+func (mock *BlocktxStoreMock) ClearBlocks(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error) {
+	if mock.ClearBlocksFunc == nil {
+		panic("BlocktxStoreMock.ClearBlocksFunc: method is nil but BlocktxStore.ClearBlocks was just called")
+	}
+	callInfo := struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}{
+		Ctx:           ctx,
+		RetentionDays: retentionDays,
+	}
+	mock.lockClearBlocks.Lock()
+	mock.calls.ClearBlocks = append(mock.calls.ClearBlocks, callInfo)
+	mock.lockClearBlocks.Unlock()
+	return mock.ClearBlocksFunc(ctx, retentionDays)
+}
+
+// ClearBlocksCalls gets all the calls that were made to ClearBlocks.
+// Check the length with:
+//
+//	len(mockedBlocktxStore.ClearBlocksCalls())
+func (mock *BlocktxStoreMock) ClearBlocksCalls() []struct {
+	Ctx           context.Context
+	RetentionDays int32
+} {
+	var calls []struct {
+		Ctx           context.Context
+		RetentionDays int32
+	}
+	mock.lockClearBlocks.RLock()
+	calls = mock.calls.ClearBlocks
+	mock.lockClearBlocks.RUnlock()
+	return calls
+}
+
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
-func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error) {
+func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
 	if mock.ClearBlocktxTableFunc == nil {
 		panic("BlocktxStoreMock.ClearBlocktxTableFunc: method is nil but BlocktxStore.ClearBlocktxTable was just called")
 	}
 	callInfo := struct {
 		Ctx           context.Context
 		RetentionDays int32
-		Table         string
+		Table         store.ClearBlocktxTable
 	}{
 		Ctx:           ctx,
 		RetentionDays: retentionDays,
@@ -401,12 +451,12 @@ func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDa
 func (mock *BlocktxStoreMock) ClearBlocktxTableCalls() []struct {
 	Ctx           context.Context
 	RetentionDays int32
-	Table         string
+	Table         store.ClearBlocktxTable
 } {
 	var calls []struct {
 		Ctx           context.Context
 		RetentionDays int32
-		Table         string
+		Table         store.ClearBlocktxTable
 	}
 	mock.lockClearBlocktxTable.RLock()
 	calls = mock.calls.ClearBlocktxTable

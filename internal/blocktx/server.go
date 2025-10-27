@@ -93,16 +93,16 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	_, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "block_processing")
+	_, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableBlockProcessing)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "blocks")
+	return s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
 }
 
 func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), "registered_transactions")
+	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableRegisteredTransactions)
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {

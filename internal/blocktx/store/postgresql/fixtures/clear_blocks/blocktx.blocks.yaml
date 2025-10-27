@@ -7,6 +7,7 @@
   processed_at: 2023-12-10 14:10:00
   size: 86840000
   tx_count: 23477
+  timestamp: 2023-12-10 14:00:00
 - inserted_at: 2023-12-15 14:00:00
   id: 2
   hash: 0x0000000000000000072ded7ebd9ca6202a1894cc9dc5cd71ad6cf9c563b01ab7
@@ -16,3 +17,4 @@
   processed_at: 2023-12-15 14:10:00
   size: 3030000
   tx_count: 856
+  timestamp: 2023-12-15 14:00:00

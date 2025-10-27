@@ -15,9 +15,8 @@ var (
 	ErrBlockProcessingMaximumReached = errors.New("block processing maximum reached")
 	ErrBlockProcessingInProgress     = errors.New("block processing already in progress")
 	ErrBlockNotFound                 = errors.New("block not found")
-	ErrUnableToPrepareStatement      = errors.New("unable to prepare statement")
+	ErrInvalidTable                  = errors.New("unable to prepare statement")
 	ErrUnableToDeleteRows            = errors.New("unable to delete rows")
-	ErrUnableToGetSQLConnection      = errors.New("unable to get or create sql connection")
 	ErrFailedToInsertBlock           = errors.New("failed to insert block")
 	ErrFailedToUpdateBlockStatuses   = errors.New("failed to update block statuses")
 	ErrFailedToOpenDB                = errors.New("failed to open postgres database")
@@ -31,6 +30,13 @@ type Stats struct {
 	CurrentNumOfBlockGaps int64
 }
 
+type ClearBlocktxTable int
+
+const (
+	TableRegisteredTransactions ClearBlocktxTable = iota
+	TableBlockProcessing
+)
+
 type BlocktxStore interface {
 	UnorphanRecentWrongOrphans(ctx context.Context) (healedOrphans []*blocktx_api.Block, err error)
 	RegisterTransactions(ctx context.Context, txHashes [][]byte) (rowsAffected int64, err error)
@@ -41,7 +47,8 @@ type BlocktxStore interface {
 	InsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxHashWithMerkleTreeIndex) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
-	ClearBlocktxTable(ctx context.Context, retentionDays int32, table string) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocktxTable(ctx context.Context, retentionDays int32, table ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocks(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error)
 	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]BlockTransaction, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)

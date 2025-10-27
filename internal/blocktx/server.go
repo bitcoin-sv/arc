@@ -101,7 +101,7 @@ func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearDa
 		return nil, errors.Join(ErrClearBlocktxTable, err)
 	}
 
-	s.logger.Info("Cleared block processing data", slog.Int64("items", rowsBlockProcessing))
+	s.logger.Info("Cleared block processing data", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.Int64("items", rowsBlockProcessing))
 
 	rowsBlocks, err := s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearDa
 		return nil, errors.Join(ErrClearBlocks, err)
 	}
 
-	s.logger.Info("Cleared blocks data", slog.Int64("items", rowsBlocks))
+	s.logger.Info("Cleared blocks data", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.Int64("items", rowsBlocks))
 
 	return &blocktx_api.RowsAffectedResponse{Rows: rowsBlocks}, nil
 }

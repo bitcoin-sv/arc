@@ -534,7 +534,7 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 		return nil, errors.Join(ErrClearData, err)
 	}
 
-	s.logger.Info("Cleared transactions data", slog.Int64("items", recordsAffected))
+	s.logger.Info("Cleared transactions data", slog.Int64("retention days", int64(req.RetentionDays)), slog.Int64("items", recordsAffected))
 
 	result = &metamorph_api.ClearDataResponse{
 		RecordsAffected: recordsAffected,

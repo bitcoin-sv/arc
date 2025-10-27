@@ -633,7 +633,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("clear data", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/clear_data")
 
-		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, "block_processing")
+		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, store.TableBlockProcessing)
 		require.NoError(t, err)
 		require.Equal(t, int64(4), resp.Rows)
 
@@ -645,8 +645,8 @@ func TestPostgresDB(t *testing.T) {
 
 		require.Len(t, blockProcessing, 0)
 
-		_, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "not_existing_table")
-		require.ErrorIs(t, err, store.ErrUnableToPrepareStatement)
+		_, err = postgresDB.ClearBlocktxTable(context.Background(), 10, 5)
+		require.ErrorIs(t, err, store.ErrInvalidTable)
 	})
 
 	t.Run("clear blocks", func(t *testing.T) {

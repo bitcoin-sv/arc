@@ -251,7 +251,7 @@ func TestClearBlocks(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
-				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ string) (*blocktx_api.RowsAffectedResponse, error) {
+				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
 					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
 				},
 				ClearBlocksFunc: func(_ context.Context, _ int32) (*blocktx_api.RowsAffectedResponse, error) {

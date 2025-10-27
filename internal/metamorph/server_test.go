@@ -1141,24 +1141,48 @@ func TestGetTransaction(t *testing.T) {
 }
 
 func TestClearData(t *testing.T) {
-	t.Run("ClearData", func(t *testing.T) {
-		// given
-		store := storeMocks.MetamorphStoreMock{
-			ClearDataFunc: func(_ context.Context, _ int32) (int64, error) {
-				return 1, nil
-			},
-		}
-		sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
-		require.NoError(t, err)
-		defer sut.GracefulStop()
+	tt := []struct {
+		name         string
+		clearDataErr error
 
-		// when
-		res, err := sut.ClearData(context.TODO(), &metamorph_api.ClearDataRequest{
-			RetentionDays: 1,
+		expectedError error
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:         "error",
+			clearDataErr: errors.New("failed to clear data"),
+
+			expectedError: metamorph.ErrClearData,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			metamorphStore := storeMocks.MetamorphStoreMock{
+				ClearDataFunc: func(_ context.Context, _ int32) (int64, error) {
+					return 1, tc.clearDataErr
+				},
+			}
+			sut, err := metamorph.NewServer(slog.Default(), &metamorphStore, nil, nil, grpc_utils.ServerConfig{})
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			// when
+			res, err := sut.ClearData(context.TODO(), &metamorph_api.ClearDataRequest{
+				RetentionDays: 1,
+			})
+
+			// then
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
 		})
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, res)
-	})
+	}
 }

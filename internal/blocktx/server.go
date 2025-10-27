@@ -24,6 +24,8 @@ import (
 var (
 	ErrFailedToGetBlockGaps    = errors.New("failed to get block gaps")
 	ErrFailedToGetLatestBlocks = errors.New("failed to get latest blocks")
+	ErrClearBlocktxTable       = errors.New("failed to clear blocktx table")
+	ErrClearBlocks             = errors.New("failed to clear blocks")
 )
 
 type ProcessorI interface {
@@ -96,18 +98,18 @@ func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearDa
 	rowsBlockProcessing, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableBlockProcessing)
 	if err != nil {
 		s.logger.Error("Failed to clear blocks table", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
-		return nil, err
+		return nil, errors.Join(ErrClearBlocktxTable, err)
 	}
 
-	s.logger.Info("cleared block processing data", slog.Int64("items", rowsBlockProcessing))
+	s.logger.Info("Cleared block processing data", slog.Int64("items", rowsBlockProcessing))
 
 	rowsBlocks, err := s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
 	if err != nil {
 		s.logger.Error("Failed to clear blocks", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
-		return nil, err
+		return nil, errors.Join(ErrClearBlocks, err)
 	}
 
-	s.logger.Info("cleared blocks data", slog.Int64("items", rowsBlocks))
+	s.logger.Info("Cleared blocks data", slog.Int64("items", rowsBlocks))
 
 	return &blocktx_api.RowsAffectedResponse{Rows: rowsBlocks}, nil
 }
@@ -116,10 +118,10 @@ func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blo
 	rows, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableRegisteredTransactions)
 	if err != nil {
 		s.logger.Error("Failed to clear blocks table", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
-		return nil, err
+		return nil, errors.Join(ErrClearBlocktxTable, err)
 	}
 
-	s.logger.Info("cleared registered transactions data", slog.Int64("items", rows))
+	s.logger.Info("Cleared registered transactions data", slog.Int64("items", rows))
 
 	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil
 }

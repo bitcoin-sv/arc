@@ -241,9 +241,27 @@ func TestHealth(t *testing.T) {
 
 func TestClearBlocks(t *testing.T) {
 	tt := []struct {
-		name string
+		name               string
+		clearBlockTableErr error
+		clearBlocksErr     error
+
+		expectedError error
 	}{
-		{name: "success"},
+		{
+			name: "success",
+		},
+		{
+			name:               "error - clear blocktx table",
+			clearBlockTableErr: errors.New("failed to clear block table"),
+
+			expectedError: blocktx.ErrClearBlocktxTable,
+		},
+		{
+			name:           "error - clear blocks",
+			clearBlocksErr: errors.New("failed to clear blocks"),
+
+			expectedError: blocktx.ErrClearBlocks,
+		},
 	}
 
 	for _, tc := range tt {
@@ -252,10 +270,10 @@ func TestClearBlocks(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
 				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ store.ClearBlocktxTable) (int64, error) {
-					return 42, nil
+					return 42, tc.clearBlockTableErr
 				},
 				ClearBlocksFunc: func(_ context.Context, _ int32) (int64, error) {
-					return 42, nil
+					return 42, tc.clearBlocksErr
 				},
 			}
 			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
@@ -263,6 +281,54 @@ func TestClearBlocks(t *testing.T) {
 			defer sut.GracefulStop()
 
 			resp, err := sut.ClearBlocks(context.Background(), &blocktx_api.ClearData{RetentionDays: 1})
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
+			require.Equal(t, int64(42), resp.Rows)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestClearRegisteredTransactions(t *testing.T) {
+	tt := []struct {
+		name               string
+		clearBlockTableErr error
+
+		expectedError error
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:               "error - clear blocktx table",
+			clearBlockTableErr: errors.New("failed to clear block table"),
+
+			expectedError: blocktx.ErrClearBlocktxTable,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			storeMock := &storeMocks.BlocktxStoreMock{
+				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ store.ClearBlocktxTable) (int64, error) {
+					return 42, tc.clearBlockTableErr
+				},
+			}
+			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
+			require.NoError(t, err)
+			defer sut.GracefulStop()
+
+			resp, err := sut.ClearRegisteredTransactions(context.Background(), &blocktx_api.ClearData{RetentionDays: 1})
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
 			require.NoError(t, err)
 			require.Equal(t, int64(42), resp.Rows)
 		})

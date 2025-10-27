@@ -44,6 +44,12 @@ type Block struct {
 	Timestamp    *time.Time `db:"timestamp"`
 }
 
+type BlockProcessing struct {
+	Hash        string    `db:"block_hash"`
+	ProcessedBy string    `db:"processed_by"`
+	InsertedAt  time.Time `db:"inserted_at"`
+}
+
 type RegisteredTransaction struct {
 	Hash       []byte    `db:"hash"`
 	InsertedAt time.Time `db:"inserted_at"`
@@ -627,22 +633,17 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("clear data", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/clear_data")
 
-		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, "blocks")
+		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, "block_processing")
 		require.NoError(t, err)
-		require.Equal(t, int64(1), resp.Rows)
+		require.Equal(t, int64(4), resp.Rows)
 
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
-		var blocks []Block
+		var blockProcessing []BlockProcessing
 
-		require.NoError(t, d.Select(&blocks, "SELECT id FROM blocktx.blocks"))
+		require.NoError(t, d.Select(&blockProcessing, "SELECT block_hash, processed_by, inserted_at FROM blocktx.block_processing"))
 
-		require.Len(t, blocks, 1)
-
-		var bts []BlockTransaction
-		require.NoError(t, d.Select(&bts, "SELECT block_id FROM blocktx.block_transactions"))
-
-		require.Len(t, bts, 5)
+		require.Len(t, blockProcessing, 0)
 
 		_, err = postgresDB.ClearBlocktxTable(context.Background(), 10, "not_existing_table")
 		require.ErrorIs(t, err, store.ErrUnableToPrepareStatement)

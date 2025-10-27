@@ -47,8 +47,8 @@ type BlocktxStore interface {
 	InsertBlockTransactions(ctx context.Context, blockID uint64, txsWithMerklePaths []TxHashWithMerkleTreeIndex) error
 	MarkBlockAsDone(ctx context.Context, hash *chainhash.Hash, size uint64, txCount uint64) error
 	GetBlockGaps(ctx context.Context, heightRange int) ([]*BlockGap, error)
-	ClearBlocktxTable(ctx context.Context, retentionDays int32, table ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error)
-	ClearBlocks(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocktxTable(ctx context.Context, retentionDays int32, table ClearBlocktxTable) (int64, error)
+	ClearBlocks(ctx context.Context, retentionDays int32) (int64, error)
 	GetMinedTransactions(ctx context.Context, hashes [][]byte) ([]BlockTransaction, error)
 	GetLongestChainFromHeight(ctx context.Context, height uint64) ([]*blocktx_api.Block, error)
 	GetStaleChainBackFromHash(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)

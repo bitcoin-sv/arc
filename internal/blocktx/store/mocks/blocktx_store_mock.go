@@ -22,10 +22,10 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //
 //		// make and configure a mocked store.BlocktxStore
 //		mockedBlocktxStore := &BlocktxStoreMock{
-//			ClearBlocksFunc: func(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error) {
+//			ClearBlocksFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearBlocks method")
 //			},
-//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
+//			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (int64, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
 //			CloseFunc: func() error {
@@ -105,10 +105,10 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //	}
 type BlocktxStoreMock struct {
 	// ClearBlocksFunc mocks the ClearBlocks method.
-	ClearBlocksFunc func(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocksFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
-	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error)
+	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (int64, error)
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
@@ -389,7 +389,7 @@ type BlocktxStoreMock struct {
 }
 
 // ClearBlocks calls ClearBlocksFunc.
-func (mock *BlocktxStoreMock) ClearBlocks(ctx context.Context, retentionDays int32) (*blocktx_api.RowsAffectedResponse, error) {
+func (mock *BlocktxStoreMock) ClearBlocks(ctx context.Context, retentionDays int32) (int64, error) {
 	if mock.ClearBlocksFunc == nil {
 		panic("BlocktxStoreMock.ClearBlocksFunc: method is nil but BlocktxStore.ClearBlocks was just called")
 	}
@@ -425,7 +425,7 @@ func (mock *BlocktxStoreMock) ClearBlocksCalls() []struct {
 }
 
 // ClearBlocktxTable calls ClearBlocktxTableFunc.
-func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
+func (mock *BlocktxStoreMock) ClearBlocktxTable(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (int64, error) {
 	if mock.ClearBlocktxTableFunc == nil {
 		panic("BlocktxStoreMock.ClearBlocktxTableFunc: method is nil but BlocktxStore.ClearBlocktxTable was just called")
 	}

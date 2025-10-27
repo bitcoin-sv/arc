@@ -251,11 +251,11 @@ func TestClearBlocks(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
-				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ store.ClearBlocktxTable) (*blocktx_api.RowsAffectedResponse, error) {
-					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
+				ClearBlocktxTableFunc: func(_ context.Context, _ int32, _ store.ClearBlocktxTable) (int64, error) {
+					return 42, nil
 				},
-				ClearBlocksFunc: func(_ context.Context, _ int32) (*blocktx_api.RowsAffectedResponse, error) {
-					return &blocktx_api.RowsAffectedResponse{Rows: 42}, nil
+				ClearBlocksFunc: func(_ context.Context, _ int32) (int64, error) {
+					return 42, nil
 				},
 			}
 			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)

@@ -635,7 +635,7 @@ func TestPostgresDB(t *testing.T) {
 
 		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, store.TableBlockProcessing)
 		require.NoError(t, err)
-		require.Equal(t, int64(4), resp.Rows)
+		require.Equal(t, int64(4), resp)
 
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)
@@ -654,7 +654,7 @@ func TestPostgresDB(t *testing.T) {
 
 		resp, err := postgresDB.ClearBlocks(context.Background(), 10)
 		require.NoError(t, err)
-		require.Equal(t, int64(1), resp.Rows)
+		require.Equal(t, int64(1), resp)
 
 		d, err := sqlx.Open("postgres", dbInfo)
 		require.NoError(t, err)

@@ -38,7 +38,10 @@ const (
 	minusDeadlineExtension     = -1 * deadlineExtension
 )
 
-var ErrNotFound = errors.New("key could not be found")
+var (
+	ErrClearData = errors.New("failed to clear data")
+	ErrNotFound  = errors.New("key could not be found")
+)
 
 type BitcoinNode interface {
 	GetTxOut(txHex string, vout int, includeMempool bool) (res *bitcoin.TXOut, err error)
@@ -527,9 +530,11 @@ func (s *Server) ClearData(ctx context.Context, req *metamorph_api.ClearDataRequ
 
 	recordsAffected, err := s.store.ClearData(ctx, req.RetentionDays)
 	if err != nil {
-		s.logger.Error("failed to clear data", slog.String("err", err.Error()))
-		return nil, err
+		s.logger.Error("Failed to clear data", slog.Int64("retention days", int64(req.RetentionDays)), slog.String("err", err.Error()))
+		return nil, errors.Join(ErrClearData, err)
 	}
+
+	s.logger.Info("Cleared transactions data", slog.Int64("retention days", int64(req.RetentionDays)), slog.Int64("items", recordsAffected))
 
 	result = &metamorph_api.ClearDataResponse{
 		RecordsAffected: recordsAffected,

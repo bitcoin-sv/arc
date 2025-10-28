@@ -24,6 +24,8 @@ import (
 var (
 	ErrFailedToGetBlockGaps    = errors.New("failed to get block gaps")
 	ErrFailedToGetLatestBlocks = errors.New("failed to get latest blocks")
+	ErrClearBlocktxTable       = errors.New("failed to clear blocktx table")
+	ErrClearBlocks             = errors.New("failed to clear blocks")
 )
 
 type ProcessorI interface {
@@ -93,16 +95,35 @@ func (s *Server) Health(_ context.Context, _ *emptypb.Empty) (*blocktx_api.Healt
 }
 
 func (s *Server) ClearBlocks(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	_, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableBlockProcessing)
+	rowsBlockProcessing, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableBlockProcessing)
 	if err != nil {
-		return nil, err
+		s.logger.Error("Failed to clear blocks table", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
+		return nil, errors.Join(ErrClearBlocktxTable, err)
 	}
 
-	return s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
+	s.logger.Info("Cleared block processing data", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.Int64("items", rowsBlockProcessing))
+
+	rowsBlocks, err := s.store.ClearBlocks(ctx, clearData.GetRetentionDays())
+	if err != nil {
+		s.logger.Error("Failed to clear blocks", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
+		return nil, errors.Join(ErrClearBlocks, err)
+	}
+
+	s.logger.Info("Cleared blocks data", slog.Int64("retention days", int64(clearData.RetentionDays)), slog.Int64("items", rowsBlocks))
+
+	return &blocktx_api.RowsAffectedResponse{Rows: rowsBlocks}, nil
 }
 
 func (s *Server) ClearRegisteredTransactions(ctx context.Context, clearData *blocktx_api.ClearData) (*blocktx_api.RowsAffectedResponse, error) {
-	return s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableRegisteredTransactions)
+	rows, err := s.store.ClearBlocktxTable(ctx, clearData.GetRetentionDays(), store.TableRegisteredTransactions)
+	if err != nil {
+		s.logger.Error("Failed to clear blocks table", slog.Int64("days", int64(clearData.RetentionDays)), slog.String("err", err.Error()))
+		return nil, errors.Join(ErrClearBlocktxTable, err)
+	}
+
+	s.logger.Info("Cleared registered transactions data", slog.Int64("items", rows))
+
+	return &blocktx_api.RowsAffectedResponse{Rows: rows}, nil
 }
 
 func (s *Server) VerifyMerkleRoots(ctx context.Context, req *blocktx_api.MerkleRootsVerificationRequest) (*blocktx_api.MerkleRootVerificationResponse, error) {

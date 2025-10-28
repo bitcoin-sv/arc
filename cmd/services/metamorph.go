@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -80,10 +81,20 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	// maximum number of messages that could be coming from a single block
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
+	callbackerChan := make(chan *callbacker_api.SendRequest, chanBufferSize)
+	registerTxChan := make(chan []byte, chanBufferSize)
+	registerTxsChan := make(chan *blocktx_api.Transactions, chanBufferSize)
 
 	mqOpts := getMtmMqOpts(logger)
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
+		stopFn()
+		return nil, err
+	}
+	mqProvider := metamorph.NewMessageQueueProvider(mqClient, logger)
+	err = mqProvider.Start(minedTxsChan, submittedTxsChan, callbackerChan, registerTxChan, registerTxsChan)
+	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
@@ -105,7 +116,8 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmCfg.RejectPendingSeen.LastRequestedAgo),
 		metamorph.WithRejectPendingBlocksSince(mtmCfg.RejectPendingSeen.BlocksSince),
 		metamorph.WithProcessorLogger(procLogger),
-		metamorph.WithMessageQueueClient(mqClient),
+		metamorph.WithCallbackChan(callbackerChan),
+		metamorph.WithRegisterTxChan(registerTxChan),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),

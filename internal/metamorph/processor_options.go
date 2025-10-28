@@ -5,12 +5,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
 func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration) func(*Processor) {
@@ -139,15 +139,21 @@ func WithProcessStatusUpdatesBatchSize(size int) func(*Processor) {
 	}
 }
 
-func WithMessageQueueClient(mqClient mq.MessageQueueClient) func(processor *Processor) {
-	return func(p *Processor) {
-		p.mqClient = mqClient
-	}
-}
-
 func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(processor *Processor) {
 	return func(p *Processor) {
 		p.minedTxsChan = minedTxsChan
+	}
+}
+
+func WithCallbackChan(callbackChan chan *callbacker_api.SendRequest) func(processor *Processor) {
+	return func(p *Processor) {
+		p.callbackChan = callbackChan
+	}
+}
+
+func WithRegisterTxChan(registerTxChan chan []byte) func(processor *Processor) {
+	return func(p *Processor) {
+		p.registerTxChan = registerTxChan
 	}
 }
 

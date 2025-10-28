@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/proto"
@@ -69,7 +70,6 @@ type Processor struct {
 	cacheStore                cache.Store
 	hostname                  string
 	bcMediator                Mediator
-	mqClient                  mq.MessageQueueClient
 	logger                    *slog.Logger
 	now                       func() time.Time
 	stats                     *processorStats
@@ -91,6 +91,9 @@ type Processor struct {
 
 	minedTxsChan     chan *blocktx_api.TransactionBlocks
 	submittedTxsChan chan *metamorph_api.PostTransactionRequest
+	callbackChan     chan *callbacker_api.SendRequest
+	registerTxChan   chan []byte
+	registerTxsChan  chan *blocktx_api.Transactions
 
 	storageStatusUpdateCh  chan store.UpdateStatus
 	statusUpdatesInterval  time.Duration
@@ -227,30 +230,6 @@ func (p *Processor) processSubmitMessage(msg []byte) error {
 }
 
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.TransactionBlocks{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.MinedTxsTopic), err)
-		}
-
-		p.minedTxsChan <- serialized
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.MinedTxsTopic), err)
-	}
-
-	err = p.mqClient.Consume(mq.SubmitTxTopic, p.processSubmitMessage)
-	if err != nil {
-		p.logger.Warn("Failed to start consuming from topic", slog.String("topic", mq.SubmitTxTopic), slog.String("err", err.Error()))
-
-		errSubscribe := p.mqClient.QueueSubscribe(mq.SubmitTxTopic, p.processSubmitMessage)
-		if errSubscribe != nil {
-			return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.SubmitTxTopic), err)
-		}
-	}
-
 	p.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
@@ -263,7 +242,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
 	if statsEnabled {
-		err = p.StartCollectStats()
+		err := p.StartCollectStats()
 		if err != nil {
 			return errors.Join(ErrFailedToStartCollectingStats, err)
 		}
@@ -374,10 +353,7 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 		if len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
-				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
-				}
+				p.callbackChan <- request
 			}
 		}
 
@@ -589,10 +565,7 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 		if sendCallback && len(data.Callbacks) > 0 {
 			requests := toSendRequest(data, p.now())
 			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
-				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
-				}
+				p.callbackChan <- request
 			}
 		}
 	}
@@ -635,10 +608,7 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	err = p.mqClient.PublishCore(mq.RegisterTxTopic, hash[:])
-	if err != nil {
-		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
-	}
+	p.registerTxChan <- hash[:]
 
 	return nil
 }
@@ -683,11 +653,7 @@ func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]
 	}
 	txsMsg := &blocktx_api.Transactions{Transactions: txs}
 
-	err = p.mqClient.PublishMarshalCore(mq.RegisterTxsTopic, txsMsg)
-	if err != nil {
-		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxsTopic, err)
-	}
-
+	p.registerTxsChan <- txsMsg
 	return nil
 }
 

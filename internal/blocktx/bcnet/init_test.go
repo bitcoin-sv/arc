@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	peerAddr   string          = "localhost:1234"
 	bitcoinNet wire.BitcoinNet = wire.TestNet
 )
 

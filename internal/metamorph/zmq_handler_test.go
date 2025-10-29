@@ -25,8 +25,8 @@ func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration)
 	var zmq *metamorph.ZMQ
 
 	srv, cli := zMQ4StartServer(t)
-	defer srv.Close()
-	defer cli.Close()
+	defer func() { _ = srv.Close() }()
+	defer func() { _ = cli.Close() }()
 
 	handler = metamorph.NewZMQHandlerWithRefreshRate(context.Background(), zmqURL, logger, 1*time.Second)
 	require.NotNil(t, handler)
@@ -78,8 +78,8 @@ func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration)
 	// Given I want to test metamorph handler
 	// When the publisher is down
 	// Then I want to make sure the handler safely fails
-	srv.Close()
-	cli.Close()
+	defer func() { _ = srv.Close() }()
+	defer func() { _ = cli.Close() }()
 	err = handler.Subscribe("hashblock", zmqMessages)
 	require.NoError(t, err)
 	time.Sleep(waitingTime)
@@ -132,7 +132,7 @@ func endPoint(t *testing.T, transport string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		defer l.Close()
+		defer func() { _ = l.Close() }()
 		return fmt.Sprintf("tcp://%s", l.Addr()), nil
 	default:
 		t.Fatalf("invalid transport: %s", transport)

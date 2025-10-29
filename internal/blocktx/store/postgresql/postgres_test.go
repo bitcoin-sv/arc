@@ -140,7 +140,7 @@ func TestPostgresDB(t *testing.T) {
 
 	// common setup for test cases
 	ctx, now, postgresDB := setupPostgresTest(t)
-	defer postgresDB.Close()
+	defer func() { _ = postgresDB.Close() }()
 
 	var err error
 
@@ -859,7 +859,7 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Close()
+	defer func() { _ = sut.Close() }()
 	sut.maxPostgresBulkInsertRows = 5
 
 	for _, tc := range tcs {
@@ -909,7 +909,7 @@ func NewHash(length int) ([]byte, error) {
 
 func BenchmarkInsertBlockTransactions(b *testing.B) {
 	ctx, _, sut := setupPostgresTest(b)
-	defer sut.Close()
+	defer func() { _ = sut.Close() }()
 
 	const totalRows = 80000
 	tt := []struct {
@@ -988,7 +988,7 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 
 	// given
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Close()
+	defer func() { _ = sut.Close() }()
 	sut.maxPostgresBulkInsertRows = 5
 
 	prepareDb(t, sut, "fixtures/insert_block_transactions")
@@ -1089,7 +1089,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Close()
+	defer func() { _ = sut.Close() }()
 
 	for _, tc := range tcs {
 		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
@@ -1188,7 +1188,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Close()
+	defer func() { _ = sut.Close() }()
 
 	for _, tc := range tt {
 		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {

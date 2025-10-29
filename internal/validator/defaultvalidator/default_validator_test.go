@@ -166,7 +166,7 @@ func TestValidator(t *testing.T) {
 		// given
 		f, err := os.Open("testdata/1.bin")
 		require.NoError(t, err, "Failed to open file")
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		tx := &sdkTx.Transaction{}
 		_, err = tx.ReadFrom(f)

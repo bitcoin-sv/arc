@@ -104,7 +104,7 @@ func TestPostgresDB(t *testing.T) {
 	ctx := context.Background()
 	require.NoError(t, err)
 	defer func() {
-		postgresDB.Close(ctx)
+		defer func() { _ = postgresDB.Close(ctx) }()
 	}()
 
 	testutils.RunParallel(t, false, "get/set/del", func(t *testing.T) {

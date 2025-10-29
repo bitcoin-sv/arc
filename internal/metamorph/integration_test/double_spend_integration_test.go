@@ -81,7 +81,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 
 		metamorphStore, err := postgresql.New(dbInfo, "double-spend-integration-test", 10, 80)
 		require.NoError(t, err)
-		defer metamorphStore.Close(context.Background())
+		defer func() { _ = metamorphStore.Close(context.Background()) }()
 
 		cStore := cache.NewMemoryStore()
 		for _, h := range hashes {

@@ -70,7 +70,7 @@ func TestPostgresDB(t *testing.T) {
 
 	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time { return now }))
 	require.NoError(t, err)
-	defer postgresDB.Close()
+	defer func() { _ = postgresDB.Close() }()
 
 	testutils.RunParallel(t, false, "insert", func(t *testing.T) {
 		// given
@@ -307,7 +307,7 @@ func TestPostgresDB(t *testing.T) {
 			pq.Array(ids),
 		)
 		require.NoError(t, err)
-		defer r.Close()
+		defer func() { _ = r.Close() }()
 
 		for r.Next() {
 			var pending sql.NullTime
@@ -365,7 +365,7 @@ func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 	)
 	require.NoError(t, err)
 
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	var callbacks []*store.CallbackData
 

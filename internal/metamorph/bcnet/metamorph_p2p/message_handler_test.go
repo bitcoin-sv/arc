@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	bitconnet = wire.TestNet
-	peerAddr  = "peer"
+	peerAddr = "peer"
 )
 
 var (

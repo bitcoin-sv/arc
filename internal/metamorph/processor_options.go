@@ -169,12 +169,6 @@ func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.PostTransactionRe
 	}
 }
 
-func WithCallbackSender(callbackSender CallbackSender) func(processor *Processor) {
-	return func(p *Processor) {
-		p.callbackSender = callbackSender
-	}
-}
-
 func WithStatCollectionInterval(statCollectionInterval time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.statCollectionInterval = statCollectionInterval

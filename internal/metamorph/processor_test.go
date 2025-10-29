@@ -12,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/ccoveille/go-safecast"
 	"github.com/stretchr/testify/assert"
@@ -914,9 +915,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			}
 			pm := &mocks.MediatorMock{}
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 5)
-			callbackSender := &mocks.CallbackSenderMock{
-				SendCallbackFunc: func(_ context.Context, _ *store.TransactionData) {},
-			}
 
 			cStore := &cacheMocks.StoreMock{
 				DelFunc: func(_ ...string) error {
@@ -929,7 +927,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				pm,
 				nil,
 				metamorph.WithMinedTxsChan(minedTxsChan),
-				metamorph.WithCallbackSender(callbackSender),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
 			)
@@ -982,9 +979,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		},
 	}
 	pm := &mocks.MediatorMock{}
-	callbackSender := &mocks.CallbackSenderMock{
-		SendCallbackFunc: func(_ context.Context, _ *store.TransactionData) {},
-	}
 
 	i := 0
 	cStore := &cacheMocks.StoreMock{
@@ -1027,7 +1021,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		cStore,
 		pm,
 		statusMessageChannel,
-		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatusUpdatesInterval(10*time.Millisecond),
 	)
 	require.NoError(t, err)

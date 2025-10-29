@@ -72,7 +72,6 @@ type Processor struct {
 	stats                     *processorStats
 	maxRetries                int
 	minimumHealthyConnections int
-	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
 	statusMessageCh   chan *metamorph_p2p.TxStatusMessage
@@ -130,10 +129,6 @@ type Processor struct {
 }
 
 type Option func(f *Processor)
-
-type CallbackSender interface {
-	SendCallback(ctx context.Context, data *store.TransactionData)
-}
 
 type Mediator interface {
 	AskForTxAsync(ctx context.Context, hash *chainhash.Hash)

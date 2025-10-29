@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -45,7 +46,7 @@ func TestStartWatcher(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			k8sClientMock := &mocks.K8sClientMock{
 				GetRunningPodNamesSliceFunc: func(_ context.Context, _ string, _ string) ([]string, error) {
 					return tc.podNames, tc.getPodNamesErr

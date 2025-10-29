@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
@@ -119,7 +120,7 @@ func TestValidator(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 			policy := getPolicy(tc.satPerKb)
 			se := goscript.NewScriptEngine("main")
@@ -137,7 +138,7 @@ func TestValidator(t *testing.T) {
 		})
 	}
 
-	t.Run("valid tx multi", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid tx multi", func(t *testing.T) {
 		// given
 		// All of these transactions should pass...
 		txs := []string{
@@ -161,7 +162,7 @@ func TestValidator(t *testing.T) {
 		}
 	})
 
-	t.Run("valid from file", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid from file", func(t *testing.T) {
 		// given
 		f, err := os.Open("testdata/1.bin")
 		require.NoError(t, err, "Failed to open file")
@@ -265,7 +266,7 @@ func TestStandardCheckFees(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := checkStandardFees(tt.args.tx, tt.args.feeModel); (err != nil) != tt.wantErr {
 				t.Errorf("checkStandardFees() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -274,7 +275,7 @@ func TestStandardCheckFees(t *testing.T) {
 }
 
 func TestStandardCheckFeesTxs(t *testing.T) {
-	t.Run("no fee being paid", func(t *testing.T) {
+	testutils.RunParallel(t, true, "no fee being paid", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
@@ -289,7 +290,7 @@ func TestStandardCheckFeesTxs(t *testing.T) {
 }
 
 func TestCheckScripts(t *testing.T) {
-	t.Run("valid op_return tx", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid op_return tx", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
@@ -301,7 +302,7 @@ func TestCheckScripts(t *testing.T) {
 		require.NoError(t, actualError)
 	})
 
-	t.Run("valid run tx", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid run tx", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)
@@ -373,7 +374,7 @@ func TestNeedExtension(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			tx, _ := sdkTx.NewTransactionFromHex(tc.txHex)
 
@@ -431,7 +432,7 @@ func TestGetUnminedAncestors(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			txFinder := &mocks.TxFinderIMock{
 				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
@@ -501,7 +502,7 @@ func TestCheckCumulativeFees(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			ancestorTxSet := map[string]*sdkTx.Transaction{}
 
 			for key, value := range tc.ancestorTxSetString {

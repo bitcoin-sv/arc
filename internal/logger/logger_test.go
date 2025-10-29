@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,7 +72,7 @@ func Test_NewLogger(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// when
 			sut, err := NewLogger(tc.loglevel, tc.logformat)
 

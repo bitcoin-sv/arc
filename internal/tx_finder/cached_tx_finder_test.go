@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestCachedFinder_GetRawTxs_AllFromCache(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			thMq := &mocks.TransactionHandlerMock{
 				GetTransactionsFunc: func(_ context.Context, _ []string) ([]*global.Transaction, error) {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +49,7 @@ func TestStatusResponse(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			statusChannel := make(chan StatusAndError, len(testCases))
 
@@ -72,7 +73,7 @@ func TestStatusResponse(t *testing.T) {
 }
 
 func TestResponseProcessor(t *testing.T) {
-	t.Run("test timeout", func(t *testing.T) {
+	testutils.RunParallel(t, true, "test timeout", func(t *testing.T) {
 		// given
 		timeout := 100 * time.Millisecond
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -91,7 +92,7 @@ func TestResponseProcessor(t *testing.T) {
 		require.Empty(t, sut.getMap())
 	})
 
-	t.Run("add and update status", func(t *testing.T) {
+	testutils.RunParallel(t, true, "add and update status", func(t *testing.T) {
 		// given
 		sut := NewResponseProcessor()
 

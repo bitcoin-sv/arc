@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +41,7 @@ func TestCalculateMerkleRootsFromBumps(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			bump, err := sdkTx.NewMerklePathFromHex(tc.bumpStr)
 			require.NoError(t, err)

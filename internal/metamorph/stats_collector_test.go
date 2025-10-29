@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph"
@@ -31,7 +32,7 @@ func TestStartCollectStats(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			mtmStore := &storeMocks.MetamorphStoreMock{
 				GetStatsFunc: func(_ context.Context, _ time.Time, _ time.Duration, _ time.Duration) (*store.Stats, error) {

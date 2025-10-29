@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
@@ -41,7 +42,7 @@ func TestDefaultValidator_helpers_extendTx(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			txFinder := mocks.TxFinderIMock{
 				GetRawTxsFunc: func(_ context.Context, _ validator.FindSourceFlag, _ []string) []*sdkTx.Transaction {
@@ -110,7 +111,7 @@ func TestDefaultValidator_helpers_getUnminedAncestors(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 
 			txFinder := mocks.TxFinderIMock{

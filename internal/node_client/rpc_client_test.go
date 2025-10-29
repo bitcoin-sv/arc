@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/node_client"
@@ -27,7 +28,7 @@ func TestRPCClient(t *testing.T) {
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
-	t.Run("invalidate block", func(t *testing.T) {
+	testutils.RunParallel(t, true, "invalidate block", func(t *testing.T) {
 		// given
 		blockHash, err := bitcoind.Generate(1)
 		require.NoError(t, err)

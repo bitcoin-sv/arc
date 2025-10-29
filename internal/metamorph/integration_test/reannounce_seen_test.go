@@ -23,7 +23,7 @@ func TestReAnnounceSeen(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("re-announce seen", func(t *testing.T) {
+	testutils.RunParallel(t, true, "re-announce seen", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reannounce_seen")
 

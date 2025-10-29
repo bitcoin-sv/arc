@@ -107,7 +107,7 @@ func TestPostgresDB(t *testing.T) {
 		postgresDB.Close(ctx)
 	}()
 
-	t.Run("get/set/del", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get/set/del", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 
 		mined := *minedData
@@ -145,7 +145,7 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
-	t.Run("get raw txs", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get raw txs", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_rawtxs")
 
@@ -178,7 +178,7 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, expectedRawTxs, rawTxs)
 	})
 
-	t.Run("get many", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get many", func(t *testing.T) {
 		// when
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
@@ -196,7 +196,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, res, len(keys))
 	})
 
-	t.Run("set bulk", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set bulk", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_bulk")
 
@@ -256,7 +256,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, now, data2.LastSubmittedAt)
 	})
 
-	t.Run("get unmined", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get unmined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
@@ -275,7 +275,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedHash1, records[0].Hash)
 	})
 
-	t.Run("set locked by", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set locked by", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_locked")
 
@@ -313,7 +313,7 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, "NONE", dataReturned.LockedBy)
 	})
 
-	t.Run("set unlocked by name", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set unlocked by name", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
@@ -342,7 +342,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "NONE", hash4Data.LockedBy)
 	})
 
-	t.Run("set unlocked by name except", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set unlocked by name except", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_unlocked_by_name")
 
@@ -371,7 +371,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "NONE", hash4Data.LockedBy)
 	})
 
-	t.Run("update status", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update status", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_status")
 
@@ -448,7 +448,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 0)
 	})
 
-	t.Run("update double spend status", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update double spend status", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_double_spend")
 
@@ -536,7 +536,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, statusUpdates, 0)
 	})
 
-	t.Run("get double spends", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get double spends", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_double_spends")
 
@@ -548,7 +548,7 @@ func TestPostgresDB(t *testing.T) {
 		assert.Equal(t, testutils.BRevChainhash(t, "cd3d2f97dfc0cdb6a07ec4b72df5e1794c9553ff2f62d90ed4add047e8088853"), txs[0].Hash)
 	})
 
-	t.Run("update mined", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update mined", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_mined")
 
@@ -653,7 +653,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Nil(t, updated)
 	})
 
-	t.Run("update mined - missing block info", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update mined - missing block info", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 
 		unmined := *unminedData
@@ -683,7 +683,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, &unmined, dataReturned)
 	})
 
-	t.Run("update mined - all possible updates", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update mined - all possible updates", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 
 		unmined := *unminedData
@@ -817,7 +817,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, &unmined, updatedTx)
 	})
 
-	t.Run("updated mined - reject double spending", func(t *testing.T) {
+	testutils.RunParallel(t, false, "updated mined - reject double spending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/update_mined_double_spend_attempted")
 
@@ -857,7 +857,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, updated, expectedUpdates)
 	})
 
-	t.Run("clear data", func(t *testing.T) {
+	testutils.RunParallel(t, false, "clear data", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 
@@ -871,7 +871,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, 13, numberOfRemainingTxs)
 	})
 
-	t.Run("get pending", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_pending")
 
@@ -901,7 +901,7 @@ func TestPostgresDB(t *testing.T) {
 		postgresDB.now = func() time.Time { return now }
 	})
 
-	t.Run("get stats", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get stats", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_stats")
 
@@ -924,7 +924,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, int64(2), res.StatusSeenOnNetworkTotal)
 	})
 
-	t.Run("set requested", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/transactions")
 		chainHash1 := testutils.BRevChainhash(t, "ee76f5b746893d3e6ae6a14a15e464704f4ebd601537820933789740acdcf6aa")
@@ -954,7 +954,7 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, expectedRequestedAt3.Equal(requestedAt3))
 	})
 
-	t.Run("mark confirmed requested", func(t *testing.T) {
+	testutils.RunParallel(t, false, "mark confirmed requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/mark_confirmed_requested")
 		chainHash1 := testutils.BRevChainhash(t, "3296b4cca1c8b1de10b7d4a259963450bf0ed8b481f1fc79e2fb956cfe42242f")
@@ -972,7 +972,7 @@ func TestPostgresDB(t *testing.T) {
 		require.True(t, expectedRequestedAt.Equal(requestedAt))
 	})
 
-	t.Run("get unconfirmed requested", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get unconfirmed requested", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unconfirmed_requested")
 

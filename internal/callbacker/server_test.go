@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-	t.Run("successfully creates a new server", func(t *testing.T) {
+	testutils.RunParallel(t, true, "successfully creates a new server", func(t *testing.T) {
 		// Given
 
 		// When
@@ -36,7 +37,7 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
+	testutils.RunParallel(t, true, "returns the current health with a valid timestamp", func(t *testing.T) {
 		mqClient := &mqMocks.MessageQueueClientMock{
 			StatusFunc: func() nats.Status {
 				return nats.CONNECTED
@@ -63,7 +64,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestSendCallback(t *testing.T) {
-	t.Run("dispatches callback for each routing", func(t *testing.T) {
+	testutils.RunParallel(t, true, "dispatches callback for each routing", func(t *testing.T) {
 		// Given
 
 		callbackerStore := &mocks.ProcessorStoreMock{

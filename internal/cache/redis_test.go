@@ -87,7 +87,7 @@ func TestRedisClient(t *testing.T) {
 
 	redisStore := NewRedisStore(ctx, redisClient)
 
-	t.Run("get/set", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get/set", func(t *testing.T) {
 		// given
 		err := redisStore.Set("key", []byte("value"), 4*time.Second)
 		require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestRedisClient(t *testing.T) {
 		require.Nil(t, res)
 	})
 
-	t.Run("del", func(t *testing.T) {
+	testutils.RunParallel(t, false, "del", func(t *testing.T) {
 		// given
 		err := redisStore.Set("key1", []byte("value1"), 4*time.Second)
 		require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestRedisClient(t *testing.T) {
 		require.ErrorIs(t, err, ErrCacheNotFound)
 	})
 
-	t.Run("map set/get", func(t *testing.T) {
+	testutils.RunParallel(t, false, "map set/get", func(t *testing.T) {
 		// when
 		err := redisStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestRedisClient(t *testing.T) {
 		require.Equal(t, "value1", string(res))
 	})
 
-	t.Run("map del", func(t *testing.T) {
+	testutils.RunParallel(t, false, "map del", func(t *testing.T) {
 		// given
 		err := redisStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestRedisClient(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("map get all", func(t *testing.T) {
+	testutils.RunParallel(t, false, "map get all", func(t *testing.T) {
 		// given
 		err := redisStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)
@@ -174,7 +174,7 @@ func TestRedisClient(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("map len", func(t *testing.T) {
+	testutils.RunParallel(t, false, "map len", func(t *testing.T) {
 		// given
 		err := redisStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)
@@ -194,7 +194,7 @@ func TestRedisClient(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("map extract all", func(t *testing.T) {
+	testutils.RunParallel(t, false, "map extract all", func(t *testing.T) {
 		// given
 		err := redisStore.MapSet("hash", "key1", []byte("value1"))
 		require.NoError(t, err)

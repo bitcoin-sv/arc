@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
@@ -112,7 +113,7 @@ func TestChainWork(t *testing.T) {
 	for _, params := range testCases {
 		name := fmt.Sprintf("should evaluate bits %d from block %d as chainwork %s",
 			params.bits, params.height, params.expectedChainWork)
-		t.Run(name, func(t *testing.T) {
+		testutils.RunParallel(t, true, name, func(t *testing.T) {
 			// when
 			cw := calculateChainwork(params.bits)
 

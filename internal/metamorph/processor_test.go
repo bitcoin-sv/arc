@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/ccoveille/go-safecast"
 	"github.com/stretchr/testify/assert"
@@ -78,7 +79,7 @@ func TestNewProcessor(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// when
 			sut, actualErr := metamorph.NewProcessor(tc.store, cStore, tc.messenger, nil,
 				metamorph.WithReBroadcastExpiration(time.Second*5),
@@ -122,7 +123,7 @@ func TestStartLockTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetLockedFunc: func(_ context.Context, _ time.Time, limit int64) error {
@@ -221,7 +222,7 @@ func TestProcessTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			s := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, key []byte) (*store.TransactionData, error) {
@@ -512,7 +513,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			counter := 0
 
@@ -666,7 +667,7 @@ func TestStartProcessSubmitted(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			s := &storeMocks.MetamorphStoreMock{
 				SetBulkFunc: func(_ context.Context, _ []*store.TransactionData) error {
@@ -761,7 +762,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			retries := tc.retries
 
@@ -875,7 +876,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				UpdateMinedFunc: func(_ context.Context, txsBlocks []*blocktx_api.TransactionBlock) ([]*store.TransactionData, error) {
@@ -1069,7 +1070,7 @@ func TestReAnnounceSeen(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			iterations := 0
 			stop := make(chan struct{}, 1)
 
@@ -1169,7 +1170,7 @@ func TestRegisterSeen(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			iterations := 0
 			stop := make(chan struct{}, 1)
 
@@ -1325,7 +1326,7 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			i := 0
 			blocktxClient := &btxMocks.BlocktxClientMock{
 				LatestBlocksFunc: func(_ context.Context, _ uint64) (*blocktx_api.LatestBlocksResponse, error) {
@@ -1413,7 +1414,7 @@ func TestProcessDoubleSpendTxs(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetDoubleSpendTxsFunc: func(_ context.Context, _ time.Time) ([]*store.TransactionData, error) {
 					return tc.doubleSpendTxs, nil
@@ -1471,7 +1472,7 @@ func TestProcessorHealth(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -1546,7 +1547,7 @@ func TestStart(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) {
 				return 0, nil

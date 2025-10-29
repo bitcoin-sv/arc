@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -68,7 +69,7 @@ func TestCheckTxSize(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := checkTxSize(tt.args.txSize, tt.args.policy); (err != nil) != tt.wantErr {
 				t.Errorf("checkTxSize() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -146,7 +147,7 @@ func TestCheckOutputs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := checkOutputs(tt.args.tx); (err != nil) != tt.wantErr {
 				t.Errorf("checkOutputs() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -212,7 +213,7 @@ func TestCheckInputs(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := checkInputs(tt.args.tx); (err != nil) != tt.wantErr {
 				t.Errorf("checkInputs() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -312,7 +313,7 @@ func TestSigOpsCheck(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := sigOpsCheck(tt.args.tx, tt.args.policy); (err != nil) != tt.wantErr {
 				t.Errorf("sigOpsCheck() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -367,7 +368,7 @@ func TestPushDataCheck(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			if err := pushDataCheck(tt.args.tx); (err != nil) != tt.wantErr {
 				t.Errorf("pushDataCheck() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -376,7 +377,7 @@ func TestPushDataCheck(t *testing.T) {
 }
 
 func TestCheckScripts(t *testing.T) {
-	t.Run("valid op_return tx", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid op_return tx", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
@@ -394,7 +395,7 @@ func TestCheckScripts(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("valid run tx", func(t *testing.T) {
+	testutils.RunParallel(t, true, "valid run tx", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(runTx)
 		require.NoError(t, err)

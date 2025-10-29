@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -46,7 +47,7 @@ func TestStatsCollector_Start(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			blocktxStore := &mocks.BlocktxStoreMock{GetStatsFunc: func(_ context.Context, _ int) (*store.Stats, error) {
 				return &store.Stats{CurrentNumOfBlockGaps: 5}, tc.getStatsErr

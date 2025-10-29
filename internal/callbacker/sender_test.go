@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker"
@@ -50,7 +51,7 @@ func TestCallbackSender_Send(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// Given
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -150,7 +151,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// Given
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

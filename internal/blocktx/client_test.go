@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func TestClient_VerifyMerkleRoots(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
 				VerifyMerkleRootsFunc: func(_ context.Context, _ *blocktx_api.MerkleRootsVerificationRequest, _ ...grpc.CallOption) (*blocktx_api.MerkleRootVerificationResponse, error) {
 					return &blocktx_api.MerkleRootVerificationResponse{
@@ -80,7 +81,7 @@ func TestClient_RegisterTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
 				RegisterTransactionFunc: func(_ context.Context, _ *blocktx_api.Transaction, _ ...grpc.CallOption) (*emptypb.Empty, error) {
 					return &emptypb.Empty{}, tc.registerErr
@@ -118,7 +119,7 @@ func TestClient_RegisterTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			apiClient := &mocks.BlockTxAPIClientMock{
 				RegisterTransactionsFunc: func(_ context.Context, _ *blocktx_api.Transactions, _ ...grpc.CallOption) (*emptypb.Empty, error) {
 					return &emptypb.Empty{}, tc.registerErr

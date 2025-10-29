@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +45,7 @@ func TestNewRampUpTicker(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			ticker, actualErr := NewRampUpTicker(tc.startInterval, tc.endInterval, tc.steps)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)

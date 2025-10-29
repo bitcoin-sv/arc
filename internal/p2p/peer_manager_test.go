@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 
@@ -33,7 +34,7 @@ func Test_PeerManagerAddPeer(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			peerMq := &mocks.PeerIMock{
 				NetworkFunc: func() wire.BitcoinNet { return tc.peerNetwork },
@@ -57,7 +58,7 @@ func Test_PeerManagerAddPeer(t *testing.T) {
 }
 
 func Test_PeerManagerRemovePeer(t *testing.T) {
-	t.Run("Remove an existing peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Remove an existing peer", func(t *testing.T) {
 		// given
 		peerMq := &mocks.PeerIMock{
 			NetworkFunc: func() wire.BitcoinNet { return peerManagerNetwork },
@@ -75,7 +76,7 @@ func Test_PeerManagerRemovePeer(t *testing.T) {
 		require.Len(t, sut.GetPeers(), 0)
 	})
 
-	t.Run("Remove a non-existent peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Remove a non-existent peer", func(t *testing.T) {
 		// given
 		peerMq := &mocks.PeerIMock{
 			NetworkFunc: func() wire.BitcoinNet { return peerManagerNetwork },
@@ -93,7 +94,7 @@ func Test_PeerManagerRemovePeer(t *testing.T) {
 }
 
 func Test_PeerManagerCountConnectedPeers(t *testing.T) {
-	t.Run("Count connected peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Count connected peers", func(t *testing.T) {
 		// given
 		connectedPeerMq := &mocks.PeerIMock{
 			NetworkFunc:   func() wire.BitcoinNet { return peerManagerNetwork },
@@ -121,7 +122,7 @@ func Test_PeerManagerCountConnectedPeers(t *testing.T) {
 }
 
 func Test_PeerManagerShutdown(t *testing.T) {
-	t.Run("Shutdown peer manager - should call shutdown on all peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Shutdown peer manager - should call shutdown on all peers", func(t *testing.T) {
 		// given
 		var peers []*mocks.PeerIMock
 
@@ -152,7 +153,7 @@ func Test_PeerManagerShutdown(t *testing.T) {
 }
 
 func Test_PeerManagerGetPeersForAnnouncement(t *testing.T) {
-	t.Run("Get connected peers for announcement", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Get connected peers for announcement", func(t *testing.T) {
 		// given
 		connectedPeerMq1 := &mocks.PeerIMock{
 			NetworkFunc:   func() wire.BitcoinNet { return peerManagerNetwork },
@@ -190,7 +191,7 @@ func Test_PeerManagerGetPeersForAnnouncement(t *testing.T) {
 }
 
 func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
-	t.Run("Restart unhealthy peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Restart unhealthy peer", func(t *testing.T) {
 		// given
 		unhealthyCh := make(chan struct{}, 1)
 
@@ -219,7 +220,7 @@ func Test_PeerManagerPeerHealthMonitoring(t *testing.T) {
 }
 
 func Test_PeerManagerUnhealthyPeers(t *testing.T) {
-	t.Run("Recover unhealthy peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Recover unhealthy peers", func(t *testing.T) {
 		restarted := uint32(0)
 		unhealthyPeer := &mocks.PeerIMock{
 			ConnectedFunc: func() bool {

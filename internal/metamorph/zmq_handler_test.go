@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/go-zeromq/zmq4"
 	"github.com/stretchr/testify/require"
 
@@ -53,7 +54,7 @@ func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration)
 	// subscribe and unsubscribe to all topics
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			go func() {
 				err = handler.Subscribe(tc.name, zmqMessages)
 				if tc.expectedErr {

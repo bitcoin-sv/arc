@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 	"github.com/ordishs/go-bitcoin"
@@ -103,7 +104,7 @@ func TestBeefValidator(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
@@ -168,7 +169,7 @@ func TestValidateScripts(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			beefHex, err := hex.DecodeString(tc.beefStr)
 			require.NoError(t, err)
@@ -246,7 +247,7 @@ func TestCumulativeCheckFees(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			bytes, _ := hex.DecodeString(tc.beefHex)
 			beefTx, _, err := beef.DecodeBEEF(bytes)

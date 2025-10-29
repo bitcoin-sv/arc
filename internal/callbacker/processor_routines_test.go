@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,7 +39,7 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
 				ClearFunc: func(_ context.Context, _ time.Time) error {
 					return tc.deleteFailedOlderThanErr
@@ -103,7 +104,7 @@ func TestSendCallbacks(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
 				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
@@ -226,7 +227,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
 				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{

@@ -56,7 +56,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("double spend detection", func(t *testing.T) {
+	testutils.RunParallel(t, true, "double spend detection", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/double_spend_detection")
 

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,7 @@ func TestCheckBeefFormat(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			beefHex, _ := hex.DecodeString(tc.beefStr)
 
@@ -88,7 +89,7 @@ func TestDecodeBEEF(t *testing.T) {
 
 	t.Parallel()
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			beefHex, err := hex.DecodeString(tc.beef)
 			require.Nil(t, err)

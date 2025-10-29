@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -69,7 +70,7 @@ func TestErrorCode_IsValid(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.testCase, func(t *testing.T) {
+		testutils.RunParallel(t, true, test.testCase, func(t *testing.T) {
 			valid := test.code.IsValid()
 			assert.Equal(t, test.expectValid, valid)
 		})
@@ -138,7 +139,7 @@ func TestGetInternalMessage(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.testCase, func(t *testing.T) {
+		testutils.RunParallel(t, true, test.testCase, func(t *testing.T) {
 			message := GetInternalMessage(test.code)
 			assert.Equal(t, test.expectedMessage, message)
 		})
@@ -207,7 +208,7 @@ func TestGetPublicMessage(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.testCase, func(t *testing.T) {
+		testutils.RunParallel(t, true, test.testCase, func(t *testing.T) {
 			message := GetPublicMessage(test.code)
 			assert.Equal(t, test.expectedMessage, message)
 		})
@@ -276,7 +277,7 @@ func TestGetStatusCode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.testCase, func(t *testing.T) {
+		testutils.RunParallel(t, true, test.testCase, func(t *testing.T) {
 			code := GetStatusCode(test.code)
 			assert.Equal(t, test.expectedStatus, code)
 		})
@@ -345,7 +346,7 @@ func TestGetError(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.testCase, func(t *testing.T) {
+		testutils.RunParallel(t, true, test.testCase, func(t *testing.T) {
 			errorObj := GetError(test.code)
 			assert.Equal(t, test.expectedCode, errorObj.Code)
 		})

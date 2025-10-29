@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/testdata"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +37,7 @@ func TestListenAndServe(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{}
@@ -83,7 +84,7 @@ func TestAnyTransactionsMined(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -121,7 +122,7 @@ func TestRegisterTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
@@ -155,7 +156,7 @@ func TestRegisterTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{}
@@ -189,7 +190,7 @@ func TestCurrentBlockHeight(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			proc := &mocks.ProcessorIMock{
@@ -215,7 +216,7 @@ func TestHealth(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			mqMock := &mqMocks.MessageQueueClientMock{
@@ -265,7 +266,7 @@ func TestClearBlocks(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -311,7 +312,7 @@ func TestClearRegisteredTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -361,7 +362,7 @@ func TestLatestBlocks(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			storeMock := &storeMocks.BlocktxStoreMock{
 				LatestBlocksFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {

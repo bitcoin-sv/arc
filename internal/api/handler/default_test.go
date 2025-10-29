@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
@@ -175,7 +176,7 @@ type PostTransactionsTest struct {
 }
 
 func TestNewDefault(t *testing.T) {
-	t.Run("simple init", func(t *testing.T) {
+	testutils.RunParallel(t, true, "simple init", func(t *testing.T) {
 		btxClient := &globalMocks.BlocktxClientMock{}
 
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
@@ -187,7 +188,7 @@ func TestNewDefault(t *testing.T) {
 }
 
 func TestGETPolicy(t *testing.T) {
-	t.Run("default policy", func(t *testing.T) {
+	testutils.RunParallel(t, true, "default policy", func(t *testing.T) {
 		// given
 		btxClient := &globalMocks.BlocktxClientMock{}
 		bv := &apiHandlerMocks.BeefValidatorMock{}
@@ -221,7 +222,7 @@ func TestGETPolicy(t *testing.T) {
 }
 
 func TestGETHealth(t *testing.T) {
-	t.Run("health check success", func(t *testing.T) {
+	testutils.RunParallel(t, true, "health check success", func(t *testing.T) {
 		txHandler := &globalMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return nil
@@ -253,7 +254,7 @@ func TestGETHealth(t *testing.T) {
 		require.Equal(t, (*string)(nil), health.Reason)
 	})
 
-	t.Run("health check fail", func(t *testing.T) {
+	testutils.RunParallel(t, true, "health check fail", func(t *testing.T) {
 		txHandler := &globalMocks.TransactionHandlerMock{
 			HealthFunc: func(_ context.Context) error {
 				return errors.New("some connection error")
@@ -311,7 +312,7 @@ func TestValidateCallbackURL(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			err := ValidateCallbackURL(tc.callbackURL, []string{"http://localhost"})
 			if err != nil {
 				require.ErrorIs(t, err, tc.expectedError)
@@ -398,7 +399,7 @@ func TestGETTransactionStatus(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			rec, ctx := createEchoGetRequest("/v1/tx/c9648bf65a734ce64614dc92877012ba7269f6ea1f55be9ab5a342a2f768cf46")
 
 			txHandler := &globalMocks.TransactionHandlerMock{
@@ -755,7 +756,7 @@ func TestPOSTTransaction(t *testing.T) { //nolint:funlen
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			policy := *defaultPolicy
 			if tc.expectedFee > 0 {
@@ -1148,7 +1149,7 @@ func TestPOSTTransactions(t *testing.T) { //nolint:funlen
 		},
 	}
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			btxClient := &globalMocks.BlocktxClientMock{}
 			sut, err := NewDefault(testLogger, tc.txHandler, btxClient, defaultPolicy, tc.dv, tc.bv)
@@ -1331,7 +1332,7 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tt.name, func(t *testing.T) {
 			got, got1 := calcFeesFromBSVPerKB(tt.feePerKB)
 			assert.Equalf(t, tt.satoshis, got, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
 			assert.Equalf(t, tt.bytes, got1, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
@@ -1432,7 +1433,7 @@ func TestGetTransactionOptions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			options, actualErr := getTransactionsOptions(tc.params, make([]string, 0))
 
 			if tc.expectedError != nil {
@@ -1511,7 +1512,7 @@ func Test_handleError(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			handler := ArcDefaultHandler{}
 
 			tx, err := sdkTx.NewTransactionFromHex(validTx)
@@ -1527,7 +1528,7 @@ func Test_handleError(t *testing.T) {
 }
 
 func Test_CurrentBlockUpdate(t *testing.T) {
-	t.Run("check block height updates", func(t *testing.T) {
+	testutils.RunParallel(t, false, "check block height updates", func(t *testing.T) {
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		btxClient := &globalMocks.BlocktxClientMock{

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/ccoveille/go-safecast"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -19,7 +20,7 @@ var (
 )
 
 func Test_AnnounceTransactions(t *testing.T) {
-	t.Run("Announce transactions to specified peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Announce transactions to specified peers", func(t *testing.T) {
 		// given
 		peer1 := &mocks.PeerIMock{
 			WriteMsgFunc: func(_ wire.Message) {},
@@ -57,7 +58,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 		require.Len(t, peer3.WriteMsgCalls(), 0, "Network messagner shouldn't write msg to its peer if it wasn't specified")
 	})
 
-	t.Run("Announce transactions to default peers if none specified", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Announce transactions to default peers if none specified", func(t *testing.T) {
 		// given
 		peer := &mocks.PeerIMock{
 			WriteMsgFunc:  func(_ wire.Message) {},
@@ -112,7 +113,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			var txHashes []*chainhash.Hash
 			for range tc.numOfTxs {
@@ -146,7 +147,7 @@ func Test_AnnounceTransactions(t *testing.T) {
 }
 
 func Test_RequestTransactions(t *testing.T) {
-	t.Run("Request transactions from first connected peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Request transactions from first connected peer", func(t *testing.T) {
 		// given
 		peer := &mocks.PeerIMock{
 			WriteMsgFunc:  func(_ wire.Message) {},
@@ -171,7 +172,7 @@ func Test_RequestTransactions(t *testing.T) {
 		require.Len(t, peer.WriteMsgCalls(), 1)
 	})
 
-	t.Run("Return nil if no connected peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Return nil if no connected peers", func(t *testing.T) {
 		// given
 		peer := &mocks.PeerIMock{
 			WriteMsgFunc:  func(_ wire.Message) {},
@@ -225,7 +226,7 @@ func Test_RequestTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			var txHashes []*chainhash.Hash
 			for range tc.numOfTxs {
@@ -258,7 +259,7 @@ func Test_RequestTransactions(t *testing.T) {
 }
 
 func Test_AnnounceBlock(t *testing.T) {
-	t.Run("Announce block to specified peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Announce block to specified peers", func(t *testing.T) {
 		// given
 		peer1 := &mocks.PeerIMock{
 			WriteMsgFunc: func(_ wire.Message) {},
@@ -290,7 +291,7 @@ func Test_AnnounceBlock(t *testing.T) {
 }
 
 func Test_RequestBlock(t *testing.T) {
-	t.Run("Request block from first connected peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Request block from first connected peer", func(t *testing.T) {
 		// given
 		peer := &mocks.PeerIMock{
 			WriteMsgFunc:  func(_ wire.Message) {},
@@ -313,7 +314,7 @@ func Test_RequestBlock(t *testing.T) {
 		require.Len(t, peer.WriteMsgCalls(), 1)
 	})
 
-	t.Run("Return nil if no connected peers", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Return nil if no connected peers", func(t *testing.T) {
 		// given
 		notConnectedPeer := &mocks.PeerIMock{
 			WriteMsgFunc:  func(_ wire.Message) {},

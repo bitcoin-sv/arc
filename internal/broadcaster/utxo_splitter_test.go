@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
@@ -48,7 +49,7 @@ func TestSplitUtxo(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			fromKs, err := keyset.New(&chaincfg.MainNet)
 			require.NoError(t, err)

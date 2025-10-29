@@ -147,7 +147,7 @@ func TestHandleBlock(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			const batchSize = 4
 
@@ -347,7 +347,7 @@ func TestHandleBlockReorgAndOrphans(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			var mtx sync.Mutex
 			insertedBlockStatus := blocktx_api.Status_UNKNOWN
@@ -687,7 +687,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			registerErrTest := tc.registerErr
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -788,7 +788,7 @@ func TestStartBlockRequesting(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			setBlockProcessingErrTest := tc.setBlockProcessingErr
 			storeMock := &storeMocks.BlocktxStoreMock{
@@ -858,7 +858,7 @@ func TestStart(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			var registerTxFunc func(msg []byte) error
 			var registerTxsFunc func(msg []byte) error
 

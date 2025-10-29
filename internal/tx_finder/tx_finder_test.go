@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 
@@ -155,7 +156,7 @@ func Test_GetRawTxs(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// when
 			var transactionHandler global.TransactionHandler
 			if tc.source.Has(validator.SourceTransactionHandler) {
@@ -239,7 +240,7 @@ func Test_GetMempoolAncestors(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			nodes := &mocks.NodeClientMock{
 				GetMempoolAncestorsFunc: func(_ context.Context, _ []string) ([]string, error) {
 					return tc.getMemmPoolAncestors, tc.getMempoolAncestorsErr

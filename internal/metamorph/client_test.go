@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 
@@ -152,7 +153,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PostTransactionsFunc: func(_ context.Context, _ *metamorph_api.PostTransactionsRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
@@ -414,7 +415,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				PostTransactionsFunc: func(_ context.Context, _ *metamorph_api.PostTransactionsRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatuses, error) {
@@ -489,7 +490,7 @@ func TestClient_GetTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
 				GetTransactionFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.Transaction, error) {
@@ -571,7 +572,7 @@ func TestClient_GetTransactions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			// Given
 			apiClient := &apiMocks.MetaMorphAPIClientMock{
 				GetTransactionsFunc: func(_ context.Context, req *metamorph_api.TransactionsStatusRequest, _ ...grpc.CallOption) (*metamorph_api.Transactions, error) {
@@ -652,7 +653,7 @@ func TestClient_GetTransactionStatus(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
 				GetTransactionStatusFunc: func(_ context.Context, _ *metamorph_api.TransactionStatusRequest, _ ...grpc.CallOption) (*metamorph_api.TransactionStatus, error) {
@@ -703,7 +704,7 @@ func TestClient_Health(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// Given
 			mockClient := &apiMocks.MetaMorphAPIClientMock{
 				HealthFunc: func(_ context.Context, _ *emptypb.Empty, _ ...grpc.CallOption) (*metamorph_api.HealthResponse, error) {

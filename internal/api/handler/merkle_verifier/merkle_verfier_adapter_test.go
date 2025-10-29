@@ -8,6 +8,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	btxMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	"github.com/stretchr/testify/require"
 
@@ -43,7 +44,7 @@ func TestMerkleVerifier_IsValidRootForHeight(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			blocktxClient := &btxMocks.BlocktxClientMock{
 				CurrentBlockHeightFunc: func(_ context.Context) (*blocktx_api.CurrentBlockHeightResponse, error) {
 					return &blocktx_api.CurrentBlockHeightResponse{CurrentBlockHeight: 10}, nil

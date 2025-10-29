@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,7 +106,7 @@ func Test_MessageHandlerOnReceive(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(fmt.Sprintf("Received %s", tc.name), func(t *testing.T) {
+		testutils.RunParallel(t, true, fmt.Sprintf("Received %s", tc.name), func(t *testing.T) {
 			// given
 			messageCh := make(chan *TxStatusMessage, 10)
 			store := &storeMocks.MetamorphStoreMock{
@@ -175,7 +176,7 @@ func Test_MessageHandlerOnSend(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			messageCh := make(chan *TxStatusMessage, 10)
 			store := &storeMocks.MetamorphStoreMock{}
 			peer := &p2pMocks.PeerIMock{

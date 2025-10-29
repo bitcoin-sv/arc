@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInMemoryCache(t *testing.T) {
-	t.Run("in-memory TTL", func(t *testing.T) {
+	testutils.RunParallel(t, true, "in-memory TTL", func(t *testing.T) {
 		// given
 		cStore := NewMemoryStore()
 
@@ -39,7 +40,7 @@ func TestInMemoryCache(t *testing.T) {
 }
 
 func TestInMemoryCacheLifeCycle(t *testing.T) {
-	t.Run("in-memory TTL", func(t *testing.T) {
+	testutils.RunParallel(t, true, "in-memory TTL", func(t *testing.T) {
 		// given
 		cStore := NewMemoryStore()
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
@@ -28,7 +29,7 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-	t.Run("NewServer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "NewServer", func(t *testing.T) {
 		server, _ := metamorph.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
 		defer server.GracefulStop()
 
@@ -37,7 +38,7 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	t.Run("Health", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Health", func(t *testing.T) {
 		// given
 		processor := &mocks.ProcessorIMock{}
 		processor.GetProcessorMapSizeFunc = func() int { return 22 }
@@ -131,7 +132,7 @@ func TestPostTransaction(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -318,7 +319,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tt.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -566,7 +567,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tt.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.TransactionData, error) {
@@ -856,7 +857,7 @@ func TestPostTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			processor := &mocks.ProcessorIMock{
 				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {
@@ -921,7 +922,7 @@ func TestSetUnlockedByName(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				SetUnlockedByNameExceptFunc: func(_ context.Context, _ []string) (int64, error) {
@@ -959,7 +960,7 @@ func TestListenAndServe(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -1025,7 +1026,7 @@ func TestGetTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
 				GetManyFunc: func(_ context.Context, _ [][]byte) ([]*store.TransactionData, error) {
@@ -1100,7 +1101,7 @@ func TestGetTransaction(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			store := storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -1159,7 +1160,7 @@ func TestClearData(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			metamorphStore := storeMocks.MetamorphStoreMock{
 				ClearDataFunc: func(_ context.Context, _ int32) (int64, error) {

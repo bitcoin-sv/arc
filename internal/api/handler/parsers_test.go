@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -75,7 +76,7 @@ func TestParseTransactionFromRequest(t *testing.T) {
 		}
 
 		for _, req := range requests {
-			t.Run(tc.name+"-"+req.Header.Get(echo.HeaderContentType), func(t *testing.T) {
+			testutils.RunParallel(t, true, tc.name+"-"+req.Header.Get(echo.HeaderContentType), func(t *testing.T) {
 				hexTx, err := parseTransactionFromRequest(req)
 
 				if tc.expectedHex != nil {
@@ -140,7 +141,7 @@ func TestParseTransactionsFromRequest(t *testing.T) {
 		}
 
 		for _, req := range requests {
-			t.Run(tc.name+"-"+req.Header.Get(echo.HeaderContentType), func(t *testing.T) {
+			testutils.RunParallel(t, true, tc.name+"-"+req.Header.Get(echo.HeaderContentType), func(t *testing.T) {
 				// when
 				actualHexTx, actualErr := parseTransactionsFromRequest(req)
 

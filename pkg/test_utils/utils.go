@@ -133,17 +133,6 @@ func RevChainhash(t *testing.T, hashString string) *chainhash.Hash {
 	return txHash
 }
 
-func GobtRevChainhash(t *testing.T, hashString string) *bchainhash.Hash {
-	t.Helper()
-
-	hash, err := hex.DecodeString(hashString)
-	require.NoError(t, err)
-	txHash, err := bchainhash.NewHash(hash)
-	require.NoError(t, err)
-
-	return txHash
-}
-
 func Chainhash(t *testing.T, hashString string) *chainhash.Hash {
 	t.Helper()
 
@@ -164,11 +153,11 @@ func BRevChainhash(t *testing.T, hashString string) *bchainhash.Hash {
 	return txHash
 }
 
-func BChainhash(t *testing.T, hashString string) *bchainhash.Hash {
-	t.Helper()
-
-	txHash, err := bchainhash.NewHashFromStr(hashString)
-	require.NoError(t, err)
-
-	return txHash
+func RunParallel(t *testing.T, parallelYN bool, name string, f func(t *testing.T)) bool {
+	return t.Run(name, func(t *testing.T) {
+		if parallelYN {
+			t.Parallel()
+		}
+		f(t)
+	})
 }

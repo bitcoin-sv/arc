@@ -144,7 +144,7 @@ func TestPostgresDB(t *testing.T) {
 
 	var err error
 
-	t.Run("upsert block / get block", func(t *testing.T) {
+	testutils.RunParallel(t, false, "upsert block / get block", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "")
 
@@ -209,7 +209,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedBlockOverrideStatus, actualBlockResp)
 	})
 
-	t.Run("get block by height / get chain tip", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get block by height / get chain tip", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_by_height")
 
@@ -236,7 +236,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedTipHeight, actualBlock.Height)
 	})
 
-	t.Run("get num of blocks since", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get num of blocks since", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/latest_blocks")
 
@@ -246,7 +246,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, uint64(822015), blocks[0].Height)
 	})
 
-	t.Run("get block gaps", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get block gaps", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
 
@@ -294,7 +294,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedBlockGaps, actualBlockGaps)
 	})
 
-	t.Run("get stats for block gaps", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get stats for block gaps", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
 		const expectedGaps = int64(2007) // range (14 * 24 * 6 = 2016) - already existing blocks (9) = gaps (2007)
@@ -313,7 +313,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedGaps2, actualBlockGaps.CurrentNumOfBlockGaps)
 	})
 
-	t.Run("get longest chain from height", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get longest chain from height", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_longest_chain")
 
@@ -337,7 +337,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("get stale chain back from hash", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get stale chain back from hash", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_stale_chain")
 
@@ -362,7 +362,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("get orphaned chain forward from hash", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get orphaned chain forward from hash", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_orphaned_chain")
 
@@ -392,7 +392,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("unorphan recent wrong orphaned blocks", func(t *testing.T) {
+	testutils.RunParallel(t, false, "unorphan recent wrong orphaned blocks", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/unorphan_recent_wrong_orphans")
 
@@ -420,7 +420,7 @@ func TestPostgresDB(t *testing.T) {
 		}
 	})
 
-	t.Run("get orphans back to non-orphaned ancestor", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get orphans back to non-orphaned ancestor", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_orphaned_chain")
 
@@ -465,7 +465,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Nil(t, actualAncestor)
 	})
 
-	t.Run("update blocks statuses", func(t *testing.T) {
+	testutils.RunParallel(t, false, "update blocks statuses", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/update_blocks_statuses")
 
@@ -512,7 +512,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrFailedToUpdateBlockStatuses)
 	})
 
-	t.Run("get mined txs", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get mined txs", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_transactions")
 
@@ -559,7 +559,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedTxs, actualTxs)
 	})
 
-	t.Run("get registered txs by block hashes", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get registered txs by block hashes", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_transactions")
 
@@ -608,7 +608,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedTxs, actualTxs)
 	})
 
-	t.Run("get block transactions hashes", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get block transactions hashes", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_transactions")
 
@@ -630,7 +630,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedTxsHashes, actualTxsHashes)
 	})
 
-	t.Run("clear data", func(t *testing.T) {
+	testutils.RunParallel(t, false, "clear data", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/clear_data")
 
 		resp, err := postgresDB.ClearBlocktxTable(context.Background(), 10, store.TableBlockProcessing)
@@ -649,7 +649,7 @@ func TestPostgresDB(t *testing.T) {
 		require.ErrorIs(t, err, store.ErrInvalidTable)
 	})
 
-	t.Run("clear blocks", func(t *testing.T) {
+	testutils.RunParallel(t, false, "clear blocks", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/clear_blocks")
 
 		resp, err := postgresDB.ClearBlocks(context.Background(), 10)
@@ -670,7 +670,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Len(t, bts, 5)
 	})
 
-	t.Run("set block processing", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set block processing", func(t *testing.T) {
 		prepareDb(t, postgresDB, "fixtures/block_processing")
 
 		var processedBy string
@@ -713,7 +713,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, "pod-3", processedBy)
 	})
 
-	t.Run("mark block as done", func(t *testing.T) {
+	testutils.RunParallel(t, false, "mark block as done", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/mark_block_as_done")
 
@@ -738,7 +738,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, now.UTC(), block.ProcessedAt.UTC())
 	})
 
-	t.Run("verify merkle roots", func(t *testing.T) {
+	testutils.RunParallel(t, false, "verify merkle roots", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/verify_merkle_roots")
 
@@ -863,7 +863,7 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 	sut.maxPostgresBulkInsertRows = 5
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			prepareDb(t, sut, "fixtures/insert_block_transactions")
 
@@ -1092,7 +1092,7 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 	defer sut.Close()
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			prepareDb(t, sut, "fixtures/register_transactions")
 
@@ -1191,7 +1191,7 @@ func TestUpsertBlockConditions(t *testing.T) {
 	defer sut.Close()
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 			prepareDb(t, sut, "fixtures/insert_block")
 

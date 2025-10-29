@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -58,7 +59,7 @@ func TestCheck(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 
 			req := &grpc_health_v1.HealthCheckRequest{
@@ -114,7 +115,7 @@ func TestWatch(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			// given
 
 			req := &grpc_health_v1.HealthCheckRequest{
@@ -179,7 +180,7 @@ func TestList(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// given
 
 			processorStore := &mocks.ProcessorStoreMock{PingFunc: func() error { return nil }}

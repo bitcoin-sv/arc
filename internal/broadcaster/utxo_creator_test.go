@@ -12,6 +12,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -60,7 +61,7 @@ func TestUTXOCreator(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tt.name, func(t *testing.T) {
 			// Given
 			mockArcClient := &mocks.ArcClientMock{
 				BroadcastTransactionsFunc: func(_ context.Context, txs sdkTx.Transactions, _ metamorph_api.Status, _, _ string, _, _ bool) ([]*metamorph_api.TransactionStatus, error) {

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/libsv/go-p2p/wire"
 	"github.com/stretchr/testify/require"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func TestWireReader_ReadNextMsg(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Success", func(t *testing.T) {
 		// given
 		expectedMsg := wire.NewMsgGetBlocks(blockHash)
 
@@ -35,7 +36,7 @@ func TestWireReader_ReadNextMsg(t *testing.T) {
 		require.Equal(t, expectedMsg, res)
 	})
 
-	t.Run("Unknown msg", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Unknown msg", func(t *testing.T) {
 		// given
 		unknownMsg := unknownMsg{}
 
@@ -63,7 +64,7 @@ func TestWireReader_ReadNextMsg(t *testing.T) {
 		require.Equal(t, expectedMsg, res)
 	})
 
-	t.Run("Context cancelled", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Context cancelled", func(t *testing.T) {
 		// given
 		expectedMsg := wire.NewMsgGetBlocks(blockHash)
 
@@ -84,7 +85,7 @@ func TestWireReader_ReadNextMsg(t *testing.T) {
 		require.Nil(t, res)
 	})
 
-	t.Run("Read error", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Read error", func(t *testing.T) {
 		var buff bytes.Buffer
 		sut := p2p.NewWireReader(&buff, 4096)
 

@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewBitcoinNode(t *testing.T) {
-	t.Run("new bitcoin node", func(t *testing.T) {
+	testutils.RunParallel(t, true, "new bitcoin node", func(t *testing.T) {
 		//Given
 		// This is the genesis coinbase transaction that is hardcoded and does not need connection to anything else
 		tx1 := "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"

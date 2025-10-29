@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -45,7 +46,7 @@ func TestExtractHeightForRegtest(t *testing.T) {
 }
 
 func TestMessageRead(t *testing.T) {
-	t.Run("Message read", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Message read", func(t *testing.T) {
 		// given
 		msgBlock := wire.NewMsgBlock(wire.NewBlockHeader(0, blockHash, blockHash, 0, 0))
 		tx := []*wire.MsgTx{

@@ -49,7 +49,7 @@ func TestReorg(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("block on empty database", func(t *testing.T) {
+	testutils.RunParallel(t, false, "block on empty database", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 
 		processor, p2pMsgHandler, store, _, _ := setupSut(t, dbInfo)
@@ -85,7 +85,7 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822011, 822011, blocktx_api.Status_LONGEST)
 	})
 
-	t.Run("stale block", func(t *testing.T) {
+	testutils.RunParallel(t, false, "stale block", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_block")
 
@@ -134,7 +134,7 @@ func TestReorg(t *testing.T) {
 		require.Len(t, publishedTxs, 0)
 	})
 
-	t.Run("reorg", func(t *testing.T) {
+	testutils.RunParallel(t, false, "reorg", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg")
 
@@ -228,7 +228,7 @@ func TestReorg(t *testing.T) {
 		verifyTxs(t, expectedTxs, publishedTxs)
 	})
 
-	t.Run("stale orphans", func(t *testing.T) {
+	testutils.RunParallel(t, false, "stale orphans", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
 
@@ -289,7 +289,7 @@ func TestReorg(t *testing.T) {
 		require.Len(t, publishedTxs, 0)
 	})
 
-	t.Run("reorg orphans", func(t *testing.T) {
+	testutils.RunParallel(t, false, "reorg orphans", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg_orphans")
 
@@ -396,7 +396,7 @@ func TestReorg(t *testing.T) {
 		verifyTxs(t, expectedTxs, publishedTxs)
 	})
 
-	t.Run("unorphan blocks until gap", func(t *testing.T) {
+	testutils.RunParallel(t, false, "unorphan blocks until gap", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
 

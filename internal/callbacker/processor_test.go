@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
@@ -54,7 +55,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			cbStore := &mocks.ProcessorStoreMock{
 				InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {
 					return 4, nil

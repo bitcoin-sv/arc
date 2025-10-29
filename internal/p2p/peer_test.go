@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/cbeuw/connutil"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
@@ -31,7 +32,7 @@ var (
 )
 
 func Test_Connect(t *testing.T) {
-	t.Run("Connect", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Connect", func(t *testing.T) {
 		// given
 
 		toPeerConn, fromPeerConn := connutil.AsyncPipe()
@@ -70,7 +71,7 @@ func Test_Connect(t *testing.T) {
 		require.True(t, connected, "Peer.Connected() returned `false` after successful connection to peer")
 	})
 
-	t.Run("Connect already connected peer", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Connect already connected peer", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := connectedPeer(t, mhMq)
@@ -98,7 +99,7 @@ func Test_Connect(t *testing.T) {
 }
 
 func Test_Shutdown(t *testing.T) {
-	t.Run("Shutdown", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Shutdown", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, _ := connectedPeer(t, mhMq)
@@ -111,7 +112,7 @@ func Test_Shutdown(t *testing.T) {
 		require.False(t, connected)
 	})
 
-	t.Run("Shutdown - connection should be closed", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Shutdown - connection should be closed", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, toPeerConn, fromPeerConn := connectedPeer(t, mhMq)
@@ -135,7 +136,7 @@ func Test_Shutdown(t *testing.T) {
 }
 
 func Test_Restart(t *testing.T) {
-	t.Run("Restart", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Restart", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, _ := connectedPeer(t, mhMq)
@@ -147,7 +148,7 @@ func Test_Restart(t *testing.T) {
 		require.False(t, connected)
 	})
 
-	t.Run("Restart - connection should be opened  ", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Restart - connection should be opened  ", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, toPeerConn, fromPeerConn := connectedPeer(t, mhMq)
@@ -175,7 +176,7 @@ func Test_Restart(t *testing.T) {
 }
 
 func Test_String(t *testing.T) {
-	t.Run("String - returns address", func(t *testing.T) {
+	testutils.RunParallel(t, true, "String - returns address", func(t *testing.T) {
 		// given
 		sut := p2p.NewPeer(slog.Default(), nil, peerAddr, bitcoinNet)
 
@@ -188,7 +189,7 @@ func Test_String(t *testing.T) {
 }
 
 func Test_keepAlive(t *testing.T) {
-	t.Run("ping-pong", func(t *testing.T) {
+	testutils.RunParallel(t, true, "ping-pong", func(t *testing.T) {
 		// given
 		const (
 			keepAliveThreshold = 200 * time.Millisecond
@@ -217,7 +218,7 @@ func Test_keepAlive(t *testing.T) {
 		require.False(t, sutUnhealthy.Load(), "Peer shouldn't signal it's unhealthy")
 	})
 
-	t.Run("no ping-pong - should disconnect", func(t *testing.T) {
+	testutils.RunParallel(t, true, "no ping-pong - should disconnect", func(t *testing.T) {
 		// given
 		const (
 			keepAliveThreshold = 10 * time.Millisecond
@@ -259,7 +260,7 @@ func Test_WriteMsg(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(fmt.Sprintf("Write %s", tc.cmdType), func(t *testing.T) {
+		testutils.RunParallel(t, true, fmt.Sprintf("Write %s", tc.cmdType), func(t *testing.T) {
 			// given
 			mhMq := &mocks.MessageHandlerIMock{
 				OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {},
@@ -295,7 +296,7 @@ func Test_listenMessages(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(fmt.Sprintf("Receive %s", tc.cmdType), func(t *testing.T) {
+		testutils.RunParallel(t, true, fmt.Sprintf("Receive %s", tc.cmdType), func(t *testing.T) {
 			// given
 			var receiveMsgWg sync.WaitGroup
 
@@ -325,7 +326,7 @@ func Test_listenMessages(t *testing.T) {
 }
 
 func Test_ErrorOnRead(t *testing.T) {
-	t.Run("Error while reading message from node - should disconnect", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Error while reading message from node - should disconnect", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, fromPeerConn := connectedPeer(t, mhMq)
@@ -356,7 +357,7 @@ func Test_ErrorOnRead(t *testing.T) {
 }
 
 func Test_ErrorOnWrite(t *testing.T) {
-	t.Run("Error while writing message to node - should disconnect", func(t *testing.T) {
+	testutils.RunParallel(t, true, "Error while writing message to node - should disconnect", func(t *testing.T) {
 		// given
 		mhMq := &mocks.MessageHandlerIMock{OnSendFunc: func(_ wire.Message, _ p2p.PeerI) {}}
 		sut, _, _ := connectedPeer(t, mhMq)

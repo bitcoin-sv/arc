@@ -61,7 +61,7 @@ func testmain(m *testing.M) int {
 	return m.Run()
 }
 
-func TestPostgresDBt(t *testing.T) {
+func TestPostgresDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -72,7 +72,7 @@ func TestPostgresDBt(t *testing.T) {
 	require.NoError(t, err)
 	defer postgresDB.Close()
 
-	t.Run("insert", func(t *testing.T) {
+	testutils.RunParallel(t, false, "insert", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/insert")
@@ -174,7 +174,7 @@ func TestPostgresDBt(t *testing.T) {
 		require.ElementsMatch(t, expected, dbCallbacks)
 	})
 
-	t.Run("set sent", func(t *testing.T) {
+	testutils.RunParallel(t, false, "set sent", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/set_sent")
 		ctx := context.Background()
@@ -199,7 +199,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("unset pending", func(t *testing.T) {
+	testutils.RunParallel(t, false, "unset pending", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/unset_pending")
 		ctx := context.Background()
@@ -225,7 +225,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("unset pending disable", func(t *testing.T) {
+	testutils.RunParallel(t, false, "unset pending disable", func(t *testing.T) {
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/unset_pending")
 		ctx := context.Background()
@@ -251,7 +251,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("get unsent", func(t *testing.T) {
+	testutils.RunParallel(t, false, "get unsent", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/get_unsent")
@@ -318,7 +318,7 @@ func TestPostgresDBt(t *testing.T) {
 		}
 	})
 
-	t.Run("clear", func(t *testing.T) {
+	testutils.RunParallel(t, false, "clear", func(t *testing.T) {
 		// given
 		defer pruneTables(t, postgresDB.db)
 		testutils.LoadFixtures(t, postgresDB.db, "fixtures/clear")

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -100,7 +101,7 @@ func TestShouldUpdateStatus(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			// when
 			actualResultCompetingTx := shouldUpdateCompetingTxs(tc.newStatus, tc.existingStatus)
 			actualResultStatus := shouldUpdateStatus(tc.newStatus, tc.existingStatus)

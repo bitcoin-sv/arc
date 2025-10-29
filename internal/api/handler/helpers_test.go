@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/internal/global"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestCheckSwagger(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			e := echo.New()
 			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(""))
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -92,7 +93,7 @@ func TestFilterStatusesByTxIDs(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			res := filterStatusesByTxIDs(tc.txIDs, tc.statuses)
 			if !reflect.DeepEqual(res, tc.expected) {
 				t.Errorf("expected %v, got %v", tc.expected, res)

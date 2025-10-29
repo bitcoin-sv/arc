@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/bitcoin-sv/arc/pkg/api"
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 
 	"github.com/stretchr/testify/require"
 )
@@ -126,7 +127,7 @@ func TestNewErrorFields(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, true, tc.name, func(t *testing.T) {
 			errFields := api.NewErrorFields(tc.status, "some extra info")
 
 			require.Equal(t, int(tc.expectedStatus), errFields.Status)

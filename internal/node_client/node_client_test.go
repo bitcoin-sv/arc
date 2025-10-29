@@ -112,7 +112,7 @@ func TestNodeClient(t *testing.T) {
 	utxos := node_client.GetUtxos(t, bitcoind, address)
 	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
-	t.Run("get raw transaction", func(t *testing.T) {
+	testutils.RunParallel(t, true, "get raw transaction", func(t *testing.T) {
 		// given
 		var rawTx *sdkTx.Transaction
 
@@ -141,7 +141,7 @@ func TestNodeClient(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 	})
 
-	t.Run("get mempool ancestors", func(t *testing.T) {
+	testutils.RunParallel(t, true, "get mempool ancestors", func(t *testing.T) {
 		// given
 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
 		require.NoError(t, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
@@ -36,7 +37,7 @@ func TestCheck(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			req := &grpc_health_v1.HealthCheckRequest{
 				Service: tc.service,
 			}
@@ -93,7 +94,7 @@ func TestList(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		testutils.RunParallel(t, false, tc.name, func(t *testing.T) {
 			serverCfg := grpc_utils.ServerConfig{}
 
 			mockedArcDefaultHandlerHealth := &mocks.ArcDefaultHandlerHealthMock{

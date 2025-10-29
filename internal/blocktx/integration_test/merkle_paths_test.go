@@ -14,7 +14,7 @@ func TestMerklePaths(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("request unregistered tx", func(t *testing.T) {
+	testutils.RunParallel(t, true, "request unregistered tx", func(t *testing.T) {
 		// given
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/merkle_paths")

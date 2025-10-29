@@ -36,7 +36,7 @@ type UTXORateBroadcaster struct {
 	totalTxs        int64
 	connectionCount int64
 	utxoCh          chan *sdkTx.UTXO
-	wg              sync.WaitGroup
+	wg              *sync.WaitGroup
 	satoshiMap      sync.Map
 	ks              *keyset.KeySet
 	limit           int64
@@ -55,7 +55,7 @@ func NewRateBroadcaster(logger *slog.Logger, client ArcClient, ks *keyset.KeySet
 	rb := &UTXORateBroadcaster{
 		Broadcaster:     b,
 		utxoCh:          nil,
-		wg:              sync.WaitGroup{},
+		wg:              &sync.WaitGroup{},
 		satoshiMap:      sync.Map{},
 		ks:              ks,
 		totalTxs:        0,

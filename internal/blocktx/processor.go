@@ -75,7 +75,7 @@ type Processor struct {
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
 
-	waitGroup *sync.WaitGroup
+	wg        *sync.WaitGroup
 	cancelAll context.CancelFunc
 	ctx       context.Context
 }
@@ -105,7 +105,7 @@ func NewProcessor(
 		hostname:                    hostname,
 		publishMinedMessageSize:     publishMinedMessageSizeDefault,
 		now:                         time.Now,
-		waitGroup:                   &sync.WaitGroup{},
+		wg:                          &sync.WaitGroup{},
 	}
 
 	for _, opt := range opts {
@@ -128,10 +128,7 @@ func (p *Processor) Start() error {
 }
 
 func (p *Processor) StartBlockRequesting() {
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -163,15 +160,11 @@ func (p *Processor) StartBlockRequesting() {
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) StartBlockProcessing() {
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
-
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -209,7 +202,7 @@ func (p *Processor) StartBlockProcessing() {
 				)
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) RegisterTransaction(txHash []byte) {
@@ -220,12 +213,10 @@ func (p *Processor) RegisterTransaction(txHash []byte) {
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
-	p.waitGroup.Add(1)
 	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
-
 	ticker := time.NewTicker(p.registerTxsInterval)
-	go func() {
-		defer p.waitGroup.Done()
+
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -257,7 +248,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				ticker.Reset(p.registerTxsInterval)
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) CurrentBlockHeight() (uint64, error) {
@@ -1045,5 +1036,5 @@ func getBlockTransactionsWithMerklePath(txs []store.BlockTransaction) map[string
 
 func (p *Processor) Shutdown() {
 	p.cancelAll()
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }

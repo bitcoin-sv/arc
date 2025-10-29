@@ -76,7 +76,7 @@ type Processor struct {
 	responseProcessor *ResponseProcessor
 	statusMessageCh   chan *metamorph_p2p.TxStatusMessage
 
-	waitGroup *sync.WaitGroup
+	wg *sync.WaitGroup
 
 	statCollectionInterval time.Duration
 
@@ -179,7 +179,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		statusUpdatesBatchSize:            statusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:             make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
 		stats:                             newProcessorStats(),
-		waitGroup:                         &sync.WaitGroup{},
+		wg:                                &sync.WaitGroup{},
 		registerBatchSize:                 registerBatchSizeDefault,
 		statCollectionInterval:            statCollectionIntervalDefault,
 		processTransactionsInterval:       processTransactionsIntervalDefault,
@@ -247,7 +247,7 @@ func (p *Processor) Shutdown() {
 		p.cancelAll()
 	}
 
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }
 
 func (p *Processor) unlockRecords() error {
@@ -261,11 +261,11 @@ func (p *Processor) unlockRecords() error {
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	var txsBlocksBuffer []*blocktx_api.TransactionBlock
 	ticker := time.NewTicker(p.processMinedInterval)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -346,10 +346,10 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 // StartProcessSubmitted starts processing txs submitted to the message queue
 func (p *Processor) StartProcessSubmitted() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 
 		reqs := make([]*store.TransactionData, 0, p.processTransactionsBatchSize)
 		for {
@@ -402,9 +402,9 @@ func (p *Processor) StartProcessSubmitted() {
 }
 
 func (p *Processor) StartSendStatusUpdate() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -444,12 +444,12 @@ func (p *Processor) StartSendStatusUpdate() {
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.statusUpdatesInterval)
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	ctx := p.ctx
 
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 
 		for {
 			select {
@@ -559,12 +559,12 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 
 func (p *Processor) StartLockTransactions() {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	const setLockedLoadLimit = int64(50)
 
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():

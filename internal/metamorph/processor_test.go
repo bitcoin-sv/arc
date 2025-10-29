@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
@@ -1069,7 +1070,8 @@ func TestReAnnounceSeen(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			t.Log(tc.name)
 			t.Parallel()
 			iterations := 0
 			stop := make(chan struct{}, 1)
@@ -1170,7 +1172,8 @@ func TestRegisterSeen(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			t.Log(tc.name)
 			iterations := 0
 			stop := make(chan struct{}, 1)
 

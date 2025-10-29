@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -131,7 +132,8 @@ func TestPostTransaction(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			t.Log(tc.name)
 			// given
 			metamorphStore := &storeMocks.MetamorphStoreMock{
 				GetFunc: func(_ context.Context, _ []byte) (*store.TransactionData, error) {
@@ -856,7 +858,8 @@ func TestPostTransactions(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			t.Log(tc.name)
 			// given
 			processor := &mocks.ProcessorIMock{
 				ProcessTransactionFunc: func(_ context.Context, req *metamorph.ProcessorRequest) {

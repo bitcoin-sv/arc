@@ -30,7 +30,7 @@ func NewPublishCoreAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) 
 	return m
 }
 
-func (p *PublishCoreAdapter) StartPublish(topic string) {
+func (p *PublishCoreAdapter) StartPublishCore(topic string) {
 	p.wg.Go(func() {
 		for {
 			select {
@@ -39,7 +39,7 @@ func (p *PublishCoreAdapter) StartPublish(topic string) {
 			case request := <-p.messageBytesChan:
 				err := p.mqClient.PublishCore(topic, request)
 				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
+					p.logger.Error("Failed to publish message", slog.String("err", err.Error()))
 				}
 			}
 		}

@@ -115,7 +115,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 
 	registerTxChan := make(chan []byte, chanBufferSize)
 	publishRegisterTxAdapter := message_queue.NewPublishCoreAdapter(mqClient, logger)
-	publishRegisterTxAdapter.StartPublish(mq.RegisterTxTopic)
+	publishRegisterTxAdapter.StartPublishCore(mq.RegisterTxTopic)
 	go func() {
 		for msg := range registerTxChan {
 			publishRegisterTxAdapter.PublishCore(msg)

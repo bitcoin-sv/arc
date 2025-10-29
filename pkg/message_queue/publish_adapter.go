@@ -38,10 +38,9 @@ func (p *PublishAdapter) StartPublishMarshal(topic string) {
 			case <-p.ctx.Done():
 				return
 			case request := <-p.messageChan:
-
 				err := p.mqClient.PublishMarshal(p.ctx, topic, request)
 				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
+					p.logger.Error("Failed to publish marshal message", slog.String("err", err.Error()))
 				}
 			}
 		}

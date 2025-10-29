@@ -142,6 +142,7 @@ func TestNodeClient(t *testing.T) {
 	})
 
 	t.Run("get mempool ancestors", func(t *testing.T) {
+		t.Parallel()
 		// given
 		txs, err := node_client.CreateTxChain(privateKey, utxos[0], 20)
 		require.NoError(t, err)

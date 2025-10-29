@@ -165,6 +165,7 @@ func TestInitialAutoReconnect(t *testing.T) {
 	}
 
 	t.Run("auto reconnect after server is initially unavailable", func(t *testing.T) {
+		t.Parallel()
 		dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		require.NoError(t, err)
 
@@ -242,7 +243,7 @@ func TestInitialAutoReconnect(t *testing.T) {
 		require.NoError(t, err)
 		t.Log("message queue unpaused")
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 
 		t.Log("publishing messages")
 		for range 3 {
@@ -256,7 +257,7 @@ func TestInitialAutoReconnect(t *testing.T) {
 			t.Log("message published")
 		}
 
-		time.Sleep(6 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		assert.Equal(t, int32(4), receivedCounter1.Load())
 		assert.Equal(t, int32(3), receivedCounter2.Load())

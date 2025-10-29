@@ -1528,6 +1528,7 @@ func Test_handleError(t *testing.T) {
 
 func Test_CurrentBlockUpdate(t *testing.T) {
 	t.Run("check block height updates", func(t *testing.T) {
+		t.Parallel()
 		bv := &apiHandlerMocks.BeefValidatorMock{}
 		dv := &apiHandlerMocks.DefaultValidatorMock{}
 		btxClient := &globalMocks.BlocktxClientMock{
@@ -1537,9 +1538,9 @@ func Test_CurrentBlockUpdate(t *testing.T) {
 				}, nil
 			},
 		}
-		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, dv, bv)
+		defaultHandler, err := NewDefault(testLogger, nil, btxClient, nil, dv, bv, WithCurrentBlockUpdateInterval(50*time.Millisecond))
 		defaultHandler.StartUpdateCurrentBlockHeight()
-		time.Sleep(currentBlockUpdateInterval + 1*time.Second)
+		time.Sleep(currentBlockUpdateInterval + 50*time.Millisecond)
 		require.NoError(t, err)
 		assert.NotNil(t, defaultHandler)
 		assert.Equal(t, len(btxClient.CurrentBlockHeightCalls()), 1)

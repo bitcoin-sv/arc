@@ -74,6 +74,7 @@ func TestBroadcastTransactions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			var body interface{}
 
@@ -157,6 +158,7 @@ func TestBroadcastTransaction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			var body interface{}
 
@@ -225,6 +227,7 @@ func TestGetArcClient(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// when
 			actualArcClient, actualError := GetArcClient(tc.url, nil)
 

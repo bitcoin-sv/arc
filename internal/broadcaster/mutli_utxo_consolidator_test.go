@@ -13,6 +13,7 @@ import (
 
 func TestMultiKeyUtxoConsolidatorStart(t *testing.T) {
 	t.Run("start and shutdown", func(_ *testing.T) {
+		t.Parallel()
 		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 		cs := []broadcaster.Consolidator{

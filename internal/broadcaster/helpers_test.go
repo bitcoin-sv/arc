@@ -45,6 +45,7 @@ func TestNewRampUpTicker(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ticker, actualErr := NewRampUpTicker(tc.startInterval, tc.endInterval, tc.steps)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualErr, tc.expectedError)

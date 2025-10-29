@@ -101,6 +101,7 @@ func TestRateBroadcasterInitialize(t *testing.T) {
 	lockingScript := script.Script(wocScript)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			utxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {
@@ -225,6 +226,7 @@ func TestRateBroadcasterStart(t *testing.T) {
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			utxoClient := &mocks.UtxoClientMock{
 				GetBalanceWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64) (uint64, uint64, error) {

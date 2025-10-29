@@ -57,8 +57,12 @@ func (m *MessageSubscribeAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_a
 		if err != nil {
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.MinedTxsTopic), err)
 		}
+		select {
+		case minedTxsChan <- serialized:
+		default:
+			m.logger.Warn("Failed to send message on mined txs channel")
+		}
 
-		minedTxsChan <- serialized
 		return nil
 	})
 
@@ -75,7 +79,12 @@ func (m *MessageSubscribeAdapter) subscribeSubmitTxs(submittedTxsChan chan *meta
 		if marshalErr != nil {
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.SubmitTxTopic), marshalErr)
 		}
-		submittedTxsChan <- serialized
+		select {
+		case submittedTxsChan <- serialized:
+		default:
+			m.logger.Warn("Failed to send message on submit txs txs channel")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -86,7 +95,12 @@ func (m *MessageSubscribeAdapter) subscribeSubmitTxs(submittedTxsChan chan *meta
 			if marshalErr != nil {
 				return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.SubmitTxTopic), marshalErr)
 			}
-			submittedTxsChan <- serialized
+			select {
+			case submittedTxsChan <- serialized:
+			default:
+				m.logger.Warn("Failed to send message on submit txs txs channel")
+			}
+
 			return nil
 		})
 		if errSubscribe != nil {

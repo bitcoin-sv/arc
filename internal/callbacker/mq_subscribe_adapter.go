@@ -42,7 +42,7 @@ func (m *MessageSubscribeAdapter) Start(
 	return nil
 }
 
-func (m *MessageSubscribeAdapter) subscribeCallback(sendRequestCh chan *callbacker_api.SendRequest) error {
+func (m *MessageSubscribeAdapter) subscribeCallback(callbackCh chan *callbacker_api.SendRequest) error {
 	err := m.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)
@@ -56,8 +56,11 @@ func (m *MessageSubscribeAdapter) subscribeCallback(sendRequestCh chan *callback
 			slog.String("hash", serialized.Txid),
 			slog.String("status", serialized.Status.String()),
 		)
-
-		sendRequestCh <- serialized
+		select {
+		case callbackCh <- serialized:
+		default:
+			m.logger.Warn("Failed to send message on callback channel")
+		}
 
 		return nil
 	})

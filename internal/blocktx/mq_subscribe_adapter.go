@@ -51,6 +51,7 @@ func (m *MessageSubscribeAdapter) subscribeRegisterTx(registerTxChan chan []byte
 		select {
 		case registerTxChan <- msg:
 		default:
+			m.logger.Warn("Failed to send message on register tx channel")
 		}
 
 		return nil
@@ -74,6 +75,7 @@ func (m *MessageSubscribeAdapter) subscribeRegisterTxs(registerTxsChan chan []by
 			select {
 			case registerTxsChan <- tx.Hash:
 			default:
+				m.logger.Warn("Failed to send message on register txs channel")
 			}
 		}
 

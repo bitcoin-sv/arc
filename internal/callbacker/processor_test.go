@@ -55,6 +55,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cbStore := &mocks.ProcessorStoreMock{
 				InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {
 					return 4, nil

@@ -10,14 +10,11 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 )
 
 type CallbackSender struct {
 	mu       sync.Mutex
 	disposed bool
-	stats    *stats
 	logger   *slog.Logger
 	timeout  time.Duration
 }
@@ -35,23 +32,7 @@ func WithTimeout(d time.Duration) func(*CallbackSender) {
 }
 
 func NewSender(logger *slog.Logger, opts ...SenderOption) (*CallbackSender, error) {
-	cbStats := newCallbackerStats()
-
-	err := registerStats(
-		cbStats.callbackSeenOnNetworkCount,
-		cbStats.callbackSeenInOrphanMempoolCount,
-		cbStats.callbackDoubleSpendAttemptedCount,
-		cbStats.callbackRejectedCount,
-		cbStats.callbackMinedCount,
-		cbStats.callbackFailedCount,
-		cbStats.callbackBatchCount,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	callbacker := &CallbackSender{
-		stats:   cbStats,
 		logger:  logger.With(slog.String("module", "sender")),
 		timeout: timeoutDefault,
 	}
@@ -75,16 +56,6 @@ func (p *CallbackSender) GracefulStop() {
 
 	p.logger.Info("Stopping Sender")
 
-	unregisterStats(
-		p.stats.callbackSeenOnNetworkCount,
-		p.stats.callbackSeenInOrphanMempoolCount,
-		p.stats.callbackDoubleSpendAttemptedCount,
-		p.stats.callbackRejectedCount,
-		p.stats.callbackMinedCount,
-		p.stats.callbackFailedCount,
-		p.stats.callbackBatchCount,
-	)
-
 	p.disposed = true
 	p.logger.Info("Stopped Sender")
 }
@@ -103,11 +74,9 @@ func (p *CallbackSender) Health() error {
 func (p *CallbackSender) Send(url, token string, dto *Callback) (success, retry bool) {
 	success, retry = sendCallback(url, token, dto, p.logger.With(slog.String("hash", dto.TxID), slog.String("status", dto.TxStatus)), p.timeout)
 	if success {
-		p.updateSuccessStats(dto.TxStatus)
 		return success, retry
 	}
 
-	p.stats.callbackFailedCount.Inc()
 	return success, retry
 }
 
@@ -174,15 +143,10 @@ func sendCallback(url, token string, dto *Callback, logger *slog.Logger, timeout
 
 func (p *CallbackSender) SendBatch(url, token string, dtos []*Callback) (success, retry bool) {
 	success, retry = sendBatchCallback(url, token, dtos, p.logger.With(slog.Int("batch size", len(dtos))), p.timeout)
-	p.stats.callbackBatchCount.Inc()
 	if success {
-		for _, dto := range dtos {
-			p.updateSuccessStats(dto.TxStatus)
-		}
 		return success, retry
 	}
 
-	p.stats.callbackFailedCount.Inc()
 	return success, retry
 }
 
@@ -284,25 +248,6 @@ func sendPayload(url, token string, payload []byte, timeout time.Duration) (stat
 	}
 
 	return response.StatusCode, responseText, nil
-}
-
-func (p *CallbackSender) updateSuccessStats(txStatus string) {
-	status, ok := callbacker_api.Status_value[txStatus]
-	if ok {
-		switch callbacker_api.Status(status) {
-		case callbacker_api.Status_SEEN_ON_NETWORK:
-			p.stats.callbackSeenOnNetworkCount.Inc()
-		case callbacker_api.Status_SEEN_IN_ORPHAN_MEMPOOL:
-			p.stats.callbackSeenInOrphanMempoolCount.Inc()
-		case callbacker_api.Status_DOUBLE_SPEND_ATTEMPTED:
-			p.stats.callbackDoubleSpendAttemptedCount.Inc()
-		case callbacker_api.Status_MINED:
-			p.stats.callbackMinedCount.Inc()
-		case callbacker_api.Status_REJECTED:
-			p.stats.callbackRejectedCount.Inc()
-		default:
-		}
-	}
 }
 
 func httpRequest(url, token string, payload []byte) (*http.Request, error) {

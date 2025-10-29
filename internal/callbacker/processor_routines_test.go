@@ -39,6 +39,7 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cbStore := &mocks.ProcessorStoreMock{
 				ClearFunc: func(_ context.Context, _ time.Time) error {
 					return tc.deleteFailedOlderThanErr
@@ -104,6 +105,7 @@ func TestSendCallbacks(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cbStore := &mocks.ProcessorStoreMock{
 				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{
@@ -227,6 +229,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cbStore := &mocks.ProcessorStoreMock{
 				GetUnsentFunc: func(_ context.Context, _ int, _ time.Duration, _ bool, _ int) ([]*store.CallbackData, error) {
 					callbackData := []*store.CallbackData{

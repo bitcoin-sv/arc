@@ -331,10 +331,12 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 			Status: metamorph_api.Status_MINED,
 		})
 
-		if len(data.Callbacks) > 0 {
-			requests := toSendRequest(data, p.now())
-			for _, request := range requests {
-				p.callbackChan <- request
+		if p.callbackChan != nil {
+			if len(data.Callbacks) > 0 {
+				requests := toSendRequest(data, p.now())
+				for _, request := range requests {
+					p.callbackChan <- request
+				}
 			}
 		}
 
@@ -543,10 +545,12 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 		}
 
-		if sendCallback && len(data.Callbacks) > 0 {
-			requests := toSendRequest(data, p.now())
-			for _, request := range requests {
-				p.callbackChan <- request
+		if p.callbackChan != nil {
+			if sendCallback && len(data.Callbacks) > 0 {
+				requests := toSendRequest(data, p.now())
+				for _, request := range requests {
+					p.callbackChan <- request
+				}
 			}
 		}
 	}

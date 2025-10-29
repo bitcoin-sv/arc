@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -31,7 +30,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -921,6 +919,9 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 					return nil
 				},
 			}
+
+			callbackChan := make(chan *callbacker_api.SendRequest, 20)
+
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
@@ -929,6 +930,7 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				metamorph.WithMinedTxsChan(minedTxsChan),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
+				metamorph.WithCallbackChan(callbackChan),
 			)
 			require.NoError(t, err)
 
@@ -941,10 +943,21 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			// when
 			sut.StartProcessMinedCallbacks()
 
-			time.Sleep(50 * time.Millisecond)
+			callbacks := 0
+		callbackLoop:
+			for {
+				select {
+				case <-callbackChan:
+					callbacks++
+				case <-time.After(50 * time.Millisecond):
+					break callbackLoop
+				}
+			}
+
 			sut.Shutdown()
 
 			// then
+			require.Equal(t, tc.expectedSendCallbackCalls, callbacks)
 		})
 	}
 }
@@ -1015,13 +1028,17 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 			return map[string][]byte{testdata.TX2Hash.String(): j}, nil
 		},
 	}
+
 	statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage)
+	callbackChan := make(chan *callbacker_api.SendRequest, 20)
+
 	sut, err := metamorph.NewProcessor(
 		metamorphStore,
 		cStore,
 		pm,
 		statusMessageChannel,
 		metamorph.WithStatusUpdatesInterval(10*time.Millisecond),
+		metamorph.WithCallbackChan(callbackChan),
 	)
 	require.NoError(t, err)
 	// when
@@ -1035,10 +1052,21 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		CompetingTxs: []string{testdata.TX2Hash.String()},
 	}
 
-	time.Sleep(50 * time.Millisecond)
+	callbacks := 0
+callbackLoop:
+	for {
+		select {
+		case <-callbackChan:
+			callbacks++
+		case <-time.After(50 * time.Millisecond):
+			break callbackLoop
+		}
+	}
+
 	sut.Shutdown()
 
 	// then
+	require.Equal(t, 1, callbacks)
 }
 
 func TestReAnnounceSeen(t *testing.T) {
@@ -1509,28 +1537,12 @@ func TestProcessorHealth(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	tt := []struct {
-		name     string
-		topic    string
-		topicErr map[string]error
+		name string
 
 		expectedError error
 	}{
 		{
 			name: "success",
-		},
-		{
-			name:     "error - subscribe mined txs",
-			topic:    mq.MinedTxsTopic,
-			topicErr: map[string]error{mq.MinedTxsTopic: errors.New("failed to subscribe")},
-
-			expectedError: metamorph.ErrFailedToSubscribe,
-		},
-		{
-			name:     "error - subscribe submit txs",
-			topic:    mq.SubmitTxTopic,
-			topicErr: map[string]error{mq.SubmitTxTopic: errors.New("failed to subscribe")},
-
-			expectedError: metamorph.ErrFailedToSubscribe,
 		},
 	}
 
@@ -1544,9 +1556,6 @@ func TestStart(t *testing.T) {
 			pm := &mocks.MediatorMock{}
 
 			cStore := &cacheMocks.StoreMock{}
-
-			var subscribeMinedTxsFunction func([]byte) error
-			var subscribeSubmitTxsFunction func([]byte) error
 
 			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, 2)
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 2)
@@ -1563,23 +1572,9 @@ func TestStart(t *testing.T) {
 			// then
 			if tc.expectedError != nil {
 				require.ErrorIs(t, actualError, tc.expectedError)
-				require.ErrorContains(t, actualError, tc.topic)
 				return
 			}
 			require.NoError(t, actualError)
-
-			txBlock := &blocktx_api.TransactionBlock{}
-			data, err := proto.Marshal(txBlock)
-			require.NoError(t, err)
-
-			_ = subscribeMinedTxsFunction([]byte("invalid data"))
-			_ = subscribeMinedTxsFunction(data)
-
-			txRequest := &metamorph_api.PostTransactionRequest{}
-			data, err = proto.Marshal(txRequest)
-			require.NoError(t, err)
-			_ = subscribeSubmitTxsFunction([]byte("invalid data"))
-			_ = subscribeSubmitTxsFunction(data)
 
 			sut.Shutdown()
 		})

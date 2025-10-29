@@ -3,6 +3,7 @@ package postgresql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -66,8 +67,13 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	}
 	return p, nil
 }
-func (p *PostgreSQL) Close() error {
-	return p.db.Close()
+
+func (p *PostgreSQL) Shutdown() error {
+	err := p.db.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close db connection: %v", err)
+	}
+	return err
 }
 
 func (p *PostgreSQL) Ping() error {

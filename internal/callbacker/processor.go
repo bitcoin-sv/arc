@@ -251,7 +251,7 @@ func (p *Processor) StartStoreCallbackRequests() {
 	}()
 }
 
-func (p *Processor) GracefulStop() {
+func (p *Processor) Shutdown() {
 	p.cancelAll()
 
 	p.wg.Wait()

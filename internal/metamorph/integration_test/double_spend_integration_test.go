@@ -79,7 +79,7 @@ func TestDoubleSpendDetection(t *testing.T) {
 			},
 		}
 
-		metamorphStore, err := postgresql.New(dbInfo, "double-spend-integration-test", 10, 80)
+		metamorphStore, err := postgresql.New(nil, dbInfo, "double-spend-integration-test", 10, 80)
 		require.NoError(t, err)
 		defer metamorphStore.Close(context.Background())
 

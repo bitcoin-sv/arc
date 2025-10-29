@@ -25,9 +25,6 @@ var _ store.MetamorphStore = &MetamorphStoreMock{}
 //			ClearDataFunc: func(ctx context.Context, retentionDays int32) (int64, error) {
 //				panic("mock out the ClearData method")
 //			},
-//			CloseFunc: func(ctx context.Context) error {
-//				panic("mock out the Close method")
-//			},
 //			DelFunc: func(ctx context.Context, key []byte) error {
 //				panic("mock out the Del method")
 //			},
@@ -104,9 +101,6 @@ type MetamorphStoreMock struct {
 	// ClearDataFunc mocks the ClearData method.
 	ClearDataFunc func(ctx context.Context, retentionDays int32) (int64, error)
 
-	// CloseFunc mocks the Close method.
-	CloseFunc func(ctx context.Context) error
-
 	// DelFunc mocks the Del method.
 	DelFunc func(ctx context.Context, key []byte) error
 
@@ -181,11 +175,6 @@ type MetamorphStoreMock struct {
 			Ctx context.Context
 			// RetentionDays is the retentionDays argument value.
 			RetentionDays int32
-		}
-		// Close holds details about calls to the Close method.
-		Close []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
 		}
 		// Del holds details about calls to the Del method.
 		Del []struct {
@@ -369,7 +358,6 @@ type MetamorphStoreMock struct {
 		}
 	}
 	lockClearData               sync.RWMutex
-	lockClose                   sync.RWMutex
 	lockDel                     sync.RWMutex
 	lockGet                     sync.RWMutex
 	lockGetDoubleSpendTxs       sync.RWMutex
@@ -427,38 +415,6 @@ func (mock *MetamorphStoreMock) ClearDataCalls() []struct {
 	mock.lockClearData.RLock()
 	calls = mock.calls.ClearData
 	mock.lockClearData.RUnlock()
-	return calls
-}
-
-// Close calls CloseFunc.
-func (mock *MetamorphStoreMock) Close(ctx context.Context) error {
-	if mock.CloseFunc == nil {
-		panic("MetamorphStoreMock.CloseFunc: method is nil but MetamorphStore.Close was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-	}{
-		Ctx: ctx,
-	}
-	mock.lockClose.Lock()
-	mock.calls.Close = append(mock.calls.Close, callInfo)
-	mock.lockClose.Unlock()
-	return mock.CloseFunc(ctx)
-}
-
-// CloseCalls gets all the calls that were made to Close.
-// Check the length with:
-//
-//	len(mockedMetamorphStore.CloseCalls())
-func (mock *MetamorphStoreMock) CloseCalls() []struct {
-	Ctx context.Context
-} {
-	var calls []struct {
-		Ctx context.Context
-	}
-	mock.lockClose.RLock()
-	calls = mock.calls.Close
-	mock.lockClose.RUnlock()
 	return calls
 }
 

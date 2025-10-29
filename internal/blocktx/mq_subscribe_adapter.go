@@ -84,3 +84,8 @@ func (m *MessageSubscribeAdapter) subscribeRegisterTxs(registerTxsChan chan []by
 	}
 	return nil
 }
+
+func (m *MessageSubscribeAdapter) Shutdown() {
+	m.cancelAll()
+	m.wg.Wait()
+}

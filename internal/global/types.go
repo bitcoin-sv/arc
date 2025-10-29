@@ -3,6 +3,7 @@ package global
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -71,4 +72,51 @@ type TransactionOptions struct {
 	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
 	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
 	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
+}
+
+type Stoppable interface {
+	Shutdown()
+}
+
+type StoppableWithError interface {
+	Shutdown() error
+}
+
+type StoppableWithContext interface {
+	Shutdown(ctx context.Context) error
+}
+
+type Stoppables []Stoppable
+type StoppablesWithError []StoppableWithError
+
+type StoppablesWithContext []StoppableWithContext
+
+func (s Stoppables) Shutdown() {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			stoppable.Shutdown()
+		}
+	}
+}
+
+func (s StoppablesWithError) Shutdown(logger *slog.Logger) {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			err := stoppable.Shutdown()
+			if err != nil {
+				logger.Error("Error shutting down stoppable", slog.String("err", err.Error()))
+			}
+		}
+	}
+}
+
+func (s StoppablesWithContext) Shutdown(ctx context.Context, logger *slog.Logger) {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			err := stoppable.Shutdown(ctx)
+			if err != nil {
+				logger.Error("Error shutting down stoppable", slog.String("err", err.Error()))
+			}
+		}
+	}
 }

@@ -78,7 +78,7 @@ func TestProcessor_StartStoreCallbackRequests(t *testing.T) {
 				callbacker.WithStoreCallbacksInterval(tc.storeCallbacksInterval),
 			)
 			require.NoError(t, err)
-			defer processor.GracefulStop()
+			defer processor.Shutdown()
 
 			require.NoError(t, err)
 

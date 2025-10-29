@@ -66,3 +66,8 @@ func (m *MessageSubscribeAdapter) subscribeCallback(sendRequestCh chan *callback
 	}
 	return nil
 }
+
+func (m *MessageSubscribeAdapter) Shutdown() {
+	m.cancelAll()
+	m.wg.Wait()
+}

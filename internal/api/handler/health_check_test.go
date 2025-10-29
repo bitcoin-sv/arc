@@ -50,7 +50,7 @@ func TestCheck(t *testing.T) {
 			}
 			sut, err := NewServer(testLogger, mockedArcDefaultHandlerHealth, serverCfg)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -103,7 +103,7 @@ func TestList(t *testing.T) {
 			}
 			sut, err := NewServer(testLogger, mockedArcDefaultHandlerHealth, serverCfg)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.List(context.Background(), &grpc_health_v1.HealthListRequest{})

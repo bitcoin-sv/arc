@@ -206,9 +206,14 @@ func (p *Processor) StartBlockProcessing() {
 }
 
 func (p *Processor) RegisterTransaction(txHash []byte) {
-	select {
-	case p.registerTxsChan <- txHash:
-	default:
+	if p.registerTxsChan != nil {
+		select {
+		case p.registerTxsChan <- txHash:
+		default:
+			p.logger.Warn("Failed to send message on register txs channel")
+		}
+	} else {
+		p.logger.Warn("Register txs channel not available")
 	}
 }
 

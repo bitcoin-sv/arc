@@ -24,7 +24,7 @@ type Metamorph struct {
 	now               func() time.Time
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
-	queuedTxsCh       chan<- *metamorph_api.PostTransactionRequest
+	queuedTxsCh       chan *metamorph_api.PostTransactionRequest
 }
 
 func WithQueuedTxsCh(queuedTxsCh chan *metamorph_api.PostTransactionRequest) func(*Metamorph) {
@@ -236,10 +236,14 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 
 	if options.WaitForStatus == metamorph_api.Status_QUEUED {
 		for _, tx := range in.Transactions {
-			select {
-			case m.queuedTxsCh <- tx:
-			default:
-				m.logger.Warn("Failed to send transaction to submitted tx channel")
+			if m.queuedTxsCh != nil {
+				select {
+				case m.queuedTxsCh <- tx:
+				default:
+					m.logger.Warn("Failed to send transaction to queued txs channel")
+				}
+			} else {
+				m.logger.Warn("Queued txs channel not available")
 			}
 		}
 

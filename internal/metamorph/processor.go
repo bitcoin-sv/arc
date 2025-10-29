@@ -335,9 +335,15 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 			if len(data.Callbacks) > 0 {
 				requests := toSendRequest(data, p.now())
 				for _, request := range requests {
-					p.callbackChan <- request
+					select {
+					case p.callbackChan <- request:
+					default:
+						p.logger.Warn("Failed to send message on callback channel")
+					}
 				}
 			}
+		} else {
+			p.logger.Warn("Callback channel not available")
 		}
 
 		p.delTxFromCache(data.Hash)
@@ -549,9 +555,15 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 			if sendCallback && len(data.Callbacks) > 0 {
 				requests := toSendRequest(data, p.now())
 				for _, request := range requests {
-					p.callbackChan <- request
+					select {
+					case p.callbackChan <- request:
+					default:
+						p.logger.Warn("Failed to send message on callback channel")
+					}
 				}
 			}
+		} else {
+			p.logger.Warn("Callback channel not available")
 		}
 	}
 	return nil
@@ -594,7 +606,13 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
 	if p.registerTxChan != nil {
-		p.registerTxChan <- hash[:]
+		select {
+		case p.registerTxChan <- hash[:]:
+		default:
+			p.logger.Warn("Failed to send message on register tx channel")
+		}
+	} else {
+		p.logger.Warn("Register tx channel not available")
 	}
 
 	return nil
@@ -640,8 +658,15 @@ func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]
 	}
 	txsMsg := &blocktx_api.Transactions{Transactions: txs}
 	if p.registerTxsChan != nil {
-		p.registerTxsChan <- txsMsg
+		select {
+		case p.registerTxsChan <- txsMsg:
+		default:
+			p.logger.Warn("Failed to send message on register txs channel")
+		}
+	} else {
+		p.logger.Warn("Register txs channel not available")
 	}
+
 	return nil
 }
 

@@ -23,14 +23,13 @@ import (
 func TestClient_SubmitTransaction(t *testing.T) {
 	now := time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC)
 	tt := []struct {
-		name               string
-		options            *global.TransactionOptions
-		putTxErr           error
-		putTxStatus        *metamorph_api.TransactionStatus
-		getTxErr           error
-		getTxStatus        *metamorph_api.TransactionStatus
-		withQueuedTxsChan  bool
-		publishSubmitTxErr error
+		name              string
+		options           *global.TransactionOptions
+		putTxErr          error
+		putTxStatus       *metamorph_api.TransactionStatus
+		getTxErr          error
+		getTxStatus       *metamorph_api.TransactionStatus
+		withQueuedTxsChan bool
 
 		expectedErrorStr string
 		expectedStatus   *global.TransactionStatus
@@ -136,17 +135,6 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Timestamp: now.Unix(),
 			},
 		},
-		{
-			name: "wait for queued, with mq client, publish submit tx err",
-			options: &global.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_QUEUED,
-			},
-			withQueuedTxsChan:  true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatus:   nil,
-			expectedErrorStr: "failed to publish tx",
-		},
 	}
 
 	for _, tc := range tt {
@@ -205,14 +193,13 @@ func TestClient_SubmitTransactions(t *testing.T) {
 	tx3, err := sdkTx.NewTransactionFromHex("010000000000000000ef016a4c158eb2906c84b3d95206a4dac765baf4dff63120e09ab0134dc6505a23bf000000006b483045022100a46fb3431796212efc3f78b2a8559ba66a5f197977ee983b765a8a1497c0e31a022077ff0eed59beadbdd08b9806ed1f83e41e57ef4892564a75ecbeddd99f14f60f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
 	tt := []struct {
-		name               string
-		options            *global.TransactionOptions
-		putTxErr           error
-		putTxStatus        *metamorph_api.TransactionStatuses
-		getTxErr           error
-		getTxStatus        *metamorph_api.TransactionStatus
-		withQueuedTxsChan  bool
-		publishSubmitTxErr error
+		name              string
+		options           *global.TransactionOptions
+		putTxErr          error
+		putTxStatus       *metamorph_api.TransactionStatuses
+		getTxErr          error
+		getTxStatus       *metamorph_api.TransactionStatus
+		withQueuedTxsChan bool
 
 		expectedErrorStr string
 		expectedStatuses []*global.TransactionStatus
@@ -395,17 +382,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					Timestamp: now.Unix(),
 				},
 			},
-		},
-		{
-			name: "wait for queued, with mq client, publish submit tx err",
-			options: &global.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_QUEUED,
-			},
-			withQueuedTxsChan:  true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatuses: nil,
-			expectedErrorStr: "failed to publish tx",
 		},
 	}
 

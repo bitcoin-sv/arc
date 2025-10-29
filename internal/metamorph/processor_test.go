@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -159,6 +158,7 @@ func TestProcessTransaction(t *testing.T) {
 		expectedSetCalls      int
 		expectedAnnounceCalls int
 		expectedRequestCalls  int
+		expectedRegisteredTxs int32
 	}{
 		{
 			name:            "record not found - success",
@@ -172,6 +172,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedSetCalls:      1,
 			expectedAnnounceCalls: 1,
 			expectedRequestCalls:  1,
+			expectedRegisteredTxs: 1,
 		},
 		{
 			name:            "record not found - register tx with blocktx client failed",
@@ -186,6 +187,7 @@ func TestProcessTransaction(t *testing.T) {
 			expectedSetCalls:      1,
 			expectedAnnounceCalls: 1,
 			expectedRequestCalls:  1,
+			expectedRegisteredTxs: 1,
 		},
 		{
 			name: "record found",
@@ -259,27 +261,32 @@ func TestProcessTransaction(t *testing.T) {
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
-			blocktxClient := &btxMocks.BlocktxClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return tc.registerTxErr }}
+			var registeredTxs int32 = 0
+			blocktxClient := &btxMocks.BlocktxClientMock{
+				RegisterTransactionFunc: func(_ context.Context, _ []byte) error {
+					if tc.registerTxErr != nil {
+						return tc.registerTxErr
+					}
+					atomic.AddInt32(&registeredTxs, 1)
+					return nil
+				},
+			}
 
-			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithBlocktxClient(blocktxClient))
+			registerTxChan := make(chan []byte, 10)
+			registerTxsChan := make(chan *blocktx_api.Transactions, 10)
+
+			sut, err := metamorph.NewProcessor(s,
+				cStore,
+				messenger,
+				nil,
+				metamorph.WithBlocktxClient(blocktxClient),
+				metamorph.WithRegisterTxChan(registerTxChan),
+				metamorph.WithRegisterTxsChan(registerTxsChan),
+			)
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
-			responseChannel := make(chan metamorph.StatusAndError)
-
-			// when
-			var wg sync.WaitGroup
-			wg.Add(len(tc.expectedResponses)) // nolint:revive // intentional
-			go func() {
-				n := 0
-				for response := range responseChannel {
-					status := response.Status
-					require.Equal(t, testdata.TX1HashB, response.Hash)
-					require.Equalf(t, tc.expectedResponses[n], status, "Iteration %d: Expected %s, got %s", n, tc.expectedResponses[n].String(), status.String())
-					wg.Done()
-					n++
-				}
-			}()
+			responseChannel := make(chan metamorph.StatusAndError, 20)
 
 			sut.ProcessTransaction(context.Background(),
 				&metamorph.ProcessorRequest{
@@ -288,12 +295,41 @@ func TestProcessTransaction(t *testing.T) {
 					},
 					ResponseChannel: responseChannel,
 				})
-			wg.Wait()
-			time.Sleep(50 * time.Millisecond)
+
+			responseCount := 0
+		responseLoop:
+			for {
+				select {
+				case response := <-responseChannel:
+					status := response.Status
+					require.Equal(t, testdata.TX1HashB, response.Hash)
+					require.Equalf(t, tc.expectedResponses[responseCount], status, "Iteration %d: Expected %s, got %s", responseCount, tc.expectedResponses[responseCount].String(), status.String())
+					responseCount++
+					if responseCount == len(tc.expectedResponses) {
+						break responseLoop
+					}
+				case <-time.After(1 * time.Second):
+					require.FailNow(t, "Timed out waiting for response")
+				}
+			}
+
+		registerLoop:
+			for {
+				select {
+				case <-registerTxsChan:
+					registeredTxs++
+				case <-registerTxChan:
+					registeredTxs++
+				case <-time.After(50 * time.Millisecond):
+					break registerLoop
+				}
+			}
+
 			// then
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
 			require.Equal(t, tc.expectedRequestCalls, len(messenger.AskForTxAsyncCalls()))
+			require.Equal(t, tc.expectedRegisteredTxs, registeredTxs)
 		})
 	}
 }
@@ -539,6 +575,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
+			callbackChan := make(chan *callbacker_api.SendRequest, 20)
 			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
 			sut, err := metamorph.NewProcessor(
@@ -549,6 +586,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 				metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 				metamorph.WithProcessStatusUpdatesBatchSize(3),
+				metamorph.WithCallbackChan(callbackChan),
 			)
 			require.NoError(t, err)
 
@@ -566,11 +604,21 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
-			time.Sleep(300 * time.Millisecond)
+			callbacks := 0
+		callbackLoop:
+			for {
+				select {
+				case <-callbackChan:
+					callbacks++
+				case <-time.After(300 * time.Millisecond):
+					break callbackLoop
+				}
+			}
 
 			// then
 			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
 			require.Equal(t, tc.expectedDoubleSpendCalls, len(metamorphStore.UpdateDoubleSpendCalls()))
+			require.Equal(t, tc.expectedCallbacks, callbacks)
 			sut.Shutdown()
 		})
 	}

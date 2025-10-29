@@ -3,16 +3,12 @@ package callbacker
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
-	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
 var (
@@ -36,7 +32,6 @@ const (
 )
 
 type Processor struct {
-	mqClient               mq.MessageQueueClient
 	sender                 Sender
 	store                  store.ProcessorStore
 	logger                 *slog.Logger
@@ -132,13 +127,12 @@ func toCallback(callbackData *store.CallbackData) *Callback {
 	}
 }
 
-func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient mq.MessageQueueClient, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
+func NewProcessor(sender SenderI, processorStore store.ProcessorStore, sendRequestCh chan *callbacker_api.SendRequest, logger *slog.Logger, opts ...func(*Processor)) (*Processor, error) {
 	p := &Processor{
-		mqClient:               mqClient,
 		sender:                 sender,
 		store:                  processorStore,
 		logger:                 logger,
-		sendRequestCh:          make(chan *callbacker_api.SendRequest, 500),
+		sendRequestCh:          sendRequestCh,
 		storeCallbackBatchSize: storeCallbackBatchSizeDefault,
 		storeCallbacksInterval: storeCallbacksIntervalDefault,
 		sendCallbacksInterval:  sendCallbacksInterval,
@@ -160,37 +154,7 @@ func NewProcessor(sender SenderI, processorStore store.ProcessorStore, mqClient 
 	return p, nil
 }
 
-func (p *Processor) Subscribe() error {
-	err := p.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
-		serialized := &callbacker_api.SendRequest{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal send request on %s topic", mq.CallbackTopic)
-		}
-
-		p.logger.Debug("Enqueued callback request",
-			slog.String("url", serialized.CallbackRouting.Url),
-			slog.String("token", serialized.CallbackRouting.Token),
-			slog.String("hash", serialized.Txid),
-			slog.String("status", serialized.Status.String()),
-		)
-
-		p.sendRequestCh <- serialized
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrConsume, fmt.Errorf("failed to consume topic %s: %v", mq.CallbackTopic, err))
-	}
-
-	return nil
-}
-
 func (p *Processor) Start() error {
-	err := p.Subscribe()
-	if err != nil {
-		return err
-	}
 	p.StartRoutine(p.clearInterval, CallbackStoreCleanup)
 	p.StartRoutine(p.sendCallbacksInterval, LoadAndSendSingleCallbacks)
 	p.StartRoutine(p.batchSendInterval, LoadAndSendBatchCallbacks)

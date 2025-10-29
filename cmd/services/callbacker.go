@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -73,10 +74,19 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 		return nil, err
 	}
 
+	sendRequestChan := make(chan *callbacker_api.SendRequest, 500)
+
+	mqProvider := callbacker.NewMessageQueueProvider(mqClient, logger)
+	err = mqProvider.Start(sendRequestChan)
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+
 	processor, err = callbacker.NewProcessor(
 		sender,
 		callbackerStore,
-		mqClient,
+		sendRequestChan,
 		logger,
 		callbacker.WithExpiration(cbCfg.Expiration),
 		callbacker.WithSingleSendInterval(cbCfg.Pause),

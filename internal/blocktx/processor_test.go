@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
@@ -25,7 +24,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -205,15 +203,11 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			}
 
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
-			}
-
 			logger := slog.Default()
 			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
 			blockMessage := &bcnet.BlockMessage{
@@ -701,11 +695,6 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					return tc.getBlockTxHashes, tc.getBlockTxHashesErr
 				},
 			}
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
 
 			txChan := make(chan []byte, 10)
 
@@ -724,7 +713,6 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				blocktx.WithRegisterTxsInterval(time.Millisecond*80),
 				blocktx.WithRegisterTxsChan(txChan),
 				blocktx.WithRegisterTxsBatchSize(tc.batchSize),
-				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithPublishMinedMessageSize(3),
 				blocktx.WithRetentionDays(1),
 				blocktx.WithTracer([]attribute.KeyValue{attribute.Int("atr", 5)}...),
@@ -741,7 +729,6 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }
@@ -863,23 +850,6 @@ func TestStart(t *testing.T) {
 			var registerTxsFunc func(msg []byte) error
 
 			// given
-			mqClient := &mqMocks.MessageQueueClientMock{
-				QueueSubscribeFunc: func(topic string, subscribeFunc func([]byte) error) error {
-					err, ok := tc.topicErr[topic]
-					if ok {
-						return err
-					}
-					switch topic {
-					case mq.RegisterTxTopic:
-						registerTxFunc = subscribeFunc
-					case mq.RegisterTxsTopic:
-						registerTxsFunc = subscribeFunc
-					default:
-					}
-					return nil
-				},
-			}
-
 			registerTxsChan := make(chan []byte, 10)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -887,7 +857,6 @@ func TestStart(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithRegisterTxsChan(registerTxsChan),
 			)
 			require.NoError(t, err)

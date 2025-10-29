@@ -19,7 +19,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -33,7 +32,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/metamorph/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/mq"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
@@ -161,7 +159,6 @@ func TestProcessTransaction(t *testing.T) {
 		expectedSetCalls      int
 		expectedAnnounceCalls int
 		expectedRequestCalls  int
-		expectedPublishCalls  int
 	}{
 		{
 			name:            "record not found - success",
@@ -189,7 +186,6 @@ func TestProcessTransaction(t *testing.T) {
 			expectedSetCalls:      1,
 			expectedAnnounceCalls: 1,
 			expectedRequestCalls:  1,
-			expectedPublishCalls:  1,
 		},
 		{
 			name: "record found",
@@ -263,15 +259,9 @@ func TestProcessTransaction(t *testing.T) {
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
-			publisher := &mqMocks.MessageQueueClientMock{
-				PublishCoreFunc: func(_ string, _ []byte) error {
-					return nil
-				},
-			}
-
 			blocktxClient := &btxMocks.BlocktxClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return tc.registerTxErr }}
 
-			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithMessageQueueClient(publisher), metamorph.WithBlocktxClient(blocktxClient))
+			sut, err := metamorph.NewProcessor(s, cStore, messenger, nil, metamorph.WithBlocktxClient(blocktxClient))
 			require.NoError(t, err)
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
@@ -304,7 +294,6 @@ func TestProcessTransaction(t *testing.T) {
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
 			require.Equal(t, tc.expectedRequestCalls, len(messenger.AskForTxAsyncCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(publisher.PublishCoreCalls()))
 		})
 	}
 }
@@ -552,12 +541,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 
 			statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
-
 			sut, err := metamorph.NewProcessor(
 				metamorphStore,
 				cStore,
@@ -566,7 +549,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				metamorph.WithNow(func() time.Time { return time.Date(2023, 10, 1, 13, 0, 0, 0, time.UTC) }),
 				metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
 				metamorph.WithProcessStatusUpdatesBatchSize(3),
-				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -589,7 +571,6 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 			// then
 			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
 			require.Equal(t, tc.expectedDoubleSpendCalls, len(metamorphStore.UpdateDoubleSpendCalls()))
-			require.Equal(t, tc.expectedCallbacks, len(mqClient.PublishMarshalCalls()))
 			sut.Shutdown()
 		})
 	}
@@ -809,14 +790,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
-			publisher := &mqMocks.MessageQueueClientMock{
-				PublishAsyncFunc: func(_ string, _ []byte) error {
-					return nil
-				},
-			}
-
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
-				metamorph.WithMessageQueueClient(publisher),
 				metamorph.WithMaxRetries(10),
 				metamorph.WithNow(func() time.Time {
 					return time.Date(2033, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -896,12 +870,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				SendCallbackFunc: func(_ context.Context, _ *store.TransactionData) {},
 			}
 
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
-
 			cStore := &cacheMocks.StoreMock{
 				DelFunc: func(_ ...string) error {
 					return nil
@@ -916,7 +884,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 				metamorph.WithCallbackSender(callbackSender),
 				metamorph.WithProcessMinedBatchSize(tc.processMinedBatchSize),
 				metamorph.WithProcessMinedInterval(tc.processMinedInterval),
-				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -933,7 +900,6 @@ func TestStartProcessMinedCallbacks(t *testing.T) {
 			sut.Shutdown()
 
 			// then
-			require.Equal(t, tc.expectedSendCallbackCalls, len(mqClient.PublishMarshalCalls()))
 		})
 	}
 }
@@ -970,12 +936,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	pm := &mocks.MediatorMock{}
 	callbackSender := &mocks.CallbackSenderMock{
 		SendCallbackFunc: func(_ context.Context, _ *store.TransactionData) {},
-	}
-
-	mqClient := &mqMocks.MessageQueueClientMock{
-		PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-			return nil
-		},
 	}
 
 	i := 0
@@ -1021,7 +981,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		statusMessageChannel,
 		metamorph.WithCallbackSender(callbackSender),
 		metamorph.WithStatusUpdatesInterval(10*time.Millisecond),
-		metamorph.WithMessageQueueClient(mqClient),
 	)
 	require.NoError(t, err)
 	// when
@@ -1039,7 +998,6 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 	sut.Shutdown()
 
 	// then
-	require.Equal(t, 1, len(mqClient.PublishMarshalCalls()))
 }
 
 func TestReAnnounceSeen(t *testing.T) {
@@ -1108,11 +1066,6 @@ func TestReAnnounceSeen(t *testing.T) {
 			blockTxClient := &btxMocks.BlocktxClientMock{
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
 			}
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
 
 			cStore := &cacheMocks.StoreMock{}
 			sut, err := metamorph.NewProcessor(
@@ -1122,7 +1075,6 @@ func TestReAnnounceSeen(t *testing.T) {
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
 				metamorph.WithRegisterBatchSizeDefault(2),
-				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -1205,11 +1157,6 @@ func TestRegisterSeen(t *testing.T) {
 			blockTxClient := &btxMocks.BlocktxClientMock{
 				RegisterTransactionsFunc: func(_ context.Context, _ [][]byte) error { return tc.registerErr },
 			}
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
 
 			cStore := &cacheMocks.StoreMock{}
 			sut, err := metamorph.NewProcessor(
@@ -1219,7 +1166,6 @@ func TestRegisterSeen(t *testing.T) {
 				nil,
 				metamorph.WithBlocktxClient(blockTxClient),
 				metamorph.WithRegisterBatchSizeDefault(2),
-				metamorph.WithMessageQueueClient(mqClient),
 			)
 			require.NoError(t, err)
 
@@ -1229,7 +1175,6 @@ func TestRegisterSeen(t *testing.T) {
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetSeenCalls()))
 			assert.Equal(t, tc.expectedRegisterCalls, len(blockTxClient.RegisterTransactionsCalls()))
-			assert.Equal(t, tc.expectedPublishMarshallCalls, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }
@@ -1561,32 +1506,11 @@ func TestStart(t *testing.T) {
 
 			var subscribeMinedTxsFunction func([]byte) error
 			var subscribeSubmitTxsFunction func([]byte) error
-			mqClient := &mqMocks.MessageQueueClientMock{
-				ConsumeFunc: func(topic string, msgFunc func([]byte) error) error {
-					subscribeSubmitTxsFunction = msgFunc
-
-					err, ok := tc.topicErr[topic]
-					if ok {
-						return err
-					}
-					return nil
-				},
-				QueueSubscribeFunc: func(topic string, msgFunc func([]byte) error) error {
-					subscribeMinedTxsFunction = msgFunc
-
-					err, ok := tc.topicErr[topic]
-					if ok {
-						return err
-					}
-					return nil
-				},
-			}
 
 			submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, 2)
 			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 2)
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, pm, nil,
-				metamorph.WithMessageQueueClient(mqClient),
 				metamorph.WithSubmittedTxsChan(submittedTxsChan),
 				metamorph.WithMinedTxsChan(minedTxsChan),
 			)

@@ -9,20 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
-	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -216,17 +213,6 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 	}
 
 	return p, nil
-}
-
-func (p *Processor) processSubmitMessage(msg []byte) error {
-	serialized := &metamorph_api.PostTransactionRequest{}
-	err := proto.Unmarshal(msg, serialized)
-	if err != nil {
-		return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.SubmitTxTopic), err)
-	}
-
-	p.submittedTxsChan <- serialized
-	return nil
 }
 
 func (p *Processor) Start(statsEnabled bool) error {

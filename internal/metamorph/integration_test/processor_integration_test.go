@@ -16,7 +16,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/metamorph/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store/postgresql"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
@@ -37,19 +36,12 @@ func TestProcessor(t *testing.T) {
 			AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 		}
 
-		mqClient := &mqMocks.MessageQueueClientMock{
-			PublishAsyncFunc: func(_ string, _ []byte) error {
-				return nil
-			},
-		}
-
 		statusMessageChannel := make(chan *metamorph_p2p.TxStatusMessage, 10)
 
 		blocktxClient := &btxMocks.BlocktxClientMock{RegisterTransactionFunc: func(_ context.Context, _ []byte) error { return nil }}
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithStatusUpdatesInterval(200*time.Millisecond),
-			metamorph.WithMessageQueueClient(mqClient),
 			metamorph.WithBlocktxClient(blocktxClient),
 		)
 		require.NoError(t, err)

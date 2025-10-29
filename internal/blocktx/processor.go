@@ -29,7 +29,6 @@ import (
 )
 
 var (
-	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
 	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
 	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")

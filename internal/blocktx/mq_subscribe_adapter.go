@@ -12,6 +12,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var (
+	ErrFailedToSubscribeToTopic = errors.New("failed to subscribe to register topic")
+)
+
 type MessageSubscribeAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
@@ -48,6 +52,9 @@ func (m *MessageSubscribeAdapter) Start(
 
 func (m *MessageSubscribeAdapter) subscribeRegisterTx(registerTxChan chan []byte) error {
 	err := m.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
+		if msg == nil {
+			return nil
+		}
 		select {
 		case registerTxChan <- msg:
 		default:
@@ -65,6 +72,9 @@ func (m *MessageSubscribeAdapter) subscribeRegisterTx(registerTxChan chan []byte
 
 func (m *MessageSubscribeAdapter) subscribeRegisterTxs(registerTxsChan chan []byte) error {
 	err := m.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
+		if msg == nil {
+			return nil
+		}
 		serialized := &blocktx_api.Transactions{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {

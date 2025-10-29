@@ -54,10 +54,10 @@ const (
 )
 
 var (
-	ErrStoreNil                     = errors.New("store cannot be nil")
-	ErrPeerMessengerNil             = errors.New("p2p messenger cannot be nil")
-	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
-	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
+	ErrStoreNil                 = errors.New("store cannot be nil")
+	ErrPeerMessengerNil         = errors.New("p2p messenger cannot be nil")
+	ErrFailedToUnmarshalMessage = errors.New("failed to unmarshal message")
+
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
 	ErrUnhealthy                    = errors.New("processor has less than minimum healthy peer connections")
 )

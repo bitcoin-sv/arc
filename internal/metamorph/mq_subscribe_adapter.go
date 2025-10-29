@@ -13,6 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var (
+	ErrFailedToSubscribe = errors.New("failed to subscribe to topic")
+)
+
 type MessageSubscribeAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
@@ -52,6 +56,9 @@ func (m *MessageSubscribeAdapter) Start(
 
 func (m *MessageSubscribeAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) error {
 	err := m.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
+		if msg == nil {
+			return nil
+		}
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {
@@ -74,6 +81,9 @@ func (m *MessageSubscribeAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_a
 
 func (m *MessageSubscribeAdapter) subscribeSubmitTxs(submittedTxsChan chan *metamorph_api.PostTransactionRequest) error {
 	err := m.mqClient.Consume(mq.SubmitTxTopic, func(msg []byte) error {
+		if msg == nil {
+			return nil
+		}
 		serialized := &metamorph_api.PostTransactionRequest{}
 		marshalErr := proto.Unmarshal(msg, serialized)
 		if marshalErr != nil {
@@ -90,6 +100,9 @@ func (m *MessageSubscribeAdapter) subscribeSubmitTxs(submittedTxsChan chan *meta
 	if err != nil {
 		m.logger.Warn("Failed to start consuming from topic", slog.String("topic", mq.SubmitTxTopic), slog.String("err", err.Error()))
 		errSubscribe := m.mqClient.QueueSubscribe(mq.SubmitTxTopic, func(msg []byte) error {
+			if msg == nil {
+				return nil
+			}
 			serialized := &metamorph_api.PostTransactionRequest{}
 			marshalErr := proto.Unmarshal(msg, serialized)
 			if marshalErr != nil {

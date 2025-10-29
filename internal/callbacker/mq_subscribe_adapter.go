@@ -37,13 +37,16 @@ func (m *MessageSubscribeAdapter) Start(
 ) error {
 	err := m.subscribeCallback(sendRequestCh)
 	if err != nil {
-		return fmt.Errorf("failed to start submit txs: %w", err)
+		return fmt.Errorf("failed to subscribe to callback topic: %w", err)
 	}
 	return nil
 }
 
 func (m *MessageSubscribeAdapter) subscribeCallback(callbackCh chan *callbacker_api.SendRequest) error {
 	err := m.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
+		if msg == nil {
+			return nil
+		}
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)
 		if err != nil {

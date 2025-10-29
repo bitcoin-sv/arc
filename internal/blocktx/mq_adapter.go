@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type MessageQueueProvider struct {
+type MessageQueueAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
 	ctx       context.Context
@@ -20,8 +20,8 @@ type MessageQueueProvider struct {
 	wg        *sync.WaitGroup
 }
 
-func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueProvider {
-	m := &MessageQueueProvider{
+func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueAdapter {
+	m := &MessageQueueAdapter{
 		mqClient: mqClient,
 		logger:   logger,
 		wg:       &sync.WaitGroup{},
@@ -32,7 +32,7 @@ func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger
 	return m
 }
 
-func (m *MessageQueueProvider) Start(
+func (m *MessageQueueAdapter) Start(
 	minedTxsChan chan *blocktx_api.TransactionBlocks,
 	registerTxChan chan []byte,
 ) error {
@@ -48,7 +48,7 @@ func (m *MessageQueueProvider) Start(
 	return nil
 }
 
-func (m *MessageQueueProvider) subscribeRegisterTx(registerTxChan chan []byte) error {
+func (m *MessageQueueAdapter) subscribeRegisterTx(registerTxChan chan []byte) error {
 	err := m.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
 		select {
 		case registerTxChan <- msg:
@@ -64,7 +64,7 @@ func (m *MessageQueueProvider) subscribeRegisterTx(registerTxChan chan []byte) e
 	return nil
 }
 
-func (m *MessageQueueProvider) subscribeRegisterTxs(registerTxsChan chan []byte) error {
+func (m *MessageQueueAdapter) subscribeRegisterTxs(registerTxsChan chan []byte) error {
 	err := m.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.Transactions{}
 		err := proto.Unmarshal(msg, serialized)
@@ -87,7 +87,7 @@ func (m *MessageQueueProvider) subscribeRegisterTxs(registerTxsChan chan []byte)
 	return nil
 }
 
-func (m *MessageQueueProvider) startPublishMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) {
+func (m *MessageQueueAdapter) startPublishMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) {
 	m.wg.Go(func() {
 		for {
 			select {

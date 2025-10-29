@@ -73,7 +73,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	}
 	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	mqProvider := apiHandler.NewMessageQueueProvider(mqClient, logger)
+	mqProvider := apiHandler.NewMessageQueueAdapter(mqClient, logger)
 	mqProvider.Start(queuedTxsChan)
 
 	mtmOpts := []func(*metamorph.Metamorph){

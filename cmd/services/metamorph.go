@@ -91,7 +91,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		stopFn()
 		return nil, err
 	}
-	mqProvider := metamorph.NewMessageQueueProvider(mqClient, logger)
+	mqProvider := metamorph.NewMessageQueueAdapter(mqClient, logger)
 	err = mqProvider.Start(minedTxsChan, submittedTxsChan, callbackerChan, registerTxChan, registerTxsChan)
 	if err != nil {
 		stopFn()

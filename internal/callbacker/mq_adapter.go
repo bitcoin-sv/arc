@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type MessageQueueProvider struct {
+type MessageQueueAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
 	ctx       context.Context
@@ -20,8 +20,8 @@ type MessageQueueProvider struct {
 	wg        *sync.WaitGroup
 }
 
-func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueProvider {
-	m := &MessageQueueProvider{
+func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueAdapter {
+	m := &MessageQueueAdapter{
 		mqClient: mqClient,
 		logger:   logger,
 		wg:       &sync.WaitGroup{},
@@ -32,7 +32,7 @@ func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger
 	return m
 }
 
-func (m *MessageQueueProvider) Start(
+func (m *MessageQueueAdapter) Start(
 	sendRequestCh chan *callbacker_api.SendRequest,
 ) error {
 	err := m.subscribeCallback(sendRequestCh)
@@ -42,7 +42,7 @@ func (m *MessageQueueProvider) Start(
 	return nil
 }
 
-func (m *MessageQueueProvider) subscribeCallback(sendRequestCh chan *callbacker_api.SendRequest) error {
+func (m *MessageQueueAdapter) subscribeCallback(sendRequestCh chan *callbacker_api.SendRequest) error {
 	err := m.mqClient.Consume(mq.CallbackTopic, func(msg []byte) error {
 		serialized := &callbacker_api.SendRequest{}
 		err := proto.Unmarshal(msg, serialized)

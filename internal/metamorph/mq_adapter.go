@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type MessageQueueProvider struct {
+type MessageQueueAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
 	ctx       context.Context
@@ -22,8 +22,8 @@ type MessageQueueProvider struct {
 	wg        *sync.WaitGroup
 }
 
-func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueProvider {
-	m := &MessageQueueProvider{
+func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueAdapter {
+	m := &MessageQueueAdapter{
 		mqClient: mqClient,
 		logger:   logger,
 		wg:       &sync.WaitGroup{},
@@ -34,7 +34,7 @@ func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger
 	return m
 }
 
-func (m *MessageQueueProvider) Start(
+func (m *MessageQueueAdapter) Start(
 	minedTxsChan chan *blocktx_api.TransactionBlocks,
 	submittedTxsChan chan *metamorph_api.PostTransactionRequest,
 	callbackChan chan *callbacker_api.SendRequest,
@@ -55,7 +55,7 @@ func (m *MessageQueueProvider) Start(
 	return nil
 }
 
-func (m *MessageQueueProvider) subscribeMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) error {
+func (m *MessageQueueAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) error {
 	err := m.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
@@ -73,7 +73,7 @@ func (m *MessageQueueProvider) subscribeMinedTxs(minedTxsChan chan *blocktx_api.
 	return nil
 }
 
-func (m *MessageQueueProvider) subscribeSubmitTxs(submittedTxsChan chan *metamorph_api.PostTransactionRequest) error {
+func (m *MessageQueueAdapter) subscribeSubmitTxs(submittedTxsChan chan *metamorph_api.PostTransactionRequest) error {
 	err := m.mqClient.Consume(mq.SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.PostTransactionRequest{}
 		marshalErr := proto.Unmarshal(msg, serialized)
@@ -101,7 +101,7 @@ func (m *MessageQueueProvider) subscribeSubmitTxs(submittedTxsChan chan *metamor
 	return nil
 }
 
-func (m *MessageQueueProvider) startPublishCallbacks(callbackChan chan *callbacker_api.SendRequest) {
+func (m *MessageQueueAdapter) startPublishCallbacks(callbackChan chan *callbacker_api.SendRequest) {
 	m.wg.Go(func() {
 		for {
 			select {
@@ -117,7 +117,7 @@ func (m *MessageQueueProvider) startPublishCallbacks(callbackChan chan *callback
 	})
 }
 
-func (m *MessageQueueProvider) startPublishRegisterTx(registerTxChan chan []byte) {
+func (m *MessageQueueAdapter) startPublishRegisterTx(registerTxChan chan []byte) {
 	m.wg.Go(func() {
 		for {
 			select {
@@ -133,7 +133,7 @@ func (m *MessageQueueProvider) startPublishRegisterTx(registerTxChan chan []byte
 	})
 }
 
-func (m *MessageQueueProvider) startPublishRegisterTxs(registerTxsChan chan *blocktx_api.Transactions) {
+func (m *MessageQueueAdapter) startPublishRegisterTxs(registerTxsChan chan *blocktx_api.Transactions) {
 	m.wg.Go(func() {
 		for {
 			select {
@@ -150,7 +150,7 @@ func (m *MessageQueueProvider) startPublishRegisterTxs(registerTxsChan chan *blo
 	})
 }
 
-func (m *MessageQueueProvider) Shutdown() {
+func (m *MessageQueueAdapter) Shutdown() {
 	m.cancelAll()
 	m.wg.Wait()
 }

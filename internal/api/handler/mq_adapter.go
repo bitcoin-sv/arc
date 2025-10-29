@@ -9,7 +9,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/mq"
 )
 
-type MessageQueueProvider struct {
+type MessageQueueAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
 	ctx       context.Context
@@ -17,8 +17,8 @@ type MessageQueueProvider struct {
 	wg        *sync.WaitGroup
 }
 
-func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueProvider {
-	m := &MessageQueueProvider{
+func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueAdapter {
+	m := &MessageQueueAdapter{
 		mqClient: mqClient,
 		logger:   logger,
 		wg:       &sync.WaitGroup{},
@@ -29,7 +29,7 @@ func NewMessageQueueProvider(mqClient mq.MessageQueueClient, logger *slog.Logger
 	return m
 }
 
-func (m *MessageQueueProvider) Start(submitTxsCh chan *metamorph_api.PostTransactionRequest) {
+func (m *MessageQueueAdapter) Start(submitTxsCh chan *metamorph_api.PostTransactionRequest) {
 	m.wg.Go(func() {
 		for {
 			select {

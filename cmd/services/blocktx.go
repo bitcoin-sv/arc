@@ -89,7 +89,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		return nil, err
 	}
 
-	mqProvider := blocktx.NewMessageQueueProvider(mqClient, logger)
+	mqProvider := blocktx.NewMessageQueueAdapter(mqClient, logger)
 	err = mqProvider.Start(minedTxsChan, registerTxsChan)
 	if err != nil {
 		stopFn()

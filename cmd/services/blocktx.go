@@ -35,14 +35,15 @@ const (
 )
 
 func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *config.CommonConfig) (func(), error) {
-	logger = logger.With(slog.String("service", "blocktx"))
+	const serviceName = "blocktx"
+	logger = logger.With(slog.String("service", serviceName))
 	logger.Info("Starting")
 
 	shutdownFns := make([]func(), 0)
 	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
 	if commonCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
+		cleanup, err := tracing.Enable(logger, serviceName, commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
@@ -164,7 +165,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
 		MaxMsgSize:         commonCfg.GrpcMessageSize,
 		TracingConfig:      commonCfg.Tracing,
-		Name:               "blocktx",
+		Name:               serviceName,
 	}
 
 	server, err := blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient, btxCfg.RecordRetentionDays)
@@ -242,6 +243,21 @@ func newBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConf
 // - `blocktx_p2p.NewMsgHandler`: Used in classic mode, handles all blockchain communication exclusively via P2P.
 // - `blocktx_p2p.NewHybridMsgHandler`: Used in hybrid mode, seamlessly integrates P2P communication with multicast group updates.
 func setupBcNetworkCommunication(l *slog.Logger, bloctxCfg *config.BlocktxConfig, store store.BlocktxStore, blockRequestCh chan<- blocktx_p2p.BlockRequest, minConnections int, blockProcessCh chan<- *bcnet.BlockMessagePeer) (manager *p2p.PeerManager, mcastListener *mcast.Listener, err error) {
+	defer func() {
+		// cleanup on error
+		if err == nil {
+			return
+		}
+
+		if manager != nil {
+			manager.Shutdown()
+		}
+
+		if mcastListener != nil {
+			mcastListener.Shutdown()
+		}
+	}()
+
 	// p2p global setting
 	p2p.SetExcessiveBlockSize(maximumBlockSize)
 

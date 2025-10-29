@@ -26,6 +26,7 @@ import (
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
@@ -79,9 +80,12 @@ func TestDoubleSpendDetection(t *testing.T) {
 			},
 		}
 
-		metamorphStore, err := postgresql.New(nil, dbInfo, "double-spend-integration-test", 10, 80)
+		metamorphStore, err := postgresql.New(dbInfo, "double-spend-integration-test", 10, 80)
 		require.NoError(t, err)
-		defer metamorphStore.Close(context.Background())
+		defer func() {
+			err = metamorphStore.Shutdown()
+			assert.NoError(t, err)
+		}()
 
 		cStore := cache.NewMemoryStore()
 		for _, h := range hashes {

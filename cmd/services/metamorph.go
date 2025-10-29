@@ -447,18 +447,3 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, meta
 	mediator = bcnet.NewMediator(l, cfg.Mode == "classic", messenger, multicaster, mediatorOpts...)
 	return
 }
-
-func disposeMtm(l *slog.Logger,
-	metamorphStore store.MetamorphStore,
-	shutdownFns []func(),
-) {
-	// dispose the dependencies in the correct order:
-	// 1. server - ensure no new request will be received
-	// 2. processor - ensure all started job are complete
-	// 3. peerManaager
-	// 4. mqClient
-	// 5. store
-	// 6. healthServer
-	// 7. run shutdown functions
-
-}

@@ -140,7 +140,10 @@ func TestPostgresDB(t *testing.T) {
 
 	// common setup for test cases
 	ctx, now, postgresDB := setupPostgresTest(t)
-	defer postgresDB.Shutdown()
+	defer func() {
+		err := postgresDB.Shutdown()
+		assert.NoError(t, err)
+	}()
 
 	var err error
 
@@ -859,7 +862,10 @@ func TestPostgresStore_InsertBlockTransactions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Shutdown()
+	defer func() {
+		err := sut.Shutdown()
+		assert.NoError(t, err)
+	}()
 	sut.maxPostgresBulkInsertRows = 5
 
 	for _, tc := range tcs {
@@ -909,7 +915,12 @@ func NewHash(length int) ([]byte, error) {
 
 func BenchmarkInsertBlockTransactions(b *testing.B) {
 	ctx, _, sut := setupPostgresTest(b)
-	defer sut.Shutdown()
+	defer func() {
+		err := sut.Shutdown()
+		if err != nil {
+			b.Fatal("failed to shutdown postgres store")
+		}
+	}()
 
 	const totalRows = 80000
 	tt := []struct {
@@ -988,7 +999,10 @@ func TestPostgresStore_InsertTransactions_CompetingBlocks(t *testing.T) {
 
 	// given
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Shutdown()
+	defer func() {
+		err := sut.Shutdown()
+		assert.NoError(t, err)
+	}()
 	sut.maxPostgresBulkInsertRows = 5
 
 	prepareDb(t, sut, "fixtures/insert_block_transactions")
@@ -1089,7 +1103,10 @@ func TestPostgresStore_RegisterTransactions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Shutdown()
+	defer func() {
+		err := sut.Shutdown()
+		assert.NoError(t, err)
+	}()
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1188,7 +1205,10 @@ func TestUpsertBlockConditions(t *testing.T) {
 
 	// common setup for test cases
 	ctx, _, sut := setupPostgresTest(t)
-	defer sut.Shutdown()
+	defer func() {
+		err := sut.Shutdown()
+		assert.NoError(t, err)
+	}()
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {

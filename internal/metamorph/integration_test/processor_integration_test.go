@@ -26,7 +26,7 @@ func TestProcessor(t *testing.T) {
 
 	t.Run("registered transactions in redis cache", func(t *testing.T) {
 		// given
-		mtmStore, err := postgresql.New(nil, dbInfo, "txs-cache-integration-test", 10, 80)
+		mtmStore, err := postgresql.New(dbInfo, "txs-cache-integration-test", 10, 80)
 		require.NoError(t, err)
 
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)

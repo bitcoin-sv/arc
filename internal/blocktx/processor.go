@@ -908,7 +908,15 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			p.minedTxsChan <- msg
+			if p.minedTxsChan != nil {
+				select {
+				case p.minedTxsChan <- msg:
+				default:
+					p.logger.Warn("Failed to send message on mined txs channel")
+				}
+			} else {
+				p.logger.Warn("Mined txs channel not available")
+			}
 
 			msg = &blocktx_api.TransactionBlocks{
 				TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, p.publishMinedMessageSize),
@@ -917,7 +925,15 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		p.minedTxsChan <- msg
+		if p.minedTxsChan != nil {
+			select {
+			case p.minedTxsChan <- msg:
+			default:
+				p.logger.Warn("Failed to send message on mined txs channel")
+			}
+		} else {
+			p.logger.Warn("Mined txs channel not available")
+		}
 	}
 
 	return publishErr

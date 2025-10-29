@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -78,25 +79,48 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		return nil, err
 	}
 
-	// maximum number of messages that could be coming from a single block
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
-	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
-	callbackerChan := make(chan *callbacker_api.SendRequest, chanBufferSize)
-	registerTxChan := make(chan []byte, chanBufferSize)
-	registerTxsChan := make(chan *blocktx_api.Transactions, chanBufferSize)
-
 	mqOpts := getMtmMqOpts(logger)
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
-	mqProvider := metamorph.NewMessageQueueAdapter(mqClient, logger)
-	err = mqProvider.Start(minedTxsChan, submittedTxsChan, callbackerChan, registerTxChan, registerTxsChan)
+
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
+	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
+
+	subscribeAdapter := metamorph.NewMessageSubscribeAdapter(mqClient, logger)
+	err = subscribeAdapter.Start(minedTxsChan, submittedTxsChan)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
+	callbackerChan := make(chan *callbacker_api.SendRequest, chanBufferSize)
+	publishCallbackAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishCallbackAdapter.StartPublishMarshal(mq.CallbackTopic)
+	go func() {
+		for msg := range callbackerChan {
+			publishCallbackAdapter.Publish(msg)
+		}
+	}()
+
+	registerTxsChan := make(chan *blocktx_api.Transactions, chanBufferSize)
+	publishRegisterTxsAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishRegisterTxsAdapter.StartPublishMarshal(mq.RegisterTxsTopic)
+	go func() {
+		for msg := range registerTxsChan {
+			publishRegisterTxsAdapter.Publish(msg)
+		}
+	}()
+
+	registerTxChan := make(chan []byte, chanBufferSize)
+	publishRegisterTxAdapter := message_queue.NewPublishCoreAdapter(mqClient, logger)
+	publishRegisterTxAdapter.StartPublish(mq.RegisterTxTopic)
+	go func() {
+		for msg := range registerTxChan {
+			publishRegisterTxAdapter.PublishCore(msg)
+		}
+	}()
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 

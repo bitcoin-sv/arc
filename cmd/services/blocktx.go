@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -82,19 +83,27 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
 		return nil, err
 	}
 
-	mqProvider := blocktx.NewMessageQueueAdapter(mqClient, logger)
-	err = mqProvider.Start(minedTxsChan, registerTxsChan)
+	mqProvider := blocktx.NewMessageSubscribeAdapter(mqClient, logger)
+	err = mqProvider.Start(registerTxsChan)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
+
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
+	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishAdapter.StartPublishMarshal(mq.MinedTxsTopic)
+	go func() {
+		for msg := range minedTxsChan {
+			publishAdapter.Publish(msg)
+		}
+	}()
 
 	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),

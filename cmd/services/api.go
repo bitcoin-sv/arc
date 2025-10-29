@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
@@ -71,10 +72,15 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, err
 	}
-	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	mqProvider := apiHandler.NewMessageQueueAdapter(mqClient, logger)
-	mqProvider.Start(queuedTxsChan)
+	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
+	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishAdapter.StartPublishMarshal(mq.SubmitTxTopic)
+	go func() {
+		for msg := range queuedTxsChan {
+			publishAdapter.Publish(msg)
+		}
+	}()
 
 	mtmOpts := []func(*metamorph.Metamorph){
 		metamorph.WithQueuedTxsCh(queuedTxsChan),

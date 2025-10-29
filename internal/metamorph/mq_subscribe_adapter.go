@@ -8,13 +8,12 @@ import (
 	"sync"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/mq"
 	"google.golang.org/protobuf/proto"
 )
 
-type MessageQueueAdapter struct {
+type MessageSubscribeAdapter struct {
 	mqClient  mq.MessageQueueClient
 	logger    *slog.Logger
 	ctx       context.Context
@@ -22,8 +21,8 @@ type MessageQueueAdapter struct {
 	wg        *sync.WaitGroup
 }
 
-func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageQueueAdapter {
-	m := &MessageQueueAdapter{
+func NewMessageSubscribeAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger) *MessageSubscribeAdapter {
+	m := &MessageSubscribeAdapter{
 		mqClient: mqClient,
 		logger:   logger,
 		wg:       &sync.WaitGroup{},
@@ -34,12 +33,10 @@ func NewMessageQueueAdapter(mqClient mq.MessageQueueClient, logger *slog.Logger)
 	return m
 }
 
-func (m *MessageQueueAdapter) Start(
+func (m *MessageSubscribeAdapter) Start(
 	minedTxsChan chan *blocktx_api.TransactionBlocks,
 	submittedTxsChan chan *metamorph_api.PostTransactionRequest,
-	callbackChan chan *callbacker_api.SendRequest,
-	registerTxChan chan []byte,
-	registerTxsChan chan *blocktx_api.Transactions,
+
 ) error {
 	err := m.subscribeMinedTxs(minedTxsChan)
 	if err != nil {
@@ -49,13 +46,11 @@ func (m *MessageQueueAdapter) Start(
 	if err != nil {
 		return fmt.Errorf("failed to start submit txs: %w", err)
 	}
-	m.startPublishCallbacks(callbackChan)
-	m.startPublishRegisterTx(registerTxChan)
-	m.startPublishRegisterTxs(registerTxsChan)
+
 	return nil
 }
 
-func (m *MessageQueueAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) error {
+func (m *MessageSubscribeAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_api.TransactionBlocks) error {
 	err := m.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
 		serialized := &blocktx_api.TransactionBlocks{}
 		err := proto.Unmarshal(msg, serialized)
@@ -73,7 +68,7 @@ func (m *MessageQueueAdapter) subscribeMinedTxs(minedTxsChan chan *blocktx_api.T
 	return nil
 }
 
-func (m *MessageQueueAdapter) subscribeSubmitTxs(submittedTxsChan chan *metamorph_api.PostTransactionRequest) error {
+func (m *MessageSubscribeAdapter) subscribeSubmitTxs(submittedTxsChan chan *metamorph_api.PostTransactionRequest) error {
 	err := m.mqClient.Consume(mq.SubmitTxTopic, func(msg []byte) error {
 		serialized := &metamorph_api.PostTransactionRequest{}
 		marshalErr := proto.Unmarshal(msg, serialized)
@@ -101,56 +96,7 @@ func (m *MessageQueueAdapter) subscribeSubmitTxs(submittedTxsChan chan *metamorp
 	return nil
 }
 
-func (m *MessageQueueAdapter) startPublishCallbacks(callbackChan chan *callbacker_api.SendRequest) {
-	m.wg.Go(func() {
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case request := <-callbackChan:
-				err := m.mqClient.PublishMarshal(m.ctx, mq.CallbackTopic, request)
-				if err != nil {
-					m.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
-				}
-			}
-		}
-	})
-}
-
-func (m *MessageQueueAdapter) startPublishRegisterTx(registerTxChan chan []byte) {
-	m.wg.Go(func() {
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case request := <-registerTxChan:
-				err := m.mqClient.PublishCore(mq.RegisterTxTopic, request)
-				if err != nil {
-					m.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
-				}
-			}
-		}
-	})
-}
-
-func (m *MessageQueueAdapter) startPublishRegisterTxs(registerTxsChan chan *blocktx_api.Transactions) {
-	m.wg.Go(func() {
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case request := <-registerTxsChan:
-
-				err := m.mqClient.PublishMarshal(m.ctx, mq.RegisterTxsTopic, request)
-				if err != nil {
-					m.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
-				}
-			}
-		}
-	})
-}
-
-func (m *MessageQueueAdapter) Shutdown() {
+func (m *MessageSubscribeAdapter) Shutdown() {
 	m.cancelAll()
 	m.wg.Wait()
 }

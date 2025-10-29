@@ -260,7 +260,7 @@ func TestProcessTransaction(t *testing.T) {
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
-			var registeredTxs int32 = 0
+			registeredTxs := int32(0)
 			blocktxClient := &btxMocks.BlocktxClientMock{
 				RegisterTransactionFunc: func(_ context.Context, _ []byte) error {
 					if tc.registerTxErr != nil {

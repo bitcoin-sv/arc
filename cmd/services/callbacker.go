@@ -76,7 +76,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 
 	sendRequestChan := make(chan *callbacker_api.SendRequest, 500)
 
-	mqProvider := callbacker.NewMessageQueueAdapter(mqClient, logger)
+	mqProvider := callbacker.NewMessageSubscribeAdapter(mqClient, logger)
 	err = mqProvider.Start(sendRequestChan)
 	if err != nil {
 		stopFn()

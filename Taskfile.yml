@@ -71,7 +71,7 @@ tasks:
   test:
     desc: Run full test suite with coverage and race detection
     cmds:
-      - CGO_ENABLED=1 go test -parallel=20 -ldflags="-w -s" -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
+      - go test -parallel=20 -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
 
   test_short:
     desc: Run short test suite with coverage and race detection

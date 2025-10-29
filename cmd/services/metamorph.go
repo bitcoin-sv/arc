@@ -118,6 +118,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithCallbackChan(callbackerChan),
 		metamorph.WithRegisterTxChan(registerTxChan),
+		metamorph.WithRegisterTxsChan(registerTxsChan),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),

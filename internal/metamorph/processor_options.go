@@ -157,6 +157,12 @@ func WithRegisterTxChan(registerTxChan chan []byte) func(processor *Processor) {
 	}
 }
 
+func WithRegisterTxsChan(registerTxsChan chan *blocktx_api.Transactions) func(processor *Processor) {
+	return func(p *Processor) {
+		p.registerTxsChan = registerTxsChan
+	}
+}
+
 func WithSubmittedTxsChan(submittedTxsChan chan *metamorph_api.PostTransactionRequest) func(processor *Processor) {
 	return func(p *Processor) {
 		p.submittedTxsChan = submittedTxsChan

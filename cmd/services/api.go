@@ -71,9 +71,13 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, err
 	}
+	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
+
+	mqProvider := apiHandler.NewMessageQueueProvider(mqClient, logger)
+	mqProvider.Start(queuedTxsChan)
 
 	mtmOpts := []func(*metamorph.Metamorph){
-		metamorph.WithMqClient(mqClient),
+		metamorph.WithQueuedTxsCh(queuedTxsChan),
 		metamorph.WithLogger(logger),
 	}
 
@@ -134,10 +138,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
-	mtmClient := metamorph.NewClient(
-		metamorph_api.NewMetaMorphAPIClient(conn),
-		mtmOpts...,
-	)
+	mtmClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn), mtmOpts...)
 
 	btcConn, err := grpc_utils.DialGRPC(apiCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {

@@ -608,7 +608,9 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	p.registerTxChan <- hash[:]
+	if p.registerTxChan != nil {
+		p.registerTxChan <- hash[:]
+	}
 
 	return nil
 }
@@ -652,8 +654,9 @@ func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]
 		txs = append(txs, &blocktx_api.Transaction{Hash: hash[:]})
 	}
 	txsMsg := &blocktx_api.Transactions{Transactions: txs}
-
-	p.registerTxsChan <- txsMsg
+	if p.registerTxsChan != nil {
+		p.registerTxsChan <- txsMsg
+	}
 	return nil
 }
 

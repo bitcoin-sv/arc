@@ -19,14 +19,12 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -63,8 +61,8 @@ type Processor struct {
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
 	dataRetentionDays           int
-	mqClient                    mq.MessageQueueClient
 	registerTxsChan             chan []byte
+	minedTxsChan                chan *blocktx_api.TransactionBlocks
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
@@ -122,38 +120,6 @@ func NewProcessor(
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
-		select {
-		case p.registerTxsChan <- msg:
-		default:
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxTopic), err)
-	}
-
-	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.Transactions{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-		}
-
-		for _, tx := range serialized.Transactions {
-			select {
-			case p.registerTxsChan <- tx.Hash:
-			default:
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-	}
-
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
@@ -942,11 +908,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
-			if err != nil {
-				p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
-				publishErr = errors.Join(publishErr, err)
-			}
+			p.minedTxsChan <- msg
 
 			msg = &blocktx_api.TransactionBlocks{
 				TransactionBlocks: make([]*blocktx_api.TransactionBlock, 0, p.publishMinedMessageSize),
@@ -955,11 +917,7 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-			publishErr = errors.Join(publishErr, err)
-		}
+		p.minedTxsChan <- msg
 	}
 
 	return publishErr

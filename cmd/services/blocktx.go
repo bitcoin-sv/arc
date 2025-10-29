@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -81,9 +82,17 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 
 	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
+		return nil, err
+	}
+
+	mqProvider := blocktx.NewMessageQueueProvider(mqClient, logger)
+	err = mqProvider.Start(minedTxsChan, registerTxsChan)
+	if err != nil {
+		stopFn()
 		return nil, err
 	}
 
@@ -91,7 +100,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRegisterTxsInterval(btxCfg.RegisterTxsInterval),
-		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithMinedTxsChan(minedTxsChan),
 		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
 		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
 	)

@@ -4,16 +4,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/bitcoin-sv/arc/internal/mq"
 )
-
-func WithMessageQueueClient(mqClient mq.MessageQueueClient) func(*Processor) {
-	return func(p *Processor) {
-		p.mqClient = mqClient
-	}
-}
 
 func WithTransactionBatchSize(size int) func(*Processor) {
 	return func(p *Processor) {
@@ -36,6 +29,12 @@ func WithRegisterTxsInterval(d time.Duration) func(*Processor) {
 func WithRegisterTxsChan(registerTxsChan chan []byte) func(*Processor) {
 	return func(processor *Processor) {
 		processor.registerTxsChan = registerTxsChan
+	}
+}
+
+func WithMinedTxsChan(minedTxsChan chan *blocktx_api.TransactionBlocks) func(*Processor) {
+	return func(processor *Processor) {
+		processor.minedTxsChan = minedTxsChan
 	}
 }
 

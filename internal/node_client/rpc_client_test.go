@@ -28,6 +28,7 @@ func TestRPCClient(t *testing.T) {
 	require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
 	t.Run("invalidate block", func(t *testing.T) {
+		t.Parallel()
 		// given
 		blockHash, err := bitcoind.Generate(1)
 		require.NoError(t, err)

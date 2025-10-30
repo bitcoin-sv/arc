@@ -31,13 +31,13 @@ import (
 const (
 	timeoutSecondsDefault        = 5
 	rebroadcastExpirationDefault = 24 * time.Hour
-	currentBlockUpdateInterval   = 5 * time.Second
 	GenesisForkBlockMain         = int32(620539)
 	GenesisForkBlockTest         = int32(1344302)
 	GenesisForkBlockRegtest      = int32(10000)
 )
 
 var (
+	currentBlockUpdateInterval  = 5 * time.Second
 	ErrInvalidCallbackURL       = errors.New("invalid callback URL")
 	ErrCallbackURLNotAcceptable = errors.New("callback URL not acceptable")
 	ErrStatusNotSupported       = errors.New("status not supported")
@@ -69,6 +69,7 @@ type ArcDefaultHandler struct {
 	defaultValidator              DefaultValidator
 	beefValidator                 BeefValidator
 	standardFormatSupported       bool
+	currentBlockUpdateInterval    time.Duration
 }
 
 type PostResponse struct {
@@ -124,6 +125,11 @@ func WithTracer(attr ...attribute.KeyValue) func(s *ArcDefaultHandler) {
 		}
 	}
 }
+func WithCurrentBlockUpdateInterval(d time.Duration) func(*ArcDefaultHandler) {
+	return func(p *ArcDefaultHandler) {
+		p.currentBlockUpdateInterval = d
+	}
+}
 
 type Option func(f *ArcDefaultHandler)
 
@@ -164,19 +170,20 @@ func NewDefault(
 	}
 
 	handler := &ArcDefaultHandler{
-		TransactionHandler:      transactionHandler,
-		NodePolicy:              policy,
-		logger:                  logger,
-		now:                     time.Now,
-		rebroadcastExpiration:   rebroadcastExpirationDefault,
-		defaultTimeout:          timeoutSecondsDefault * time.Second,
-		maxTxSizePolicy:         maxTxSizePolicy,
-		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
-		maxscriptsizepolicy:     maxscriptsizepolicy,
-		btxClient:               btxClient,
-		waitGroup:               &sync.WaitGroup{},
-		defaultValidator:        defaultValidator,
-		beefValidator:           beefValidator,
+		TransactionHandler:         transactionHandler,
+		NodePolicy:                 policy,
+		logger:                     logger,
+		now:                        time.Now,
+		rebroadcastExpiration:      rebroadcastExpirationDefault,
+		defaultTimeout:             timeoutSecondsDefault * time.Second,
+		maxTxSizePolicy:            maxTxSizePolicy,
+		maxTxSigopsCountsPolicy:    maxTxSigopsCountsPolicy,
+		maxscriptsizepolicy:        maxscriptsizepolicy,
+		btxClient:                  btxClient,
+		waitGroup:                  &sync.WaitGroup{},
+		defaultValidator:           defaultValidator,
+		beefValidator:              beefValidator,
+		currentBlockUpdateInterval: currentBlockUpdateInterval,
 	}
 
 	// apply options

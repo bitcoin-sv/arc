@@ -298,7 +298,7 @@ func TestProcessTransaction(t *testing.T) {
 					ResponseChannel: responseChannel,
 				})
 			wg.Wait()
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			// then
 			require.Equal(t, tc.expectedSetCalls, len(s.SetCalls()))
 			require.Equal(t, tc.expectedAnnounceCalls, len(messenger.AnnounceTxAsyncCalls()))
@@ -583,7 +583,7 @@ func TestStartSendStatusForTransaction(t *testing.T) {
 				}
 			}
 
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(300 * time.Millisecond)
 
 			// then
 			require.Equal(t, tc.expectedUpdateStatusCalls, len(metamorphStore.UpdateStatusCalls()))
@@ -828,7 +828,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 
 			require.Equal(t, 0, sut.GetProcessorMapSize())
 
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 
 			// then
 			require.Equal(t, tc.expectedAnnouncements, len(messenger.AnnounceTxAsyncCalls()))
@@ -1034,7 +1034,7 @@ func TestProcessDoubleSpendAttemptCallbacks(t *testing.T) {
 		CompetingTxs: []string{testdata.TX2Hash.String()},
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	sut.Shutdown()
 
 	// then
@@ -1070,6 +1070,7 @@ func TestReAnnounceSeen(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			iterations := 0
 			stop := make(chan struct{}, 1)
 

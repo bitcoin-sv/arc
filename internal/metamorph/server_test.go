@@ -169,7 +169,7 @@ func TestPostTransaction(t *testing.T) {
 
 			// when
 			ctx := context.Background()
-			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
 			actualStatus, err := sut.PostTransactions(timeoutCtx, txRequest)
 
@@ -879,7 +879,7 @@ func TestPostTransactions(t *testing.T) {
 
 			// when
 			ctx := context.Background()
-			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
 			statuses, err := sut.PostTransactions(timeoutCtx, tc.requests)
 			if tc.expectedErrorStr != "" || err != nil {

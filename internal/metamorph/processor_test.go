@@ -1072,7 +1072,6 @@ func TestReAnnounceSeen(t *testing.T) {
 	for _, tc := range tt {
 		synctest.Test(t, func(t *testing.T) {
 			t.Log(tc.name)
-			t.Parallel()
 			iterations := 0
 			stop := make(chan struct{}, 1)
 

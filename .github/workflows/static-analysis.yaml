@@ -30,7 +30,7 @@ jobs:
           go-version-file: "./go.mod"
 
       - name: Run unit tests
-        run: go test -race -parallel=20 -vet=off -coverprofile=./cov.out ./... -tags=multicast_test -coverpkg ./...
+        run: go test -race -parallel=8 -vet=off -coverprofile=./cov.out ./... -tags=multicast_test -coverpkg ./...
 
       - name: Run gosec Security Scanner
         continue-on-error: true

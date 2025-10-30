@@ -71,12 +71,12 @@ tasks:
   test:
     desc: Run full test suite with coverage and race detection
     cmds:
-      - go test -parallel=20 -coverprofile=./cov.out -covermode=atomic -race -count=1 ./... -coverpkg ./...
+      - go test -parallel=20 -coverprofile=./cov.out -covermode=atomic -race ./... -coverpkg ./...
 
   test_short:
     desc: Run short test suite with coverage and race detection
     cmds:
-      - go test -parallel=20 -coverprofile=./cov_short.out -covermode=atomic -race -short -count=1 ./... -coverpkg ./...
+      - go test -parallel=20 -coverprofile=./cov_short.out -covermode=atomic -race -short ./... -coverpkg ./...
 
   coverage:
     desc: Generate HTML coverage report from full tests

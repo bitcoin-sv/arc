@@ -40,11 +40,11 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.41 && \
     chmod +x /bin/grpc_health_probe
 
 RUN go build \
-     -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION" \
+     -ldflags "-X $REPOSITORY/internal/version.Commit=$APP_COMMIT -X $REPOSITORY/internal/version.Version=$APP_VERSION -w -s" \
      -o /arc_linux_amd64 $MAIN
 
 # Build broadcaster-cli binary
-RUN go build -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
+RUN go build -ldflags="-w -s" -o /broadcaster-cli_linux_amd64 ./cmd/broadcaster-cli/main.go
 
 # Build e2e test binary
 RUN go test --tags=e2e ./test -c -o /e2e_test.test

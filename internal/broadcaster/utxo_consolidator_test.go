@@ -102,6 +102,7 @@ func TestStart(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			utxoClient := &mocks.UtxoClientMock{
 				GetUTXOsWithRetriesFunc: func(_ context.Context, _ string, _ time.Duration, _ uint64, _ int) (sdkTx.UTXOs, error) {

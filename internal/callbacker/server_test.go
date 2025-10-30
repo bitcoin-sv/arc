@@ -21,7 +21,8 @@ import (
 
 func TestNewServer(t *testing.T) {
 	t.Run("successfully creates a new server", func(t *testing.T) {
-		// Given
+		t.Parallel()
+		// given
 
 		// When
 		server, err := callbacker.NewServer(slog.Default(), nil, nil, grpc_utils.ServerConfig{})
@@ -37,13 +38,14 @@ func TestNewServer(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	t.Run("returns the current health with a valid timestamp", func(t *testing.T) {
+		t.Parallel()
 		mqClient := &mqMocks.MessageQueueClientMock{
 			StatusFunc: func() nats.Status {
 				return nats.CONNECTED
 			},
 		}
 
-		// Given
+		// given
 		sut, err := callbacker.NewServer(slog.Default(), nil, mqClient, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
 		defer sut.GracefulStop()
@@ -64,7 +66,8 @@ func TestHealth(t *testing.T) {
 
 func TestSendCallback(t *testing.T) {
 	t.Run("dispatches callback for each routing", func(t *testing.T) {
-		// Given
+		t.Parallel()
+		// given
 
 		callbackerStore := &mocks.ProcessorStoreMock{
 			InsertFunc: func(_ context.Context, _ []*store.CallbackData) (int64, error) {

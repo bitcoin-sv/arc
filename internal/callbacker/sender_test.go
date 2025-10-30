@@ -51,7 +51,8 @@ func TestCallbackSender_Send(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Given
+			t.Parallel()
+			// given
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.responseStatus)
@@ -82,7 +83,7 @@ func TestCallbackSender_Send(t *testing.T) {
 }
 
 func TestCallbackSender_GracefulStop(t *testing.T) {
-	// Given
+	// given
 	logger := slog.Default()
 	sut, err := callbacker.NewSender(logger)
 	require.NoError(t, err)
@@ -97,7 +98,7 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 }
 
 func TestCallbackSender_Health(t *testing.T) {
-	// Given
+	// given
 	logger := slog.Default()
 	sut, err := callbacker.NewSender(logger)
 	require.NoError(t, err)
@@ -151,7 +152,8 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Given
+			t.Parallel()
+			// given
 			retries := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, "Bearer "+tc.token, r.Header.Get("Authorization"))

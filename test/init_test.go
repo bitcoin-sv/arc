@@ -51,6 +51,9 @@ func setupSut() {
 
 	blocksToGenerate := minNumbeOfBlocks - info.Blocks
 
+	if blocksToGenerate <= 0 {
+		return
+	}
 	log.Printf("generate %d blocks", blocksToGenerate)
 
 	// generate blocks in part to ensure blocktx is able to process all blocks

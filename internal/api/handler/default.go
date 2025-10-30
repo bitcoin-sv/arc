@@ -170,19 +170,19 @@ func NewDefault(
 	}
 
 	handler := &ArcDefaultHandler{
-		TransactionHandler:      transactionHandler,
-		NodePolicy:              policy,
-		logger:                  logger,
-		now:                     time.Now,
-		rebroadcastExpiration:   rebroadcastExpirationDefault,
-		defaultTimeout:          timeoutSecondsDefault * time.Second,
-		maxTxSizePolicy:         maxTxSizePolicy,
-		maxTxSigopsCountsPolicy: maxTxSigopsCountsPolicy,
-		maxscriptsizepolicy:     maxscriptsizepolicy,
-		btxClient:               btxClient,
-		wg:                      &sync.WaitGroup{},
-		defaultValidator:        defaultValidator,
-		beefValidator:           beefValidator,
+		TransactionHandler:         transactionHandler,
+		NodePolicy:                 policy,
+		logger:                     logger,
+		now:                        time.Now,
+		rebroadcastExpiration:      rebroadcastExpirationDefault,
+		defaultTimeout:             timeoutSecondsDefault * time.Second,
+		maxTxSizePolicy:            maxTxSizePolicy,
+		maxTxSigopsCountsPolicy:    maxTxSigopsCountsPolicy,
+		maxscriptsizepolicy:        maxscriptsizepolicy,
+		btxClient:                  btxClient,
+		wg:                         &sync.WaitGroup{},
+		defaultValidator:           defaultValidator,
+		beefValidator:              beefValidator,
 		currentBlockUpdateInterval: currentBlockUpdateInterval,
 	}
 

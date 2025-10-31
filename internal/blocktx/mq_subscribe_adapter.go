@@ -81,12 +81,16 @@ func (m *MessageSubscribeAdapter) subscribeRegisterTxs(registerTxsChan chan []by
 			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
 		}
 
+		failedCount := 0
 		for _, tx := range serialized.Transactions {
 			select {
 			case registerTxsChan <- tx.Hash:
 			default:
-				m.logger.Warn("Failed to send message on register txs channel")
+				failedCount++
 			}
+		}
+		if failedCount > 0 {
+			m.logger.Warn("Failed to send messages on register txs channel", slog.Int("count", failedCount))
 		}
 
 		return nil

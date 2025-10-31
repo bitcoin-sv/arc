@@ -80,6 +80,4 @@ func setupSut() {
 
 		blocksToGenerate = blocksToGenerate - blockBatch
 	}
-
-	time.Sleep(15 * time.Second) // wait for fillGaps to fill eventual gaps
 }

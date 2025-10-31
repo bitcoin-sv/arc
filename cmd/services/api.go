@@ -242,6 +242,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, defaultAPIHandler)
 
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
@@ -262,11 +263,10 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
+	stoppable = append(stoppable, server)
 
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)
-
-	shutdownFns = append(shutdownFns, defaultAPIHandler.Shutdown)
 
 	// Serve HTTP until the world ends.
 	go func() {

@@ -193,10 +193,15 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
-	err = startZMQs(logger, mtmCfg.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
+	zmqs, err := startZMQs(logger, mtmCfg.BlockchainNetwork.Peers, statusMessageCh)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, zmq := range zmqs {
+		stoppable = append(stoppable, zmq)
+	}
+
 	return stopFn, nil
 }
 
@@ -231,7 +236,8 @@ func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) (shutdow
 	return shutdownFns, optsServer, processorOpts, bcMediatorOpts
 }
 
-func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns *[]func()) error {
+func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, statusMessageCh chan *metamorph_p2p.TxStatusMessage) ([]*metamorph.ZMQ, error) {
+	zmqs := make([]*metamorph.ZMQ, 0)
 	for i, peerSetting := range peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
@@ -246,19 +252,17 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 		zmqHandler := metamorph.NewZMQHandler(context.Background(), zmqURL, logger)
 		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageCh, zmqHandler, logger)
 		if err != nil {
-			stopFn()
-			return fmt.Errorf("failed to create ZMQ: %v", err)
+			return nil, fmt.Errorf("failed to create ZMQ: %v", err)
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
-		cleanup, err := zmq.Start()
-		*shutdownFns = append(*shutdownFns, cleanup)
+		err = zmq.Start()
 		if err != nil {
-			stopFn()
-			return fmt.Errorf("failed to start ZMQ: %v", err)
+			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
 		}
+		zmqs = append(zmqs, zmq)
 	}
-	return nil
+	return zmqs, nil
 }
 
 func getMtmMqOpts(logger *slog.Logger) []nats_jetstream.Option {

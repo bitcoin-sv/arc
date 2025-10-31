@@ -60,18 +60,18 @@ type Transaction struct {
 	BlockHeight uint64
 }
 
-// TransactionOptions options passed from header when creating transactions.
+// TransactionOptions options passed from the header when creating transactions.
 type TransactionOptions struct {
-	CallbackURL             string               `json:"callback_url,omitempty"`
-	CallbackToken           string               `json:"callback_token,omitempty"`
-	CallbackBatch           bool                 `json:"callback_batch,omitempty"`
-	SkipFeeValidation       bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation    bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation        bool                 `json:"X-SkipTxValidation,omitempty"`
-	ForceValidation         bool                 `json:"X-ForceValidation,omitempty"`
-	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
-	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
+	CallbackURL             string
+	CallbackToken           string
+	CallbackBatch           bool
+	SkipFeeValidation       bool
+	SkipScriptValidation    bool
+	SkipTxValidation        bool
+	ForceValidation         bool
+	CumulativeFeeValidation bool
+	WaitForStatus           metamorph_api.Status
+	FullStatusUpdates       bool
 }
 
 type Stoppable interface {

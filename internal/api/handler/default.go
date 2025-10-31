@@ -460,7 +460,7 @@ func (m *ArcDefaultHandler) checkAllProcessed(txStatuses []*global.TransactionSt
 				break
 			}
 		}
-		if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
+		if time.Since(tx.LastSubmitted) > m.rebroadcastExpiration || !exists {
 			allProcessed = false
 			break
 		}

@@ -157,7 +157,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	}
 
 	if tx.GetLastSubmitted() != nil {
-		txStatus.LastSubmitted = *tx.GetLastSubmitted()
+		txStatus.LastSubmitted = tx.GetLastSubmitted().AsTime()
 	}
 	return txStatus, nil
 }
@@ -184,18 +184,21 @@ func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) 
 	}
 
 	for _, tx := range txStatuses.Statuses {
-		txs = append(txs, &global.TransactionStatus{
-			TxID:          tx.Txid,
-			MerklePath:    tx.GetMerklePath(),
-			Status:        tx.GetStatus().String(),
-			BlockHash:     tx.GetBlockHash(),
-			BlockHeight:   tx.GetBlockHeight(),
-			ExtraInfo:     tx.GetRejectReason(),
-			CompetingTxs:  tx.GetCompetingTxs(),
-			Callbacks:     tx.GetCallbacks(),
-			LastSubmitted: *tx.GetLastSubmitted(),
-			Timestamp:     m.now().Unix(),
-		})
+		status := &global.TransactionStatus{
+			TxID:         tx.Txid,
+			MerklePath:   tx.GetMerklePath(),
+			Status:       tx.GetStatus().String(),
+			BlockHash:    tx.GetBlockHash(),
+			BlockHeight:  tx.GetBlockHeight(),
+			ExtraInfo:    tx.GetRejectReason(),
+			CompetingTxs: tx.GetCompetingTxs(),
+			Callbacks:    tx.GetCallbacks(),
+			Timestamp:    m.now().Unix(),
+		}
+		if tx.GetLastSubmitted() != nil {
+			status.LastSubmitted = tx.GetLastSubmitted().AsTime()
+		}
+		txs = append(txs, status)
 	}
 
 	return txs, nil

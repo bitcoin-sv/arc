@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var ErrTransactionNotFound = errors.New("transaction not found")
@@ -50,7 +50,7 @@ type TransactionStatus struct {
 	ExtraInfo     string
 	Callbacks     []*metamorph_api.Callback
 	CompetingTxs  []string
-	LastSubmitted timestamppb.Timestamp
+	LastSubmitted time.Time
 	Timestamp     int64
 }
 

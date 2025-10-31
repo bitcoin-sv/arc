@@ -106,6 +106,7 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 			logger := slog.Default()
 
 			adapter := NewMessageSubscribeAdapter(mqClient, logger)
+			// Shutdown the adapter
 			defer adapter.Shutdown()
 
 			registerTxChan := make(chan []byte, 10)
@@ -123,7 +124,6 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 				}
 			}
 
-			// Shutdown the adapter
 			assert.Equal(t, tc.expectedRegisteredTxs, registerTxs)
 
 			if tc.expectedError != nil {

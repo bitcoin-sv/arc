@@ -49,7 +49,7 @@ func TestStartCallbackStoreCleanup(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			processor, err := callbacker.NewProcessor(nil, cbStore, nil, logger)
 			require.NoError(t, err)
-			defer processor.GracefulStop()
+			defer processor.Shutdown()
 			callbacker.CallbackStoreCleanup(processor)
 
 			require.Equal(t, tc.expectedClearCalls, len(cbStore.ClearCalls()))
@@ -170,7 +170,7 @@ func TestSendCallbacks(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger, callbacker.WithMaxRetries(5))
 			require.NoError(t, err)
-			defer processor.GracefulStop()
+			defer processor.Shutdown()
 			callbacker.LoadAndSendSingleCallbacks(processor)
 
 			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))
@@ -280,7 +280,7 @@ func TestSendBatchCallbacks(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			processor, err := callbacker.NewProcessor(sender, cbStore, nil, logger)
 			require.NoError(t, err)
-			defer processor.GracefulStop()
+			defer processor.Shutdown()
 			callbacker.LoadAndSendBatchCallbacks(processor)
 
 			assert.Equal(t, tc.expectedGetUnsentCalls, len(cbStore.GetUnsentCalls()))

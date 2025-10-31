@@ -31,9 +31,9 @@ func testNewZMQHandler(t *testing.T, zmqURL *url.URL, waitingTime time.Duration)
 	require.NotNil(t, handler)
 	zmq, err := metamorph.NewZMQ(zmqEndpointURL, statusMessageCh, handler, logger)
 	require.NoError(t, err)
-	closeZMQ, err := zmq.Start()
+	defer zmq.Shutdown()
+	err = zmq.Start()
 	require.NoError(t, err)
-	defer closeZMQ()
 	logger.Info("Listening to ZMQ", slog.String("host", zmqEndpointURL.Hostname()), slog.String("port", zmqEndpointURL.Port()))
 
 	tt := []struct {

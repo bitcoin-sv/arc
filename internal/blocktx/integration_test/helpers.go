@@ -7,16 +7,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store/postgresql"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
+	"github.com/stretchr/testify/require"
 )
 
 func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.MsgHandler, *postgresql.PostgreSQL, chan []byte, chan *blocktx_api.TransactionBlocks) {
@@ -26,21 +23,11 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 
 	blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 
-	publishedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
+	minedTxsCh := make(chan *blocktx_api.TransactionBlocks, 10)
 	registerTxChannel := make(chan []byte, 10)
 
 	store, err := postgresql.New(dbInfo, 10, 80)
 	require.NoError(t, err)
-
-	mqClient := &mqMocks.MessageQueueClientMock{
-		PublishMarshalCoreFunc: func(_ string, m proto.Message) error {
-			serialized, ok := m.(*blocktx_api.TransactionBlocks)
-			require.True(t, ok)
-
-			publishedTxsCh <- serialized
-			return nil
-		},
-	}
 
 	p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 	processor, err := blocktx.NewProcessor(
@@ -48,24 +35,24 @@ func setupSut(t *testing.T, dbInfo string) (*blocktx.Processor, *blocktx_p2p.Msg
 		store,
 		nil,
 		blockProcessCh,
-		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithMinedTxsChan(minedTxsCh),
 		blocktx.WithRegisterTxsChan(registerTxChannel),
 		blocktx.WithRegisterTxsBatchSize(1), // process transaction immediately
 	)
 	require.NoError(t, err)
 
-	return processor, p2pMsgHandler, store, registerTxChannel, publishedTxsCh
+	return processor, p2pMsgHandler, store, registerTxChannel, minedTxsCh
 }
 
-func getPublishedTxs(publishedTxsCh chan *blocktx_api.TransactionBlocks) []*blocktx_api.TransactionBlock {
-	publishedTxs := make([]*blocktx_api.TransactionBlock, 0)
+func getTxBlockItems(txBlocksCh chan *blocktx_api.TransactionBlocks) []*blocktx_api.TransactionBlock {
+	txBlocks := make([]*blocktx_api.TransactionBlock, 0)
 
 	for {
 		select {
-		case tx := <-publishedTxsCh:
-			publishedTxs = append(publishedTxs, tx.TransactionBlocks...)
+		case tx := <-txBlocksCh:
+			txBlocks = append(txBlocks, tx.TransactionBlocks...)
 		default:
-			return publishedTxs
+			return txBlocks
 		}
 	}
 }

@@ -14,23 +14,22 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 // Metamorph is the connector to a metamorph server.
 type Metamorph struct {
 	client            metamorph_api.MetaMorphAPIClient
-	mqClient          mq.MessageQueueClient
 	logger            *slog.Logger
 	now               func() time.Time
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
+	queuedTxsCh       chan *metamorph_api.PostTransactionRequest
 }
 
-func WithMqClient(mqClient mq.MessageQueueClient) func(*Metamorph) {
+func WithQueuedTxsCh(queuedTxsCh chan *metamorph_api.PostTransactionRequest) func(*Metamorph) {
 	return func(m *Metamorph) {
-		m.mqClient = mqClient
+		m.queuedTxsCh = queuedTxsCh
 	}
 }
 
@@ -158,7 +157,7 @@ func (m *Metamorph) GetTransactionStatus(ctx context.Context, txID string) (txSt
 	}
 
 	if tx.GetLastSubmitted() != nil {
-		txStatus.LastSubmitted = *tx.GetLastSubmitted()
+		txStatus.LastSubmitted = tx.GetLastSubmitted().AsTime()
 	}
 	return txStatus, nil
 }
@@ -185,18 +184,21 @@ func (m *Metamorph) GetTransactionStatuses(ctx context.Context, txIDs []string) 
 	}
 
 	for _, tx := range txStatuses.Statuses {
-		txs = append(txs, &global.TransactionStatus{
-			TxID:          tx.Txid,
-			MerklePath:    tx.GetMerklePath(),
-			Status:        tx.GetStatus().String(),
-			BlockHash:     tx.GetBlockHash(),
-			BlockHeight:   tx.GetBlockHeight(),
-			ExtraInfo:     tx.GetRejectReason(),
-			CompetingTxs:  tx.GetCompetingTxs(),
-			Callbacks:     tx.GetCallbacks(),
-			LastSubmitted: *tx.GetLastSubmitted(),
-			Timestamp:     m.now().Unix(),
-		})
+		status := &global.TransactionStatus{
+			TxID:         tx.Txid,
+			MerklePath:   tx.GetMerklePath(),
+			Status:       tx.GetStatus().String(),
+			BlockHash:    tx.GetBlockHash(),
+			BlockHeight:  tx.GetBlockHeight(),
+			ExtraInfo:    tx.GetRejectReason(),
+			CompetingTxs: tx.GetCompetingTxs(),
+			Callbacks:    tx.GetCallbacks(),
+			Timestamp:    m.now().Unix(),
+		}
+		if tx.GetLastSubmitted() != nil {
+			status.LastSubmitted = tx.GetLastSubmitted().AsTime()
+		}
+		txs = append(txs, status)
 	}
 
 	return txs, nil
@@ -235,11 +237,16 @@ func (m *Metamorph) SubmitTransactions(ctx context.Context, txs sdkTx.Transactio
 		in.Transactions = append(in.Transactions, transactionRequest(tx.Bytes(), options))
 	}
 
-	if options.WaitForStatus == metamorph_api.Status_QUEUED && m.mqClient != nil {
+	if options.WaitForStatus == metamorph_api.Status_QUEUED {
 		for _, tx := range in.Transactions {
-			err = m.mqClient.PublishMarshal(ctx, mq.SubmitTxTopic, tx)
-			if err != nil {
-				return nil, err
+			if m.queuedTxsCh != nil {
+				select {
+				case m.queuedTxsCh <- tx:
+				default:
+					m.logger.Warn("Failed to send transaction to queued txs channel")
+				}
+			} else {
+				m.logger.Warn("Queued txs channel not available")
 			}
 		}
 

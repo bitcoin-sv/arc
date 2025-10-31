@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
@@ -45,14 +45,13 @@ import (
 func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "api"))
 	logger.Info("Starting")
-	var (
-		mqClient             mq.MessageQueueClient
-		echoServer           *echo.Echo
-		err                  error
-		merkleVerifierClient *merkle_verifier.Client
-	)
 
-	echoServer = setAPIEcho(logger, apiCfg)
+	var stoppable global.Stoppables
+	var stoppableWithError global.StoppablesWithError
+	var stoppableWithContext global.StoppablesWithContext
+
+	echoServer := setAPIEcho(logger, apiCfg)
+	stoppableWithContext = append(stoppableWithContext, echoServer)
 
 	// load the ARC handler from config
 	// If you want to customize this for your own server, see examples dir
@@ -62,18 +61,34 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	shutdownFns := make([]func(), 0)
 	stopFn := func() {
 		logger.Info("Shutting down api")
-		disposeAPI(logger, echoServer, mqClient, merkleVerifierClient, shutdownFns)
+		for _, shutdownFn := range shutdownFns {
+			shutdownFn()
+		}
+		stoppable.Shutdown()
+		stoppableWithError.Shutdown(logger)
+		stoppableWithContext.Shutdown(context.Background(), logger)
+
 		logger.Info("Shutdown complete")
 	}
 
-	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
+	mqClient, err := mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, mqClient)
+
+	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
+	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishAdapter.StartPublishMarshal(mq.SubmitTxTopic)
+	go func() {
+		for msg := range queuedTxsChan {
+			publishAdapter.Publish(msg)
+		}
+	}()
 
 	mtmOpts := []func(*metamorph.Metamorph){
-		metamorph.WithMqClient(mqClient),
+		metamorph.WithQueuedTxsCh(queuedTxsChan),
 		metamorph.WithLogger(logger),
 	}
 
@@ -134,10 +149,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		return nil, fmt.Errorf("failed to connect to metamorph server: %v", err)
 	}
 
-	mtmClient := metamorph.NewClient(
-		metamorph_api.NewMetaMorphAPIClient(conn),
-		mtmOpts...,
-	)
+	mtmClient := metamorph.NewClient(metamorph_api.NewMetaMorphAPIClient(conn), mtmOpts...)
 
 	btcConn, err := grpc_utils.DialGRPC(apiCfg.BlocktxDialAddr, commonCfg.Prometheus.Endpoint, commonCfg.GrpcMessageSize, commonCfg.Tracing)
 	if err != nil {
@@ -186,8 +198,9 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 			chainTrackers = append(chainTrackers, ct)
 		}
 
-		merkleVerifierClient = merkle_verifier.NewClient(logger, chainTrackers, merkleVerifierOpts...)
+		merkleVerifierClient := merkle_verifier.NewClient(logger, chainTrackers, merkleVerifierOpts...)
 		chainTracker = merkleVerifierClient
+		stoppable = append(stoppable, merkleVerifierClient)
 	}
 
 	switch commonCfg.Network {
@@ -229,6 +242,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, defaultAPIHandler)
 
 	defaultAPIHandler.StartUpdateCurrentBlockHeight()
 
@@ -249,11 +263,10 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
+	stoppable = append(stoppable, server)
 
 	// Register the ARC API
 	api.RegisterHandlers(echoServer, defaultAPIHandler)
-
-	shutdownFns = append(shutdownFns, defaultAPIHandler.Shutdown)
 
 	// Serve HTTP until the world ends.
 	go func() {
@@ -325,27 +338,6 @@ func logRequestMiddleware(logger *slog.Logger, extendLog bool) echo.MiddlewareFu
 	}
 
 	return echomiddleware.RequestLoggerWithConfig(requestLogConfig(logger))
-}
-
-func disposeAPI(logger *slog.Logger, echoServer *echo.Echo, mqClient mq.MessageQueueClient, merkleVerifierClient *merkle_verifier.Client, shutdownFns []func()) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if echoServer != nil {
-		err := echoServer.Shutdown(ctx)
-		if err != nil {
-			logger.Error("Failed to close API echo server", slog.String("err", err.Error()))
-		}
-	}
-
-	if merkleVerifierClient != nil {
-		merkleVerifierClient.Shutdown()
-	}
-
-	mqClient.Shutdown()
-
-	for _, fn := range shutdownFns {
-		fn()
-	}
 }
 
 func requestLogConfig(logger *slog.Logger) echomiddleware.RequestLoggerConfig {

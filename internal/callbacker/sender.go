@@ -45,7 +45,7 @@ func NewSender(logger *slog.Logger, opts ...SenderOption) (*CallbackSender, erro
 	return callbacker, nil
 }
 
-func (p *CallbackSender) GracefulStop() {
+func (p *CallbackSender) Shutdown() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

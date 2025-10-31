@@ -19,19 +19,16 @@ import (
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
 var (
-	ErrFailedToSubscribeToTopic            = errors.New("failed to subscribe to register topic")
 	ErrFailedToGetBlockTransactions        = errors.New("failed to get block transactions")
 	ErrFailedToParseBlockHash              = errors.New("failed to parse block hash")
 	ErrFailedToInsertBlockTransactions     = errors.New("failed to insert block transactions")
@@ -63,8 +60,8 @@ type Processor struct {
 	logger                      *slog.Logger
 	transactionStorageBatchSize int
 	dataRetentionDays           int
-	mqClient                    mq.MessageQueueClient
 	registerTxsChan             chan []byte
+	minedTxsChan                chan *blocktx_api.TransactionBlocks
 	registerTxsInterval         time.Duration
 	registerRequestTxsInterval  time.Duration
 	registerTxsBatchSize        int
@@ -77,7 +74,7 @@ type Processor struct {
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
 
-	waitGroup *sync.WaitGroup
+	wg        *sync.WaitGroup
 	cancelAll context.CancelFunc
 	ctx       context.Context
 }
@@ -107,7 +104,7 @@ func NewProcessor(
 		hostname:                    hostname,
 		publishMinedMessageSize:     publishMinedMessageSizeDefault,
 		now:                         time.Now,
-		waitGroup:                   &sync.WaitGroup{},
+		wg:                          &sync.WaitGroup{},
 	}
 
 	for _, opt := range opts {
@@ -122,38 +119,6 @@ func NewProcessor(
 }
 
 func (p *Processor) Start() error {
-	err := p.mqClient.QueueSubscribe(mq.RegisterTxTopic, func(msg []byte) error {
-		select {
-		case p.registerTxsChan <- msg:
-		default:
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxTopic), err)
-	}
-
-	err = p.mqClient.QueueSubscribe(mq.RegisterTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.Transactions{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-		}
-
-		for _, tx := range serialized.Transactions {
-			select {
-			case p.registerTxsChan <- tx.Hash:
-			default:
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribeToTopic, fmt.Errorf(topic, mq.RegisterTxsTopic), err)
-	}
-
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
@@ -162,10 +127,7 @@ func (p *Processor) Start() error {
 }
 
 func (p *Processor) StartBlockRequesting() {
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -197,15 +159,11 @@ func (p *Processor) StartBlockRequesting() {
 				p.logger.Info("Block request message sent to peer", slog.String("hash", hash.String()), slog.String("peer", peer.String()))
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) StartBlockProcessing() {
-	p.waitGroup.Add(1)
-
-	go func() {
-		defer p.waitGroup.Done()
-
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -243,23 +201,26 @@ func (p *Processor) StartBlockProcessing() {
 				)
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) RegisterTransaction(txHash []byte) {
-	select {
-	case p.registerTxsChan <- txHash:
-	default:
+	if p.registerTxsChan != nil {
+		select {
+		case p.registerTxsChan <- txHash:
+		default:
+			p.logger.Warn("Failed to send message on register txs channel")
+		}
+	} else {
+		p.logger.Warn("Register txs channel not available")
 	}
 }
 
 func (p *Processor) StartProcessRegisterTxs() {
-	p.waitGroup.Add(1)
 	txHashes := make([][]byte, 0, p.registerTxsBatchSize)
-
 	ticker := time.NewTicker(p.registerTxsInterval)
-	go func() {
-		defer p.waitGroup.Done()
+
+	p.wg.Go(func() {
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -291,7 +252,7 @@ func (p *Processor) StartProcessRegisterTxs() {
 				ticker.Reset(p.registerTxsInterval)
 			}
 		}
-	}()
+	})
 }
 
 func (p *Processor) CurrentBlockHeight() (uint64, error) {
@@ -942,10 +903,14 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 		msg.TransactionBlocks = append(msg.TransactionBlocks, txBlock)
 
 		if len(msg.TransactionBlocks) >= p.publishMinedMessageSize {
-			err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
-			if err != nil {
-				p.logger.Error("Failed to publish mined txs", slog.String("blockHash", getHashStringNoErr(tx.BlockHash)), slog.Uint64("height", tx.BlockHeight), slog.String("err", err.Error()))
-				publishErr = errors.Join(publishErr, err)
+			if p.minedTxsChan != nil {
+				select {
+				case p.minedTxsChan <- msg:
+				default:
+					p.logger.Warn("Failed to send message on mined txs channel")
+				}
+			} else {
+				p.logger.Warn("Mined txs channel not available")
 			}
 
 			msg = &blocktx_api.TransactionBlocks{
@@ -955,10 +920,14 @@ func (p *Processor) publishMinedTxs(ctx context.Context, txs []store.BlockTransa
 	}
 
 	if len(msg.TransactionBlocks) > 0 {
-		err := p.mqClient.PublishMarshalCore(mq.MinedTxsTopic, msg)
-		if err != nil {
-			p.logger.Error("failed to publish mined txs", slog.String("err", err.Error()))
-			publishErr = errors.Join(publishErr, err)
+		if p.minedTxsChan != nil {
+			select {
+			case p.minedTxsChan <- msg:
+			default:
+				p.logger.Warn("Failed to send message on mined txs channel")
+			}
+		} else {
+			p.logger.Warn("Mined txs channel not available")
 		}
 	}
 
@@ -1071,5 +1040,5 @@ func getBlockTransactionsWithMerklePath(txs []store.BlockTransaction) map[string
 
 func (p *Processor) Shutdown() {
 	p.cancelAll()
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }

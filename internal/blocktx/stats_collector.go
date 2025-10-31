@@ -32,7 +32,7 @@ type StatsCollector struct {
 	ConnectedPeers         prometheus.Gauge
 	ReconnectingPeers      prometheus.Gauge
 	statCollectionInterval time.Duration
-	waitGroup              *sync.WaitGroup
+	wg                     *sync.WaitGroup
 	cancelAll              context.CancelFunc
 	ctx                    context.Context
 	logger                 *slog.Logger
@@ -56,7 +56,7 @@ func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxS
 			Help: "Current number of peers that are reconnecting",
 		}),
 		statCollectionInterval: statCollectionIntervalDefault,
-		waitGroup:              &sync.WaitGroup{},
+		wg:                     &sync.WaitGroup{},
 		logger:                 logger,
 		store:                  store,
 		pm:                     pm,
@@ -84,7 +84,7 @@ func (p *StatsCollector) Start() error {
 		return errors.Join(ErrFailedToStartCollectingStats, err)
 	}
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	go func() {
 		defer func() {
@@ -93,7 +93,7 @@ func (p *StatsCollector) Start() error {
 				p.ConnectedPeers,
 				p.ReconnectingPeers,
 			)
-			p.waitGroup.Done()
+			p.wg.Done()
 		}()
 
 		for {
@@ -140,5 +140,5 @@ func unregisterStats(cs ...prometheus.Collector) {
 
 func (p *StatsCollector) Shutdown() {
 	p.cancelAll()
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }

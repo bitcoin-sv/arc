@@ -27,6 +27,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/bitcoin-sv/arc/config"
@@ -40,43 +42,51 @@ import (
 func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, commonCfg *config.CommonConfig) (func(), error) {
 	logger = logger.With(slog.String("service", "callbacker"))
 	logger.Info("Starting")
-	var (
-		callbackerStore *postgresql.PostgreSQL
-		sender          *callbacker.CallbackSender
-		server          *callbacker.Server
-		healthServer    *grpc_utils.GrpcServer
-		mqClient        mq.MessageQueueClient
-		processor       *callbacker.Processor
-		err             error
-	)
+
+	var stoppable global.Stoppables
+	var stoppableWithError global.StoppablesWithError
 
 	stopFn := func() {
 		logger.Info("Shutting down callbacker")
-		disposeCallbacker(logger, server, sender, callbackerStore, healthServer, processor, mqClient)
+		stoppable.Shutdown()
+		stoppableWithError.Shutdown(logger)
 		logger.Info("Shutdown callbacker complete")
 	}
 
-	callbackerStore, err = newStore(cbCfg.Db)
+	callbackerStore, err := newCallbackerStore(cbCfg.Db)
 	if err != nil {
+		stopFn()
 		return nil, fmt.Errorf("failed to create callbacker store: %v", err)
 	}
+	stoppableWithError = append(stoppableWithError, callbackerStore)
 
-	sender, err = callbacker.NewSender(logger, callbacker.WithTimeout(5*time.Second))
+	sender, err := callbacker.NewSender(logger, callbacker.WithTimeout(5*time.Second))
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to create callback sender: %v", err)
 	}
 
 	mqOpts := getCbkMqOpts()
-	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
+	mqClient, err := mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, mqClient)
 
-	processor, err = callbacker.NewProcessor(
+	sendRequestChan := make(chan *callbacker_api.SendRequest, 500)
+	subscribeAdapter := callbacker.NewMessageSubscribeAdapter(mqClient, logger)
+	err = subscribeAdapter.Start(sendRequestChan)
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+	stoppable = append(stoppable, subscribeAdapter)
+
+	processor, err := callbacker.NewProcessor(
 		sender,
 		callbackerStore,
-		mqClient,
+		sendRequestChan,
 		logger,
 		callbacker.WithExpiration(cbCfg.Expiration),
 		callbacker.WithSingleSendInterval(cbCfg.Pause),
@@ -89,6 +99,7 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, processor)
 
 	err = processor.Start()
 	if err != nil {
@@ -103,11 +114,12 @@ func StartCallbacker(logger *slog.Logger, cbCfg *config.CallbackerConfig, common
 		Name:               "blocktx",
 	}
 
-	server, err = callbacker.NewServer(logger, callbackerStore, mqClient, serverCfg)
+	server, err := callbacker.NewServer(logger, callbackerStore, mqClient, serverCfg)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
+	stoppable = append(stoppable, server)
 
 	err = server.ListenAndServe(cbCfg.ListenAddr)
 	if err != nil {
@@ -130,7 +142,7 @@ func getCbkMqOpts() []nats_jetstream.Option {
 	return mqOpts
 }
 
-func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
+func newCallbackerStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
 		cfg := dbConfig.Postgres
@@ -148,38 +160,4 @@ func newStore(dbConfig *config.DbConfig) (s *postgresql.PostgreSQL, err error) {
 	}
 
 	return s, err
-}
-
-func disposeCallbacker(l *slog.Logger, server *callbacker.Server,
-	sender *callbacker.CallbackSender,
-	store *postgresql.PostgreSQL, healthServer *grpc_utils.GrpcServer, processor *callbacker.Processor, mqClient mq.MessageQueueClient) {
-	// dispose the dependencies in the correct order:
-	// 1. server - ensure no new callbacks will be received
-	// 2. processor - remove all URL mappings
-	// 3. sender - stop the sender as there are no callbacks left to send
-	// 4. mqClient - finally, stop the mq client as there are no callbacks left to send
-	// 5. store
-
-	if server != nil {
-		server.GracefulStop()
-	}
-	if processor != nil {
-		processor.GracefulStop()
-	}
-	if sender != nil {
-		sender.GracefulStop()
-	}
-	if mqClient != nil {
-		mqClient.Shutdown()
-	}
-	if store != nil {
-		err := store.Close()
-		if err != nil {
-			l.Error("Could not close the store", slog.String("err", err.Error()))
-		}
-	}
-
-	if healthServer != nil {
-		healthServer.GracefulStop()
-	}
 }

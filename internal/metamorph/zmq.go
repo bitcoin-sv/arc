@@ -44,6 +44,7 @@ type ZMQ struct {
 	statusMessageCh chan<- *metamorph_p2p.TxStatusMessage
 	handler         ZMQI
 	logger          *slog.Logger
+	zmqCh           chan []string
 }
 
 type ZMQTxInfo struct {
@@ -96,23 +97,22 @@ func NewZMQ(zmqURL *url.URL, statusMessageCh chan<- *metamorph_p2p.TxStatusMessa
 		statusMessageCh: statusMessageCh,
 		handler:         zmqHandler,
 		logger:          logger,
+		zmqCh:           make(chan []string, 100),
 	}
 
 	return z, nil
 }
 
-func (z *ZMQ) Start() (func(), error) {
-	ch := make(chan []string, 100)
+func (z *ZMQ) Shutdown() {
+	close(z.zmqCh)
+}
 
-	cleanup := func() {
-		close(ch)
-	}
-
+func (z *ZMQ) Start() error {
 	const hashtxTopic = "hashtx2"
 	const invalidTxTopic = "invalidtx"
 	const discardedFromMempoolTopic = "discardedfrommempool"
 	go func() {
-		for c := range ch {
+		for c := range z.zmqCh {
 			switch c[0] {
 			case hashtxTopic:
 				z.processHashTxTopic(context.Background(), hashtxTopic, c)
@@ -138,19 +138,19 @@ func (z *ZMQ) Start() (func(), error) {
 		}
 	}()
 
-	if err := z.handler.Subscribe(hashtxTopic, ch); err != nil {
-		return cleanup, err
+	if err := z.handler.Subscribe(hashtxTopic, z.zmqCh); err != nil {
+		return err
 	}
 
-	if err := z.handler.Subscribe(invalidTxTopic, ch); err != nil {
-		return cleanup, err
+	if err := z.handler.Subscribe(invalidTxTopic, z.zmqCh); err != nil {
+		return err
 	}
 
-	if err := z.handler.Subscribe(discardedFromMempoolTopic, ch); err != nil {
-		return cleanup, err
+	if err := z.handler.Subscribe(discardedFromMempoolTopic, z.zmqCh); err != nil {
+		return err
 	}
 
-	return cleanup, nil
+	return nil
 }
 
 func (z *ZMQ) handleInvalidTx(msg []string) (hash *chainhash.Hash, status metamorph_api.Status, txErr error, competingTxs []string, err error) {

@@ -54,7 +54,7 @@ type ArcDefaultHandler struct {
 	maxTxSigopsCountsPolicy uint64
 	maxscriptsizepolicy     uint64
 	currentBlockHeight      int32
-	waitGroup               *sync.WaitGroup
+	wg                      *sync.WaitGroup
 	cancelAll               context.CancelFunc
 	ctx                     context.Context
 
@@ -180,7 +180,7 @@ func NewDefault(
 		maxTxSigopsCountsPolicy:    maxTxSigopsCountsPolicy,
 		maxscriptsizepolicy:        maxscriptsizepolicy,
 		btxClient:                  btxClient,
-		waitGroup:                  &sync.WaitGroup{},
+		wg:                         &sync.WaitGroup{},
 		defaultValidator:           defaultValidator,
 		beefValidator:              beefValidator,
 		currentBlockUpdateInterval: currentBlockUpdateInterval,
@@ -200,10 +200,10 @@ func NewDefault(
 
 func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 	ticker := time.NewTicker(currentBlockUpdateInterval) // Use constant for this
-	m.waitGroup.Add(1)
+	m.wg.Add(1)
 
 	go func() {
-		defer m.waitGroup.Done()
+		defer m.wg.Done()
 		for {
 			select {
 			case <-m.ctx.Done():
@@ -460,7 +460,7 @@ func (m *ArcDefaultHandler) checkAllProcessed(txStatuses []*global.TransactionSt
 				break
 			}
 		}
-		if time.Since(tx.LastSubmitted.AsTime()) > m.rebroadcastExpiration || !exists {
+		if time.Since(tx.LastSubmitted) > m.rebroadcastExpiration || !exists {
 			allProcessed = false
 			break
 		}
@@ -915,5 +915,5 @@ func (m *ArcDefaultHandler) Shutdown() {
 	}
 
 	m.cancelAll()
-	m.waitGroup.Wait()
+	m.wg.Wait()
 }

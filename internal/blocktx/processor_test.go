@@ -13,10 +13,8 @@ import (
 
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
@@ -24,8 +22,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
-	"github.com/bitcoin-sv/arc/internal/mq"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
@@ -205,15 +201,11 @@ func TestHandleBlock(t *testing.T) {
 				return nil
 			}
 
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error { return nil },
-			}
-
 			logger := slog.Default()
 			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 1)
 			p2pMsgHandler := blocktx_p2p.NewMsgHandler(logger, nil, blockProcessCh)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize), blocktx.WithMessageQueueClient(mqClient))
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithTransactionBatchSize(batchSize))
 			require.NoError(t, err)
 
 			blockMessage := &bcnet.BlockMessage{
@@ -514,7 +506,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 		getBlockTxHashesErr error
 		registeredHashes    [][]byte
 
-		expectedPublishCalls     int
+		expectedMinedTxs         int
 		expectedRegisterTxsCalls int
 	}{
 		{
@@ -522,7 +514,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			registeredHashes: [][]byte{},
 
 			expectedRegisterTxsCalls: 0,
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 		},
 		{
 			name:             "error - failed to register",
@@ -531,7 +523,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			registeredHashes: [][]byte{tx5[:]},
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 		},
 		{
 			name:                "error - failed to get block tx hashes",
@@ -549,7 +541,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			},
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 		},
 		{
 			name:             "error - failed to get mined txs",
@@ -558,7 +550,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			getMinedTxsErr:   errors.New("failed to get mined txs"),
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 		},
 		{
 			name:             "found 0 block tx hashes",
@@ -577,7 +569,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			},
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 		},
 		{
 			name:      "wrong order of block tx hashes - BUMP does not contain the txid",
@@ -595,7 +587,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			registeredHashes: [][]byte{tx5[:], tx8[:], tx2[:]},
 			getBlockTxHashes: []*chainhash.Hash{tx6, tx7, tx8, tx9, tx1, tx2, tx3, tx4, tx5},
 
-			expectedPublishCalls:     0,
+			expectedMinedTxs:         0,
 			expectedRegisterTxsCalls: 1,
 		},
 		{
@@ -639,7 +631,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			getBlockTxHashes: []*chainhash.Hash{tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9},
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     1,
+			expectedMinedTxs:         1,
 		},
 		{
 			name:      "correct order of block tx hashes - two messages - success",
@@ -682,7 +674,7 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 			getBlockTxHashes: []*chainhash.Hash{tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9},
 
 			expectedRegisterTxsCalls: 1,
-			expectedPublishCalls:     2,
+			expectedMinedTxs:         2,
 		},
 	}
 
@@ -701,20 +693,15 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 					return tc.getBlockTxHashes, tc.getBlockTxHashesErr
 				},
 			}
-			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalCoreFunc: func(_ string, _ protoreflect.ProtoMessage) error {
-					return nil
-				},
-			}
 
 			txChan := make(chan []byte, 10)
+			minedTxsChan := make(chan *blocktx_api.TransactionBlocks, 10)
 
 			for _, txHash := range tc.registeredHashes {
 				txChan <- txHash
 			}
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-
 			// when
 			sut, err := blocktx.NewProcessor(
 				logger,
@@ -723,8 +710,8 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 				nil,
 				blocktx.WithRegisterTxsInterval(time.Millisecond*80),
 				blocktx.WithRegisterTxsChan(txChan),
+				blocktx.WithMinedTxsChan(minedTxsChan),
 				blocktx.WithRegisterTxsBatchSize(tc.batchSize),
-				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithPublishMinedMessageSize(3),
 				blocktx.WithRetentionDays(1),
 				blocktx.WithTracer([]attribute.KeyValue{attribute.Int("atr", 5)}...),
@@ -736,12 +723,22 @@ func TestStartProcessRegisterTxs(t *testing.T) {
 
 			sut.StartProcessRegisterTxs()
 
-			time.Sleep(120 * time.Millisecond)
+			minedTxs := 0
+		minedTxsLoop:
+			for {
+				select {
+				case <-minedTxsChan:
+					minedTxs++
+				case <-time.After(120 * time.Millisecond):
+					break minedTxsLoop
+				}
+			}
+
 			sut.Shutdown()
 
 			// then
 			require.Equal(t, tc.expectedRegisterTxsCalls, len(storeMock.RegisterTransactionsCalls()))
-			require.Equal(t, tc.expectedPublishCalls, len(mqClient.PublishMarshalCoreCalls()))
+			require.Equal(t, tc.expectedMinedTxs, minedTxs)
 		})
 	}
 }
@@ -837,49 +834,14 @@ func TestStart(t *testing.T) {
 	tt := []struct {
 		name     string
 		topicErr map[string]error
-
-		expectedError error
 	}{
 		{
 			name: "success",
-		},
-		{
-			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{mq.RegisterTxTopic: errors.New("failed to subscribe")},
-
-			expectedError: blocktx.ErrFailedToSubscribeToTopic,
-		},
-		{
-			name:     "error - subscribe mined txs",
-			topicErr: map[string]error{mq.RegisterTxsTopic: errors.New("failed to subscribe")},
-
-			expectedError: blocktx.ErrFailedToSubscribeToTopic,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			var registerTxFunc func(msg []byte) error
-			var registerTxsFunc func(msg []byte) error
-
-			// given
-			mqClient := &mqMocks.MessageQueueClientMock{
-				QueueSubscribeFunc: func(topic string, subscribeFunc func([]byte) error) error {
-					err, ok := tc.topicErr[topic]
-					if ok {
-						return err
-					}
-					switch topic {
-					case mq.RegisterTxTopic:
-						registerTxFunc = subscribeFunc
-					case mq.RegisterTxsTopic:
-						registerTxsFunc = subscribeFunc
-					default:
-					}
-					return nil
-				},
-			}
-
 			registerTxsChan := make(chan []byte, 10)
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -887,22 +849,15 @@ func TestStart(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				blocktx.WithMessageQueueClient(mqClient),
 				blocktx.WithRegisterTxsChan(registerTxsChan),
 			)
 			require.NoError(t, err)
 
 			// when
 			err = sut.Start()
-			// then
-			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
-				return
-			}
-			require.NoError(t, err)
 
-			err = registerTxFunc([]byte("some message"))
-			assert.ErrorIs(t, err, tc.expectedError)
+			// then
+			require.NoError(t, err)
 
 			msg := &blocktx_api.Transactions{
 				Transactions: []*blocktx_api.Transaction{{Hash: []byte("some hash")}},
@@ -910,11 +865,7 @@ func TestStart(t *testing.T) {
 			data, err := proto.Marshal(msg)
 			require.NoError(t, err)
 
-			err = registerTxsFunc(data)
-			require.NoError(t, err)
-
-			err = registerTxsFunc([]byte("some message"))
-			assert.ErrorIs(t, err, blocktx.ErrFailedToUnmarshalMessage)
+			registerTxsChan <- data
 
 			time.Sleep(100 * time.Millisecond)
 			// cleanup

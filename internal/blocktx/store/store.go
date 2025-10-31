@@ -64,5 +64,4 @@ type BlocktxStore interface {
 	VerifyMerkleRoots(ctx context.Context, merkleRoots []*blocktx_api.MerkleRootVerificationRequest, maxAllowedBlockHeightMismatch uint64) (*blocktx_api.MerkleRootVerificationResponse, error)
 
 	Ping() error
-	Close() error
 }

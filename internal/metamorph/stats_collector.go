@@ -149,7 +149,7 @@ func (p *Processor) StartCollectStats() error {
 		return err
 	}
 
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	go func() {
 		defer func() {
@@ -176,7 +176,7 @@ func (p *Processor) StartCollectStats() error {
 				p.stats.connectedPeers,
 				p.stats.reconnectingPeers,
 			)
-			p.waitGroup.Done()
+			p.wg.Done()
 		}()
 
 		for {

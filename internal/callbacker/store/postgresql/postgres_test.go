@@ -14,6 +14,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/store"
@@ -70,7 +71,10 @@ func TestPostgresDBt(t *testing.T) {
 
 	postgresDB, err := New(dbInfo, 10, 10, WithNow(func() time.Time { return now }))
 	require.NoError(t, err)
-	defer postgresDB.Close()
+	defer func() {
+		err = postgresDB.Shutdown()
+		assert.NoError(t, err)
+	}()
 
 	t.Run("insert", func(t *testing.T) {
 		// given

@@ -1161,11 +1161,13 @@ func (p *PostgreSQL) Del(ctx context.Context, key []byte) error {
 	return nil
 }
 
-// Close implements the MetamorphStore interface. It closes the connection to the underlying
-// MemoryStore database as well as invoking the context's cancel function.
-func (p *PostgreSQL) Close(ctx context.Context) error {
-	ctx.Done()
-	return p.db.Close()
+func (p *PostgreSQL) Shutdown() error {
+	err := p.db.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close db connection: %w", err)
+	}
+
+	return err
 }
 
 func (p *PostgreSQL) Ping() error {

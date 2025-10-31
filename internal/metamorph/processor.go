@@ -9,19 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/cache"
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet/metamorph_p2p"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/store"
-	"github.com/bitcoin-sv/arc/internal/mq"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
+	"github.com/bsv-blockchain/go-bt/v2/chainhash"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -56,10 +54,10 @@ const (
 )
 
 var (
-	ErrStoreNil                     = errors.New("store cannot be nil")
-	ErrPeerMessengerNil             = errors.New("p2p messenger cannot be nil")
-	ErrFailedToUnmarshalMessage     = errors.New("failed to unmarshal message")
-	ErrFailedToSubscribe            = errors.New("failed to subscribe to topic")
+	ErrStoreNil                 = errors.New("store cannot be nil")
+	ErrPeerMessengerNil         = errors.New("p2p messenger cannot be nil")
+	ErrFailedToUnmarshalMessage = errors.New("failed to unmarshal message")
+
 	ErrFailedToStartCollectingStats = errors.New("failed to start collecting stats")
 	ErrUnhealthy                    = errors.New("processor has less than minimum healthy peer connections")
 )
@@ -69,18 +67,16 @@ type Processor struct {
 	cacheStore                cache.Store
 	hostname                  string
 	bcMediator                Mediator
-	mqClient                  mq.MessageQueueClient
 	logger                    *slog.Logger
 	now                       func() time.Time
 	stats                     *processorStats
 	maxRetries                int
 	minimumHealthyConnections int
-	callbackSender            CallbackSender
 
 	responseProcessor *ResponseProcessor
 	statusMessageCh   chan *metamorph_p2p.TxStatusMessage
 
-	waitGroup *sync.WaitGroup
+	wg *sync.WaitGroup
 
 	statCollectionInterval time.Duration
 
@@ -91,6 +87,9 @@ type Processor struct {
 
 	minedTxsChan     chan *blocktx_api.TransactionBlocks
 	submittedTxsChan chan *metamorph_api.PostTransactionRequest
+	callbackChan     chan *callbacker_api.SendRequest
+	registerTxChan   chan []byte
+	registerTxsChan  chan *blocktx_api.Transactions
 
 	storageStatusUpdateCh  chan store.UpdateStatus
 	statusUpdatesInterval  time.Duration
@@ -130,10 +129,6 @@ type Processor struct {
 }
 
 type Option func(f *Processor)
-
-type CallbackSender interface {
-	SendCallback(ctx context.Context, data *store.TransactionData)
-}
 
 type Mediator interface {
 	AskForTxAsync(ctx context.Context, hash *chainhash.Hash)
@@ -184,7 +179,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		statusUpdatesBatchSize:            statusUpdatesBatchSizeDefault,
 		storageStatusUpdateCh:             make(chan store.UpdateStatus, statusUpdatesBatchSizeDefault),
 		stats:                             newProcessorStats(),
-		waitGroup:                         &sync.WaitGroup{},
+		wg:                                &sync.WaitGroup{},
 		registerBatchSize:                 registerBatchSizeDefault,
 		statCollectionInterval:            statCollectionIntervalDefault,
 		processTransactionsInterval:       processTransactionsIntervalDefault,
@@ -215,42 +210,7 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 	return p, nil
 }
 
-func (p *Processor) processSubmitMessage(msg []byte) error {
-	serialized := &metamorph_api.PostTransactionRequest{}
-	err := proto.Unmarshal(msg, serialized)
-	if err != nil {
-		return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.SubmitTxTopic), err)
-	}
-
-	p.submittedTxsChan <- serialized
-	return nil
-}
-
 func (p *Processor) Start(statsEnabled bool) error {
-	err := p.mqClient.QueueSubscribe(mq.MinedTxsTopic, func(msg []byte) error {
-		serialized := &blocktx_api.TransactionBlocks{}
-		err := proto.Unmarshal(msg, serialized)
-		if err != nil {
-			return errors.Join(ErrFailedToUnmarshalMessage, fmt.Errorf("subscribed on %s topic", mq.MinedTxsTopic), err)
-		}
-
-		p.minedTxsChan <- serialized
-		return nil
-	})
-	if err != nil {
-		return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.MinedTxsTopic), err)
-	}
-
-	err = p.mqClient.Consume(mq.SubmitTxTopic, p.processSubmitMessage)
-	if err != nil {
-		p.logger.Warn("Failed to start consuming from topic", slog.String("topic", mq.SubmitTxTopic), slog.String("err", err.Error()))
-
-		errSubscribe := p.mqClient.QueueSubscribe(mq.SubmitTxTopic, p.processSubmitMessage)
-		if errSubscribe != nil {
-			return errors.Join(ErrFailedToSubscribe, fmt.Errorf("to %s topic", mq.SubmitTxTopic), err)
-		}
-	}
-
 	p.StartLockTransactions()
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
@@ -263,7 +223,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	p.StartProcessStatusUpdatesInStorage()
 	p.StartProcessMinedCallbacks()
 	if statsEnabled {
-		err = p.StartCollectStats()
+		err := p.StartCollectStats()
 		if err != nil {
 			return errors.Join(ErrFailedToStartCollectingStats, err)
 		}
@@ -287,7 +247,7 @@ func (p *Processor) Shutdown() {
 		p.cancelAll()
 	}
 
-	p.waitGroup.Wait()
+	p.wg.Wait()
 }
 
 func (p *Processor) unlockRecords() error {
@@ -301,11 +261,11 @@ func (p *Processor) unlockRecords() error {
 }
 
 func (p *Processor) StartProcessMinedCallbacks() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	var txsBlocksBuffer []*blocktx_api.TransactionBlock
 	ticker := time.NewTicker(p.processMinedInterval)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -371,14 +331,19 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 			Status: metamorph_api.Status_MINED,
 		})
 
-		if len(data.Callbacks) > 0 {
-			requests := toSendRequest(data, p.now())
-			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
-				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
+		if p.callbackChan != nil {
+			if len(data.Callbacks) > 0 {
+				requests := toSendRequest(data, p.now())
+				for _, request := range requests {
+					select {
+					case p.callbackChan <- request:
+					default:
+						p.logger.Warn("Failed to send message on callback channel")
+					}
 				}
 			}
+		} else {
+			p.logger.Warn("Callback channel not available")
 		}
 
 		p.delTxFromCache(data.Hash)
@@ -387,10 +352,10 @@ func (p *Processor) updateMined(ctx context.Context, txsBlocks []*blocktx_api.Tr
 
 // StartProcessSubmitted starts processing txs submitted to the message queue
 func (p *Processor) StartProcessSubmitted() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	ticker := time.NewTicker(p.processTransactionsInterval)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 
 		reqs := make([]*store.TransactionData, 0, p.processTransactionsBatchSize)
 		for {
@@ -443,9 +408,9 @@ func (p *Processor) StartProcessSubmitted() {
 }
 
 func (p *Processor) StartSendStatusUpdate() {
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -485,12 +450,12 @@ func (p *Processor) StartSendStatusUpdate() {
 
 func (p *Processor) StartProcessStatusUpdatesInStorage() {
 	ticker := time.NewTicker(p.statusUpdatesInterval)
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	ctx := p.ctx
 
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 
 		for {
 			select {
@@ -586,14 +551,19 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 			sendCallback = data.Status >= metamorph_api.Status_SEEN_IN_ORPHAN_MEMPOOL
 		}
 
-		if sendCallback && len(data.Callbacks) > 0 {
-			requests := toSendRequest(data, p.now())
-			for _, request := range requests {
-				err = p.mqClient.PublishMarshal(ctx, mq.CallbackTopic, request)
-				if err != nil {
-					p.logger.Error("Failed to publish callback", slog.String("err", err.Error()))
+		if p.callbackChan != nil {
+			if sendCallback && len(data.Callbacks) > 0 {
+				requests := toSendRequest(data, p.now())
+				for _, request := range requests {
+					select {
+					case p.callbackChan <- request:
+					default:
+						p.logger.Warn("Failed to send message on callback channel")
+					}
 				}
 			}
+		} else {
+			p.logger.Warn("Callback channel not available")
 		}
 	}
 	return nil
@@ -601,12 +571,12 @@ func (p *Processor) statusUpdateWithCallback(ctx context.Context, statusUpdates,
 
 func (p *Processor) StartLockTransactions() {
 	ticker := time.NewTicker(p.lockTransactionsInterval)
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	const setLockedLoadLimit = int64(50)
 
 	go func() {
-		defer p.waitGroup.Done()
+		defer p.wg.Done()
 		for {
 			select {
 			case <-p.ctx.Done():
@@ -635,9 +605,14 @@ func (p *Processor) registerTransaction(ctx context.Context, hash *chainhash.Has
 
 	p.logger.Warn("Register transaction call failed", slog.String("err", err.Error()))
 
-	err = p.mqClient.PublishCore(mq.RegisterTxTopic, hash[:])
-	if err != nil {
-		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxTopic, err)
+	if p.registerTxChan != nil {
+		select {
+		case p.registerTxChan <- hash[:]:
+		default:
+			p.logger.Warn("Failed to send message on register tx channel")
+		}
+	} else {
+		p.logger.Warn("Register tx channel not available")
 	}
 
 	return nil
@@ -682,10 +657,14 @@ func (p *Processor) registerTransactionsBatch(ctx context.Context, txHashes [][]
 		txs = append(txs, &blocktx_api.Transaction{Hash: hash[:]})
 	}
 	txsMsg := &blocktx_api.Transactions{Transactions: txs}
-
-	err = p.mqClient.PublishMarshalCore(mq.RegisterTxsTopic, txsMsg)
-	if err != nil {
-		return fmt.Errorf("failed to publish hash on topic %s: %w", mq.RegisterTxsTopic, err)
+	if p.registerTxsChan != nil {
+		select {
+		case p.registerTxsChan <- txsMsg:
+		default:
+			p.logger.Warn("Failed to send message on register txs channel")
+		}
+	} else {
+		p.logger.Warn("Register txs channel not available")
 	}
 
 	return nil

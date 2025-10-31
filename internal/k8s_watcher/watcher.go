@@ -25,7 +25,7 @@ type Watcher struct {
 	logger          *slog.Logger
 	updateInterval  time.Duration
 	namespace       string
-	waitGroup       *sync.WaitGroup
+	wg              *sync.WaitGroup
 	cancellations   []context.CancelFunc
 }
 
@@ -46,7 +46,7 @@ func New(logger *slog.Logger, metamorphClient metamorph_api.MetaMorphAPIClient, 
 		namespace:      namespace,
 		logger:         logger,
 		updateInterval: intervalDefault,
-		waitGroup:      &sync.WaitGroup{},
+		wg:             &sync.WaitGroup{},
 	}
 	for _, opt := range opts {
 		opt(watcher)
@@ -75,9 +75,9 @@ func (c *Watcher) updateRunningPods(service string, updateInterval time.Duration
 
 	ticker := time.NewTicker(updateInterval)
 
-	c.waitGroup.Add(1)
+	c.wg.Add(1)
 	go func() {
-		defer c.waitGroup.Done()
+		defer c.wg.Done()
 
 		for {
 			select {
@@ -106,5 +106,5 @@ func (c *Watcher) Shutdown() {
 		cancel()
 	}
 
-	c.waitGroup.Wait()
+	c.wg.Wait()
 }

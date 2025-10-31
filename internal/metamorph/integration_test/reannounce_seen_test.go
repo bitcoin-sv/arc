@@ -33,7 +33,10 @@ func TestReAnnounceSeen(t *testing.T) {
 
 		mtmStore, err := postgresql.New(dbInfo, "re-announce-integration-test", 10, 80, postgresql.WithNow(func() time.Time { return now }))
 		require.NoError(t, err)
-		defer mtmStore.Close(context.Background())
+		defer func() {
+			err = mtmStore.Shutdown()
+			assert.NoError(t, err)
+		}()
 
 		cacheStore := cache.NewRedisStore(context.Background(), redisClient)
 

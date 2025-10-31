@@ -126,9 +126,9 @@ func TestZMQ(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		cleanup, err := sut.Start()
+		err = sut.Start()
 		require.NoError(t, err)
-		defer cleanup()
+		defer sut.Shutdown()
 
 		// then
 		var status *metamorph_p2p.TxStatusMessage
@@ -175,9 +175,9 @@ func TestZMQDoubleSpend(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	cleanup, err := sut.Start()
+	err = sut.Start()
 	require.NoError(t, err)
-	defer cleanup()
+	defer sut.Shutdown()
 
 	// then
 	var status *metamorph_p2p.TxStatusMessage

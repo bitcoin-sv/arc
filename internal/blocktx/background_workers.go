@@ -32,7 +32,7 @@ func NewBackgroundWorkers(store store.BlocktxStore, logger *slog.Logger) *Backgr
 	}
 }
 
-func (w *BackgroundWorkers) GracefulStop() {
+func (w *BackgroundWorkers) Shutdown() {
 	w.logger.Info("Shutting down background worker")
 
 	w.cancelAll()

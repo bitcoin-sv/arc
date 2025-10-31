@@ -14,25 +14,22 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	apiMocks "github.com/bitcoin-sv/arc/internal/metamorph/mocks"
-	mqMocks "github.com/bitcoin-sv/arc/internal/mq/mocks"
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
 func TestClient_SubmitTransaction(t *testing.T) {
 	now := time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC)
 	tt := []struct {
-		name               string
-		options            *global.TransactionOptions
-		putTxErr           error
-		putTxStatus        *metamorph_api.TransactionStatus
-		getTxErr           error
-		getTxStatus        *metamorph_api.TransactionStatus
-		withMqClient       bool
-		publishSubmitTxErr error
+		name              string
+		options           *global.TransactionOptions
+		putTxErr          error
+		putTxStatus       *metamorph_api.TransactionStatus
+		getTxErr          error
+		getTxStatus       *metamorph_api.TransactionStatus
+		withQueuedTxsChan bool
 
 		expectedErrorStr string
 		expectedStatus   *global.TransactionStatus
@@ -80,8 +77,8 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
-			putTxErr:     errors.New("failed to put tx"),
-			withMqClient: false,
+			putTxErr:          errors.New("failed to put tx"),
+			withQueuedTxsChan: false,
 
 			expectedStatus:   nil,
 			expectedErrorStr: "failed to put tx",
@@ -95,7 +92,7 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
 			},
-			withMqClient: false,
+			withQueuedTxsChan: false,
 			getTxStatus: &metamorph_api.TransactionStatus{
 				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
@@ -117,8 +114,8 @@ func TestClient_SubmitTransaction(t *testing.T) {
 				Status:   metamorph_api.Status_RECEIVED,
 				TimedOut: true,
 			},
-			withMqClient: false,
-			getTxErr:     errors.New("failed to get tx status"),
+			withQueuedTxsChan: false,
+			getTxErr:          errors.New("failed to get tx status"),
 			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_RECEIVED.String(),
@@ -130,24 +127,13 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
-			withMqClient: true,
+			withQueuedTxsChan: true,
 
 			expectedStatus: &global.TransactionStatus{
 				TxID:      testdata.TX1Hash.String(),
 				Status:    metamorph_api.Status_QUEUED.String(),
 				Timestamp: now.Unix(),
 			},
-		},
-		{
-			name: "wait for queued, with mq client, publish submit tx err",
-			options: &global.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_QUEUED,
-			},
-			withMqClient:       true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatus:   nil,
-			expectedErrorStr: "failed to publish tx",
 		},
 	}
 
@@ -168,11 +154,9 @@ func TestClient_SubmitTransaction(t *testing.T) {
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
-			if tc.withMqClient {
-				mqClient := &mqMocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error { return tc.publishSubmitTxErr },
-				}
-				opts = append(opts, metamorph.WithMqClient(mqClient))
+			if tc.withQueuedTxsChan {
+				queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, 100)
+				opts = append(opts, metamorph.WithQueuedTxsCh(queuedTxsChan))
 			}
 
 			client := metamorph.NewClient(apiClient, opts...)
@@ -209,14 +193,13 @@ func TestClient_SubmitTransactions(t *testing.T) {
 	tx3, err := sdkTx.NewTransactionFromHex("010000000000000000ef016a4c158eb2906c84b3d95206a4dac765baf4dff63120e09ab0134dc6505a23bf000000006b483045022100a46fb3431796212efc3f78b2a8559ba66a5f197977ee983b765a8a1497c0e31a022077ff0eed59beadbdd08b9806ed1f83e41e57ef4892564a75ecbeddd99f14f60f412102f87ce69f6ba5444aed49c34470041189c1e1060acd99341959c0594002c61bf0ffffffffbf070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac01be070000000000001976a914c2b6fd4319122b9b5156a2a0060d19864c24f49a88ac00000000")
 	require.NoError(t, err)
 	tt := []struct {
-		name               string
-		options            *global.TransactionOptions
-		putTxErr           error
-		putTxStatus        *metamorph_api.TransactionStatuses
-		getTxErr           error
-		getTxStatus        *metamorph_api.TransactionStatus
-		withMqClient       bool
-		publishSubmitTxErr error
+		name              string
+		options           *global.TransactionOptions
+		putTxErr          error
+		putTxStatus       *metamorph_api.TransactionStatuses
+		getTxErr          error
+		getTxStatus       *metamorph_api.TransactionStatus
+		withQueuedTxsChan bool
 
 		expectedErrorStr string
 		expectedStatuses []*global.TransactionStatus
@@ -282,8 +265,8 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					},
 				},
 			},
-			putTxErr:     errors.New("failed to put tx"),
-			withMqClient: false,
+			putTxErr:          errors.New("failed to put tx"),
+			withQueuedTxsChan: false,
 
 			expectedStatuses: nil,
 			expectedErrorStr: "failed to put tx",
@@ -309,7 +292,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					},
 				},
 			},
-			withMqClient: false,
+			withQueuedTxsChan: false,
 			getTxStatus: &metamorph_api.TransactionStatus{
 				Txid:   testdata.TX1Hash.String(),
 				Status: metamorph_api.Status_RECEIVED,
@@ -354,8 +337,8 @@ func TestClient_SubmitTransactions(t *testing.T) {
 					},
 				},
 			},
-			withMqClient: false,
-			getTxErr:     errors.New("failed to get tx status"),
+			withQueuedTxsChan: false,
+			getTxErr:          errors.New("failed to get tx status"),
 
 			expectedStatuses: []*global.TransactionStatus{
 				{
@@ -380,7 +363,7 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			options: &global.TransactionOptions{
 				WaitForStatus: metamorph_api.Status_QUEUED,
 			},
-			withMqClient: true,
+			withQueuedTxsChan: true,
 
 			expectedStatuses: []*global.TransactionStatus{
 				{
@@ -400,17 +383,6 @@ func TestClient_SubmitTransactions(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "wait for queued, with mq client, publish submit tx err",
-			options: &global.TransactionOptions{
-				WaitForStatus: metamorph_api.Status_QUEUED,
-			},
-			withMqClient:       true,
-			publishSubmitTxErr: errors.New("failed to publish tx"),
-
-			expectedStatuses: nil,
-			expectedErrorStr: "failed to publish tx",
-		},
 	}
 
 	for _, tc := range tt {
@@ -428,13 +400,9 @@ func TestClient_SubmitTransactions(t *testing.T) {
 			opts := []func(client *metamorph.Metamorph){
 				metamorph.WithClientNow(func() time.Time { return now }),
 			}
-			if tc.withMqClient {
-				mqClient := &mqMocks.MessageQueueClientMock{
-					PublishMarshalFunc: func(_ context.Context, _ string, _ protoreflect.ProtoMessage) error {
-						return tc.publishSubmitTxErr
-					},
-				}
-				opts = append(opts, metamorph.WithMqClient(mqClient))
+			if tc.withQueuedTxsChan {
+				queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, 100)
+				opts = append(opts, metamorph.WithQueuedTxsCh(queuedTxsChan))
 			}
 
 			client := metamorph.NewClient(apiClient, opts...)

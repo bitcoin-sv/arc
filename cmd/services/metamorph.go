@@ -7,13 +7,15 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
+	"github.com/bitcoin-sv/arc/internal/global"
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
-	"github.com/bitcoin-sv/arc/internal/cache"
 	"github.com/bitcoin-sv/arc/internal/grpc_utils"
 	"github.com/bitcoin-sv/arc/internal/metamorph"
 	"github.com/bitcoin-sv/arc/internal/metamorph/bcnet"
@@ -37,55 +39,89 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 	logger = logger.With(slog.String("service", "mtm"))
 	logger.Info("Starting")
 
-	var (
-		metamorphStore  store.MetamorphStore
-		bcMediator      *bcnet.Mediator
-		pm              *p2p.PeerManager
-		messenger       *p2p.NetworkMessenger
-		multicaster     *mcast.Multicaster
-		statusMessageCh chan *metamorph_p2p.TxStatusMessage
-		mqClient        mq.MessageQueueClient
-		processor       *metamorph.Processor
-		server          *metamorph.Server
-		healthServer    *grpc_utils.GrpcServer
-		cacheStore      cache.Store
-
-		err error
-	)
-
-	cacheStore, err = metamorph.NewCacheStore(commonCfg.Cache)
+	cacheStore, err := metamorph.NewCacheStore(commonCfg.Cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache store: %v", err)
 	}
 
 	shutdownFns, optsServer, processorOpts, bcMediatorOpts := enableTracing(commonCfg, logger)
 
+	var stoppable global.Stoppables
+	var stoppableWithError global.StoppablesWithError
+
 	stopFn := func() {
 		logger.Info("Shutting down metamorph")
-		disposeMtm(logger, server, processor, pm, messenger, multicaster, mqClient, metamorphStore, healthServer, shutdownFns)
+		for _, shutdownFn := range shutdownFns {
+			shutdownFn()
+		}
+		stoppable.Shutdown()
+		stoppableWithError.Shutdown(logger)
 		logger.Info("Shutdown metamorph complete")
 	}
 
-	metamorphStore, err = NewMetamorphStore(mtmCfg.Db, commonCfg.Tracing)
+	metamorphStore, err := newMetamorphStore(mtmCfg.Db, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metamorph store: %v", err)
 	}
+	stoppableWithError = append(stoppableWithError, metamorphStore)
 
-	bcMediator, messenger, pm, multicaster, statusMessageCh, err = setupMtmBcNetworkCommunication(logger, metamorphStore, mtmCfg, mtmCfg.Health.MinimumHealthyConnections, bcMediatorOpts)
+	bcMediator, messenger, pm, multicaster, statusMessageCh, err := setupMtmBcNetworkCommunication(logger, metamorphStore, mtmCfg, mtmCfg.Health.MinimumHealthyConnections, bcMediatorOpts)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
 
-	// maximum number of messages that could be coming from a single block
+	stoppable = append(stoppable, messenger)
+	stoppable = append(stoppable, pm)
+	stoppable = append(stoppable, multicaster)
+
+	mqOpts := getMtmMqOpts(logger)
+	mqClient, err := mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+	stoppable = append(stoppable, mqClient)
+
 	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
 	submittedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
 
-	mqOpts := getMtmMqOpts(logger)
-	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue, mqOpts...)
+	subscribeAdapter := metamorph.NewMessageSubscribeAdapter(mqClient, logger)
+	stoppable = append(stoppable, subscribeAdapter)
+	err = subscribeAdapter.Start(minedTxsChan, submittedTxsChan)
 	if err != nil {
+		stopFn()
 		return nil, err
 	}
+	callbackerChan := make(chan *callbacker_api.SendRequest, chanBufferSize)
+	publishCallbackAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	stoppable = append(stoppable, publishCallbackAdapter)
+	publishCallbackAdapter.StartPublishMarshal(mq.CallbackTopic)
+	go func() {
+		for msg := range callbackerChan {
+			publishCallbackAdapter.Publish(msg)
+		}
+	}()
+
+	registerTxsChan := make(chan *blocktx_api.Transactions, chanBufferSize)
+	publishRegisterTxsAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	stoppable = append(stoppable, publishRegisterTxsAdapter)
+	publishRegisterTxsAdapter.StartPublishMarshal(mq.RegisterTxsTopic)
+	go func() {
+		for msg := range registerTxsChan {
+			publishRegisterTxsAdapter.Publish(msg)
+		}
+	}()
+
+	registerTxChan := make(chan []byte, chanBufferSize)
+	publishRegisterTxAdapter := message_queue.NewPublishCoreAdapter(mqClient, logger)
+	stoppable = append(stoppable, publishRegisterTxAdapter)
+	publishRegisterTxAdapter.StartPublishCore(mq.RegisterTxTopic)
+	go func() {
+		for msg := range registerTxChan {
+			publishRegisterTxAdapter.PublishCore(msg)
+		}
+	}()
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 
@@ -105,7 +141,9 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmCfg.RejectPendingSeen.LastRequestedAgo),
 		metamorph.WithRejectPendingBlocksSince(mtmCfg.RejectPendingSeen.BlocksSince),
 		metamorph.WithProcessorLogger(procLogger),
-		metamorph.WithMessageQueueClient(mqClient),
+		metamorph.WithCallbackChan(callbackerChan),
+		metamorph.WithRegisterTxChan(registerTxChan),
+		metamorph.WithRegisterTxsChan(registerTxsChan),
 		metamorph.WithMinedTxsChan(minedTxsChan),
 		metamorph.WithSubmittedTxsChan(submittedTxsChan),
 		metamorph.WithStatusUpdatesInterval(mtmCfg.StatusUpdateInterval),
@@ -117,7 +155,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithDoubleSpendTxStatusOlderThanInterval(mtmCfg.DoubleSpendTxStatusOlderThanInterval),
 	)
 
-	processor, err = metamorph.NewProcessor(
+	processor, err := metamorph.NewProcessor(
 		metamorphStore,
 		cacheStore,
 		bcMediator,
@@ -128,6 +166,8 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, processor)
+
 	err = processor.Start(commonCfg.Prometheus.IsEnabled())
 	if err != nil {
 		stopFn()
@@ -141,52 +181,63 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		Name:               "metamorph",
 	}
 
-	server, err = metamorph.NewServer(logger, metamorphStore, processor, mqClient, serverCfg, optsServer...)
+	server, err := metamorph.NewServer(logger, metamorphStore, processor, mqClient, serverCfg, optsServer...)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
+	stoppable = append(stoppable, server)
+
 	err = server.ListenAndServe(mtmCfg.ListenAddr)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("serve GRPC server failed: %v", err)
 	}
-	err = startZMQs(logger, mtmCfg.BlockchainNetwork.Peers, stopFn, statusMessageCh, &shutdownFns)
+	zmqs, err := startZMQs(logger, mtmCfg.BlockchainNetwork.Peers, statusMessageCh)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, zmq := range zmqs {
+		stoppable = append(stoppable, zmq)
+	}
+
 	return stopFn, nil
 }
 
-func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) ([]func(), []metamorph.ServerOption, []metamorph.Option, []bcnet.Option) {
-	shutdownFns := make([]func(), 0)
-	optsServer := make([]metamorph.ServerOption, 0)
-	processorOpts := make([]metamorph.Option, 0)
-	bcMediatorOpts := make([]bcnet.Option, 0)
-
-	if commonCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "metamorph", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
-		if err != nil {
-			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
-		} else {
-			shutdownFns = append(shutdownFns, cleanup)
-		}
-
-		attributes := commonCfg.Tracing.KeyValueAttributes
-		hostname, err := os.Hostname()
-		if err == nil {
-			hostnameAttr := attribute.String("hostname", hostname)
-			attributes = append(attributes, hostnameAttr)
-		}
-
-		optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
-		processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
-		bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
+func enableTracing(commonCfg *config.CommonConfig, logger *slog.Logger) (shutdownFns []func(), optsServer []metamorph.ServerOption, processorOpts []metamorph.Option, bcMediatorOpts []bcnet.Option) {
+	if !commonCfg.IsTracingEnabled() {
+		return
 	}
+
+	shutdownFns = make([]func(), 0)
+	optsServer = make([]metamorph.ServerOption, 0)
+	processorOpts = make([]metamorph.Option, 0)
+	bcMediatorOpts = make([]bcnet.Option, 0)
+
+	cleanup, err := tracing.Enable(logger, "metamorph", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
+	if err != nil {
+		logger.Error("failed to enable tracing", slog.String("err", err.Error()))
+	} else {
+		shutdownFns = append(shutdownFns, cleanup)
+	}
+
+	attributes := commonCfg.Tracing.KeyValueAttributes
+	hostname, err := os.Hostname()
+	if err == nil {
+		hostnameAttr := attribute.String("hostname", hostname)
+		attributes = append(attributes, hostnameAttr)
+	}
+
+	optsServer = append(optsServer, metamorph.WithServerTracer(attributes...))
+	processorOpts = append(processorOpts, metamorph.WithTracerProcessor(attributes...))
+	bcMediatorOpts = append(bcMediatorOpts, bcnet.WithTracer(attributes...))
+
 	return shutdownFns, optsServer, processorOpts, bcMediatorOpts
 }
 
-func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), statusMessageCh chan *metamorph_p2p.TxStatusMessage, shutdownFns *[]func()) error {
+func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, statusMessageCh chan *metamorph_p2p.TxStatusMessage) ([]*metamorph.ZMQ, error) {
+	zmqs := make([]*metamorph.ZMQ, 0)
 	for i, peerSetting := range peers {
 		zmqURL, err := peerSetting.GetZMQUrl()
 		if err != nil {
@@ -201,19 +252,17 @@ func startZMQs(logger *slog.Logger, peers []*config.PeerConfig, stopFn func(), s
 		zmqHandler := metamorph.NewZMQHandler(context.Background(), zmqURL, logger)
 		zmq, err := metamorph.NewZMQ(zmqURL, statusMessageCh, zmqHandler, logger)
 		if err != nil {
-			stopFn()
-			return fmt.Errorf("failed to create ZMQ: %v", err)
+			return nil, fmt.Errorf("failed to create ZMQ: %v", err)
 		}
 		logger.Info("Listening to ZMQ", slog.String("host", zmqURL.Hostname()), slog.String("port", zmqURL.Port()))
 
-		cleanup, err := zmq.Start()
-		*shutdownFns = append(*shutdownFns, cleanup)
+		err = zmq.Start()
 		if err != nil {
-			stopFn()
-			return fmt.Errorf("failed to start ZMQ: %v", err)
+			return nil, fmt.Errorf("failed to start ZMQ: %v", err)
 		}
+		zmqs = append(zmqs, zmq)
 	}
-	return nil
+	return zmqs, nil
 }
 
 func getMtmMqOpts(logger *slog.Logger) []nats_jetstream.Option {
@@ -251,7 +300,7 @@ func getMtmMqOpts(logger *slog.Logger) []nats_jetstream.Option {
 	return mqOpts
 }
 
-func NewMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.MetamorphStore, err error) {
+func newMetamorphStore(dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s *postgresql.PostgreSQL, err error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -332,7 +381,7 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, meta
 		}
 
 		if multicaster != nil {
-			multicaster.Disconnect()
+			multicaster.Shutdown()
 			multicaster = nil
 		}
 	}()
@@ -401,57 +450,4 @@ func setupMtmBcNetworkCommunication(l *slog.Logger, s store.MetamorphStore, meta
 	messenger = p2p.NewNetworkMessenger(l, manager)
 	mediator = bcnet.NewMediator(l, cfg.Mode == "classic", messenger, multicaster, mediatorOpts...)
 	return
-}
-
-func disposeMtm(l *slog.Logger, server *metamorph.Server, processor *metamorph.Processor,
-	pm *p2p.PeerManager, messenger *p2p.NetworkMessenger, multicaster *mcast.Multicaster, mqClient mq.MessageQueueClient,
-	metamorphStore store.MetamorphStore, healthServer *grpc_utils.GrpcServer,
-	shutdownFns []func(),
-) {
-	// dispose the dependencies in the correct order:
-	// 1. server - ensure no new request will be received
-	// 2. processor - ensure all started job are complete
-	// 3. peerManaager
-	// 4. mqClient
-	// 5. store
-	// 6. healthServer
-	// 7. run shutdown functions
-
-	if server != nil {
-		server.GracefulStop()
-	}
-	if processor != nil {
-		processor.Shutdown()
-	}
-
-	if messenger != nil {
-		messenger.Shutdown()
-	}
-
-	if pm != nil {
-		pm.Shutdown()
-	}
-
-	if multicaster != nil {
-		multicaster.Disconnect()
-	}
-
-	if mqClient != nil {
-		mqClient.Shutdown()
-	}
-
-	if metamorphStore != nil {
-		err := metamorphStore.Close(context.Background())
-		if err != nil {
-			l.Error("Could not close store", slog.String("err", err.Error()))
-		}
-	}
-
-	if healthServer != nil {
-		healthServer.GracefulStop()
-	}
-
-	for _, shutdownFn := range shutdownFns {
-		shutdownFn()
-	}
 }

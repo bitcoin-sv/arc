@@ -7,6 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
+	"github.com/bitcoin-sv/arc/internal/global"
+	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -32,27 +35,15 @@ const (
 )
 
 func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *config.CommonConfig) (func(), error) {
-	logger = logger.With(slog.String("service", "blocktx"))
+	const serviceName = "blocktx"
+	logger = logger.With(slog.String("service", serviceName))
 	logger.Info("Starting")
-
-	var (
-		blockStore     store.BlocktxStore
-		mqClient       mq.MessageQueueClient
-		processor      *blocktx.Processor
-		pm             *p2p.PeerManager
-		mcastListener  *mcast.Listener
-		server         *blocktx.Server
-		healthServer   *grpc_utils.GrpcServer
-		workers        *blocktx.BackgroundWorkers
-		statsCollector *blocktx.StatsCollector
-		err            error
-	)
 
 	shutdownFns := make([]func(), 0)
 	processorOpts := make([]func(handler *blocktx.Processor), 0)
 
 	if commonCfg.IsTracingEnabled() {
-		cleanup, err := tracing.Enable(logger, "blocktx", commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
+		cleanup, err := tracing.Enable(logger, serviceName, commonCfg.Tracing.DialAddr, commonCfg.Tracing.Sample)
 		if err != nil {
 			logger.Error("failed to enable tracing", slog.String("err", err.Error()))
 		} else {
@@ -69,29 +60,57 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		processorOpts = append(processorOpts, blocktx.WithTracer(attributes...))
 	}
 
+	var stoppable global.Stoppables
+	var stoppableWithError global.StoppablesWithError
+
 	stopFn := func() {
 		logger.Info("Shutting down blocktx")
-		disposeBlockTx(logger, server, processor, pm, mcastListener, mqClient, blockStore, healthServer, workers, shutdownFns, statsCollector)
+		for _, shutdownFn := range shutdownFns {
+			shutdownFn()
+		}
+		stoppable.Shutdown()
+		stoppableWithError.Shutdown(logger)
+		logger.Info("Shutdown metamorph complete")
 		logger.Info("Shutdown blocktx complete")
 	}
 
-	blockStore, err = NewBlocktxStore(logger, btxCfg.Db, commonCfg.Tracing)
+	blockStore, err := newBlocktxStore(logger, btxCfg.Db, commonCfg.Tracing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blocktx store: %v", err)
 	}
+	stoppableWithError = append(stoppableWithError, blockStore)
 
 	registerTxsChan := make(chan []byte, chanBufferSize)
 
-	mqClient, err = mq.NewMqClient(logger, commonCfg.MessageQueue)
+	mqClient, err := mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
 		return nil, err
 	}
+	stoppable = append(stoppable, mqClient)
+
+	subscribeAdapter := blocktx.NewMessageSubscribeAdapter(mqClient, logger)
+	err = subscribeAdapter.Start(registerTxsChan)
+	if err != nil {
+		stopFn()
+		return nil, err
+	}
+	stoppable = append(stoppable, subscribeAdapter)
+
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
+	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
+	publishAdapter.StartPublishMarshal(mq.MinedTxsTopic)
+	go func() {
+		for msg := range minedTxsChan {
+			publishAdapter.Publish(msg)
+		}
+	}()
+	stoppable = append(stoppable, publishAdapter)
 
 	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
 		blocktx.WithRegisterTxsInterval(btxCfg.RegisterTxsInterval),
-		blocktx.WithMessageQueueClient(mqClient),
+		blocktx.WithMinedTxsChan(minedTxsChan),
 		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
 		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
 	)
@@ -99,11 +118,12 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
 	blockProcessCh := make(chan *bcnet.BlockMessagePeer, blockProcessingBuffer)
 
-	processor, err = blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
+	processor, err := blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
 		stopFn()
 		return nil, err
 	}
+	stoppable = append(stoppable, processor)
 
 	err = processor.Start()
 	if err != nil {
@@ -111,14 +131,17 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
-	pm, mcastListener, err = setupBcNetworkCommunication(logger, btxCfg, blockStore, blockRequestCh, minConnections, blockProcessCh)
+	pm, mcastListener, err := setupBcNetworkCommunication(logger, btxCfg, blockStore, blockRequestCh, minConnections, blockProcessCh)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
 	}
+	stoppable = append(stoppable, pm)
+	stoppable = append(stoppable, mcastListener)
 
 	if commonCfg.Prometheus.IsEnabled() {
-		statsCollector = blocktx.NewStatsCollector(logger, pm, blockStore, btxCfg.RecordRetentionDays)
+		statsCollector := blocktx.NewStatsCollector(logger, pm, blockStore, btxCfg.RecordRetentionDays)
+		stoppable = append(stoppable, statsCollector)
 		err = statsCollector.Start()
 		if err != nil {
 			stopFn()
@@ -127,12 +150,14 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 
 	if btxCfg.FillGaps != nil && btxCfg.FillGaps.Enabled {
-		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
+		workers := blocktx.NewBackgroundWorkers(blockStore, logger)
+		stoppable = append(stoppable, workers)
 		workers.StartFillGaps(pm.GetPeers(), btxCfg.FillGaps.Interval, btxCfg.RecordRetentionDays, blockRequestCh)
 	}
 
 	if btxCfg.UnorphanRecentWrongOrphans != nil && btxCfg.UnorphanRecentWrongOrphans.Enabled {
-		workers = blocktx.NewBackgroundWorkers(blockStore, logger)
+		workers := blocktx.NewBackgroundWorkers(blockStore, logger)
+		stoppable = append(stoppable, workers)
 		workers.StartUnorphanRecentWrongOrphans(btxCfg.UnorphanRecentWrongOrphans.Interval)
 	}
 
@@ -140,14 +165,15 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		PrometheusEndpoint: commonCfg.Prometheus.Endpoint,
 		MaxMsgSize:         commonCfg.GrpcMessageSize,
 		TracingConfig:      commonCfg.Tracing,
-		Name:               "blocktx",
+		Name:               serviceName,
 	}
 
-	server, err = blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient, btxCfg.RecordRetentionDays)
+	server, err := blocktx.NewServer(logger, blockStore, pm, processor, serverCfg, btxCfg.MaxAllowedBlockHeightMismatch, mqClient, btxCfg.RecordRetentionDays)
 	if err != nil {
 		stopFn()
 		return nil, fmt.Errorf("create GRPCServer failed: %v", err)
 	}
+	stoppable = append(stoppable, server)
 
 	err = server.ListenAndServe(btxCfg.ListenAddr)
 	if err != nil {
@@ -158,7 +184,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	return stopFn, nil
 }
 
-func NewBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s store.BlocktxStore, err error) {
+func newBlocktxStore(logger *slog.Logger, dbConfig *config.DbConfig, tracingConfig *config.TracingConfig) (s *postgresql.PostgreSQL, err error) {
 	switch dbConfig.Mode {
 	case DbModePostgres:
 		postgres := dbConfig.Postgres
@@ -228,7 +254,7 @@ func setupBcNetworkCommunication(l *slog.Logger, bloctxCfg *config.BlocktxConfig
 		}
 
 		if mcastListener != nil {
-			mcastListener.Disconnect()
+			mcastListener.Shutdown()
 		}
 	}()
 
@@ -345,60 +371,5 @@ func connectToPeers(l *slog.Logger, manager *p2p.PeerManager, connectionsReady c
 		if connectedPeers == minConnections {
 			close(connectionsReady)
 		}
-	}
-}
-
-func disposeBlockTx(l *slog.Logger, server *blocktx.Server, processor *blocktx.Processor,
-	pm *p2p.PeerManager, mcastListener *mcast.Listener, mqClient mq.MessageQueueClient,
-	store store.BlocktxStore, healthServer *grpc_utils.GrpcServer, workers *blocktx.BackgroundWorkers,
-	shutdownFns []func(),
-	statsCollector *blocktx.StatsCollector,
-) {
-	// dispose the dependencies in the correct order:
-	// 1. server - ensure no new requests will be received
-	// 2. background workers
-	// 3. processor - ensure all started job are complete
-	// 4. peer manager
-	// 5. mqClient
-	// 6. store
-	// 7. healthServer
-	// 8. run shutdown functions
-
-	if server != nil {
-		server.GracefulStop()
-	}
-	if workers != nil {
-		workers.GracefulStop()
-	}
-	if processor != nil {
-		processor.Shutdown()
-	}
-	if pm != nil {
-		pm.Shutdown()
-	}
-	if mcastListener != nil {
-		mcastListener.Disconnect()
-	}
-	if mqClient != nil {
-		mqClient.Shutdown()
-	}
-
-	if store != nil {
-		err := store.Close()
-		if err != nil {
-			l.Error("Could not close store", slog.String("err", err.Error()))
-		}
-	}
-
-	if healthServer != nil {
-		healthServer.GracefulStop()
-	}
-
-	if statsCollector != nil {
-		statsCollector.Shutdown()
-	}
-
-	for _, shutdownFn := range shutdownFns {
-		shutdownFn()
 	}
 }

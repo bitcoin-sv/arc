@@ -3,12 +3,13 @@ package global
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var ErrTransactionNotFound = errors.New("transaction not found")
@@ -49,7 +50,7 @@ type TransactionStatus struct {
 	ExtraInfo     string
 	Callbacks     []*metamorph_api.Callback
 	CompetingTxs  []string
-	LastSubmitted timestamppb.Timestamp
+	LastSubmitted time.Time
 	Timestamp     int64
 }
 
@@ -59,16 +60,63 @@ type Transaction struct {
 	BlockHeight uint64
 }
 
-// TransactionOptions options passed from header when creating transactions.
+// TransactionOptions options passed from the header when creating transactions.
 type TransactionOptions struct {
-	CallbackURL             string               `json:"callback_url,omitempty"`
-	CallbackToken           string               `json:"callback_token,omitempty"`
-	CallbackBatch           bool                 `json:"callback_batch,omitempty"`
-	SkipFeeValidation       bool                 `json:"X-SkipFeeValidation,omitempty"`
-	SkipScriptValidation    bool                 `json:"X-SkipScriptValidation,omitempty"`
-	SkipTxValidation        bool                 `json:"X-SkipTxValidation,omitempty"`
-	ForceValidation         bool                 `json:"X-ForceValidation,omitempty"`
-	CumulativeFeeValidation bool                 `json:"X-CumulativeFeeValidation,omitempty"`
-	WaitForStatus           metamorph_api.Status `json:"wait_for_status,omitempty"`
-	FullStatusUpdates       bool                 `json:"full_status_updates,omitempty"`
+	CallbackURL             string
+	CallbackToken           string
+	CallbackBatch           bool
+	SkipFeeValidation       bool
+	SkipScriptValidation    bool
+	SkipTxValidation        bool
+	ForceValidation         bool
+	CumulativeFeeValidation bool
+	WaitForStatus           metamorph_api.Status
+	FullStatusUpdates       bool
+}
+
+type Stoppable interface {
+	Shutdown()
+}
+
+type StoppableWithError interface {
+	Shutdown() error
+}
+
+type StoppableWithContext interface {
+	Shutdown(ctx context.Context) error
+}
+
+type Stoppables []Stoppable
+type StoppablesWithError []StoppableWithError
+
+type StoppablesWithContext []StoppableWithContext
+
+func (s Stoppables) Shutdown() {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			stoppable.Shutdown()
+		}
+	}
+}
+
+func (s StoppablesWithError) Shutdown(logger *slog.Logger) {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			err := stoppable.Shutdown()
+			if err != nil {
+				logger.Error("Error shutting down stoppable", slog.String("err", err.Error()))
+			}
+		}
+	}
+}
+
+func (s StoppablesWithContext) Shutdown(ctx context.Context, logger *slog.Logger) {
+	for _, stoppable := range s {
+		if stoppable != nil {
+			err := stoppable.Shutdown(ctx)
+			if err != nil {
+				logger.Error("Error shutting down stoppable", slog.String("err", err.Error()))
+			}
+		}
+	}
 }

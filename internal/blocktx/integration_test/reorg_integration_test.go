@@ -89,7 +89,7 @@ func TestReorg(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_block")
 
-		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, minedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
@@ -128,17 +128,17 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822015Fork, 822015, blocktx_api.Status_STALE)
 		verifyBlock(t, store, blockHash822015, 822015, blocktx_api.Status_LONGEST)
 
-		publishedTxs := getPublishedTxs(publishedTxsCh)
+		minedTxs := getTxBlockItems(minedTxsCh)
 
 		// verify the no transaction was published to metamorph
-		require.Len(t, publishedTxs, 0)
+		require.Len(t, minedTxs, 0)
 	})
 
 	t.Run("reorg", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg")
 
-		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, minedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822015Fork = "82471bbf045ab13825a245b37de71d77ec12513b37e2524ec11551d18c19f7c3"
@@ -223,16 +223,16 @@ func TestReorg(t *testing.T) {
 			},
 		}
 
-		publishedTxs := getPublishedTxs(publishedTxsCh)
+		minedTxs := getTxBlockItems(minedTxsCh)
 
-		verifyTxs(t, expectedTxs, publishedTxs)
+		verifyTxs(t, expectedTxs, minedTxs)
 	})
 
 	t.Run("stale orphans", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
 
-		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, minedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822017Longest = "00000000000000000643d48201cf609b8cc50befe804194f19a7ec61cf046239"
@@ -283,17 +283,17 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_ORPHANED)
 		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_ORPHANED)
 
-		publishedTxs := getPublishedTxs(publishedTxsCh)
+		minedTxs := getTxBlockItems(minedTxsCh)
 
 		// verify no transaction was published
-		require.Len(t, publishedTxs, 0)
+		require.Len(t, minedTxs, 0)
 	})
 
 	t.Run("reorg orphans", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/reorg_orphans")
 
-		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, minedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822014StartOfChain = "f97e20396f02ab990ed31b9aec70c240f48b7e5ea239aa050000000000000000"
@@ -391,16 +391,16 @@ func TestReorg(t *testing.T) {
 			},
 		}
 
-		publishedTxs := getPublishedTxs(publishedTxsCh)
+		minedTxs := getTxBlockItems(minedTxsCh)
 
-		verifyTxs(t, expectedTxs, publishedTxs)
+		verifyTxs(t, expectedTxs, minedTxs)
 	})
 
 	t.Run("unorphan blocks until gap", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
 		testutils.LoadFixtures(t, dbConn, "fixtures/stale_orphans")
 
-		processor, p2pMsgHandler, store, _, publishedTxsCh := setupSut(t, dbInfo)
+		processor, p2pMsgHandler, store, _, minedTxsCh := setupSut(t, dbInfo)
 
 		const (
 			blockHash822017Longest = "00000000000000000643d48201cf609b8cc50befe804194f19a7ec61cf046239"
@@ -452,9 +452,9 @@ func TestReorg(t *testing.T) {
 		verifyBlock(t, store, blockHash822022Orphan, 822022, blocktx_api.Status_LONGEST)
 		verifyBlock(t, store, blockHash822023Orphan, 822023, blocktx_api.Status_LONGEST)
 
-		publishedTxs := getPublishedTxs(publishedTxsCh)
+		minedTxs := getTxBlockItems(minedTxsCh)
 
 		// verify no transaction was published
-		require.Len(t, publishedTxs, 0)
+		require.Len(t, minedTxs, 0)
 	})
 }

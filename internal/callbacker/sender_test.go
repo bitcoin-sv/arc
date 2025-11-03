@@ -65,7 +65,7 @@ func TestCallbackSender_Send(t *testing.T) {
 			sut, err := callbacker.NewSender(logger, callbacker.WithTimeout(500*time.Second))
 			require.NoError(t, err)
 
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			url := server.URL
 			if tc.nonExistingURL {
@@ -88,9 +88,9 @@ func TestCallbackSender_GracefulStop(t *testing.T) {
 	sut, err := callbacker.NewSender(logger)
 	require.NoError(t, err)
 
-	// When: Call GracefulStop twice to ensure it handles double stop gracefully
-	sut.GracefulStop()
-	sut.GracefulStop()
+	// When: Call Shutdown twice to ensure it handles double stop gracefully
+	sut.Shutdown()
+	sut.Shutdown()
 
 	// Then: Assert that sender is disposed
 	err = sut.Health()
@@ -110,7 +110,7 @@ func TestCallbackSender_Health(t *testing.T) {
 	require.NoError(t, err)
 
 	// When: Stop sender and check Health error
-	sut.GracefulStop()
+	sut.Shutdown()
 	err = sut.Health()
 
 	// Then: Expect error indicating the sender is disposed
@@ -172,7 +172,7 @@ func TestCallbackSender_SendBatch(t *testing.T) {
 			logger := slog.Default()
 			sut, err := callbacker.NewSender(logger, callbacker.WithTimeout(2*time.Second))
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// When
 			success, _ := sut.SendBatch(server.URL+tc.url, tc.token, tc.dtos)

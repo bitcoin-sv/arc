@@ -28,9 +28,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			ClearBlocktxTableFunc: func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (int64, error) {
 //				panic("mock out the ClearBlocktxTable method")
 //			},
-//			CloseFunc: func() error {
-//				panic("mock out the Close method")
-//			},
 //			GetBlockFunc: func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error) {
 //				panic("mock out the GetBlock method")
 //			},
@@ -109,9 +106,6 @@ type BlocktxStoreMock struct {
 
 	// ClearBlocktxTableFunc mocks the ClearBlocktxTable method.
 	ClearBlocktxTableFunc func(ctx context.Context, retentionDays int32, table store.ClearBlocktxTable) (int64, error)
-
-	// CloseFunc mocks the Close method.
-	CloseFunc func() error
 
 	// GetBlockFunc mocks the GetBlock method.
 	GetBlockFunc func(ctx context.Context, hash *chainhash.Hash) (*blocktx_api.Block, error)
@@ -196,9 +190,6 @@ type BlocktxStoreMock struct {
 			RetentionDays int32
 			// Table is the table argument value.
 			Table store.ClearBlocktxTable
-		}
-		// Close holds details about calls to the Close method.
-		Close []struct {
 		}
 		// GetBlock holds details about calls to the GetBlock method.
 		GetBlock []struct {
@@ -363,7 +354,6 @@ type BlocktxStoreMock struct {
 	}
 	lockClearBlocks                       sync.RWMutex
 	lockClearBlocktxTable                 sync.RWMutex
-	lockClose                             sync.RWMutex
 	lockGetBlock                          sync.RWMutex
 	lockGetBlockGaps                      sync.RWMutex
 	lockGetBlockTransactionsHashes        sync.RWMutex
@@ -461,33 +451,6 @@ func (mock *BlocktxStoreMock) ClearBlocktxTableCalls() []struct {
 	mock.lockClearBlocktxTable.RLock()
 	calls = mock.calls.ClearBlocktxTable
 	mock.lockClearBlocktxTable.RUnlock()
-	return calls
-}
-
-// Close calls CloseFunc.
-func (mock *BlocktxStoreMock) Close() error {
-	if mock.CloseFunc == nil {
-		panic("BlocktxStoreMock.CloseFunc: method is nil but BlocktxStore.Close was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockClose.Lock()
-	mock.calls.Close = append(mock.calls.Close, callInfo)
-	mock.lockClose.Unlock()
-	return mock.CloseFunc()
-}
-
-// CloseCalls gets all the calls that were made to Close.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.CloseCalls())
-func (mock *BlocktxStoreMock) CloseCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockClose.RLock()
-	calls = mock.calls.Close
-	mock.lockClose.RUnlock()
 	return calls
 }
 

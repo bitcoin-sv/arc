@@ -31,7 +31,7 @@ import (
 func TestNewServer(t *testing.T) {
 	t.Run("NewServer", func(t *testing.T) {
 		server, _ := metamorph.NewServer(slog.Default(), nil, nil, nil, grpc_utils.ServerConfig{})
-		defer server.GracefulStop()
+		defer server.Shutdown()
 
 		assert.IsType(t, &metamorph.Server{}, server)
 	})
@@ -46,7 +46,7 @@ func TestHealth(t *testing.T) {
 
 		sut, err := metamorph.NewServer(slog.Default(), nil, processor, nil, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
-		defer sut.GracefulStop()
+		defer sut.Shutdown()
 
 		// when
 		stats, err := sut.Health(context.Background(), &emptypb.Empty{})
@@ -158,7 +158,7 @@ func TestPostTransaction(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{}, opts...)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			txRequest := &metamorph_api.PostTransactionsRequest{
 				Transactions: []*metamorph_api.PostTransactionRequest{
@@ -339,7 +339,7 @@ func TestServer_GetTransactionStatus(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			got, err := sut.GetTransactionStatus(context.Background(), tt.req)
@@ -606,7 +606,7 @@ func TestServer_GetTransactionStatuses(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			got, err := sut.GetTransactionStatuses(context.Background(), tt.req)
@@ -878,7 +878,7 @@ func TestPostTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			ctx := context.Background()
@@ -934,7 +934,7 @@ func TestSetUnlockedByName(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			_, err = sut.UpdateInstances(context.Background(), &metamorph_api.UpdateInstancesRequest{
@@ -976,7 +976,7 @@ func TestListenAndServe(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			sut, err := metamorph.NewServer(logger, metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			err = sut.ListenAndServe("localhost:7000")
@@ -1053,7 +1053,7 @@ func TestGetTransactions(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			res, err := sut.GetTransactions(context.TODO(), tc.request)
@@ -1127,7 +1127,7 @@ func TestGetTransaction(t *testing.T) {
 			}
 			sut, err := metamorph.NewServer(slog.Default(), &store, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			res, err := sut.GetTransaction(context.TODO(), tc.request)
@@ -1171,7 +1171,7 @@ func TestClearData(t *testing.T) {
 			}
 			sut, err := metamorph.NewServer(slog.Default(), &metamorphStore, nil, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			res, err := sut.ClearData(context.TODO(), &metamorph_api.ClearDataRequest{

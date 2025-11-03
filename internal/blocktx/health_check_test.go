@@ -78,7 +78,7 @@ func TestCheck(t *testing.T) {
 
 			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil, 20)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -143,7 +143,7 @@ func TestWatch(t *testing.T) {
 			pm := &mocks.PeerManagerMock{CountConnectedPeersFunc: func() uint { return 0 }}
 			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, nil, 20)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -240,7 +240,7 @@ func TestList(t *testing.T) {
 
 			sut, err := blocktx.NewServer(logger, storeMock, pm, nil, serverCfg, 0, mqClient, 20)
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.List(context.Background(), &grpc_health_v1.HealthListRequest{})

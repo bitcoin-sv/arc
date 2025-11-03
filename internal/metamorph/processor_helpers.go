@@ -231,11 +231,11 @@ func getCallbackBlockHash(d *store.TransactionData) string {
 
 func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(context.Context, *Processor) []attribute.KeyValue, routineName string) {
 	ticker := time.NewTicker(tickerInterval)
-	p.waitGroup.Add(1)
+	p.wg.Add(1)
 
 	go func() {
 		defer func() {
-			p.waitGroup.Done()
+			p.wg.Done()
 			ticker.Stop()
 		}()
 

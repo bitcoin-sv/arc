@@ -17,22 +17,20 @@ import (
 	"testing"
 	"time"
 
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"github.com/labstack/echo/v4"
-	"github.com/ordishs/go-bitcoin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	apiHandlerMocks "github.com/bitcoin-sv/arc/internal/api/handler/mocks"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
 	globalMocks "github.com/bitcoin-sv/arc/internal/global/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/internal/validator"
-	defaultvalidator "github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
+	"github.com/bitcoin-sv/arc/internal/validator/defaultvalidator"
 	"github.com/bitcoin-sv/arc/pkg/api"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	"github.com/labstack/echo/v4"
+	"github.com/ordishs/go-bitcoin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -133,7 +131,7 @@ var (
 					CallbackUrl: "https://callback.example.com",
 				},
 			},
-			LastSubmitted: *timestamppb.New(time.Now()),
+			LastSubmitted: time.Now(),
 		},
 		{
 			TxID:        validTxID,
@@ -146,7 +144,7 @@ var (
 					CallbackUrl: "https://callback.example.com",
 				},
 			},
-			LastSubmitted: *timestamppb.New(time.Now()),
+			LastSubmitted: time.Now(),
 		},
 	}
 

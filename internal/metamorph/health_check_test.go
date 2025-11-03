@@ -76,7 +76,7 @@ func TestCheck(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.Check(context.Background(), req)
@@ -149,7 +149,7 @@ func TestWatch(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, nil, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			watchServer := &mocks.HealthWatchServerMock{
 				SendFunc: func(healthCheckResponse *grpc_health_v1.HealthCheckResponse) error {
@@ -242,7 +242,7 @@ func TestList(t *testing.T) {
 
 			sut, err := metamorph.NewServer(slog.Default(), metamorphStore, processor, mqClient, grpc_utils.ServerConfig{})
 			require.NoError(t, err)
-			defer sut.GracefulStop()
+			defer sut.Shutdown()
 
 			// when
 			resp, err := sut.List(context.Background(), &grpc_health_v1.HealthListRequest{})

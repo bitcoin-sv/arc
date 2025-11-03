@@ -7,7 +7,6 @@ package metamorph
 //go:generate moq -pkg mocks -out ./mocks/health_watch_server_mock.go . HealthWatchServer
 
 // from processor.go
-//go:generate moq -pkg mocks -out ./mocks/callback_sender_mock.go . CallbackSender
 //go:generate moq -pkg mocks -out ./mocks/mediator_mock.go . Mediator
 
 // from zmq.go

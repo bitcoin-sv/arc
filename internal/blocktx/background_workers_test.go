@@ -105,7 +105,7 @@ func TestStartFillGaps(t *testing.T) {
 			case <-time.After(time.Duration(3.5 * float64(fillGapsInterval))):
 			}
 
-			sut.GracefulStop()
+			sut.Shutdown()
 			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
 		})
 	}
@@ -146,7 +146,7 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 			sut.StartUnorphanRecentWrongOrphans(unorphanRecentWrongOrphansInterval)
 
 			// then
-			sut.GracefulStop()
+			sut.Shutdown()
 			actualUnorphanedBlocks, err := storeMock.UnorphanRecentWrongOrphans(context.Background())
 			require.NoError(t, err)
 			require.Equal(t, len(tc.expectedUnorphanedBlocks), len(actualUnorphanedBlocks))

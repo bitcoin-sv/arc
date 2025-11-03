@@ -33,7 +33,7 @@ var _ multicast.MessageHandlerI = (*Listener)(nil)
 // Key Methods:
 // - `NewMcastListener`: Initializes a new Listener instance, setting up the multicast group for reading block messages.
 // - `Connect`: Establishes the connection to the multicast group.
-// - `Disconnect`: Leaves the multicast group.
+// - `Shutdown`: Leaves the multicast group.
 // - `OnReceive`: Handles received multicast messages, verifying their type and ensuring proper processing of block messages.
 // - `OnSend`: Placeholder for handling messages sent to the multicast group, currently ignored.
 //
@@ -72,7 +72,7 @@ func (l *Listener) Connect() bool {
 	return l.blockGroup.Connect()
 }
 
-func (l *Listener) Disconnect() {
+func (l *Listener) Shutdown() {
 	l.blockGroup.Disconnect()
 }
 

@@ -53,8 +53,13 @@ func New(dbInfo string, idleConns int, maxOpenConns int, opts ...func(postgreSQL
 	return p, nil
 }
 
-func (p *PostgreSQL) Close() error {
-	return p.db.Close()
+func (p *PostgreSQL) Shutdown() error {
+	err := p.db.Close()
+
+	if err != nil {
+		return fmt.Errorf("failed to close db connection: %w", err)
+	}
+	return nil
 }
 
 func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (int64, error) {

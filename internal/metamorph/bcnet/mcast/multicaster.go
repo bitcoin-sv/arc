@@ -31,7 +31,7 @@ var _ multicast.MessageHandlerI = (*Multicaster)(nil)
 // Key Methods:
 // - `NewMulticaster`: Initializes a new `Multicaster` instance with specified multicast group addresses, network, and message channel.
 // - `Connect`: Connects to both `txGroup` (for sending) and `rejectGroup` (for receiving).
-// - `Disconnect`: Disconnects from all multicast groups, cleaning up resources.
+// - `Shutdown`: Disconnects from all multicast groups, cleaning up resources.
 // - `SendTx`: Encodes and sends a raw transaction to the multicast `txGroup`.
 // - `OnReceive`: Processes messages received via the `rejectGroup` and updates the `messageCh` with rejection status.
 // - `OnSend`: Processes messages sent via the `txGroup` and updates the `messageCh` with sent-to-network status.
@@ -75,7 +75,7 @@ func (m *Multicaster) Connect() bool {
 	return m.txGroup.Connect() && m.rejectGroup.Connect()
 }
 
-func (m *Multicaster) Disconnect() {
+func (m *Multicaster) Shutdown() {
 	m.txGroup.Disconnect()
 	m.rejectGroup.Disconnect()
 }

@@ -32,7 +32,7 @@ func TestNewServer(t *testing.T) {
 		require.NotNil(t, server)
 		assert.IsType(t, &callbacker.Server{}, server)
 
-		defer server.GracefulStop()
+		defer server.Shutdown()
 	})
 }
 
@@ -48,7 +48,7 @@ func TestHealth(t *testing.T) {
 		// given
 		sut, err := callbacker.NewServer(slog.Default(), nil, mqClient, grpc_utils.ServerConfig{})
 		require.NoError(t, err)
-		defer sut.GracefulStop()
+		defer sut.Shutdown()
 
 		// When
 		stats, err := sut.Health(context.Background(), &emptypb.Empty{})

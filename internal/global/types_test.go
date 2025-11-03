@@ -11,7 +11,7 @@ import (
 )
 
 func TestStoppablesShutdown(t *testing.T) {
-	t.Run("shutdown stoppable", func(t *testing.T) {
+	t.Run("shutdown stoppable", func(_ *testing.T) {
 		// given
 		stoppables := global.Stoppables{&mocks.StoppableMock{ShutdownFunc: func() {}}, &mocks.StoppableMock{ShutdownFunc: func() {}}}
 
@@ -21,7 +21,7 @@ func TestStoppablesShutdown(t *testing.T) {
 }
 
 func TestStoppablesWithErrorShutdown(t *testing.T) {
-	t.Run("shutdown stoppable", func(t *testing.T) {
+	t.Run("shutdown stoppable", func(_ *testing.T) {
 		// given
 		stoppables := global.StoppablesWithError{
 			&mocks.StoppableWithErrorMock{ShutdownFunc: func() error { return nil }},
@@ -34,7 +34,7 @@ func TestStoppablesWithErrorShutdown(t *testing.T) {
 }
 
 func TestStoppablesWithContextShutdown(t *testing.T) {
-	t.Run("shutdown stoppable", func(t *testing.T) {
+	t.Run("shutdown stoppable", func(_ *testing.T) {
 		// given
 		stoppables := global.StoppablesWithContext{
 			&mocks.StoppableWithContextMock{ShutdownFunc: func(_ context.Context) error { return nil }},

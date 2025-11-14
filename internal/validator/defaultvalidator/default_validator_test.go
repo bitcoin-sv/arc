@@ -211,64 +211,103 @@ func TestStandardCheckFees(t *testing.T) {
 	require.NoError(t, err)
 	sourceTxHash, err := chainhash.NewHash(txIDbytes)
 	require.NoError(t, err)
-	type args struct {
+
+	tt := []struct {
+		name     string
 		tx       *sdkTx.Transaction
 		feeModel *feemodel.SatoshisPerKilobyte
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+
+		expectedError error
 	}{
 		{
-			name: "no fee being paid",
-			args: args{
-				tx: &sdkTx.Transaction{
-					Inputs: []*sdkTx.TransactionInput{{
-						SourceTXID: sourceTxHash,
-						SourceTransaction: &sdkTx.Transaction{
-							Outputs: []*sdkTx.TransactionOutput{{
-								Satoshis: 100,
-							}},
-						},
-					}},
-					Outputs: []*sdkTx.TransactionOutput{{
-						Satoshis:      100,
-						LockingScript: validLockingScript,
-					}},
-				},
-				feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 5},
+			name: "valid fee being paid - 11 sat",
+			tx: &sdkTx.Transaction{
+				Inputs: []*sdkTx.TransactionInput{{
+					SourceTXID: sourceTxHash,
+					SourceTransaction: &sdkTx.Transaction{
+						Outputs: []*sdkTx.TransactionOutput{{
+							Satoshis: 111,
+						}},
+					},
+					UnlockingScript: validLockingScript,
+				}},
+				Outputs: []*sdkTx.TransactionOutput{{
+					Satoshis:      100,
+					LockingScript: validLockingScript,
+				}},
 			},
-			wantErr: true,
+			feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 100},
 		},
 		{
-			name: "valid fee being paid",
-			args: args{
-				tx: &sdkTx.Transaction{
-					Inputs: []*sdkTx.TransactionInput{{
-						SourceTXID: sourceTxHash,
-						SourceTransaction: &sdkTx.Transaction{
-							Outputs: []*sdkTx.TransactionOutput{{
-								Satoshis: 150,
-							}},
-						},
-						UnlockingScript: validLockingScript,
-					}},
-					Outputs: []*sdkTx.TransactionOutput{{
-						Satoshis:      100,
-						LockingScript: validLockingScript,
-					}},
-				},
-				feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 5},
+			name: "fee being paid too low - 100 sat/kb",
+			tx: &sdkTx.Transaction{
+				Inputs: []*sdkTx.TransactionInput{{
+					SourceTXID: sourceTxHash,
+					SourceTransaction: &sdkTx.Transaction{
+						Outputs: []*sdkTx.TransactionOutput{{
+							Satoshis: 150,
+						}},
+					},
+					UnlockingScript: validLockingScript,
+				}},
+				Outputs: []*sdkTx.TransactionOutput{{
+					Satoshis:      145,
+					LockingScript: validLockingScript,
+				}},
 			},
-			wantErr: false,
+			feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 100},
+
+			expectedError: ErrTxFeeTooLow,
+		},
+		{
+			name: "error no fee being paid",
+			tx: &sdkTx.Transaction{
+				Inputs: []*sdkTx.TransactionInput{{
+					SourceTXID: sourceTxHash,
+					SourceTransaction: &sdkTx.Transaction{
+						Outputs: []*sdkTx.TransactionOutput{{
+							Satoshis: 100,
+						}},
+					},
+				}},
+				Outputs: []*sdkTx.TransactionOutput{{
+					Satoshis:      100,
+					LockingScript: validLockingScript,
+				}},
+			},
+			feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 5},
+
+			expectedError: ErrComputeFee,
+		},
+		{
+			name: "Previous tx not supplied",
+			tx: &sdkTx.Transaction{
+				Inputs: []*sdkTx.TransactionInput{{
+					SourceTXID:      sourceTxHash,
+					UnlockingScript: validLockingScript,
+				}},
+				Outputs: []*sdkTx.TransactionOutput{{
+					Satoshis:      145,
+					LockingScript: validLockingScript,
+				}},
+			},
+			feeModel: &feemodel.SatoshisPerKilobyte{Satoshis: 100},
+
+			expectedError: ErrGetTotalInputSatoshis,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := checkStandardFees(tt.args.tx, tt.args.feeModel); (err != nil) != tt.wantErr {
-				t.Errorf("checkStandardFees() error = %v, wantErr %v", err, tt.wantErr)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err = checkStandardFees(tc.tx, tc.feeModel)
+			if tc.expectedError != nil {
+				var validatorErr *validator.Error
+				require.True(t, errors.As(err, &validatorErr))
+
+				require.ErrorIs(t, validatorErr.Err, tc.expectedError)
+				return
 			}
+
+			require.Nil(t, err)
 		})
 	}
 }
@@ -278,12 +317,13 @@ func TestStandardCheckFeesTxs(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
-		sut := &feemodel.SatoshisPerKilobyte{Satoshis: 50}
+		sut := &feemodel.SatoshisPerKilobyte{Satoshis: 100}
 
 		// when
 		actualError := checkStandardFees(tx, sut)
 
 		// then
+		require.NotNil(t, actualError)
 		require.ErrorContains(t, actualError, ErrTxFeeTooLow.Error())
 	})
 }

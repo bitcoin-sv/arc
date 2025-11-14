@@ -18,8 +18,10 @@ import (
 )
 
 var (
-	ErrTxFeeTooLow = errors.New("transaction fee is too low")
-	ErrNotExtended = errors.New("transaction is not in extended format")
+	ErrTxFeeTooLow           = errors.New("transaction fee is too low")
+	ErrNotExtended           = errors.New("transaction is not in extended format")
+	ErrComputeFee            = errors.New("failed to compute fee")
+	ErrGetTotalInputSatoshis = errors.New("failed to get total input satoshis")
 )
 
 type DefaultValidator struct {
@@ -251,12 +253,12 @@ func checkCumulativeFees(ctx context.Context, txSet map[string]*sdkTx.Transactio
 func isFeePaidEnough(feeModel sdkTx.FeeModel, tx *sdkTx.Transaction) (bool, uint64, uint64, error) {
 	expFeesPaid, err := feeModel.ComputeFee(tx)
 	if err != nil {
-		return false, 0, 0, err
+		return false, 0, 0, errors.Join(ErrComputeFee, err)
 	}
 
 	total, err := tx.TotalInputSatoshis()
 	if err != nil {
-		return false, 0, 0, err
+		return false, 0, 0, errors.Join(ErrGetTotalInputSatoshis, err)
 	}
 	totalInputSatoshis := total
 	totalOutputSatoshis := tx.TotalOutputSatoshis()

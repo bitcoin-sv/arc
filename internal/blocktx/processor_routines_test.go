@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -91,10 +92,15 @@ func TestStartFillGaps(t *testing.T) {
 			}
 			peers := []p2p.PeerI{peerMock}
 
-			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
+			logger := slog.Default()
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
+
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval))
+			require.NoError(t, err)
 
 			// when
-			sut.StartFillGaps(peers, fillGapsInterval, 28, blockRequestingCh)
+			err = blocktx.FillGaps(sut)
+			require.NoError(t, err)
 
 			// then
 			select {
@@ -111,7 +117,7 @@ func TestStartFillGaps(t *testing.T) {
 	}
 }
 
-func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
+func TestUnorphanRecentWrongOrphans(t *testing.T) {
 	tt := []struct {
 		name                     string
 		expectedUnorphanedBlocks []*blocktx_api.Block
@@ -140,10 +146,15 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 				},
 			}
 
-			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
+			logger := slog.Default()
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
+
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithUnorphanRecentWrongOrphans(true, unorphanRecentWrongOrphansInterval))
+			require.NoError(t, err)
 
 			// when
-			sut.StartUnorphanRecentWrongOrphans(unorphanRecentWrongOrphansInterval)
+			err = blocktx.UnorphanRecentWrongOrphans(sut)
+			require.NoError(t, err)
 
 			// then
 			sut.Shutdown()

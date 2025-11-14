@@ -21,6 +21,9 @@ var _ blocktx.ProcessorI = &ProcessorIMock{}
 //			CurrentBlockHeightFunc: func() (uint64, error) {
 //				panic("mock out the CurrentBlockHeight method")
 //			},
+//			GetBlockGapsFunc: func() []*blocktx.BlockGap {
+//				panic("mock out the GetBlockGaps method")
+//			},
 //			RegisterTransactionFunc: func(txHash []byte)  {
 //				panic("mock out the RegisterTransaction method")
 //			},
@@ -34,6 +37,9 @@ type ProcessorIMock struct {
 	// CurrentBlockHeightFunc mocks the CurrentBlockHeight method.
 	CurrentBlockHeightFunc func() (uint64, error)
 
+	// GetBlockGapsFunc mocks the GetBlockGaps method.
+	GetBlockGapsFunc func() []*blocktx.BlockGap
+
 	// RegisterTransactionFunc mocks the RegisterTransaction method.
 	RegisterTransactionFunc func(txHash []byte)
 
@@ -42,6 +48,9 @@ type ProcessorIMock struct {
 		// CurrentBlockHeight holds details about calls to the CurrentBlockHeight method.
 		CurrentBlockHeight []struct {
 		}
+		// GetBlockGaps holds details about calls to the GetBlockGaps method.
+		GetBlockGaps []struct {
+		}
 		// RegisterTransaction holds details about calls to the RegisterTransaction method.
 		RegisterTransaction []struct {
 			// TxHash is the txHash argument value.
@@ -49,6 +58,7 @@ type ProcessorIMock struct {
 		}
 	}
 	lockCurrentBlockHeight  sync.RWMutex
+	lockGetBlockGaps        sync.RWMutex
 	lockRegisterTransaction sync.RWMutex
 }
 
@@ -76,6 +86,33 @@ func (mock *ProcessorIMock) CurrentBlockHeightCalls() []struct {
 	mock.lockCurrentBlockHeight.RLock()
 	calls = mock.calls.CurrentBlockHeight
 	mock.lockCurrentBlockHeight.RUnlock()
+	return calls
+}
+
+// GetBlockGaps calls GetBlockGapsFunc.
+func (mock *ProcessorIMock) GetBlockGaps() []*blocktx.BlockGap {
+	if mock.GetBlockGapsFunc == nil {
+		panic("ProcessorIMock.GetBlockGapsFunc: method is nil but ProcessorI.GetBlockGaps was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockGetBlockGaps.Lock()
+	mock.calls.GetBlockGaps = append(mock.calls.GetBlockGaps, callInfo)
+	mock.lockGetBlockGaps.Unlock()
+	return mock.GetBlockGapsFunc()
+}
+
+// GetBlockGapsCalls gets all the calls that were made to GetBlockGaps.
+// Check the length with:
+//
+//	len(mockedProcessorI.GetBlockGapsCalls())
+func (mock *ProcessorIMock) GetBlockGapsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockGetBlockGaps.RLock()
+	calls = mock.calls.GetBlockGaps
+	mock.lockGetBlockGaps.RUnlock()
 	return calls
 }
 

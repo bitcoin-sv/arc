@@ -25,6 +25,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
+	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -52,6 +53,11 @@ const (
 	topic                              = "topic: %s"
 )
 
+type BlockGap struct {
+	Hash   *chainhash.Hash
+	Height uint64
+}
+
 type Processor struct {
 	hostname                    string
 	blockRequestCh              chan blocktx_p2p.BlockRequest
@@ -73,6 +79,15 @@ type Processor struct {
 
 	now                        func() time.Time
 	maxBlockProcessingDuration time.Duration
+
+	fillGapsInterval time.Duration
+	fillGapsEnabled  bool
+	blockGapsMap     sync.Map
+	peers            []p2p.PeerI
+	peerIndex        atomic.Int64
+
+	unorphanRecentWrongOrphansInterval time.Duration
+	unorphanRecentWrongOrphansEnabled  bool
 
 	wg        *sync.WaitGroup
 	cancelAll context.CancelFunc
@@ -122,6 +137,8 @@ func (p *Processor) Start() error {
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
+	p.StartRoutine(p.fillGapsInterval, FillGaps)
+	p.StartRoutine(p.unorphanRecentWrongOrphansInterval, UnorphanRecentWrongOrphans)
 
 	return nil
 }
@@ -1036,6 +1053,54 @@ func getBlockTransactionsWithMerklePath(txs []store.BlockTransaction) map[string
 		blockTxsMap[hex.EncodeToString(tx.BlockHash)] = append(blockTxsMap[hex.EncodeToString(tx.BlockHash)], blockTransactionWithMerklePath)
 	}
 	return blockTxsMap
+}
+
+func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Processor) error) {
+	ticker := time.NewTicker(tickerInterval)
+
+	p.wg.Go(func() {
+		defer func() {
+			ticker.Stop()
+		}()
+
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				err := routine(p)
+				if err != nil {
+					p.logger.Error("Failed to run routine", slog.String("err", err.Error()))
+				}
+			}
+		}
+	})
+}
+
+func (p *Processor) GetBlockGaps() []*BlockGap {
+	gaps := make([]*BlockGap, 0)
+
+	p.blockGapsMap.Range(func(key, value interface{}) bool {
+		hash, ok := key.(*chainhash.Hash)
+		if !ok {
+			return true
+		}
+
+		height, ok := value.(uint64)
+		if !ok {
+			return true
+		}
+
+		blockGap := &BlockGap{
+			Hash:   hash,
+			Height: height,
+		}
+
+		gaps = append(gaps, blockGap)
+		return true
+	})
+
+	return gaps
 }
 
 func (p *Processor) Shutdown() {

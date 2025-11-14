@@ -31,6 +31,8 @@ func TestFillGaps(t *testing.T) {
 		getBlockGapsErr error
 		blockGaps       []*store.BlockGap
 
+		expectedError             error
+		expectedBlockGaps         int
 		expectedGetBlockGapsCalls int
 	}{
 		{
@@ -47,6 +49,7 @@ func TestFillGaps(t *testing.T) {
 				},
 			},
 
+			expectedBlockGaps:         2,
 			expectedGetBlockGapsCalls: 1,
 		},
 		{
@@ -54,6 +57,7 @@ func TestFillGaps(t *testing.T) {
 			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 
+			expectedError:             blocktx.ErrGetBlockGapsFailed,
 			expectedGetBlockGapsCalls: 1,
 		},
 		{
@@ -61,7 +65,7 @@ func TestFillGaps(t *testing.T) {
 			hostname:  hostname,
 			blockGaps: make([]*store.BlockGap, 0),
 
-			expectedGetBlockGapsCalls: 3,
+			expectedGetBlockGapsCalls: 1,
 		},
 	}
 
@@ -71,13 +75,11 @@ func TestFillGaps(t *testing.T) {
 			const fillGapsInterval = 50 * time.Millisecond
 
 			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
-			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					if getBlockGapTestErr != nil {
-						getBlockErrCh <- getBlockGapTestErr
 						return nil, getBlockGapTestErr
 					}
 
@@ -97,22 +99,25 @@ func TestFillGaps(t *testing.T) {
 
 			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval), blocktx.WithRetentionDays(5))
 			require.NoError(t, err)
+			defer sut.Shutdown()
 
 			// when
 			err = blocktx.FillGaps(sut)
+			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
+			}
+
 			require.NoError(t, err)
 
 			// then
-			select {
-			case hashPeer := <-blockRequestCh:
-				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
-			case err = <-getBlockErrCh:
-				require.ErrorIs(t, err, tc.getBlockGapsErr)
-			case <-time.After(time.Duration(3.5 * float64(fillGapsInterval))):
+			actualBlockGaps := 0
+			for range tc.blockGaps {
+				<-blockRequestCh
+				actualBlockGaps++
 			}
-
-			sut.Shutdown()
-			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+			require.Equal(t, actualBlockGaps, tc.expectedBlockGaps)
 		})
 	}
 }

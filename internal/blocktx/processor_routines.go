@@ -1,9 +1,14 @@
 package blocktx
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
+)
+
+var (
+	ErrGetBlockGapsFailed = errors.New("failed to get block gaps")
 )
 
 func FillGaps(p *Processor) error {
@@ -25,8 +30,12 @@ func FillGaps(p *Processor) error {
 	}
 
 	blockHeightGaps, err := p.store.GetBlockGaps(p.ctx, heightRange)
-	if err != nil || len(blockHeightGaps) == 0 {
-		return err
+	if err != nil {
+		return errors.Join(ErrGetBlockGapsFailed, err)
+	}
+
+	if len(blockHeightGaps) == 0 {
+		return nil
 	}
 
 	for i, block := range blockHeightGaps {

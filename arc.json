@@ -1,0 +1,1660 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ARC - Authoritative Response Component",
+    "version": "1.0.0",
+    "license": {
+      "name": "Open BSV Licence",
+      "url": "https://bitcoinassociation.net/open-bsv-license/"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://arc.taal.com"
+    }
+  ],
+  "paths": {
+    "/v1/policy": {
+      "get": {
+        "operationId": "GET policy",
+        "tags": [
+          "Arc"
+        ],
+        "summary": "Get the policy settings",
+        "description": "This endpoint returns the policy settings.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NotAuthorized"
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "GET health",
+        "tags": [
+          "Arc"
+        ],
+        "summary": "Get metamorph health",
+        "description": "Checks if metamorph is healthy and running",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NotAuthorized"
+          }
+        }
+      }
+    },
+    "/v1/tx/{txid}": {
+      "get": {
+        "operationId": "GET transaction status",
+        "tags": [
+          "Arc"
+        ],
+        "summary": "Get transaction status.",
+        "description": "This endpoint is used to get the current status of a previously submitted transaction.",
+        "parameters": [
+          {
+            "name": "txid",
+            "in": "path",
+            "description": "The transaction ID (32 byte hash) hex string",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NotAuthorized"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Generic error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorGeneric"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tx": {
+      "post": {
+        "operationId": "POST transaction",
+        "tags": [
+          "Arc"
+        ],
+        "summary": "Submit a transaction.",
+        "description": "This endpoint is used to send a raw transaction to a miner for inclusion in the next block that the miner creates.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/callbackUrl"
+          },
+          {
+            "$ref": "#/components/parameters/fullStatusUpdates"
+          },
+          {
+            "$ref": "#/components/parameters/maxTimeout"
+          },
+          {
+            "$ref": "#/components/parameters/skipFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/forceValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipScriptValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipTxValidation"
+          },
+          {
+            "$ref": "#/components/parameters/cumulativeFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/callbackToken"
+          },
+          {
+            "$ref": "#/components/parameters/callbackBatch"
+          },
+          {
+            "$ref": "#/components/parameters/waitFor"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Transaction hex string",
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction hex string>"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionRequest"
+              }
+            },
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                },
+                "examples": {
+                  "mined": {
+                    "summary": "Transaction mined",
+                    "value": {
+                      "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
+                      "blockHeight": 736228,
+                      "extraInfo": "",
+                      "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460",
+                      "status": 200,
+                      "timestamp": "2023-03-09T12:03:48.382910514Z",
+                      "title": "OK",
+                      "txStatus": "MINED",
+                      "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a"
+                    }
+                  },
+                  "mempool": {
+                    "summary": "Transaction in mempool",
+                    "value": {
+                      "blockHash": "",
+                      "blockHeight": 0,
+                      "extraInfo": "",
+                      "status": 200,
+                      "timestamp": "2023-03-09T12:03:48.382910514Z",
+                      "title": "OK",
+                      "txStatus": "SEEN_ON_NETWORK",
+                      "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                      "merklePath": ""
+                    }
+                  },
+                  "error": {
+                    "summary": "Invalid outputs",
+                    "value": {
+                      "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+                      "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
+                      "instance": null,
+                      "status": 463,
+                      "title": "Invalid outputs",
+                      "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
+                      "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463\""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBadRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NotAuthorized"
+          },
+          "409": {
+            "description": "Generic error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorGeneric"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable entity - with IETF RFC 7807 Error object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "460": {
+            "description": "Not extended format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorTxFormat"
+                }
+              }
+            }
+          },
+          "461": {
+            "description": "Malformed transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorUnlockingScripts"
+                }
+              }
+            }
+          },
+          "462": {
+            "description": "Invalid inputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorInputs"
+                }
+              }
+            }
+          },
+          "463": {
+            "description": "Malformed transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMalformed"
+                }
+              }
+            }
+          },
+          "464": {
+            "description": "Invalid outputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOutputs"
+                }
+              }
+            }
+          },
+          "465": {
+            "description": "Fee too low",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorFee"
+                }
+              }
+            }
+          },
+          "467": {
+            "description": "Mined ancestors not found in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+                }
+              }
+            }
+          },
+          "468": {
+            "description": "Invalid BUMPs in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "469": {
+            "description": "Invalid Merkle Roots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "473": {
+            "description": "Cumulative Fee validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCumulativeFees"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/txs": {
+      "post": {
+        "operationId": "POST transactions",
+        "tags": [
+          "Arc"
+        ],
+        "summary": "Submit multiple transactions.",
+        "description": "This endpoint is used to send multiple raw transactions to a miner for inclusion in the next block that the miner creates.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/callbackUrl"
+          },
+          {
+            "$ref": "#/components/parameters/fullStatusUpdates"
+          },
+          {
+            "$ref": "#/components/parameters/maxTimeout"
+          },
+          {
+            "$ref": "#/components/parameters/skipFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/forceValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipScriptValidation"
+          },
+          {
+            "$ref": "#/components/parameters/skipTxValidation"
+          },
+          {
+            "$ref": "#/components/parameters/cumulativeFeeValidation"
+          },
+          {
+            "$ref": "#/components/parameters/callbackToken"
+          },
+          {
+            "$ref": "#/components/parameters/callbackBatch"
+          },
+          {
+            "$ref": "#/components/parameters/waitFor"
+          }
+        ],
+        "requestBody": {
+          "description": "",
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "example": "<transaction hex string>\n<transaction hex string>"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TransactionRequest"
+                }
+              }
+            },
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponses"
+                },
+                "examples": {
+                  "mined": {
+                    "summary": "Transaction mined",
+                    "value": [
+                      {
+                        "blockHash": "0000000000000aac89fbed163ed60061ba33bc0ab9de8e7fd8b34ad94c2414cd",
+                        "blockHeight": 761868,
+                        "extraInfo": "",
+                        "status": 200,
+                        "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
+                        "txStatus": "MINED",
+                        "txid": "b68b064b336b9a4abdb173f3e32f27b38a222cb2102f51b8c92563e816b12b4a",
+                        "merklePath": "fe54251800020400028d97f9ebeddd9f9aa8e0e953b3a76f316298ab05e9834aa811716e9d397564e501025f64aa8e012e26a5c5803c9f94d1c2c8ea68ecef1415011e1c2e26b9c966b6ad02021f5fa39607ca3b48d53c902bd5bb4bbf6a7ac99cf9fda45cc21b71e6e2f7889603024a2bb116e86325c9b8512f10b22c228ab3272fe3f373b1bd4a9a6b334b068bb602000061793b278303101a1390ceae5a713de0eabd9cda63702fe84c928970acf7c45e0100a567e3d066e38638b27897559302eabc85eb69b202c2e86d4338bab73008f460"
+                      }
+                    ]
+                  },
+                  "added": {
+                    "summary": "Transaction in mempool",
+                    "value": [
+                      {
+                        "blockHash": "",
+                        "blockHeight": 0,
+                        "extraInfo": "",
+                        "status": 200,
+                        "timestamp": "2023-03-09T12:03:48.382910514Z",
+                        "title": "OK",
+                        "txStatus": "SEEN_ON_NETWORK",
+                        "txid": "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6",
+                        "merklePath": ""
+                      }
+                    ]
+                  },
+                  "error": {
+                    "summary": "Invalid outputs",
+                    "value": [
+                      {
+                        "detail": "Transaction is invalid because the outputs are non-existent or invalid",
+                        "extraInfo": "arc error 463: arc error 463: transaction output 0 satoshis is invalid",
+                        "instance": null,
+                        "status": 463,
+                        "title": "Invalid outputs",
+                        "txid": "a0d69a2dfad710770ed282cce316c5792f6101a68046a263a17a1ae02676015e",
+                        "type": "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBadRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NotAuthorized"
+          },
+          "409": {
+            "description": "Generic error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorGeneric"
+                }
+              }
+            }
+          },
+          "460": {
+            "description": "Not extended format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorTxFormat"
+                }
+              }
+            }
+          },
+          "461": {
+            "description": "Malformed transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorUnlockingScripts"
+                }
+              }
+            }
+          },
+          "462": {
+            "description": "Invalid inputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorInputs"
+                }
+              }
+            }
+          },
+          "463": {
+            "description": "Malformed transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMalformed"
+                }
+              }
+            }
+          },
+          "464": {
+            "description": "Invalid outputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOutputs"
+                }
+              }
+            }
+          },
+          "465": {
+            "description": "Fee too low",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorFee"
+                }
+              }
+            }
+          },
+          "467": {
+            "description": "Mined ancestors not found in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+                }
+              }
+            }
+          },
+          "468": {
+            "description": "Invalid BUMPs in BEEF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "469": {
+            "description": "Invalid Merkle Roots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorValidatingMerkleRoots"
+                }
+              }
+            }
+          },
+          "473": {
+            "description": "Cumulative Fee too low",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCumulativeFees"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CommonResponse": {
+        "type": "object",
+        "required": [
+          "timestamp"
+        ],
+        "description": "Common response object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": false
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "description": "healthy or not",
+        "properties": {
+          "healthy": {
+            "type": "boolean",
+            "nullable": false,
+            "example": false,
+            "description": "whether healthy or not"
+          },
+          "version": {
+            "type": "string",
+            "nullable": false,
+            "example": "v1.0.0",
+            "description": "version of the ARC package"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "example": "no db connection",
+            "description": "explains the problem with metamorph"
+          }
+        }
+      },
+      "ChainInfo": {
+        "type": "object",
+        "description": "Chain info",
+        "properties": {
+          "blockHash": {
+            "type": "string",
+            "nullable": false,
+            "example": "00000000000000000854749b3c125d52c6943677544c8a6a885247935ba8d17d",
+            "description": "Block hash"
+          },
+          "blockHeight": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false,
+            "example": 782318,
+            "description": "Block height"
+          }
+        }
+      },
+      "PolicyResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonResponse"
+          },
+          {
+            "type": "object",
+            "required": [
+              "policy"
+            ],
+            "properties": {
+              "policy": {
+                "$ref": "#/components/schemas/Policy"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Policy": {
+        "type": "object",
+        "required": [
+          "maxscriptsizepolicy",
+          "maxtxsigopscountspolicy",
+          "maxtxsizepolicy",
+          "miningFee"
+        ],
+        "properties": {
+          "maxscriptsizepolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false,
+            "description": "Maximum script size [bytes]",
+            "example": 500000
+          },
+          "maxtxsigopscountspolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false,
+            "description": "Maximum number of signature operations",
+            "example": 4294967295
+          },
+          "maxtxsizepolicy": {
+            "type": "integer",
+            "format": "uint64",
+            "nullable": false,
+            "description": "Maximum transaction size [bytes]",
+            "example": 10000000
+          },
+          "miningFee": {
+            "$ref": "#/components/schemas/FeeAmount",
+            "description": "Mining fee"
+          },
+          "standardFormatSupported": {
+            "type": "boolean",
+            "nullable": false,
+            "description": "Whether or not the standard format is supported",
+            "example": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FeeAmount": {
+        "type": "object",
+        "required": [
+          "satoshis",
+          "bytes"
+        ],
+        "properties": {
+          "satoshis": {
+            "type": "integer",
+            "format": "uint64",
+            "description": "Amount in Satoshis",
+            "example": 1
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "uint64",
+            "description": "Number of bytes",
+            "example": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransactionRequest": {
+        "type": "object",
+        "required": [
+          "rawTx"
+        ],
+        "properties": {
+          "rawTx": {
+            "type": "string",
+            "nullable": false,
+            "description": "Raw hex string",
+            "example": "<transaction hex string>"
+          }
+        }
+      },
+      "TransactionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
+            "$ref": "#/components/schemas/TransactionDetails"
+          },
+          {
+            "$ref": "#/components/schemas/TransactionSubmitStatus"
+          }
+        ]
+      },
+      "TransactionResponses": {
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/Error"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "TransactionStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonResponse"
+          },
+          {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          {
+            "$ref": "#/components/schemas/TransactionDetails"
+          }
+        ]
+      },
+      "TransactionSubmitStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "title"
+        ],
+        "description": "Transaction submit status",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "format": "int",
+            "example": 201,
+            "nullable": false,
+            "description": "Status"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title",
+            "example": "Added to mempool",
+            "nullable": false
+          }
+        }
+      },
+      "TransactionDetails": {
+        "type": "object",
+        "description": "Transaction details",
+        "required": [
+          "txid",
+          "txStatus"
+        ],
+        "properties": {
+          "txid": {
+            "type": "string",
+            "description": "Transaction ID in hex",
+            "example": "6bdbcfab0526d30e8d68279f79dff61fb4026ace8b7b32789af016336e54f2f0",
+            "nullable": false
+          },
+          "merklePath": {
+            "type": "string",
+            "nullable": true,
+            "description": "Transaction Merkle path as a hex string in BUMP format [BRC-74](https://brc.dev/74)",
+            "example": "0000"
+          },
+          "txStatus": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "QUEUED",
+              "RECEIVED",
+              "STORED",
+              "ANNOUNCED_TO_NETWORK",
+              "REQUESTED_BY_NETWORK",
+              "SENT_TO_NETWORK",
+              "ACCEPTED_BY_NETWORK",
+              "SEEN_IN_ORPHAN_MEMPOOL",
+              "SEEN_ON_NETWORK",
+              "DOUBLE_SPEND_ATTEMPTED",
+              "REJECTED",
+              "MINED_IN_STALE_BLOCK",
+              "MINED"
+            ],
+            "description": "Transaction status",
+            "example": "ACCEPTED_BY_NETWORK",
+            "nullable": false
+          },
+          "extraInfo": {
+            "type": "string",
+            "description": "Extra information about the transaction",
+            "example": "Transaction is not valid",
+            "nullable": true
+          },
+          "competingTxs": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "example": [
+                "c0d6fce714e4225614f000c6a5addaaa1341acbb9c87115114dcf84f37b945a6"
+              ]
+            }
+          }
+        }
+      },
+      "Error": {
+        "description": "An HTTP Problem Details object, as defined in IETF RFC 7807 (https://tools.ietf.org/html/rfc7807).",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ErrorUnlockingScripts"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorInputs"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorMalformed"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorMinedAncestorsNotFound"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorCalculatingMerkleRoots"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorFrozenPolicy"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorFrozenConsensus"
+          }
+        ]
+      },
+      "ErrorFields": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of error, with link to more information",
+            "nullable": false
+          },
+          "title": {
+            "type": "string",
+            "description": "Descriptive text for error",
+            "nullable": false
+          },
+          "status": {
+            "type": "integer",
+            "format": "int",
+            "description": "Error code",
+            "example": 402,
+            "nullable": false
+          },
+          "detail": {
+            "type": "string",
+            "description": "Longer description of error",
+            "example": "The fee in the transaction is too low to be included in a block.",
+            "nullable": false
+          },
+          "instance": {
+            "type": "string",
+            "description": "(Optional) Link to actual error on server",
+            "nullable": true
+          },
+          "txid": {
+            "type": "string",
+            "description": "Transaction ID this error is referring to",
+            "nullable": true
+          },
+          "extraInfo": {
+            "type": "string",
+            "description": "Optional extra information about the error from the miner",
+            "nullable": true
+          }
+        }
+      },
+      "ErrorBadRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_400"
+              },
+              "title": {
+                "example": "Bad request"
+              },
+              "status": {
+                "example": 400
+              },
+              "detail": {
+                "example": "The request seems to be malformed and cannot be processed"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/1234556"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorNotFound": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_404"
+              },
+              "title": {
+                "example": "Not found"
+              },
+              "status": {
+                "example": 404
+              },
+              "detail": {
+                "example": "The requested resource could not be found"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/1234556"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorGeneric": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_409"
+              },
+              "title": {
+                "example": "Generic error"
+              },
+              "status": {
+                "example": 409
+              },
+              "detail": {
+                "example": "Transaction could not be processed"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/1234556"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorTxFormat": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_460"
+              },
+              "title": {
+                "example": "Not extended format"
+              },
+              "status": {
+                "example": 460
+              },
+              "detail": {
+                "example": "Missing input scripts: Transaction could not be transformed to extended format"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/1234556"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorUnlockingScripts": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_461"
+              },
+              "title": {
+                "example": "Malformed transaction"
+              },
+              "status": {
+                "example": 461
+              },
+              "detail": {
+                "example": "Transaction is malformed and cannot be processed"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorInputs": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_462"
+              },
+              "title": {
+                "example": "Invalid inputs"
+              },
+              "status": {
+                "example": 462
+              },
+              "detail": {
+                "example": "Transaction is invalid because the inputs are non-existent or spent"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorMalformed": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_463"
+              },
+              "title": {
+                "example": "Malformed transaction"
+              },
+              "status": {
+                "example": 463
+              },
+              "detail": {
+                "example": "Transaction is malformed and cannot be processed"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorOutputs": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_464"
+              },
+              "title": {
+                "example": "Invalid outputs"
+              },
+              "status": {
+                "example": 464
+              },
+              "detail": {
+                "example": "Transaction is invalid because the outputs are non-existent or invalid"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFee": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_465"
+              },
+              "title": {
+                "example": "Fee too low"
+              },
+              "status": {
+                "example": 465
+              },
+              "detail": {
+                "example": "The fees are too low"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorConflict": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_466"
+              },
+              "title": {
+                "example": "Conflicting tx found"
+              },
+              "status": {
+                "example": 466
+              },
+              "detail": {
+                "example": "Transaction is valid, but there is a conflicting tx in the block template"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorMinedAncestorsNotFound": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_467"
+              },
+              "title": {
+                "example": "Mined ancestors not found"
+              },
+              "status": {
+                "example": 467
+              },
+              "detail": {
+                "example": "Error validating BEEF: mined ancestors not found in transaction inputs"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorCalculatingMerkleRoots": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_468"
+              },
+              "title": {
+                "example": "Invalid BUMPs"
+              },
+              "status": {
+                "example": 468
+              },
+              "detail": {
+                "example": "Error validating BEEF: could not calculate Merkle Roots from given BUMPs"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorValidatingMerkleRoots": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_469"
+              },
+              "title": {
+                "example": "Merkle Roots validation failed"
+              },
+              "status": {
+                "example": 469
+              },
+              "detail": {
+                "example": "Error validating BEEF: could not validate Merkle Roots"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123453"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFrozenPolicy": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_471"
+              },
+              "title": {
+                "example": "Input Frozen"
+              },
+              "status": {
+                "example": 471
+              },
+              "detail": {
+                "example": "Input Frozen (blacklist manager policy blacklisted)"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorFrozenConsensus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_472"
+              },
+              "title": {
+                "example": "Input Frozen"
+              },
+              "status": {
+                "example": 472
+              },
+              "detail": {
+                "example": "Input Frozen (blacklist manager consensus blacklisted)"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "ErrorCumulativeFees": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorFields"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "example": "https://bitcoin-sv.github.io/arc/#/errors?id=_473"
+              },
+              "title": {
+                "example": "Cumulative fee too low"
+              },
+              "status": {
+                "example": 473
+              },
+              "detail": {
+                "example": "The cumulative fee is too low"
+              },
+              "instance": {
+                "example": "https://arc.taal.com/errors/123452"
+              }
+            }
+          }
+        ]
+      },
+      "Callback": {
+        "type": "object",
+        "description": "callback object",
+        "required": [
+          "timestamp",
+          "txid",
+          "txStatus"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string"
+          },
+          "txid": {
+            "type": "string",
+            "nullable": false
+          },
+          "txStatus": {
+            "type": "string",
+            "nullable": false
+          },
+          "extraInfo": {
+            "type": "string",
+            "nullable": true
+          },
+          "competingTxs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "merklePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "blockHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "blockHeight": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "examples": {
+          "mined": {
+            "summary": "Transaction mined",
+            "value": {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+              "txStatus": "MINED",
+              "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+              "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+              "blockHeight": 837394
+            }
+          },
+          "seenOnNetwork": {
+            "summary": "Transaction seen on network",
+            "value": {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "txid": "507e8fb791d37c5da9c6f37a66524d6c8237d9e05d55b6cfa2bed74234d68deb",
+              "txStatus": "SEEN_ON_NETWORK"
+            }
+          },
+          "doubleSpendAttempted": {
+            "summary": "Transaction with one or more competing transactions",
+            "value": {
+              "timestamp": "2024-03-26T16:02:29.655390092Z",
+              "competingTxs": [
+                "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+              ],
+              "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+              "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+            }
+          }
+        }
+      },
+      "BatchedCallbacks": {
+        "type": "object",
+        "description": "batched callbacks object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "number of callbacks in response"
+          },
+          "callbacks": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/Callback"
+            }
+          }
+        },
+        "example": {
+          "value": {
+            "count": 2,
+            "callbacks": [
+              {
+                "timestamp": "2024-03-26T16:02:29.655390092Z",
+                "competingTxs": [
+                  "505097ba93702491a8a8e5c195a3d2706baf9d43af5e8898aeace0e251f240d2"
+                ],
+                "txid": "3d7770a2c3bbf890fe69ad33faadd3efb470b60d05b071eaa86e6597d480e111",
+                "txStatus": "DOUBLE_SPEND_ATTEMPTED"
+              },
+              {
+                "timestamp": "2024-03-26T16:02:29.655390092Z",
+                "txid": "48ccf56b16ec11ddd9cfafc4f28492fb7e989d58594a0acd150a1592570ccd13",
+                "txStatus": "MINED",
+                "merklePath": "fe12c70c000c020a008d1c719355d718dad0ccc...",
+                "blockHash": "0000000000000000064cbaac5cedf71a5447771573ba585501952c023873817b",
+                "blockHeight": 837394
+              }
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "NotAuthorized": {
+        "description": "Security requirements failed"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer authentication as defined in RFC 6750"
+      }
+    },
+    "parameters": {
+      "callbackUrl": {
+        "name": "X-CallbackUrl",
+        "in": "header",
+        "description": "Default double spend and merkle proof notification callback endpoint.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "skipFeeValidation": {
+        "name": "X-SkipFeeValidation",
+        "in": "header",
+        "description": "Whether we should skip fee validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "forceValidation": {
+        "name": "X-ForceValidation",
+        "in": "header",
+        "description": "Whether we should force submitted tx validation in any case.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "fullStatusUpdates": {
+        "name": "X-FullStatusUpdates",
+        "in": "header",
+        "description": "Whether we should have full status updates in callback or not (including SEEN_IN_ORPHAN_MEMPOOL and SEEN_ON_NETWORK statuses).",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "maxTimeout": {
+        "name": "X-MaxTimeout",
+        "in": "header",
+        "description": "Timeout in seconds to wait for new transaction status before request expires (max 30 seconds, default 5)",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "skipScriptValidation": {
+        "name": "X-SkipScriptValidation",
+        "in": "header",
+        "description": "Whether we should skip script validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "skipTxValidation": {
+        "name": "X-SkipTxValidation",
+        "in": "header",
+        "description": "Whether we should skip overall tx validation or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "cumulativeFeeValidation": {
+        "name": "X-CumulativeFeeValidation",
+        "in": "header",
+        "description": "Whether we should perform cumulative fee validation for fee consolidation txs or not.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "callbackToken": {
+        "name": "X-CallbackToken",
+        "in": "header",
+        "description": "Access token for notification callback endpoint. It will be used as a Authorization header for the http callback",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "callbackBatch": {
+        "name": "X-CallbackBatch",
+        "in": "header",
+        "description": "Callback will be send in a batch",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "waitFor": {
+        "name": "X-WaitFor",
+        "in": "header",
+        "description": "Which status to wait for from the server before returning ('QUEUED', 'RECEIVED', 'STORED', 'ANNOUNCED_TO_NETWORK', 'REQUESTED_BY_NETWORK', 'SENT_TO_NETWORK', 'ACCEPTED_BY_NETWORK', 'SEEN_ON_NETWORK')",
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    },
+    {
+      "Api-Key": []
+    },
+    {
+      "Authorization": []
+    }
+  ]
+}

@@ -161,6 +161,7 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	var policy *bitcoin.Settings
 	policy, err = getPolicyFromNode(apiCfg.PeerRPC)
 	if err != nil {
+		logger.Warn("Failed to get policy from node - using default policy", slog.String("err", err.Error()))
 		policy = apiCfg.DefaultPolicy
 	}
 

@@ -818,13 +818,13 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			require.GreaterOrEqual(t, len(utxos), minedAncestorsCount, "No UTXOs available for the address")
 
 			for i := range minedAncestorsCount {
-				minedTx, err := node_client.CreateTx(privateKey, address, utxos[i], 10)
+				minedTx, err := node_client.CreateTx(privateKey, address, utxos[i], 20)
 				require.NoError(t, err)
 
 				minedAncestors = append(minedAncestors, minedTx)
 			}
 
-			// create unmined zero fee ancestors graph
+			// create an unmined zero-fee ancestors graph
 			const zeroFee = uint64(0)
 			const defaultZeroChainCount = 3
 			zeroChainCount := defaultZeroChainCount
@@ -853,7 +853,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 
 					fee := zeroFee
 					if tc.ancestorsMined {
-						fee = uint64(10)
+						fee = uint64(20)
 					}
 
 					tx, err := node_client.CreateTx(privateKey, address, utxo, fee)
@@ -896,7 +896,7 @@ func TestPostCumulativeFeesValidation(t *testing.T) {
 			}
 
 			// then
-			// create last transaction
+			// create the last transaction
 			var nodeUtxos []node_client.UnspentOutput
 			for _, chain := range zeroFeeChains {
 				// get output from the latest tx in the chain
@@ -977,7 +977,7 @@ func TestScriptValidation(t *testing.T) {
 		utxos := node_client.GetUtxos(t, bitcoind, address)
 		require.GreaterOrEqual(t, len(utxos), 1, "No UTXOs available for the address")
 
-		fee := uint64(10)
+		fee := uint64(20)
 
 		lowFeeTx, err := node_client.CreateTx(privateKey, address, utxos[0], fee)
 		require.NoError(t, err)

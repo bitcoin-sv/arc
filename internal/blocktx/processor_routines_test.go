@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
@@ -20,7 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
-func TestStartFillGaps(t *testing.T) {
+func TestFillGaps(t *testing.T) {
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
@@ -30,6 +31,8 @@ func TestStartFillGaps(t *testing.T) {
 		getBlockGapsErr error
 		blockGaps       []*store.BlockGap
 
+		expectedError             error
+		expectedBlockGaps         int
 		expectedGetBlockGapsCalls int
 	}{
 		{
@@ -46,6 +49,7 @@ func TestStartFillGaps(t *testing.T) {
 				},
 			},
 
+			expectedBlockGaps:         2,
 			expectedGetBlockGapsCalls: 1,
 		},
 		{
@@ -53,6 +57,7 @@ func TestStartFillGaps(t *testing.T) {
 			hostname:        hostname,
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 
+			expectedError:             blocktx.ErrGetBlockGapsFailed,
 			expectedGetBlockGapsCalls: 1,
 		},
 		{
@@ -60,7 +65,7 @@ func TestStartFillGaps(t *testing.T) {
 			hostname:  hostname,
 			blockGaps: make([]*store.BlockGap, 0),
 
-			expectedGetBlockGapsCalls: 3,
+			expectedGetBlockGapsCalls: 1,
 		},
 	}
 
@@ -69,14 +74,12 @@ func TestStartFillGaps(t *testing.T) {
 			// given
 			const fillGapsInterval = 50 * time.Millisecond
 
-			blockRequestingCh := make(chan blocktx_p2p.BlockRequest, 10)
-			getBlockErrCh := make(chan error)
+			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
 					if getBlockGapTestErr != nil {
-						getBlockErrCh <- getBlockGapTestErr
 						return nil, getBlockGapTestErr
 					}
 
@@ -91,27 +94,35 @@ func TestStartFillGaps(t *testing.T) {
 			}
 			peers := []p2p.PeerI{peerMock}
 
-			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
+			logger := slog.Default()
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
+
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval), blocktx.WithRetentionDays(5))
+			require.NoError(t, err)
+			defer sut.Shutdown()
 
 			// when
-			sut.StartFillGaps(peers, fillGapsInterval, 28, blockRequestingCh)
-
-			// then
-			select {
-			case hashPeer := <-blockRequestingCh:
-				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
-			case err = <-getBlockErrCh:
-				require.ErrorIs(t, err, tc.getBlockGapsErr)
-			case <-time.After(time.Duration(3.5 * float64(fillGapsInterval))):
+			err = blocktx.FillGaps(sut)
+			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+				return
 			}
 
-			sut.Shutdown()
-			require.Equal(t, tc.expectedGetBlockGapsCalls, len(storeMock.GetBlockGapsCalls()))
+			require.NoError(t, err)
+
+			// then
+			actualBlockGaps := 0
+			for range tc.blockGaps {
+				<-blockRequestCh
+				actualBlockGaps++
+			}
+			require.Equal(t, actualBlockGaps, tc.expectedBlockGaps)
 		})
 	}
 }
 
-func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
+func TestUnorphanRecentWrongOrphans(t *testing.T) {
 	tt := []struct {
 		name                     string
 		expectedUnorphanedBlocks []*blocktx_api.Block
@@ -140,10 +151,15 @@ func TestStartUnorphanRecentWrongOrphans(t *testing.T) {
 				},
 			}
 
-			sut := blocktx.NewBackgroundWorkers(storeMock, slog.Default())
+			logger := slog.Default()
+			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
+
+			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithUnorphanRecentWrongOrphans(true, unorphanRecentWrongOrphansInterval))
+			require.NoError(t, err)
 
 			// when
-			sut.StartUnorphanRecentWrongOrphans(unorphanRecentWrongOrphansInterval)
+			err = blocktx.UnorphanRecentWrongOrphans(sut)
+			require.NoError(t, err)
 
 			// then
 			sut.Shutdown()

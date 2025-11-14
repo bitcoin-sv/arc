@@ -31,6 +31,7 @@ var (
 type ProcessorI interface {
 	RegisterTransaction(txHash []byte)
 	CurrentBlockHeight() (uint64, error)
+	GetBlockGaps() []*BlockGap
 }
 
 type PeerManager interface {
@@ -182,16 +183,8 @@ func (s *Server) LatestBlocks(ctx context.Context, req *blocktx_api.NumOfLatestB
 	if err != nil {
 		return nil, errors.Join(ErrFailedToGetLatestBlocks, err)
 	}
-	const (
-		hoursPerDay   = 24
-		blocksPerHour = 6
-	)
 
-	heightRange := s.retentionDays * hoursPerDay * blocksPerHour
-	blockGaps, err := s.store.GetBlockGaps(ctx, heightRange)
-	if err != nil {
-		return nil, errors.Join(ErrFailedToGetBlockGaps, err)
-	}
+	blockGaps := s.processor.GetBlockGaps()
 
 	gaps := make([]*blocktx_api.BlockGap, 0, len(blockGaps))
 	for _, v := range blockGaps {

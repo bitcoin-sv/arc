@@ -57,7 +57,6 @@ func FillGaps(p *Processor) error {
 			Peer: peer,
 		}:
 		default:
-
 		}
 	}
 

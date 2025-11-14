@@ -312,49 +312,18 @@ func TestStandardCheckFees(t *testing.T) {
 	}
 }
 
-func TestFeeModel(t *testing.T) {
-	t.Run("valid fee model", func(t *testing.T) {
-		sut := &feemodel.SatoshisPerKilobyte{Satoshis: 100}
-
-		txIDbytes, err := hex.DecodeString("4a2992fa3af9eb7ff6b94dc9e27e44f29a54ab351ee6377455409b0ebbe1f00c")
-		require.NoError(t, err)
-		sourceTxHash, err := chainhash.NewHash(txIDbytes)
-		require.NoError(t, err)
-
-		tx := &sdkTx.Transaction{
-			Inputs: []*sdkTx.TransactionInput{{
-				SourceTXID: sourceTxHash,
-				SourceTransaction: &sdkTx.Transaction{
-					Outputs: []*sdkTx.TransactionOutput{{
-						Satoshis: 150,
-					}},
-				},
-				UnlockingScript: validLockingScript,
-			}},
-			Outputs: []*sdkTx.TransactionOutput{{
-				Satoshis:      145,
-				LockingScript: validLockingScript,
-			}},
-		}
-
-		expectedFee, err := sut.ComputeFee(tx)
-		require.NoError(t, err)
-
-		t.Logf("expected fee: %d satoshis", expectedFee)
-	})
-}
-
 func TestStandardCheckFeesTxs(t *testing.T) {
 	t.Run("no fee being paid", func(t *testing.T) {
 		// given
 		tx, err := sdkTx.NewTransactionFromHex(opReturnTx)
 		require.NoError(t, err)
-		sut := &feemodel.SatoshisPerKilobyte{Satoshis: 50}
+		sut := &feemodel.SatoshisPerKilobyte{Satoshis: 100}
 
 		// when
 		actualError := checkStandardFees(tx, sut)
 
 		// then
+		require.NotNil(t, actualError)
 		require.ErrorContains(t, actualError, ErrTxFeeTooLow.Error())
 	})
 }

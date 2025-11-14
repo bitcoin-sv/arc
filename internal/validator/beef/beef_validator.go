@@ -25,6 +25,10 @@ var (
 	ErrRequestFailed            = errors.New("request failed")
 	ErrRequestTimedOut          = errors.New("request timed out")
 	ErrNoChainTrackersAvailable = errors.New("no chain trackers available")
+
+	ErrTxFeeTooLow           = errors.New("transaction fee is too low")
+	ErrComputeFee            = errors.New("failed to compute fee")
+	ErrGetTotalInputSatoshis = errors.New("failed to get total input satoshis")
 )
 
 type ChainTracker interface {
@@ -180,20 +184,20 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 		totalOutputSatoshis := tx.TotalOutputSatoshis()
 		totalInputSatoshis, err := tx.TotalInputSatoshis()
 		if err != nil {
-			return validator.NewError(err, api.ErrStatusCumulativeFees)
+			return validator.NewError(errors.Join(ErrGetTotalInputSatoshis, err), api.ErrStatusCumulativeFees)
 		}
 
 		cumulativePaidFee += totalInputSatoshis - totalOutputSatoshis
 
 		expectedFee, err := feeModel.ComputeFee(tx)
 		if err != nil {
-			return validator.NewError(err, api.ErrStatusCumulativeFees)
+			return validator.NewError(errors.Join(ErrComputeFee, err), api.ErrStatusCumulativeFees)
 		}
 		expectedFees += expectedFee
 	}
 
 	if expectedFees > cumulativePaidFee {
-		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat", cumulativePaidFee, expectedFees)
+		err := fmt.Errorf("cumulative transaction fee of %d sat is too low - minimum expected fee is %d sat: %w", cumulativePaidFee, expectedFees, ErrTxFeeTooLow)
 		return validator.NewError(err, api.ErrStatusCumulativeFees)
 	}
 

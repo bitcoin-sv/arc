@@ -6,24 +6,24 @@ require (
 	github.com/bitcoin-sv/bdk/module/gobdk v1.2.0-beta9
 	github.com/bitcoin-sv/block-headers-service v1.1.1
 	github.com/bitcoinsv/bsvutil v0.0.0-20181216182056-1d77cf353ea9
-	github.com/bsv-blockchain/go-bt/v2 v2.5.0
+	github.com/bsv-blockchain/go-bt/v2 v2.5.1
 	github.com/bsv-blockchain/go-sdk v1.2.12
-	github.com/cbeuw/connutil v0.0.0-20200411215123-966bfaa51ee3
-	github.com/ccoveille/go-safecast v1.6.1
+	github.com/cbeuw/connutil v1.0.1
+	github.com/ccoveille/go-safecast/v2 v2.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/docker/docker v28.5.1+incompatible
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/enescakir/emoji v1.0.0
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/go-testfixtures/testfixtures/v3 v3.18.0
+	github.com/go-testfixtures/testfixtures/v3 v3.19.0
 	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/jedib0t/go-pretty/v6 v6.6.8
+	github.com/jedib0t/go-pretty/v6 v6.7.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.13.4
@@ -55,9 +55,9 @@ require (
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.34.1
-	k8s.io/apimachinery v0.34.1
-	k8s.io/client-go v0.34.1
+	k8s.io/api v0.34.2
+	k8s.io/apimachinery v0.34.2
+	k8s.io/client-go v0.34.2
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 )
 

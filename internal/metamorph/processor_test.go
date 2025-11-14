@@ -14,7 +14,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
@@ -747,7 +747,7 @@ func TestStartProcessSubmitted(t *testing.T) {
 			}
 
 			// then
-			l, err := safecast.ToInt32(len(s.SetBulkCalls()))
+			l, err := safecast.Convert[int32](len(s.SetBulkCalls()))
 			assert.NoError(t, err)
 
 			assert.Equal(t, tc.expectedSetBulkCalls, l)

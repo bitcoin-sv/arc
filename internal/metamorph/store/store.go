@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
@@ -203,7 +203,7 @@ func (d *TransactionData) UpdateTxHash(txHash []byte) error {
 }
 
 func (d *TransactionData) UpdateBlockHeightFromSQL(blockHeight sql.NullInt64) error {
-	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
+	blockHeightUint64, err := safecast.Convert[uint64](blockHeight.Int64)
 	if err != nil {
 		return err
 	}

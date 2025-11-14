@@ -12,7 +12,7 @@ import (
 
 	chh "github.com/bsv-blockchain/go-bt/v2/chainhash"
 	"github.com/bsv-blockchain/go-sdk/util"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/nats-io/nats.go"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -147,7 +147,7 @@ func (s *Server) Health(ctx context.Context, _ *emptypb.Empty) (healthResp *meta
 		status = s.mq.Status()
 	}
 
-	processorMapSizeInt32, err := safecast.ToInt32(processorMapSize)
+	processorMapSizeInt32, err := safecast.Convert[int32](processorMapSize)
 	if err != nil {
 		s.logger.Error("failed to convert processor map size to int32", slog.String("err", err.Error()))
 		return nil, err

@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/libsv/go-p2p/wire"
 )
@@ -49,13 +49,12 @@ func (m *NetworkMessenger) Shutdown() {
 	m.requestBatcher = nil
 }
 
-// AnnounceTransactions will send an INV messages to the provided peers or to selected peers if peers is nil.
+// AnnounceTransactions will send an INV message to the provided peers or to selected peers if peers are nil.
 // It will return the peers that the transaction was actually announced to.
 func (m *NetworkMessenger) AnnounceTransactions(txHashes []*chainhash.Hash, peers []PeerI) []PeerI {
 	// create INV messages
 	var messages []*wire.MsgInv
-
-	mi, err := safecast.ToUint(min(batchSize, len(txHashes)))
+	mi, err := safecast.Convert[uint](min(batchSize, len(txHashes)))
 	if err != nil {
 		m.logger.Error("Failed to convert batch size to uint32", slog.String("error", err.Error()))
 		return nil
@@ -67,7 +66,7 @@ func (m *NetworkMessenger) AnnounceTransactions(txHashes []*chainhash.Hash, peer
 		iv := wire.NewInvVect(wire.InvTypeTx, hash)
 		_ = invMsg.AddInvVect(iv)
 
-		// create new message if we met batch size
+		// create a new message if we met batch size
 		if (i+1)%batchSize == 0 && (i+1) < len(txHashes) {
 			invMsg = wire.NewMsgInvSizeHint(batchSize)
 			messages = append(messages, invMsg)
@@ -95,13 +94,13 @@ func (m *NetworkMessenger) AnnounceTransaction(txHash *chainhash.Hash, peers []P
 	return m.AnnounceTransactions([]*chainhash.Hash{txHash}, peers)
 }
 
-// RequestTransactions will send an GETDATA messages to the first connected peer.
+// RequestTransactions will send an GETDATA message to the first connected peer.
 // It will return the peer that the message was actually sent or nil if now peers are connected.
 func (m *NetworkMessenger) RequestTransactions(txHashes []*chainhash.Hash) PeerI {
 	// create GETDATA messages
 	var messages []*wire.MsgGetData
 
-	mi, err := safecast.ToUint(min(batchSize, len(txHashes)))
+	mi, err := safecast.Convert[uint](min(batchSize, len(txHashes)))
 	if err != nil {
 		m.logger.Error("Failed to convert batch size to uint32", slog.String("error", err.Error()))
 		return nil
@@ -113,7 +112,7 @@ func (m *NetworkMessenger) RequestTransactions(txHashes []*chainhash.Hash) PeerI
 		iv := wire.NewInvVect(wire.InvTypeTx, hash)
 		_ = getMsg.AddInvVect(iv)
 
-		// create new message if we met batch size
+		// create a new message if we met batch size
 		if (i+1)%batchSize == 0 && (i+1) < len(txHashes) {
 			getMsg = wire.NewMsgGetDataSizeHint(batchSize)
 			messages = append(messages, getMsg)
@@ -160,7 +159,7 @@ func (m *NetworkMessenger) AnnounceBlock(blockHash *chainhash.Hash, peers []Peer
 		peers = m.manager.GetPeersForAnnouncement()
 	}
 
-	// send message
+	// send the message
 	for _, peer := range peers {
 		peer.WriteMsg(invMsg)
 	}
@@ -217,7 +216,7 @@ func (m *NetworkMessenger) sendInvMsg(inv []*wire.InvVect) {
 		return
 	}
 
-	// send message
+	// send the message
 	for _, peer := range peers {
 		peer.WriteMsg(invMsg)
 	}
@@ -240,7 +239,7 @@ func (m *NetworkMessenger) sendGetDataMsg(inv []*wire.InvVect) {
 		return
 	}
 
-	// send message
+	// send the message
 	for _, peer := range peers {
 		peer.WriteMsg(getMsg)
 	}

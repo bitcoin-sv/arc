@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/lib/pq"
 	"github.com/ory/dockertest/v3"
@@ -392,7 +392,7 @@ func readAllCallbacks(t *testing.T, db *sql.DB) []*store.CallbackData {
 		if bh.Valid {
 			c.BlockHash = &bh.String
 		}
-		bheightUint64, err := safecast.ToUint64(bheight.Int64)
+		bheightUint64, err := safecast.Convert[uint64](bheight.Int64)
 		require.NoError(t, err)
 		if bheight.Valid {
 			c.BlockHeight = ptrTo(bheightUint64)

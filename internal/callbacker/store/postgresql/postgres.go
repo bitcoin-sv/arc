@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/lib/pq"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 
@@ -88,7 +88,7 @@ func (p *PostgreSQL) Insert(ctx context.Context, data []*store.CallbackData) (in
 		allowBatches[i] = d.AllowBatch
 
 		if d.BlockHeight != nil {
-			blockHeight, err := safecast.ToInt64(*d.BlockHeight)
+			blockHeight, err := safecast.Convert[int64](*d.BlockHeight)
 			if err != nil {
 				return 0, fmt.Errorf("failed to convert block height to int64: %w", err)
 			}
@@ -305,7 +305,7 @@ func scanCallbacks(rows *sql.Rows, expectedNumber int) ([]*store.CallbackData, e
 		if bh.Valid {
 			r.BlockHash = ptrTo(bh.String)
 		}
-		bhuint64, err := safecast.ToUint64(bHeight.Int64)
+		bhuint64, err := safecast.Convert[uint64](bHeight.Int64)
 		if err != nil {
 			return nil, err
 		}

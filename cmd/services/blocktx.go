@@ -106,6 +106,17 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}()
 	stoppable = append(stoppable, publishAdapter)
 
+	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
+	blockProcessCh := make(chan *bcnet.BlockMessagePeer, blockProcessingBuffer)
+
+	pm, mcastListener, err := setupBcNetworkCommunication(logger, btxCfg, blockStore, blockRequestCh, minConnections, blockProcessCh)
+	if err != nil {
+		stopFn()
+		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
+	}
+	stoppable = append(stoppable, pm)
+	stoppable = append(stoppable, mcastListener)
+
 	processorOpts = append(processorOpts,
 		blocktx.WithRetentionDays(btxCfg.RecordRetentionDays),
 		blocktx.WithRegisterTxsChan(registerTxsChan),
@@ -113,10 +124,9 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		blocktx.WithMinedTxsChan(minedTxsChan),
 		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
 		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
+		blocktx.WithUnorphanRecentWrongOrphans(btxCfg.UnorphanRecentWrongOrphans.Enabled, btxCfg.UnorphanRecentWrongOrphans.Interval),
+		blocktx.WithFillGaps(btxCfg.FillGaps.Enabled, pm.GetPeers(), btxCfg.FillGaps.Interval),
 	)
-
-	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)
-	blockProcessCh := make(chan *bcnet.BlockMessagePeer, blockProcessingBuffer)
 
 	processor, err := blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)
 	if err != nil {
@@ -131,14 +141,6 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		return nil, fmt.Errorf("failed to start prometheus: %v", err)
 	}
 
-	pm, mcastListener, err := setupBcNetworkCommunication(logger, btxCfg, blockStore, blockRequestCh, minConnections, blockProcessCh)
-	if err != nil {
-		stopFn()
-		return nil, fmt.Errorf("failed to establish connection with network: %v", err)
-	}
-	stoppable = append(stoppable, pm)
-	stoppable = append(stoppable, mcastListener)
-
 	if commonCfg.Prometheus.IsEnabled() {
 		statsCollector := blocktx.NewStatsCollector(logger, pm, blockStore, btxCfg.RecordRetentionDays)
 		stoppable = append(stoppable, statsCollector)
@@ -147,18 +149,6 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 			stopFn()
 			return nil, fmt.Errorf("failed to start stats collector: %v", err)
 		}
-	}
-
-	if btxCfg.FillGaps != nil && btxCfg.FillGaps.Enabled {
-		workers := blocktx.NewBackgroundWorkers(blockStore, logger)
-		stoppable = append(stoppable, workers)
-		workers.StartFillGaps(pm.GetPeers(), btxCfg.FillGaps.Interval, btxCfg.RecordRetentionDays, blockRequestCh)
-	}
-
-	if btxCfg.UnorphanRecentWrongOrphans != nil && btxCfg.UnorphanRecentWrongOrphans.Enabled {
-		workers := blocktx.NewBackgroundWorkers(blockStore, logger)
-		stoppable = append(stoppable, workers)
-		workers.StartUnorphanRecentWrongOrphans(btxCfg.UnorphanRecentWrongOrphans.Interval)
 	}
 
 	serverCfg := grpc_utils.ServerConfig{

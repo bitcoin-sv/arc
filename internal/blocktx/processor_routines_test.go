@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
+	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
-	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 	storeMocks "github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
@@ -21,7 +21,7 @@ import (
 	"github.com/bitcoin-sv/arc/internal/testdata"
 )
 
-func TestStartFillGaps(t *testing.T) {
+func TestFillGaps(t *testing.T) {
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
 
@@ -70,7 +70,7 @@ func TestStartFillGaps(t *testing.T) {
 			// given
 			const fillGapsInterval = 50 * time.Millisecond
 
-			blockRequestingCh := make(chan blocktx_p2p.BlockRequest, 10)
+			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
 			getBlockErrCh := make(chan error)
 
 			getBlockGapTestErr := tc.getBlockGapsErr
@@ -95,7 +95,7 @@ func TestStartFillGaps(t *testing.T) {
 			logger := slog.Default()
 			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, nil, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval))
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval), blocktx.WithRetentionDays(5))
 			require.NoError(t, err)
 
 			// when
@@ -104,7 +104,7 @@ func TestStartFillGaps(t *testing.T) {
 
 			// then
 			select {
-			case hashPeer := <-blockRequestingCh:
+			case hashPeer := <-blockRequestCh:
 				require.True(t, testdata.Block1Hash.IsEqual(hashPeer.Hash))
 			case err = <-getBlockErrCh:
 				require.ErrorIs(t, err, tc.getBlockGapsErr)

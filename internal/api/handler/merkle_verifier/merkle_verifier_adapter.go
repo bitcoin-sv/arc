@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
 	"github.com/bitcoin-sv/arc/internal/global"
@@ -23,7 +23,7 @@ func New(v global.MerkleRootsVerifier, blocktx global.BlocktxClient) MerkleVerif
 }
 
 func (a MerkleVerifier) IsValidRootForHeight(ctx context.Context, root *chainhash.Hash, height uint32) (bool, error) {
-	heightUint64, err := safecast.ToUint64(height)
+	heightUint64, err := safecast.Convert[uint64](height)
 	if err != nil {
 		return false, err
 	}

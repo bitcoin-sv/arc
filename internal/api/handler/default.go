@@ -14,7 +14,7 @@ import (
 	"time"
 
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/ordishs/go-bitcoin"
 	"go.opentelemetry.io/otel/attribute"
@@ -153,17 +153,17 @@ func NewDefault(
 	var maxscriptsizepolicy, maxTxSigopsCountsPolicy, maxTxSizePolicy uint64
 	var err error
 	if policy != nil {
-		maxscriptsizepolicy, err = safecast.ToUint64(policy.MaxScriptSizePolicy)
+		maxscriptsizepolicy, err = safecast.Convert[uint64](policy.MaxScriptSizePolicy)
 		if err != nil {
 			return nil, err
 		}
 
-		maxTxSigopsCountsPolicy, err = safecast.ToUint64(policy.MaxTxSigopsCountsPolicy)
+		maxTxSigopsCountsPolicy, err = safecast.Convert[uint64](policy.MaxTxSigopsCountsPolicy)
 		if err != nil {
 			return nil, err
 		}
 
-		maxTxSizePolicy, err = safecast.ToUint64(policy.MaxTxSizePolicy)
+		maxTxSizePolicy, err = safecast.Convert[uint64](policy.MaxTxSizePolicy)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +215,7 @@ func (m *ArcDefaultHandler) StartUpdateCurrentBlockHeight() {
 					continue
 				}
 
-				height, err := safecast.ToInt32(blockHeight.CurrentBlockHeight)
+				height, err := safecast.Convert[int32](blockHeight.CurrentBlockHeight)
 				if err != nil {
 					m.logger.Error("cannot cast height to int32", slog.String("err", err.Error()))
 					continue

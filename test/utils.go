@@ -22,7 +22,7 @@ import (
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
-	safe "github.com/ccoveille/go-safecast"
+	safe "github.com/ccoveille/go-safecast/v2"
 	"github.com/libsv/go-bc"
 	"github.com/libsv/go-p2p/chaincfg/chainhash"
 	"github.com/stretchr/testify/require"
@@ -439,7 +439,7 @@ func checkMerklePath(t *testing.T, statusResponse TransactionResponse) {
 	require.NoError(t, err)
 
 	require.NotNil(t, statusResponse.BlockHeight)
-	bh, err := safe.ToInt(*statusResponse.BlockHeight)
+	bh, err := safe.Convert[int](*statusResponse.BlockHeight)
 	require.NoError(t, err)
 	blockRoot := node_client.GetBlockRootByHeight(t, bitcoind, bh)
 	require.Equal(t, blockRoot, root)
@@ -471,7 +471,7 @@ func getMerklePath(t *testing.T, txID string) string {
 		blockTxHashes[i] = h
 
 		if blockTx == rawTx.Hash {
-			ind, err := safe.ToUint64(i)
+			ind, err := safe.Convert[uint64](i)
 			require.NoError(t, err)
 			txIndex = ind
 		}

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bsv-blockchain/go-bt/v2/chainhash"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/lib/pq"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -205,7 +205,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Transact
 		data.Status = metamorph_api.Status(status.Int32)
 	}
 
-	blockHeightUint64, err := safecast.ToUint64(blockHeight.Int64)
+	blockHeightUint64, err := safecast.Convert[uint64](blockHeight.Int64)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (p *PostgreSQL) Get(ctx context.Context, hash []byte) (data *store.Transact
 }
 
 // GetRawTxs implements the MetamorphStore interface. It attempts to get rawTxs for given hashes.
-// If the hashes do not exist an empty array is returned, otherwise the retrieved values.
+// If the hashes do not exist, an empty array is returned, otherwise the retrieved values.
 // If an error happens during the process of getting the results, the error is returned
 // along with already found rawTxs up to the error point.
 func (p *PostgreSQL) GetRawTxs(ctx context.Context, hashes [][]byte) ([][]byte, error) {

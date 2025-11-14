@@ -11,7 +11,7 @@ import (
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
@@ -104,7 +104,7 @@ func (b *UTXOCreator) Start(requestedOutputs uint64, requestedSatoshisPerOutput 
 func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPerOutput uint64, utxoSet *list.List, satoshiMap map[string][]splittingOutput, fundingKeySet *keyset.KeySet) ([]sdkTx.Transactions, error) {
 	txsSplitBatches := make([]sdkTx.Transactions, 0)
 	txsSplit := make(sdkTx.Transactions, 0)
-	outputs, err := safecast.ToUint64(utxoSet.Len())
+	outputs, err := safecast.Convert[uint64](utxoSet.Len())
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (b *UTXOCreator) splitOutputs(requestedOutputs uint64, requestedSatoshisPer
 
 		txOutputs := make([]splittingOutput, len(tx.Outputs))
 		for i, txOutput := range tx.Outputs {
-			voutUint32, err := safecast.ToUint32(i)
+			voutUint32, err := safecast.Convert[uint32](i)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert int to uint32: %w", err)
 			}
@@ -225,7 +225,7 @@ func (b *UTXOCreator) collectRightSizedUTXOs(utxos sdkTx.UTXOs, utxoSet *list.Li
 		}
 	}
 	// if requested outputs satisfied, return
-	utxoLen, err := safecast.ToUint64(utxoSet.Len())
+	utxoLen, err := safecast.Convert[uint64](utxoSet.Len())
 	if err != nil {
 		b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
 		return err
@@ -246,7 +246,7 @@ func (b *UTXOCreator) createRightSizedUTXOs(lastUtxoSetLen int, satoshiMap map[s
 		lastUtxoSetLen = utxoSet.Len()
 		// if requested outputs satisfied, return
 
-		utxoLen, err := safecast.ToUint64(utxoSet.Len())
+		utxoLen, err := safecast.Convert[uint64](utxoSet.Len())
 		if err != nil {
 			b.logger.Error("failed to convert utxo set length to uint64", slog.String("err", err.Error()))
 			return err

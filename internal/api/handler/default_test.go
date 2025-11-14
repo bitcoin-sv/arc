@@ -1298,6 +1298,12 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 		bytes    uint64
 	}{
 		{
+			name:     "100 sats per KB",
+			feePerKB: 0.00000100,
+			satoshis: 100,
+			bytes:    1000,
+		},
+		{
 			name:     "50 sats per KB",
 			feePerKB: 0.00000050,
 			satoshis: 50,
@@ -1330,9 +1336,9 @@ func TestCalcFeesFromBSVPerKB(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := calcFeesFromBSVPerKB(tt.feePerKB)
-			assert.Equalf(t, tt.satoshis, got, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
-			assert.Equalf(t, tt.bytes, got1, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
+			sats, bytes := calcFeesFromBSVPerKB(tt.feePerKB)
+			assert.Equalf(t, tt.satoshis, sats, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
+			assert.Equalf(t, tt.bytes, bytes, "calcFeesFromBSVPerKB(%v)", tt.feePerKB)
 		})
 	}
 }

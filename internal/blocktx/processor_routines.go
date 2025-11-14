@@ -42,9 +42,13 @@ func FillGaps(p *Processor) error {
 			slog.String("peer", peer.String()),
 		)
 
-		p.blockRequestCh <- blocktx_p2p.BlockRequest{
+		select {
+		case p.blockRequestCh <- blocktx_p2p.BlockRequest{
 			Hash: block.Hash,
 			Peer: peer,
+		}:
+		default:
+
 		}
 	}
 

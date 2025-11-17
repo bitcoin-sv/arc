@@ -25,7 +25,7 @@ func FillGaps(p *Processor) error {
 		return errors.New("no peers available")
 	}
 
-	i = i % int32(len(peers))
+	i = i % int64(len(peers))
 
 	peer := peers[i]
 

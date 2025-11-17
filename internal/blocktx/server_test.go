@@ -338,7 +338,6 @@ func TestClearRegisteredTransactions(t *testing.T) {
 func TestLatestBlocks(t *testing.T) {
 	tt := []struct {
 		name            string
-		getBlockGapsErr error
 		latestBlocksErr error
 
 		expectedError error
@@ -352,12 +351,6 @@ func TestLatestBlocks(t *testing.T) {
 
 			expectedError: blocktx.ErrFailedToGetLatestBlocks,
 		},
-		{
-			name:            "failed to get block gaps",
-			getBlockGapsErr: errors.New("some error"),
-
-			expectedError: blocktx.ErrFailedToGetBlockGaps,
-		},
 	}
 
 	for _, tc := range tt {
@@ -367,11 +360,18 @@ func TestLatestBlocks(t *testing.T) {
 				LatestBlocksFunc: func(_ context.Context, _ uint64) ([]*blocktx_api.Block, error) {
 					return []*blocktx_api.Block{{Hash: []byte("block-hash-1")}, {Hash: []byte("block-hash-2")}}, tc.latestBlocksErr
 				},
-				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
-					return []*store.BlockGap{{Hash: testdata.Block1Hash}, {Hash: testdata.Block2Hash}}, tc.getBlockGapsErr
+			}
+
+			processor := &mocks.ProcessorIMock{
+				GetBlockGapsFunc: func() []*blocktx.BlockGap {
+					return []*blocktx.BlockGap{
+						{Hash: testdata.Block1Hash},
+						{Hash: testdata.Block2Hash},
+					}
 				},
 			}
-			sut, err := blocktx.NewServer(logger, storeMock, nil, nil, grpc_utils.ServerConfig{}, 0, nil, 20)
+
+			sut, err := blocktx.NewServer(logger, storeMock, nil, processor, grpc_utils.ServerConfig{}, 0, nil, 20)
 			require.NoError(t, err)
 			defer sut.Shutdown()
 

@@ -41,16 +41,18 @@ var (
 )
 
 const (
-	transactionStoringBatchsizeDefault = 10000
-	maxRequestBlocks                   = 10
-	maxBlocksInProgress                = 1
-	registerTxsIntervalDefault         = time.Second * 10
-	registerRequestTxsIntervalDefault  = time.Second * 5
-	registerTxsBatchSizeDefault        = 100
-	waitForBlockProcessing             = 5 * time.Minute
-	parallellism                       = 5
-	publishMinedMessageSizeDefault     = 256
-	topic                              = "topic: %s"
+	transactionStoringBatchsizeDefault        = 10000
+	maxRequestBlocks                          = 10
+	maxBlocksInProgress                       = 1
+	registerTxsIntervalDefault                = time.Second * 10
+	registerRequestTxsIntervalDefault         = time.Second * 5
+	registerTxsBatchSizeDefault               = 100
+	waitForBlockProcessing                    = 5 * time.Minute
+	parallellism                              = 5
+	publishMinedMessageSizeDefault            = 256
+	topic                                     = "topic: %s"
+	unorphanRecentWrongOrphansIntervalDefault = 5 * time.Minute
+	fillGapsIntervalDefault                   = 15 * time.Minute
 )
 
 type BlockGap struct {
@@ -107,19 +109,35 @@ func NewProcessor(
 	}
 
 	p := &Processor{
-		store:                       storeI,
-		logger:                      logger.With(slog.String("module", "processor")),
+		hostname:                    hostname,
 		blockRequestCh:              blockRequestCh,
 		blockProcessCh:              blockProcessCh,
+		store:                       storeI,
+		logger:                      logger.With(slog.String("module", "processor")),
 		transactionStorageBatchSize: transactionStoringBatchsizeDefault,
+		dataRetentionDays:           0,
+		registerTxsChan:             nil,
+		minedTxsChan:                nil,
 		registerTxsInterval:         registerTxsIntervalDefault,
 		registerRequestTxsInterval:  registerRequestTxsIntervalDefault,
 		registerTxsBatchSize:        registerTxsBatchSizeDefault,
-		maxBlockProcessingDuration:  waitForBlockProcessing,
-		hostname:                    hostname,
-		publishMinedMessageSize:     publishMinedMessageSizeDefault,
-		now:                         time.Now,
-		wg:                          &sync.WaitGroup{},
+		tracingEnabled:              false,
+		tracingAttributes:           nil,
+
+		incomingIsLongest:       false,
+		publishMinedMessageSize: publishMinedMessageSizeDefault,
+
+		now:                        time.Now,
+		maxBlockProcessingDuration: waitForBlockProcessing,
+
+		fillGapsInterval: fillGapsIntervalDefault,
+		fillGapsEnabled:  false,
+		blockGapsMap:     sync.Map{},
+
+		unorphanRecentWrongOrphansInterval: unorphanRecentWrongOrphansIntervalDefault,
+		unorphanRecentWrongOrphansEnabled:  false,
+
+		wg: &sync.WaitGroup{},
 	}
 
 	for _, opt := range opts {
@@ -137,8 +155,14 @@ func (p *Processor) Start() error {
 	p.StartBlockRequesting()
 	p.StartBlockProcessing()
 	p.StartProcessRegisterTxs()
-	p.StartRoutine(p.fillGapsInterval, FillGaps)
-	p.StartRoutine(p.unorphanRecentWrongOrphansInterval, UnorphanRecentWrongOrphans)
+
+	if p.fillGapsEnabled {
+		p.StartRoutine(p.fillGapsInterval, FillGaps)
+	}
+
+	if p.unorphanRecentWrongOrphansEnabled {
+		p.StartRoutine(p.unorphanRecentWrongOrphansInterval, UnorphanRecentWrongOrphans)
+	}
 
 	return nil
 }

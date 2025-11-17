@@ -12,10 +12,6 @@ var (
 )
 
 func FillGaps(p *Processor) error {
-	if !p.fillGapsEnabled {
-		return nil
-	}
-
 	const (
 		hoursPerDay   = 24
 		blocksPerHour = 6
@@ -64,10 +60,6 @@ func FillGaps(p *Processor) error {
 }
 
 func UnorphanRecentWrongOrphans(p *Processor) error {
-	if !p.unorphanRecentWrongOrphansEnabled {
-		return nil
-	}
-
 	rows, err := p.store.UnorphanRecentWrongOrphans(p.ctx)
 	if err != nil {
 		p.logger.Error("failed to unorphan recent wrong orphans", slog.String("err", err.Error()))

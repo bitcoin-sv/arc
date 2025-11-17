@@ -18,7 +18,14 @@ func FillGaps(p *Processor) error {
 	)
 	i := p.peerIndex.Load()
 	defer p.peerIndex.Store(i + 1)
-	peer := p.peers[i]
+
+	peers := p.pm.GetPeers()
+
+	if len(peers) == 0 {
+		return errors.New("no peers available")
+	}
+
+	peer := peers[i]
 
 	heightRange := p.dataRetentionDays*hoursPerDay*blocksPerHour - 10
 	if heightRange <= 0 {

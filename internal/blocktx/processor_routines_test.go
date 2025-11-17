@@ -10,6 +10,7 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet"
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -94,10 +95,16 @@ func TestFillGaps(t *testing.T) {
 			}
 			peers := []p2p.PeerI{peerMock}
 
+			pm := &mocks.PeerManagerMock{
+				GetPeersFunc: func() []p2p.PeerI {
+					return peers
+				},
+			}
+
 			logger := slog.Default()
 			blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 
-			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGaps(true, peers, fillGapsInterval), blocktx.WithRetentionDays(5))
+			sut, err := blocktx.NewProcessor(logger, storeMock, blockRequestCh, blockProcessCh, blocktx.WithFillGaps(true, pm, fillGapsInterval), blocktx.WithRetentionDays(5))
 			require.NoError(t, err)
 			defer sut.Shutdown()
 

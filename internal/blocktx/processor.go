@@ -25,7 +25,6 @@ import (
 	"github.com/bitcoin-sv/arc/internal/blocktx/bcnet/blocktx_p2p"
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/p2p"
 	"github.com/bitcoin-sv/arc/pkg/tracing"
 )
 
@@ -85,8 +84,8 @@ type Processor struct {
 	fillGapsInterval time.Duration
 	fillGapsEnabled  bool
 	blockGapsMap     sync.Map
-	peers            []p2p.PeerI
 	peerIndex        atomic.Int64
+	pm               PeerManager
 
 	unorphanRecentWrongOrphansInterval time.Duration
 	unorphanRecentWrongOrphansEnabled  bool

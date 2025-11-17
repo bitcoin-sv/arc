@@ -125,7 +125,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 		blocktx.WithMaxBlockProcessingDuration(btxCfg.MaxBlockProcessingDuration),
 		blocktx.WithIncomingIsLongest(btxCfg.IncomingIsLongest),
 		blocktx.WithUnorphanRecentWrongOrphans(btxCfg.UnorphanRecentWrongOrphans.Enabled, btxCfg.UnorphanRecentWrongOrphans.Interval),
-		blocktx.WithFillGaps(btxCfg.FillGaps.Enabled, pm.GetPeers(), btxCfg.FillGaps.Interval),
+		blocktx.WithFillGaps(btxCfg.FillGaps.Enabled, pm, btxCfg.FillGaps.Interval),
 	)
 
 	processor, err := blocktx.NewProcessor(logger, blockStore, blockRequestCh, blockProcessCh, processorOpts...)

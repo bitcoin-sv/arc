@@ -873,3 +873,37 @@ func TestStart(t *testing.T) {
 		})
 	}
 }
+
+func TestStartRoutine(t *testing.T) {
+	tt := []struct {
+		name    string
+		funcErr error
+	}{
+		{
+			name: "success",
+		},
+		{
+			name:    "func error",
+			funcErr: errors.New("some error"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			sut, err := blocktx.NewProcessor(logger, nil, nil, nil)
+			require.NoError(t, err)
+
+			// when
+			sut.StartRoutine(20*time.Millisecond, func(processor *blocktx.Processor) error {
+				logger.Info("test routine")
+
+				return tc.funcErr
+			})
+
+			time.Sleep(50 * time.Millisecond)
+			sut.Shutdown()
+		})
+	}
+}

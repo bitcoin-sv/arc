@@ -118,6 +118,10 @@ func TestFillGaps(t *testing.T) {
 
 			require.NoError(t, err)
 
+			gaps := sut.GetBlockGaps()
+
+			require.Len(t, gaps, len(tc.blockGaps))
+
 			// then
 			actualBlockGaps := 0
 			for range tc.blockGaps {

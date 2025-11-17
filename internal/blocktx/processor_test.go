@@ -896,7 +896,7 @@ func TestStartRoutine(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			sut.StartRoutine(20*time.Millisecond, func(processor *blocktx.Processor) error {
+			sut.StartRoutine(20*time.Millisecond, func(_ *blocktx.Processor) error {
 				logger.Info("test routine")
 
 				return tc.funcErr

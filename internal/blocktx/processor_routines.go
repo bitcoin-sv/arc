@@ -25,6 +25,8 @@ func FillGaps(p *Processor) error {
 		return errors.New("no peers available")
 	}
 
+	i = i % int32(len(peers))
+
 	peer := peers[i]
 
 	heightRange := p.dataRetentionDays*hoursPerDay*blocksPerHour - 10

@@ -84,7 +84,7 @@ type Processor struct {
 	fillGapsInterval time.Duration
 	fillGapsEnabled  bool
 	blockGapsMap     sync.Map
-	peerIndex        atomic.Int64
+	peerIndex        atomic.Int32
 	pm               PeerManager
 
 	unorphanRecentWrongOrphansInterval time.Duration

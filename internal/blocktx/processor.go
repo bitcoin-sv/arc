@@ -343,8 +343,6 @@ func (p *Processor) processTransactions(txHashes [][]byte) error {
 		return fmt.Errorf("failed to publish mined transactions: %v", err)
 	}
 
-	//p.logger.Info("published mined txs", slog.Int("hashes", len(minedTxsIncludingMP)))
-
 	return nil
 }
 

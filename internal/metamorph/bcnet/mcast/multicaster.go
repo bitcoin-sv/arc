@@ -76,6 +76,10 @@ func (m *Multicaster) Connect() bool {
 }
 
 func (m *Multicaster) Shutdown() {
+	if m == nil {
+		return
+	}
+
 	m.txGroup.Disconnect()
 	m.rejectGroup.Disconnect()
 }

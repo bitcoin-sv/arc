@@ -73,6 +73,9 @@ func (l *Listener) Connect() bool {
 }
 
 func (l *Listener) Shutdown() {
+	if l == nil {
+		return
+	}
 	l.blockGroup.Disconnect()
 }
 

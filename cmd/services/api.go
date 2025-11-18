@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	goscript "github.com/bitcoin-sv/bdk/module/gobdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/chaintracker"
 	"github.com/google/uuid"
@@ -22,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/bitcoin-sv/arc/config"
+	apiInternal "github.com/bitcoin-sv/arc/internal/api"
 	apiHandler "github.com/bitcoin-sv/arc/internal/api/handler"
 	"github.com/bitcoin-sv/arc/internal/api/handler/merkle_verifier"
 	"github.com/bitcoin-sv/arc/internal/blocktx"
@@ -79,13 +79,9 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	stoppable = append(stoppable, mqClient)
 
 	queuedTxsChan := make(chan *metamorph_api.PostTransactionRequest, chanBufferSize)
-	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
-	publishAdapter.StartPublishMarshal(mq.SubmitTxTopic)
-	go func() {
-		for msg := range queuedTxsChan {
-			publishAdapter.Publish(msg)
-		}
-	}()
+	publishAdapter := apiInternal.NewPublishAdapter(mqClient, logger)
+	stoppable = append(stoppable, publishAdapter)
+	publishAdapter.StartPublishMarshal(mq.SubmitTxTopic, queuedTxsChan)
 
 	mtmOpts := []func(*metamorph.Metamorph){
 		metamorph.WithQueuedTxsCh(queuedTxsChan),

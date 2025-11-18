@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
+func TestSubscribeAdapter_Start(t *testing.T) {
 	txsBlocks := &blocktx_api.TransactionBlocks{
 		TransactionBlocks: []*blocktx_api.TransactionBlock{
 			{

@@ -9,7 +9,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/callbacker/callbacker_api"
 	"github.com/bitcoin-sv/arc/internal/global"
-	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -93,35 +92,17 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		stopFn()
 		return nil, err
 	}
+
+	publishAdapter := metamorph.NewPublishAdapter(mqClient, logger)
+	stoppable = append(stoppable, publishAdapter)
+
 	callbackerChan := make(chan *callbacker_api.SendRequest, chanBufferSize)
-	publishCallbackAdapter := message_queue.NewPublishAdapter(mqClient, logger)
-	stoppable = append(stoppable, publishCallbackAdapter)
-	publishCallbackAdapter.StartPublishMarshal(mq.CallbackTopic)
-	go func() {
-		for msg := range callbackerChan {
-			publishCallbackAdapter.Publish(msg)
-		}
-	}()
-
 	registerTxsChan := make(chan *blocktx_api.Transactions, chanBufferSize)
-	publishRegisterTxsAdapter := message_queue.NewPublishAdapter(mqClient, logger)
-	stoppable = append(stoppable, publishRegisterTxsAdapter)
-	publishRegisterTxsAdapter.StartPublishMarshal(mq.RegisterTxsTopic)
-	go func() {
-		for msg := range registerTxsChan {
-			publishRegisterTxsAdapter.Publish(msg)
-		}
-	}()
-
 	registerTxChan := make(chan []byte, chanBufferSize)
-	publishRegisterTxAdapter := message_queue.NewPublishCoreAdapter(mqClient, logger)
-	stoppable = append(stoppable, publishRegisterTxAdapter)
-	publishRegisterTxAdapter.StartPublishCore(mq.RegisterTxTopic)
-	go func() {
-		for msg := range registerTxChan {
-			publishRegisterTxAdapter.PublishCore(msg)
-		}
-	}()
+
+	publishAdapter.StartPublishSendRequests(mq.CallbackTopic, callbackerChan)
+	publishAdapter.StartPublishBlockTransactions(mq.RegisterTxsTopic, registerTxsChan)
+	publishAdapter.StartPublishCore(mq.RegisterTxTopic, registerTxChan)
 
 	procLogger := logger.With(slog.String("module", "mtm-proc"))
 

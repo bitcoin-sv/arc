@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
+func TestSubscribeAdapter_Start(t *testing.T) {
 	blockTxs := &blocktx_api.Transactions{Transactions: []*blocktx_api.Transaction{{Hash: []byte("1234")}}}
 	dataRegisterTxs, err := proto.Marshal(blockTxs)
 	require.NoError(t, err)

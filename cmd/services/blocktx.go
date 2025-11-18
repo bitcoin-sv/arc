@@ -9,7 +9,6 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/blocktx/blocktx_api"
 	"github.com/bitcoin-sv/arc/internal/global"
-	"github.com/bitcoin-sv/arc/pkg/message_queue"
 	"github.com/libsv/go-p2p/wire"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -28,10 +27,12 @@ import (
 )
 
 const (
-	maximumBlockSize      = 4294967296 // 4Gb
-	blockProcessingBuffer = 100
-	p2pConnectionTimeout  = 30 * time.Second
-	minConnections        = 1
+	maximumBlockSize         = 4294967296 // 4Gb
+	blockProcessingBuffer    = 100
+	p2pConnectionTimeout     = 30 * time.Second
+	minConnections           = 1
+	minedTxsChanBufferSize   = 10000
+	registerTxChanBufferSize = 10000
 )
 
 func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *config.CommonConfig) (func(), error) {
@@ -80,7 +81,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 	stoppableWithError = append(stoppableWithError, blockStore)
 
-	registerTxsChan := make(chan []byte, chanBufferSize)
+	registerTxsChan := make(chan []byte, registerTxChanBufferSize)
 
 	mqClient, err := mq.NewMqClient(logger, commonCfg.MessageQueue)
 	if err != nil {
@@ -96,14 +97,9 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 	stoppable = append(stoppable, subscribeAdapter)
 
-	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, chanBufferSize)
-	publishAdapter := message_queue.NewPublishAdapter(mqClient, logger)
-	publishAdapter.StartPublishMarshal(mq.MinedTxsTopic)
-	go func() {
-		for msg := range minedTxsChan {
-			publishAdapter.Publish(msg)
-		}
-	}()
+	minedTxsChan := make(chan *blocktx_api.TransactionBlocks, minedTxsChanBufferSize)
+	publishAdapter := blocktx.NewPublishAdapter(mqClient, logger)
+	publishAdapter.StartPublishMarshal(mq.MinedTxsTopic, minedTxsChan)
 	stoppable = append(stoppable, publishAdapter)
 
 	blockRequestCh := make(chan blocktx_p2p.BlockRequest, blockProcessingBuffer)

@@ -1,7 +1,6 @@
 package blocktx
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"testing"
@@ -53,7 +52,7 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 			t.Parallel()
 			// Create mock MQ client
 			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ proto.Message) error {
+				PublishMarshalCoreFunc: func(_ string, _ proto.Message) error {
 					return tc.publishError
 				},
 			}
@@ -78,7 +77,7 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 
 			// Shutdown the adapter
 			adapter.Shutdown()
-			require.Equal(t, tc.expectedPublished, len(mqClient.PublishMarshalCalls()))
+			require.Equal(t, tc.expectedPublished, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }

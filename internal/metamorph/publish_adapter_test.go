@@ -16,41 +16,46 @@ import (
 
 func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 	tt := []struct {
-		name             string
-		topic            string
-		messageCount     int
-		publishError     error
-		publishCoreError error
+		name                    string
+		topic                   string
+		messageCount            int
+		publishMarshalError     error
+		publishCoreError        error
+		publishMarshalCoreError error
 
-		expectedPublished     int
-		expectedPublishedCore int
+		expectedPublishMarshal     int
+		expectedPublishCore        int
+		expectedPublishMarshalCore int
 	}{
 		{
-			name:         "successfully publishes single message",
-			topic:        "test-topic",
-			messageCount: 1,
-			publishError: nil,
+			name:                "successfully publishes single message",
+			topic:               "test-topic",
+			messageCount:        1,
+			publishMarshalError: nil,
 
-			expectedPublished:     2,
-			expectedPublishedCore: 1,
+			expectedPublishMarshal:     1,
+			expectedPublishCore:        1,
+			expectedPublishMarshalCore: 1,
 		},
 		{
-			name:         "successfully publishes multiple messages",
-			topic:        "test-topic",
-			messageCount: 5,
-			publishError: nil,
+			name:                "successfully publishes multiple messages",
+			topic:               "test-topic",
+			messageCount:        5,
+			publishMarshalError: nil,
 
-			expectedPublished:     10,
-			expectedPublishedCore: 5,
+			expectedPublishMarshal:     5,
+			expectedPublishCore:        5,
+			expectedPublishMarshalCore: 5,
 		},
 		{
-			name:         "handles publish error gracefully",
-			topic:        "test-topic",
-			messageCount: 3,
-			publishError: errors.New("some error"),
+			name:                "handles publish error gracefully",
+			topic:               "test-topic",
+			messageCount:        3,
+			publishMarshalError: errors.New("some error"),
 
-			expectedPublished:     6,
-			expectedPublishedCore: 3,
+			expectedPublishMarshal:     3,
+			expectedPublishCore:        3,
+			expectedPublishMarshalCore: 3,
 		},
 		{
 			name:             "handles publish core error gracefully",
@@ -58,8 +63,9 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 			messageCount:     3,
 			publishCoreError: errors.New("some error"),
 
-			expectedPublished:     6,
-			expectedPublishedCore: 3,
+			expectedPublishMarshal:     3,
+			expectedPublishCore:        3,
+			expectedPublishMarshalCore: 3,
 		},
 	}
 
@@ -68,8 +74,9 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 			t.Parallel()
 			// Create mock MQ client
 			mqClient := &mqMocks.MessageQueueClientMock{
-				PublishMarshalFunc: func(_ context.Context, _ string, _ proto.Message) error { return tc.publishError },
-				PublishCoreFunc:    func(_ string, _ []byte) error { return tc.publishCoreError },
+				PublishMarshalFunc:     func(_ context.Context, _ string, _ proto.Message) error { return tc.publishMarshalError },
+				PublishCoreFunc:        func(_ string, _ []byte) error { return tc.publishCoreError },
+				PublishMarshalCoreFunc: func(_ string, _ proto.Message) error { return tc.publishMarshalCoreError },
 			}
 
 			// Create logger
@@ -99,8 +106,9 @@ func TestPublishAdapter_StartPublishMarshal(t *testing.T) {
 
 			// Shutdown the adapter
 			adapter.Shutdown()
-			assert.Equal(t, tc.expectedPublished, len(mqClient.PublishMarshalCalls()))
-			assert.Equal(t, tc.expectedPublishedCore, len(mqClient.PublishCoreCalls()))
+			assert.Equal(t, tc.expectedPublishMarshal, len(mqClient.PublishMarshalCalls()))
+			assert.Equal(t, tc.expectedPublishCore, len(mqClient.PublishCoreCalls()))
+			assert.Equal(t, tc.expectedPublishMarshalCore, len(mqClient.PublishMarshalCoreCalls()))
 		})
 	}
 }

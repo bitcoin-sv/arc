@@ -38,7 +38,7 @@ func (p *PublishAdapter) StartPublishMarshal(topic string, postTransactionReques
 			case request := <-postTransactionRequests:
 				err := p.mqClient.PublishMarshal(p.ctx, topic, request)
 				if err != nil {
-					p.logger.Error("Failed to publish marshal message", slog.String("err", err.Error()))
+					p.logger.Error("Failed to publish post transaction request message", slog.String("err", err.Error()))
 				}
 			}
 		}

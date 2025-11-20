@@ -300,7 +300,7 @@ func TestPostgresDB(t *testing.T) {
 	t.Run("get stats for block gaps", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
-		const expectedGaps = int64(2007) // range (14 * 24 * 6 = 2016) - already existing blocks (9) = gaps (2007)
+		const expectedGaps = int64(1997) // range (14 * 24 * 6 - 10 = 2006) - already existing blocks (9) = gaps (1997)
 
 		// when
 		actualBlockGaps, err := postgresDB.GetStats(ctx, 14)
@@ -310,7 +310,7 @@ func TestPostgresDB(t *testing.T) {
 		require.Equal(t, expectedGaps, actualBlockGaps.CurrentNumOfBlockGaps)
 
 		actualBlockGaps, err = postgresDB.GetStats(ctx, 5)
-		const expectedGaps2 = int64(711) // range (5 * 24 * 6 = 720) - already existing blocks (9) = gaps (711)
+		const expectedGaps2 = int64(701) // range (5 * 24 * 6 - 10 = 710) - already existing blocks (9) = gaps (701)
 		// then
 		require.NoError(t, err)
 		require.Equal(t, expectedGaps2, actualBlockGaps.CurrentNumOfBlockGaps)

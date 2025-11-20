@@ -11,7 +11,7 @@ func (p *PostgreSQL) GetStats(ctx context.Context, retentionDays int) (*store.St
 		hoursPerDay   = 24
 		blocksPerHour = 6
 	)
-	heightRange := retentionDays * hoursPerDay * blocksPerHour
+	heightRange := retentionDays*hoursPerDay*blocksPerHour - 10
 
 	q := `
 	SELECT count(*) FROM (

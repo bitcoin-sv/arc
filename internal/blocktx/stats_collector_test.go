@@ -1,28 +1,23 @@
 package blocktx_test
 
 import (
-	"context"
-	"errors"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/bitcoin-sv/arc/internal/blocktx"
+	"github.com/bitcoin-sv/arc/internal/blocktx/mocks"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 
-	blocktxmocks "github.com/bitcoin-sv/arc/internal/blocktx/mocks"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
-	"github.com/bitcoin-sv/arc/internal/blocktx/store/mocks"
 	"github.com/bitcoin-sv/arc/internal/p2p"
 	p2p_mocks "github.com/bitcoin-sv/arc/internal/p2p/mocks"
 )
 
 func TestStatsCollector_Start(t *testing.T) {
 	tt := []struct {
-		name        string
-		getStatsErr error
+		name string
 
 		expectedBlockGaps float64
 		connectedPeers    float64
@@ -35,24 +30,12 @@ func TestStatsCollector_Start(t *testing.T) {
 			connectedPeers:    1.0,
 			reconnectingPeers: 2.0,
 		},
-		{
-			name:        "success",
-			getStatsErr: errors.New("some error"),
-
-			expectedBlockGaps: 0.0,
-			connectedPeers:    0.0,
-			reconnectingPeers: 0.0,
-		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			blocktxStore := &mocks.BlocktxStoreMock{GetStatsFunc: func(_ context.Context, _ int) (*store.Stats, error) {
-				return &store.Stats{CurrentNumOfBlockGaps: 5}, tc.getStatsErr
-			}}
-
-			pm := &blocktxmocks.PeerManagerMock{
+			pm := &mocks.PeerManagerMock{
 				CountConnectedPeersFunc: func() uint {
 					return 1
 				},
@@ -65,8 +48,14 @@ func TestStatsCollector_Start(t *testing.T) {
 				},
 			}
 
+			processor := &mocks.ProcessorIMock{
+				GetBlockGapsFunc: func() []*blocktx.BlockGap {
+					return []*blocktx.BlockGap{{}, {}, {}, {}, {}}
+				},
+			}
+
 			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-			sut := blocktx.NewStatsCollector(logger, pm, blocktxStore, 5, blocktx.WithStatCollectionInterval(30*time.Millisecond))
+			sut := blocktx.NewStatsCollector(logger, pm, processor, 5, blocktx.WithStatCollectionInterval(30*time.Millisecond))
 
 			// when
 			err := sut.Start()

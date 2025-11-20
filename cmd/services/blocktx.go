@@ -138,7 +138,7 @@ func StartBlockTx(logger *slog.Logger, btxCfg *config.BlocktxConfig, commonCfg *
 	}
 
 	if commonCfg.Prometheus.IsEnabled() {
-		statsCollector := blocktx.NewStatsCollector(logger, pm, blockStore, btxCfg.RecordRetentionDays)
+		statsCollector := blocktx.NewStatsCollector(logger, pm, processor, btxCfg.RecordRetentionDays)
 		stoppable = append(stoppable, statsCollector)
 		err = statsCollector.Start()
 		if err != nil {

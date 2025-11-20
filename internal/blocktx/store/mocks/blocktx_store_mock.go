@@ -61,9 +61,6 @@ var _ store.BlocktxStore = &BlocktxStoreMock{}
 //			GetStaleChainBackFromHashFunc: func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error) {
 //				panic("mock out the GetStaleChainBackFromHash method")
 //			},
-//			GetStatsFunc: func(ctx context.Context, retentionDays int) (*store.Stats, error) {
-//				panic("mock out the GetStats method")
-//			},
 //			InsertBlockTransactionsFunc: func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error {
 //				panic("mock out the InsertBlockTransactions method")
 //			},
@@ -139,9 +136,6 @@ type BlocktxStoreMock struct {
 
 	// GetStaleChainBackFromHashFunc mocks the GetStaleChainBackFromHash method.
 	GetStaleChainBackFromHashFunc func(ctx context.Context, hash []byte) ([]*blocktx_api.Block, error)
-
-	// GetStatsFunc mocks the GetStats method.
-	GetStatsFunc func(ctx context.Context, retentionDays int) (*store.Stats, error)
 
 	// InsertBlockTransactionsFunc mocks the InsertBlockTransactions method.
 	InsertBlockTransactionsFunc func(ctx context.Context, blockID uint64, txsWithMerklePaths []store.TxHashWithMerkleTreeIndex) error
@@ -266,13 +260,6 @@ type BlocktxStoreMock struct {
 			// Hash is the hash argument value.
 			Hash []byte
 		}
-		// GetStats holds details about calls to the GetStats method.
-		GetStats []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// RetentionDays is the retentionDays argument value.
-			RetentionDays int
-		}
 		// InsertBlockTransactions holds details about calls to the InsertBlockTransactions method.
 		InsertBlockTransactions []struct {
 			// Ctx is the ctx argument value.
@@ -365,7 +352,6 @@ type BlocktxStoreMock struct {
 	lockGetOrphansForwardFromHash         sync.RWMutex
 	lockGetRegisteredTxsByBlockHashes     sync.RWMutex
 	lockGetStaleChainBackFromHash         sync.RWMutex
-	lockGetStats                          sync.RWMutex
 	lockInsertBlockTransactions           sync.RWMutex
 	lockLatestBlocks                      sync.RWMutex
 	lockMarkBlockAsDone                   sync.RWMutex
@@ -843,42 +829,6 @@ func (mock *BlocktxStoreMock) GetStaleChainBackFromHashCalls() []struct {
 	mock.lockGetStaleChainBackFromHash.RLock()
 	calls = mock.calls.GetStaleChainBackFromHash
 	mock.lockGetStaleChainBackFromHash.RUnlock()
-	return calls
-}
-
-// GetStats calls GetStatsFunc.
-func (mock *BlocktxStoreMock) GetStats(ctx context.Context, retentionDays int) (*store.Stats, error) {
-	if mock.GetStatsFunc == nil {
-		panic("BlocktxStoreMock.GetStatsFunc: method is nil but BlocktxStore.GetStats was just called")
-	}
-	callInfo := struct {
-		Ctx           context.Context
-		RetentionDays int
-	}{
-		Ctx:           ctx,
-		RetentionDays: retentionDays,
-	}
-	mock.lockGetStats.Lock()
-	mock.calls.GetStats = append(mock.calls.GetStats, callInfo)
-	mock.lockGetStats.Unlock()
-	return mock.GetStatsFunc(ctx, retentionDays)
-}
-
-// GetStatsCalls gets all the calls that were made to GetStats.
-// Check the length with:
-//
-//	len(mockedBlocktxStore.GetStatsCalls())
-func (mock *BlocktxStoreMock) GetStatsCalls() []struct {
-	Ctx           context.Context
-	RetentionDays int
-} {
-	var calls []struct {
-		Ctx           context.Context
-		RetentionDays int
-	}
-	mock.lockGetStats.RLock()
-	calls = mock.calls.GetStats
-	mock.lockGetStats.RUnlock()
 	return calls
 }
 

@@ -52,6 +52,7 @@ const (
 	topic                                     = "topic: %s"
 	unorphanRecentWrongOrphansIntervalDefault = 5 * time.Minute
 	fillGapsIntervalDefault                   = 15 * time.Minute
+	checkBlockGapsIntervalDefault             = 10 * time.Second
 )
 
 type BlockGap struct {
@@ -158,6 +159,8 @@ func (p *Processor) Start() error {
 	if p.fillGapsEnabled {
 		p.StartRoutine(p.fillGapsInterval, FillGaps)
 	}
+
+	p.StartRoutine(checkBlockGapsIntervalDefault, CheckBlockGaps)
 
 	if p.unorphanRecentWrongOrphansEnabled {
 		p.StartRoutine(p.unorphanRecentWrongOrphansInterval, UnorphanRecentWrongOrphans)

@@ -118,10 +118,13 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		if len(txs) != 0 {
 			for _, tx := range txs {
 				_, ok := p.rejectPendingStatuses[tx.Status]
+
+				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.Bool("reject status", ok), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
+
 				if !ok {
 					continue
 				}
-				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
+
 				if p.rejectPendingSeenEnabled {
 					p.storageStatusUpdateCh <- store.UpdateStatus{
 						Hash:      *tx.Hash,

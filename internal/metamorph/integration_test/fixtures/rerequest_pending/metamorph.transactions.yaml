@@ -1,6 +1,6 @@
 # return
 - hash: 0x21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e
-  locked_by: re-announce-integration-test
+  locked_by: integration-test
   status: 90
   stored_at: 2025-05-08 12:53:34.260 +0200
   last_submitted_at: 2025-05-08 12:53:34.260 +0200
@@ -12,7 +12,7 @@
 
 # confirmed longer ago than requested => don't return
 - hash: 0x4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a
-  locked_by: re-announce-integration-test
+  locked_by: integration-test
   status: 90
   stored_at: 2025-05-08 12:53:34.260 +0200
   last_submitted_at: 2025-05-08 12:53:34.260 +0200
@@ -26,7 +26,7 @@
 
 # requested and confirmed long ago => return
 - hash: 0x8289758c1929505f9476e71698623387fc16a20ab238a3e6ce1424bc0aae368e
-  locked_by: re-announce-integration-test
+  locked_by: integration-test
   status: 90
   stored_at: 2025-05-08 12:53:34.260 +0200
   last_submitted_at: 2025-05-08 12:53:34.260 +0200

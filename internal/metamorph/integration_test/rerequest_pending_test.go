@@ -31,7 +31,7 @@ func TestReRequestPending(t *testing.T) {
 
 		t.Log(dbInfo)
 
-		mtmStore, err := postgresql.New(dbInfo, "re-request-integration-test", 10, 80, postgresql.WithNow(func() time.Time { return now }))
+		mtmStore, err := postgresql.New(dbInfo, "integration-test", 10, 80, postgresql.WithNow(func() time.Time { return now }))
 		require.NoError(t, err)
 		defer func() {
 			err = mtmStore.Shutdown()

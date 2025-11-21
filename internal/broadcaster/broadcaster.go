@@ -8,6 +8,8 @@ import (
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
 
+	"go.opentelemetry.io/otel/metric"
+
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 )
 
@@ -45,6 +47,27 @@ type Broadcaster struct {
 	waitForStatus     metamorph_api.Status
 	opReturn          string
 	sizeJitterMax     int64
+	successCounter    metric.Int64Counter
+	failCounter       metric.Int64Counter
+	testRunName       string
+}
+
+func WithSuccessCounter(successCounter metric.Int64Counter) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.successCounter = successCounter
+	}
+}
+
+func WithTestRunName(testRunName string) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.testRunName = testRunName
+	}
+}
+
+func WithFailCounter(counter metric.Int64Counter) func(broadcaster *Broadcaster) {
+	return func(broadcaster *Broadcaster) {
+		broadcaster.failCounter = counter
+	}
 }
 
 func WithBatchSize(batchSize int) func(broadcaster *Broadcaster) {
@@ -65,12 +88,12 @@ func WithMaxInputs(maxInputs int) func(broadcaster *Broadcaster) {
 	}
 }
 
-func WithCallback(callbackURL string, callbackToken string, addCallbackToToken bool) func(broadcaster *Broadcaster) {
+func WithCallback(callbackURL string, callbackToken string, tokenSuffix string) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
 		broadcaster.callbackURL = callbackURL
 		broadcaster.callbackToken = callbackToken
-		if addCallbackToToken {
-			broadcaster.callbackToken += "_" + time.Now().Format("20060102150405")
+		if tokenSuffix != "" {
+			broadcaster.callbackToken += "_" + tokenSuffix
 		}
 	}
 }

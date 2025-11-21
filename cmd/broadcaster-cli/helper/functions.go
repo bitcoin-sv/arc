@@ -187,6 +187,21 @@ func GetKeySetsFor(keys map[string]string, selectedKeys []string) (map[string]*k
 	return keySets, nil
 }
 
+type PrometheusConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Endpoint string `mapstructure:"endpoint"`
+	Path     string `mapstructure:"path"`
+}
+
+func GetPrometheus() (PrometheusConfig, error) {
+	var cfg PrometheusConfig
+	err := viper.UnmarshalKey("prometheusOLTPExport", &cfg)
+	if err != nil {
+		return PrometheusConfig{}, err
+	}
+	return cfg, nil
+}
+
 func GetPrivateKeys() (map[string]string, error) {
 	var keys map[string]string
 	err := viper.UnmarshalKey("privateKeys", &keys)

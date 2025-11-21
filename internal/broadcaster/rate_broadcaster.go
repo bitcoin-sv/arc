@@ -14,6 +14,8 @@ import (
 
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/bsv-blockchain/go-sdk/chainhash"
 	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -293,6 +295,9 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 
 		resp, err := b.client.BroadcastTransactions(ctx, txs, waitForStatus, b.callbackURL, b.callbackToken, b.fullStatusUpdates, false)
 		if err != nil {
+			if b.failCounter != nil {
+				b.failCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("name", b.testRunName)))
+			}
 			// In case of error, put utxos back in the channel
 			b.putUTXOSBackInChannel(txs)
 			if errors.Is(err, context.Canceled) {
@@ -300,6 +305,10 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 				return
 			}
 			errCh <- err
+		} else {
+			if b.successCounter != nil {
+				b.successCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("name", b.testRunName)))
+			}
 		}
 
 		atomic.AddInt64(&b.connectionCount, -1)

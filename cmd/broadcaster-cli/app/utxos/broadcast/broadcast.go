@@ -1,6 +1,7 @@
 package broadcast
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -8,13 +9,18 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
 	"github.com/bitcoin-sv/arc/cmd/broadcaster-cli/helper"
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/woc_client"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 const (
@@ -141,14 +147,96 @@ var Cmd = &cobra.Command{
 
 		wocClient := woc_client.New(!cfg.IsTestnet, woc_client.WithAuth(cfg.WocAPIKey), woc_client.WithLogger(logger))
 
+		suffix := "test-run_" + time.Now().Format(time.RFC3339)
+
+		tokenSuffix := ""
+		if cfg.AddTimestampToToken {
+			tokenSuffix = suffix
+		}
+
 		opts := []func(p *broadcaster.Broadcaster){
 			broadcaster.WithFees(cfg.MiningFeeSat),
-			broadcaster.WithCallback(cfg.CallbackURL, cfg.CallbackToken, cfg.AddTimestampToToken),
+			broadcaster.WithCallback(cfg.CallbackURL, cfg.CallbackToken, tokenSuffix),
 			broadcaster.WithFullstatusUpdates(cfg.FullStatusUpdates),
 			broadcaster.WithBatchSize(cfg.BatchSize),
 			broadcaster.WithOpReturn(cfg.OpReturn),
 			broadcaster.WithSizeJitter(cfg.SizeJitterMax),
 			broadcaster.WithIsTestnet(cfg.IsTestnet),
+			broadcaster.WithTestRunName(suffix),
+		}
+
+		var ctx = context.Background()
+
+		prometheusCfg, err := helper.GetPrometheus()
+		if err != nil {
+			return err
+		}
+
+		if prometheusCfg.Enabled {
+			logger.Info("Prometheus metrics enabled")
+			// Connect to Prometheus Agent (OTLP receiver)
+			exporter, err := otlpmetrichttp.New(
+				ctx,
+				otlpmetrichttp.WithInsecure(),
+				otlpmetrichttp.WithEndpoint(prometheusCfg.Endpoint),
+				otlpmetrichttp.WithURLPath(prometheusCfg.Path),
+			)
+			if err != nil {
+				return err
+			}
+
+			res, err := resource.New(
+				ctx,
+				resource.WithAttributes(
+					semconv.ServiceName("broadcaster-cli"),
+				),
+			)
+			if err != nil {
+				return err
+			}
+
+			reader := metric.NewManualReader()
+
+			meterProvider := metric.NewMeterProvider(
+				metric.WithResource(res),
+				metric.WithReader(reader),
+			)
+
+			otel.SetMeterProvider(meterProvider)
+
+			defer func() {
+				// 1) Collect metrics into a metricdata.ResourceMetrics value
+				var rm metricdata.ResourceMetrics
+				err = reader.Collect(ctx, &rm)
+				if err != nil {
+					logger.Error("failed to collect metrics", slog.String("err", err.Error()))
+				} else {
+					// 2) Export the collected ResourceMetrics once
+					err = exporter.Export(ctx, &rm)
+					if err != nil {
+						logger.Error("failed to export metrics", slog.String("err", err.Error()))
+					}
+				}
+
+				err = meterProvider.Shutdown(ctx)
+				if err != nil {
+					logger.Error("failed to shutdown meter provider", slog.String("err", err.Error()))
+				}
+			}()
+
+			meter := meterProvider.Meter("broadcaster-meter")
+
+			successCounter, err := meter.Int64Counter("broadcaster-cli-succeeded-requests")
+			if err != nil {
+				return err
+			}
+
+			failCounter, err := meter.Int64Counter("broadcaster-cli-failed-requests")
+			if err != nil {
+				return err
+			}
+
+			opts = append(opts, broadcaster.WithSuccessCounter(successCounter), broadcaster.WithFailCounter(failCounter))
 		}
 
 		if cfg.WaitForStatus > 0 {

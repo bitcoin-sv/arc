@@ -762,22 +762,19 @@ func TestReAnnounceUnseen(t *testing.T) {
 		retries       int
 		getUnminedErr error
 
-		expectedRequests      int
 		expectedAnnouncements int
 	}{
 		{
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 1,
-			expectedRequests:      1,
+			expectedAnnouncements: 2,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
-			expectedRequests:      0,
 		},
 		{
 			name:          "error - get unmined",
@@ -785,7 +782,6 @@ func TestReAnnounceUnseen(t *testing.T) {
 			getUnminedErr: errors.New("failed to get unmined"),
 
 			expectedAnnouncements: 0,
-			expectedRequests:      0,
 		},
 	}
 
@@ -833,7 +829,6 @@ func TestReAnnounceUnseen(t *testing.T) {
 			}
 
 			messenger := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
@@ -854,7 +849,6 @@ func TestReAnnounceUnseen(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedAnnouncements, len(messenger.AnnounceTxAsyncCalls()))
-			require.Equal(t, tc.expectedRequests, len(messenger.AskForTxAsyncCalls()))
 		})
 	}
 }
@@ -1069,7 +1063,7 @@ callbackLoop:
 	require.Equal(t, 1, callbacks)
 }
 
-func TestReAnnounceSeen(t *testing.T) {
+func TestReRequestPending(t *testing.T) {
 	tt := []struct {
 		name        string
 		getSeenErr  error
@@ -1128,8 +1122,7 @@ func TestReAnnounceSeen(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.MediatorMock{
-				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
-				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
+				AskForTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash) {},
 			}
 
 			blockTxClient := &btxMocks.BlocktxClientMock{
@@ -1148,7 +1141,7 @@ func TestReAnnounceSeen(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			metamorph.ReAnnounceSeen(context.TODO(), sut)
+			metamorph.ReRequestPending(context.TODO(), sut)
 
 			// then
 			assert.Equal(t, tc.expectedGetSeenCalls, len(metamorphStore.GetPendingCalls()))
@@ -1369,9 +1362,8 @@ func TestRejectUnconfirmedRequested(t *testing.T) {
 				cStore,
 				pm,
 				statusMessageChannel,
-				metamorph.WithRejectPendingSeenEnabled(true),
+				metamorph.WithRejectPending(true, 5*time.Second, 2, []string{metamorph_api.Status_SEEN_ON_NETWORK.String()}),
 				metamorph.WithBlocktxClient(blocktxClient),
-				metamorph.WithRejectPendingBlocksSince(2),
 			)
 			require.NoError(t, err)
 
@@ -1454,7 +1446,7 @@ func TestProcessDoubleSpendTxs(t *testing.T) {
 				cStore,
 				pm,
 				statusMessageChannel,
-				metamorph.WithRejectPendingSeenEnabled(true),
+				metamorph.WithRejectPending(true, 5*time.Second, 2, []string{metamorph_api.Status_SEEN_ON_NETWORK.String()}),
 				metamorph.WithBlocktxClient(blockTxClient),
 			)
 			require.NoError(t, err)

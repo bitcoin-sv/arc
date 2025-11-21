@@ -25,7 +25,6 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	getUnseenSince := p.now().Add(-1 * p.rebroadcastExpiration)
 	var offset int64
 
-	requested := 0
 	announced := 0
 
 	const getUnseenloadLimit = 500
@@ -43,54 +42,36 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 			break
 		}
 
-		announcedUnseen, requestedUnseen := p.reAnnounceUnseenTxs(ctx, unminedTxs)
-		announced += announcedUnseen
-		requested += requestedUnseen
+		for _, tx := range unminedTxs {
+			if tx.Retries > p.maxRetries {
+				continue
+			}
+
+			// save the tx to cache again, in case it was removed or expired
+			err := p.saveTxToCache(tx.Hash)
+			if err != nil {
+				p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
+				continue
+			}
+
+			// mark that we retried processing this transaction once more
+			if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
+				p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
+			}
+
+			p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
+			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
+			announced++
+		}
 
 		time.Sleep(1 * time.Second)
 	}
 
-	if announced > 0 || requested > 0 {
-		p.logger.Info("Retried unseen transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnseenSince))
+	if announced > 0 {
+		p.logger.Info("Retried unseen transactions", slog.Int("announced", announced), slog.Time("since", getUnseenSince))
 	}
 
-	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
-}
-
-func (p *Processor) reAnnounceUnseenTxs(ctx context.Context, unminedTxs []*store.TransactionData) (int, int) {
-	requested := 0
-	announced := 0
-	for _, tx := range unminedTxs {
-		if tx.Retries > p.maxRetries {
-			continue
-		}
-
-		// save the tx to cache again, in case it was removed or expired
-		err := p.saveTxToCache(tx.Hash)
-		if err != nil {
-			p.logger.Error("Failed to store tx in cache", slog.String("hash", tx.Hash.String()), slog.String("err", err.Error()))
-			continue
-		}
-
-		// mark that we retried processing this transaction once more
-		if err = p.store.IncrementRetries(ctx, tx.Hash); err != nil {
-			p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
-		}
-
-		// every second time request tx, every other time announce tx
-		if tx.Retries%2 != 0 {
-			// Send GETDATA to peers to see if they have it
-			p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
-			requested++
-			continue
-		}
-
-		p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
-		p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
-		announced++
-	}
-	return announced, requested
+	return []attribute.KeyValue{attribute.Int("announced", announced)}
 }
 
 // RejectUnconfirmedRequested finds transactions which have been requested, but not confirmed by any node and rejects them
@@ -136,6 +117,10 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		p.logger.Debug("Unconfirmed requested txs", slog.Int("count", len(txs)), slog.Duration("requestedAgo", requestedAgo), slog.Bool("enabled", p.rejectPendingSeenEnabled))
 		if len(txs) != 0 {
 			for _, tx := range txs {
+				_, ok := p.rejectPendingStatuses[tx.Status]
+				if !ok {
+					continue
+				}
 				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
 				if p.rejectPendingSeenEnabled {
 					p.storageStatusUpdateCh <- store.UpdateStatus{
@@ -159,8 +144,8 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 	return []attribute.KeyValue{attribute.Int("rejected", totalRejected)}
 }
 
-// ReAnnounceSeen re-broadcasts and re-requests SEEN_ON_NETWORK transactions that have been pending
-func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
+// ReRequestPending re-broadcasts and re-requests transactions that have been pending
+func ReRequestPending(ctx context.Context, p *Processor) []attribute.KeyValue {
 	var offset int64
 	var totalSeenOnNetworkTxs int
 	var pendingSeen []*store.RawTx
@@ -170,7 +155,7 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	const getPendingLimit = 500
 
 	for {
-		pendingSeen, err = p.store.GetPending(ctx, p.rebroadcastExpiration, p.reAnnounceSeenLastConfirmedAgo, p.reAnnounceSeenPendingSince, getPendingLimit, offset)
+		pendingSeen, err = p.store.GetPending(ctx, p.rebroadcastExpiration, p.reRequestPendingLastConfirmedAgo, p.reRequestPendingSince, getPendingLimit, offset)
 		if err != nil {
 			p.logger.Error("Failed to get seen transactions", slog.String("err", err.Error()))
 			break
@@ -188,9 +173,6 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 		for i, tx := range pendingSeen {
 			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
 			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
-
-			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
-			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 
 			hashes[i] = tx.Hash
 		}

@@ -18,20 +18,20 @@ import (
 	testutils "github.com/bitcoin-sv/arc/pkg/test_utils"
 )
 
-func TestReAnnounceSeen(t *testing.T) {
+func TestReRequestPending(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
-	t.Run("re-announce seen", func(t *testing.T) {
+	t.Run("re-request pending", func(t *testing.T) {
 		defer pruneTables(t, dbConn)
-		testutils.LoadFixtures(t, dbConn, "fixtures/reannounce_seen")
+		testutils.LoadFixtures(t, dbConn, "fixtures/rerequest_pending")
 
 		now := time.Date(2025, 5, 8, 11, 15, 0, 0, time.UTC)
 
 		t.Log(dbInfo)
 
-		mtmStore, err := postgresql.New(dbInfo, "re-announce-integration-test", 10, 80, postgresql.WithNow(func() time.Time { return now }))
+		mtmStore, err := postgresql.New(dbInfo, "re-request-integration-test", 10, 80, postgresql.WithNow(func() time.Time { return now }))
 		require.NoError(t, err)
 		defer func() {
 			err = mtmStore.Shutdown()
@@ -49,12 +49,12 @@ func TestReAnnounceSeen(t *testing.T) {
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithReBroadcastExpiration(24*time.Hour),
-			metamorph.WithReAnnounceSeenLastConfirmedAgo(30*time.Minute),
+			metamorph.WithReRequestPending(30*time.Minute, 5*time.Minute),
 		)
 		require.NoError(t, err)
 		defer sut.Shutdown()
 
-		metamorph.ReAnnounceSeen(context.TODO(), sut)
+		metamorph.ReRequestPending(context.TODO(), sut)
 
 		chainHash1 := testutils.RevChainhash(t, "21132d32cb5411c058bb4391f24f6a36ed9b810df851d0e36cac514fd03d6b4e")
 		chainHash2 := testutils.RevChainhash(t, "4910f3dccc84bd77bccbb14b739d6512dcfc70fb8b3c61fb74d491baa01aea0a")

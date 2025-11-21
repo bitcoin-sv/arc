@@ -93,8 +93,8 @@ type MetamorphConfig struct {
 	ListenAddr                           string                               `mapstructure:"listenAddr"`
 	Db                                   *DbConfig                            `mapstructure:"db"`
 	ReAnnounceUnseenInterval             time.Duration                        `mapstructure:"reAnnounceUnseenInterval"`
-	ReAnnounceSeen                       *ReAnnounceSeenConfig                `mapstructure:"reAnnounceSeen"`
-	RejectPendingSeen                    *RejectPendingSeenConfig             `mapstructure:"rejectPendingSeen"`
+	ReRequestPending                     *ReRequestPendingConfig              `mapstructure:"reRequestPending"`
+	RejectPending                        *RejectPendingSeenConfig             `mapstructure:"rejectPending"`
 	ReRegisterSeen                       time.Duration                        `mapstructure:"reRegisterSeen"`
 	MaxRetries                           int                                  `mapstructure:"maxRetries"`
 	StatusUpdateInterval                 time.Duration                        `mapstructure:"statusUpdateInterval"`
@@ -112,9 +112,10 @@ type RejectPendingSeenConfig struct {
 	Enabled          bool          `mapstructure:"enabled"`
 	LastRequestedAgo time.Duration `mapstructure:"lastRequestedAgo"`
 	BlocksSince      uint64        `mapstructure:"blocksSince"`
+	Statuses         []string      `mapstructure:"statuses"`
 }
 
-type ReAnnounceSeenConfig struct {
+type ReRequestPendingConfig struct {
 	PendingSince     time.Duration `mapstructure:"pendingSince"`
 	LastConfirmedAgo time.Duration `mapstructure:"lastConfirmedAgo"`
 }

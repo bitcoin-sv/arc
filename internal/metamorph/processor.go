@@ -101,13 +101,14 @@ type Processor struct {
 	reRegisterSeen         time.Duration
 	reRegisterSeenInterval time.Duration
 
-	reAnnounceSeenInterval         time.Duration
-	reAnnounceSeenLastConfirmedAgo time.Duration
-	reAnnounceSeenPendingSince     time.Duration
+	reRequestPendingInterval         time.Duration
+	reRequestPendingLastConfirmedAgo time.Duration
+	reRequestPendingSince            time.Duration
 
 	rejectPendingSeenEnabled          bool
 	rejectPendingSeenLastRequestedAgo time.Duration
 	rejectPendingBlocksSince          uint64
+	rejectPendingStatuses             map[metamorph_api.Status]struct{}
 
 	checkUnconfirmedSeenInterval time.Duration
 
@@ -164,10 +165,10 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 		responseProcessor: NewResponseProcessor(),
 		statusMessageCh:   statusMessageChannel,
 
-		reAnnounceSeenLastConfirmedAgo:    reAnnounceSeenDefault,
-		reAnnounceSeenInterval:            reAnnounceSeenIntervalDefault,
+		reRequestPendingLastConfirmedAgo:  reAnnounceSeenDefault,
+		reRequestPendingInterval:          reAnnounceSeenIntervalDefault,
 		reAnnounceUnseenInterval:          rebroadcastUnseenIntervalDefault,
-		reAnnounceSeenPendingSince:        reAnnounceSeenPendingSinceDefault,
+		reRequestPendingSince:             reAnnounceSeenPendingSinceDefault,
 		rejectPendingSeenLastRequestedAgo: rejectPendingSeenLastRequestedAgoDefault,
 		rejectPendingBlocksSince:          rejectPendingSeenBlocksSinceDefault,
 		reRegisterSeenInterval:            reRegisterSeenIntervalDefault,
@@ -215,7 +216,7 @@ func (p *Processor) Start(statsEnabled bool) error {
 	time.Sleep(200 * time.Millisecond) // wait a short time so that process expired transactions will start shortly after lock transactions go routine
 
 	p.StartRoutine(p.reAnnounceUnseenInterval, ReAnnounceUnseen, "ReAnnounceUnseen")
-	p.StartRoutine(p.reAnnounceSeenInterval, ReAnnounceSeen, "ReAnnounceSeen")
+	p.StartRoutine(p.reRequestPendingInterval, ReRequestPending, "ReRequestPending")
 	p.StartRoutine(p.reRegisterSeenInterval, RegisterSeenTxs, "RegisterSeenTxs")
 	p.StartRoutine(p.checkUnconfirmedSeenInterval, RejectUnconfirmedRequested, "RejectUnconfirmedRequested")
 	p.StartRoutine(p.doubleSpendTxStatusCheck, ProcessDoubleSpendTxs, "ProcessDoubleSpendTxs")

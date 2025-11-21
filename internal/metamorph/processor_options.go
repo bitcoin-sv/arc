@@ -19,9 +19,10 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithReAnnounceSeenLastConfirmedAgo(d time.Duration) func(*Processor) {
+func WithReRequestPending(reRequestPendingLastConfirmedAgo time.Duration, reRequestPendingSince time.Duration) func(*Processor) {
 	return func(p *Processor) {
-		p.reAnnounceSeenLastConfirmedAgo = d
+		p.reRequestPendingLastConfirmedAgo = reRequestPendingLastConfirmedAgo
+		p.reRequestPendingSince = reRequestPendingSince
 	}
 }
 
@@ -31,27 +32,20 @@ func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	}
 }
 
-func WithRejectPendingSeenEnabled(rejectPendingSeen bool) func(*Processor) {
+func WithRejectPending(rejectPendingSeen bool, rejectPendingSeenLastRequestedAgo time.Duration, rejectPendingBlocksSince uint64, rejectPendingStatuses []string) func(*Processor) {
 	return func(p *Processor) {
+		pendingStatuses := map[metamorph_api.Status]struct{}{}
+		for _, status := range rejectPendingStatuses {
+			pendingStatus, ok := metamorph_api.Status_value[status]
+			if !ok {
+				continue
+			}
+			pendingStatuses[metamorph_api.Status(pendingStatus)] = struct{}{}
+		}
 		p.rejectPendingSeenEnabled = rejectPendingSeen
-	}
-}
-
-func WithReAnnounceSeenPendingSince(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.reAnnounceSeenPendingSince = d
-	}
-}
-
-func WithRejectPendingSeenLastRequestedAgo(d time.Duration) func(*Processor) {
-	return func(p *Processor) {
-		p.rejectPendingSeenLastRequestedAgo = d
-	}
-}
-
-func WithRejectPendingBlocksSince(blocks uint64) func(*Processor) {
-	return func(p *Processor) {
-		p.rejectPendingBlocksSince = blocks
+		p.rejectPendingSeenLastRequestedAgo = rejectPendingSeenLastRequestedAgo
+		p.rejectPendingBlocksSince = rejectPendingBlocksSince
+		p.rejectPendingStatuses = pendingStatuses
 	}
 }
 

@@ -43,6 +43,8 @@ func FillGaps(p *Processor) error {
 		return nil
 	}
 
+	p.resetBlockGaps()
+
 	for i, block := range blockHeightGaps {
 		p.blockGapsMap.Store(block.Hash, block.Height)
 

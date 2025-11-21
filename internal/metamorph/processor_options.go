@@ -19,9 +19,14 @@ func WithStatTimeLimits(notSeenLimit time.Duration, notFinalLimit time.Duration)
 	}
 }
 
-func WithReRequestPending(reRequestPendingLastConfirmedAgo time.Duration, reRequestPendingSince time.Duration) func(*Processor) {
+func WithReRequestPendingLastConfirmedAgo(reRequestPendingLastConfirmedAgo time.Duration) func(*Processor) {
 	return func(p *Processor) {
 		p.reRequestPendingLastConfirmedAgo = reRequestPendingLastConfirmedAgo
+	}
+}
+
+func WithReRequestPendingSince(reRequestPendingSince time.Duration) func(*Processor) {
+	return func(p *Processor) {
 		p.reRequestPendingSince = reRequestPendingSince
 	}
 }

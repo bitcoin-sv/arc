@@ -49,7 +49,7 @@ func TestReRequestPending(t *testing.T) {
 
 		sut, err := metamorph.NewProcessor(mtmStore, cacheStore, messenger, statusMessageChannel,
 			metamorph.WithReBroadcastExpiration(24*time.Hour),
-			metamorph.WithReRequestPending(30*time.Minute, 5*time.Minute),
+			metamorph.WithReRequestPendingLastConfirmedAgo(30*time.Minute),
 		)
 		require.NoError(t, err)
 		defer sut.Shutdown()

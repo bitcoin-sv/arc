@@ -35,7 +35,7 @@ const (
 	reAnnounceSeenDefault                    = 1 * time.Hour
 	reAnnounceSeenIntervalDefault            = 2 * time.Minute
 	logLevelDefault                          = slog.LevelInfo
-	reAnnounceSeenPendingSinceDefault        = 10 * time.Minute
+	reRequestPendingSinceDefault             = 10 * time.Minute
 	rejectPendingSeenLastRequestedAgoDefault = 5 * time.Minute
 	rejectPendingSeenBlocksSinceDefault      = uint64(3)
 
@@ -167,8 +167,8 @@ func NewProcessor(s store.MetamorphStore, c cache.Store, bcMediator Mediator, st
 
 		reRequestPendingLastConfirmedAgo:  reAnnounceSeenDefault,
 		reRequestPendingInterval:          reAnnounceSeenIntervalDefault,
+		reRequestPendingSince:             reRequestPendingSinceDefault,
 		reAnnounceUnseenInterval:          rebroadcastUnseenIntervalDefault,
-		reRequestPendingSince:             reAnnounceSeenPendingSinceDefault,
 		rejectPendingSeenLastRequestedAgo: rejectPendingSeenLastRequestedAgoDefault,
 		rejectPendingBlocksSince:          rejectPendingSeenBlocksSinceDefault,
 		reRegisterSeenInterval:            reRegisterSeenIntervalDefault,

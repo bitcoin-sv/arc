@@ -25,6 +25,7 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 	getUnseenSince := p.now().Add(-1 * p.rebroadcastExpiration)
 	var offset int64
 
+	requested := 0
 	announced := 0
 
 	const getUnseenloadLimit = 500
@@ -59,6 +60,15 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 				p.logger.Error("Failed to increment retries in database", slog.String("err", err.Error()))
 			}
 
+			// every second time request tx, every other time announce tx
+			if tx.Retries%2 != 0 {
+				// Send GETDATA to peers to see if they have it
+				p.logger.Debug("Re-requesting unseen tx", slog.String("hash", tx.Hash.String()))
+				p.bcMediator.AskForTxAsync(ctx, tx.Hash)
+				requested++
+				continue
+			}
+
 			p.logger.Debug("Re-announcing unseen tx", slog.String("hash", tx.Hash.String()))
 			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 			announced++
@@ -67,11 +77,11 @@ func ReAnnounceUnseen(ctx context.Context, p *Processor) []attribute.KeyValue {
 		time.Sleep(1 * time.Second)
 	}
 
-	if announced > 0 {
-		p.logger.Info("Retried unseen transactions", slog.Int("announced", announced), slog.Time("since", getUnseenSince))
+	if announced > 0 || requested > 0 {
+		p.logger.Info("Retried unseen transactions", slog.Int("announced", announced), slog.Int("requested", requested), slog.Time("since", getUnseenSince))
 	}
 
-	return []attribute.KeyValue{attribute.Int("announced", announced)}
+	return []attribute.KeyValue{attribute.Int("announced", announced), attribute.Int("requested", requested)}
 }
 
 // RejectUnconfirmedRequested finds transactions which have been requested, but not confirmed by any node and rejects them
@@ -174,8 +184,11 @@ func ReRequestPending(ctx context.Context, p *Processor) []attribute.KeyValue {
 
 		// re-announce transactions
 		for i, tx := range pendingSeen {
-			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
+			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
 			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
+
+			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
+			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 
 			hashes[i] = tx.Hash
 		}

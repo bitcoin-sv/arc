@@ -762,19 +762,22 @@ func TestReAnnounceUnseen(t *testing.T) {
 		retries       int
 		getUnminedErr error
 
+		expectedRequests      int
 		expectedAnnouncements int
 	}{
 		{
 			name:    "expired txs",
 			retries: 4,
 
-			expectedAnnouncements: 2,
+			expectedAnnouncements: 1,
+			expectedRequests:      1,
 		},
 		{
 			name:    "expired txs - max retries exceeded",
 			retries: 16,
 
 			expectedAnnouncements: 0,
+			expectedRequests:      0,
 		},
 		{
 			name:          "error - get unmined",
@@ -782,6 +785,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 			getUnminedErr: errors.New("failed to get unmined"),
 
 			expectedAnnouncements: 0,
+			expectedRequests:      0,
 		},
 	}
 
@@ -830,6 +834,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 
 			messenger := &mocks.MediatorMock{
 				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
 			}
 
 			sut, err := metamorph.NewProcessor(metamorphStore, cStore, messenger, nil,
@@ -849,6 +854,7 @@ func TestReAnnounceUnseen(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.expectedAnnouncements, len(messenger.AnnounceTxAsyncCalls()))
+			require.Equal(t, tc.expectedRequests, len(messenger.AskForTxAsyncCalls()))
 		})
 	}
 }
@@ -1122,7 +1128,8 @@ func TestReRequestPending(t *testing.T) {
 				SetUnlockedByNameFunc: func(_ context.Context, _ string) (int64, error) { return 0, nil },
 			}
 			pm := &mocks.MediatorMock{
-				AskForTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash) {},
+				AskForTxAsyncFunc:   func(_ context.Context, _ *chainhash.Hash) {},
+				AnnounceTxAsyncFunc: func(_ context.Context, _ *chainhash.Hash, _ []byte) {},
 			}
 
 			blockTxClient := &btxMocks.BlocktxClientMock{

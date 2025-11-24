@@ -31,6 +31,21 @@ func WithReRegisterSeen(d time.Duration) func(*Processor) {
 	}
 }
 
+func WithRejectPending(rejectPendingStatuses []string) func(*Processor) {
+	return func(p *Processor) {
+		pendingStatuses := map[metamorph_api.Status]struct{}{}
+		for _, status := range rejectPendingStatuses {
+			pendingStatus, ok := metamorph_api.Status_value[status]
+			if !ok {
+				continue
+			}
+			pendingStatuses[metamorph_api.Status(pendingStatus)] = struct{}{}
+		}
+
+		p.rejectPendingStatuses = pendingStatuses
+	}
+}
+
 func WithRejectPendingSeenEnabled(rejectPendingSeen bool) func(*Processor) {
 	return func(p *Processor) {
 		p.rejectPendingSeenEnabled = rejectPendingSeen

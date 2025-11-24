@@ -75,6 +75,13 @@ func getMetamorphConfig() *MetamorphConfig {
 			Enabled:          false,
 			LastRequestedAgo: 5 * time.Minute,
 			BlocksSince:      3,
+			Statuses: []string{
+				"ANNOUNCED_TO_NETWORK",
+				"REQUESTED_BY_NETWORK",
+				"SENT_TO_NETWORK",
+				"ACCEPTED_BY_NETWORK",
+				"SEEN_ON_NETWORK",
+			},
 		},
 		MaxRetries:                           1000,
 		StatusUpdateInterval:                 5 * time.Second,

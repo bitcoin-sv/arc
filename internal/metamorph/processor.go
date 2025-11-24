@@ -108,6 +108,7 @@ type Processor struct {
 	rejectPendingSeenEnabled          bool
 	rejectPendingSeenLastRequestedAgo time.Duration
 	rejectPendingBlocksSince          uint64
+	rejectPendingStatuses             map[metamorph_api.Status]struct{}
 
 	checkUnconfirmedSeenInterval time.Duration
 

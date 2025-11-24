@@ -121,6 +121,7 @@ func StartMetamorph(logger *slog.Logger, mtmCfg *config.MetamorphConfig, commonC
 		metamorph.WithRejectPendingSeenEnabled(mtmCfg.RejectPendingSeen.Enabled),
 		metamorph.WithRejectPendingSeenLastRequestedAgo(mtmCfg.RejectPendingSeen.LastRequestedAgo),
 		metamorph.WithRejectPendingBlocksSince(mtmCfg.RejectPendingSeen.BlocksSince),
+		metamorph.WithRejectPending(mtmCfg.RejectPendingSeen.Statuses),
 		metamorph.WithProcessorLogger(procLogger),
 		metamorph.WithCallbackChan(callbackerChan),
 		metamorph.WithRegisterTxChan(registerTxChan),

@@ -1100,6 +1100,13 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Pro
 	})
 }
 
+func (p *Processor) resetBlockGaps() {
+	p.blockGapsMap.Range(func(key interface{}, _ interface{}) bool {
+		p.blockGapsMap.Delete(key)
+		return true
+	})
+}
+
 func (p *Processor) GetBlockGaps() []*BlockGap {
 	gaps := make([]*BlockGap, 0)
 

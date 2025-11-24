@@ -1454,6 +1454,7 @@ func TestProcessDoubleSpendTxs(t *testing.T) {
 				cStore,
 				pm,
 				statusMessageChannel,
+				metamorph.WithRejectPending([]string{metamorph_api.Status_SEEN_ON_NETWORK.String()}),
 				metamorph.WithRejectPendingSeenEnabled(true),
 				metamorph.WithBlocktxClient(blockTxClient),
 			)

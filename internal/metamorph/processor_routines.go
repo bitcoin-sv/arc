@@ -136,7 +136,14 @@ func RejectUnconfirmedRequested(ctx context.Context, p *Processor) []attribute.K
 		p.logger.Debug("Unconfirmed requested txs", slog.Int("count", len(txs)), slog.Duration("requestedAgo", requestedAgo), slog.Bool("enabled", p.rejectPendingSeenEnabled))
 		if len(txs) != 0 {
 			for _, tx := range txs {
-				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
+				_, ok := p.rejectPendingStatuses[tx.Status]
+
+				p.logger.Info("Rejecting unconfirmed tx", slog.Bool("enabled", p.rejectPendingSeenEnabled), slog.Bool("reject status", ok), slog.String("hash", tx.Hash.String()), slog.String("status", tx.Status.String()))
+
+				if !ok {
+					continue
+				}
+
 				if p.rejectPendingSeenEnabled {
 					p.storageStatusUpdateCh <- store.UpdateStatus{
 						Hash:      *tx.Hash,
@@ -186,10 +193,10 @@ func ReAnnounceSeen(ctx context.Context, p *Processor) []attribute.KeyValue {
 
 		// re-announce transactions
 		for i, tx := range pendingSeen {
-			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
+			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
 			p.bcMediator.AskForTxAsync(ctx, tx.Hash)
 
-			p.logger.Debug("Re-requesting seen tx", slog.String("hash", tx.Hash.String()))
+			p.logger.Debug("Re-announcing seen tx", slog.String("hash", tx.Hash.String()))
 			p.bcMediator.AnnounceTxAsync(ctx, tx.Hash, tx.RawTx)
 
 			hashes[i] = tx.Hash

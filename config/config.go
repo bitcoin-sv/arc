@@ -112,6 +112,7 @@ type RejectPendingSeenConfig struct {
 	Enabled          bool          `mapstructure:"enabled"`
 	LastRequestedAgo time.Duration `mapstructure:"lastRequestedAgo"`
 	BlocksSince      uint64        `mapstructure:"blocksSince"`
+	Statuses         []string      `mapstructure:"statuses"`
 }
 
 type ReAnnounceSeenConfig struct {

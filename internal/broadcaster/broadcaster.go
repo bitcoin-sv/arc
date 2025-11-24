@@ -64,9 +64,9 @@ func WithTestRunName(testRunName string) func(broadcaster *Broadcaster) {
 	}
 }
 
-func WithFailCounter(counter metric.Int64Counter) func(broadcaster *Broadcaster) {
+func WithFailCounter(failCounter metric.Int64Counter) func(broadcaster *Broadcaster) {
 	return func(broadcaster *Broadcaster) {
-		broadcaster.failCounter = counter
+		broadcaster.failCounter = failCounter
 	}
 }
 

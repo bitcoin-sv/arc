@@ -8,17 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bsv-blockchain/go-sdk/chainhash"
-	"github.com/bsv-blockchain/go-sdk/script"
-	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
-	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
-	"github.com/stretchr/testify/require"
-
 	"github.com/bitcoin-sv/arc/internal/broadcaster"
 	"github.com/bitcoin-sv/arc/internal/broadcaster/mocks"
 	"github.com/bitcoin-sv/arc/internal/metamorph/metamorph_api"
 	"github.com/bitcoin-sv/arc/pkg/api"
 	"github.com/bitcoin-sv/arc/pkg/keyset"
+	"github.com/bsv-blockchain/go-sdk/chainhash"
+	"github.com/bsv-blockchain/go-sdk/script"
+	sdkTx "github.com/bsv-blockchain/go-sdk/transaction"
+	chaincfg "github.com/bsv-blockchain/go-sdk/transaction/chaincfg"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBroadcaster(t *testing.T) {

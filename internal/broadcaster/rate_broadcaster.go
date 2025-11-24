@@ -304,7 +304,12 @@ func (b *UTXORateBroadcaster) broadcastBatchAsync(txs sdkTx.Transactions, errCh 
 				atomic.AddInt64(&b.connectionCount, -1)
 				return
 			}
-			errCh <- err
+			select {
+			case errCh <- err:
+			default:
+				b.logger.Error("Failed to send error to channel, dropping", slog.String("err", err.Error()))
+			}
+
 		} else {
 			if b.successCounter != nil {
 				b.successCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("name", b.testRunName)))

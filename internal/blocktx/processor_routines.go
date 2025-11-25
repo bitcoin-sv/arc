@@ -27,11 +27,12 @@ func CheckBlockGaps(p *Processor) error {
 	}
 	p.logger.Info("Block gaps", slog.Int("count", len(blockHeightGaps)))
 
+	p.resetBlockGaps()
+
 	if len(blockHeightGaps) == 0 {
 		return nil
 	}
 
-	p.resetBlockGaps()
 	for _, block := range blockHeightGaps {
 		p.blockGapsMap.Store(block.Hash, block.Height)
 	}

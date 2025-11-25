@@ -1104,7 +1104,18 @@ func (p *Processor) StartRoutine(tickerInterval time.Duration, routine func(*Pro
 }
 
 func (p *Processor) resetBlockGaps() {
-	p.blockGapsMap.Range(func(key interface{}, _ interface{}) bool {
+	p.blockGapsMap.Range(func(key interface{}, value interface{}) bool {
+		hash, ok := key.(*chainhash.Hash)
+		if !ok {
+			return true
+		}
+
+		height, ok := value.(uint64)
+		if !ok {
+			return true
+		}
+
+		p.logger.Info("==== deleting block", slog.String("hash", hash.String()), slog.Uint64("height", height))
 		p.blockGapsMap.Delete(key)
 		return true
 	})
@@ -1128,6 +1139,8 @@ func (p *Processor) GetBlockGaps() []*BlockGap {
 			Hash:   hash,
 			Height: height,
 		}
+
+		p.logger.Info("==== get block", slog.String("hash", hash.String()), slog.Uint64("height", height))
 
 		gaps = append(gaps, blockGap)
 		return true

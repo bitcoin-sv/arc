@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/bitcoin-sv/arc/internal/blocktx/store"
 )
 
 const (
@@ -36,12 +34,12 @@ type StatsCollector struct {
 	cancelAll              context.CancelFunc
 	ctx                    context.Context
 	logger                 *slog.Logger
-	store                  store.BlocktxStore
+	processor              ProcessorI
 	pm                     PeerManager
 	retentionDays          int
 }
 
-func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxStore, retentionDays int, opts ...func(stats *StatsCollector)) *StatsCollector {
+func NewStatsCollector(logger *slog.Logger, pm PeerManager, processor ProcessorI, retentionDays int, opts ...func(stats *StatsCollector)) *StatsCollector {
 	p := &StatsCollector{
 		CurrentNumOfBlockGaps: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "arc_block_gaps_count",
@@ -58,7 +56,7 @@ func NewStatsCollector(logger *slog.Logger, pm PeerManager, store store.BlocktxS
 		statCollectionInterval: statCollectionIntervalDefault,
 		wg:                     &sync.WaitGroup{},
 		logger:                 logger,
-		store:                  store,
+		processor:              processor,
 		pm:                     pm,
 		retentionDays:          retentionDays,
 	}
@@ -101,13 +99,9 @@ func (p *StatsCollector) Start() error {
 			case <-p.ctx.Done():
 				return
 			case <-ticker.C:
-				collectedStats, err := p.store.GetStats(p.ctx, p.retentionDays)
-				if err != nil {
-					p.logger.Error("failed to get stats", slog.String("err", err.Error()))
-					continue
-				}
+				blockGaps := p.processor.GetBlockGaps()
 
-				p.CurrentNumOfBlockGaps.Set(float64(collectedStats.CurrentNumOfBlockGaps))
+				p.CurrentNumOfBlockGaps.Set(float64(len(blockGaps)))
 
 				// Update connected and reconnecting peers
 				connectedPeers := int(p.pm.CountConnectedPeers()) // #nosec G115

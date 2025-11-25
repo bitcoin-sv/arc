@@ -69,7 +69,128 @@ func TestUnorphanRecentWrongOrphans(t *testing.T) {
 	}
 }
 
-func TestBlockGaps(t *testing.T) {
+func TestFillGaps(t *testing.T) {
+	t.Parallel()
+
+	testBlockGaps := []*store.BlockGap{
+		{
+			Height: 822014,
+			Hash:   testdata.Block1Hash,
+		},
+		{
+			Height: 822015,
+			Hash:   testdata.Block2Hash,
+		},
+	}
+
+	tt := []struct {
+		name      string
+		blockGaps []*store.BlockGap
+		peers     int
+
+		expectedBlockGaps int
+		expectedError     error
+	}{
+		{
+			name:      "success",
+			blockGaps: testBlockGaps,
+			peers:     2,
+
+			expectedBlockGaps: 2,
+		},
+		{
+			name:      "no peers",
+			blockGaps: testBlockGaps,
+			peers:     0,
+
+			expectedError:     blocktx.ErrNoPeers,
+			expectedBlockGaps: 2,
+		},
+		{
+			name:      "0 block gaps",
+			blockGaps: []*store.BlockGap{},
+			peers:     2,
+
+			expectedBlockGaps: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			storeMock := &storeMocks.BlocktxStoreMock{
+				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
+					return tc.blockGaps, nil
+				},
+			}
+			const fillGapsInterval = 50 * time.Millisecond
+			logger := slog.Default()
+			peerMock := &p2pMocks.PeerIMock{
+				StringFunc: func() string {
+					return ""
+				},
+			}
+
+			var peers []p2p.PeerI
+			for range tc.peers {
+				peers = append(peers, peerMock)
+			}
+
+			pm := &mocks.PeerManagerMock{
+				GetPeersFunc: func() []p2p.PeerI {
+					return peers
+				},
+			}
+			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
+			sut, err := blocktx.NewProcessor(
+				logger,
+				storeMock,
+				blockRequestCh,
+				nil,
+				blocktx.WithRetentionDays(5),
+				blocktx.WithFillGaps(true, pm, fillGapsInterval), blocktx.WithRetentionDays(5),
+			)
+			require.NoError(t, err)
+
+			// ensure all deleted before stored even if there is no block gaps
+
+			// when
+			// check block gaps
+			checkBlockGapsErr := blocktx.CheckBlockGaps(sut)
+			gaps := sut.GetBlockGaps()
+			// then
+			require.Len(t, gaps, len(tc.blockGaps))
+
+			require.NoError(t, checkBlockGapsErr)
+
+			blockGaps := sut.GetBlockGaps()
+
+			require.Len(t, blockGaps, tc.expectedBlockGaps)
+
+			// when
+			// check block gaps
+			fillGapsErr := blocktx.FillGaps(sut)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, fillGapsErr, tc.expectedError)
+				return
+			}
+
+			require.NoError(t, fillGapsErr)
+
+			// then
+			actualBlockGaps := 0
+			for range tc.blockGaps {
+				<-blockRequestCh
+				actualBlockGaps++
+			}
+			require.Equal(t, actualBlockGaps, tc.expectedBlockGaps)
+
+			sut.Shutdown()
+		})
+	}
+}
+
+func TestCheckBlockGaps(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -101,18 +222,23 @@ func TestBlockGaps(t *testing.T) {
 			name:          "no block gaps",
 			blockGaps:     []*store.BlockGap{},
 			retentionDays: 5,
+
+			expectedBlockGaps: 0,
 		},
 		{
 			name:          "0 retention days",
 			blockGaps:     []*store.BlockGap{},
 			retentionDays: 0,
+
+			expectedBlockGaps: 0,
 		},
 		{
 			name:            "error getting block gaps",
 			getBlockGapsErr: errors.New("failed to get block gaps"),
 			retentionDays:   5,
 
-			expectedError: blocktx.ErrGetBlockGapsFailed,
+			expectedBlockGaps: 0,
+			expectedError:     blocktx.ErrGetBlockGapsFailed,
 		},
 	}
 
@@ -139,7 +265,6 @@ func TestBlockGaps(t *testing.T) {
 				},
 			}
 			blockRequestCh := make(chan blocktx_p2p.BlockRequest, 10)
-			//blockProcessCh := make(chan *bcnet.BlockMessagePeer, 10)
 			sut, err := blocktx.NewProcessor(
 				logger,
 				storeMock,
@@ -149,6 +274,8 @@ func TestBlockGaps(t *testing.T) {
 				blocktx.WithFillGaps(true, pm, fillGapsInterval), blocktx.WithRetentionDays(5),
 			)
 			require.NoError(t, err)
+
+			// ensure all deleted before stored even if there is no block gaps
 
 			// when
 			// check block gaps
@@ -162,23 +289,9 @@ func TestBlockGaps(t *testing.T) {
 			}
 			require.NoError(t, checkBlockGapsErr)
 
-			// when
-			// check block gaps
-			fillGapsErr := blocktx.FillGaps(sut)
-			if tc.expectedError != nil {
-				require.ErrorIs(t, fillGapsErr, tc.expectedError)
-				return
-			}
+			blockGaps := sut.GetBlockGaps()
 
-			require.NoError(t, fillGapsErr)
-
-			// then
-			actualBlockGaps := 0
-			for range tc.blockGaps {
-				<-blockRequestCh
-				actualBlockGaps++
-			}
-			require.Equal(t, actualBlockGaps, tc.expectedBlockGaps)
+			require.Len(t, blockGaps, tc.expectedBlockGaps)
 
 			sut.Shutdown()
 		})

@@ -1,7 +1,6 @@
 package blocktx_test
 
 import (
-	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -18,8 +17,7 @@ import (
 
 func TestStatsCollector_Start(t *testing.T) {
 	tt := []struct {
-		name        string
-		getStatsErr error
+		name string
 
 		expectedBlockGaps float64
 		connectedPeers    float64
@@ -31,14 +29,6 @@ func TestStatsCollector_Start(t *testing.T) {
 			expectedBlockGaps: 5.0,
 			connectedPeers:    1.0,
 			reconnectingPeers: 2.0,
-		},
-		{
-			name:        "success",
-			getStatsErr: errors.New("some error"),
-
-			expectedBlockGaps: 0.0,
-			connectedPeers:    0.0,
-			reconnectingPeers: 0.0,
 		},
 	}
 

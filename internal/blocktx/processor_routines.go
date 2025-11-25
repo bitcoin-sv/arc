@@ -25,6 +25,7 @@ func CheckBlockGaps(p *Processor) error {
 	if err != nil {
 		return errors.Join(ErrGetBlockGapsFailed, err)
 	}
+	p.logger.Info("Block gaps", slog.Int("count", len(blockHeightGaps)))
 
 	if len(blockHeightGaps) == 0 {
 		return nil

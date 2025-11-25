@@ -193,6 +193,16 @@ func TestFillGaps(t *testing.T) {
 func TestCheckBlockGaps(t *testing.T) {
 	t.Parallel()
 
+	testBlockGaps := []*store.BlockGap{
+		{
+			Height: 822014,
+			Hash:   testdata.Block1Hash,
+		},
+		{
+			Height: 822015,
+			Hash:   testdata.Block2Hash,
+		},
+	}
 	tt := []struct {
 		name            string
 		blockGaps       []*store.BlockGap
@@ -203,17 +213,8 @@ func TestCheckBlockGaps(t *testing.T) {
 		expectedError     error
 	}{
 		{
-			name: "success",
-			blockGaps: []*store.BlockGap{
-				{
-					Height: 822014,
-					Hash:   testdata.Block1Hash,
-				},
-				{
-					Height: 822015,
-					Hash:   testdata.Block2Hash,
-				},
-			},
+			name:          "success",
+			blockGaps:     testBlockGaps,
 			retentionDays: 5,
 
 			expectedBlockGaps: 2,
@@ -227,7 +228,7 @@ func TestCheckBlockGaps(t *testing.T) {
 		},
 		{
 			name:          "0 retention days",
-			blockGaps:     []*store.BlockGap{},
+			blockGaps:     testBlockGaps,
 			retentionDays: 0,
 
 			expectedBlockGaps: 0,
@@ -245,9 +246,17 @@ func TestCheckBlockGaps(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+
+			i := 0
 			storeMock := &storeMocks.BlocktxStoreMock{
 				GetBlockGapsFunc: func(_ context.Context, _ int) ([]*store.BlockGap, error) {
-					return tc.blockGaps, tc.getBlockGapsErr
+					defer func() { i++ }()
+
+					if i == 0 {
+						return tc.blockGaps, tc.getBlockGapsErr
+					}
+
+					return []*store.BlockGap{}, nil
 				},
 			}
 			const fillGapsInterval = 50 * time.Millisecond
@@ -274,26 +283,26 @@ func TestCheckBlockGaps(t *testing.T) {
 				blocktx.WithFillGaps(true, pm, fillGapsInterval), blocktx.WithRetentionDays(5),
 			)
 			require.NoError(t, err)
-
-			// ensure all deleted before stored even if there is no block gaps
+			defer sut.Shutdown()
 
 			// when
 			// check block gaps
 			checkBlockGapsErr := blocktx.CheckBlockGaps(sut)
-			gaps := sut.GetBlockGaps()
-			// then
-			require.Len(t, gaps, len(tc.blockGaps))
 			if tc.expectedError != nil {
 				require.ErrorIs(t, checkBlockGapsErr, tc.expectedError)
 				return
 			}
 			require.NoError(t, checkBlockGapsErr)
 
+			gaps := sut.GetBlockGaps()
+			// then
+			require.Len(t, gaps, len(tc.blockGaps))
+
+			err = blocktx.CheckBlockGaps(sut)
+			require.NoError(t, err)
+
 			blockGaps := sut.GetBlockGaps()
-
-			require.Len(t, blockGaps, tc.expectedBlockGaps)
-
-			sut.Shutdown()
+			require.Len(t, blockGaps, 0)
 		})
 	}
 }

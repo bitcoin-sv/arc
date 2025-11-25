@@ -9,6 +9,7 @@ import (
 
 var (
 	ErrGetBlockGapsFailed = errors.New("failed to get block gaps")
+	ErrNoPeers            = errors.New("no peers available")
 )
 
 func CheckBlockGaps(p *Processor) error {
@@ -46,7 +47,7 @@ func FillGaps(p *Processor) error {
 	peers := p.pm.GetPeers()
 
 	if len(peers) == 0 {
-		return errors.New("no peers available")
+		return ErrNoPeers
 	}
 
 	i = i % int64(len(peers))

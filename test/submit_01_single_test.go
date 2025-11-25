@@ -115,9 +115,19 @@ func TestSubmitSingle(t *testing.T) {
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 
 			node_client.Generate(t, bitcoind, 1)
+		checkMinedLoop:
+			for {
+				select {
+				case <-time.NewTicker(1 * time.Second).C:
+					statusResponse = getRequest[TransactionResponse](t, statusURL)
+					if statusResponse.TxStatus == StatusMined {
+						break checkMinedLoop
+					}
 
-			statusResponse = getRequest[TransactionResponse](t, statusURL)
-			require.Equal(t, StatusMined, statusResponse.TxStatus)
+				case <-time.NewTimer(15 * time.Second).C:
+					t.Fatal("transaction not mined after 15s")
+				}
+			}
 
 			t.Logf("Transaction status: %s", statusResponse.TxStatus)
 

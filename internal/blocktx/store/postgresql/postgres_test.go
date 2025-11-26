@@ -297,25 +297,6 @@ func TestPostgresDB(t *testing.T) {
 		require.ElementsMatch(t, expectedBlockGaps, actualBlockGaps)
 	})
 
-	t.Run("get stats for block gaps", func(t *testing.T) {
-		// given
-		prepareDb(t, postgresDB, "fixtures/get_block_gaps")
-		const expectedGaps = int64(1997) // range (14 * 24 * 6 - 10 = 2006) - already existing blocks (9) = gaps (1997)
-
-		// when
-		actualBlockGaps, err := postgresDB.GetStats(ctx, 14)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, expectedGaps, actualBlockGaps.CurrentNumOfBlockGaps)
-
-		actualBlockGaps, err = postgresDB.GetStats(ctx, 5)
-		const expectedGaps2 = int64(701) // range (5 * 24 * 6 - 10 = 710) - already existing blocks (9) = gaps (701)
-		// then
-		require.NoError(t, err)
-		require.Equal(t, expectedGaps2, actualBlockGaps.CurrentNumOfBlockGaps)
-	})
-
 	t.Run("get longest chain from height", func(t *testing.T) {
 		// given
 		prepareDb(t, postgresDB, "fixtures/get_longest_chain")

@@ -57,7 +57,6 @@ type BlocktxStore interface {
 	GetRegisteredTxsByBlockHashes(ctx context.Context, blockHashes [][]byte) ([]BlockTransaction, error)
 	GetBlockTransactionsHashes(ctx context.Context, blockHash []byte) ([]*chainhash.Hash, error)
 	UpdateBlocksStatuses(ctx context.Context, blockStatusUpdates []BlockStatusUpdate) error
-	GetStats(ctx context.Context, retentionDays int) (*Stats, error)
 	LatestBlocks(ctx context.Context, numOfBlocks uint64) ([]*blocktx_api.Block, error)
 
 	SetBlockProcessing(ctx context.Context, hash *chainhash.Hash, setProcessedBy string, lockTime time.Duration, maxParallelProcessing int) (string, error)

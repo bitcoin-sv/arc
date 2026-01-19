@@ -355,11 +355,60 @@ func TestPushDataCheck(t *testing.T) {
 			},
 			wantErr: true,
 		}, {
-			name: "invalid push data",
+			name: "invalid push data - version 0 (default)",
 			args: args{
 				tx: &sdkTx.Transaction{
+					Version: 0,
 					Inputs: []*sdkTx.TransactionInput{{
 						UnlockingScript: validLockingScript,
+					}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid push data - version 1",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Version: 1,
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: validLockingScript,
+					}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid non-push-only - version 2 (Chronicle release)",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Version: 2,
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: validLockingScript, // contains OP_DUP, OP_HASH160, etc. (non-push-only)
+					}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid non-push-only - version 3 (Chronicle release)",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Version: 3,
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: validLockingScript, // contains OP_DUP, OP_HASH160, etc. (non-push-only)
+					}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty unlocking script - version 2 still invalid",
+			args: args{
+				tx: &sdkTx.Transaction{
+					Version: 2,
+					Inputs: []*sdkTx.TransactionInput{{
+						UnlockingScript: nil,
 					}},
 				},
 			},

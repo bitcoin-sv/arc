@@ -190,6 +190,12 @@ func pushDataCheck(tx *sdkTx.Transaction) error {
 		if input.UnlockingScript == nil {
 			return errors.Join(ErrEmptyUnlockingScript, fmt.Errorf("input: %d", index))
 		}
+
+		// Chronicle release: version 2+ transactions allow non-push-only unlocking scripts
+		if tx.Version >= 2 {
+			continue
+		}
+
 		parser := interpreter.DefaultOpcodeParser{}
 		parsedUnlockingScript, err := parser.Parse(input.UnlockingScript)
 		if err != nil {

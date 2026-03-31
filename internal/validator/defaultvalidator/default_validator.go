@@ -137,7 +137,7 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *validator.Error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
 		if blockHeight <= 0 {
-			return validator.NewError(fmt.Errorf("block height not yet available"), api.ErrStatusGeneric)
+			return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
 		}
 
 		// Use current block height as the UTXO height for all inputs. Actual UTXO creation

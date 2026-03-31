@@ -111,9 +111,7 @@ func main() {
 	case "mainnet":
 		network = "main"
 		chronicleForkBlock = apiHandler.ChronicleForkBlockMain
-	case "regtest":
-		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
-	default:
+	default: // includes regtest
 		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
 	}
 

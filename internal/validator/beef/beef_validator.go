@@ -203,6 +203,12 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 }
 
 func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32) *validator.Error {
+	if blockHeight <= 0 {
+		return validator.NewError(fmt.Errorf("block height not yet available"), api.ErrStatusGeneric)
+	}
+
+	// Use current block height as the UTXO height for all inputs. See comment in
+	// DefaultValidator.performStandardScriptValidation for rationale.
 	tx := beefTx.Transaction
 	utxo := make([]int32, len(tx.Inputs))
 	for i := range tx.Inputs {

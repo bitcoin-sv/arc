@@ -136,6 +136,15 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 
 func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *validator.Error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
+		if blockHeight <= 0 {
+			return validator.NewError(fmt.Errorf("block height not yet available"), api.ErrStatusGeneric)
+		}
+
+		// Use current block height as the UTXO height for all inputs. Actual UTXO creation
+		// heights are not available in ARC's current architecture (extendTx only fetches parent
+		// outputs, not their confirmation height). This is safe because Chronicle only adds new
+		// capabilities (OTDA sighash) without changing how pre-Chronicle scripts validate, and
+		// ARC serves as a pre-check — the node performs authoritative validation.
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
 			utxo[i] = blockHeight

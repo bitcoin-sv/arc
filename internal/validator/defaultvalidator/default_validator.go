@@ -28,6 +28,7 @@ type DefaultValidator struct {
 	policy                  *bitcoin.Settings
 	txFinder                validator.TxFinderI
 	scriptVerifier          internalApi.ScriptVerifier
+	chronicleForkBlock      int32
 	tracingEnabled          bool
 	tracingAttributes       []attribute.KeyValue
 	standardFormatSupported bool
@@ -52,6 +53,12 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.Sc
 func WithStandardFormatSupported(standardFormatSupported bool) func(*DefaultValidator) {
 	return func(d *DefaultValidator) {
 		d.standardFormatSupported = standardFormatSupported
+	}
+}
+
+func WithChronicleForkBlock(height int32) func(*DefaultValidator) {
+	return func(d *DefaultValidator) {
+		d.chronicleForkBlock = height
 	}
 }
 
@@ -140,14 +147,15 @@ func (v *DefaultValidator) performStandardScriptValidation(scriptValidation vali
 			return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
 		}
 
-		// Use current block height as the UTXO height for all inputs. Actual UTXO creation
-		// heights are not available in ARC's current architecture (extendTx only fetches parent
-		// outputs, not their confirmation height). This is safe because Chronicle only adds new
-		// capabilities (OTDA sighash) without changing how pre-Chronicle scripts validate, and
-		// ARC serves as a pre-check — the node performs authoritative validation.
+		// Use the Chronicle fork block height as the UTXO height for all inputs. Actual UTXO
+		// creation heights are not available in ARC's current architecture (extendTx only fetches
+		// parent outputs, not their confirmation height). The Chronicle fork height is used because
+		// all UTXOs are treated uniformly — Chronicle rules are the most lenient, so there are no
+		// false negatives. ARC serves as a pre-check; the node performs authoritative validation.
+		utxoHeight := v.chronicleForkBlock
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
-			utxo[i] = blockHeight
+			utxo[i] = utxoHeight
 		}
 
 		b, err := tx.EF()

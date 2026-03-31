@@ -103,12 +103,18 @@ func main() {
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	network := arcConfig.Common.Network
+	var chronicleForkBlock int32
 	switch arcConfig.Common.Network {
 	case "testnet":
 		network = "test"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockTest
 	case "mainnet":
 		network = "main"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockMain
+	case "regtest":
+		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
 	default:
+		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
 	}
 
 	se := goscript.NewScriptEngine(network)
@@ -133,13 +139,14 @@ func main() {
 		arcConfig.API.DefaultPolicy,
 		cachedFinder,
 		se,
+		defaultValidator.WithChronicleForkBlock(chronicleForkBlock),
 	)
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
 
 	chainTrackerMock := &apimocks.ChainTrackerMock{}
-	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, se)
+	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, se, beefValidator.WithChronicleForkBlock(chronicleForkBlock))
 	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)

@@ -183,7 +183,7 @@ func TestValidateScripts(t *testing.T) {
 					continue
 				}
 
-				actualError := validateScripts(btx, se, int32(10000))
+				actualError := validateScripts(btx, se, int32(15000), int32(15000))
 				if tc.expectedError != nil {
 					require.Equal(t, tc.expectedError, actualError)
 					return

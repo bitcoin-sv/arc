@@ -198,19 +198,24 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stoppable = append(stoppable, merkleVerifierClient)
 	}
 
+	var chronicleForkBlock int32
+
 	switch commonCfg.Network {
 	case "testnet":
 		network = "test"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockTest
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, apiCfg.WocAPIKey)
 		}
 	case "mainnet":
 		network = "main"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockMain
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, apiCfg.WocAPIKey)
 		}
 	case "regtest":
 		network = "regtest"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
 		if !bhsDefined {
 			chainTracker = merkle_verifier.New(global.MerkleRootsVerifier(blockTxClient), blockTxClient)
 		}
@@ -218,6 +223,9 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stopFn()
 		return nil, fmt.Errorf("invalid network type: %s", commonCfg.Network)
 	}
+
+	defaultValidatorOpts = append(defaultValidatorOpts, defaultValidator.WithChronicleForkBlock(chronicleForkBlock))
+	beefValidatorOpts = append(beefValidatorOpts, beefValidator.WithChronicleForkBlock(chronicleForkBlock))
 
 	dv := defaultValidator.New(
 		policy,

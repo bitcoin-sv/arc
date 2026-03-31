@@ -29,6 +29,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- Use Chronicle fork block height constants for UTXO heights in script validation instead of the current block height. The Chronicle fork activation heights (mainnet: 882687, testnet: 1621670, regtest: 15000) are now defined as `ChronicleForkBlock*` constants and used uniformly for all UTXO inputs passed to BDK's `VerifyScript`. This makes the validation behavior explicit and consistent — all UTXOs are treated under Chronicle rules (the most lenient), eliminating false negatives while accepting some expected false positives. ARC serves as a pre-check; the node performs authoritative validation.
+
 ## [1.5.3] - 2025-10-22
 
 ### Changed

@@ -121,7 +121,7 @@ func TestBeefValidator(t *testing.T) {
 			}
 
 			se := goscript.NewScriptEngine("regtest")
-			sut := New(getPolicy(1), ctMock, se)
+			sut := New(getPolicy(1), ctMock, se, WithChronicleForkBlock(15000))
 
 			// when
 			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validator.StandardFeeValidation, validator.StandardScriptValidation, 632099)

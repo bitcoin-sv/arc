@@ -111,8 +111,10 @@ func main() {
 	case "mainnet":
 		network = "main"
 		chronicleForkBlock = apiHandler.ChronicleForkBlockMain
-	default: // includes regtest
+	case "regtest":
 		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
+	default:
+		panic(fmt.Sprintf("unsupported network: %s", arcConfig.Common.Network))
 	}
 
 	se := goscript.NewScriptEngine(network)

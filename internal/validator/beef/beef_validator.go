@@ -213,6 +213,9 @@ func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockH
 	if blockHeight <= 0 {
 		return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
 	}
+	if chronicleForkBlock <= 0 {
+		return validator.NewError(errors.New("chronicle fork block height not configured"), api.ErrStatusGeneric)
+	}
 
 	// Use the Chronicle fork block height as the UTXO height for all inputs. Actual UTXO
 	// creation heights are not available in ARC's current architecture. The Chronicle fork

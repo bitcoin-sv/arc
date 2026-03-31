@@ -146,6 +146,9 @@ func (v *DefaultValidator) performStandardScriptValidation(scriptValidation vali
 		if blockHeight <= 0 {
 			return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
 		}
+		if v.chronicleForkBlock <= 0 {
+			return validator.NewError(errors.New("chronicle fork block height not configured"), api.ErrStatusGeneric)
+		}
 
 		// Use the Chronicle fork block height as the UTXO height for all inputs. Actual UTXO
 		// creation heights are not available in ARC's current architecture (extendTx only fetches

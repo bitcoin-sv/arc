@@ -121,7 +121,7 @@ func TestBeefValidator(t *testing.T) {
 			}
 
 			se := goscript.NewScriptEngine("regtest")
-			sut := New(getPolicy(1), ctMock, se, int32(10000))
+			sut := New(getPolicy(1), ctMock, se)
 
 			// when
 			actualTx, err := sut.ValidateTransaction(context.TODO(), beefTx, validator.StandardFeeValidation, validator.StandardScriptValidation, 632099)
@@ -183,7 +183,7 @@ func TestValidateScripts(t *testing.T) {
 					continue
 				}
 
-				actualError := validateScripts(btx, se, int32(10000), int32(10000))
+				actualError := validateScripts(btx, se, int32(10000))
 				if tc.expectedError != nil {
 					require.Equal(t, tc.expectedError, actualError)
 					return

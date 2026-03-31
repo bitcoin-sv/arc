@@ -103,14 +103,11 @@ func main() {
 	blockTxClient := blocktx.NewClient(blocktx_api.NewBlockTxAPIClient(btcConn))
 
 	network := arcConfig.Common.Network
-	genesisBlock := apiHandler.GenesisForkBlockRegtest
 	switch arcConfig.Common.Network {
 	case "testnet":
 		network = "test"
-		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
-		genesisBlock = apiHandler.GenesisForkBlockMain
 	default:
 	}
 
@@ -136,14 +133,13 @@ func main() {
 		arcConfig.API.DefaultPolicy,
 		cachedFinder,
 		se,
-		genesisBlock,
 	)
 
 	// initialise the arc default api handler, with our txHandler and any handler options
 	var handler api.ServerInterface
 
 	chainTrackerMock := &apimocks.ChainTrackerMock{}
-	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, se, genesisBlock)
+	bv := beefValidator.New(arcConfig.API.DefaultPolicy, chainTrackerMock, se)
 	defaultHandler, err := apiHandler.NewDefault(logger, metamorphClient, blockTxClient, arcConfig.API.DefaultPolicy, dv, bv)
 	if err != nil {
 		panic(err)

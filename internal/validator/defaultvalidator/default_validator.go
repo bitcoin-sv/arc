@@ -28,16 +28,14 @@ type DefaultValidator struct {
 	policy                  *bitcoin.Settings
 	txFinder                validator.TxFinderI
 	scriptVerifier          internalApi.ScriptVerifier
-	genesisForkBLock        int32
 	tracingEnabled          bool
 	tracingAttributes       []attribute.KeyValue
 	standardFormatSupported bool
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, opts ...Option) *DefaultValidator {
 	d := &DefaultValidator{
 		scriptVerifier:          sv,
-		genesisForkBLock:        genesisForkBLock,
 		policy:                  policy,
 		txFinder:                finder,
 		standardFormatSupported: true,
@@ -140,7 +138,7 @@ func (v *DefaultValidator) performStandardScriptValidation(scriptValidation vali
 	if scriptValidation == validator.StandardScriptValidation {
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
-			utxo[i] = v.genesisForkBLock
+			utxo[i] = blockHeight
 		}
 
 		b, err := tx.EF()

@@ -40,7 +40,6 @@ type Validator struct {
 	policy            *bitcoin.Settings
 	chainTracker      ChainTracker
 	scriptVerifier    internalApi.ScriptVerifier
-	genesisForkBLock  int32
 	tracingEnabled    bool
 	tracingAttributes []attribute.KeyValue
 }
@@ -60,12 +59,11 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTracker ChainTracker, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *Validator {
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, sv internalApi.ScriptVerifier, opts ...Option) *Validator {
 	v := &Validator{
-		policy:           policy,
-		chainTracker:     chainTracker,
-		scriptVerifier:   sv,
-		genesisForkBLock: genesisForkBLock,
+		policy:         policy,
+		chainTracker:   chainTracker,
+		scriptVerifier: sv,
 	}
 	// apply options
 	for _, opt := range opts {
@@ -108,7 +106,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			vErr = validateScripts(btx, v.scriptVerifier, blockHeight, v.genesisForkBLock)
+			vErr = validateScripts(btx, v.scriptVerifier, blockHeight)
 			if vErr != nil {
 				return tx, vErr
 			}
@@ -204,11 +202,11 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 	return nil
 }
 
-func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, genesisForkBLock int32) *validator.Error {
+func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32) *validator.Error {
 	tx := beefTx.Transaction
 	utxo := make([]int32, len(tx.Inputs))
 	for i := range tx.Inputs {
-		utxo[i] = genesisForkBLock
+		utxo[i] = blockHeight
 	}
 
 	b, err := tx.EF()

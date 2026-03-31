@@ -180,7 +180,6 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	cachedFinder := txfinder.NewCached(finder, cachedFinderOpts...)
 
 	var network string
-	var genesisBlock int32
 	var chainTracker beefValidator.ChainTracker
 	bhsDefined := len(apiCfg.MerkleRootVerification.BlockHeaderServices) != 0
 
@@ -205,19 +204,16 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, apiCfg.WocAPIKey)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, apiCfg.WocAPIKey)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockMain
 	case "regtest":
 		network = "regtest"
 		if !bhsDefined {
 			chainTracker = merkle_verifier.New(global.MerkleRootsVerifier(blockTxClient), blockTxClient)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
 		stopFn()
 		return nil, fmt.Errorf("invalid network type: %s", commonCfg.Network)
@@ -227,11 +223,10 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		policy,
 		cachedFinder,
 		goscript.NewScriptEngine(network),
-		genesisBlock,
 		defaultValidatorOpts...,
 	)
 
-	bv := beefValidator.New(policy, chainTracker, goscript.NewScriptEngine(network), genesisBlock, beefValidatorOpts...)
+	bv := beefValidator.New(policy, chainTracker, goscript.NewScriptEngine(network), beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

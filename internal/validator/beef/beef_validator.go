@@ -37,12 +37,12 @@ type ChainTracker interface {
 }
 
 type Validator struct {
-	policy            *bitcoin.Settings
-	chainTracker      ChainTracker
-	scriptVerifier    internalApi.ScriptVerifier
-	genesisForkBLock  int32
-	tracingEnabled    bool
-	tracingAttributes []attribute.KeyValue
+	policy             *bitcoin.Settings
+	chainTracker       ChainTracker
+	scriptVerifier     internalApi.ScriptVerifier
+	chronicleForkBlock int32
+	tracingEnabled     bool
+	tracingAttributes  []attribute.KeyValue
 }
 
 type Option func(d *Validator)
@@ -60,12 +60,17 @@ func WithTracer(attr ...attribute.KeyValue) func(s *Validator) {
 	}
 }
 
-func New(policy *bitcoin.Settings, chainTracker ChainTracker, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *Validator {
+func WithChronicleForkBlock(height int32) func(*Validator) {
+	return func(v *Validator) {
+		v.chronicleForkBlock = height
+	}
+}
+
+func New(policy *bitcoin.Settings, chainTracker ChainTracker, sv internalApi.ScriptVerifier, opts ...Option) *Validator {
 	v := &Validator{
-		policy:           policy,
-		chainTracker:     chainTracker,
-		scriptVerifier:   sv,
-		genesisForkBLock: genesisForkBLock,
+		policy:         policy,
+		chainTracker:   chainTracker,
+		scriptVerifier: sv,
 	}
 	// apply options
 	for _, opt := range opts {
@@ -108,7 +113,7 @@ func (v *Validator) ValidateTransaction(ctx context.Context, beefTx *sdkTx.Beef,
 		}
 
 		if scriptValidation == validator.StandardScriptValidation {
-			vErr = validateScripts(btx, v.scriptVerifier, blockHeight, v.genesisForkBLock)
+			vErr = validateScripts(btx, v.scriptVerifier, blockHeight, v.chronicleForkBlock)
 			if vErr != nil {
 				return tx, vErr
 			}
@@ -204,11 +209,23 @@ func cumulativeCheckFees(beefTx *sdkTx.Beef, feeModel *feemodel.SatoshisPerKilob
 	return nil
 }
 
-func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, genesisForkBLock int32) *validator.Error {
+func validateScripts(beefTx *sdkTx.BeefTx, sv internalApi.ScriptVerifier, blockHeight int32, chronicleForkBlock int32) *validator.Error {
+	if blockHeight <= 0 {
+		return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
+	}
+	if chronicleForkBlock <= 0 {
+		return validator.NewError(errors.New("chronicle fork block height not configured"), api.ErrStatusGeneric)
+	}
+
+	// Use the Chronicle fork block height as the UTXO height for all inputs. Actual UTXO
+	// creation heights are not available in ARC's current architecture. The Chronicle fork
+	// height is used because all UTXOs are treated uniformly — Chronicle rules are the most
+	// lenient, so there are no false negatives. ARC serves as a pre-check; the node performs
+	// authoritative validation.
 	tx := beefTx.Transaction
 	utxo := make([]int32, len(tx.Inputs))
 	for i := range tx.Inputs {
-		utxo[i] = genesisForkBLock
+		utxo[i] = chronicleForkBlock
 	}
 
 	b, err := tx.EF()

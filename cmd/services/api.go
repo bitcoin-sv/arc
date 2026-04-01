@@ -180,7 +180,6 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 	cachedFinder := txfinder.NewCached(finder, cachedFinderOpts...)
 
 	var network string
-	var genesisBlock int32
 	var chainTracker beefValidator.ChainTracker
 	bhsDefined := len(apiCfg.MerkleRootVerification.BlockHeaderServices) != 0
 
@@ -199,39 +198,43 @@ func StartAPIServer(logger *slog.Logger, apiCfg *config.APIConfig, commonCfg *co
 		stoppable = append(stoppable, merkleVerifierClient)
 	}
 
+	var chronicleForkBlock int32
+
 	switch commonCfg.Network {
 	case "testnet":
 		network = "test"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockTest
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.TestNet, apiCfg.WocAPIKey)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockTest
 	case "mainnet":
 		network = "main"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockMain
 		if !bhsDefined {
 			chainTracker = chaintracker.NewWhatsOnChain(chaintracker.MainNet, apiCfg.WocAPIKey)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockMain
 	case "regtest":
 		network = "regtest"
+		chronicleForkBlock = apiHandler.ChronicleForkBlockRegtest
 		if !bhsDefined {
 			chainTracker = merkle_verifier.New(global.MerkleRootsVerifier(blockTxClient), blockTxClient)
 		}
-		genesisBlock = apiHandler.GenesisForkBlockRegtest
 	default:
 		stopFn()
 		return nil, fmt.Errorf("invalid network type: %s", commonCfg.Network)
 	}
 
+	defaultValidatorOpts = append(defaultValidatorOpts, defaultValidator.WithChronicleForkBlock(chronicleForkBlock))
+	beefValidatorOpts = append(beefValidatorOpts, beefValidator.WithChronicleForkBlock(chronicleForkBlock))
+
 	dv := defaultValidator.New(
 		policy,
 		cachedFinder,
 		goscript.NewScriptEngine(network),
-		genesisBlock,
 		defaultValidatorOpts...,
 	)
 
-	bv := beefValidator.New(policy, chainTracker, goscript.NewScriptEngine(network), genesisBlock, beefValidatorOpts...)
+	bv := beefValidator.New(policy, chainTracker, goscript.NewScriptEngine(network), beefValidatorOpts...)
 
 	defaultAPIHandler, err := apiHandler.NewDefault(logger, mtmClient, blockTxClient, policy, dv, bv, apiOpts...)
 	if err != nil {

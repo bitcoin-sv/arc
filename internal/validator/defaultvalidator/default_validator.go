@@ -28,16 +28,15 @@ type DefaultValidator struct {
 	policy                  *bitcoin.Settings
 	txFinder                validator.TxFinderI
 	scriptVerifier          internalApi.ScriptVerifier
-	genesisForkBLock        int32
+	chronicleForkBlock      int32
 	tracingEnabled          bool
 	tracingAttributes       []attribute.KeyValue
 	standardFormatSupported bool
 }
 
-func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, genesisForkBLock int32, opts ...Option) *DefaultValidator {
+func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.ScriptVerifier, opts ...Option) *DefaultValidator {
 	d := &DefaultValidator{
 		scriptVerifier:          sv,
-		genesisForkBLock:        genesisForkBLock,
 		policy:                  policy,
 		txFinder:                finder,
 		standardFormatSupported: true,
@@ -54,6 +53,12 @@ func New(policy *bitcoin.Settings, finder validator.TxFinderI, sv internalApi.Sc
 func WithStandardFormatSupported(standardFormatSupported bool) func(*DefaultValidator) {
 	return func(d *DefaultValidator) {
 		d.standardFormatSupported = standardFormatSupported
+	}
+}
+
+func WithChronicleForkBlock(height int32) func(*DefaultValidator) {
+	return func(d *DefaultValidator) {
+		d.chronicleForkBlock = height
 	}
 }
 
@@ -138,9 +143,22 @@ func (v *DefaultValidator) ValidateTransaction(ctx context.Context, tx *sdkTx.Tr
 
 func (v *DefaultValidator) performStandardScriptValidation(scriptValidation validator.ScriptValidation, tx *sdkTx.Transaction, blockHeight int32) *validator.Error { //nolint: revive //false error thrown
 	if scriptValidation == validator.StandardScriptValidation {
+		if blockHeight <= 0 {
+			return validator.NewError(errors.New("block height not yet available"), api.ErrStatusGeneric)
+		}
+		if v.chronicleForkBlock <= 0 {
+			return validator.NewError(errors.New("chronicle fork block height not configured"), api.ErrStatusGeneric)
+		}
+
+		// Use the Chronicle fork block height as the UTXO height for all inputs. Actual UTXO
+		// creation heights are not available in ARC's current architecture (extendTx only fetches
+		// parent outputs, not their confirmation height). The Chronicle fork height is used because
+		// all UTXOs are treated uniformly — Chronicle rules are the most lenient, so there are no
+		// false negatives. ARC serves as a pre-check; the node performs authoritative validation.
+		utxoHeight := v.chronicleForkBlock
 		utxo := make([]int32, len(tx.Inputs))
 		for i := range tx.Inputs {
-			utxo[i] = v.genesisForkBLock
+			utxo[i] = utxoHeight
 		}
 
 		b, err := tx.EF()

@@ -34,6 +34,10 @@ const (
 	GenesisForkBlockMain         = int32(620539)
 	GenesisForkBlockTest         = int32(1344302)
 	GenesisForkBlockRegtest      = int32(10000)
+
+	ChronicleForkBlockMain    = int32(882687)
+	ChronicleForkBlockTest    = int32(1621670)
+	ChronicleForkBlockRegtest = int32(15000)
 )
 
 var (

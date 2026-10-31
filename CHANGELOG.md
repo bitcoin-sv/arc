@@ -33,6 +33,10 @@ All notable changes to this project will be documented in this file. The format 
 
 - Use Chronicle fork block height constants for UTXO heights in script validation instead of the current block height. The Chronicle fork activation heights (mainnet: 882687, testnet: 1621670, regtest: 15000) are now defined as `ChronicleForkBlock*` constants and used uniformly for all UTXO inputs passed to BDK's `VerifyScript`. This makes the validation behavior explicit and consistent — all UTXOs are treated under Chronicle rules (the most lenient), eliminating false negatives while accepting some expected false positives. ARC serves as a pre-check; the node performs authoritative validation.
 
+### Fixed
+
+- Metamorph no longer panics with a nil pointer dereference when storing a new transaction fails. The store error is now logged and returned to the caller as `RECEIVED` with the error, instead of crashing the process and dropping every in-flight request.
+
 ## [1.5.3] - 2025-10-22
 
 ### Changed

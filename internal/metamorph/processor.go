@@ -722,7 +722,7 @@ func (p *Processor) ProcessTransaction(ctx context.Context, req *ProcessorReques
 	if err = p.storeData(ctx, req.Data); err != nil {
 		// issue with the store itself
 		// notify the client instantly and return
-		p.logger.Error("Failed to store transaction", slog.String("hash", data.Hash.String()), slog.String("err", err.Error()))
+		p.logger.Error("Failed to store transaction", slog.String("hash", req.Data.Hash.String()), slog.String("err", err.Error()))
 		statusResponse.UpdateStatus(StatusAndError{
 			Status: metamorph_api.Status_RECEIVED,
 			Err:    err,

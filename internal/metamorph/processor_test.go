@@ -151,6 +151,7 @@ func TestProcessTransaction(t *testing.T) {
 		name            string
 		storeData       *store.TransactionData
 		storeDataGetErr error
+		storeDataSetErr error
 		registerTxErr   error
 
 		expectedResponses     []metamorph_api.Status
@@ -205,6 +206,19 @@ func TestProcessTransaction(t *testing.T) {
 			expectedRequestCalls:  0,
 		},
 		{
+			name:            "record not found - store data failed",
+			storeData:       nil,
+			storeDataGetErr: store.ErrNotFound,
+			storeDataSetErr: sql.ErrConnDone,
+
+			expectedResponses: []metamorph_api.Status{
+				metamorph_api.Status_RECEIVED,
+			},
+			expectedSetCalls:      1,
+			expectedAnnounceCalls: 0,
+			expectedRequestCalls:  0,
+		},
+		{
 			name:            "store unavailable",
 			storeData:       nil,
 			storeDataGetErr: sql.ErrConnDone,
@@ -230,7 +244,7 @@ func TestProcessTransaction(t *testing.T) {
 				SetFunc: func(_ context.Context, value *store.TransactionData) error {
 					require.True(t, bytes.Equal(testdata.TX1Hash[:], value.Hash[:]))
 
-					return nil
+					return tc.storeDataSetErr
 				},
 				GetUnseenFunc: func(_ context.Context, _ time.Time, _ int64, offset int64) ([]*store.TransactionData, error) {
 					if offset != 0 {
